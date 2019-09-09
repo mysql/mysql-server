@@ -9609,8 +9609,6 @@ bool mysqld_get_one_option(int optid,
 
 /** Handle arguments for multiple key caches. */
 
-C_MODE_START
-
 static void *mysql_getopt_value(const char *keyname, size_t key_length,
                                 const struct my_option *option, int *error) {
   if (error) *error = 0;
@@ -9638,8 +9636,6 @@ static void *mysql_getopt_value(const char *keyname, size_t key_length,
   }
   return option->value;
 }
-
-C_MODE_END
 
 /**
   Get server options from the command line,

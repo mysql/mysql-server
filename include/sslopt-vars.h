@@ -32,6 +32,7 @@
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "mysql.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 #if defined(HAVE_OPENSSL)

@@ -61,6 +61,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql_common.h"
+#include "template_utils.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>

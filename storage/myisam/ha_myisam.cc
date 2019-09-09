@@ -1527,8 +1527,6 @@ int ha_myisam::delete_row(const uchar *buf) {
   return mi_delete(file, buf);
 }
 
-C_MODE_START
-
 ICP_RESULT index_cond_func_myisam(void *arg) {
   ha_myisam *h = (ha_myisam *)arg;
 
@@ -1538,8 +1536,6 @@ ICP_RESULT index_cond_func_myisam(void *arg) {
 
   return (ICP_RESULT)MY_TEST(h->pushed_idx_cond->val_int());
 }
-
-C_MODE_END
 
 int ha_myisam::index_init(uint idx, bool) {
   active_index = idx;

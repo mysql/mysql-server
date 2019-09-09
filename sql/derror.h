@@ -27,7 +27,6 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "my_macros.h"
 
 #ifdef EXTRA_CODE_FOR_UNIT_TESTING
 #include "mysqld_error.h"
@@ -109,10 +108,8 @@ const char *ER_THD(const THD *thd, int mysql_errno);
 const char *ER_DEFAULT_NONCONST(int mysql_errno);
 const char *ER_THD_NONCONST(const THD *thd, int mysql_errno);
 
-C_MODE_START
 const char *error_message_for_error_log(int mysql_errno);
 const char *error_message_for_client(int mysql_errno);
-C_MODE_END
 
 const char *mysql_errno_to_symbol(int mysql_errno);
 int mysql_symbol_to_errno(const char *error_symbol);

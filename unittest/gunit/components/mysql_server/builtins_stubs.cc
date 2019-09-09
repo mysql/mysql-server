@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -66,12 +66,10 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)),
 
 int log_message(int log_type MY_ATTRIBUTE((unused)), ...) { return -1; }
 
-C_MODE_START
 const char *error_message_for_error_log(
     int mysql_errno MY_ATTRIBUTE((unused))) {
   return NULL;
 }
-C_MODE_END
 
 void push_warning(THD *thd MY_ATTRIBUTE((unused)),
                   Sql_condition::enum_severity_level severity

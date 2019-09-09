@@ -27,6 +27,7 @@
 #include <string.h>  // memcpy
 
 #include "my_byteorder.h"
+#include "my_dbug.h"
 #include "storage/ndb/plugin/ndb_name_util.h"  // ndb_name_is_temp
 
 void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,

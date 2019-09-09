@@ -25,6 +25,7 @@
 #include "plugin/x/tests/driver/connector/session_holder.h"
 
 #include "my_dbug.h"
+#include "template_utils.h"
 
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 

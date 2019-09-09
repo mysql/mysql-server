@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _m_string_h
-#define _m_string_h
+#ifndef M_STRING_INCLUDED
+#define M_STRING_INCLUDED
 
 /**
   @file include/m_string.h
@@ -280,9 +280,7 @@ static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
   (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT))
 
 extern char *int2str(long val, char *dst, int radix, int upcase);
-C_MODE_START
 extern char *int10_to_str(long val, char *dst, int radix);
-C_MODE_END
 extern const char *str2int(const char *src, int radix, long lower, long upper,
                            long *val);
 longlong my_strtoll10(const char *nptr, const char **endptr, int *error);
@@ -367,4 +365,4 @@ static inline void lex_cstring_set(LEX_CSTRING *lex_str, const char *c_str) {
   lex_str->length = strlen(c_str);
 }
 
-#endif
+#endif  // M_STRING_INCLUDED

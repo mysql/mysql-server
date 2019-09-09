@@ -22,12 +22,12 @@
 
 #include "sql/psi_memory_key.h"
 
-#include "my_macros.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/psi_base.h"  // PSI_FLAG_ONLY_GLOBAL_STAT
 #include "mysql/psi/psi_memory.h"
+#include "template_utils.h"
 
 /*
   MAINTAINER: Please keep this list in order, to limit merge collisions.

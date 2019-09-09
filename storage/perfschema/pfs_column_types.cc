@@ -30,6 +30,7 @@
 
 #include "lex_string.h"
 #include "m_string.h" /* LEX_STRING */
+#include "template_utils.h"
 
 struct s_object_type_map {
   enum_object_type m_enum;

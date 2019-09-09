@@ -25,6 +25,7 @@
 
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
+#include "template_utils.h"
 
 PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
     key_GCS_THD_Gcs_xcom_engine_m_engine_thread,

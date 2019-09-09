@@ -354,7 +354,6 @@ static MY_CHARSET_HANDLER my_charset_handler = {NULL, /* init */
                                                 my_strntoull10rnd_8bit,
                                                 my_scan_8bit};
 
-extern "C" {
 CHARSET_INFO my_charset_latin1 = {
     8,
     0,
@@ -389,7 +388,6 @@ CHARSET_INFO my_charset_latin1 = {
     &my_charset_handler,
     &my_collation_8bit_simple_ci_handler,
     PAD_SPACE};
-}
 
 /*
  * This file is the latin1 character set with German sorting

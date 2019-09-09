@@ -45,6 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "rwlock_scoped_lock.h"
 #include "scope_guard.h"
 #include "server_component.h"
+#include "template_utils.h"
 
 /**
   @page PAGE_COMPONENTS Component Subsystem

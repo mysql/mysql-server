@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,4 @@ log_item_type_mask log_line_item_types_seen(log_line *, log_item_type_mask) {
   return 0;
 }
 int log_line_submit(log_line *) { return 0; }
-extern "C" {
 const char *error_message_for_error_log(int) { return NULL; }
-}

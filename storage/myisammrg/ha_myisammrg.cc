@@ -144,7 +144,7 @@ static const char *ha_myisammrg_exts[] = {".MRG", NullS};
 static void split_file_name(const char *file_name, LEX_CSTRING *db,
                             LEX_CSTRING *name);
 
-extern "C" void myrg_print_wrong_table(const char *table_name) {
+void myrg_print_wrong_table(const char *table_name) {
   LEX_CSTRING db = {nullptr, 0}, name;
   char buf[FN_REFLEN];
   split_file_name(table_name, &db, &name);

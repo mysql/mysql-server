@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "client/base/abstract_options_provider.h"
 #include "client/dump/mysql_chain_element_options.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 namespace Mysql {

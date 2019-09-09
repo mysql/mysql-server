@@ -40,6 +40,7 @@
 #include <ndb_version.h>
 #include <vector>
 #include <ndb_version.h>
+#include "template_utils.h"
 #include "typelib.h"
 
 #define PATH_SEPARATOR DIR_SEPARATOR

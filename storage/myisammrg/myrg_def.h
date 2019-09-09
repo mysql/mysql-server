@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,6 @@ int _myrg_init_queue(MYRG_INFO *info, int inx,
                      enum ha_rkey_function search_flag);
 int _myrg_mi_read_record(MI_INFO *info, uchar *buf);
 
-C_MODE_START
 void myrg_print_wrong_table(const char *table_name);
 
 /* Always defined */
@@ -49,5 +48,3 @@ extern PSI_mutex_key rg_key_mutex_MYRG_INFO_mutex;
 extern PSI_file_key rg_key_file_MRG;
 void init_myisammrg_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
-
-C_MODE_END

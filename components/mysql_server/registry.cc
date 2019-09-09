@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "registry.h"
 #include "rwlock_scoped_lock.h"
 #include "server_component.h"
+#include "template_utils.h"
 
 /**
   @page PAGE_COMPONENTS_REGISTRY The Service Registry Service

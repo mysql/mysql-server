@@ -30,7 +30,8 @@
 #include <map>
 #include <set>
 
-#include "lex.h"                       // symbols[]
+#include "lex.h"  // symbols[]
+#include "template_utils.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using icu::RegexMatcher;

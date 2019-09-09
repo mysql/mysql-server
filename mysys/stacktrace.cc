@@ -46,6 +46,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_stacktrace.h"
+#include "template_utils.h"
 
 #ifndef _WIN32
 #include <signal.h>

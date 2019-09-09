@@ -20,13 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef M_CTYPE_INCLUDED
+#define M_CTYPE_INCLUDED
+
 /**
   @file include/m_ctype.h
   A better implementation of the UNIX ctype(3) library.
 */
-
-#ifndef _m_ctype_h
-#define _m_ctype_h
 
 #ifndef __cplusplus
 #include <stdbool.h>
@@ -410,9 +410,7 @@ struct CHARSET_INFO {
 */
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_bin;
-C_MODE_START
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_latin1;
-C_MODE_END
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_filename;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_ai_ci;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_0900_bin;
@@ -745,4 +743,4 @@ static inline uint my_ismbchar(const CHARSET_INFO *cs, const uchar *str,
   ((s)->cset->strntoull((s), (a), (b), (c), (d), (e)))
 #define my_strntod(s, a, b, c, d) ((s)->cset->strntod((s), (a), (b), (c), (d)))
 
-#endif /* _m_ctype_h */
+#endif  // M_CTYPE_INCLUDED

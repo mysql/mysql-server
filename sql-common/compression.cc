@@ -22,6 +22,7 @@
 
 #include "compression.h"
 #include "m_ctype.h"
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 

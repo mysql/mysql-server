@@ -30,6 +30,7 @@
 
 #include "errmsg.h"
 #include "my_sys.h"
+#include "template_utils.h"
 
 const char *client_errors[] = {
     "Unknown MySQL error",

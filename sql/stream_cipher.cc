@@ -23,6 +23,7 @@
 #include "sql/stream_cipher.h"
 #include <algorithm>
 #include "my_byteorder.h"
+#include "my_dbug.h"
 
 #define HAVE_BYTESTOKEY_SHA512_HANDLING
 #define HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER

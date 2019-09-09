@@ -23,9 +23,9 @@
 #ifndef TEMPLATE_UTILS_INCLUDED
 #define TEMPLATE_UTILS_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
-
-#include "my_dbug.h"
+#include <type_traits>
 
 /**
   @file include/template_utils.h
@@ -89,7 +89,7 @@ inline const T pointer_cast(const void *p) {
 */
 template <typename Target, typename Source>
 inline Target down_cast(Source *arg) {
-  DBUG_ASSERT(NULL != dynamic_cast<Target>(arg));
+  assert(nullptr != dynamic_cast<Target>(arg));
   return static_cast<Target>(arg);
 }
 
@@ -109,8 +109,8 @@ inline Target down_cast(Source &arg) {
   // We still use the pointer version of dynamic_cast, as the
   // reference-accepting version throws exceptions, and we don't want to deal
   // with that.
-  DBUG_ASSERT(dynamic_cast<typename std::remove_reference<Target>::type *>(
-                  &arg) != nullptr);
+  assert(dynamic_cast<typename std::remove_reference<Target>::type *>(&arg) !=
+         nullptr);
   return static_cast<Target>(arg);
 }
 
@@ -143,5 +143,13 @@ struct ReturnValueOrError {
   /** True if an error occured. */
   bool error;
 };
+
+/**
+   Number of elements in a constant C array.
+ */
+template <class T, size_t N>
+constexpr size_t array_elements(T (&)[N]) noexcept {
+  return N;
+}
 
 #endif  // TEMPLATE_UTILS_INCLUDED

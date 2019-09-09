@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,19 +30,6 @@
   with code from \<algorithm\> or similar.
 */
 
-#ifndef MYSQL_ABI_CHECK
-#include <stddef.h>
-#endif
-
-/* Macros to make switching between C and C++ mode easier */
-#ifdef __cplusplus
-#define C_MODE_START extern "C" {
-#define C_MODE_END }
-#else
-#define C_MODE_START
-#define C_MODE_END
-#endif
-
 /* Make it easier to add conditional code in _expressions_ */
 #ifdef _WIN32
 #define IF_WIN(A, B) A
@@ -69,21 +56,5 @@
     if ((a) > (b)) (a) = (b); \
   } while (0)
 #define test_all_bits(a, b) (((a) & (b)) == (b))
-
-/* Bug in developerstudio: use the C version */
-#if defined(__cplusplus) && !defined(__SUNPRO_CC)
-
-template <class T, size_t N>
-constexpr size_t array_elements(T (&)[N]) noexcept {
-  return N;
-}
-
-#else
-
-// Less type-safe version that e.g. allows sending in pointers
-// or STL containers without an error.
-#define array_elements(A) ((size_t)(sizeof(A) / sizeof(A[0])))
-
-#endif
 
 #endif  // MY_MACROS_INCLUDED

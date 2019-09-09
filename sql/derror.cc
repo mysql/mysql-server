@@ -33,7 +33,6 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
@@ -139,8 +138,6 @@ static const char *error_message_fetch(int mysql_errno) {
   return nullptr;
 }
 
-C_MODE_START
-
 /**
   Get the error-message corresponding to the given MySQL error-code,
   or nullptr if no message is available for that code (this may indicate
@@ -179,7 +176,6 @@ const char *error_message_for_client(int mysql_errno) {
 
   return error_message_fetch(mysql_errno);
 }
-C_MODE_END
 
 bool init_errmessage() {
   DBUG_TRACE;

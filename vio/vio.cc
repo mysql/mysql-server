@@ -44,6 +44,7 @@
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/psi_memory.h"  // IWYU pragma: keep
 #include "mysql/service_mysql_alloc.h"
+#include "template_utils.h"
 #include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
