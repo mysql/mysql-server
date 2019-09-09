@@ -97,6 +97,11 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   local_mtr.set_log_mode(parent_mtr_log_mode);
 
   ctx->x_latch_rec_page(&local_mtr);
+
+#ifdef UNIV_DEBUG
+  const ulint lob_size = ref.length();
+#endif /* UNIV_DEBUG */
+
   /* We mark the LOB as partially deleted here, so that if we crash during the
   while() loop below, then during recovery we will know that the remaining LOB
   data should not be read. OTOH we do not ref.set_page_no(FIL_NULL, &local_mtr)
@@ -114,6 +119,10 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   flst_base_node_t *flst = first.index_list();
   fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
+#ifdef UNIV_DEBUG
+  ulint iteration = 0;
+#endif /* UNIV_DEBUG */
+
   while (!fil_addr_is_null(node_loc)) {
     flst_node_t *node = first.addr2ptr_x(node_loc);
     index_entry_t cur_entry(node, &local_mtr, index);
@@ -124,10 +133,11 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     }
 
 #ifdef UNIV_DEBUG
+    ++iteration;
     const ulint index_len = flst_get_len(first.index_list());
     DBUG_EXECUTE_IF("lob_rollback_print_index_size", {
       ib::info(ER_IB_LOB_ROLLBACK_INDEX_LEN, ulonglong{trxid},
-               ulonglong{undo_no}, ulonglong{index_len});
+               ulonglong{undo_no}, ulonglong{index_len}, ulonglong{iteration});
     });
 #endif /* UNIV_DEBUG */
 
@@ -135,7 +145,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
 #ifdef UNIV_DEBUG
     DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
-      if (index_len == 6) {
+      if (iteration == 6) {
         wait_for_mtr_flush(local_mtr);
         DBUG_SUICIDE();
       }
@@ -164,9 +174,13 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   } else {
     ut_ad(first.validate());
 #ifdef UNIV_DEBUG
-    const ulint lob_size = ref.length();
-    fil_addr_t first_node_loc = flst_get_first(flst, &local_mtr);
-    ut_ad(validate_size(lob_size, index, first_node_loc, &local_mtr));
+    /* We set ref length to 0 at the beginning of a rollback(), so seeing 0
+    indicates a crash might have happened in the middle of a previous rollback()
+    and we are now cleaning the left-overs during recovery. */
+    if (lob_size != 0) {
+      fil_addr_t first_node_loc = flst_get_first(flst, &local_mtr);
+      ut_ad(validate_size(lob_size, index, first_node_loc, &local_mtr));
+    }
 #endif /* UNIV_DEBUG */
   }
 
@@ -218,6 +232,10 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   flst_base_node_t *flst = first.index_list();
   fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
+#ifdef UNIV_DEBUG
+  ulint iteration = 0;
+#endif /* UNIV_DEBUG */
+
   while (!fil_addr_is_null(node_loc)) {
     flst_node_t *node = first.addr2ptr_x(node_loc);
     z_index_entry_t cur_entry(node, &local_mtr, index);
@@ -229,10 +247,11 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     }
 
 #ifdef UNIV_DEBUG
+    ++iteration;
     const ulint index_len = flst_get_len(first.index_list());
     DBUG_EXECUTE_IF("lob_rollback_print_index_size", {
       ib::info(ER_IB_LOB_ROLLBACK_INDEX_LEN, ulonglong{trxid},
-               ulonglong{undo_no}, ulonglong{index_len});
+               ulonglong{undo_no}, ulonglong{index_len}, ulonglong{iteration});
     });
 #endif /* UNIV_DEBUG */
 
@@ -240,7 +259,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
 #ifdef UNIV_DEBUG
     DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
-      if (index_len == 6) {
+      if (iteration == 6) {
         wait_for_mtr_flush(local_mtr);
         DBUG_SUICIDE();
       }

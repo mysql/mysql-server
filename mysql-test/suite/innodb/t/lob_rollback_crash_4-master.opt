@@ -1,0 +1,3 @@
+--log_error_verbosity=3
+--debug=+d,lob_rollback_print_index_size
+--log-error=$MYSQLTEST_VARDIR/log/lob_rollback_crash_4.err
