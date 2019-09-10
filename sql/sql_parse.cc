@@ -1270,6 +1270,8 @@ bool do_command(THD *thd) {
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
+  DEBUG_SYNC(thd, "before_command_dispatch");
+
   return_value = dispatch_command(thd, &com_data, command);
   thd->get_protocol_classic()->get_output_packet()->shrink(
       thd->variables.net_buffer_length);
@@ -1497,6 +1499,16 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   */
   thd->enable_slow_log = true;
   thd->lex->sql_command = SQLCOM_END; /* to avoid confusing VIEW detectors */
+  /*
+    KILL QUERY may come after cleanup in mysql_execute_command(). Next query
+    execution is interrupted due to this. So resetting THD::killed here.
+
+    THD::killed value can not be KILL_TIMEOUT here as timer used for statement
+    max execution time is disarmed in the cleanup stage of
+    mysql_execute_command. KILL CONNECTION should terminate the connection.
+    Hence resetting THD::killed only for KILL QUERY case here.
+  */
+  if (thd->killed == THD::KILL_QUERY) thd->killed = THD::NOT_KILLED;
   thd->set_time();
   if (is_time_t_valid_for_timestamp(thd->query_start_in_secs()) == false) {
     /*
@@ -4620,6 +4632,10 @@ finish:
       trans_commit_stmt(thd);
       thd->get_stmt_da()->set_overwrite_status(false);
     }
+    /*
+      Reset thd killed flag during cleanup so that commands which are
+      dispatched using service session API's start with a clean state.
+    */
     if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_TIMEOUT) {
       thd->killed = THD::NOT_KILLED;
       thd->reset_query_for_display();

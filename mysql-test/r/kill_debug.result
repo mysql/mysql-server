@@ -58,3 +58,12 @@ ERROR 70100: Query execution was interrupted
 SET debug= '-d,bug28079850';
 DROP TABLE t_innodb;
 SET debug= @old_debug;
+Bug#29969769 - KILL QUERY KILLS THE NEXT QUERY
+SET DEBUG_SYNC='before_command_dispatch SIGNAL kill_query WAIT_FOR continue';
+SELECT 1;;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+KILL QUERY ID;
+SET DEBUG_SYNC='now SIGNAL continue';
+1
+1
+SET DEBUG_SYNC='RESET';
