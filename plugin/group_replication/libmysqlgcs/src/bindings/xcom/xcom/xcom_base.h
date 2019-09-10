@@ -218,6 +218,8 @@ app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id);
 app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size);
 app_data_ptr init_terminate_command(app_data *a);
 
+void terminate_and_exit();
+
 /* Hook the logic to pop from the input channel. */
 typedef xcom_input_request_ptr (*xcom_input_try_pop_cb)(void);
 void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop);

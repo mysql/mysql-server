@@ -1874,7 +1874,6 @@ static inline int is_config(cargo_type x) {
 }
 
 static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout);
-static void terminate_and_exit();
 
 /* Send messages by fetching from the input queue and trying to get it accepted
    by a Paxos instance */
@@ -2760,7 +2759,7 @@ bool_t handle_event_horizon(app_data_ptr a) {
   return TRUE;
 }
 
-static void terminate_and_exit() {
+void terminate_and_exit() {
   XCOM_FSM(xa_terminate, int_arg(0)); /* Tell xcom to stop */
   XCOM_FSM(xa_exit, int_arg(0));      /* Tell xcom to exit */
   if (xcom_expel_cb) xcom_expel_cb(0);

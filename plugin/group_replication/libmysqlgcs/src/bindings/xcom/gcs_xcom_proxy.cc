@@ -185,26 +185,7 @@ void Gcs_xcom_proxy_impl::xcom_init(xcom_port xcom_listen_port) {
   ::xcom_taskmain2(xcom_listen_port);
 }
 
-bool Gcs_xcom_proxy_impl::xcom_exit(bool xcom_input_open) {
-  bool successful = false;
-  if (xcom_input_open) {
-    /* Stop XCom */
-    app_data_ptr data = new_app_data();
-    data = init_terminate_command(data);
-    /* Takes ownership of data. */
-    successful = xcom_input_try_push(data);
-    if (!successful) {
-      MYSQL_GCS_LOG_DEBUG("xcom_exit: Failed to push into XCom.");
-    }
-  }
-  if (!xcom_input_open || !successful) {
-    /* The input channel was not yet open, or we failed to push, so use basic
-       XCom stop. */
-    this->set_should_exit(1);
-    successful = true;
-  }
-  return successful;
-}
+void Gcs_xcom_proxy_impl::xcom_exit() { this->set_should_exit(1); }
 
 void Gcs_xcom_proxy_impl::xcom_set_cleanup() {
   xcom_set_ready(false);

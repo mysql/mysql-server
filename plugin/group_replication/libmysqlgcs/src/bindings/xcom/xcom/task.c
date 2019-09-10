@@ -1113,8 +1113,7 @@ void task_loop() {
   for (;;) {
     // check forced exit callback
     if (get_should_exit()) {
-      xcom_fsm(xa_terminate, int_arg(0));
-      xcom_fsm(xa_exit, int_arg(0));
+      terminate_and_exit();
     }
 
     t = first_runnable();

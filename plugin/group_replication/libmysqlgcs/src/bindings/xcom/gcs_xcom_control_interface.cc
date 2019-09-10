@@ -485,12 +485,7 @@ err:
         "Killing the group communication engine because the member failed to"
         " join. Local port: %d",
         local_port);
-    if (comm_status != XCOM_COMMS_ERROR &&
-        !m_xcom_proxy->xcom_exit(xcom_input_open)) {
-      MYSQL_GCS_LOG_WARN("Failed to kill the group communication engine "
-                         << "after the member failed to join. Local port: "
-                         << local_port);
-    }
+    if (comm_status != XCOM_COMMS_ERROR) m_xcom_proxy->xcom_exit();
     wait_for_xcom_thread();
   }
 
@@ -671,15 +666,7 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
       We have to really kill the XCOM's thread at this point because
       an attempt to make it gracefully exit apparently has failed.
     */
-    bool const exit_sent = m_xcom_proxy->xcom_exit(true);
-    if (!exit_sent) {
-      /* purecov: begin deadcode */
-      /* exit_sent will ALWAYS be true. */
-      MYSQL_GCS_LOG_WARN(
-          "Failed to kill the group communication engine "
-          "after the member has failed to leave the group.");
-      /* purecov: end */
-    }
+    m_xcom_proxy->xcom_exit();
   }
   wait_for_xcom_thread();
 
