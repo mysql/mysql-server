@@ -80,3 +80,24 @@ SET debug= '-d,bug28079850';
 DROP TABLE t_innodb;
 
 SET debug= @old_debug;
+
+--echo Bug#29969769 - KILL QUERY KILLS THE NEXT QUERY
+# Sending KILL QUERY before statement begins execution shall not interrupt it.
+connect (con1, localhost, root,,);
+--let $ID= `SELECT connection_id()`
+SET DEBUG_SYNC='before_command_dispatch SIGNAL kill_query WAIT_FOR continue';
+--send SELECT 1;
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR kill_query';
+--replace_result $ID ID
+--eval KILL QUERY $ID
+SET DEBUG_SYNC='now SIGNAL continue';
+
+connection con1;
+#Without fix, SELECT fails with ER_QUERY_INTERRUPTED error.
+--reap
+
+connection default;
+SET DEBUG_SYNC='RESET';
+disconnect con1;
