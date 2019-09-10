@@ -2841,6 +2841,8 @@ INSERT INTO t1 VALUES ( 2, 1 );
 INSERT INTO t1 VALUES ( 2, 2 );
 INSERT INTO t1 VALUES ( 3, 5 );
 
+ANALYZE TABLE t1;
+
 #
 # The COUNT(DISTINCT ...) is to force the optimizer to use running aggregation on
 # using the f1 index, instead of aggregating into a temporary table (which doesn't
