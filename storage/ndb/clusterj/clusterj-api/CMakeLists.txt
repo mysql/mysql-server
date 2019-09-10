@@ -66,12 +66,16 @@ SET(JAVA_SOURCES
   ${CLUSTERJ_API_PREFIX}/query/QueryDomainType.java
   )
 
-SET(CLUSTERJ_API_EXPORTS com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation)
-CREATE_MANIFEST(manifest.mf ${CLUSTERJ_API_EXPORTS} clusterj-api)
+SET(CLUSTERJ_API_EXPORTS
+  com.mysql.clusterj
+  com.mysql.clusterj.annotation
+  com.mysql.clusterj.query
+  )
+CREATE_MANIFEST(manifest.mf "${CLUSTERJ_API_EXPORTS}" clusterj-api)
 
 CREATE_JAR(clusterj-api ${JAVA_SOURCES}
   CLASSPATH target/classes
   MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/manifest.mf)
 
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-api-${JAVA_NDB_VERSION}.jar
-        DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)
+  DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)

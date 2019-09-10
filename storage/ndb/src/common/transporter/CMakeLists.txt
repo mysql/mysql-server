@@ -41,4 +41,3 @@ ADD_CONVENIENCE_LIBRARY(ndbtransport
   Packer.cpp
   ${EXTRA_SRC}
   )
-

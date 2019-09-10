@@ -25,13 +25,14 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 ADD_LIBRARY(ndbbank STATIC Bank.cpp BankLoad.cpp)
 
 SET(BINS
-    testBank
-    bankSumAccounts
-    bankValidateAllGLs
-    bankMakeGL
-    bankTransactionMaker
-    bankCreator
-    bankTimer)
+  testBank
+  bankSumAccounts
+  bankValidateAllGLs
+  bankMakeGL
+  bankTransactionMaker
+  bankCreator
+  bankTimer
+  )
 
 FOREACH(B ${BINS})
   NDB_ADD_EXECUTABLE(${B} ${B}.cpp)

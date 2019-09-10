@@ -25,69 +25,86 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
 ADD_LIBRARY(ndbkernel STATIC
-    VMSignal.cpp
-    Emulator.cpp
-    Configuration.cpp
-    WatchDog.cpp
-    SectionReader.cpp
-    SegmentList.cpp
-    Mutex.cpp
-    SafeCounter.cpp
-    Rope.cpp
-    ndbd_malloc_impl.cpp
-    ndbd_malloc.cpp
-    Pool.cpp
-    DynArr256.cpp
-    LockQueue.cpp
-    GlobalData.cpp
-    SafeMutex.cpp
-    Ndbinfo.cpp
-    NdbinfoTables.cpp
-    ArenaPool.cpp
-    mt_thr_config.cpp
-    StaticSlotPool.cpp
-    TransientPagePool.cpp
-    TransientSlotPool.cpp
+  ArenaPool.cpp
+  Configuration.cpp
+  DynArr256.cpp
+  Emulator.cpp
+  GlobalData.cpp
+  LockQueue.cpp
+  Mutex.cpp
+  Ndbinfo.cpp
+  NdbinfoTables.cpp
+  Pool.cpp
+  Rope.cpp
+  SafeCounter.cpp
+  SafeMutex.cpp
+  SectionReader.cpp
+  SegmentList.cpp
+  StaticSlotPool.cpp
+  TransientPagePool.cpp
+  TransientSlotPool.cpp
+  VMSignal.cpp
+  WatchDog.cpp
+  mt_thr_config.cpp
+  ndbd_malloc.cpp
+  ndbd_malloc_impl.cpp
 )
 #    WOPool.cpp
 #    RWPool.cpp
 
 ADD_LIBRARY(ndbsched STATIC
-    TimeQueue.cpp
-    ThreadConfig.cpp
-    FastScheduler.cpp
-    TransporterCallback_nonmt.cpp
-    SimulatedBlock_nonmt.cpp
-    LongSignal_nonmt.cpp
-    SimplePropertiesSection_nonmt.cpp
-    dummy_nonmt.cpp
+  FastScheduler.cpp
+  LongSignal_nonmt.cpp
+  SimplePropertiesSection_nonmt.cpp
+  SimulatedBlock_nonmt.cpp
+  ThreadConfig.cpp
+  TimeQueue.cpp
+  TransporterCallback_nonmt.cpp
+  dummy_nonmt.cpp
 )
 
 IF(WITH_NDBMTD)
   ADD_LIBRARY(ndbsched_mt STATIC
-    SimulatedBlock_mt.cpp
-    TransporterCallback_mt.cpp
     LongSignal_mt.cpp
     SimplePropertiesSection_mt.cpp
+    SimulatedBlock_mt.cpp
+    TransporterCallback_mt.cpp
+    dummy_mt.cpp
     mt.cpp
-    dummy_mt.cpp)
+    )
 ENDIF()
 
 ADD_LIBRARY(ndbtest STATIC
-    test_context.cpp
-    ../blocks/dbtup/tuppage.cpp
+  test_context.cpp
+  ../blocks/dbtup/tuppage.cpp
 )
 
 NDB_ADD_TEST(mt_thr_config-t mt_thr_config.cpp LIBS ndbgeneral)
 
 # ${ALL_UNIT_TEST_LIBS} may be listed twice in the linker command due
 # to inter-library dependencies
-SET(ALL_UNIT_TEST_LIBS ndbtest ndbkernel ndbsched ndberror ndbtransport
-                       ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+SET(ALL_UNIT_TEST_LIBS
+  ndberror
+  ndbgeneral
+  ndbkernel
+  ndbmgmapi
+  ndbmgmcommon
+  ndbportlib
+  ndbsched
+  ndbtest
+  ndbtransport
+  )
 
-FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel SegmentList Rope)
+FOREACH(testprog
+    CountingPool
+    DynArr256
+    IntrusiveList
+    LHLevel
+    Rope
+    SegmentList
+    )
   NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp"
-               LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
+    LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})
 ENDFOREACH(testprog)
 
 NDB_ADD_TEST(ndbd_malloc-t ndbd_malloc_impl.cpp LIBS ${ALL_UNIT_TEST_LIBS} ${ALL_UNIT_TEST_LIBS})

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,9 @@ CHECK_TYPE_SIZE(long NDB_SIZEOF_LONG)
 CHECK_TYPE_SIZE("char*" NDB_SIZEOF_CHARP)
 CHECK_TYPE_SIZE("long long" NDB_SIZEOF_LONG_LONG)
 CONFIGURE_FILE(ndb_types.h.in
-               ${CMAKE_CURRENT_BINARY_DIR}/ndb_types.h
-               @ONLY)
+  ${CMAKE_CURRENT_BINARY_DIR}/ndb_types.h
+  @ONLY)
+
 # Exclude ndb_types.h from "make dist"
 LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_types\\\\.h$)
 
@@ -41,71 +42,78 @@ NDB_REQUIRE_VARIABLE(MYSQL_CLUSTER_VERSION)
 
 # Split the cluster version and set NDB version components
 IF(${MYSQL_CLUSTER_VERSION} MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)(.*)")
-  SET(NDB_VERSION_MAJOR "${CMAKE_MATCH_1}" CACHE INTERNAL "NDB Major Version" FORCE)
-  SET(NDB_VERSION_MINOR "${CMAKE_MATCH_2}" CACHE INTERNAL "NDB Minor Version" FORCE)
-  SET(NDB_VERSION_BUILD "${CMAKE_MATCH_3}" CACHE INTERNAL "NDB Build Version" FORCE)
-  SET(NDB_VERSION_STATUS "${CMAKE_MATCH_4}" CACHE INTERNAL "NDB Status Version" FORCE)
+  SET(NDB_VERSION_MAJOR
+    "${CMAKE_MATCH_1}" CACHE INTERNAL "NDB Major Version" FORCE)
+  SET(NDB_VERSION_MINOR
+    "${CMAKE_MATCH_2}" CACHE INTERNAL "NDB Minor Version" FORCE)
+  SET(NDB_VERSION_BUILD
+    "${CMAKE_MATCH_3}" CACHE INTERNAL "NDB Build Version" FORCE)
+  SET(NDB_VERSION_STATUS
+    "${CMAKE_MATCH_4}" CACHE INTERNAL "NDB Status Version" FORCE)
 ELSE()
-  MESSAGE(FATAL_ERROR "Failed to split MYSQL_CLUSTER_VERSION: ${MYSQL_CLUSTER_VERSION}")
+  MESSAGE(FATAL_ERROR
+    "Failed to split MYSQL_CLUSTER_VERSION: ${MYSQL_CLUSTER_VERSION}")
 ENDIF()
 
 # Create ndb_version.h
 CONFIGURE_FILE(ndb_version.h.in
-               ${CMAKE_CURRENT_BINARY_DIR}/ndb_version.h
-               @ONLY)
+  ${CMAKE_CURRENT_BINARY_DIR}/ndb_version.h
+  @ONLY)
 # Exclude ndb_version.h from "make dist"
 LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_version\\\\.h$)
 
 
 # Install public headers
 SET(NDB_GENERAL_HEADERS
-    ndb_constants.h
-    ndb_init.h
-    # The below files are generated and thus found in build dir
-    ${CMAKE_CURRENT_BINARY_DIR}/ndb_types.h
-    ${CMAKE_CURRENT_BINARY_DIR}/ndb_version.h)
-
+  ndb_constants.h
+  ndb_init.h
+  # The below files are generated and thus found in build dir
+  ${CMAKE_CURRENT_BINARY_DIR}/ndb_types.h
+  ${CMAKE_CURRENT_BINARY_DIR}/ndb_version.h
+  )
 
 SET(NDB_NDBAPI_HEADERS
-    ndbapi/ndbapi_limits.h
-    ndbapi/ndb_opt_defaults.h
-    ndbapi/Ndb.hpp
-    ndbapi/NdbApi.hpp
-    ndbapi/NdbTransaction.hpp
-    ndbapi/NdbDictionary.hpp
-    ndbapi/NdbError.hpp
-    ndbapi/NdbEventOperation.hpp
-    ndbapi/NdbIndexOperation.hpp
-    ndbapi/NdbOperation.hpp
-    ndbapi/ndb_cluster_connection.hpp
-    ndbapi/NdbBlob.hpp
-    ndbapi/NdbPool.hpp
-    ndbapi/NdbRecAttr.hpp
-    ndbapi/NdbReceiver.hpp
-    ndbapi/NdbScanFilter.hpp
-    ndbapi/NdbScanOperation.hpp
-    ndbapi/NdbIndexScanOperation.hpp
-    ndbapi/NdbIndexStat.hpp
-    ndbapi/ndberror.h
-    ndbapi/NdbInterpretedCode.hpp)
+  ndbapi/ndbapi_limits.h
+  ndbapi/ndb_opt_defaults.h
+  ndbapi/Ndb.hpp
+  ndbapi/NdbApi.hpp
+  ndbapi/NdbTransaction.hpp
+  ndbapi/NdbDictionary.hpp
+  ndbapi/NdbError.hpp
+  ndbapi/NdbEventOperation.hpp
+  ndbapi/NdbIndexOperation.hpp
+  ndbapi/NdbOperation.hpp
+  ndbapi/ndb_cluster_connection.hpp
+  ndbapi/NdbBlob.hpp
+  ndbapi/NdbPool.hpp
+  ndbapi/NdbRecAttr.hpp
+  ndbapi/NdbReceiver.hpp
+  ndbapi/NdbScanFilter.hpp
+  ndbapi/NdbScanOperation.hpp
+  ndbapi/NdbIndexScanOperation.hpp
+  ndbapi/NdbIndexStat.hpp
+  ndbapi/ndberror.h
+  ndbapi/NdbInterpretedCode.hpp
+  )
 
 SET(NDB_MGMAPI_HEADERS
-    mgmapi/mgmapi.h
-    mgmapi/mgmapi_error.h
-    mgmapi/mgmapi_debug.h
-    mgmapi/mgmapi_config_parameters.h
-    mgmapi/mgmapi_config_parameters_debug.h
-    mgmapi/ndb_logevent.h
-    mgmapi/ndbd_exit_codes.h)
+  mgmapi/mgmapi.h
+  mgmapi/mgmapi_error.h
+  mgmapi/mgmapi_debug.h
+  mgmapi/mgmapi_config_parameters.h
+  mgmapi/mgmapi_config_parameters_debug.h
+  mgmapi/ndb_logevent.h
+  mgmapi/ndbd_exit_codes.h
+  )
 
 INSTALL(FILES ${NDB_GENERAL_HEADERS}
-        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb
-        COMPONENT Development)
+  DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb
+  COMPONENT Development)
 
 INSTALL(FILES ${NDB_NDBAPI_HEADERS}
-        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/ndbapi
-        COMPONENT Development)
+  DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/ndbapi
+  COMPONENT Development)
 
 INSTALL(FILES ${NDB_MGMAPI_HEADERS}
-        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
-        COMPONENT Development)
+  DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
+  COMPONENT Development)

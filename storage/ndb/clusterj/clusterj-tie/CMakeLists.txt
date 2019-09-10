@@ -63,19 +63,21 @@ SET(JAVA_SOURCES
   ${CLUSTERJ_TIE_PREFIX}/VariableByteBufferPoolImpl.java
   )
 
-SET ( CLASSPATH 
+SET(CLASSPATH
   target/classes
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
   ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/target/classes
-  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes
+  )
 
-SET ( JAR_DEPENDENCIES
+SET(JAR_DEPENDENCIES
   clusterj-core.jar
-  ndbjtie.jar)
+  ndbjtie.jar
+  )
 
 CREATE_JAR(clusterj-tie ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   DEPENDENCIES ${JAR_DEPENDENCIES}
-  EXTRA_FILES src/main/resources/META-INF
-              src/main/resources/com)
+  EXTRA_FILES src/main/resources/META-INF src/main/resources/com
+  )

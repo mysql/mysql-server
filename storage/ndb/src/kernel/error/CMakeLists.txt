@@ -24,6 +24,7 @@
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
 ADD_LIBRARY(ndberror STATIC
-            TimeModule.cpp
-            ErrorReporter.cpp
-            ndbd_exit_codes.cpp)
+  TimeModule.cpp
+  ErrorReporter.cpp
+  ndbd_exit_codes.cpp
+  )

@@ -20,43 +20,44 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/test/include
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/test/include
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/mgmcommon
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmcommon
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
 ADD_LIBRARY(ndbNDBT STATIC
-        NDBT_ReturnCodes.cpp
-        NDBT_Error.cpp
-        NDBT_Tables.cpp
-        NDBT_ResultRow.cpp
-        NDBT_Test.cpp
-        NDBT_Thread.cpp
-        NDBT_Find.cpp
-        NdbMixRestarter.cpp
-        HugoCalculator.cpp
-        HugoOperations.cpp
-        HugoTransactions.cpp
-        HugoAsynchTransactions.cpp
-        UtilTransactions.cpp
-        NdbRestarter.cpp
-        NdbRestarts.cpp
-        NDBT_Output.cpp
-        NdbBackup.cpp
-        NdbConfig.cpp
-        NDBT_Table.cpp
-        NdbSchemaCon.cpp
-        NdbSchemaOp.cpp
-        getarg.cpp
-        CpcClient.cpp
-	SocketInputStream2.cpp
-        AtrtClient.cpp
-        DbUtil.cpp
-	HugoQueryBuilder.cpp
-        HugoQueries.cpp
-        NdbHistory.cpp
+  AtrtClient.cpp
+  CpcClient.cpp
+  DbUtil.cpp
+  HugoAsynchTransactions.cpp
+  HugoCalculator.cpp
+  HugoOperations.cpp
+  HugoQueries.cpp
+  HugoQueryBuilder.cpp
+  HugoTransactions.cpp
+  NDBT_Error.cpp
+  NDBT_Find.cpp
+  NDBT_Output.cpp
+  NDBT_ResultRow.cpp
+  NDBT_ReturnCodes.cpp
+  NDBT_Table.cpp
+  NDBT_Tables.cpp
+  NDBT_Test.cpp
+  NDBT_Thread.cpp
+  NdbBackup.cpp
+  NdbConfig.cpp
+  NdbHistory.cpp
+  NdbMixRestarter.cpp
+  NdbRestarter.cpp
+  NdbRestarts.cpp
+  NdbSchemaCon.cpp
+  NdbSchemaOp.cpp
+  SocketInputStream2.cpp
+  UtilTransactions.cpp
+  getarg.cpp
 )
 TARGET_LINK_LIBRARIES(ndbNDBT ${LIBM})

@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET ( BROKEN_JAVAC
+SET(BROKEN_JAVAC
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java
@@ -217,14 +217,22 @@ SET(JAVA_SOURCES
   ${CLUSTERJ_JUNIT_PREFIX}/org/junit/Ignore.java
   )
 
-SET ( CLASSPATH 
+SET(CLASSPATH
   target/classes
   ${WITH_CLASSPATH}
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes)
 
-SET(CLUSTERJ_TEST_EXPORTS regression,testsuite.clusterj,testsuite.clusterj.model,testsuite.clusterj.domaintypehandler,junit.framework,junit.textui,org.junit)
-CREATE_MANIFEST(manifest.mf ${CLUSTERJ_TEST_EXPORTS} clusterj-test)
+SET(CLUSTERJ_TEST_EXPORTS
+  junit.framework
+  junit.textui
+  org.junit
+  regression
+  testsuite.clusterj
+  testsuite.clusterj.domaintypehandler
+  testsuite.clusterj.model
+  )
+CREATE_MANIFEST(manifest.mf "${CLUSTERJ_TEST_EXPORTS}" clusterj-test)
 
 CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
@@ -235,4 +243,4 @@ CREATE_JAR(clusterj-test ${JAVA_SOURCES}
   BROKEN_JAVAC ${BROKEN_JAVAC})
 
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-test-${JAVA_NDB_VERSION}.jar
-        DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)
+  DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)

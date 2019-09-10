@@ -23,76 +23,80 @@
 
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
-                    ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
-                    ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
-                    ${CMAKE_CURRENT_SOURCE_DIR}/daemon)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
+  ${CMAKE_CURRENT_SOURCE_DIR}/utilities
+  ${CMAKE_CURRENT_SOURCE_DIR}/daemon
+  )
 
 INCLUDE_DIRECTORIES(SYSTEM ${LIBEVENT_INCLUDE_DIRS})
 
 IF(${CMAKE_COMPILER_IS_GNUCC})
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+  STRING_APPEND(CMAKE_C_FLAGS " -std=gnu99")
 ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xc99=all")
+  STRING_APPEND(CMAKE_C_FLAGS " -xc99=all")
 ENDIF()
 
 
 # This is third-party code so we reduce the compiler warnings.
 # These are numerous, so memcached cannot currently be built with -Werror.
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-extra")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-declaration-after-statement")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-vla")
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-extra")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-declaration-after-statement")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-vla")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-error")
 ENDIF()
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
-                include/memcached/config_parser.h
-                include/memcached/genhash.h
-                include/memcached/util.h
-                utilities/config_parser.c
-                utilities/engine_loader.c
-                utilities/engine_loader.h
-                utilities/extension_loggers.c
-                utilities/genhash.c
-                utilities/genhash_int.h
-                utilities/util.c)
+  include/memcached/config_parser.h
+  include/memcached/genhash.h
+  include/memcached/util.h
+  utilities/config_parser.c
+  utilities/engine_loader.c
+  utilities/engine_loader.h
+  utilities/extension_loggers.c
+  utilities/genhash.c
+  utilities/genhash_int.h
+  utilities/util.c
+  )
 
 ADD_LIBRARY(ndb_memcached_utilities STATIC ${LIBMEMCACHED_UTILITIES_SOURCES})
 IF(HAVE_LIBDL)
-target_link_libraries(ndb_memcached_utilities dl)
+  TARGET_LINK_LIBRARIES(ndb_memcached_utilities dl)
 ENDIF()
 
 SET(MEMCACHED_SOURCES
-                daemon/cache.h
-                daemon/cache.c
-                config_static.h
-                daemon/daemon.c
-                daemon/hash.c
-                daemon/hash.h
-                daemon/memcached.c
-                daemon/memcached.h
-                daemon/sasl_defs.h
-                daemon/stats.c
-                daemon/stats.h
-                daemon/thread.c
-                daemon/topkeys.c
-                daemon/topkeys.h
-                trace.h)
+  daemon/cache.h
+  daemon/cache.c
+  config_static.h
+  daemon/daemon.c
+  daemon/hash.c
+  daemon/hash.h
+  daemon/memcached.c
+  daemon/memcached.h
+  daemon/sasl_defs.h
+  daemon/stats.c
+  daemon/stats.h
+  daemon/thread.c
+  daemon/topkeys.c
+  daemon/topkeys.h
+  trace.h
+  )
 
-add_executable(memcached ${MEMCACHED_SOURCES})
+ADD_EXECUTABLE(memcached ${MEMCACHED_SOURCES})
 
-target_link_libraries(memcached 
-                      ndb_memcached_utilities
-                      ${LIBEVENT_LIBRARIES}
-                      ${LIBM} ${LIBNSL} ${LIBSOCKET})
+TARGET_LINK_LIBRARIES(memcached
+  ndb_memcached_utilities
+  ${LIBEVENT_LIBRARIES}
+  ${LIBM} ${LIBNSL} ${LIBSOCKET})
 IF(HAVE_LIBDL)
-target_link_libraries(memcached dl)
+  TARGET_LINK_LIBRARIES(memcached dl)
 ENDIF()
 
-if(LIBRT)
-  target_link_libraries(memcached rt)
-endif()
+IF(LIBRT)
+  TARGET_LINK_LIBRARIES(memcached rt)
+ENDIF()
 
 CHECK_INCLUDE_FILE("link.h"          HAVE_LINK_H)
 CHECK_INCLUDE_FILE("stdbool.h"       HAVE_STDBOOL_H)
@@ -103,9 +107,7 @@ CHECK_INCLUDE_FILE("signal.h"        HAVE_SIGIGNORE)
 CHECK_INCLUDE_FILES("sys/types.h;netinet/tcp.h" HAVE_NETINET_TCP_H)
 CHECK_FUNCTION_EXISTS(htonll         HAVE_HTONLL)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in 
-               ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config_tests.in
+  ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
-install(TARGETS memcached DESTINATION ${INSTALL_SBINDIR}) 
-
-
+INSTALL(TARGETS memcached DESTINATION ${INSTALL_SBINDIR})

@@ -208,7 +208,7 @@ IF(MSVC)
 #                         ...
 #                         > ndbclient_exports.def
 #    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-#	
+#
 #  # Modify link flags to use the generated module definition file
 #  GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)
 #  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES LINK_FLAGS
@@ -224,7 +224,7 @@ ELSE()
     SET(ignore_dep_lib)
 
       # The list of dependent libs contains keywords used for debug vs optimized
-      # builds, ignore them 
+      # builds, ignore them
       IF(dep_lib MATCHES "general" OR
          dep_lib MATCHES "debug" OR
          dep_lib MATCHES "optimized")
@@ -263,14 +263,12 @@ ELSE()
   SET(ndbclient_so_link_flags
     "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${ndbclient_so_link_flags}")
   IF(LINK_FLAG_NO_UNDEFINED)
-    SET(ndbclient_so_link_flags
-      "${ndbclient_so_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
-    SET(ndbclient_so_link_flags
-      "${ndbclient_so_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver")
+    STRING_APPEND(ndbclient_so_link_flags " ${LINK_FLAG_NO_UNDEFINED}")
+    STRING_APPEND(ndbclient_so_link_flags
+      " -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver")
   ENDIF()
   IF(SOLARIS)
-    SET(ndbclient_so_link_flags
-      "${ndbclient_so_link_flags} ${CMAKE_CXX_LINK_FLAGS}")
+    STRING_APPEND(ndbclient_so_link_flags " ${CMAKE_CXX_LINK_FLAGS}")
   ENDIF()
   SET_TARGET_PROPERTIES(ndbclient_so
     PROPERTIES LINK_FLAGS "${ndbclient_so_link_flags}")

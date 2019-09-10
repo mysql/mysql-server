@@ -49,14 +49,13 @@ CREATE_JAR(jtie-test-myjapi ${JAVA_SOURCES}
   DEPENDENCIES jtie.jar)
 
 INCLUDE_DIRECTORIES(
-  	${JNI_INCLUDE_DIRS}
-  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils
-  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie
-  	${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/test/myapi)
+  ${JNI_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/utils
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/test/myapi)
 
 # enable safety behaviour, expected by a myjapi subtest
-SET(CMAKE_CXX_FLAGS
-  	"${CMAKE_CXX_FLAGS} -DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE")
+STRING_APPEND(CMAKE_CXX_FLAGS " -DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE")
 
 # the Java API's JNI implementation
 ADD_LIBRARY(libmyjapi SHARED myjapi_lib.cpp)
