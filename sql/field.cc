@@ -1922,7 +1922,7 @@ static void append_zerofill_and_unsigned(const Field_num *field, String *res) {
   if (field->zerofill) res->append(STRING_WITH_LEN(" zerofill"));
 }
 
-void Field::make_field(Send_field *field) const {
+void Field::make_send_field(Send_field *field) const {
   if (orig_table && orig_table->s->db.str && *orig_table->s->db.str) {
     field->db_name = orig_table->s->db.str;
     if (orig_table->pos_in_table_list &&
@@ -2049,8 +2049,8 @@ Field_str::Field_str(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   char_length_cache = char_length();
 }
 
-void Field_str::make_field(Send_field *field) const {
-  Field::make_field(field);
+void Field_str::make_send_field(Send_field *field) const {
+  Field::make_send_field(field);
   field->decimals = 0;
 }
 
@@ -10072,6 +10072,14 @@ void Field_typed_array::sql_type(String &str) const {
   std::pair<my_off_t, std::pair<uint, bool>> pack = read_field_metadata(
       static_cast<const uchar *>(metadata_ptr), binlog_type());
   show_sql_type(real_type(), true, pack.second.first, &str, charset());
+}
+
+void Field_typed_array::make_send_field(Send_field *field) const {
+  Field_json::make_send_field(field);
+  // When sending the array to the client (only possible using the debug flag
+  // show_hidden_columns), it should be sent as a JSON array. Set the type to
+  // JSON instead of the array element type.
+  field->type = MYSQL_TYPE_JSON;
 }
 
 Key_map Field::get_covering_prefix_keys() const {

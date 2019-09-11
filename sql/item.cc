@@ -5838,7 +5838,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length) {
 
 /* ARGSUSED */
 void Item_field::make_field(Send_field *tmp_field) {
-  field->make_field(tmp_field);
+  field->make_send_field(tmp_field);
   DBUG_ASSERT(tmp_field->table_name != 0);
   if (item_name.is_set())
     tmp_field->col_name = item_name.ptr();  // Use user supplied name

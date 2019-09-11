@@ -1375,7 +1375,14 @@ class Field {
     null_bit = p_null_bit;
   }
 
-  virtual void make_field(Send_field *) const;
+  /**
+    Populates a Send_field object with metadata about the column represented by
+    this Field object. The Send_field object is used for sending column metadata
+    to the client.
+
+    @param[out] send_field  the Send_field object to populate
+  */
+  virtual void make_send_field(Send_field *send_field) const;
 
   /**
     Returns whether make_sort_key() writes variable-length sort keys,
@@ -1975,7 +1982,7 @@ class Field_str : public Field {
     return REAL_RESULT;
   }
   uint decimals() const override { return DECIMAL_NOT_SPECIFIED; }
-  void make_field(Send_field *field) const final override;
+  void make_send_field(Send_field *field) const override;
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override = 0;
   type_conversion_status store_decimal(const my_decimal *) override;
@@ -4519,6 +4526,7 @@ class Field_typed_array final : public Field_json {
     return pack_length_no_ptr();
   }
   void sql_type(String &str) const final override;
+  void make_send_field(Send_field *field) const final;
 };
 
 class Field_enum : public Field_str {

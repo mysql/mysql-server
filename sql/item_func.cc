@@ -5913,7 +5913,7 @@ bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg) {
 
 void Item_func_set_user_var::make_field(Send_field *tmp_field) {
   if (result_field) {
-    result_field->make_field(tmp_field);
+    result_field->make_send_field(tmp_field);
     DBUG_ASSERT(tmp_field->table_name != 0);
     if (Item::item_name.is_set())
       tmp_field->col_name = Item::item_name.ptr();  // Use user supplied name
@@ -7608,7 +7608,7 @@ error:
 void Item_func_sp::make_field(Send_field *tmp_field) {
   DBUG_TRACE;
   DBUG_ASSERT(sp_result_field);
-  sp_result_field->make_field(tmp_field);
+  sp_result_field->make_send_field(tmp_field);
   if (item_name.is_set()) tmp_field->col_name = item_name.ptr();
 }
 
