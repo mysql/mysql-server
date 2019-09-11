@@ -147,6 +147,9 @@ IF(MSVC)
       STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
     ENDIF()
     SET("${flag}" "${${flag}} /EHsc")
+    # Due to a bug in VS2019 we need the full paths of files in error messages
+    # See bug #30255096 for details
+    SET("${flag}" "${${flag}} /FC")
   ENDFOREACH()
 
   # Turn on c++14 mode explicitly so that using c++17 features is disabled.
