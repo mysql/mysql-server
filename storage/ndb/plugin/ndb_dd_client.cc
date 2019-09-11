@@ -28,6 +28,7 @@
 #include <iostream>
 
 #include "my_dbug.h"
+#include "sql/auth/auth_common.h"  // check_readonly()
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/dd_table.h"
@@ -147,6 +148,12 @@ bool Ndb_dd_client::mdl_lock_schema(const char *schema_name,
     return false;
   }
 
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(m_thd, true)) return false;
+
   // Remember ticket(s) of the acquired mdl lock
   m_acquired_mdl_tickets.push_back(schema_request.ticket);
   if (exclusive_lock) {
@@ -188,6 +195,12 @@ bool Ndb_dd_client::mdl_lock_logfile_group_exclusive(
   if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
     return false;
   }
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(m_thd, true)) return false;
 
   // Remember tickets of the acquired mdl locks
   m_acquired_mdl_tickets.push_back(logfile_group_request.ticket);
@@ -251,6 +264,12 @@ bool Ndb_dd_client::mdl_lock_tablespace_exclusive(const char *tablespace_name,
   if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
     return false;
   }
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(m_thd, true)) return false;
 
   // Remember tickets of the acquired mdl locks
   m_acquired_mdl_tickets.push_back(tablespace_request.ticket);
@@ -317,6 +336,12 @@ bool Ndb_dd_client::mdl_locks_acquire_exclusive(const char *schema_name,
   if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
     return false;
   }
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(m_thd, true)) return false;
 
   // Remember tickets of the acquired mdl locks
   m_acquired_mdl_tickets.push_back(schema_request.ticket);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,6 +162,11 @@ bool Sql_cmd_import_table::execute(THD *thd) {
                                      thd->variables.lock_wait_timeout)) {
     return true;
   }
+
+  // Now when we have protection against concurrent change of read_only
+  // option we can safely re-check its value.
+  if (check_readonly(thd, true)) return true;
+
   // Now we have MDL on all schemas and tables involved
 
   for (auto &t : targets) {
