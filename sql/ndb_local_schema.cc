@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #include "log.h"
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
+#include "auth_common.h"              // check_readonly()
 
 static const char *ndb_ext=".ndb";
 
@@ -71,6 +72,14 @@ bool Ndb_local_schema::Base::mdl_try_lock(void) const
 
     return false;
   }
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(m_thd, true))
+    return false;
+
   DBUG_PRINT("info", ("acquired metadata lock"));
   return true;
 }
