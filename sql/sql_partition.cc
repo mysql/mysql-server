@@ -4721,10 +4721,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), "DROP");
         goto err;
       }
-      if (table->file->is_fk_defined_on_table_or_index(MAX_KEY)) {
-        my_error(ER_ROW_IS_REFERENCED, MYF(0));
-        goto err;
-      }
       tab_part_info->num_parts -= num_parts_dropped;
     } else if (alter_info->flags & Alter_info::ALTER_REBUILD_PARTITION) {
       set_engine_all_partitions(tab_part_info,
