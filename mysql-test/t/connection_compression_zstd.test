@@ -12,6 +12,9 @@
 #                                                                   #
 #####################################################################
 
+# Avoid running the test with --ps-protocol till Bug#30290568 is fixed.
+--source include/no_protocol.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
