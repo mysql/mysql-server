@@ -1559,15 +1559,13 @@ static void destroy_sj_tmp_tables(JOIN *join) {
   re-execution.
 */
 
-static int clear_sj_tmp_tables(JOIN *join) {
-  int res;
-  List_iterator<TABLE> it(join->sj_tmp_tables);
+bool JOIN::clear_sj_tmp_tables() {
+  List_iterator<TABLE> it(sj_tmp_tables);
   TABLE *table;
   while ((table = it++)) {
-    if ((res = table->empty_result_table()))
-      return res; /* purecov: inspected */
+    if (table->empty_result_table()) return true; /* purecov: inspected */
   }
-  return 0;
+  return false;
 }
 
 /// Empties all correlated materialized derived tables
@@ -1579,7 +1577,7 @@ bool JOIN::clear_corr_derived_tmp_tables() {
         tl->table) {
       /*
         Applied only to non-CTE derived tables, as CTEs are reset in
-        SELECT_LEX_UNIT::clear_corr_ctes()
+        SELECT_LEX_UNIT::clear_correlated_query_blocks()
       */
       if (tl->derived_unit()->query_result()->reset()) return true;
     }
@@ -1616,7 +1614,7 @@ void JOIN::reset() {
       (void)qep_tab[tmp].table()->empty_result_table();
     }
   }
-  clear_sj_tmp_tables(this);
+  clear_sj_tmp_tables();
   set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
   if (qep_tab) {

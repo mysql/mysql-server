@@ -1968,7 +1968,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     table_iterator = NewIterator<MaterializeIterator>(
         thd, move(subtree_iterator), &sjm->table_param, qep_tab->table(),
         move(qep_tab->iterator), /*cte=*/nullptr,
-        qep_tab->join()->select_lex->select_number, qep_tab->join()->unit,
+        qep_tab->join()->select_lex->select_number, /*unit=*/nullptr,
         qep_tab->join(),
         /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
         qep_tab->rematerialize, sjm->table_param.end_write_records);

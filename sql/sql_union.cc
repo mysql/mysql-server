@@ -1103,6 +1103,7 @@ bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
 bool SELECT_LEX_UNIT::clear_correlated_query_blocks() {
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
     sl->join->clear_corr_derived_tmp_tables();
+    sl->join->clear_sj_tmp_tables();
   }
   if (!m_with_clause) return false;
   for (auto el : m_with_clause->m_list->elements()) {

@@ -858,3 +858,37 @@ eval explain format=tree $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #30289052: MYSQL PRODUCES DIFFERENT RESULT FOR MATERIALIZED SUBQUERY IF INDEX EXISTS OR NOT
+--echo #
+
+CREATE TABLE table_city (id int NOT NULL PRIMARY KEY);
+CREATE TABLE table_user (id int NOT NULL PRIMARY KEY);
+CREATE TABLE table_city_user (city int NOT NULL, user int NOT NULL, KEY city (city));
+
+INSERT INTO table_city (id) VALUES (1),(2),(3),(4),(5),(6);
+INSERT INTO table_user (id) VALUES (1),(2),(3),(4),(5),(6),(7),(8);
+INSERT INTO table_city_user (city, user) VALUES
+  (1,1),(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(2,1),(2,2),(2,3),(2,4),
+  (2,5),(3,2),(3,5),(4,5),(4,2),(4,3),(4,8),(4,1);
+
+ANALYZE TABLE table_city, table_user, table_city_user;
+
+let $query =
+  SELECT id, (
+    SELECT GROUP_CONCAT(id) FROM (
+      SELECT table_user.id FROM table_user WHERE id IN (
+        SELECT user FROM table_city_user WHERE table_city_user.city = table_city.id
+      )
+      GROUP BY table_user.id
+    ) AS d
+  ) AS users FROM table_city;
+
+# Verify that we get a query plan with semijoin materialization.
+# If the optimizer chooses a different strategy, consider deleting this test.
+eval EXPLAIN FORMAT=tree $query;
+
+eval $query;
+
+DROP TABLE table_city, table_user, table_city_user;

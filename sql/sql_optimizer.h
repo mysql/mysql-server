@@ -741,6 +741,7 @@ class JOIN {
   void refine_best_rowcount();
   void recalculate_deps_of_remaining_lateral_derived_tables(
       table_map plan_tables, uint idx);
+  bool clear_sj_tmp_tables();
   bool clear_corr_derived_tmp_tables();
 
   void mark_const_table(JOIN_TAB *table, Key_use *key);
