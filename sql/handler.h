@@ -5257,20 +5257,6 @@ class handler {
   virtual int indexes_are_disabled(void) { return 0; }
   virtual void append_create_info(String *packet MY_ATTRIBUTE((unused))) {}
   /**
-    If index == MAX_KEY then a check for table is made and if index <
-    MAX_KEY then a check is made if the table has foreign keys and if
-    a foreign key uses this index (and thus the index cannot be dropped).
-
-    @param  index            Index to check if foreign key uses it
-
-    @retval   true            Foreign key defined on table or index
-    @retval   false           No foreign key defined
-  */
-  virtual bool is_fk_defined_on_table_or_index(
-      uint index MY_ATTRIBUTE((unused))) {
-    return false;
-  }
-  /**
     Get the list of foreign keys in this table.
 
     @remark Returns the set of foreign keys where this table is the
