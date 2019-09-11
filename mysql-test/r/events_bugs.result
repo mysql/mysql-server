@@ -651,10 +651,10 @@ CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 
 ALTER EVENT e1 COMMENT 'comment';
-ERROR HY000: Unknown event 'e1'
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 
 DROP EVENT e1;
-ERROR HY000: Unknown event 'e1'
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 
 #
 # Connection: root_con (root@localhost/events_test).

@@ -211,3 +211,705 @@ SET @@global.read_only=default;
 DROP TABLE t1;
 DROP TABLE t1;
 DROP TABLE t3;
+#
+# BUG#28438114: SET READ_ONLY=1 SOMETIMES DOESN'T BLOCK CONCURRENT DDL.
+#
+# Prepare the sql file for testing DDLS.
+SET @save_read_only= @@global.read_only;
+CREATE USER test@localhost;
+GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, FILE ON *.* TO test@localhost;
+connect (con1,localhost,test,,test);
+connect (con2,localhost,root,,test);
+# Test CREATE DATABASE statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE DATABASE new;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER DATABASE statement
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER DATABASE test CHARACTER SET utf8;;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+CREATE DATABASE new;
+# Test CREATE DATABASE statement which doesn't update DD tables.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE DATABASE IF NOT EXISTS new;;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP DATABASE statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP DATABASE new;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP DATABASE new;
+# Test CREATE TABLE statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE TABLE t1(fld1 INT);
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test CREATE TABLE which doesn't update update DD tables.
+CREATE TABLE t1(fld1 INT);
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE TABLE IF NOT EXISTS t1(fld1 INT);
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER TABLE statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER TABLE t1 ADD fld2 INT;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER TABLE statement which doesn't update DD tables
+ALTER TABLE t1 RENAME COLUMN fld1 TO fld1;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER TABLE t1 ADD fld2 INT;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP TABLE statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP TABLE t1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP TABLE statement which doesn't update DD tables.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP TABLE IF EXISTS no_such_table;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test CREATE INDEX statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE INDEX idx1 ON t1 (fld1) USING BTREE;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP INDEX statement.
+CREATE INDEX idx1 ON t1 (fld1) USING BTREE;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP INDEX idx1 ON t1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP INDEX idx1 ON t1;
+# Test IMPORT TABLE statement.
+CREATE TABLE t2(fld1 INT) ENGINE=MYISAM;
+DROP TABLE t2;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+IMPORT TABLE FROM 'test/t2*.sdi';
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test CREATE TRIGGER statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW BEGIN END;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP TRIGGER statement.
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW BEGIN END;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP TRIGGER trg1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP TRIGGER trg1;
+# Test TRUNCATE TABLE statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+TRUNCATE TABLE t1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test CREATE VIEW statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE VIEW v1 AS SELECT * FROM t1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER VIEW statement.
+CREATE VIEW v1 AS SELECT * FROM t1;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER VIEW v1 AS SELECT 1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP VIEW statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP VIEW v1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP VIEW statement which doesn't update DD tables.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP VIEW IF EXISTS no_such_view;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP VIEW v1;
+DROP TABLE t1;
+# Test CREATE TABLESPACE statement
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
+# Test DROP TABLESPACE statement
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP TABLESPACE ts1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP TABLESPACE ts1;
+# Test CREATE FUNCTION statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE FUNCTION f1() RETURNS INT RETURN 5;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER FUNCTION statement.
+CREATE FUNCTION f1() RETURNS INT RETURN 5;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER FUNCTION f1 COMMENT 'test';
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP FUNCTION statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP FUNCTION f1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP FUNCTION statement which doesn't update DD tables.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP FUNCTION IF EXISTS f1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP FUNCTION f1;
+# Test CREATE PROCEDURE statement
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE PROCEDURE p1() select 1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER PROCEDURE statement.
+CREATE PROCEDURE p1() select 1;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER PROCEDURE p1 comment 'test';
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP PROCEDURE statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP PROCEDURE p1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP PROCEDURE statement which doesn't update DD tables.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP PROCEDURE IF EXISTS no_such_procedure;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP PROCEDURE p1;
+# Test CREATE EVENT statement
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE EVENT event1 ON SCHEDULE
+EVERY 10 HOUR DO SELECT 1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test CREATE EVENT statement which doesn't update DD tables
+CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test ALTER EVENT statement
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+ALTER EVENT event1 DISABLE;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Test DROP EVENT statement.
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP EVENT event1;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+DROP EVENT event1;
+# Test DROP EVENT statement which doesn't update DD tables
+connection default;
+FLUSH TABLES WITH READ LOCK;
+connection con1;
+# DDL statement will block waiting for GRL.
+DROP EVENT IF EXISTS no_such_event;
+connection con2;
+# Wait until statement is blocked waiting for GRL.
+SET GLOBAL READ_ONLY= 1;
+connection default;
+# Unblock the DDL statement.
+UNLOCK TABLES;
+connection con1;
+# Without patch for BUG#28438114, the DDL statement will succeed even
+# though read only mode was set.
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+# Clean up.
+connection default;
+SET GLOBAL READ_ONLY= 0;
+# Clean up.
+DROP USER test@localhost;
+SET GLOBAL read_only= @save_read_only;

@@ -207,7 +207,16 @@ bool lock_rec(THD *thd, MDL_request_list *rlst, const LEX_STRING &tsp) {
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
   rlst->push_front(&backup_lock_request);
 
-  return thd->mdl_context.acquire_locks(rlst, thd->variables.lock_wait_timeout);
+  if (thd->mdl_context.acquire_locks(rlst, thd->variables.lock_wait_timeout))
+    return true;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
+  return false;
 }
 
 template <typename... Names>

@@ -446,6 +446,15 @@ static bool acquire_mdl(THD *thd, MDL_key::enum_mdl_namespace lock_namespace,
   } else if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
     return true;
 
+  /*
+    Unlike in other places where we acquire protection against global read
+    lock, the read_only state is not checked here since it is handled by
+    the caller or extra steps are taken to correctly ignore it. Also checking
+    read_only state can be problematic for background threads like drop table
+    thread and purge thread which can be initiated on behalf of statements
+    executed by replication thread where the read_only state does not apply.
+  */
+
   if (out_mdl_ticket) *out_mdl_ticket = mdl_request.ticket;
 
   return false;

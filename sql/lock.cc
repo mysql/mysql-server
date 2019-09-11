@@ -758,6 +758,12 @@ bool lock_schema_name(THD *thd, const char *db) {
                                      thd->variables.lock_wait_timeout))
     return true;
 
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
   return false;
 }
@@ -879,6 +885,12 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                                      thd->variables.lock_wait_timeout))
     return true;
 
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
   DEBUG_SYNC(thd, "after_wait_locked_pname");
   return false;
 }
@@ -986,7 +998,16 @@ bool acquire_shared_global_read_lock(THD *thd,
   MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
 
-  return thd->mdl_context.acquire_lock(&grl_request, lock_wait_timeout);
+  if (thd->mdl_context.acquire_lock(&grl_request, lock_wait_timeout))
+    return true;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true)) return true;
+
+  return false;
 }
 
 /**
