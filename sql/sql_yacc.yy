@@ -455,7 +455,7 @@ void warn_about_deprecated_binary(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 99
+%expect 91
 
 /*
    MAINTAINER:
@@ -1250,6 +1250,26 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> MASTER_ZSTD_COMPRESSION_LEVEL_SYM  /* MYSQL */
 %token<lexer.keyword> PRIVILEGE_CHECKS_USER_SYM     /* MYSQL */
 %token<lexer.keyword> MASTER_TLS_CIPHERSUITES_SYM   /* MYSQL */
+
+/*
+  Precedence rules used to resolve the ambiguity when using keywords as idents
+  in the case e.g.:
+
+      SELECT TIMESTAMP'...'
+
+  vs.
+
+      CREATE TABLE t1 ( timestamp INT );
+
+  The use as an ident is allowed, but must never take precedence over the use
+  as an actual keyword. Hence we declare the fake token KEYWORD_USED_AS_IDENT
+  to have the lowest possible precedence, KEYWORD_USED_AS_KEYWORD need only be
+  a bit higher. The TEXT_STRING token is added here to resolve the ambiguity
+  in the above example.
+*/
+%left KEYWORD_USED_AS_IDENT
+%nonassoc TEXT_STRING
+%left KEYWORD_USED_AS_KEYWORD
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -6364,7 +6384,7 @@ type:
           {
             $$= NEW_PTN PT_numeric_type(YYTHD, $1, $2.length, $2.dec, $3);
           }
-        | BIT_SYM
+        | BIT_SYM %prec KEYWORD_USED_AS_KEYWORD
           {
             $$= NEW_PTN PT_bit_type;
           }
@@ -14256,7 +14276,7 @@ ident_keywords_unambiguous:
         | AVG_SYM
         | BACKUP_SYM
         | BINLOG_SYM
-        | BIT_SYM
+        | BIT_SYM %prec KEYWORD_USED_AS_IDENT
         | BLOCK_SYM
         | BOOLEAN_SYM
         | BOOL_SYM
@@ -14296,7 +14316,7 @@ ident_keywords_unambiguous:
         | DATAFILE_SYM
         | DATA_SYM
         | DATETIME_SYM
-        | DATE_SYM
+        | DATE_SYM %prec KEYWORD_USED_AS_IDENT
         | DAY_SYM
         | DEFAULT_AUTH_SYM
         | DEFINER_SYM
@@ -14427,7 +14447,7 @@ ident_keywords_unambiguous:
         | MULTIPOLYGON_SYM
         | MUTEX_SYM
         | MYSQL_ERRNO_SYM
-        | NAMES_SYM
+        | NAMES_SYM %prec KEYWORD_USED_AS_IDENT
         | NAME_SYM
         | NATIONAL_SYM
         | NCHAR_SYM
@@ -14460,7 +14480,7 @@ ident_keywords_unambiguous:
         | PARTIAL
         | PARTITIONING_SYM
         | PARTITIONS_SYM
-        | PASSWORD
+        | PASSWORD %prec KEYWORD_USED_AS_IDENT
         | PATH_SYM
         | PHASE_SYM
         | PLUGINS_SYM
@@ -14573,8 +14593,8 @@ ident_keywords_unambiguous:
         | TIES_SYM
         | TIMESTAMP_ADD
         | TIMESTAMP_DIFF
-        | TIMESTAMP_SYM
-        | TIME_SYM
+        | TIMESTAMP_SYM %prec KEYWORD_USED_AS_IDENT
+        | TIME_SYM %prec KEYWORD_USED_AS_IDENT
         | TRANSACTION_SYM
         | TRIGGERS_SYM
         | TYPES_SYM
