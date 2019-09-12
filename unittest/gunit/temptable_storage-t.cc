@@ -60,7 +60,9 @@ TEST(StorageTest, Iterate) {
 }
 
 TEST(StorageTest, AllocatorRebind) {
-  std::thread t([]() {
+  // Bug in VS2019 error C3409 if we do the same as above.
+  // Turns out it is the rebind which confuses the compiler.
+  auto thread_function = []() {
     temptable::Allocator<uint8_t> alloc;
     uint8_t *shared_eater = alloc.allocate(
         1048576);  // Make sure to consume the initial shared block.
@@ -74,7 +76,8 @@ TEST(StorageTest, AllocatorRebind) {
     rebound_alloc.deallocate(ptr2, 50);
 
     alloc.deallocate(shared_eater, 1048576);
-  });
+  };
+  std::thread t(thread_function);
   t.join();
 }
 
