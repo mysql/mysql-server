@@ -5612,11 +5612,16 @@ lock_table_names(THD *thd,
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
     return true;
 
+
   /*
     Now when we have protection against concurrent change of read_only
     option we can safely re-check its value.
+    Skip the check for FLUSH TABLES ... WITH READ LOCK and
+    FLUSH TABLES ... FOR EXPORT as they are not supposed to be affected
+    by read_only modes.
   */
   if (need_global_read_lock_protection &&
+      !(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
       !(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) &&
       check_readonly(thd, true))
     return true;
