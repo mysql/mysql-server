@@ -217,7 +217,7 @@ DROP TABLE t3;
 # Prepare the sql file for testing DDLS.
 SET @save_read_only= @@global.read_only;
 CREATE USER test@localhost;
-GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, FILE ON *.* TO test@localhost;
+GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, FILE, RELOAD ON *.* TO test@localhost;
 connect (con1,localhost,test,,test);
 connect (con2,localhost,root,,test);
 # Test CREATE DATABASE statement.
@@ -910,6 +910,15 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+# Test case added for coverage.
+CREATE TABLE t1(fld1 INT);
+# FTWRL and FLUSH TABLE..FOR EXPORT is not blocked
+# in read_only/super_read_only mode.
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
 # Clean up.
+DROP TABLE t1;
 DROP USER test@localhost;
 SET GLOBAL read_only= @save_read_only;

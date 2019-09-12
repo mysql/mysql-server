@@ -390,7 +390,7 @@ DROP TABLE t3;
 SET @save_read_only= @@global.read_only;
 
 CREATE USER test@localhost;
-GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, FILE ON *.* TO test@localhost;
+GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, FILE, RELOAD ON *.* TO test@localhost;
 
 --echo connect (con1,localhost,test,,test);
 connect (con1,localhost,test,,test);
@@ -541,8 +541,19 @@ DROP EVENT event1;
 let $query= DROP EVENT IF EXISTS no_such_event;
 --source include/read_only_bug28438114.inc
 
+--echo # Test case added for coverage.
+CREATE TABLE t1(fld1 INT);
+connection con1;
+--echo # FTWRL and FLUSH TABLE..FOR EXPORT is not blocked
+--echo # in read_only/super_read_only mode.
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
 --echo # Clean up.
 connection default;
+DROP TABLE t1;
 DROP USER test@localhost;
 SET GLOBAL read_only= @save_read_only;
 --disconnect con1
