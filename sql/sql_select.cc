@@ -1553,8 +1553,6 @@ static void destroy_sj_tmp_tables(JOIN *join) {
 /**
   Remove all rows from all temp tables used by NL-semijoin runtime
 
-  @param join  The join to remove tables for
-
   All rows must be removed from all temporary tables before every join
   re-execution.
 */
