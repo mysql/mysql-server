@@ -32,6 +32,7 @@
 #include "my_config.h"
 
 #include <errno.h>
+#include <cinttypes>  // PRIi64
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -44,12 +45,6 @@
 #include "mysys_err.h"
 #if defined(_WIN32)
 #include "mysys/mysys_priv.h"
-#endif
-
-#if defined(_WIN32)
-typedef unsigned long long os_off_t;
-#else
-typedef off_t os_off_t;
 #endif
 
 /*
@@ -80,10 +75,8 @@ typedef off_t os_off_t;
 */
 
 my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
-  os_off_t newpos = -1;
+  int64_t newpos = -1;
   DBUG_TRACE;
-  DBUG_PRINT("my", ("fd: %d Pos: %llu  Whence: %d  MyFlags: %d", fd,
-                    (ulonglong)pos, whence, MyFlags));
 
   /*
       Make sure we are using a valid file descriptor!
@@ -94,44 +87,41 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
 #else
   newpos = lseek(fd, pos, whence);
 #endif
-  if (newpos == (os_off_t)-1) {
+  if (newpos == -1) {
     set_my_errno(errno);
     if (MyFlags & MY_WME) {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_CANT_SEEK, MYF(0), my_filename(fd), my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
-    DBUG_PRINT("error", ("lseek: %llu  errno: %d", (ulonglong)newpos, errno));
     return MY_FILEPOS_ERROR;
   }
-  if ((my_off_t)newpos != pos) {
-    DBUG_PRINT("exit", ("pos: %llu", (ulonglong)newpos));
-  }
-  return (my_off_t)newpos;
+  DBUG_ASSERT(newpos >= 0);
+  return newpos;
 } /* my_seek */
 
 /* Tell current position of file */
 /* ARGSUSED */
-
 my_off_t my_tell(File fd, myf MyFlags) {
-  os_off_t pos;
+  int64_t pos;
   DBUG_TRACE;
-  DBUG_PRINT("my", ("fd: %d  MyFlags: %d", fd, MyFlags));
   DBUG_ASSERT(fd >= 0);
 #if defined(HAVE_TELL) && !defined(_WIN32)
   pos = tell(fd);
 #else
   pos = my_seek(fd, 0L, MY_SEEK_CUR, 0);
 #endif
-  if (pos == (os_off_t)-1) {
+  if (pos == -1) {
     set_my_errno(errno);
     if (MyFlags & MY_WME) {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_CANT_SEEK, MYF(0), my_filename(fd), my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
-    DBUG_PRINT("error", ("tell: %llu  errno: %d", (ulonglong)pos, my_errno()));
+
+    return MY_FILEPOS_ERROR;
   }
-  DBUG_PRINT("exit", ("pos: %llu", (ulonglong)pos));
-  return (my_off_t)pos;
+  DBUG_ASSERT(pos >= 0);
+
+  return pos;
 } /* my_tell */
