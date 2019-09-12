@@ -188,14 +188,14 @@ class HttpRequestMainThread : public HttpRequestThread {
     auto *sock_ops = mysql_harness::SocketOperations::instance();
 
     std::memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
     err = getaddrinfo(address.c_str(), std::to_string(port).c_str(), &hints,
                       &ainfo);
     if (err != 0) {
-      throw std::runtime_error(std::string("getaddrinfo() failed") +
+      throw std::runtime_error(std::string("getaddrinfo() failed: ") +
                                gai_strerror(err));
     }
 

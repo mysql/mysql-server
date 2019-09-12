@@ -300,6 +300,20 @@ static const HttpServerPlainParams http_server_static_files_params[]{
      "",
      404},
 
+    {"bind-address-ipv6-any",
+     "WL11891::TS-3",
+     {
+         {"bind_address", "::"},
+         {"port", kPlaceholder},
+     },
+     true,
+     "^$",
+     "^$",
+     HttpMethod::Get,
+     "/",
+     "",
+     404},
+
     {"bind-address-ipv4-localhost",
      "WL11891::TS-6",
      {
