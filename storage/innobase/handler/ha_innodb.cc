@@ -2059,18 +2059,6 @@ void innobase_get_cset_width(
   }
 }
 
-/** Converts an identifier to a table name. */
-void innobase_convert_from_table_id(
-    const CHARSET_INFO *cs, /*!< in: the 'from' character set */
-    char *to,               /*!< out: converted identifier */
-    const char *from,       /*!< in: identifier to convert */
-    ulint len)              /*!< in: length of 'to', in bytes */
-{
-  uint errors;
-
-  strconvert(cs, from, &my_charset_filename, to, len, &errors);
-}
-
 /**********************************************************************
 Check if the length of the identifier exceeds the maximum allowed.
 return true when length of identifier is too long. */
@@ -2090,18 +2078,6 @@ bool innobase_check_identifier_length(
     return true;
   }
   return false;
-}
-
-/** Converts an identifier to UTF-8. */
-void innobase_convert_from_id(
-    const CHARSET_INFO *cs, /*!< in: the 'from' character set */
-    char *to,               /*!< out: converted identifier */
-    const char *from,       /*!< in: identifier to convert */
-    ulint len)              /*!< in: length of 'to', in bytes */
-{
-  uint errors;
-
-  strconvert(cs, from, system_charset_info, to, len, &errors);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -13003,9 +12979,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
     dberr_t err = DB_SUCCESS;
 
     mutex_enter(&dict_sys->mutex);
-    err = row_table_add_foreign_constraints(
-        m_trx, stmt, stmt_len, m_table_name,
-        m_create_info->options & HA_LEX_CREATE_TMP_TABLE, dd_table);
+    err = row_table_load_foreign_constraints(m_trx, m_table_name, dd_table);
     mutex_exit(&dict_sys->mutex);
 
     switch (err) {

@@ -73,18 +73,6 @@ ulint dict_get_db_name_len(const char *name) /*!< in: table name in the form
                                              dbname '/' tablename */
     MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
-/** Open a table from its database and table name, this is currently used by
- foreign constraint parser to get the referenced table.
- @return complete table name with database and table name, allocated from
- heap memory passed in */
-char *dict_get_referenced_table(
-    const char *name,          /*!< in: foreign key table name */
-    const char *database_name, /*!< in: table db name */
-    ulint database_name_len,   /*!< in: db name length */
-    const char *table_name,    /*!< in: table name */
-    ulint table_name_len,      /*!< in: table name length */
-    dict_table_t **table,      /*!< out: table object or NULL */
-    mem_heap_t *heap);         /*!< in: heap memory */
 /** Frees a foreign key struct. */
 void dict_foreign_free(
     dict_foreign_t *foreign); /*!< in, own: foreign key struct */
@@ -334,30 +322,6 @@ bool dict_foreign_replace_index(
     /*!< in: column names, or NULL
     to use table->col_names */
     const dict_index_t *index) /*!< in: index to be replaced */
-    MY_ATTRIBUTE((warn_unused_result));
-/** Scans a table create SQL string and adds to the data dictionary
-the foreign key constraints declared in the string. This function
-should be called after the indexes for a table have been created.
-Each foreign key constraint must be accompanied with indexes in
-bot participating tables. The indexes are allowed to contain more
-fields than mentioned in the constraint.
-
-@param[in]	trx		transaction
-@param[in]	sql_string	table create statement where
-                                foreign keys are declared like:
-                                FOREIGN KEY (a, b) REFERENCES table2(c, d),
-                                table2 can be written also with the database
-                                name before it: test.table2; the default
-                                database id the database of parameter name
-@param[in]	sql_length	length of sql_string
-@param[in]	name		table full name in normalized form
-@param[in]	reject_fks	if TRUE, fail with error code
-                                DB_CANNOT_ADD_CONSTRAINT if any
-                                foreign keys are found.
-@return error code or DB_SUCCESS */
-dberr_t dict_create_foreign_constraints(trx_t *trx, const char *sql_string,
-                                        size_t sql_length, const char *name,
-                                        ibool reject_fks)
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /** Returns a table object and increments its open handle count.

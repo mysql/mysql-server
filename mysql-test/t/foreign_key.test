@@ -3419,9 +3419,9 @@ CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
                    CONSTRAINT c FOREIGN KEY (fk) REFERENCES self(pk));
 --echo # Dropping foreign key and adding partitioning is OK.
 ALTER TABLE self DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
---echo # Adding foreign key and removing partitioning should be OK.
---echo # However, the below statement fails due to bug#28486106 in InnoDB code.
---error ER_CANNOT_ADD_FOREIGN
+--echo # Adding foreign key and removing partitioning is OK.
+--echo # The below statement provides coverage gor bug#28486106 "ALTER TABLE
+--echo # ADD FOREIGN KEY ... REMOVE PARTITIONING FAILS IF SELF-REFENCE".
 ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
 DROP TABLES self;
 
@@ -4578,3 +4578,64 @@ ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=INPLACE;
 --error ER_CANT_DROP_FIELD_OR_KEY
 ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=COPY;
 DROP TABLES unrelated, child, parent;
+
+
+--echo #
+--echo # Bug#16904122 "MULTIPLE FK WITH SAME NAME ALLOWED IN ALTER".
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, fk2 INT, a INT, KEY(fk1), KEY(fk2));
+INSERT INTO child VALUES (NULL, NULL, 1), (NULL, NULL, 1);
+--echo # Usage of duplicate foreign key name should be detected before
+--echo # proceeding to COPYing of rows (and thus duplicate key error)
+--echo # and checking if INPLACE algorithm is supported.
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+                  ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a);
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+                  ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=COPY;
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+                  ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=INPLACE;
+--echo # Also check case when we created duplicate to already pre-existing
+--echo # foreign key name. Also check that foreign key name comparison is
+--echo # case-insensitive in this case.
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk);
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a);
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=COPY;
+--error ER_FK_DUP_NAME
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+                  ADD UNIQUE (a), ALGORITHM=INPLACE;
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#22364336 "ANOMALY IN ALTER TABLE ADD FOREIGN KEY".
+--echo #
+--echo # Spaces surrounding dot in qualified parent table name should
+--echo # be allowed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES test . parent (pk));
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES test . parent (pk);
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#28703793 "CANNOT ADD FOREIGN KEY CONSTRAINT TO TABLES INSIDE A
+--echo #               DATABASE NAMED `AUX`"
+--echo #
+CREATE DATABASE aux;
+CREATE TABLE aux.parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES aux.parent (pk));
+DROP TABLE child;
+DROP DATABASE aux;
