@@ -36,6 +36,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <limits>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -58,118 +59,99 @@ ssize_t (*mock_pwrite)(int fd, const void *buf, size_t count,
                        off_t offset) = nullptr;
 #endif
 
-/*
-  Read a chunk of bytes from a file from a given position
-
-  SYNOPSIOS
-    my_pread()
-    Filedes	File decsriptor
-    Buffer	Buffer to read data into
-    Count	Number of bytes to read
-    offset	Position to read from
-    MyFlags	Flags
-
-  NOTES
-    This differs from the normal pread() call in that we don't care
+/**
+  Read a chunk of bytes from a file from a given position.
+  @note This differs from the normal pread() call in that we don't care
     to set the position in the file back to the original position
     if the system doesn't support pread().
 
-  RETURN
-    (size_t) -1   Error
-    #             Number of bytes read
+    @param Filedes	File decsriptor
+    @param Buffer	Buffer to read data into
+    @param Count	Number of bytes to read
+    @param offset	Position to read from
+    @param MyFlags	Flags
+
+    @retval MY_FILE_ERROR in case of error
+    @retval Number of bytes read, otherwise
 */
 
 size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
                 myf MyFlags) {
-  size_t readbytes;
-  int error = 0;
   DBUG_TRACE;
-  DBUG_PRINT("my", ("fd: %d  Seek: %llu  Buffer: %p  Count: %lu  MyFlags: %d",
-                    Filedes, (ulonglong)offset, Buffer, (ulong)Count, MyFlags));
   for (;;) {
     errno = 0; /* Linux, Windows don't reset this on EOF/success */
+
+    const int64_t readbytes =
 #if defined(_WIN32)
-    readbytes = my_win_pread(Filedes, Buffer, Count, offset);
+        my_win_pread(Filedes, Buffer, Count, offset);
 #else
-    readbytes = pread(Filedes, Buffer, Count, offset);
+        pread(Filedes, Buffer, Count, offset);
 #endif
-    error = (readbytes != Count);
+    const bool error = (readbytes != static_cast<int64_t>(Count));
     if (error) {
       set_my_errno(errno ? errno : -1);
-      if (errno == 0 ||
-          (readbytes != (size_t)-1 && (MyFlags & (MY_NABP | MY_FNABP))))
+      if (errno == 0 || (readbytes != -1 && (MyFlags & (MY_NABP | MY_FNABP))))
         set_my_errno(HA_ERR_FILE_TOO_SHORT);
 
-      DBUG_PRINT("warning", ("Read only %d bytes off %u from %d, errno: %d",
-                             (int)readbytes, (uint)Count, Filedes, my_errno()));
-
-      if ((readbytes == 0 || readbytes == (size_t)-1) && errno == EINTR) {
-        DBUG_PRINT("debug", ("my_pread() was interrupted and returned %d",
-                             (int)readbytes));
+      if ((readbytes == 0 || readbytes == -1) && errno == EINTR) {
         continue; /* Interrupted */
       }
 
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
         char errbuf[MYSYS_STRERROR_SIZE];
-        if (readbytes == (size_t)-1)
+        if (readbytes == -1)
           my_error(EE_READ, MYF(0), my_filename(Filedes), my_errno(),
                    my_strerror(errbuf, sizeof(errbuf), my_errno()));
         else if (MyFlags & (MY_NABP | MY_FNABP))
           my_error(EE_EOFERR, MYF(0), my_filename(Filedes), my_errno(),
                    my_strerror(errbuf, sizeof(errbuf), my_errno()));
       }
-      if (readbytes == (size_t)-1 || (MyFlags & (MY_FNABP | MY_NABP)))
-        return MY_FILE_ERROR; /* Return with error */
-    }
+      if (readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
+        return MY_FILE_ERROR;
+    }                                             // if (error)
     if (MyFlags & (MY_NABP | MY_FNABP)) return 0; /* Read went ok; Return 0 */
-    return readbytes;                             /* purecov: inspected */
-  }
-} /* my_pread */
+    DBUG_ASSERT(readbytes >= 0);
+    return readbytes; /* purecov: inspected */
+  }                   // for (;;)
+}
 
 /**
   Write a chunk of bytes to a file at a given position
-
-  SYNOPSIOS
-    my_pwrite()
-    Filedes	File decsriptor
-    Buffer	Buffer to write data from
-    Count	Number of bytes to write
-    offset	Position to write to
-    MyFlags	Flags
-
-  NOTES
+  @note
     This differs from the normal pwrite() call in that we don't care
     to set the position in the file back to the original position
     if the system doesn't support pwrite()
 
-  if (MyFlags & (MY_NABP | MY_FNABP))
-  returns
-    0  if Count == 0
-    On succes, 0
-    On failure, (size_t)-1 == MY_FILE_ERROR
+    @param Filedes	File descriptor
+    @param Buffer	Buffer to write data from
+    @param Count	Number of bytes to write
+    @param offset	Position to write to
+    @param MyFlags	Flags
+
+  @return if (MyFlags & (MY_NABP | MY_FNABP))
+   @retval 0  if Count == 0
+   @retval On success, 0
+   @retval On failure, (size_t)-1 == MY_FILE_ERROR
 
   otherwise
-  returns
-    0  if Count == 0
-    On success, the number of bytes written.
-    On partial success (if less than Count bytes could be written),
+    @retval 0  if Count == 0
+    @retval On success, the number of bytes written.
+    @retval On partial success (if less than Count bytes could be written),
        the actual number of bytes written.
-    On failure, (size_t)-1 == MY_FILE_ERROR
+    @retval On failure, (size_t)-1 == MY_FILE_ERROR
 */
 
 size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
                  my_off_t offset, myf MyFlags) {
-  size_t writtenbytes;
-  size_t sum_written = 0;
+  int64_t sum_written = 0;
   uint errors = 0;
   const size_t initial_count = Count;
 
   DBUG_TRACE;
-  DBUG_PRINT("my", ("fd: %d  Seek: %llu  Buffer: %p  Count: %lu  MyFlags: %d",
-                    Filedes, offset, Buffer, (ulong)Count, MyFlags));
 
   for (;;) {
     errno = 0;
+    int64_t writtenbytes;
 #if defined(_WIN32)
     writtenbytes = my_win_pwrite(Filedes, Buffer, Count, offset);
 #else
@@ -178,20 +160,19 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
     else
       writtenbytes = pwrite(Filedes, Buffer, Count, offset);
 #endif
-    if (writtenbytes == Count) {
+    if (writtenbytes == static_cast<int64_t>(Count)) {
       sum_written += writtenbytes;
       break;
     }
     set_my_errno(errno);
-    if (writtenbytes != (size_t)-1) {
+    if (writtenbytes != -1) {
       sum_written += writtenbytes;
       Buffer += writtenbytes;
       Count -= writtenbytes;
       offset += writtenbytes;
     }
-    DBUG_PRINT("error", ("Write only %u bytes", (uint)writtenbytes));
 
-    if (is_killed_hook(NULL))
+    if (is_killed_hook(nullptr))
       MyFlags &= ~MY_WAIT_IF_FULL; /* End if aborted by user */
 
     if ((my_errno() == ENOSPC || my_errno() == EDQUOT) &&
@@ -200,11 +181,11 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
       errors++;
       continue;
     }
-    if (writtenbytes != 0 && writtenbytes != (size_t)-1)
-      continue;
-    else if (my_errno() == EINTR) {
-      continue;                                /* Retry */
-    } else if (writtenbytes == 0 && !errors++) /* Retry once */
+    if (writtenbytes != 0 && writtenbytes != -1) continue;
+    if (my_errno() == EINTR) {
+      continue; /* Retry */
+    }
+    if (writtenbytes == 0 && !errors++) /* Retry once */
     {
       /* We may come here if the file quota is exeeded */
       continue;
@@ -212,7 +193,7 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
     break; /* Return bytes written */
   }
   if (MyFlags & (MY_NABP | MY_FNABP)) {
-    if (sum_written == initial_count)
+    if (sum_written == static_cast<int64_t>(initial_count))
       return 0; /* Want only errors, not bytes written */
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
       char errbuf[MYSYS_STRERROR_SIZE];
@@ -226,4 +207,4 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
   if (sum_written == 0) return MY_FILE_ERROR;
 
   return sum_written;
-} /* my_pwrite */
+}

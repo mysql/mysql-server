@@ -982,7 +982,7 @@ LLorULL eval_num_suffix(const char *argument, int *error,
     if (static_cast<long long>(num) == LLONG_MIN)
       errno = ERANGE;  // This will overflow
     else
-      num = -num;
+      num = -1 * num;
   }
 
   unsigned long long ull_num = num;
@@ -1048,7 +1048,7 @@ LLorULL eval_num_suffix(const char *argument, int *error,
     *error = 1;
     return 0;
   }
-  if (is_negative) return -result;
+  if (is_negative) return -1 * result;
   return result;
 }
 

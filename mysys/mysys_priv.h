@@ -97,21 +97,22 @@ extern PSI_thread_key key_thread_timer_notifier;
 #define EDQUOT (-1)
 #endif
 
-void my_error_unregister_all(void);
+void my_error_unregister_all();
 
 #ifdef _WIN32
+#include <stdint.h>  // int64_t
 #include <sys/stat.h>
 /* my_winfile.c exports, should not be used outside mysys */
 extern File my_win_open(const char *path, int oflag);
 extern int my_win_close(File fd);
-extern size_t my_win_read(File fd, uchar *buffer, size_t count);
-extern size_t my_win_write(File fd, const uchar *buffer, size_t count);
-extern size_t my_win_pread(File fd, uchar *buffer, size_t count,
-                           my_off_t offset);
-extern size_t my_win_pwrite(File fd, const uchar *buffer, size_t count,
-                            my_off_t offset);
-extern my_off_t my_win_lseek(File fd, my_off_t pos, int whence);
-extern int my_win_chsize(File fd, my_off_t newlength);
+extern int64_t my_win_read(File fd, uchar *buffer, size_t count);
+extern int64_t my_win_write(File fd, const uchar *buffer, size_t count);
+extern int64_t my_win_pread(File fd, uchar *buffer, size_t count,
+                            int64_t offset);
+extern int64_t my_win_pwrite(File fd, const uchar *buffer, size_t count,
+                             int64_t offset);
+extern int64_t my_win_lseek(File fd, int64_t pos, int whence);
+extern int my_win_chsize(File fd, int64_t newlength);
 extern FILE *my_win_fopen(const char *filename, const char *type);
 extern File my_win_fclose(FILE *file);
 extern File my_win_fileno(FILE *file);

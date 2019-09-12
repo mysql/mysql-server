@@ -37,6 +37,7 @@
 #endif
 #include <string.h>
 #include <sys/types.h>
+#include <limits>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -70,14 +71,10 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
   my_off_t oldsize;
   uchar buff[IO_SIZE];
   DBUG_TRACE;
-  DBUG_PRINT("my", ("fd: %d  length: %lu  MyFlags: %d", fd, (ulong)newlength,
-                    MyFlags));
 
   if ((oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE))) ==
       newlength)
     return 0;
-
-  DBUG_PRINT("info", ("old_size: %ld", (ulong)oldsize));
 
   if (oldsize > newlength) {
 #ifdef _WIN32
@@ -87,12 +84,14 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
     }
     return 0;
 #elif defined(HAVE_POSIX_FALLOCATE)
-    if (posix_fallocate(fd, 0, (off_t)newlength) != 0) {
+    if (posix_fallocate(fd, 0, newlength) != 0) {
       set_my_errno(errno);
       goto err;
     }
     return 0;
 #else
+    // FIXME: Use ftruncate on MacOS which does not have this apparently. But
+    // FreeBSD does...
     /*
     Fill space between requested length and true length with 'filler'
     We should never come here on any modern machine
@@ -111,15 +110,17 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
     if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP))) goto err;
     oldsize += IO_SIZE;
   }
-  if (my_write(fd, buff, (size_t)(newlength - oldsize), MYF(MY_NABP))) goto err;
+
+  if (my_write(fd, buff, static_cast<size_t>(newlength - oldsize),
+               MYF(MY_NABP)))
+    goto err;
   return 0;
 
 err:
-  DBUG_PRINT("error", ("errno: %d", errno));
   if (MyFlags & MY_WME) {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_CANT_CHSIZE, MYF(0), my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   return 1;
-} /* my_fallocator */
+}

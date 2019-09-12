@@ -70,54 +70,44 @@ ssize_t (*mock_read)(int fd, void *buf, size_t count) = nullptr;
 */
 
 size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
-  size_t readbytes, savedbytes;
+  int64_t savedbytes = 0;
   DBUG_TRACE;
-  DBUG_PRINT("my", ("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d", Filedes,
-                    Buffer, (ulong)Count, MyFlags));
-  savedbytes = 0;
 
   for (;;) {
     errno = 0; /* Linux, Windows don't reset this on EOF/success */
+    int64_t readbytes =
 #ifdef _WIN32
-    readbytes = my_win_read(Filedes, Buffer, Count);
+        my_win_read(Filedes, Buffer, Count);
 #else
-    if (mock_read)
-      readbytes = mock_read(Filedes, Buffer, Count);
-    else
-      readbytes = read(Filedes, Buffer, Count);
+        (mock_read ? mock_read(Filedes, Buffer, Count)
+                   : read(Filedes, Buffer, Count));
 #endif
     DBUG_EXECUTE_IF("simulate_file_read_error", {
       errno = ENOSPC;
-      readbytes = (size_t)-1;
+      readbytes = -1;
       DBUG_SET("-d,simulate_file_read_error");
       DBUG_SET("-d,simulate_my_b_fill_error");
     });
 
-    if (readbytes != Count) {
+    if (readbytes != static_cast<int64_t>(Count)) {
       set_my_errno(errno);
-      if (errno == 0 ||
-          (readbytes != (size_t)-1 && (MyFlags & (MY_NABP | MY_FNABP))))
+      if (errno == 0 || (readbytes != -1 && (MyFlags & (MY_NABP | MY_FNABP))))
         set_my_errno(HA_ERR_FILE_TOO_SHORT);
-      DBUG_PRINT("warning",
-                 ("Read only %d bytes off %lu from %d, errno: %d",
-                  (int)readbytes, (ulong)Count, Filedes, my_errno()));
 
-      if ((readbytes == 0 || (int)readbytes == -1) && errno == EINTR) {
-        DBUG_PRINT("debug", ("my_read() was interrupted and returned %ld",
-                             (long)readbytes));
+      if ((readbytes == 0 || readbytes == -1) && errno == EINTR) {
         continue; /* Interrupted */
       }
 
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
         char errbuf[MYSYS_STRERROR_SIZE];
-        if (readbytes == (size_t)-1)
+        if (readbytes == -1)
           my_error(EE_READ, MYF(0), my_filename(Filedes), my_errno(),
                    my_strerror(errbuf, sizeof(errbuf), my_errno()));
         else if (MyFlags & (MY_NABP | MY_FNABP))
           my_error(EE_EOFERR, MYF(0), my_filename(Filedes), my_errno(),
                    my_strerror(errbuf, sizeof(errbuf), my_errno()));
       }
-      if (readbytes == (size_t)-1 ||
+      if (readbytes == -1 ||
           ((MyFlags & (MY_FNABP | MY_NABP)) && !(MyFlags & MY_FULL_IO)))
         return MY_FILE_ERROR; /* Return with error */
       /* readbytes == 0 when EOF. No need to continue in case of EOF */
@@ -133,7 +123,7 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
       readbytes = 0; /* Ok on read */
     else if (MyFlags & MY_FULL_IO)
       readbytes += savedbytes;
-    break;
-  }
-  return readbytes;
-} /* my_read */
+
+    return readbytes;
+  }  // for (;;)
+}

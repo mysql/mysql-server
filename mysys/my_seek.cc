@@ -32,7 +32,6 @@
 #include "my_config.h"
 
 #include <errno.h>
-#include <cinttypes>  // PRIi64
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -47,45 +46,37 @@
 #include "mysys/mysys_priv.h"
 #endif
 
-/*
-  Seek to a position in a file.
-
-  ARGUMENTS
-  File fd          The file descriptor
-  my_off_t pos     The expected position (absolute or relative)
-  int whence       A direction parameter and one of
-                   {SEEK_SET, SEEK_CUR, SEEK_END}
-  myf MyFlags      MY_THREADSAFE must be set in case my_seek may be mixed
-                   with my_pread/my_pwrite calls and fd is shared among
-                   threads.
-
-  DESCRIPTION
-    The my_seek  function  is a wrapper around the system call lseek and
-    repositions  the  offset of the file descriptor fd to the argument
-    offset according to the directive whence as follows:
+/**
+  Seek to a position in a file. The my_seek  function  is a wrapper around
+  the system call lseek and repositions  the  offset of the file descriptor
+  fd to the argument offset according to the directive whence as follows:
       SEEK_SET    The offset is set to offset bytes.
       SEEK_CUR    The offset is set to its current location plus offset bytes
       SEEK_END    The offset is set to the size of the file plus offset bytes
 
-  RETURN VALUE
-    my_off_t newpos    The new position in the file.
-    MY_FILEPOS_ERROR   An error was encountered while performing
-                       the seek. my_errno is set to indicate the
-                       actual error.
+  @param fd      The file descriptor
+  @param pos     The expected position (absolute or relative)
+  @param whence  A direction parameter and one of {SEEK_SET, SEEK_CUR, SEEK_END}
+  @param MyFlags flags to control error handling.
+
+  @retval newpos            The new position in the file.
+  @retval MY_FILEPOS_ERROR  An error was encountered while performing
+                            the seek. my_errno is set to indicate the
+                            actual error.
 */
 
 my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
-  int64_t newpos = -1;
   DBUG_TRACE;
 
   /*
       Make sure we are using a valid file descriptor!
   */
   DBUG_ASSERT(fd != -1);
+  const int64_t newpos =
 #if defined(_WIN32)
-  newpos = my_win_lseek(fd, pos, whence);
+      my_win_lseek(fd, pos, whence);
 #else
-  newpos = lseek(fd, pos, whence);
+      lseek(fd, pos, whence);
 #endif
   if (newpos == -1) {
     set_my_errno(errno);
@@ -98,18 +89,18 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
   }
   DBUG_ASSERT(newpos >= 0);
   return newpos;
-} /* my_seek */
+}
 
 /* Tell current position of file */
-/* ARGSUSED */
 my_off_t my_tell(File fd, myf MyFlags) {
-  int64_t pos;
   DBUG_TRACE;
   DBUG_ASSERT(fd >= 0);
+
+  const int64_t pos =
 #if defined(HAVE_TELL) && !defined(_WIN32)
-  pos = tell(fd);
+      tell(fd);
 #else
-  pos = my_seek(fd, 0L, MY_SEEK_CUR, 0);
+      my_seek(fd, 0L, MY_SEEK_CUR, 0);
 #endif
   if (pos == -1) {
     set_my_errno(errno);
@@ -122,6 +113,5 @@ my_off_t my_tell(File fd, myf MyFlags) {
     return MY_FILEPOS_ERROR;
   }
   DBUG_ASSERT(pos >= 0);
-
   return pos;
-} /* my_tell */
+}

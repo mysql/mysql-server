@@ -67,7 +67,9 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysys_priv.h"
 
-/* Associates a file descriptor with an existing operating-system file handle.*/
+/**
+   Associates a file descriptor with an existing operating-system file handle.
+  */
 File my_open_osfhandle(HANDLE handle, int oflag) {
   int offset = -1;
   uint i;
@@ -108,20 +110,17 @@ static int my_get_open_flags(File fd) {
   return my_file_info[fd].oflag;
 }
 
-/*
+/**
   Open a file with sharing. Similar to _sopen() from libc, but allows managing
-  share delete on win32
+  share delete on win32.
 
-  SYNOPSIS
-  my_win_sopen()
-  path    file name
-  oflag   operation flags
-  shflag  share flag
-  pmode   permission flags
+  @param path    file name
+  @param oflag   operation flags
+  @param shflag  share flag
+  @param pmode   permission flags
 
-  RETURN VALUE
-  File descriptor of opened file if success
-  -1 and sets errno if fails.
+  @retval File descriptor of opened file if success
+  @retval -1 and sets errno if fails.
 */
 
 File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
@@ -282,8 +281,8 @@ int my_win_close(File fd) {
   return -1;
 }
 
-size_t my_win_pread(File Filedes, uchar *Buffer, size_t Count,
-                    my_off_t offset) {
+int64_t my_win_pread(File Filedes, uchar *Buffer, size_t Count,
+                     int64_t offset) {
   DWORD nBytesRead;
   HANDLE hFile;
   OVERLAPPED ov = {0};
@@ -308,12 +307,12 @@ size_t my_win_pread(File Filedes, uchar *Buffer, size_t Count,
     if (lastError == ERROR_HANDLE_EOF || lastError == ERROR_BROKEN_PIPE)
       return 0; /*return 0 at EOF*/
     my_osmaperr(lastError);
-    return (size_t)-1;
+    return -1;
   }
   return nBytesRead;
 }
 
-size_t my_win_read(File Filedes, uchar *Buffer, size_t Count) {
+int64_t my_win_read(File Filedes, uchar *Buffer, size_t Count) {
   DWORD nBytesRead;
   HANDLE hFile;
 
@@ -332,21 +331,19 @@ size_t my_win_read(File Filedes, uchar *Buffer, size_t Count) {
     if (lastError == ERROR_HANDLE_EOF || lastError == ERROR_BROKEN_PIPE)
       return 0; /*return 0 at EOF*/
     my_osmaperr(lastError);
-    return (size_t)-1;
+    return -1;
   }
   return nBytesRead;
 }
 
-size_t my_win_pwrite(File Filedes, const uchar *Buffer, size_t Count,
-                     my_off_t offset) {
+int64_t my_win_pwrite(File Filedes, const uchar *Buffer, size_t Count,
+                      int64_t offset) {
   DWORD nBytesWritten;
   HANDLE hFile;
   OVERLAPPED ov = {0};
   LARGE_INTEGER li;
 
   DBUG_TRACE;
-  DBUG_PRINT("my", ("Filedes: %d, Buffer: %p, Count: %llu, offset: %llu",
-                    Filedes, Buffer, (ulonglong)Count, (ulonglong)offset));
 
   if (!Count) return 0;
 
@@ -359,12 +356,12 @@ size_t my_win_pwrite(File Filedes, const uchar *Buffer, size_t Count,
 
   if (!WriteFile(hFile, Buffer, (DWORD)Count, &nBytesWritten, &ov)) {
     my_osmaperr(GetLastError());
-    return (size_t)-1;
+    return -1;
   } else
     return nBytesWritten;
 }
 
-my_off_t my_win_lseek(File fd, my_off_t pos, int whence) {
+int64_t my_win_lseek(File fd, int64_t pos, int whence) {
   LARGE_INTEGER offset;
   LARGE_INTEGER newpos;
 
@@ -385,15 +382,13 @@ my_off_t my_win_lseek(File fd, my_off_t pos, int whence) {
 #ifndef FILE_WRITE_TO_END_OF_FILE
 #define FILE_WRITE_TO_END_OF_FILE 0xffffffff
 #endif
-size_t my_win_write(File fd, const uchar *Buffer, size_t Count) {
+int64_t my_win_write(File fd, const uchar *Buffer, size_t Count) {
   DWORD nWritten;
   OVERLAPPED ov;
   OVERLAPPED *pov = NULL;
   HANDLE hFile;
 
   DBUG_TRACE;
-  DBUG_PRINT("my", ("Filedes: %d, Buffer: %p, Count %llu", fd, Buffer,
-                    (ulonglong)Count));
 
   if (!Count) return 0;
 
@@ -413,12 +408,12 @@ size_t my_win_write(File fd, const uchar *Buffer, size_t Count) {
   hFile = my_get_osfhandle(fd);
   if (!WriteFile(hFile, Buffer, (DWORD)Count, &nWritten, pov)) {
     my_osmaperr(GetLastError());
-    return (size_t)-1;
+    return -1;
   }
   return nWritten;
 }
 
-int my_win_chsize(File fd, my_off_t newlength) {
+int my_win_chsize(File fd, int64_t newlength) {
   HANDLE hFile;
   LARGE_INTEGER length;
   DBUG_TRACE;
@@ -531,11 +526,11 @@ int my_win_fclose(FILE *file) {
   return 0;
 }
 
-/*
+/**
   Quick and dirty my_fstat() implementation for Windows.
   Use CRT fstat on temporarily allocated file descriptor.
   Patch file size, because size that fstat returns is not
-  reliable (may be outdated)
+  reliable (may be outdated).
 */
 int my_win_fstat(File fd, struct _stati64 *buf) {
   int crt_fd;

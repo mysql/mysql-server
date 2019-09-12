@@ -48,38 +48,26 @@
 #include "mysys/mysys_priv.h"
 #endif
 
-/*
-  Change size of file.
+/**
+  Change size of file. Truncates file if shorter else fill with the filler
+  character. The function also changes the file pointer. Usually it points
+  to the end of the file after execution.
 
-  SYNOPSIS
-    my_chsize()
-      fd		File descriptor
-      new_length	New file size
-      filler		If we don't have truncate, fill up all bytes after
-                        new_length with this character
-      MyFlags		Flags
+  @param fd          File descriptor
+  @param newlength   New file size
+  @param filler	     if we don't have truncate, fill up all bytes after
+                     new_length with this character
+  @param MyFlags     Flags
 
-  DESCRIPTION
-    my_chsize() truncates file if shorter else fill with the filler character.
-    The function also changes the file pointer. Usually it points to the end
-    of the file after execution.
-
-  RETURN VALUE
-    0	Ok
-    1	Error
+  @retval 0          Ok
+  @retval 1          Error
 */
 int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags) {
-  my_off_t oldsize;
   uchar buff[IO_SIZE];
   DBUG_TRACE;
-  DBUG_PRINT("my", ("fd: %d  length: %lu  MyFlags: %d", fd, (ulong)newlength,
-                    MyFlags));
 
-  if ((oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE))) ==
-      newlength)
-    return 0;
-
-  DBUG_PRINT("info", ("old_size: %ld", (ulong)oldsize));
+  my_off_t oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE));
+  if (oldsize == newlength) return 0;
 
   if (oldsize > newlength) {
 #ifdef _WIN32
@@ -89,7 +77,7 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags) {
     }
     return 0;
 #elif defined(HAVE_FTRUNCATE)
-    if (ftruncate(fd, (off_t)newlength)) {
+    if (ftruncate(fd, newlength)) {
       set_my_errno(errno);
       goto err;
     }
@@ -113,15 +101,16 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags) {
     if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP))) goto err;
     oldsize += IO_SIZE;
   }
-  if (my_write(fd, buff, (size_t)(newlength - oldsize), MYF(MY_NABP))) goto err;
+  if (my_write(fd, buff, static_cast<size_t>(newlength - oldsize),
+               MYF(MY_NABP)))
+    goto err;
   return 0;
 
 err:
-  DBUG_PRINT("error", ("errno: %d", errno));
   if (MyFlags & MY_WME) {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(EE_CANT_CHSIZE, MYF(0), my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   return 1;
-} /* my_chsize */
+}
