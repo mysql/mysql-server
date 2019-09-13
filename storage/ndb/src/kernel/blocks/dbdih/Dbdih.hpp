@@ -1618,7 +1618,9 @@ private:
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
   Uint32 compute_max_failure_time();
-  void setGCPStopTimeouts(Signal*);
+  void setGCPStopTimeouts(Signal*,
+                          bool set_gcp_save_max_lag = true,
+                          bool set_micro_gcp_max_lag = true);
   void sendINFO_GCP_STOP_TIMER(Signal*);
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
@@ -2201,6 +2203,7 @@ private:
       Uint32 m_gci;
       Uint32 m_elapsed_ms; //MilliSec since last GCP_SAVEed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
+      bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
     } m_gcp_save;
 
     struct
@@ -2208,9 +2211,14 @@ private:
       Uint64 m_gci;
       Uint32 m_elapsed_ms; //MilliSec since last GCP_COMMITed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
+      bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
     } m_micro_gcp;
 
     NDB_TICKS m_last_check; //Time GCP monitor last checked
+
+#ifdef ERROR_INSERT
+    Uint32 m_savedMaxCommitLag;  // Testing
+#endif
   } m_gcp_monitor;
 
   /*------------------------------------------------------------------------*/

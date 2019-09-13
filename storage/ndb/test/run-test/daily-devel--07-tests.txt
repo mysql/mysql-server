@@ -212,3 +212,7 @@ cmd: testNdbApi
 args: -n PkLockingReadNoWait T1
 max-time:30
 
+cmd: testNodeRestart
+args: -n PostponeRecalculateGCPCommitLag T1
+max-time: 520
+
