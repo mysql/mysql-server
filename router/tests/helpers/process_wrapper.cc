@@ -84,7 +84,7 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
   // exit until we deal with its output.
   std::exception_ptr eptr;
   exit_code_set_ = false;
-  while (ch::steady_clock::now() < timeout_timestamp) {
+  do {
     read_and_autorespond_to_output(0ms);
 
     try {
@@ -104,7 +104,7 @@ int ProcessWrapper::wait_for_exit_while_reading_and_autoresponding_to_output(
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
+  } while (ch::steady_clock::now() < timeout_timestamp);
 
   if (exit_code_set_) {
     // the child exited, but there might still be some data left in the pipe to

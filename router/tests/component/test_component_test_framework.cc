@@ -251,6 +251,30 @@ TEST_F(ComponentTestFrameworkTest, DISABLED_sleepy_blind_autoresponder_testee) {
   autoresponder_testee();
 }
 
+TEST_F(ComponentTestFrameworkTest, wait_for_exit_with_low_timeout_tester) {
+  /**
+   * @test This test verifies that calling ProcessWrapper::wait_for_exit() with
+   * a very low timeout (0 in this case) will behave as expected (throw
+   * std::system_error due to timeout).
+   */
+
+  ProcessWrapper &testee = launch_command(
+      g_this_exec_path,
+      {arglist_prefix_ + "wait_for_exit_with_low_timeout_testee"});
+
+  // wait with very short timeout
+  EXPECT_THROW_LIKE(testee.wait_for_exit(std::chrono::seconds(0)),
+                    std::system_error,
+                    "Timed out waiting 0 ms for the process");
+
+  // now let's just wait for the process to shut down naturally (test cleanup)
+  EXPECT_EQ(testee.wait_for_exit(kSleepDuration + kSleepDuration / 2), 0);
+}
+TEST_F(ComponentTestFrameworkTest,
+       DISABLED_wait_for_exit_with_low_timeout_testee) {
+  sleepy_testee();
+}
+
 int main(int argc, char *argv[]) {
   g_this_exec_path = argv[0];
 
