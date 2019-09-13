@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.22"
+VERSION="autotest-run.sh version 1.23"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -284,23 +284,29 @@ choose(){
         rm -f $TMP1
 }
 
-choose_conf(){
-    if [ -f $test_dir/conf-$1-$HOST.cnf ]
-	then
-	echo "$test_dir/conf-$1-$HOST.cnf"
-    elif [ -f $test_dir/conf-$1.cnf ]
-    then
-	echo "$test_dir/conf-$1.cnf"
-    elif [ -f $test_dir/conf-$HOST.cnf ]
-    then
-	echo "$test_dir/conf-$HOST.cnf"
-    else
-	echo "Unable to find conf file looked for" 1>&2
-	echo "$test_dir/conf-$1-$HOST.cnf and" 1>&2
-	echo "$test_dir/conf-$HOST.cnf" 1>&2
-	echo "$test_dir/conf-$1.cnf" 1>&2
-	exit
+choose_conf() {
+  local testsuite="${1}"
+
+  local search_path=(
+    "${test_dir}/conf-${testsuite}-${HOST}.cnf"
+    "${test_dir}/conf-${testsuite}.cnf"
+    "${test_dir}/conf-${HOST}.cnf"
+    "${test_dir}/conf-${testsuite}-autotest.cnf"
+    "${test_dir}/conf-autotest.cnf"
+  )
+
+  for conf in "${search_path[@]}"; do
+    if [ -f "${conf}" ]; then
+      echo "${conf}"
+      return
     fi
+  done
+
+  echo "Unable to find conf file looked for" 1>&2
+  for conf in "${search_path[@]}"; do
+    echo " * ${conf}" 1>&2
+  done
+  exit 1
 }
 
 #########################################
