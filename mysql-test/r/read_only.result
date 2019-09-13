@@ -455,7 +455,10 @@ connection default;
 SET GLOBAL READ_ONLY= 0;
 DROP INDEX idx1 ON t1;
 # Test IMPORT TABLE statement.
+# Setup test environment.
 CREATE TABLE t2(fld1 INT) ENGINE=MYISAM;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
 DROP TABLE t2;
 connection default;
 FLUSH TABLES WITH READ LOCK;
@@ -838,7 +841,7 @@ connection default;
 FLUSH TABLES WITH READ LOCK;
 connection con1;
 # DDL statement will block waiting for GRL.
-CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+CREATE EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
 connection con2;
 # Wait until statement is blocked waiting for GRL.
 SET GLOBAL READ_ONLY= 1;

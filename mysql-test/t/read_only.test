@@ -442,14 +442,23 @@ let $query= DROP INDEX idx1 ON t1;
 DROP INDEX idx1 ON t1;
 
 --echo # Test IMPORT TABLE statement.
+--echo # Setup test environment.
+let $MYSQLD_DATADIR=`SELECT @@datadir`;
+--perl
+chdir $ENV{'MYSQL_TMP_DIR'};
+mkdir "export";
+EOF
+let $EXPORT_DIR= $MYSQL_TMP_DIR/export;
 let $MYSQLD_DATADIR=`SELECT @@datadir`;
 CREATE TABLE t2(fld1 INT) ENGINE=MYISAM;
---copy_files_wildcard $MYSQLD_DATADIR/test/ $MYSQL_TMP_DIR/ t*
+FLUSH TABLES WITH READ LOCK;
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t2*
+UNLOCK TABLES;
 DROP TABLE t2;
---copy_files_wildcard $MYSQL_TMP_DIR/ $MYSQLD_DATADIR/test/ t*
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t2*
 let $query= IMPORT TABLE FROM 'test/t2*.sdi';
 --source include/read_only_bug28438114.inc
---remove_files_wildcard $MYSQL_TMP_DIR/ t*
+--force-rmdir $EXPORT_DIR
 
 --echo # Test CREATE TRIGGER statement.
 let $query= CREATE TRIGGER trg1 BEFORE INSERT ON t1
@@ -528,7 +537,7 @@ EVERY 10 HOUR DO SELECT 1;
 --source include/read_only_bug28438114.inc
 --echo # Test CREATE EVENT statement which doesn't update DD tables
 CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
-let $query= CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+let $query= CREATE EVENT IF NOT EXISTS event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
 --source include/read_only_bug28438114.inc
 --echo # Test ALTER EVENT statement
 let $query= ALTER EVENT event1 DISABLE;
