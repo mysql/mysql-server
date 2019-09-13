@@ -26,6 +26,11 @@ include/start_and_bootstrap_group_replication.inc
 # Configure a joining member to use SSL options on recovery and start it
 #
 [connection server2]
+SET @tls_version_saved= @@GLOBAL.tls_version;
+SET GLOBAL tls_version='TLSv1.3';
+SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
+SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
+ALTER INSTANCE RELOAD TLS;
 CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 SET @group_replication_recovery_use_ssl_saved= @@GLOBAL.group_replication_recovery_use_ssl;
 SET GLOBAL group_replication_recovery_use_ssl=1;
@@ -40,6 +45,9 @@ include/assert.inc [On the recovered member, the table should exist and have 1 e
 # Clean up
 #
 [connection server2]
+SET @@GLOBAL.tls_version= @tls_version_saved;
+SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
+ALTER INSTANCE RELOAD TLS;
 SET @@GLOBAL.group_replication_recovery_use_ssl= @group_replication_recovery_use_ssl_saved;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_recovery_tls_ciphersuites_saved;
 [connection server1]
