@@ -2,10 +2,14 @@
 
 --echo #
 --echo # Bug#30292605: ASSERTION WHEN READING A HIDDEN ARRAY COLUMN
+--echo # Bug#30302208: ASSERTION FAILURE WITH CREATE TABLE AS SELECT AND
+--echo #               SHOW_HIDDEN_COLUMNS
 --echo #
 CREATE TABLE t(j JSON, KEY k ((CAST(j->'$[*]' AS SIGNED ARRAY))));
 INSERT INTO t VALUES ('[1,2,3]');
 SET debug = '+d,show_hidden_columns';
 SELECT * FROM t;
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t_copy AS SELECT * FROM t;
 SET debug = '-d,show_hidden_columns';
 DROP TABLE t;

@@ -1,5 +1,7 @@
 #
 # Bug#30292605: ASSERTION WHEN READING A HIDDEN ARRAY COLUMN
+# Bug#30302208: ASSERTION FAILURE WITH CREATE TABLE AS SELECT AND
+#               SHOW_HIDDEN_COLUMNS
 #
 CREATE TABLE t(j JSON, KEY k ((CAST(j->'$[*]' AS SIGNED ARRAY))));
 INSERT INTO t VALUES ('[1,2,3]');
@@ -7,5 +9,7 @@ SET debug = '+d,show_hidden_columns';
 SELECT * FROM t;
 j	28d61f7b1f07d88c18f1068410d140b5
 [1, 2, 3]	[1, 2, 3]
+CREATE TABLE t_copy AS SELECT * FROM t;
+ERROR 42000: This version of MySQL doesn't yet support 'Creating tables with array columns.'
 SET debug = '-d,show_hidden_columns';
 DROP TABLE t;

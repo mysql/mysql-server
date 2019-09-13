@@ -54,6 +54,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant_all_columns
 #include "sql/binlog.h"
+#include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"            // dd::get_dictionary
 #include "sql/dd/dictionary.h"    // dd::Dictionary
@@ -2586,6 +2587,17 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (cr_field == nullptr) {
       return nullptr; /* purecov: deadcode */
     }
+
+    // Array columns may be returned if show_hidden_columns is enabled. Raise an
+    // error instead of attempting to create array columns in the new table.
+    DBUG_EXECUTE("show_hidden_columns", {
+      if (cr_field->is_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "Creating tables with array columns.");
+        return nullptr;
+      }
+    });
+    DBUG_ASSERT(!cr_field->is_array);
 
     alter_info->create_list.push_back(cr_field);
   }
