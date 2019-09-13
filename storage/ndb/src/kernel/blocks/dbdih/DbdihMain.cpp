@@ -2614,7 +2614,10 @@ Dbdih::execNODE_START_REP(Signal* signal)
       c_dictLockSlavePtrI_nodeRestart = RNIL;
     }
   }
-  setGCPStopTimeouts(signal);
+  // Request max lag recalculation to reflect new cluster scale
+  // after a node start
+  m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc = true;
+  m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc = true;
 }
 
 void
@@ -10590,7 +10593,10 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     setNodeRestartInfoBits(signal);
   }//if
 
-  setGCPStopTimeouts(signal);
+  // Request max lag recalculation to reflect new cluster scale
+  // after a node failure
+  m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc = true;
+  m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc = true;
 
   /**
    * Need to check if a node failed that was part of LCP. In this
@@ -11680,17 +11686,6 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
 
   NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
   NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
-  if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms > 0)
-  {
-    infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
-              m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);
-    infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
-              m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
-  }
-  else
-  {
-    infoEvent("GCP Monitor: unlimited lags allowed");
-  }
 
   bool ok = false;
   switch(m_micro_gcp.m_master.m_state){
@@ -23578,6 +23573,19 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     jam();
     m_gcp_monitor.m_gcp_save.m_gci = m_gcp_save.m_gci;
     m_gcp_monitor.m_gcp_save.m_elapsed_ms = 0;
+
+    /**
+     * Recalculate gcp_save.m_max_lag.
+     * Since the maxima for gcp_save and micro_gcp are calculated
+     * separately at protocol basis, the normal constraint that
+     * GCP_SAVE max is > GCP_COMMIT max, may not hold in cases where
+     * GCP_SAVE is stalled.
+    */
+    if (m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc)
+    {
+      setGCPStopTimeouts(signal, true, false); // true: for gcp_save
+      m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc = false;
+    }
   }
 
   if (m_gcp_monitor.m_micro_gcp.m_gci == m_micro_gcp.m_current_gci)
@@ -23619,6 +23627,19 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     jam();
     m_gcp_monitor.m_micro_gcp.m_elapsed_ms = 0;
     m_gcp_monitor.m_micro_gcp.m_gci = m_micro_gcp.m_current_gci;
+
+    /**
+     * Recalculate micro_gcp.m_max_lag.
+     * Since the maxima for gcp_save and micro_gcp are calculated
+     * separately at protocol basis, the normal constraint that
+     * GCP_SAVE max is > GCP_COMMIT max, may not hold in cases where
+     * GCP_SAVE is stalled.
+    */
+    if (m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc)
+    {
+      setGCPStopTimeouts(signal, false); // set_micro_gcp_max_lag is true by default
+      m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc = false;
+    }
   }
   
   signal->theData[0] = DihContinueB::ZCHECK_GCP_STOP;
@@ -24651,7 +24672,9 @@ Dbdih::compute_max_failure_time()
   Calculate timeouts for detecting GCP stops. These must be set such that
   node failures are not falsely interpreted as GCP stops.
 */
-void Dbdih::setGCPStopTimeouts(Signal *signal)
+void Dbdih::setGCPStopTimeouts(Signal *signal,
+                               bool set_gcp_save_max_lag,
+                               bool set_micro_gcp_max_lag)
 {
   
   const ndb_mgm_configuration_iterator* cfgIter = 
@@ -24689,15 +24712,21 @@ void Dbdih::setGCPStopTimeouts(Signal *signal)
       gcp_timeout = 0;
     }
 
-    m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 
-      m_micro_gcp.m_master.m_time_between_gcp + micro_GCP_timeout 
-      + max_failure_time;
-    
-    m_gcp_monitor.m_gcp_save.m_max_lag_ms = 
-      m_gcp_save.m_master.m_time_between_gcp + 
-      // Ensure that GCP-commit times out before GCP-save if both stops. 
-      MAX(gcp_timeout, micro_GCP_timeout) + 
-      max_failure_time;
+    if (set_micro_gcp_max_lag)
+    {
+      m_gcp_monitor.m_micro_gcp.m_max_lag_ms =
+        m_micro_gcp.m_master.m_time_between_gcp + micro_GCP_timeout
+        + max_failure_time;
+    }
+
+    if (set_gcp_save_max_lag)
+    {
+      m_gcp_monitor.m_gcp_save.m_max_lag_ms =
+        m_gcp_save.m_master.m_time_between_gcp +
+        // Ensure that GCP-commit times out before GCP-save if both stops.
+        MAX(gcp_timeout, micro_GCP_timeout) +
+        max_failure_time;
+    }
   }
   else
   {
@@ -24706,9 +24735,8 @@ void Dbdih::setGCPStopTimeouts(Signal *signal)
     m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
   }
 
-  // If timeouts have changed, log it.
-  if (old_micro_GCP_max_lag != m_gcp_monitor.m_micro_gcp.m_max_lag_ms ||
-      old_GCP_save_max_lag != m_gcp_monitor.m_gcp_save.m_max_lag_ms)
+  // If timeouts have changed, log it for micro_gcp
+  if (old_micro_GCP_max_lag != m_gcp_monitor.m_micro_gcp.m_max_lag_ms)
   {
     if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms > 0)
     {
@@ -24719,13 +24747,38 @@ void Dbdih::setGCPStopTimeouts(Signal *signal)
         // Log to mgmd.
         infoEvent("GCP Monitor: Computed max GCP_COMMIT lag to %u seconds",
                   m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
-        infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
-                  m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);
       }
       // Log locallly.
       g_eventLogger->info("GCP Monitor: Computed max GCP_COMMIT lag to %u"
                           " seconds",
                           m_gcp_monitor.m_micro_gcp.m_max_lag_ms / 1000);
+    }
+    else
+    {
+      jam();
+      if (isMaster())
+      {
+        jam();
+        infoEvent("GCP Monitor: GCP_COMMIT: unlimited lags allowed");
+      }
+      g_eventLogger->info("GCP Monitor: GCP_COMMIT: unlimited lags allowed");
+    }
+  }
+
+  // If timeouts have changed, log it for gcp_save
+  if (old_GCP_save_max_lag != m_gcp_monitor.m_gcp_save.m_max_lag_ms)
+  {
+    if (m_gcp_monitor.m_gcp_save.m_max_lag_ms > 0)
+    {
+      jam();
+      if (isMaster())
+      {
+        jam();
+        // Log to mgmd.
+        infoEvent("GCP Monitor: Computed max GCP_SAVE lag to %u seconds",
+                  m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);
+      }
+      // Log locallly.
       g_eventLogger->info("GCP Monitor: Computed max GCP_SAVE lag to %u"
                           " seconds", 
                           m_gcp_monitor.m_gcp_save.m_max_lag_ms / 1000);    
@@ -24736,9 +24789,9 @@ void Dbdih::setGCPStopTimeouts(Signal *signal)
       if (isMaster())
       {
         jam();
-        infoEvent("GCP Monitor: unlimited lags allowed");
+        infoEvent("GCP Monitor: GCP_SAVE: unlimited lags allowed");
       }
-      g_eventLogger->info("GCP Monitor: unlimited lags allowed");
+      g_eventLogger->info("GCP Monitor: GCP_SAVE: unlimited lags allowed");
     }
   }
   sendINFO_GCP_STOP_TIMER(signal);
@@ -27010,9 +27063,15 @@ Dbdih::startGcpMonitor(Signal* signal)
   jam();
   m_gcp_monitor.m_gcp_save.m_gci = m_gcp_save.m_gci;
   m_gcp_monitor.m_gcp_save.m_elapsed_ms = 0;
+  m_gcp_monitor.m_gcp_save.m_need_max_lag_recalc = true;
   m_gcp_monitor.m_micro_gcp.m_gci = m_micro_gcp.m_current_gci;
   m_gcp_monitor.m_micro_gcp.m_elapsed_ms = 0;
+  m_gcp_monitor.m_micro_gcp.m_need_max_lag_recalc = true;
   m_gcp_monitor.m_last_check = NdbTick_getCurrentTicks();
+
+#ifdef ERROR_INSERT
+  m_gcp_monitor.m_savedMaxCommitLag = 0;
+#endif
 
   signal->theData[0] = DihContinueB::ZCHECK_GCP_STOP;
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
@@ -28032,6 +28091,27 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
     return;
   }
+#ifdef ERROR_INSERT
+  if (arg == DumpStateOrd::DihSaveGcpCommitLag)
+  {
+    jam();
+    m_gcp_monitor.m_savedMaxCommitLag =
+      m_gcp_monitor.m_micro_gcp.m_max_lag_ms;
+    g_eventLogger->info("Saving Gcp commit lag %u",
+                        m_gcp_monitor.m_savedMaxCommitLag);
+    return;
+  }
+  if (arg == DumpStateOrd::DihCheckGcpCommitLag)
+  {
+    jam();
+    g_eventLogger->info("Checking Gcp commit lag (%u) == saved lag (%u)",
+                        m_gcp_monitor.m_micro_gcp.m_max_lag_ms,
+                        m_gcp_monitor.m_savedMaxCommitLag);
+    ndbrequire(m_gcp_monitor.m_micro_gcp.m_max_lag_ms ==
+               m_gcp_monitor.m_savedMaxCommitLag);
+    return;
+  }
+#endif
 
 }//Dbdih::execDUMP_STATE_ORD()
 

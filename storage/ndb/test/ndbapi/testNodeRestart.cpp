@@ -114,6 +114,18 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
   return result;
 }
 
+#define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
+  ndbout << "ERR: "<< m \
+           << "   " << "File: " << __FILE__ \
+           << " (Line: " << __LINE__ << ")" << "- " << _xx << endl; \
+  return NDBT_FAILED; } }
+
+#define CHECK2(b) if (!(b)) { \
+  g_err << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  result = NDBT_FAILED; \
+  break; }
+
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
   int records = ctx->getNumRecords();
@@ -4832,12 +4844,6 @@ runBug43888(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-#define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
-  ndbout << "ERR: "<< m \
-           << "   " << "File: " << __FILE__ \
-           << " (Line: " << __LINE__ << ")" << "- " << _xx << endl; \
-  return NDBT_FAILED; } }
-
 int
 runBug44952(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -9225,6 +9231,154 @@ int runNodeFailLcpStall(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/* Check whether the deceased node died within max_timeout_sec*/
+int checkOneNodeDead(int deceased, int max_timeout_sec)
+{
+  int timeout = 0;
+  NdbRestarter restarter;
+
+  int victim_status = NDB_MGM_NODE_STATUS_UNKNOWN;
+  while (timeout++ < max_timeout_sec)
+  {
+    victim_status = restarter.getNodeStatus(deceased);
+    if (victim_status == NDB_MGM_NODE_STATUS_STARTED)
+    {
+      NdbSleep_SecSleep(1);
+    }
+    else
+    {
+      g_info << "Node " << deceased
+             << " died after " << timeout << "secs, "
+             << " node's status " << victim_status << endl;
+      return 0;
+    }
+  }
+  g_err << "Node " << deceased
+        << " has not died after " << timeout << "secs, " << endl;
+  return 1;
+}
+
+/**
+ * Reads a config variable id and value from the test context
+ * change the config and restarts the data nodes.
+ */
+
+int runChangeDataNodeConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int num_config_vars = ctx->getProperty("NumConfigVars", Uint32(1));
+
+  ctx->setProperty("NumConfigVars", Uint32(0));
+
+  for (int c=1; c <= num_config_vars; c++)
+  {
+    BaseString varId;
+    BaseString varVal;
+    varId.assfmt("ConfigVarId%u", c);
+    varVal.assfmt("ConfigValue%u", c);
+
+    Uint32 new_value_read = 0;
+    int config_var_id =
+      ctx->getProperty(varId.c_str(), (Uint32)new_value_read);
+
+    Uint32 new_config_value =
+      ctx->getProperty(varVal.c_str(), (Uint32)new_value_read);
+
+    g_err << "Setting config " << config_var_id << " val " << new_config_value << endl;
+
+    // Override the config
+    NdbMgmd mgmd;
+    Uint32 old_config_value = 0;
+    CHECK(mgmd.change_config32(new_config_value,
+                               &old_config_value,
+                               CFG_SECTION_NODE,
+                               config_var_id),
+          "Change config failed");
+
+    g_err << "  Success, old val : " << old_config_value << endl;
+
+    // Save the old_value in the test property 'config_var%u'.
+    ctx->setProperty(varVal.c_str(), old_config_value);
+    ctx->setProperty("NumConfigVars", Uint32(c));
+  }
+
+  g_err << "Restarting nodes with new config." << endl;
+
+  // Restart cluster to get the new config value
+  NdbRestarter restarter;
+  CHECK(restarter.restartAll() == 0, "Restart all failed");
+
+  CHECK(restarter.waitClusterStarted() == 0,
+         "Cluster has not started");
+  g_err << "Nodes restarted with new config." << endl;
+  return NDBT_OK;
+}
+
+int runPauseGcpCommitUntilNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() > 4)
+  {
+    g_err << endl
+          << "ERROR: This test was not run since #data nodes exceeded 4"
+          << endl << endl;
+
+    ctx->stopTest();
+    return result;
+  }
+
+  int master = restarter.getMasterNodeId();
+  int victim = restarter.getRandomNotMasterNodeId(rand());
+
+  /* Save current gcp commit lag */
+  int dump = DumpStateOrd::DihSaveGcpCommitLag;
+
+  restarter.dumpStateOneNode(master, &dump, 1);
+
+  while (true)
+  {
+    // Delay gcp commit conf at victim participant,
+    // causing master to kill it eventually
+    CHECK2(restarter.insertErrorInNode(victim, 7239) == 0);
+
+    // Error insert to hit CRASH INSERTION on failure so
+    // that test framework does not report failure
+    CHECK2(restarter.insertErrorInNode(victim, 1005) == 0);
+
+    // Error insert on master to stall takeover when it comes
+    CHECK2(restarter.insertErrorInNode(master, 8118) == 0);
+
+    g_err << "Waiting for node " << victim << " to fail." << endl;
+
+    CHECK2(checkOneNodeDead(victim, 400) == 0);
+    g_err << "Victim died" << endl;
+
+    // Now master is stalled on takeover
+
+    g_err << "Checking commit lag is unchanged" << endl;
+
+    int dump = DumpStateOrd::DihCheckGcpCommitLag;
+
+    restarter.dumpStateOneNode(master, &dump, 1);
+
+    g_err << "OK : GCP timeout not changed" << endl;
+
+
+    g_err << "Cleaning up" << endl;
+    /**
+     * Release master
+     */
+    CHECK2(restarter.insertErrorInNode(master, 0) == 0);
+
+    g_err << "Waiting victim node " << victim << " to start" << endl;
+    CHECK2(restarter.waitNodesStarted(&victim, 1) == 0);
+    break;
+  }
+
+  ctx->stopTest();
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -9996,6 +10150,22 @@ TESTCASE("NodeFailLcpStall",
   INITIALIZER(createManyTables);
   STEP(runNodeFailLcpStall);
   FINALIZER(dropManyTables);
+}
+TESTCASE("PostponeRecalculateGCPCommitLag",
+         "check that a slow TC takeover does not result in "
+         "another GCP failure in a shorter period")
+{
+  TC_PROPERTY("NumConfigVars", Uint32(2));
+  TC_PROPERTY("ConfigVarId1", Uint32(CFG_DB_MICRO_GCP_TIMEOUT));
+  TC_PROPERTY("ConfigValue1", Uint32(1000));
+  TC_PROPERTY("ConfigVarId2", Uint32(CFG_DB_HEARTBEAT_INTERVAL));
+  TC_PROPERTY("ConfigValue2", Uint32(5000));
+
+  INITIALIZER(runChangeDataNodeConfig);
+  INITIALIZER(runLoadTable);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPauseGcpCommitUntilNodeFailure);
+  FINALIZER(runChangeDataNodeConfig);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart)

@@ -224,6 +224,8 @@ public:
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
+    DihSaveGcpCommitLag = 7100,
+    DihCheckGcpCommitLag = 7101,
     // 8000 Suma
     // 12000 Tux
     TuxLogToFile = 12001,
