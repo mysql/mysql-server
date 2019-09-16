@@ -474,20 +474,6 @@ inline std::ostream &operator<<(std::ostream &out, const Lob_diff &obj) {
 
 /* Update vector field */
 struct upd_field_t {
-  upd_field_t()
-      : field_no(0),
-        orig_len(0),
-        exp(nullptr),
-        old_v_val(nullptr),
-        mysql_field(nullptr),
-        ext_in_old(false),
-        lob_diffs(nullptr),
-        lob_first_page_no(FIL_NULL),
-        lob_version(0),
-        last_trx_id(0),
-        last_undo_no(0),
-        heap(nullptr) {}
-
   unsigned field_no : 16; /*!< field number in an index, usually
                           the clustered index, but in updating
                           a secondary index record in btr0cur.cc
