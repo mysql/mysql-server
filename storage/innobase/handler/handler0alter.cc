@@ -10590,6 +10590,10 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
   ut_ad(innobase_strcasecmp(part_table->name().c_str(),
                             table_share->table_name.str) == 0);
   ut_ad(part_id < m_tot_parts);
+  std::vector<dd::Partition_index *> part_indexes;
+  std::vector<dd::Partition_index *>::iterator p_iter;
+  std::vector<dd::Index *> swap_indexes;
+  std::vector<dd::Index *>::iterator s_iter;
 
   if (high_level_read_only) {
     my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -10639,7 +10643,6 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
   ut_ad(swap->n_ref_count == 1);
 
   /* Declare earlier before 'goto' */
-  auto swap_i = swap_table->indexes()->begin();
   ut_d(auto part_table_i = part_table->indexes()->begin());
   dd::Object_id p_se_id = dd_part->se_private_id();
 
@@ -10680,15 +10683,31 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
     exchange_partition_adjust_datadir(thd, swap, part);
   }
 
+  std::copy(dd_part->indexes()->begin(), dd_part->indexes()->end(),
+            std::back_inserter(part_indexes));
+  std::copy(swap_table->indexes()->begin(), swap_table->indexes()->end(),
+            std::back_inserter(swap_indexes));
+
+  /* Sort the index pointers according to the index names because the index
+  ordanility of the partition being exchanged may be different than the
+  table being swapped */
+  std::sort(part_indexes.begin(), part_indexes.end(),
+            [](dd::Partition_index *a, dd::Partition_index *b) {
+              return (a->name() < b->name());
+            });
+  std::sort(swap_indexes.begin(), swap_indexes.end(),
+            [](dd::Index *a, dd::Index *b) { return (a->name() < b->name()); });
+
   /* Swap the se_private_data and options between indexes.
   The se_private_data should be swapped between every index of
   dd_part and swap_table; however, options should be swapped(checked)
   between part_table and swap_table */
-  for (auto part_index : *dd_part->indexes()) {
-    ut_ad(swap_i != swap_table->indexes()->end());
-    auto swap_index = *swap_i;
-    ++swap_i;
-
+  ut_ad(part_indexes.size() == swap_indexes.size());
+  for (p_iter = part_indexes.begin(), s_iter = swap_indexes.begin();
+       p_iter < part_indexes.end() && s_iter < swap_indexes.end();
+       p_iter++, s_iter++) {
+    auto part_index = *p_iter;
+    auto swap_index = *s_iter;
     dd::Object_id p_tablespace_id = part_index->tablespace_id();
     part_index->set_tablespace_id(swap_index->tablespace_id());
     swap_index->set_tablespace_id(p_tablespace_id);
@@ -10715,7 +10734,6 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
           swap_index->options().raw_string());
   }
   ut_ad(part_table_i == part_table->indexes()->end());
-  ut_ad(swap_i == swap_table->indexes()->end());
 
   /* Swap the se_private_data and options of the two tables.
   Only the max autoinc should be set to both tables */
