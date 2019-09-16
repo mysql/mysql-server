@@ -5009,6 +5009,7 @@ bool Item_func_is_free_lock::itemize(Parse_context *pc, Item **res) {
 
 longlong Item_func_is_free_lock::val_int() {
   DBUG_ASSERT(fixed == 1);
+  value.length(0);
   String *res = args[0]->val_str(&value);
   char name[NAME_LEN + 1];
   THD *thd = current_thd;

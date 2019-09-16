@@ -2801,7 +2801,7 @@ String *Item_func_lpad::val_str(String *str) {
 }
 
 bool Item_func_conv::resolve_type(THD *) {
-  set_data_type_string(uint32(64), default_charset());
+  set_data_type_string(CONV_MAX_LENGTH, default_charset());
   maybe_null = true;
   return reject_geometry_args(arg_count, args, this);
 }
@@ -2810,7 +2810,6 @@ String *Item_func_conv::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
   const char *endptr;
-  char ans[65], *ptr;
   longlong dec;
   int from_base = (int)args[1]->val_int();
   int to_base = (int)args[2]->val_int();
@@ -2865,10 +2864,10 @@ String *Item_func_conv::val_str(String *str) {
     }
   }
 
-  if (!(ptr = longlong2str(dec, ans, to_base)) ||
-      str->copy(ans, (uint32)(ptr - ans), default_charset())) {
-    null_value = 1;
-    return NULL;
+  char ans[CONV_MAX_LENGTH + 1U];
+  char *ptr = longlong2str(dec, ans, to_base);
+  if (ptr == nullptr || str->copy(ans, ptr - ans, default_charset())) {
+    return error_str();
   }
   return str;
 }

@@ -660,9 +660,9 @@ replace(_latin2'abcd',_latin2'b',_latin2'B')
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `bin(130)` varchar(64) DEFAULT NULL,
-  `oct(130)` varchar(64) DEFAULT NULL,
-  `conv(130,16,10)` varchar(64) DEFAULT NULL,
+  `bin(130)` varchar(65) DEFAULT NULL,
+  `oct(130)` varchar(65) DEFAULT NULL,
+  `conv(130,16,10)` varchar(65) DEFAULT NULL,
   `hex(130)` varchar(6) DEFAULT NULL,
   `char(130)` varbinary(4) DEFAULT NULL,
   `format(130,10)` varchar(37) DEFAULT NULL,
