@@ -176,14 +176,9 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
                                                  NULL);                 // where
   if (query_specification == NULL) return NULL;
 
-  PT_query_expression_body_primary *query_expression_body_primary;
-  query_expression_body_primary =
-      new (thd->mem_root) PT_query_expression_body_primary(query_specification);
-  if (query_expression_body_primary == NULL) return NULL;
-
   PT_query_expression *query_expression;
   query_expression =
-      new (thd->mem_root) PT_query_expression(query_expression_body_primary);
+      new (thd->mem_root) PT_query_expression(query_specification);
   if (query_expression == NULL) return NULL;
 
   PT_subquery *sub_query;
@@ -256,14 +251,9 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
                                                  where_clause);  // where
   if (query_specification2 == NULL) return NULL;
 
-  PT_query_expression_body_primary *query_expression_body_primary2;
-  query_expression_body_primary2 = new (thd->mem_root)
-      PT_query_expression_body_primary(query_specification2);
-  if (query_expression_body_primary2 == NULL) return NULL;
-
   PT_query_expression *query_expression2;
   query_expression2 =
-      new (thd->mem_root) PT_query_expression(query_expression_body_primary2);
+      new (thd->mem_root) PT_query_expression(query_specification2);
   if (query_expression2 == NULL) return NULL;
 
   LEX *lex = thd->lex;

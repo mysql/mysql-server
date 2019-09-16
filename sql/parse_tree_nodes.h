@@ -1439,15 +1439,7 @@ class PT_window_list : public Parse_tree_node {
   bool push_back(PT_window *w) { return m_windows.push_back(w); }
 };
 
-class PT_query_primary : public Parse_tree_node {
- public:
-  virtual bool has_into_clause() const = 0;
-  virtual bool is_union() const = 0;
-  virtual bool can_absorb_order_and_limit() const = 0;
-
-  virtual bool is_table_value_constructor() const { return false; }
-  virtual PT_insert_values_list *get_row_value_list() const { return nullptr; }
-};
+class PT_query_primary : public PT_query_expression_body {};
 
 class PT_query_specification : public PT_query_primary {
   typedef PT_query_primary super;
@@ -1513,6 +1505,9 @@ class PT_query_specification : public PT_query_primary {
   bool is_union() const override { return false; }
 
   bool can_absorb_order_and_limit() const override { return true; }
+
+  bool is_table_value_constructor() const override { return false; }
+  PT_insert_values_list *get_row_value_list() const override { return nullptr; }
 };
 
 class PT_table_value_constructor : public PT_query_primary {
@@ -1549,7 +1544,7 @@ class PT_explicit_table : public PT_query_specification {
       : super(options_arg, item_list_arg, from_clause_arg, nullptr) {}
 };
 
-class PT_query_expression final : public Parse_tree_node {
+class PT_query_expression final : public PT_query_primary {
  public:
   PT_query_expression(PT_with_clause *with_clause,
                       PT_query_expression_body *body, PT_order *order,
@@ -1576,20 +1571,20 @@ class PT_query_expression final : public Parse_tree_node {
   PT_query_expression_body *body() { return m_body; }
 
   /// Called by the Bison parser.
-  bool is_union() const { return m_body->is_union(); }
+  bool is_union() const override { return m_body->is_union(); }
 
   /// Called by the Bison parser.
-  bool has_into_clause() const { return m_body->has_into_clause(); }
+  bool has_into_clause() const override { return m_body->has_into_clause(); }
 
-  bool can_absorb_order_and_limit() const {
+  bool can_absorb_order_and_limit() const override {
     return !m_body->is_union() && m_order == nullptr && m_limit == nullptr;
   }
 
-  bool is_table_value_constructor() const {
+  bool is_table_value_constructor() const override {
     return m_body->is_table_value_constructor();
   }
 
-  PT_insert_values_list *get_row_value_list() const {
+  PT_insert_values_list *get_row_value_list() const override {
     return m_body->get_row_value_list();
   }
 
@@ -1634,40 +1629,6 @@ class PT_subquery : public Parse_tree_node {
   SELECT_LEX *value() { return select_lex; }
 };
 
-class PT_query_expression_body_primary : public PT_query_expression_body {
- public:
-  PT_query_expression_body_primary(PT_query_primary *query_primary)
-      : m_query_primary(query_primary) {}
-
-  bool contextualize(Parse_context *pc) override {
-    if (PT_query_expression_body::contextualize(pc) ||
-        m_query_primary->contextualize(pc))
-      return true;
-    return false;
-  }
-
-  bool is_union() const override { return m_query_primary->is_union(); }
-
-  bool has_into_clause() const override {
-    return m_query_primary->has_into_clause();
-  }
-
-  bool can_absorb_order_and_limit() const override {
-    return m_query_primary->can_absorb_order_and_limit();
-  }
-
-  bool is_table_value_constructor() const override {
-    return m_query_primary->is_table_value_constructor();
-  }
-
-  PT_insert_values_list *get_row_value_list() const override {
-    return m_query_primary->get_row_value_list();
-  }
-
- private:
-  PT_query_primary *m_query_primary;
-};
-
 class PT_union : public PT_query_expression_body {
  public:
   PT_union(PT_query_expression *lhs, const POS &lhs_pos, bool is_distinct,
@@ -1696,32 +1657,6 @@ class PT_union : public PT_query_expression_body {
   bool m_is_distinct;
   PT_query_primary *m_rhs;
   PT_into_destination *m_into;
-};
-
-class PT_nested_query_expression : public PT_query_primary {
-  typedef PT_query_primary super;
-
- public:
-  PT_nested_query_expression(PT_query_expression *qe) : m_qe(qe) {}
-
-  bool contextualize(Parse_context *pc) override {
-    if (super::contextualize(pc)) return true;
-
-    bool result = m_qe->contextualize(pc);
-
-    return result;
-  }
-
-  bool is_union() const override { return m_qe->is_union(); }
-
-  bool has_into_clause() const override { return m_qe->has_into_clause(); }
-
-  bool can_absorb_order_and_limit() const override {
-    return m_qe->can_absorb_order_and_limit();
-  }
-
- private:
-  PT_query_expression *m_qe;
 };
 
 class PT_select_stmt : public Parse_tree_root {

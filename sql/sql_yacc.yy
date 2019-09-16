@@ -9073,9 +9073,7 @@ query_expression:
           opt_limit_clause
           opt_locking_clause_list
           {
-            auto nested= NEW_PTN PT_nested_query_expression($1);
-            auto body= NEW_PTN PT_query_expression_body_primary(nested);
-            $$= NEW_PTN PT_query_expression(body, $2, $3, $4);
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
           }
         | with_clause
           query_expression_parens
@@ -9083,9 +9081,7 @@ query_expression:
           opt_limit_clause
           opt_locking_clause_list
           {
-            auto nested= NEW_PTN PT_nested_query_expression($2);
-            auto body= NEW_PTN PT_query_expression_body_primary(nested);
-            $$= NEW_PTN PT_query_expression($1, body, $3, $4, $5);
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
           }
         | query_expression_parens
           limit_clause
@@ -9117,7 +9113,7 @@ query_expression:
 query_expression_body:
           query_primary
           {
-            $$= NEW_PTN PT_query_expression_body_primary($1);
+            $$ = $1;
           }
         | query_expression_body UNION_SYM union_option query_primary
           {
@@ -9139,10 +9135,7 @@ query_expression_body:
               YYTHD->syntax_error_at(@4);
 
             auto lhs_qe= NEW_PTN PT_query_expression($1);
-            PT_nested_query_expression *nested_qe=
-              NEW_PTN PT_nested_query_expression($4);
-
-            $$= NEW_PTN PT_union(lhs_qe, @1, $3, nested_qe);
+            $$= NEW_PTN PT_union(lhs_qe, @1, $3, $4);
           }
         | query_expression_parens UNION_SYM union_option query_expression_parens
           {
@@ -9152,9 +9145,7 @@ query_expression_body:
             if ($4->is_union())
               YYTHD->syntax_error_at(@4);
 
-            PT_nested_query_expression *nested_qe=
-              NEW_PTN PT_nested_query_expression($4);
-            $$= NEW_PTN PT_union($1, @1, $3, nested_qe);
+            $$= NEW_PTN PT_union($1, @1, $3, $4);
           }
         ;
 
@@ -11849,8 +11840,7 @@ do_stmt:
           {
             $$= NEW_PTN PT_select_stmt(SQLCOM_DO,
                   NEW_PTN PT_query_expression(
-                    NEW_PTN PT_query_expression_body_primary(
-                      NEW_PTN PT_query_specification({}, $2))));
+                    NEW_PTN PT_query_specification({}, $2)));
           }
         ;
 
