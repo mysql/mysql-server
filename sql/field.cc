@@ -7119,46 +7119,40 @@ type_conversion_status Field_blob::store(const Field *from) {
 
 double Field_blob::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
+
+  const char *blob = pointer_cast<const char *>(get_ptr());
+  if (blob == nullptr) return 0.0;
+
   int not_used;
   const char *end_not_used;
-  char *blob;
-  uint32 length;
-  const CHARSET_INFO *cs;
-
-  memcpy(&blob, ptr + packlength, sizeof(char *));
-  if (!blob) return 0.0;
-  length = get_length(ptr);
-  cs = charset();
-  return my_strntod(cs, blob, length, &end_not_used, &not_used);
+  return my_strntod(charset(), blob, get_length(ptr), &end_not_used, &not_used);
 }
 
 longlong Field_blob::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
+
+  const char *blob = pointer_cast<const char *>(get_ptr());
+  if (blob == nullptr) return 0;
+
   int not_used;
-  char *blob;
-  memcpy(&blob, ptr + packlength, sizeof(char *));
-  if (!blob) return 0;
-  uint32 length = get_length(ptr);
-  return my_strntoll(charset(), blob, length, 10, NULL, &not_used);
+  return my_strntoll(charset(), blob, get_length(ptr), 10, nullptr, &not_used);
 }
 
-String *Field_blob::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
-                            String *val_ptr) const {
+String *Field_blob::val_str(String *, String *val_ptr) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  char *blob;
-  memcpy(&blob, ptr + packlength, sizeof(char *));
-  if (!blob)
+
+  const char *blob = pointer_cast<const char *>(get_ptr());
+  if (blob == nullptr)
     val_ptr->set("", 0, charset());  // A bit safer than ->length(0)
   else
-    val_ptr->set((const char *)blob, get_length(ptr), charset());
+    val_ptr->set(blob, get_length(ptr), charset());
   return val_ptr;
 }
 
 my_decimal *Field_blob::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  const char *blob;
   size_t length;
-  memcpy(&blob, ptr + packlength, sizeof(const uchar *));
+  const char *blob = pointer_cast<const char *>(get_ptr());
   if (!blob) {
     blob = "";
     length = 0;
@@ -7177,28 +7171,21 @@ int Field_blob::cmp(const uchar *a, uint32 a_length, const uchar *b,
 
 int Field_blob::cmp_max(const uchar *a_ptr, const uchar *b_ptr,
                         uint max_length) const {
-  uchar *blob1, *blob2;
-  memcpy(&blob1, a_ptr + packlength, sizeof(char *));
-  memcpy(&blob2, b_ptr + packlength, sizeof(char *));
-  uint a_len = get_length(a_ptr), b_len = get_length(b_ptr);
-  set_if_smaller(a_len, max_length);
-  set_if_smaller(b_len, max_length);
+  const uchar *blob1 = get_blob_data(a_ptr + packlength);
+  const uchar *blob2 = get_blob_data(b_ptr + packlength);
+  uint32 a_len = min(get_length(a_ptr), max_length);
+  uint32 b_len = min(get_length(b_ptr), max_length);
   return Field_blob::cmp(blob1, a_len, blob2, b_len);
 }
 
 int Field_blob::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
                            uint32 max_length) const {
-  char *a, *b;
-  uint diff;
-  uint32 a_length, b_length;
-  memcpy(&a, a_ptr + packlength, sizeof(char *));
-  memcpy(&b, b_ptr + packlength, sizeof(char *));
-  a_length = get_length(a_ptr);
-  if (a_length > max_length) a_length = max_length;
-  b_length = get_length(b_ptr);
-  if (b_length > max_length) b_length = max_length;
+  const uchar *a = get_blob_data(a_ptr + packlength);
+  const uchar *b = get_blob_data(b_ptr + packlength);
+  uint32 a_length = min(get_length(a_ptr), max_length);
+  uint32 b_length = min(get_length(b_ptr), max_length);
   const uint32 min_a_b = min(a_length, b_length);
-  diff = min_a_b == 0 ? 0 : memcmp(a, b, min_a_b);  // memcmp(a, b, 0) == 0
+  uint diff = min_a_b == 0 ? 0 : memcmp(a, b, min_a_b);  // memcmp(a, b, 0) == 0
   return diff ? diff : (int)(a_length - b_length);
 }
 
@@ -7262,14 +7249,13 @@ void Field_blob::set_key_image(const uchar *buff, size_t length) {
 }
 
 int Field_blob::key_cmp(const uchar *key_ptr, uint max_key_length) const {
-  uchar *blob1;
-  uint blob_length = get_length(ptr);
-  memcpy(&blob1, ptr + packlength, sizeof(char *));
+  uint32 blob_length = get_length(ptr);
+  const uchar *blob1 = get_ptr();
   const CHARSET_INFO *cs = charset();
   uint local_char_length = max_key_length / cs->mbmaxlen;
   local_char_length =
       my_charpos(cs, blob1, blob1 + blob_length, local_char_length);
-  set_if_smaller(blob_length, local_char_length);
+  blob_length = min(blob_length, local_char_length);
   return Field_blob::cmp(blob1, blob_length, key_ptr + HA_KEY_BLOB_LENGTH,
                          uint2korr(key_ptr));
 }
@@ -7300,17 +7286,12 @@ uint32 Field_blob::sort_length() const { return 0xFFFFFFFFu; }
 
 size_t Field_blob::make_sort_key(uchar *to, size_t length) const {
   static const uchar EMPTY_BLOB[1] = {0};
-  size_t blob_length = get_length();
-  const uchar *blob;
+  uint32 blob_length = get_length();
 
   const int flags =
       (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
 
-  if (blob_length > 0) {
-    memcpy(&blob, ptr + packlength, sizeof(char *));
-  } else {
-    blob = EMPTY_BLOB;
-  }
+  const uchar *blob = blob_length > 0 ? get_ptr() : EMPTY_BLOB;
 
   return field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
                                        blob_length, flags);
@@ -8001,10 +7982,8 @@ bool Field_json::get_time(MYSQL_TIME *ltime) const {
 
 int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
                            uint32 /* max_length */) const {
-  char *a;
-  char *b;
-  memcpy(&a, a_ptr + packlength, sizeof(a));
-  memcpy(&b, b_ptr + packlength, sizeof(b));
+  const char *a = pointer_cast<char *>(get_blob_data(a_ptr + packlength));
+  const char *b = pointer_cast<char *>(get_blob_data(b_ptr + packlength));
   uint32 a_length = get_length(a_ptr);
   uint32 b_length = get_length(b_ptr);
   Json_wrapper aw(json_binary::parse_binary(a, a_length));
@@ -8027,9 +8006,7 @@ ulonglong Field_json::make_hash_key(ulonglong hash_val) const {
 }
 
 const char *Field_json::get_binary(ptrdiff_t row_offset) const {
-  char *blob;
-  memcpy(&blob, ptr + packlength + row_offset, sizeof(blob));
-  return blob;
+  return pointer_cast<char *>(get_blob_data(ptr + packlength + row_offset));
 }
 
 /****************************************************************************
@@ -9576,18 +9553,19 @@ bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
 
   // Allocate new memory location
   size_t ulen = get_length(ptr);
+  if (ulen == 0) {
+    value.set("", 0, value.charset());
+  } else {
+    char *blob_value =
+        static_cast<char *>(memdup_root(mem_root, get_ptr(), ulen));
+    if (blob_value == nullptr) return true;
 
-  char *blob_value = (char *)mem_root->Alloc(ulen);
-  if (!blob_value) return true;
-
-  // Copy Data
-  memcpy(blob_value, get_ptr(), ulen);
+    // Set 'value' with the duplicated data
+    value.set(blob_value, ulen, value.charset());
+  }
 
   // Set ptr of Field for duplicated data
-  store_ptr_and_length(blob_value, ulen);
-
-  // Set 'value' with the duplicated data
-  value.set(blob_value, ulen, value.charset());
+  store_ptr_and_length(value.ptr(), ulen);
 
   return false;
 }
