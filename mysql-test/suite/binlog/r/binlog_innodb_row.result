@@ -58,24 +58,3 @@ DROP TEMPORARY TABLE t1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 ###############################################
-#
-# Bug#12346411 SQL/LOG.CC:6509: ASSERTION `PREPARED_XIDS > 0' FAILED
-#
-DROP TABLE IF EXISTS t1, t2;
-CREATE TABLE t1(a INT PRIMARY KEY) engine=innodb;
-CREATE TABLE t2(a INT) engine=myisam;
-INSERT INTO t1 VALUES (1);
-START TRANSACTION;
-INSERT INTO t2 VALUES (1);
-INSERT IGNORE INTO t1 VALUES (1);
-Warnings:
-Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
-COMMIT;
-INSERT INTO t1 VALUES (2);
-START TRANSACTION;
-INSERT INTO t2 VALUES (2);
-UPDATE IGNORE t1 SET a=1 WHERE a=2;
-Warnings:
-Warning	1062	Duplicate entry '1' for key 't1.PRIMARY'
-COMMIT;
-DROP TABLE t1, t2;

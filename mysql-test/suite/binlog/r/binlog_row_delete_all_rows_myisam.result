@@ -1,0 +1,18 @@
+#
+# MyISAM, binlog_format= 'ROW'
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SET sql_log_bin= 0;
+include/assert.inc [DELETE will use delete_all_rows]
+DELETE FROM t1;
+include/assert.inc [DELETE was not binlogged]
+
+SET sql_log_bin= 1;
+INSERT INTO t1 VALUES (1), (2), (3);
+include/assert.inc [DELETE will not use delete_all_rows]
+DELETE FROM t1;
+include/assert.inc [DELETE was binlogged]
+DROP TABLE t1;
+

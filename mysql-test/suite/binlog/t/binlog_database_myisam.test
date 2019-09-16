@@ -1,0 +1,15 @@
+
+# A wrapper to test that dropping a database is binlogged
+# correctly. We test all three modes in the same file to avoid
+# unecessary server restarts.
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+set binlog_format=statement;
+source extra/binlog_tests/database_myisam.test;
+set binlog_format=mixed;
+source extra/binlog_tests/database_myisam.test;
+set binlog_format='row';
+source extra/binlog_tests/database_myisam.test;
+
+show databases;

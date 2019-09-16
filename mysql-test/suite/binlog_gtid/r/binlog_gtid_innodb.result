@@ -137,43 +137,4 @@ show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
 drop table t1;
-CREATE TABLE `t1` (
-`a` int(11) NOT NULL auto_increment,
-`b` int(11) default NULL,
-PRIMARY KEY  (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-CREATE TABLE `t2` (
-`a` int(11) NOT NULL auto_increment,
-`b` int(11) default NULL,
-PRIMARY KEY  (`a`)
-) ENGINE=INNODB DEFAULT CHARSET=latin1 ;
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
-insert into t1 values (1,1),(2,2);
-insert into t2 values (1,1),(4,4);
-reset master;
-UPDATE t2,t1 SET t2.a=t1.a+2;
-ERROR 23000: Duplicate entry '3' for key 't2.PRIMARY'
-select * from t2 /* must be (3,1), (4,4) */;
-a	b
-1	1
-4	4
-# There must no UPDATE in binlog;
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-delete from t1;
-delete from t2;
-insert into t1 values (1,2),(3,4),(4,4);
-insert into t2 values (1,2),(3,4),(4,4);
-reset master;
-UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
-ERROR 23000: Duplicate entry '4' for key 't2.PRIMARY'
-# There must be no UPDATE query event;
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-drop table t1, t2;
 End of tests

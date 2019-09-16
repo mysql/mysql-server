@@ -4,10 +4,8 @@ call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Buffered warning: Performance schema disabled");
 RESET MASTER;
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
-CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
 # Test case5: Inject wrong value of crc for a log event, and
 #             then set DBUG POINT to casue the master crash.
-INSERT INTO t2 (a) VALUES (REPEAT('a',1));
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',1));
 INSERT INTO t1 (a) VALUES (REPEAT('a',2));
@@ -20,9 +18,4 @@ ERROR HY000: Lost connection to MySQL server during query
 # Test the transaction with a log event injected a wrong crc value
 # will be trimmed from the crashed binlog file
 include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-binlog.000001	#	Query	#	#	BEGIN
-binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
-binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-binlog.000001	#	Query	#	#	COMMIT
-DROP TABLE t1, t2;
+DROP TABLE t1;

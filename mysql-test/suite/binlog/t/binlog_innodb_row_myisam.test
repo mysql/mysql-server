@@ -1,0 +1,28 @@
+#
+# Tests of innodb/binlog with the row binlog format
+#
+source include/force_myisam_default.inc;
+source include/have_myisam.inc;
+source include/have_log_bin.inc;
+source include/have_binlog_format_row.inc;
+
+--echo #
+--echo # Bug#12346411 SQL/LOG.CC:6509: ASSERTION `PREPARED_XIDS > 0' FAILED
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY) engine=innodb;
+CREATE TABLE t2(a INT) engine=myisam;
+
+INSERT INTO t1 VALUES (1);
+START TRANSACTION;
+INSERT INTO t2 VALUES (1);
+INSERT IGNORE INTO t1 VALUES (1);
+COMMIT;
+
+INSERT INTO t1 VALUES (2);
+START TRANSACTION;
+INSERT INTO t2 VALUES (2);
+UPDATE IGNORE t1 SET a=1 WHERE a=2;
+COMMIT;
+
+DROP TABLE t1, t2;

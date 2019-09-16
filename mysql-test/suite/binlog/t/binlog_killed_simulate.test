@@ -1,8 +1,9 @@
+-- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 -- source include/have_debug.inc
 -- source include/have_binlog_format_statement.inc
 #
-# bug#27571 asynchronous setting mysql_$query()'s local error and 
+# bug#27571 asynchronous setting mysql_$query()'s local error and
 #           Query_log_event::error_code
 #
 

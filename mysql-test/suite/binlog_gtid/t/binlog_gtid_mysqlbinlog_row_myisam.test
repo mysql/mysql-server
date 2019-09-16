@@ -8,7 +8,7 @@
 # Calls include/mysqlbinlog_row.inc
 # See there for more informaton.
 #
-
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
 --source include/no_ps_protocol.inc

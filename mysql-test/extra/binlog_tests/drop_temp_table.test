@@ -15,7 +15,7 @@ CREATE TEMPORARY TABLE shortn2 (a INT);
 
 ##############################################################################
 # BUG#46572 DROP TEMPORARY table IF EXISTS does not have a consistent behavior
-# in ROW mode 
+# in ROW mode
 ##############################################################################
 CREATE TEMPORARY TABLE tmp(c1 int);
 CREATE TEMPORARY TABLE tmp1(c1 int);
@@ -75,10 +75,8 @@ RESET MASTER;
 --source include/count_sessions.inc
 --connect (con1,localhost,root,,)
 
-# Check with both transactional and non-transactional tables as those are logged
-# separately in close_temporary_tables.
+# Check with transactional tables to be logged in close_temporary_tables.
 CREATE TEMPORARY TABLE temp_trx(a INT) ENGINE=InnoDB;
-CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM;
 
 CREATE TEMPORARY TABLE temp_needs_logging_in_stmt(a INT) ENGINE=InnoDB;
 SET SESSION sql_log_bin= 0;

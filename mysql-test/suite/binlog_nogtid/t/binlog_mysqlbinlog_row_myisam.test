@@ -11,6 +11,7 @@
 #
 
 --source include/no_ps_protocol.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 let $engine_type=MyISAM;
 

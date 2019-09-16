@@ -1,0 +1,21 @@
+-- source include/force_myisam_default.inc
+-- source include/have_myisam.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+--echo #
+--echo # Bug 83003: Using temporary tables on slaves increases GTID sequence number
+--echo #
+RESET MASTER;
+--source include/count_sessions.inc
+--connect (con1,localhost,root,,)
+
+# Check with non-transactional tables to be logged in close_temporary_tables.
+
+CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM;
+
+--disconnect con1
+--connection default
+--source include/wait_until_count_sessions.inc
+
+--source include/show_binlog_events.inc
+

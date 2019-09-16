@@ -18,6 +18,7 @@
 ###############################################################################
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_statement.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 RESET MASTER;
 --enable_connect_log

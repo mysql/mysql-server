@@ -18,6 +18,3 @@
 
 --let $engine= InnoDB
 --source extra/binlog_tests/binlog_row_kill_create_select.test
-
---let $engine= MyISAM
---source extra/binlog_tests/binlog_row_kill_create_select.test

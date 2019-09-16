@@ -36,7 +36,8 @@
 #    All GTID_MODE values except GTID_MODE=OFF should be allowed.  All
 #    ENFORCE_GTID_CONSISTENCY modes should be allowed.
 
-
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --let $rpl_extra_connections_per_server= 2
 --let $rpl_topology= none
 --let $rpl_server_count= 1

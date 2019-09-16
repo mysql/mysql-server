@@ -1,4 +1,5 @@
 -- source include/have_myisam.inc
+-- source include/force_myisam_default.inc
 -- source include/have_binlog_format_statement.inc
 RESET MASTER;
 #
@@ -50,8 +51,8 @@ INSERT IGNORE INTO t1 VALUES (@positive,
                               @positive);
 -- enable_warnings
 
--- echo ## assertion: checks that User_var_log_event::pack_info 
--- echo ## correctly displays the binlog content by taking into 
+-- echo ## assertion: checks that User_var_log_event::pack_info
+-- echo ## correctly displays the binlog content by taking into
 -- echo ## account the unsigned_flag
 -- source include/show_binlog_events.inc
 
@@ -80,8 +81,8 @@ INSERT IGNORE INTO t1 VALUES (@negative,
                               @negative);
 -- enable_warnings
 
--- echo ## assertion: checks that User_var_log_event::pack_info 
--- echo ## correctly displays the binlog content by taking into 
+-- echo ## assertion: checks that User_var_log_event::pack_info
+-- echo ## correctly displays the binlog content by taking into
 -- echo ## account the unsigned_flag
 -- source include/show_binlog_events.inc
 

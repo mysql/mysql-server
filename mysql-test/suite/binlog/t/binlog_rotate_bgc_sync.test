@@ -35,6 +35,7 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
 # Create two additional connections
