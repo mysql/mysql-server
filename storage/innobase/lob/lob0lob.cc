@@ -1100,11 +1100,13 @@ ulint btr_push_update_extern_fields(dtuple_t *tuple, const upd_t *update,
   n = upd_get_n_fields(update);
 
   for (; n--; uf++) {
-    dfield_t *field = dtuple_get_nth_field(tuple, uf->field_no);
-    uf->ext_in_old = dfield_is_ext(field);
-
     if (dfield_is_ext(&uf->new_val)) {
-      if (!dfield_is_ext(field)) {
+      dfield_t *field = dtuple_get_nth_field(tuple, uf->field_no);
+
+      if (dfield_is_ext(field)) {
+        uf->ext_in_old = true;
+      } else {
+        uf->ext_in_old = false;
         dfield_set_ext(field);
         n_pushed++;
       }
