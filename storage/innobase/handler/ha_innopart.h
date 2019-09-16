@@ -527,24 +527,6 @@ class ha_innopart : public ha_innobase,
     return (false);
   }
 
-  // TODO: not yet supporting FK.
-  int get_foreign_key_list(THD *thd,
-                           List<FOREIGN_KEY_INFO> *f_key_list) override {
-    return (0);
-  }
-
-  // TODO: not yet supporting FK.
-  int get_parent_foreign_key_list(THD *thd,
-                                  List<FOREIGN_KEY_INFO> *f_key_list) override {
-    return (0);
-  }
-
-  // TODO: not yet supporting FK.
-  int get_cascade_foreign_key_table_list(
-      THD *thd, List<st_handler_tablename> *fk_table_list) override {
-    return (0);
-  }
-
   int read_range_next() override {
     return (Partition_helper::ph_read_range_next());
   }

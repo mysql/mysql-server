@@ -249,16 +249,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   uint max_supported_key_part_length(
       HA_CREATE_INFO *create_info) const override;
 
- private:
-  int get_child_or_parent_fk_list(List<FOREIGN_KEY_INFO> *f_key_list,
-                                  bool is_child, bool is_parent);
-
- public:
-  int get_foreign_key_list(THD *thd,
-                           List<FOREIGN_KEY_INFO> *f_key_list) override;
-  int get_parent_foreign_key_list(THD *thd,
-                                  List<FOREIGN_KEY_INFO> *f_key_list) override;
-
   int rename_table(const char *from, const char *to,
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def) override;
@@ -475,8 +465,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict, KEY *key_info,
                            uint index_no);
-  int get_fk_data(THD *thd, Ndb *ndb);
-  void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD *thd, Ndb *, const char *tabname);
   int inplace__drop_fks(THD *, Ndb *, NdbDictionary::Dictionary *,
@@ -673,9 +661,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_lock_tuple;
   NDB_SHARE *m_share;
   NDB_INDEX_DATA m_index[MAX_KEY];
-  static const size_t fk_root_block_size = 1024;
-  MEM_ROOT m_fk_mem_root;
-  struct Ndb_fk_data *m_fk_data;
 
   /*
     Pointer to row returned from scan nextResult().

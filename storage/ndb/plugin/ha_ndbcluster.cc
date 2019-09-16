@@ -2028,9 +2028,6 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table *table_def) {
   /* Open indexes */
   if ((error = open_indexes(ndb, table)) != 0) goto err;
 
-  /* Read foreign keys where this table is child or parent */
-  if ((error = get_fk_data(thd, ndb)) != 0) goto err;
-
   /*
     Backward compatibility for tables created without tablespace
     in .frm => read tablespace setting from engine
@@ -2598,9 +2595,6 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb) {
   m_table_info = NULL;
 
   release_indexes(dict, invalidate_indexes);
-
-  // Release FK data
-  release_fk_data();
 
   m_table = NULL;
 }
@@ -11037,10 +11031,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
   stats.block_size = 1024;
 
   for (i = 0; i < MAX_KEY; i++) ndb_init_index(m_index[i]);
-
-  // make sure is initialized
-  init_alloc_root(PSI_INSTRUMENT_ME, &m_fk_mem_root, fk_root_block_size, 0);
-  m_fk_data = NULL;
 }
 
 /**
@@ -11073,16 +11063,6 @@ ha_ndbcluster::~ha_ndbcluster() {
     delete m_pushed_join_member;  // Also delete QueryDef
   }
   m_pushed_join_member = NULL;
-
-  /* m_fk_mem_root is already freed inside release_fk_data
-   * called from inside release_metadata. But if get_metadata()
-   * fails midway due to some error, the release_fk_data is not
-   * called and the m_fk_mem_root won't be released.
-   * This additional free_root() is here to make sure that
-   * m_fk_mem_root gets released in that case.
-   */
-  free_root(&m_fk_mem_root, 0);
-  m_fk_data = NULL;
 }
 
 /**
