@@ -20,9 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_EXECUTABLE(master_key_test_writer ../helpers/master_key_test_writer.cc)
-SET_TARGET_PROPERTIES(master_key_test_writer PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
+MYSQL_ADD_EXECUTABLE(master_key_test_writer
+  ../helpers/master_key_test_writer.cc
+  COMPONENT Router
+  SKIP_INSTALL
+  )
 
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 FOREACH(test_file

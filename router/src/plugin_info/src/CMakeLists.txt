@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,21 +25,15 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_plugin_info
   main.cc
   plugin_info_app.cc
   plugin.cc
-  COMPONENT Router)
+  COMPONENT Router
+  LINK_LIBRARIES
+  harness-library
+  mysys
+  ${CMAKE_DL_LIBS}
+  )
 
 TARGET_INCLUDE_DIRECTORIES(
   mysqlrouter_plugin_info
   PRIVATE
   ${CMAKE_BINARY_DIR}/include
   )
-
-ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} mysqlrouter_plugin_info)
-
-TARGET_LINK_LIBRARIES(mysqlrouter_plugin_info
-  harness-library
-  mysys
-  ${CMAKE_DL_LIBS})
-
-SET_TARGET_PROPERTIES(mysqlrouter_plugin_info PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
-)

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,6 @@
 # Settings for building MySQL Router
 
 # General
-SET(MYSQL_ROUTER_TARGET "mysqlrouter"
-  CACHE STRING "Name of the MySQL Router application")  # Also used in CMAKE_INSTALL_PREFIX
 SET(MYSQL_ROUTER_NAME "MySQL Router"
   CACHE STRING "MySQL Router project name")
 SET(MYSQL_ROUTER_INI "mysqlrouter.conf"

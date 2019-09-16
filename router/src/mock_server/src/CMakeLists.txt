@@ -167,28 +167,28 @@ TARGET_INCLUDE_DIRECTORIES(rest_mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/http/include
   )
 
-ADD_EXECUTABLE(mysql_server_mock
+MYSQL_ADD_EXECUTABLE(mysql_server_mock
   main.cc
+  COMPONENT Router
+  LINK_LIBRARIES
+  ${common_libraries}
+  harness-library
+  mysqlxmessages
+  ${PROTOBUF_LIBRARY}
+  SKIP_INSTALL
   )
 
 ADD_LIBRARY(mock_server_rest_client ${MOCK_SERVER_HTTP_CLIENT_SRCS})
 TARGET_INCLUDE_DIRECTORIES(mock_server_rest_client PUBLIC
-    ${PROJECT_SOURCE_DIR}/src/mock_server/include/
-    ${PROJECT_SOURCE_DIR}/src/http/include/
-    )
+  ${PROJECT_SOURCE_DIR}/src/mock_server/include/
+  ${PROJECT_SOURCE_DIR}/src/http/include/
+  )
 TARGET_LINK_LIBRARIES(mock_server_rest_client http_client)
+ADD_DEPENDENCIES(mysqlrouter_all mock_server_rest_client)
 
-# add all targets to the build-all target
-ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
-        mysql_server_mock mock_server_rest_client)
-
-
-TARGET_LINK_LIBRARIES(mysql_server_mock ${common_libraries} harness-library
-    mysqlxmessages ${PROTOBUF_LIBRARY})
-SET_TARGET_PROPERTIES(mysql_server_mock PROPERTIES
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
 TARGET_COMPILE_DEFINITIONS(mysql_server_mock
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1
+  )
 SET_PATH_TO_SSL(mysql_server_mock ${CMAKE_BINARY_DIR}/runtime_output_directory)
 
 ADD_DEFINITIONS(-DUSE_MYSQLX_FULL_PROTO)

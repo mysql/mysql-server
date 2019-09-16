@@ -118,10 +118,9 @@ INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 #
 # each target needs to add itself via
 #
-#   ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} ...)
+#   ADD_DEPENDENCIES(mysqlrouter_all ...)
 #
-SET(MYSQL_ROUTER_BUILD_ALL_TARGET mysqlrouter_all)
-ADD_CUSTOM_TARGET(${MYSQL_ROUTER_BUILD_ALL_TARGET})
+ADD_CUSTOM_TARGET(mysqlrouter_all)
 
 # Load all modules, including plugins
 ADD_SUBDIRECTORY(src)

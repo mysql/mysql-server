@@ -37,7 +37,7 @@ SET(TESTS
   )
 
 FOREACH(TEST_FILE ${TESTS})
-  add_test_file(${TEST_FILE}
+  ADD_TEST_FILE(${TEST_FILE}
     MODULE "router"
     #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
     LIB_DEPENDS test-helpers
@@ -45,7 +45,7 @@ FOREACH(TEST_FILE ${TESTS})
     SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
 ENDFOREACH()
 
-add_test_file(test_keyring_frontend.cc
+ADD_TEST_FILE(test_keyring_frontend.cc
   MODULE "router"
   #ENVIRONMENT "MYSQL_ROUTER_HOME=${MySQLRouter_BINARY_STAGE_DIR}/etc/"
   LIB_DEPENDS test-helpers
@@ -61,7 +61,7 @@ FOREACH(test_file
     issues/test_bug22572346.cc
     issues/test_bug24909259.cc
     )
-  add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+  ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
     MODULE issues
   LIB_DEPENDS test-helpers
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS})
@@ -72,5 +72,13 @@ IF(MY_COMPILER_IS_CLANG)
 ENDIF()
 
 # Use configuration file templates to generate configuration files
-CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR})
-COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR})
+SET(FILE_TEMPLATES
+  mysqlrouter.conf.in
+  mysqlrouter_consolelogger.conf.in
+  mysqlrouter_extra.conf.in
+  mysqlrouter_nologger.conf.in
+)
+CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR} "${FILE_TEMPLATES}")
+COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}
+  "config_a.conf;config_b.conf;config_c.ini;parse_error.conf"
+  )
