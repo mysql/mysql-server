@@ -14443,7 +14443,7 @@ enum fk_column_change_type {
 */
 
 template <class F>
-static enum fk_column_change_type fk_check_column_changes(
+static fk_column_change_type fk_check_column_changes(
     THD *thd, Alter_info *alter_info, uint fk_col_count, const F &fk_columns,
     const char **bad_column_name) {
   *bad_column_name = NULL;
