@@ -1043,3 +1043,66 @@ ALTER TABLE t1 EXCHANGE PARTITION sp2 WITH TABLE t2;
 ALTER TABLE t1 EXCHANGE PARTITION sp4 WITH TABLE t2;
 DROP TABLE t1,t2;
 SET @@global.innodb_default_row_format=@orig_default_row_format;
+
+--echo #
+--echo # Bug 29706669 ALTER EXCHANGE CAUSES INDEX CORRUPTION
+--echo #
+
+CREATE TABLE t1_part_table ( f1 INT PRIMARY KEY,
+			     f2 iNT , f3 INT,
+			     KEY `IDX_F2` (f2),
+			     KEY `IDX_F3` (f3)
+                           ) ENGINE=INNODB
+PARTITION BY RANGE (f1) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20));
+
+CREATE TABLE t1_normal_table ( f1 INT PRIMARY KEY,
+			     f2 iNT , f3 INT,
+			     KEY `IDX_F3` (f3),
+			     KEY `IDX_F2` (f2)
+			   ) ENGINE=INNODB;
+
+INSERT INTO t1_part_table VALUES (5,10,20),(6,30,40),(15,50,60),(17,70,80);
+INSERT INTO t1_normal_table VALUES (19,90,100),(18,110,120);
+
+SET SESSION debug='+d,skip_dd_table_access_check';
+
+SELECT t.NAME AS TABLE_NAME , i.NAME AS INDEX_NAME , i.ORDINAL_POSITION
+ FROM mysql.indexes i JOIN mysql.tables t ON i.TABLE_ID = t.ID
+ WHERE t.NAME='t1_normal_table' ORDER BY i.ORDINAL_POSITION;
+
+SHOW CREATE TABLE t1_normal_table;
+
+SELECT t.NAME AS TABLE_NAME, p.NAME AS PARTITION_NAME , i.NAME AS INDEX_NAME, i.ORDINAL_POSITION
+  FROM  mysql.tables t JOIN mysql.table_partitions p ON t.ID = p.TABLE_ID
+        JOIN mysql.index_partitions ip ON p.ID = ip.PARTITION_ID
+        JOIN mysql.indexes i ON i.ID = ip.INDEX_ID
+  WHERE t.NAME= 't1_part_table' ORDER BY i.ORDINAL_POSITION,p.NAME;
+
+SHOW CREATE TABLE t1_part_table;
+
+ALTER TABLE t1_part_table EXCHANGE PARTITION p1 WITH TABLE t1_normal_table;
+
+SELECT t.NAME AS TABLE_NAME , i.NAME AS INDEX_NAME , i.ORDINAL_POSITION
+ FROM mysql.indexes i JOIN mysql.tables t ON i.TABLE_ID = t.ID
+ WHERE t.NAME='t1_normal_table'  ORDER BY i.ORDINAL_POSITION;
+
+SHOW CREATE TABLE t1_normal_table;
+
+SELECT t.NAME AS TABLE_NAME, p.NAME AS PARTITION_NAME , i.NAME AS INDEX_NAME, i.ORDINAL_POSITION
+  FROM  mysql.tables t JOIN mysql.table_partitions p ON t.ID = p.TABLE_ID
+        JOIN mysql.index_partitions ip ON p.ID = ip.PARTITION_ID
+        JOIN mysql.indexes i ON i.ID = ip.INDEX_ID
+  WHERE t.NAME= 't1_part_table' ORDER BY i.ORDINAL_POSITION,p.NAME;
+
+SHOW CREATE TABLE t1_part_table;
+
+SET SESSION debug='-d,skip_dd_table_access_check';
+
+CHECK TABLE t1_part_table;
+CHECK TABLE t1_normal_table;
+SELECT * FROM t1_part_table;
+SELECT * FROM t1_normal_table;
+DROP TABLE t1_part_table;
+DROP TABLE t1_normal_table;
