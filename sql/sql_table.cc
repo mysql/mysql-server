@@ -6218,6 +6218,10 @@ static bool fill_ha_fk_column_type(Ha_fk_column_type *fk_column_type,
   @param is_partitioned      Indicates whether table is partitioned.
   @param key_info_buffer     Array of indexes.
   @param key_count           Number of indexes.
+  @param fk_info_all         FOREIGN_KEY array with foreign keys which were
+                             already processed.
+  @param fk_number           Number of foreign keys which were already
+                             processed.
   @param se_supports_fks     Indicates whether SE supports FKs.
                              If not only basic FK validation is
                              performed.
@@ -6237,6 +6241,7 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info, const char *db,
                                 const char *table_name, bool is_partitioned,
                                 KEY *key_info_buffer, uint key_count,
+                                const FOREIGN_KEY *fk_info_all, uint fk_number,
                                 bool se_supports_fks, bool find_parent_key,
                                 Foreign_key_spec *fk_key,
                                 uint *fk_max_generated_name_number,
@@ -6278,6 +6283,21 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
     if (check_string_char_length(to_lex_cstring(fk_info->name), "",
                                  NAME_CHAR_LEN, system_charset_info, true)) {
       my_error(ER_TOO_LONG_IDENT, MYF(0), fk_info->name);
+      return true;
+    }
+  }
+
+  /*
+    Check that we are not creating several foreign keys with the same
+    name over same table. This is mostly to avoid expensive phases of
+    ALTER TABLE in such a case. Without this check the problem will be
+    detected at the later stage when info about foreign keys is stored
+    in data-dictionary.
+  */
+  for (uint fk_idx = 0; fk_idx < fk_number; fk_idx++) {
+    if (!my_strcasecmp(system_charset_info, fk_info_all[fk_idx].name,
+                       fk_info->name)) {
+      my_error(ER_FK_DUP_NAME, MYF(0), fk_info->name);
       return true;
     }
   }
@@ -7823,11 +7843,12 @@ bool mysql_prepare_create_table(
     Key_spec *key = alter_info->key_list[i];
 
     if (key->type == KEYTYPE_FOREIGN) {
-      if (prepare_foreign_key(
-              thd, create_info, alter_info, error_schema_name, error_table_name,
-              is_partitioned, *key_info_buffer, *key_count, se_supports_fks,
-              find_parent_keys, down_cast<Foreign_key_spec *>(key),
-              &fk_max_generated_name_number, fk_key_info))
+      if (prepare_foreign_key(thd, create_info, alter_info, error_schema_name,
+                              error_table_name, is_partitioned,
+                              *key_info_buffer, *key_count, *fk_key_info_buffer,
+                              fk_number, se_supports_fks, find_parent_keys,
+                              down_cast<Foreign_key_spec *>(key),
+                              &fk_max_generated_name_number, fk_key_info))
         return true;
 
       if (se_supports_fks) {
@@ -13210,22 +13231,33 @@ static void to_lex_cstring(MEM_ROOT *mem_root, LEX_CSTRING *target,
 /**
   Remember information about pre-existing foreign keys so
   that they can be added to the new version of the table later.
-  Also check that the foreign keys are still valid.
+  Omit foreign keys to be dropped. Also check that the foreign
+  keys to be kept are still valid.
 
-  @param      thd              Thread handle.
-  @param      src_table        The source table.
-  @param      src_db_name      Original database name of table.
-  @param      src_table_name   Original table name of table.
-  @param      hton             Original storage engine.
-  @param      alter_info       Info about ALTER TABLE statement.
-  @param      alter_ctx        Runtime context for ALTER TABLE.
-  @param      new_create_list  List of new columns, used for rename check.
+  @note This function removes pre-existing foreign keys from the
+        drop_list, while Alter_info::drop_list is kept intact.
+        A non-empty drop_list upon return of this function indicates
+        an error, and means that the statement tries to drop a
+        foreign key that did not exist in the first place.
+
+  @param[in]      thd               Thread handle.
+  @param[in]      src_table         The source table.
+  @param[in]      src_db_name       Original database name of table.
+  @param[in]      src_table_name    Original table name of table.
+  @param[in]      hton              Original storage engine.
+  @param[in]      alter_info        Info about ALTER TABLE statement.
+  @param[in]      new_create_list   List of new columns, used for rename check.
+  @param[in,out]  drop_list         Copy of list of foreign keys to be dropped.
+  @param[in,out]  alter_ctx         Runtime context for ALTER TABLE to which
+                                    information about pre-existing foreign
+                                    keys is added.
 */
 
 static bool transfer_preexisting_foreign_keys(
     THD *thd, const dd::Table *src_table, const char *src_db_name,
-    const char *src_table_name, handlerton *hton, Alter_info *alter_info,
-    Alter_table_ctx *alter_ctx, List<Create_field> *new_create_list) {
+    const char *src_table_name, handlerton *hton, const Alter_info *alter_info,
+    List<Create_field> *new_create_list, Alter_table_ctx *alter_ctx,
+    Prealloced_array<const Alter_drop *, 1> *drop_list) {
   if (src_table == nullptr)
     return false;  // Could be temporary table or during upgrade.
 
@@ -13237,17 +13269,21 @@ static bool transfer_preexisting_foreign_keys(
     const dd::Foreign_key *dd_fk = src_table->foreign_keys()[i];
 
     // Skip foreign keys that are to be dropped
-    bool is_dropped = false;
-    for (const Alter_drop *drop : alter_info->drop_list) {
+    size_t k = 0;
+    while (k < drop_list->size()) {
+      const Alter_drop *drop = (*drop_list)[k];
       // Index names are always case insensitive
       if (drop->type == Alter_drop::FOREIGN_KEY &&
           my_strcasecmp(system_charset_info, drop->name,
                         dd_fk->name().c_str()) == 0) {
-        is_dropped = true;
         break;
       }
+      k++;
     }
-    if (is_dropped) continue;
+    if (k < drop_list->size()) {
+      drop_list->erase(k);
+      continue;
+    }
 
     // Self-referencing foreign keys will need additional handling later.
     bool is_self_referencing =
@@ -14222,13 +14258,41 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       new_key_list.push_back(alter_info->key_list[i]);  // Add new keys
   }
 
+  /*
+    Copy existing foreign keys from the source table into
+    Alter_table_ctx so that they can be added to the new table
+    later. Omits foreign keys to be dropped and removes them
+    from the drop_list. Checks that foreign keys to be kept
+    are still valid.
+  */
+  if (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) {
+    if (transfer_preexisting_foreign_keys(
+            thd, src_table, table->s->db.str, table->s->table_name.str,
+            table->s->db_type(), alter_info, &new_create_list, alter_ctx,
+            &drop_list))
+      return true;
+  }
+
   if (drop_list.size() > 0) {
-    // Now this contains only DROP for foreign keys and not-found objects.
+    // Now this contains only DROP for not-found objects.
     for (const Alter_drop *drop : drop_list) {
       switch (drop->type) {
+        case Alter_drop::FOREIGN_KEY:
+          if (!(create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS)) {
+            /*
+              For historical reasons we silently ignore attempts to drop
+              foreign keys from tables in storage engines which don't
+              support them. This is in sync with the fact that attempts
+              to add foreign keys to such tables are silently ignored
+              as well. Once the latter is changed the former hack can
+              be removed as well.
+            */
+            break;
+          }
+          // Fall-through.
         case Alter_drop::KEY:
         case Alter_drop::COLUMN:
-          my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_list[0]->name);
+          my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop->name);
           return true;
         case Alter_drop::CHECK_CONSTRAINT:
           /*
@@ -14237,25 +14301,11 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           */
           DBUG_ASSERT(false);
           break;
-        case Alter_drop::FOREIGN_KEY:
-          break;
         default:
           DBUG_ASSERT(false);
           break;
       }
     }
-  }
-
-  /*
-    Copy existing foreign keys from the source table into
-    Alter_table_ctx so that they can be added to the new table
-    later. Also checks that these foreign keys are still valid.
-  */
-  if (create_info->db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) {
-    if (transfer_preexisting_foreign_keys(
-            thd, src_table, table->s->db.str, table->s->table_name.str,
-            table->s->db_type(), alter_info, alter_ctx, &new_create_list))
-      return true;
   }
 
   if (rename_key_list.size() > 0) {

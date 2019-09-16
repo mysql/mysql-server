@@ -3494,10 +3494,10 @@ CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
 CONSTRAINT c FOREIGN KEY (fk) REFERENCES self(pk));
 # Dropping foreign key and adding partitioning is OK.
 ALTER TABLE self DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
-# Adding foreign key and removing partitioning should be OK.
-# However, the below statement fails due to bug#28486106 in InnoDB code.
+# Adding foreign key and removing partitioning is OK.
+# The below statement provides coverage gor bug#28486106 "ALTER TABLE
+# ADD FOREIGN KEY ... REMOVE PARTITIONING FAILS IF SELF-REFENCE".
 ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
-ERROR HY000: Cannot add foreign key constraint
 DROP TABLES self;
 #
 # 6) Check that we prohibit foreign keys with SET NULL action with
@@ -4757,3 +4757,92 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DEALLOCATE PREPARE stmt1;
 DROP TABLES child, parent;
+#
+# Bug#30267236 "REPLACE DICT_FOREIGN_PARSE_DROP_CONSTRAINTS() WITH
+#               SQL-LAYER CHECK."
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, b INT, CONSTRAINT c FOREIGN KEY (fk1) REFERENCES parent (pk));
+CREATE TABLE unrelated (a INT);
+#
+# Dropping non-existing foreign key should fail with consistent error.
+ALTER TABLE child DROP FOREIGN KEY no_such_fk;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+#
+# Dropping existing foreign key using wrong table name should fail
+# with consistent error as well.
+ALTER TABLE unrelated DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+#
+# The same should happen if one tries to drop foreign key using
+# parent table.
+ALTER TABLE parent DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+DROP TABLES unrelated, child, parent;
+#
+# Bug#16904122 "MULTIPLE FK WITH SAME NAME ALLOWED IN ALTER".
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk1 INT, fk2 INT, a INT, KEY(fk1), KEY(fk2));
+INSERT INTO child VALUES (NULL, NULL, 1), (NULL, NULL, 1);
+# Usage of duplicate foreign key name should be detected before
+# proceeding to COPYing of rows (and thus duplicate key error)
+# and checking if INPLACE algorithm is supported.
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a);
+ERROR HY000: Duplicate foreign key constraint name 'f'
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 'f'
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk),
+ADD CONSTRAINT f FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 'f'
+# Also check case when we created duplicate to already pre-existing
+# foreign key name. Also check that foreign key name comparison is
+# case-insensitive in this case.
+ALTER TABLE child ADD CONSTRAINT f FOREIGN KEY (fk1) REFERENCES parent (pk);
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a);
+ERROR HY000: Duplicate foreign key constraint name 'F'
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=COPY;
+ERROR HY000: Duplicate foreign key constraint name 'F'
+ALTER TABLE child ADD CONSTRAINT F FOREIGN KEY (fk2) REFERENCES parent (pk),
+ADD UNIQUE (a), ALGORITHM=INPLACE;
+ERROR HY000: Duplicate foreign key constraint name 'F'
+DROP TABLES child, parent;
+#
+# Bug#22364336 "ANOMALY IN ALTER TABLE ADD FOREIGN KEY".
+#
+# Spaces surrounding dot in qualified parent table name should
+# be allowed.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES test . parent (pk));
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES test . parent (pk);
+DROP TABLES child, parent;
+#
+# Bug#28703793 "CANNOT ADD FOREIGN KEY CONSTRAINT TO TABLES INSIDE A
+#               DATABASE NAMED `AUX`"
+#
+CREATE DATABASE aux;
+CREATE TABLE aux.parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES aux.parent (pk));
+DROP TABLE child;
+DROP DATABASE aux;

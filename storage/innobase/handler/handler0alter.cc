@@ -5477,6 +5477,12 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
         }
       }
 
+      /*
+        Since we check that foreign key to be dropped exists on SQL-layer,
+        we should not come here unless there is some bug and data-dictionary
+        and InnoDB dictionary cache got out of sync.
+      */
+      DBUG_ASSERT(0);
       my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop->name);
       goto err_exit;
     found_fk:

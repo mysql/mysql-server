@@ -723,7 +723,7 @@ call p_verify_status_increment(2, 0, 1, 0);
 alter table t2 add column b int default 5;
 --echo # A commit is done internally by ALTER. 
 --disable_warnings
-call p_verify_status_increment(4, 0, 3, 0);
+call p_verify_status_increment(3, 0, 3, 0);
 commit;
 --echo # There is nothing left to commit
 call p_verify_status_increment(0, 0, 0, 0);

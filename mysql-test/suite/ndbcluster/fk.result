@@ -798,3 +798,37 @@ child_fk_12
 child_fk_2
 child_fk_3
 DROP TABLES child, parent;
+#
+# Additional coverage for bug#30267236 "REPLACE DICT_FOREIGN_PARSE...
+#                                       WITH SQL-LAYER CHECK."
+#
+CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=NDB;
+CREATE TABLE child (fk1 INT, b INT, CONSTRAINT c FOREIGN KEY (fk1) REFERENCES parent (pk)) ENGINE=NDB;
+CREATE TABLE unrelated (a INT) ENGINE=NDB;
+#
+# Dropping non-existing foreign key should fail with consistent error.
+ALTER TABLE child DROP FOREIGN KEY no_such_fk;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+ALTER TABLE child DROP FOREIGN KEY no_such_fk, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'no_such_fk'; check that column/key exists
+#
+# Dropping existing foreign key using wrong table name should fail
+# with consistent error as well.
+ALTER TABLE unrelated DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE unrelated DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+#
+# The same should happen if one tries to drop foreign key using
+# parent table.
+ALTER TABLE parent DROP FOREIGN KEY c;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=INPLACE;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+ALTER TABLE parent DROP FOREIGN KEY c, ALGORITHM=COPY;
+ERROR 42000: Can't DROP 'c'; check that column/key exists
+DROP TABLES unrelated, child, parent;
