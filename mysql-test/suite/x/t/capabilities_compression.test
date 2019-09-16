@@ -44,6 +44,7 @@ Mysqlx.Connection.CapabilitiesSet {
 
 -->callmacro Set_commpresion_capabilities_1	algorithm	deflate_stream	Mysqlx.Ok
 -->callmacro Set_commpresion_capabilities_1	algorithm	lz4_message	Mysqlx.Ok
+-->callmacro Set_commpresion_capabilities_1	algorithm	zstd_stream	Mysqlx.Ok
 -->callmacro Set_commpresion_capabilities_1	algorithm	wrong	Mysqlx.Error
 -->callmacro Set_commpresion_capabilities_1	wrong	deflate_stream	Mysqlx.Error
 

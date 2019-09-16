@@ -27,7 +27,7 @@
 
 namespace ngs {
 
-enum class Compression_algorithm { k_none, k_deflate, k_lz4 };
+enum class Compression_algorithm { k_none, k_deflate, k_lz4, k_zstd };
 enum class Compression_style { k_none, k_single, k_multiple, k_group };
 
 }  // namespace ngs

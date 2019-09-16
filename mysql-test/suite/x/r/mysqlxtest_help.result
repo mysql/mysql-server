@@ -48,10 +48,11 @@ Options:
                       "DISABLED" - do not negotiate compression
                       "PREFERRED" - if server doesn't support selected compression, continue without compression.
                       "REQUIRED" - if server doesn't support selected compression, fail the connection.
---compression-algorithm=<algo[,algo...]>  Try to negotiate specified compression algorithm with the server (default:"DEFLATE_STREAM,LZ4_MESSAGE")
+--compression-algorithm=<algo[,algo...]>  Try to negotiate specified compression algorithm with the server (default:"DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM")
                       "" - compression not enabled
                       "DEFLATE_STREAM" - zlib compression enabled
                       "LZ4_MESSAGE" - lz4f compression enabled
+                      "ZSTD_STREAM" - zstd compression enabled
 --compression-combine-mixed-messages=<0/1>  If 1, server is allowed to combine different message types into a compressed message (default: 1)
 --compression-max-combine-messages=<N>  If set, the server MUST not store more than N uncompressed messages into a compressed message (default: no limit)
 --ssl-mode            SSL configuration (default: "")
@@ -117,7 +118,7 @@ The following commands may appear in the input script:
   Execute SSL handshake, enables SSL on current connection
 <protomsg>
   Encodes the text format protobuf message and sends it to the server (allows variables).
--->enable_compression [deflate|lz4]
+-->enable_compression [deflate|lz4|zstd]
   Enable compression
 -->recv [quiet|<FIELD PATH>]
   quiet        - received message isn't printed

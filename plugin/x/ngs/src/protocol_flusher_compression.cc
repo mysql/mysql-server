@@ -24,14 +24,15 @@
 
 #include "plugin/x/ngs/include/ngs/protocol_flusher_compression.h"
 
-#include "plugin/x/ngs/include/ngs/log.h"
-
 #include <lz4frame.h>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
-#include "zlib.h"
+#include "zlib.h"  // NOLINT(build/include_subdir)
+#include "zstd.h"  // NOLINT(build/include_subdir)
+
+#include "plugin/x/ngs/include/ngs/log.h"
 
 namespace ngs {
 
@@ -56,6 +57,7 @@ class Compression_deflate : public ::protocol::Compression_buffer_interface {
 
   bool process(Encoding_buffer *output_buffer,
                const Encoding_buffer *input_buffer) override {
+    DBUG_TRACE;
     if (m_error) return false;
 
     auto in_page = input_buffer->m_front;
@@ -360,6 +362,87 @@ class Compression_lz4 : public ::protocol::Compression_buffer_interface {
   bool m_open_frame = true;
 };
 
+class Compression_zstandard : public ::protocol::Compression_buffer_interface {
+ public:
+  Compression_zstandard() : m_stream{ZSTD_createCStream()} {
+    m_error = ZSTD_isError(ZSTD_initCStream(m_stream, -1));
+  }
+
+  ~Compression_zstandard() override { ZSTD_freeCStream(m_stream); }
+
+  void reset_counters() override {
+    m_all_compressed = 0;
+    m_all_uncompressed = 0;
+  }
+
+  bool process(Encoding_buffer *output_buffer,
+               const Encoding_buffer *input_buffer) override {
+    DBUG_TRACE;
+    if (m_error) return false;
+
+    auto in_page = input_buffer->m_front;
+    auto out_page = output_buffer->m_current;
+
+    if (out_page->is_full()) {
+      out_page = output_buffer->get_next_page();
+    }
+
+    while (in_page) {
+      ZSTD_inBuffer in_buffer{in_page->m_begin_data, in_page->get_used_bytes(),
+                              0};
+
+      m_all_uncompressed += in_buffer.size;
+
+      while (in_buffer.pos < in_buffer.size) {
+        ZSTD_outBuffer out_buffer{out_page->m_current_data,
+                                  out_page->get_free_bytes(), 0};
+
+        auto result = ZSTD_compressStream(m_stream, &out_buffer, &in_buffer);
+
+        if (ZSTD_isError(result)) {
+          log_error(ER_XPLUGIN_COMPRESSION_ERROR, ZSTD_getErrorName(result));
+          m_error = true;
+          return false;
+        }
+
+        out_page->m_current_data += out_buffer.pos;
+        m_all_compressed += out_buffer.pos;
+
+        if (out_buffer.pos == out_buffer.size)
+          out_page = output_buffer->get_next_page();
+      }
+
+      in_page = in_page->m_next_page;
+    }
+
+    ZSTD_outBuffer flush_buffer{out_page->m_current_data,
+                                out_page->get_free_bytes(), 0};
+    auto result = ZSTD_flushStream(m_stream, &flush_buffer);
+    if (ZSTD_isError(result)) {
+      log_error(ER_XPLUGIN_COMPRESSION_ERROR, ZSTD_getErrorName(result));
+      m_error = true;
+      return false;
+    }
+
+    out_page->m_current_data += flush_buffer.pos;
+    m_all_compressed += flush_buffer.pos;
+
+    return true;
+  }
+
+  void get_processed_data(uint32_t *out_uncompressed,
+                          uint32_t *out_compressed) override {
+    *out_uncompressed = m_all_uncompressed;
+    *out_compressed = m_all_compressed;
+  }
+
+ private:
+  ZSTD_CStream *m_stream;
+  uint32_t m_all_compressed = 0;
+  uint32_t m_all_uncompressed = 0;
+  bool m_error = false;
+};
+
 }  // namespace details
 
 Protocol_flusher_compression::Protocol_flusher_compression(
@@ -419,6 +502,10 @@ void Protocol_flusher_compression::set_compression_options(
 
     case Compression_algorithm::k_lz4:
       m_comp_algorithm.reset(new details::Compression_lz4());
+      break;
+
+    case Compression_algorithm::k_zstd:
+      m_comp_algorithm.reset(new details::Compression_zstandard());
       break;
 
     case Compression_algorithm::k_none:

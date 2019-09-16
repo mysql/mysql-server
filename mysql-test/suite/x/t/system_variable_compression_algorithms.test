@@ -51,7 +51,7 @@ EOF
 
 
 --echo ##############################################
---echo ## Mysqlx_compression_algorithms = default (deflate,lz4)
+--echo ## Mysqlx_compression_algorithms = default (deflate,lz4,zstd_stream)
 --echo
 
 SET GLOBAL Mysqlx_compression_algorithms = DEFAULT;
@@ -69,6 +69,11 @@ exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
   --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
   -v%VALUE%=deflate_stream -v%RESULT%=Mysqlx.Ok;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=zstd_stream -v%RESULT%=Mysqlx.Ok;
 
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
@@ -98,6 +103,11 @@ exec $MYSQLXTEST
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
   --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=zstd_stream -v%RESULT%=Mysqlx.Error;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
   -v%VALUE%=wrong_name -v%RESULT%=Mysqlx.Error;
 
 --echo ##############################################
@@ -119,6 +129,41 @@ exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
   --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
   -v%VALUE%=deflate_stream -v%RESULT%=Mysqlx.Error;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=zstd_stream -v%RESULT%=Mysqlx.Error;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=wrong_name -v%RESULT%=Mysqlx.Error;
+
+--echo ##############################################
+--echo ## Mysqlx_compression_algorithms = zstd_stream
+--echo
+
+SET GLOBAL Mysqlx_compression_algorithms = zstd_stream;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_get.xpl 2>&1;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=lz4_message -v%RESULT%=Mysqlx.Error;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=deflate_stream -v%RESULT%=Mysqlx.Error;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=zstd_stream -v%RESULT%=Mysqlx.Ok;
 
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
@@ -148,13 +193,18 @@ exec $MYSQLXTEST
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
   --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=zstd_stream -v%RESULT%=Mysqlx.Error;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
   -v%VALUE%=wrong_name -v%RESULT%=Mysqlx.Error;
 
 --echo ##############################################
---echo ## Mysqlx_compression_algorithms = deflate,lz4
+--echo ## Mysqlx_compression_algorithms = deflate,lz4,zstd_stream
 --echo
 
-SET GLOBAL Mysqlx_compression_algorithms = 'deflate_stream,lz4_message';
+SET GLOBAL Mysqlx_compression_algorithms = 'deflate_stream,lz4_message,zstd_stream';
 
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
@@ -169,6 +219,11 @@ exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
   --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
   -v%VALUE%=deflate_stream -v%RESULT%=Mysqlx.Ok;
+
+exec $MYSQLXTEST
+  -u x_root --password='' -h127.0.0.1 --no-auth
+  --file=$MYSQL_TMP_DIR/capabilities_compression_algorithm_set.xpl 2>&1
+  -v%VALUE%=zstd_stream -v%RESULT%=Mysqlx.Ok;
 
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth

@@ -1086,7 +1086,8 @@ Argument_uobject Session_impl::get_connect_attrs() const {
 Argument_value Session_impl::get_compression_capability() const {
   static const std::map<Compression_algorithm, std::string> k_algorithm{
       {Compression_algorithm::k_deflate, "DEFLATE_STREAM"},
-      {Compression_algorithm::k_lz4, "LZ4_MESSAGE"}};
+      {Compression_algorithm::k_lz4, "LZ4_MESSAGE"},
+      {Compression_algorithm::k_zstd, "ZSTD_STREAM"}};
 
   Argument_object obj;
   auto &config = m_context->m_compression_config;

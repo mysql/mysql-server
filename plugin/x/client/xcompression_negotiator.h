@@ -57,7 +57,8 @@ class Capabilities_negotiator {
   // The order is important, its sorted from most preferred.
   //
   Compression_algorithms m_compression_negotiation_algorithm{
-      Compression_algorithm::k_deflate, Compression_algorithm::k_lz4};
+      Compression_algorithm::k_deflate, Compression_algorithm::k_lz4,
+      Compression_algorithm::k_zstd};
 
   Compression_negotiation m_compression_mode =
       Compression_negotiation::k_disabled;

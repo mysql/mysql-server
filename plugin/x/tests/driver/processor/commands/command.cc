@@ -24,6 +24,9 @@
 
 #include "plugin/x/tests/driver/processor/commands/command.h"
 
+#include <signal.h>
+#include <sys/types.h>
+
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <algorithm>
 #include <fstream>
@@ -32,13 +35,8 @@
 #include <set>
 #include <stdexcept>
 
-#include <signal.h>
-#include <sys/types.h>
+#include "mysqld_error.h"  // NOLINT(build/include_subdir)
 
-#include "mysqld_error.h"
-
-#include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
-#include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
 #include "plugin/x/protocol/stream/compression_output_stream.h"
 #include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/common/message_matcher.h"
@@ -1169,7 +1167,8 @@ Command::Result Command::cmd_enable_compression(std::istream &input,
                                                 const std::string &args) {
   const static std::map<std::string, xcl::Compression_algorithm> algo{
       {"deflate_stream", xcl::Compression_algorithm::k_deflate},
-      {"lz4_message", xcl::Compression_algorithm::k_lz4}};
+      {"lz4_message", xcl::Compression_algorithm::k_lz4},
+      {"zstd_stream", xcl::Compression_algorithm::k_zstd}};
 
   std::string arg = args;
   context->m_variables->replace(&arg);
@@ -2474,7 +2473,7 @@ void print_help_commands() {
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
-  std::cout << "-->enable_compression [deflate|lz4]\n";
+  std::cout << "-->enable_compression [deflate|lz4|zstd]\n";
   std::cout << "  Enable compression\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";

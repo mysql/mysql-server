@@ -29,6 +29,7 @@
 
 #include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
 #include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zstd.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 
 namespace details {
@@ -67,6 +68,10 @@ bool Session_holder::enable_compression(
 
     case xcl::Compression_algorithm::k_deflate:
       m_algorithm.reset(new protocol::Compression_algorithm_zlib());
+      break;
+
+    case xcl::Compression_algorithm::k_zstd:
+      m_algorithm.reset(new protocol::Compression_algorithm_zstd());
       break;
 
     default:

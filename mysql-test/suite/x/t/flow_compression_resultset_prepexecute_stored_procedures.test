@@ -137,6 +137,50 @@ exec $MYSQLXTEST
   --file=$MYSQL_TMP_DIR/prep_stmt_cursor.xpl 2>&1;
 
 
+--echo
+--echo ## G. Execute the test using zstd/group
+--echo #
+
+CALL `recreate_tables_for_sp`();
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  --compression-combine-mixed-messages=1
+  --compression-max-combine-messages=0
+  --file=$MYSQL_TMP_DIR/prep_stmt_cursor.xpl 2>&1;
+
+
+--echo
+--echo ## H. Execute the test using zstd/multiple
+--echo #
+
+CALL `recreate_tables_for_sp`();
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  --compression-combine-mixed-messages=0
+  --compression-max-combine-messages=0
+  --file=$MYSQL_TMP_DIR/prep_stmt_cursor.xpl 2>&1;
+
+
+--echo
+--echo ## I. Execute the test using zstd/single
+--echo #
+
+CALL `recreate_tables_for_sp`();
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  --compression-combine-mixed-messages=0
+  --compression-max-combine-messages=1
+  --file=$MYSQL_TMP_DIR/prep_stmt_cursor.xpl 2>&1;
+
 ## Cleanup
 DROP SCHEMA IF EXISTS xtest;
 --remove_files_wildcard $MYSQL_TMP_DIR *.xpl

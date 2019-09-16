@@ -67,7 +67,7 @@ struct Connection_options {
   std::vector<std::string> auth_methods;
   bool compatible{false};
   std::vector<std::string> compression_algorithm{"DEFLATE_STREAM",
-                                                 "LZ4_MESSAGE"};
+                                                 "LZ4_MESSAGE", "ZSTD_STREAM"};
   std::string compression_mode{"DISABLED"};
   bool compression_combine_mixed_messages{true};
   int64_t compression_max_combine_messages{0};

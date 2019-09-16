@@ -104,7 +104,7 @@ let $wait_condition=
 --let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_enable_hello_notice", Value, 1]" = "ON"
 --source include/assert.inc
 
---let $assert_text= Mysqlx_compression_algorithms must be DEFLATE_STREAM,LZ4_MESSAGE, the default value
---let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_compression_algorithms", Value, 1]" = "DEFLATE_STREAM,LZ4_MESSAGE"
+--let $assert_text= Mysqlx_compression_algorithms must be DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM the default value
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_compression_algorithms", Value, 1]" = "DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM"
 --source include/assert.inc
 

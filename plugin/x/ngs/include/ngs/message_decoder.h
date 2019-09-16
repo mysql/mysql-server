@@ -31,8 +31,8 @@
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/message_cache.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/src/interface/protocol_monitor.h"
 #include "plugin/x/protocol/stream/compression/decompression_algorithm_interface.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
 #include "plugin/x/src/io/vio_input_stream.h"
 
 namespace ngs {

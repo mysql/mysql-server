@@ -49,7 +49,6 @@ callmacro Assert_client_message_count	Mysqlx.Connection.Compression	>	0;
 
 EOF
 
-
 --echo
 --echo ############################################################
 --echo ## Test verifies "--compression-mode" command line option:
@@ -82,28 +81,49 @@ EOF
 --echo #       server uses compression
 --echo #    c. use "PREFERRED" compression mode and verify that client and
 --echo #       server uses compression
---echo # 5. Try to use "deflate" algorithm when server has only "lz4" enabled
---echo #    a. use "DISABLED" compression mode and verify that neither
---echo #       client nor server uses it
---echo #    b. use "REQUIRED" compression mode and verify that client can't
---echo #       connect to the server
---echo #    c. use "PREFERRED" compression mode and verify that client may
---echo #       connect to the server, still can't use selected style
---echo # 6. Try to use "lz4" algorithm when server has only "deflate" enabled
---echo #    a. use "DISABLED" compression mode and verify that neither
---echo #       client nor server uses it
---echo #    b. use "REQUIRED" compression mode and verify that client can't
---echo #       connect to the server
---echo #    c. use "PREFERRED" compression mode and verify that client may
---echo #       connect to the server, still can't use selected style
---echo # 7. Try to use "lz4" algorithm when server has only "lz4" enabled
+--echo # 5. Try to use any algorithm when server has only "zstd" enabled
 --echo #    a. use "DISABLED" compression mode and verify that neither
 --echo #       client nor server uses it
 --echo #    b. use "REQUIRED" compression mode and verify that client and
 --echo #       server uses compression
 --echo #    c. use "PREFERRED" compression mode and verify that client and
 --echo #       server uses compression
---echo # 8. Try to use "deflate" algorithm when server has only "deflate" enabled
+--echo # 6. Try to use "deflate" algorithm when server has only "lz4" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client can't
+--echo #       connect to the server
+--echo #    c. use "PREFERRED" compression mode and verify that client may
+--echo #       connect to the server, still can't use selected style
+--echo # 7. Try to use "lz4" algorithm when server has only "deflate" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client can't
+--echo #       connect to the server
+--echo #    c. use "PREFERRED" compression mode and verify that client may
+--echo #       connect to the server, still can't use selected style
+--echo # 8. Try to use "lz4" algorithm when server has only "zstd" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client can't
+--echo #       connect to the server
+--echo #    c. use "PREFERRED" compression mode and verify that client may
+--echo #       connect to the server, still can't use selected style
+--echo # 9. Try to use "lz4" algorithm when server has only "lz4" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo #    c. use "PREFERRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo # 10. Try to use "deflate" algorithm when server has only "deflate" enabled
+--echo #    a. use "DISABLED" compression mode and verify that neither
+--echo #       client nor server uses it
+--echo #    b. use "REQUIRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo #    c. use "PREFERRED" compression mode and verify that client and
+--echo #       server uses compression
+--echo # 11. Try to use "zstd" algorithm when server has only "zstd" enabled
 --echo #    a. use "DISABLED" compression mode and verify that neither
 --echo #       client nor server uses it
 --echo #    b. use "REQUIRED" compression mode and verify that client and
@@ -273,6 +293,43 @@ exec $MYSQLXTEST
 --echo
 --echo # 5.a
 --echo #
+SET GLOBAL mysqlx_compression_algorithms="ZSTD_STREAM";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 5.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 5.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+--echo
+--echo # 6.a
+--echo #
 SET GLOBAL mysqlx_compression_algorithms="LZ4_MESSAGE";
 
 exec $MYSQLXTEST
@@ -286,7 +343,7 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 5.b
+--echo # 6.b
 --echo #
 exec $MYSQLXTEST
   --expect-error=2513
@@ -300,7 +357,7 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 5.c
+--echo # 6.c
 --echo #
 exec $MYSQLXTEST
   --user=x_root
@@ -313,7 +370,7 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 6.a
+--echo # 7.a
 --echo #
 SET GLOBAL mysqlx_compression_algorithms="DEFLATE_STREAM";
 
@@ -328,7 +385,7 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 6.b
+--echo # 7.b
 --echo #
 exec $MYSQLXTEST
   --expect-error=2513
@@ -342,7 +399,7 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 6.c
+--echo # 7.c
 --echo #
 exec $MYSQLXTEST
   --user=x_root
@@ -355,7 +412,90 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 7.a
+--echo # 8.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="ZSTD_STREAM";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 8.b
+--echo #
+exec $MYSQLXTEST
+  --expect-error=2513
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 8.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 9.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="LZ4_MESSAGE";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 9.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 9.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --compression-algorithm=lz4_message
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 10.a
 --echo #
 SET GLOBAL mysqlx_compression_algorithms="LZ4_MESSAGE";
 
@@ -411,7 +551,7 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 8.b
+--echo # 10.b
 --echo #
 exec $MYSQLXTEST
   --user=x_root
@@ -424,7 +564,7 @@ exec $MYSQLXTEST
 
 
 --echo
---echo # 8.c
+--echo # 10.c
 --echo #
 exec $MYSQLXTEST
   --user=x_root
@@ -433,6 +573,47 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=deflate_stream
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 11.a
+--echo #
+SET GLOBAL mysqlx_compression_algorithms="ZSTD_STREAM";
+
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=DISABLED
+  --compression-algorithm=zstd_stream
+  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+
+
+--echo
+--echo # 11.b
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=REQUIRED
+  --compression-algorithm=zstd_stream
+  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+
+
+--echo
+--echo # 11.c
+--echo #
+exec $MYSQLXTEST
+  --user=x_root
+  --host=127.0.0.1
+  --schema=test
+  --ssl-mode=REQUIRED
+  --compression-mode=PREFERRED
+  --compression-algorithm=zstd_stream
   --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
 
 

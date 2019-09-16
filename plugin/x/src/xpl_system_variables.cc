@@ -48,7 +48,7 @@ uint32_t Plugin_system_variables::m_document_id_unique_prefix;
 bool Plugin_system_variables::m_enable_hello_notice;
 
 Set_variable Plugin_system_variables::m_compression_algorithms{
-    {"DEFLATE_STREAM", "LZ4_MESSAGE", nullptr}};
+    {"DEFLATE_STREAM", "LZ4_MESSAGE", "ZSTD_STREAM", nullptr}};
 
 Ssl_config Plugin_system_variables::ssl_config;
 

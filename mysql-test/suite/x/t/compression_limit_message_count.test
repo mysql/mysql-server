@@ -118,10 +118,10 @@ callmacro Assert_message	Mysqlx.Sql.StmtExecuteOk;
 EOF
 
 
-let $iteration=2;
+let $iteration=3;
 while ($iteration)
 {
-  let $algo=`select json_unquote(JSON_EXTRACT('["NONE","DEFLATE_STREAM","LZ4_MESSAGE"]', '$[$iteration]'))`;
+  let $algo=`select json_unquote(JSON_EXTRACT('["NONE","DEFLATE_STREAM","LZ4_MESSAGE","ZSTD_STREAM"]', '$[$iteration]'))`;
   --echo
   --echo ## I. Execute the test using: $algo + max_combine=1
   --echo #

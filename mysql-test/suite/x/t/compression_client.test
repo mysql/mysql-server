@@ -154,6 +154,39 @@ exec $MYSQLXTEST
   -v%BLOCK_COMPRESSION%=GROUP
   --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
 
+--echo
+--echo ## G. Execute the test using zstd/single
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  -v%BLOCK_COMPRESSION%=SINGLE
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+--echo
+--echo ## H. Execute the test using zstd/multiple
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  -v%BLOCK_COMPRESSION%=MULTIPLE
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
+--echo
+--echo ## I. Execute the test using zstd/group
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  -v%BLOCK_COMPRESSION%=GROUP
+  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+
 ## Cleanup
 
 --remove_file $MYSQL_TMP_DIR/resultset.tmp

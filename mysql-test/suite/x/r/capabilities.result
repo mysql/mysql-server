@@ -79,6 +79,15 @@ Mysqlx.Connection.Capabilities {
                   }
                 }
               }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
             }
           }
         }
@@ -583,6 +592,15 @@ Mysqlx.Connection.Capabilities {
                   }
                 }
               }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
             }
           }
         }
@@ -842,6 +860,15 @@ Mysqlx.Connection.Capabilities {
                   type: V_STRING
                   v_string {
                     value: "lz4_message"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
                   }
                 }
               }
@@ -1471,6 +1498,15 @@ Mysqlx.Connection.Capabilities {
                   }
                 }
               }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
+                  }
+                }
+              }
             }
           }
         }
@@ -1828,6 +1864,15 @@ Mysqlx.Connection.Capabilities {
                   type: V_STRING
                   v_string {
                     value: "lz4_message"
+                  }
+                }
+              }
+              value {
+                type: SCALAR
+                scalar {
+                  type: V_STRING
+                  v_string {
+                    value: "zstd_stream"
                   }
                 }
               }

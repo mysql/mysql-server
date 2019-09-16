@@ -33,8 +33,10 @@
 
 #include "plugin/x/protocol/stream/compression/compression_algorithm_lz4.h"
 #include "plugin/x/protocol/stream/compression/compression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression/compression_algorithm_zstd.h"
 #include "plugin/x/protocol/stream/compression/decompression_algorithm_lz4.h"
 #include "plugin/x/protocol/stream/compression/decompression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression/decompression_algorithm_zstd.h"
 #include "plugin/x/protocol/stream/compression_output_stream.h"
 #include "plugin/x/protocol/stream/decompression_input_stream.h"
 
@@ -52,6 +54,11 @@ bool Compression_impl::reinitialize(const Compression_algorithm algorithm) {
     case Compression_algorithm::k_lz4:
       m_downlink_stream.reset(new protocol::Decompression_algorithm_lz4());
       m_uplink_stream.reset(new protocol::Compression_algorithm_lz4());
+      return true;
+
+    case Compression_algorithm::k_zstd:
+      m_downlink_stream.reset(new protocol::Decompression_algorithm_zstd());
+      m_uplink_stream.reset(new protocol::Compression_algorithm_zstd());
       return true;
 
     case Compression_algorithm::k_none: {

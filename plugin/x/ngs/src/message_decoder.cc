@@ -29,6 +29,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/stream/compression/decompression_algorithm_lz4.h"
 #include "plugin/x/protocol/stream/compression/decompression_algorithm_zlib.h"
+#include "plugin/x/protocol/stream/compression/decompression_algorithm_zstd.h"
 #include "plugin/x/protocol/stream/decompression_input_stream.h"
 
 namespace ngs {
@@ -438,6 +439,11 @@ Message_decoder::get_decompression_algorithm() {
       case Compression_algorithm::k_deflate:
         m_decompression_algorithm.reset(
             new protocol::Decompression_algorithm_zlib());
+        break;
+
+      case Compression_algorithm::k_zstd:
+        m_decompression_algorithm.reset(
+            new protocol::Decompression_algorithm_zstd());
         break;
 
       case Compression_algorithm::k_none:  // fall-through

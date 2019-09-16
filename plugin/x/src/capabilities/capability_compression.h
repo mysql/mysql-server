@@ -66,8 +66,8 @@ class Capability_compression : public Capability_handler {
 
   const Set_variable_adaptor<ngs::Compression_algorithm> m_algorithms_variable{
       Plugin_system_variables::m_compression_algorithms,
-      {ngs::Compression_algorithm::k_deflate,
-       ngs::Compression_algorithm::k_lz4}};
+      {ngs::Compression_algorithm::k_deflate, ngs::Compression_algorithm::k_lz4,
+       ngs::Compression_algorithm::k_zstd}};
 };
 
 }  // namespace xpl

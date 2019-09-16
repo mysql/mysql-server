@@ -27,6 +27,11 @@ Mysqlx.Ok {
 }
 
 ##########################################################
+## Scenario: algorithm=zstd_stream
+Mysqlx.Ok {
+}
+
+##########################################################
 ## Scenario: algorithm=wrong
 Mysqlx.Error {
   severity: ERROR

@@ -158,6 +158,17 @@ exec $MYSQLXTEST
   --compression-algorithm=lz4_message
   --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1;
 
+
+echo;
+echo ## C. Execute the test using "zstd" algorithm;
+echo #;
+--replace_regex /payload: *\".*\"/payload: "BINARY"/
+exec $MYSQLXTEST
+  -u x_root
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1;
+
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;

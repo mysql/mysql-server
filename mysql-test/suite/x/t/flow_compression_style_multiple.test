@@ -617,6 +617,20 @@ exec $MYSQLXTEST
   --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
+--echo
+--echo ## C. Execute the test using zstd compression
+--echo #
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=xtest
+  --compression-mode=required
+  --compression-algorithm=zstd_stream
+  --compression-combine-mixed-messages=0
+  --compression-max-combine-messages=0
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
+
+
 ## Cleanup
 DROP SCHEMA IF EXISTS xtest;
 --remove_files_wildcard $MYSQL_TMP_DIR *.xpl

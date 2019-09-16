@@ -97,7 +97,8 @@ class XSession {
       Enable compression and choose the algorithm and style.
 
       Capability type: OBJECT.
-      Key: "algorithm" = type STRING; one of "deflate_stream|lz4_message".
+      Key: "algorithm" = type STRING;
+            one of "deflate_stream|lz4_message|zstd_stream".
       Key: "server_combine_mixed_messages" = type BOOL;
            if true, server is allowed to combine different message types
            into a compressed message.
@@ -306,7 +307,7 @@ class XSession {
     Compression_negotiation_mode,
     /** Try to negotiate following compression algorithms
 
-      Default: ["deflate_stream","lz4_message"]
+      Default: ["deflate_stream","lz4_message","zstd_stream"]
       Option type: STRING, ARRAY OF STRINGS
     */
     Compression_algorithms,

@@ -54,7 +54,8 @@ class Compression_algorithms_validator
   Compression_algorithms_validator()
       : Translate_array_validator(
             {{"DEFLATE_STREAM", Compression_algorithm::k_deflate},
-             {"LZ4_MESSAGE", Compression_algorithm::k_lz4}}) {}
+             {"LZ4_MESSAGE", Compression_algorithm::k_lz4},
+             {"ZSTD_STREAM", Compression_algorithm::k_zstd}}) {}
 
   void visit_translate(const Array_of_enums &algos) override {
     DBUG_TRACE;

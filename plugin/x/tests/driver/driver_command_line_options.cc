@@ -121,12 +121,14 @@ void Driver_command_line_options::print_help() {
   std::cout
       << "--compression-algorithm=<algo[,algo...]>  Try to negotiate specified"
          " compression algorithm with the server "
-         "(default:\"DEFLATE_STREAM,LZ4_MESSAGE\")\n";
+         "(default:\"DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM\")\n";
   std::cout << "                      \"\" - compression not enabled\n";
   std::cout << "                      \"DEFLATE_STREAM\" - zlib compression "
                "enabled\n";
   std::cout
       << "                      \"LZ4_MESSAGE\" - lz4f compression enabled\n";
+  std::cout
+      << "                      \"ZSTD_STREAM\" - zstd compression enabled\n";
   std::cout << "--compression-combine-mixed-messages=<0/1>  If 1, server is "
                "allowed to combine different message types into a compressed "
                "message (default: 1)\n";

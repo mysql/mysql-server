@@ -22,7 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "typelib.h"
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
@@ -418,9 +417,10 @@ static MYSQL_SYSVAR_SET(
     compression_algorithms,
     *xpl::Plugin_system_variables::m_compression_algorithms.value(),
     PLUGIN_VAR_OPCMDARG,
-    "Compression algorithms: where option can be DEFLATE_STREAM, LZ4_MESSAGE",
+    "Compression algorithms: where option can be DEFLATE_STREAM, LZ4_MESSAGE, "
+    "ZSTD_STREAM",
     NULL, &xpl::Plugin_system_variables::update_func<unsigned long long>,
-    3 /* default=DEFLATE_STREAM,LZ4_MESSAGE */,
+    7 /* default=DEFLATE_STREAM,LZ4_MESSAGE,ZSTD_STREAM */,
     xpl::Plugin_system_variables::m_compression_algorithms.typelib());
 
 static struct SYS_VAR *xpl_plugin_system_variables[] = {
