@@ -131,7 +131,6 @@ struct MEM_ROOT;
 #define MY_FREE_ON_ERROR 128        /* my_realloc() ; Free old ptr on error */
 #define MY_HOLD_ON_ERROR 256        /* my_realloc() ; Return old ptr on error */
 #define MY_DONT_OVERWRITE_FILE 1024 /* my_copy: Don't overwrite file */
-#define MY_THREADSAFE 2048          /* my_seek(): lock fd mutex */
 #define MY_SYNC 4096                /* my_copy(): sync dst file */
 
 #define MYF_RW MYF(MY_WME + MY_NABP) /* For my_read & my_write */

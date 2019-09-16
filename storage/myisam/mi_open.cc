@@ -869,7 +869,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite) {
 
   if (pWrite & 1)
     return mysql_file_pwrite(file, buff, (size_t)(ptr - buff), 0L,
-                             MYF(MY_NABP | MY_THREADSAFE)) != 0;
+                             MYF(MY_NABP)) != 0;
   return mysql_file_write(file, buff, (size_t)(ptr - buff), MYF(MY_NABP)) != 0;
 }
 

@@ -53,7 +53,7 @@
 #endif
 
 /** Change size of the specified file. Forces the OS to reserve disk space for
-the file, even when called to fill with zeros. he function also changes the
+the file, even when called to fill with zeros. The function also changes the
 file position. Usually it points to the end of the file after execution.
 
 @note Implementation based on, and mostly copied from, my_chsize. But instead
@@ -90,8 +90,6 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
     }
     return 0;
 #else
-    // FIXME: Use ftruncate on MacOS which does not have this apparently. But
-    // FreeBSD does...
     /*
     Fill space between requested length and true length with 'filler'
     We should never come here on any modern machine
@@ -101,7 +99,7 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
       goto err;
     }
     std::swap(newlength, oldsize);
-#endif  // WIN32
+#endif  // _WIN32
   }
 
   /* Full file with 'filler' until it's as big as requested */
