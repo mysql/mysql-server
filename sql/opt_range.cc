@@ -15146,8 +15146,7 @@ int QUICK_SKIP_SCAN_SELECT::get_next() {
       is_prefix_valid = true;
 
       result = head->file->ha_read_range_first(
-          &start_key, &end_key, MY_TEST(range_cond_flag & EQ_RANGE),
-          true /* sorted */);
+          &start_key, &end_key, range_cond_flag & EQ_RANGE, true /* sorted */);
       if (result) {
         if (result == HA_ERR_END_OF_FILE) {
           is_prefix_valid = false;

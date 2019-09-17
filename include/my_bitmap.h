@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _my_bitmap_h_
-#define _my_bitmap_h_
+#ifndef MY_BITMAP_INCLUDED
+#define MY_BITMAP_INCLUDED
 
 /**
   @file include/my_bitmap.h
@@ -59,7 +59,7 @@ extern uint bitmap_get_first_set(const MY_BITMAP *map);
 extern uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_bits_set(const MY_BITMAP *map);
 extern void bitmap_free(MY_BITMAP *map);
-extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit);
+extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, bool use_bit);
 extern void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size);
 extern void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from);
 extern void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2);
@@ -124,4 +124,4 @@ static inline void bitmap_set_all(MY_BITMAP *map) {
   memset(map->bitmap, 0xFF, 4 * no_words_in_map(map));
 }
 
-#endif /* _my_bitmap_h_ */
+#endif  // MY_BITMAP_INCLUDED

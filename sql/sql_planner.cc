@@ -517,9 +517,10 @@ Key_use *Optimize_table_order::find_best_ref(
           (C3) "range optimizer used (have ref_or_null?2:1) intervals"
         */
         double tmp_fanout = 0.0;
-        if (table->quick_keys.is_set(key) && !table_deps &&               //(C1)
-            table->quick_key_parts[key] == cur_used_keyparts &&           //(C2)
-            table->quick_n_ranges[key] == 1 + MY_TEST(ref_or_null_part))  //(C3)
+        if (table->quick_keys.is_set(key) && !table_deps &&      //(C1)
+            table->quick_key_parts[key] == cur_used_keyparts &&  //(C2)
+            table->quick_n_ranges[key] ==
+                1 + (ref_or_null_part ? 1 : 0))  //(C3)
         {
           tmp_fanout = cur_fanout = (double)table->quick_rows[key];
         } else {
@@ -622,7 +623,7 @@ Key_use *Optimize_table_order::find_best_ref(
               table->quick_key_parts[key] <= cur_used_keyparts &&
               const_part & ((key_part_map)1 << table->quick_key_parts[key]) &&
               table->quick_n_ranges[key] ==
-                  1 + MY_TEST(ref_or_null_part & const_part) &&
+                  1 + ((ref_or_null_part & const_part) ? 1 : 0) &&
               cur_fanout > (double)table->quick_rows[key]) {
             tmp_fanout = cur_fanout = (double)table->quick_rows[key];
           }

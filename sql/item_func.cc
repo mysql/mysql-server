@@ -8524,13 +8524,13 @@ longlong Item_func_is_visible_dd_object::val_int() {
 
   // Make I_S.TABLES show the hidden system view 'show_statistics' for
   // testing purpose.
-  DBUG_EXECUTE_IF("fetch_system_view_definition", { return MY_TEST(true); });
+  DBUG_EXECUTE_IF("fetch_system_view_definition", { return 1; });
 
   if (thd->lex->m_extended_show)
     show_table =
         show_table || (table_type == dd::Abstract_table::HT_HIDDEN_DDL);
 
-  if (arg_count == 1 || show_table == false) return MY_TEST(show_table);
+  if (arg_count == 1 || show_table == false) return (show_table ? 1 : 0);
 
   bool show_non_table_objects;
   if (thd->lex->m_extended_show)
@@ -8538,7 +8538,7 @@ longlong Item_func_is_visible_dd_object::val_int() {
   else
     show_non_table_objects = (args[1]->val_bool() == false);
 
-  return MY_TEST(show_non_table_objects);
+  return show_non_table_objects ? 1 : 0;
 }
 
 /**

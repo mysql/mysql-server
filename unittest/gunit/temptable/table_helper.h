@@ -147,7 +147,7 @@ inline void Table_helper::finalize() {
 
   EXPECT_EQ(0, bitmap_init(&m_table_share.all_set, &all_set_buf,
                            m_table_share.fields));
-  bitmap_set_above(&m_table_share.all_set, 0, 1);
+  bitmap_set_above(&m_table_share.all_set, 0, true);
 
   m_table_share.key_parts = 0;
   for (auto &iter : m_index_defs) {

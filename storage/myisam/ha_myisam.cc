@@ -1534,7 +1534,7 @@ ICP_RESULT index_cond_func_myisam(void *arg) {
     return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already
                               */
 
-  return (ICP_RESULT)MY_TEST(h->pushed_idx_cond->val_int());
+  return (h->pushed_idx_cond->val_int() == 0) ? ICP_NO_MATCH : ICP_MATCH;
 }
 
 int ha_myisam::index_init(uint idx, bool) {

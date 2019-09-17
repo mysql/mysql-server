@@ -1593,7 +1593,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                                           keyinfo->comment.length);
       strpos += 2 + keyinfo->comment.length;
     }
-    DBUG_ASSERT(MY_TEST(keyinfo->flags & HA_USES_COMMENT) ==
+    DBUG_ASSERT(((keyinfo->flags & HA_USES_COMMENT) != 0) ==
                 (keyinfo->comment.length > 0));
   }
 

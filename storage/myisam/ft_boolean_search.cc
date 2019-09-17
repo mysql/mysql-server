@@ -482,7 +482,7 @@ static void _ftb_init_index_search(FT_INFO *ftb_base) {
            ftbe->up->flags |= FTB_FLAG_TRUNC, ftbe = ftbe->up) {
         if (ftbe->flags & FTB_FLAG_NO || /* 2 */
             ftbe->up->ythresh - ftbe->up->yweaks >
-                (uint)MY_TEST(ftbe->flags & FTB_FLAG_YES)) /* 1 */
+                ((ftbe->flags & FTB_FLAG_YES) ? 1 : 0)) /* 1 */
         {
           FTB_EXPR *top_ftbe = ftbe->up;
           ftbw->docid[0] = HA_OFFSET_ERROR;

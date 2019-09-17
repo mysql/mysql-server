@@ -86,9 +86,11 @@
 
 #if MI_MAX_KEY > MI_KEYMAP_BITS
 
-#define mi_is_key_active(_keymap_, _keyno_)                                 \
-  (((_keyno_) < MI_KEYMAP_BITS) ? MY_TEST((_keymap_) & (1ULL << (_keyno_))) \
-                                : MY_TEST((_keymap_)&MI_KEYMAP_HIGH_MASK))
+inline bool mi_is_key_active(uint64 _keymap_, unsigned int _keyno_) {
+  return (((_keyno_) < MI_KEYMAP_BITS) ? ((_keymap_) & (1ULL << (_keyno_)))
+                                       : ((_keymap_)&MI_KEYMAP_HIGH_MASK));
+}
+
 #define mi_set_key_active(_keymap_, _keyno_)                        \
   (_keymap_) |= (((_keyno_) < MI_KEYMAP_BITS) ? (1ULL << (_keyno_)) \
                                               : MI_KEYMAP_HIGH_MASK)
@@ -98,15 +100,16 @@
 
 #else
 
-#define mi_is_key_active(_keymap_, _keyno_) \
-  MY_TEST((_keymap_) & (1ULL << (_keyno_)))
+inline bool mi_is_key_active(uint64 _keymap_, unsigned int _keyno_) {
+  return ((_keymap_) & (1ULL << (_keyno_)));
+}
 #define mi_set_key_active(_keymap_, _keyno_) (_keymap_) |= (1ULL << (_keyno_))
 #define mi_clear_key_active(_keymap_, _keyno_) \
   (_keymap_) &= (~(1ULL << (_keyno_)))
 
 #endif
 
-#define mi_is_any_key_active(_keymap_) MY_TEST((_keymap_))
+inline bool mi_is_any_key_active(uint64 _keymap_) { return (_keymap_ != 0); }
 #define mi_is_all_keys_active(_keymap_, _keys_) \
   ((_keymap_) == mi_get_mask_all_keys_active(_keys_))
 #define mi_set_all_keys_active(_keymap_, _keys_) \

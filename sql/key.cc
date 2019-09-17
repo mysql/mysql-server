@@ -139,8 +139,9 @@ void key_copy(uchar *to_key, const uchar *from_record, const KEY *key_info,
   if (key_length == 0) key_length = key_info->key_length;
   for (key_part = key_info->key_part; (int)key_length > 0; key_part++) {
     if (key_part->null_bit) {
-      *to_key++ =
-          MY_TEST(from_record[key_part->null_offset] & key_part->null_bit);
+      bool key_is_null =
+          from_record[key_part->null_offset] & key_part->null_bit;
+      *to_key++ = (key_is_null ? 1 : 0);
       key_length--;
     }
     if (key_part->key_part_flag & HA_BLOB_PART ||
@@ -274,9 +275,9 @@ bool key_cmp_if_same(const TABLE *table, const uchar *key, uint idx,
     store_length = key_part->store_length;
 
     if (key_part->null_bit) {
-      if (*key !=
-          MY_TEST(table->record[0][key_part->null_offset] & key_part->null_bit))
-        return true;
+      bool key_is_null =
+          table->record[0][key_part->null_offset] & key_part->null_bit;
+      if (*key != (key_is_null ? 1 : 0)) return true;
       if (*key) continue;
       key++;
       store_length--;

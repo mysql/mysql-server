@@ -2988,7 +2988,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       double data =
           my_strntod(&my_charset_latin1, value, length, &endptr, &err);
       float fdata = (float)data;
-      *param->error = (fdata != data) | MY_TEST(err);
+      *param->error = (fdata != data) | (err != 0);
       floatstore(buffer, fdata);
       break;
     }
@@ -2996,7 +2996,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       int err;
       double data =
           my_strntod(&my_charset_latin1, value, length, &endptr, &err);
-      *param->error = MY_TEST(err);
+      *param->error = (err != 0);
       doublestore(buffer, data);
       break;
     }
@@ -3004,7 +3004,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       MYSQL_TIME_STATUS status;
       MYSQL_TIME *tm = (MYSQL_TIME *)buffer;
       str_to_time(value, length, tm, &status);
-      *param->error = MY_TEST(status.warnings);
+      *param->error = (status.warnings != 0);
       break;
     }
     case MYSQL_TYPE_DATE:
@@ -3014,8 +3014,8 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       MYSQL_TIME *tm = (MYSQL_TIME *)buffer;
       (void)str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &status);
       *param->error =
-          MY_TEST(status.warnings) && (param->buffer_type == MYSQL_TYPE_DATE &&
-                                       tm->time_type != MYSQL_TIMESTAMP_DATE);
+          (status.warnings != 0) && (param->buffer_type == MYSQL_TYPE_DATE &&
+                                     tm->time_type != MYSQL_TIMESTAMP_DATE);
       break;
     }
     case MYSQL_TYPE_TINY_BLOB:
@@ -3124,7 +3124,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       int error;
       value = number_to_datetime(value, (MYSQL_TIME *)buffer, TIME_FUZZY_DATE,
                                  &error);
-      *param->error = MY_TEST(error);
+      *param->error = (error != 0);
       break;
     }
     default: {

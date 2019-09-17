@@ -2956,7 +2956,7 @@ int handler::sample_next(uchar *buf) {
 }
 
 int handler::records(ha_rows *num_rows) {
-  if (MY_TEST((ha_table_flags() & HA_COUNT_ROWS_INSTANT))) {
+  if (ha_table_flags() & HA_COUNT_ROWS_INSTANT) {
     *num_rows = stats.records;
     return 0;
   }
@@ -2990,7 +2990,7 @@ int handler::records(ha_rows *num_rows) {
 }
 
 int handler::records_from_index(ha_rows *num_rows, uint index) {
-  if (MY_TEST((ha_table_flags() & HA_COUNT_ROWS_INSTANT))) {
+  if (ha_table_flags() & HA_COUNT_ROWS_INSTANT) {
     *num_rows = stats.records;
     return 0;
   }

@@ -314,9 +314,10 @@ int thd_tablespace_op(const MYSQL_THD thd) {
   if (thd->lex->sql_command != SQLCOM_ALTER_TABLE) return 0;
   DBUG_ASSERT(thd->lex->alter_info != NULL);
 
-  return MY_TEST(
-      (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
-                                      Alter_info::ALTER_IMPORT_TABLESPACE)));
+  return (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
+                                         Alter_info::ALTER_IMPORT_TABLESPACE))
+             ? 1
+             : 0;
 }
 
 static void set_thd_stage_info(MYSQL_THD thd, const PSI_stage_info *new_stage,

@@ -7565,10 +7565,9 @@ static bool sort_keyuse(const Key_use &a, const Key_use &b) {
   if (a.key != b.key) return a.key < b.key;
   if (a.keypart != b.keypart) return a.keypart < b.keypart;
   // Place const values before other ones
-  int res;
-  if ((res = MY_TEST((a.used_tables & ~OUTER_REF_TABLE_BIT)) -
-             MY_TEST((b.used_tables & ~OUTER_REF_TABLE_BIT))))
-    return res < 0;
+  bool a_const = a.used_tables & ~OUTER_REF_TABLE_BIT;
+  bool b_const = b.used_tables & ~OUTER_REF_TABLE_BIT;
+  if (a_const != b_const) return b_const;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (a.optimize & KEY_OPTIMIZE_REF_OR_NULL) <
          (b.optimize & KEY_OPTIMIZE_REF_OR_NULL);

@@ -33,6 +33,7 @@
 #include "my_bitmap.h"     // MY_BITMAP
 #include "my_byteorder.h"  // int8store
 #include "my_dbug.h"
+#include "template_utils.h"
 
 template <uint default_width>
 class Bitmap {
@@ -86,9 +87,8 @@ class Bitmap {
   void intersect_extended(ulonglong map2buff) {
     intersect(map2buff);
     if (map.n_bits > sizeof(ulonglong) * 8)
-      bitmap_set_above(
-          &map, sizeof(ulonglong),
-          MY_TEST(map2buff & (1LL << (sizeof(ulonglong) * 8 - 1))));
+      bitmap_set_above(&map, sizeof(ulonglong),
+                       (map2buff & (1LL << (sizeof(ulonglong) * 8 - 1))));
   }
   void subtract(const Bitmap &map2) { bitmap_subtract(&map, &map2.map); }
   void merge(const Bitmap &map2) { bitmap_union(&map, &map2.map); }
@@ -108,7 +108,8 @@ class Bitmap {
   bool operator!=(const Bitmap &map2) const { return !(*this == map2); }
   char *print(char *buf) const {
     char *s = buf;
-    const uchar *e = (uchar *)buffer, *b = e + sizeof(buffer) - 1;
+    const uchar *e = pointer_cast<const uchar *>(&buffer[0]),
+                *b = e + sizeof(buffer) - 1;
     while (!*b && b > e) b--;
     if ((*s = _dig_vec_upper[*b >> 4]) != '0') s++;
     *s++ = _dig_vec_upper[*b & 15];

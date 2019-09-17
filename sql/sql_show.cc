@@ -1830,7 +1830,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end = longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
-    DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
+    DBUG_ASSERT(((key_info->flags & HA_USES_COMMENT) != 0) ==
                 (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT) {
       packet->append(STRING_WITH_LEN(" COMMENT "));
@@ -3153,9 +3153,6 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
   if (!(hton->flags & HTON_HIDDEN)) {
     LEX_CSTRING *name = plugin_name(plugin);
     if (!(wild && wild[0] && wild_case_compare(scs, name->str, wild))) {
-      LEX_CSTRING yesno[2] = {{STRING_WITH_LEN("NO")},
-                              {STRING_WITH_LEN("YES")}};
-      LEX_CSTRING *tmp;
       const char *option_name = show_comp_option_name[(int)hton->state];
       restore_record(table, s->default_values);
 
@@ -3165,13 +3162,18 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
       table->field[1]->store(option_name, strlen(option_name), scs);
       table->field[2]->store(plugin_decl(plugin)->descr,
                              strlen(plugin_decl(plugin)->descr), scs);
-      tmp = &yesno[MY_TEST(hton->commit)];
+
+      LEX_CSTRING yes{STRING_WITH_LEN("YES")};
+      LEX_CSTRING no{STRING_WITH_LEN("NO")};
+      LEX_CSTRING *tmp;
+
+      tmp = (hton->commit != nullptr) ? &yes : &no;
       table->field[3]->store(tmp->str, tmp->length, scs);
       table->field[3]->set_notnull();
-      tmp = &yesno[MY_TEST(hton->prepare)];
+      tmp = (hton->prepare != nullptr) ? &yes : &no;
       table->field[4]->store(tmp->str, tmp->length, scs);
       table->field[4]->set_notnull();
-      tmp = &yesno[MY_TEST(hton->savepoint_set)];
+      tmp = (hton->savepoint_set != nullptr) ? &yes : &no;
       table->field[5]->store(tmp->str, tmp->length, scs);
       table->field[5]->set_notnull();
 
@@ -3327,7 +3329,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       table->field[TMP_TABLE_KEYS_COMMENT]->set_notnull();
 
       // INDEX_COMMENT
-      DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
+      DBUG_ASSERT(((key_info->flags & HA_USES_COMMENT) != 0) ==
                   (key_info->comment.length > 0));
       if (key_info->flags & HA_USES_COMMENT)
         table->field[TMP_TABLE_KEYS_INDEX_COMMENT]->store(

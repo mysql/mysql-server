@@ -352,7 +352,7 @@ void bitmap_intersect(MY_BITMAP *to, const MY_BITMAP *from) {
     void
 */
 
-void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit) {
+void bitmap_set_above(MY_BITMAP *map, uint from_byte, bool use_bit) {
   uchar use_byte = use_bit ? 0xff : 0;
   uchar *to = (uchar *)map->bitmap + from_byte;
   uchar *end = (uchar *)map->bitmap + (map->n_bits + 7) / 8;

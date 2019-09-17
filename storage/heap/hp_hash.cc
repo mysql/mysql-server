@@ -525,7 +525,10 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec) {
     const CHARSET_INFO *cs = seg->charset;
     uint char_length = seg->length;
     const uchar *pos = rec + seg->start;
-    if (seg->null_bit) *key++ = MY_TEST(rec[seg->null_pos] & seg->null_bit);
+    if (seg->null_bit) {
+      bool rec_is_null = rec[seg->null_pos] & seg->null_bit;
+      *key++ = (rec_is_null ? 1 : 0);
+    }
     if (cs->mbmaxlen > 1 && (seg->flag & HA_PART_KEY_SEG)) {
       char_length =
           my_charpos(cs, pos, pos + seg->length, char_length / cs->mbmaxlen);
@@ -553,7 +556,8 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec,
   for (seg = keydef->seg, endseg = seg + keydef->keysegs; seg < endseg; seg++) {
     size_t char_length;
     if (seg->null_bit) {
-      if (!(*key++ = 1 - MY_TEST(rec[seg->null_pos] & seg->null_bit))) continue;
+      bool rec_is_null = rec[seg->null_pos] & seg->null_bit;
+      if (!(*key++ = 1 - (rec_is_null ? 1 : 0))) continue;
     }
     if (seg->flag & HA_SWAP_KEY) {
       uint length = seg->length;

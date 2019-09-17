@@ -44,7 +44,6 @@
 #define QUOTE_ARG(x) #x               /* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x) /* Quote argument, after cpp */
 
-#define MY_TEST(a) ((a) ? 1 : 0)
 #define MY_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MY_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define set_if_bigger(a, b)   \

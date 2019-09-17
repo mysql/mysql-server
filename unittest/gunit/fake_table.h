@@ -92,7 +92,7 @@ class Fake_TABLE_SHARE : public TABLE_SHARE {
     path.length = strlen(path.str);
 
     EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields));
-    bitmap_set_above(&all_set, 0, 1);
+    bitmap_set_above(&all_set, 0, true);
   }
   ~Fake_TABLE_SHARE() {}
 };
