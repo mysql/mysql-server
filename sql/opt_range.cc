@@ -480,7 +480,7 @@ class SEL_ROOT {
   with NULL as sentinel.
 
     In the example pic, there are 4 interval lists:
-    "kp<1 OR kp1=2 OR kp1=3", "kp2=5", "kp3=10 OR kp3=12", "kp3=11 OR kp3=13".
+    "kp<1 OR kp1=2 OR kp1=3", "kp2=5", "kp3=10 OR kp3=12", "kp3=11 OR kp3=14".
     The vertical lines represent SEL_ARG::next/prev pointers.
 
   Additionally, all intervals in the list form a red-black (RB) tree,
