@@ -1719,13 +1719,11 @@ static int cat_file(DYNAMIC_STRING *ds, const char *filename) {
         p++;
     }
     if (*(p - 1) == '\r' && len == 512) dangling_cr = true;
-    /* Avoid reading characters after EOF */
-    *p = '\0';
-    /* Output any chars that might be left */
+    /* Output any chars that migh be left */
     if (dangling_cr)
-      replace_dynstr_append_mem(ds, start, p - start - 1);
+      dynstr_append_mem(ds, start, p - start - 1);
     else
-      replace_dynstr_append_mem(ds, start, p - start);
+      dynstr_append_mem(ds, start, p - start);
   }
   my_close(fd, MYF(0));
   return 0;
@@ -4360,7 +4358,6 @@ static void do_cat_file(struct st_command *command) {
   const struct command_arg cat_file_args[] = {
       {"filename", ARG_STRING, true, &ds_filename, "File to read from"}};
   DBUG_TRACE;
-  command->used_replace = true;
 
   check_command_args(command, command->first_argument, cat_file_args,
                      sizeof(cat_file_args) / sizeof(struct command_arg), ' ');
