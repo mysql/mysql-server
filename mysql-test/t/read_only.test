@@ -532,6 +532,8 @@ let $query= DROP PROCEDURE IF EXISTS no_such_procedure;
 DROP PROCEDURE p1;
 
 --echo # Test CREATE EVENT statement
+SET @saved_event_scheduler= @@global.event_scheduler;
+SET GLOBAL event_scheduler= OFF;
 let $query= CREATE EVENT event1 ON SCHEDULE
 EVERY 10 HOUR DO SELECT 1;
 --source include/read_only_bug28438114.inc
@@ -549,6 +551,7 @@ DROP EVENT event1;
 --echo # Test DROP EVENT statement which doesn't update DD tables
 let $query= DROP EVENT IF EXISTS no_such_event;
 --source include/read_only_bug28438114.inc
+SET GLOBAL event_scheduler= @saved_event_scheduler;
 
 --echo # Test case added for coverage.
 CREATE TABLE t1(fld1 INT);
