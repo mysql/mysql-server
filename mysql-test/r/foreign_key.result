@@ -4846,3 +4846,29 @@ CREATE TABLE aux.parent (pk INT PRIMARY KEY);
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES aux.parent (pk));
 DROP TABLE child;
 DROP DATABASE aux;
+#
+# Bug#11754659 "CONDITIONAL COMMENTS NOT WORKING IN FOREIGN KEY DEFINITION".
+#
+CREATE TABLE parent (id INT PRIMARY KEY);
+# Test if versioned conditional comments work in CREATE TABLE
+# (issue that was reported originally).
+CREATE TABLE child (fk INT, CONSTRAINT c1 FOREIGN KEY (fk) REFERENCES parent (id) /*!40008 ON DELETE CASCADE ON UPDATE CASCADE */);
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `c1` (`fk`),
+  CONSTRAINT `c1` FOREIGN KEY (`fk`) REFERENCES `parent` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE child DROP FOREIGN KEY c1;
+# Also check if they work in ALTER TABLE and that MySQL-specific
+# conditional comments also work.
+ALTER TABLE child ADD CONSTRAINT c2 FOREIGN KEY (fk) REFERENCES parent /*! (id) */ /*!40008 ON DELETE SET NULL */;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `c2` (`fk`),
+  CONSTRAINT `c2` FOREIGN KEY (`fk`) REFERENCES `parent` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLES child, parent;
