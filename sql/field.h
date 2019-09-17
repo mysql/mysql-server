@@ -3937,7 +3937,10 @@ class Field_blob : public Field_longstr {
     return get_blob_data(ptr + packlength);
   }
   /** Get a non-const pointer to the BLOB data of this field. */
-  uchar *get_blob_data() { return get_blob_data(ptr + packlength); }
+  uchar *get_blob_data(ptrdiff_t row_offset = 0) {
+    // row_offset is only used by NDB
+    return get_blob_data(ptr + packlength + row_offset);
+  }
 
  protected:
   /**
