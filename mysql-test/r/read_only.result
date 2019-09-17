@@ -816,6 +816,8 @@ connection default;
 SET GLOBAL READ_ONLY= 0;
 DROP PROCEDURE p1;
 # Test CREATE EVENT statement
+SET @saved_event_scheduler= @@global.event_scheduler;
+SET GLOBAL event_scheduler= OFF;
 connection default;
 FLUSH TABLES WITH READ LOCK;
 connection con1;
@@ -913,6 +915,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Clean up.
 connection default;
 SET GLOBAL READ_ONLY= 0;
+SET GLOBAL event_scheduler= @saved_event_scheduler;
 # Test case added for coverage.
 CREATE TABLE t1(fld1 INT);
 # FTWRL and FLUSH TABLE..FOR EXPORT is not blocked
