@@ -28,7 +28,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `loadgen`(total int) begin   set @x 
 DELIMITER ;%
 
 --disable_result_log
-call loadgen(50);
+call loadgen(400);
 --enable_result_log
 
 --connection slave
