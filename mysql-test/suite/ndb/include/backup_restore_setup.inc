@@ -54,9 +54,7 @@ if (!$NDB_BACKUP_DIR)
 --let $NDB_SAVED_BACKUPS=$MYSQL_TEST_DIR/suite/ndb/backups
 #echo NDB_SAVED_BACKUPS: $NDB_SAVED_BACKUPS;
 
-# Most tests will also want to use --exclude-databases=mysql so that various
-# existing ndbcluster plugin tables do not cuase a metadata restore to fail.
-# That option is not set here, but it can be read from my.cnf
+# Read additional options from my.cnf files
 --let NDB_RESTORE=$NDB_RESTORE --defaults-file=$MYSQLTEST_VARDIR/my.cnf
 
 # ndb_restore by default will generate a core file when there is an error.
