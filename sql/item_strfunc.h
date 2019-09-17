@@ -854,6 +854,8 @@ class Item_func_is_uuid final : public Item_bool_func {
 
 class Item_func_conv final : public Item_str_func {
  public:
+  // 64 digits plus possible '-'.
+  static constexpr uint32_t CONV_MAX_LENGTH = 64U + 1U;
   Item_func_conv(const POS &pos, Item *a, Item *b, Item *c)
       : Item_str_func(pos, a, b, c) {}
   const char *func_name() const override { return "conv"; }
