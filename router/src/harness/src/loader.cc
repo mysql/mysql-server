@@ -26,6 +26,27 @@
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 #include "mysql/harness/loader.h"
 
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <cassert>
+#include <cctype>
+#include <cstdarg>
+#include <cstring>
+#include <exception>
+#include <map>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <system_error>
+#include <thread>
+
+#ifndef _WIN32
+#include <dlfcn.h>
+#include <pthread.h>
+#include <unistd.h>
+#endif
+
 ////////////////////////////////////////
 // Package include files
 #include "builtin_plugins.h"
@@ -44,49 +65,6 @@ IMPORT_LOG_FUNCTIONS()
 
 #include "my_compiler.h"
 
-////////////////////////////////////////
-// Standard include files
-#include <algorithm>
-#include <array>
-#include <atomic>
-#include <cctype>
-#include <cstring>
-#include <exception>
-#include <map>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <system_error>
-#include <thread>
-
-#ifndef _WIN32
-#include <dlfcn.h>
-#include <unistd.h>
-#endif
-
-// <cassert> places assert() in global namespace on Ubuntu14.04, but might
-// place it in std:: on other platforms
-#include <assert.h>
-
-// safer than using cstdarg because va_* family of things might be macros or
-// functions on different platforms, in which case they will either have std::
-// prefix or they won't. Here's an example from QNX:
-//   https://svn.boost.org/trac/boost/ticket/3133
-#include <stdarg.h>
-
-// need POSIX signals and threads to support signal handling (pthread_sigmask(),
-// sigaction() and friends). For platforms that do not have them (e.g. Windows),
-// a different mechanism is used instead (see proxy_main()).
-// Compiler on Solaris does not always define _POSIX_C_SOURCE although the
-// signal handling is there
-#if (!defined _WIN32)
-#define USE_POSIX_SIGNALS
-#endif
-
-#ifdef USE_POSIX_SIGNALS
-#include <pthread.h>
-#endif
-
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::make_range;
 using mysql_harness::utility::reverse;
@@ -95,6 +73,10 @@ using mysql_harness::Config;
 using mysql_harness::Path;
 
 using std::ostringstream;
+
+#if !defined(_WIN32)
+#define USE_POSIX_SIGNALS
+#endif
 
 /**
  * @defgroup Loader Plugin loader
@@ -186,32 +168,40 @@ static void block_all_nonfatal_signals() {
     throw std::runtime_error("pthread_sigmask() failed: " +
                              std::string(std::strerror(errno)));
   }
-#endif  // USE_POSIX_SIGNALS
+#endif
 }
 
-#ifdef USE_POSIX_SIGNALS
-static void handle_fatal_signal(int sig) {
-  my_safe_printf_stderr("Application got fatal signal: %d\n", sig);
-#ifdef HAVE_STACKTRACE
-  my_print_stacktrace(nullptr, 0);
-#endif  // HAVE_STACKTRACE
-}
-#endif  // USE_POSIX_SIGNALS
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
+
+// GCC defines __SANITIZE_ADDRESS
+// clang has __has_feature and 'address_sanitizer'
+#if defined(__SANITIZE_ADDRESS__) || (__has_feature(address_sanitizer))
+#define HAS_FEATURE_ASAN
+#endif
 
 static void register_fatal_signal_handler() {
-#ifdef USE_POSIX_SIGNALS
-#ifdef HAVE_STACKTRACE
+  // enable a crash handler on POSIX systems if not built with ASAN
+#if defined(USE_POSIX_SIGNALS) && !defined(HAS_FEATURE_ASAN)
+#if defined(HAVE_STACKTRACE)
   my_init_stacktrace();
 #endif  // HAVE_STACKTRACE
 
   struct sigaction sa;
   (void)sigemptyset(&sa.sa_mask);
   sa.sa_flags = SA_RESETHAND;
-  sa.sa_handler = handle_fatal_signal;
+  sa.sa_handler = [](int sig) {
+    my_safe_printf_stderr("Application got fatal signal: %d\n", sig);
+#ifdef HAVE_STACKTRACE
+    my_print_stacktrace(nullptr, 0);
+#endif  // HAVE_STACKTRACE
+  };
+
   for (const auto &sig : g_fatal_signals) {
     (void)sigaction(sig, &sa, NULL);
   }
-#endif  // USE_POSIX_SIGNALS
+#endif
 }
 
 static void start_and_detach_signal_handler_thread() {
