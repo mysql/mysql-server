@@ -1163,12 +1163,6 @@ void row_upd_index_replace_new_col_vals_index_pos(
 
       dfield_copy(&tmp->old_val, dfield);
 
-      if (dfield_is_ext(dfield)) {
-        byte *data = static_cast<byte *>(dfield_get_data(dfield));
-        ulint len = dfield_get_len(dfield);
-        lob::ref_t ref(data + len - lob::ref_t::SIZE);
-      }
-
       row_upd_index_replace_new_col_val(index, dfield, field, col, uf, heap,
                                         dict_index_is_sdi(index), page_size);
     }
