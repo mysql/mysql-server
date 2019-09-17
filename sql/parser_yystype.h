@@ -486,7 +486,7 @@ union YYSTYPE {
   Mem_root_array<PT_json_table_column *> *jtc_list;
   struct jt_on_response {
     enum_jtc_on type;
-    const LEX_STRING *default_str;
+    Item *default_string;
   } jt_on_response;
   struct {
     struct jt_on_response error;

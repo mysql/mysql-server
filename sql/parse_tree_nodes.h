@@ -449,7 +449,7 @@ class PT_table_factor_function : public PT_table_reference {
   typedef PT_table_reference super;
 
  public:
-  PT_table_factor_function(Item *expr, const LEX_STRING &path,
+  PT_table_factor_function(Item *expr, Item *path,
                            Mem_root_array<PT_json_table_column *> *nested_cols,
                            const LEX_STRING &table_alias)
       : m_expr(expr),
@@ -461,7 +461,7 @@ class PT_table_factor_function : public PT_table_reference {
 
  private:
   Item *m_expr;
-  const LEX_STRING m_path;
+  Item *m_path;
   Mem_root_array<PT_json_table_column *> *m_nested_columns;
   const LEX_STRING m_table_alias;
 };
@@ -4172,18 +4172,17 @@ class PT_json_table_column_with_nested_path final
 
  public:
   PT_json_table_column_with_nested_path(
-      const LEX_STRING &path,
-      Mem_root_array<PT_json_table_column *> *nested_cols)
-      : m_path(path), m_nested_columns(nested_cols), m_column(nullptr) {}
+      Item *path, Mem_root_array<PT_json_table_column *> *nested_cols)
+      : m_path(path), m_nested_columns(nested_cols) {}
 
   bool contextualize(Parse_context *pc) override;
 
   Json_table_column *get_column() override { return m_column; }
 
  private:
-  const LEX_STRING m_path;
+  Item *m_path;
   const Mem_root_array<PT_json_table_column *> *m_nested_columns;
-  Json_table_column *m_column;
+  Json_table_column *m_column{nullptr};
 };
 
 struct Alter_tablespace_parse_context : public Tablespace_options {

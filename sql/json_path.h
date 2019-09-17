@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -482,6 +482,6 @@ bool parse_path(size_t path_length, const char *path_expression,
 
   @returns false on success (valid path or NULL), true on error
 */
-bool parse_path(String *path_value, bool forbid_wildcards,
+bool parse_path(const String &path_value, bool forbid_wildcards,
                 Json_path *json_path);
 #endif /* SQL_JSON_PATH_INCLUDED */

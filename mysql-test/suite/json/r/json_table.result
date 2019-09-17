@@ -1964,3 +1964,37 @@ SELECT FN_COUNT_ROWS('[1, 2, 3, 4]') CNT;
 CNT
 4
 DROP FUNCTION FN_COUNT_ROWS;
+#
+# Bug#30310265: VIEWS LOSE THE CHARACTER SET OF JSON_TABLE'S
+#               PATH ARGUMENTS
+#
+CREATE VIEW v1 AS
+SELECT * FROM JSON_TABLE('{"å":{"å":1}}', '$.å' COLUMNS (x INT PATH '$.å')) t;
+SELECT * FROM v1;
+x
+1
+SET NAMES latin1;
+SELECT * FROM v1;
+x
+1
+SET NAMES DEFAULT;
+DROP VIEW v1;
+CREATE VIEW v2 AS
+SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (
+x VARCHAR(10) PATH '$.a' DEFAULT '"isn''t here"' ON EMPTY)
+) t;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t`.`x` AS `x` from json_table('{}', '$' columns (x varchar(10) path '$.a' default '"isn\'t here"' on empty)) `t`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v2;
+x
+isn't here
+DROP VIEW v2;
+SELECT * FROM
+JSON_TABLE(JSON_OBJECT(),
+_utf8mb4'$' COLUMNS (NESTED PATH _utf8mb4'$.x' COLUMNS
+(y INT PATH _utf8mb4'$.y'
+                      DEFAULT _utf8mb4'1' ON EMPTY
+DEFAULT _utf8mb4'2' ON ERROR))) jt;
+y
+NULL

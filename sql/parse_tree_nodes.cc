@@ -1060,6 +1060,8 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
 bool PT_table_factor_function::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
 
+  if (m_path->itemize(pc, &m_path)) return true;
+
   auto nested_columns = new (pc->mem_root) List<Json_table_column>;
   if (nested_columns == nullptr) return true;  // OOM
 
@@ -2427,6 +2429,11 @@ PT_json_table_column_with_path::~PT_json_table_column_with_path() = default;
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
+  if (m_column->m_path_string->itemize(pc, &m_column->m_path_string))
+    return true;
+  if (itemize_safe(pc, &m_column->m_default_empty_string)) return true;
+  if (itemize_safe(pc, &m_column->m_default_error_string)) return true;
+
   const CHARSET_INFO *cs;
   if (merge_charset_and_collation(m_type->get_charset(), m_collation, &cs))
     return true;
@@ -2457,6 +2464,8 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
 
 bool PT_json_table_column_with_nested_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;  // OOM
+
+  if (m_path->itemize(pc, &m_path)) return true;
 
   auto nested_columns = new (pc->mem_root) List<Json_table_column>;
   if (nested_columns == nullptr) return true;  // OOM

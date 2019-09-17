@@ -11141,7 +11141,7 @@ derived_table:
         ;
 
 table_function:
-          JSON_TABLE_SYM '(' expr ',' TEXT_STRING_sys columns_clause ')'
+          JSON_TABLE_SYM '(' expr ',' text_literal columns_clause ')'
           opt_table_alias
           {
             // Alias isn't optional, follow derived's behavior
@@ -11183,17 +11183,17 @@ jt_column:
           {
             $$= NEW_PTN PT_json_table_column_for_ordinality($1);
           }
-        | ident type opt_collate jt_column_type PATH_SYM TEXT_STRING_sys
+        | ident type opt_collate jt_column_type PATH_SYM text_literal
           opt_on_empty_or_error
           {
             auto column = make_unique_destroy_only<Json_table_column>(
-                YYMEM_ROOT, $4, $6, $7.error.type, *$7.error.default_str,
-                $7.empty.type, *$7.empty.default_str);
+                YYMEM_ROOT, $4, $6, $7.error.type, $7.error.default_string,
+                $7.empty.type, $7.empty.default_string);
             if (column == nullptr) MYSQL_YYABORT;  // OOM
             $$ = NEW_PTN PT_json_table_column_with_path(std::move(column), $1,
                                                         $2, $3);
           }
-        | NESTED_SYM PATH_SYM TEXT_STRING_sys columns_clause
+        | NESTED_SYM PATH_SYM text_literal columns_clause
           {
             $$= NEW_PTN PT_json_table_column_with_nested_path($3, $4);
           }
@@ -11212,43 +11212,28 @@ jt_column_type:
 opt_on_empty_or_error:
           /* empty */
           {
-            $$.error.type= enum_jtc_on::JTO_IMPLICIT;
-            $$.error.default_str= &NULL_STR;
-
-            $$.empty.type= enum_jtc_on::JTO_IMPLICIT;
-            $$.empty.default_str= &NULL_STR;
+            $$.empty = {enum_jtc_on::JTO_IMPLICIT, nullptr};
+            $$.error = {enum_jtc_on::JTO_IMPLICIT, nullptr};
           }
         | opt_on_empty
           {
-            $$.error.type= enum_jtc_on::JTO_IMPLICIT;
-            $$.error.default_str= &NULL_STR;
-
-            $$.empty.type= $1.type;
-            $$.empty.default_str= $1.default_str;
+            $$.empty = $1;
+            $$.error = {enum_jtc_on::JTO_IMPLICIT, nullptr};
           }
         | opt_on_error
           {
-            $$.error.type= $1.type;
-            $$.error.default_str= $1.default_str;
-
-            $$.empty.type= enum_jtc_on::JTO_IMPLICIT;
-            $$.empty.default_str= &NULL_STR;
+            $$.error = $1;
+            $$.empty = {enum_jtc_on::JTO_IMPLICIT, nullptr};
           }
         | opt_on_empty opt_on_error
           {
-            $$.error.type= $2.type;
-            $$.error.default_str= $2.default_str;
-
-            $$.empty.type= $1.type;
-            $$.empty.default_str= $1.default_str;
+            $$.empty = $1;
+            $$.error = $2;
           }
         | opt_on_error opt_on_empty
           {
-            $$.error.type= $1.type;
-            $$.error.default_str= $1.default_str;
-
-            $$.empty.type= $2.type;
-            $$.empty.default_str= $2.default_str;
+            $$.error = $1;
+            $$.empty = $2;
           }
         ;
 
@@ -11261,18 +11246,15 @@ opt_on_error:
 jt_on_response:
           ERROR_SYM
           {
-            $$.type= enum_jtc_on::JTO_ERROR;
-            $$.default_str= &NULL_STR;
+            $$ = {enum_jtc_on::JTO_ERROR, nullptr};
           }
         | NULL_SYM
           {
-            $$.type= enum_jtc_on::JTO_NULL;
-            $$.default_str= &NULL_STR;
+            $$ = {enum_jtc_on::JTO_NULL, nullptr};
           }
-        | DEFAULT_SYM TEXT_STRING_sys
+        | DEFAULT_SYM text_literal
           {
-            $$.type= enum_jtc_on::JTO_DEFAULT;
-            $$.default_str= YYTHD->memdup_typed(&$2);
+            $$ = {enum_jtc_on::JTO_DEFAULT, $2};
           }
         ;
 

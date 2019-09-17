@@ -379,15 +379,13 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
   }
 }
 
-bool parse_path(String *path_value, bool forbid_wildcards,
+bool parse_path(const String &path_value, bool forbid_wildcards,
                 Json_path *json_path) {
-  DBUG_ASSERT(path_value);
-
-  const char *path_chars = path_value->ptr();
-  size_t path_length = path_value->length();
+  const char *path_chars = path_value.ptr();
+  size_t path_length = path_value.length();
   StringBuffer<STRING_BUFFER_USUAL_SIZE> res(&my_charset_utf8mb4_bin);
 
-  if (ensure_utf8mb4(*path_value, &res, &path_chars, &path_length, true)) {
+  if (ensure_utf8mb4(path_value, &res, &path_chars, &path_length, true)) {
     return true;
   }
 
@@ -507,10 +505,10 @@ bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
     m_paths[cell.m_index].clear();
   }
 
-  String *path_value = arg->val_str(&m_path_value);
+  const String *path_value = arg->val_str(&m_path_value);
   bool null_value = (path_value == nullptr);
   if (!null_value &&
-      parse_path(path_value, forbid_wildcards, &m_paths[cell.m_index])) {
+      parse_path(*path_value, forbid_wildcards, &m_paths[cell.m_index])) {
     // oops, parsing failed
     cell.m_status = enum_path_status::ERROR;
     return true;

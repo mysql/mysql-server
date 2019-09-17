@@ -1296,3 +1296,35 @@ SELECT FN_COUNT_ROWS('[1, 2, 3]') CNT;
 SELECT FN_COUNT_ROWS('[1, 2, 3, 4]') CNT;
 
 DROP FUNCTION FN_COUNT_ROWS;
+
+--echo #
+--echo # Bug#30310265: VIEWS LOSE THE CHARACTER SET OF JSON_TABLE'S
+--echo #               PATH ARGUMENTS
+--echo #
+
+CREATE VIEW v1 AS
+  SELECT * FROM JSON_TABLE('{"å":{"å":1}}', '$.å' COLUMNS (x INT PATH '$.å')) t;
+SELECT * FROM v1;
+SET NAMES latin1;
+# Used to return zero rows.
+SELECT * FROM v1;
+SET NAMES DEFAULT;
+DROP VIEW v1;
+
+CREATE VIEW v2 AS
+  SELECT * FROM JSON_TABLE('{}', '$' COLUMNS (
+    x VARCHAR(10) PATH '$.a' DEFAULT '"isn''t here"' ON EMPTY)
+  ) t;
+# SHOW CREATE VIEW and SELECT from the view used to fail with a syntax error.
+SHOW CREATE VIEW v2;
+SELECT * FROM v2;
+DROP VIEW v2;
+
+# The string literals in JSON_TABLE didn't accept character set
+# introducers. Verify that they are accepted now.
+SELECT * FROM
+  JSON_TABLE(JSON_OBJECT(),
+             _utf8mb4'$' COLUMNS (NESTED PATH _utf8mb4'$.x' COLUMNS
+               (y INT PATH _utf8mb4'$.y'
+                      DEFAULT _utf8mb4'1' ON EMPTY
+                      DEFAULT _utf8mb4'2' ON ERROR))) jt;
