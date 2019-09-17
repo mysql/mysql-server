@@ -477,12 +477,9 @@ int Clone_Handle::check_space() {
     return (0);
   }
   uint64_t free_space;
-  auto data_dir = get_datadir();
-
-  if (replace_datadir()) {
-    auto abs_path = MySQL_datadir_path.abs_path();
-    data_dir = abs_path.c_str();
-  }
+  auto MySQL_datadir_abs_path = MySQL_datadir_path.abs_path();
+  auto data_dir =
+      (replace_datadir() ? MySQL_datadir_abs_path.c_str() : get_datadir());
 
   auto db_err = os_get_free_space(data_dir, free_space);
   /* We skip space check if the OS interface returns error. */
