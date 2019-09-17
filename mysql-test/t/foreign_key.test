@@ -4639,3 +4639,19 @@ CREATE TABLE aux.parent (pk INT PRIMARY KEY);
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES aux.parent (pk));
 DROP TABLE child;
 DROP DATABASE aux;
+
+
+--echo #
+--echo # Bug#11754659 "CONDITIONAL COMMENTS NOT WORKING IN FOREIGN KEY DEFINITION".
+--echo #
+CREATE TABLE parent (id INT PRIMARY KEY);
+--echo # Test if versioned conditional comments work in CREATE TABLE
+--echo # (issue that was reported originally).
+CREATE TABLE child (fk INT, CONSTRAINT c1 FOREIGN KEY (fk) REFERENCES parent (id) /*!40008 ON DELETE CASCADE ON UPDATE CASCADE */);
+SHOW CREATE TABLE child;
+ALTER TABLE child DROP FOREIGN KEY c1;
+--echo # Also check if they work in ALTER TABLE and that MySQL-specific
+--echo # conditional comments also work.
+ALTER TABLE child ADD CONSTRAINT c2 FOREIGN KEY (fk) REFERENCES parent /*! (id) */ /*!40008 ON DELETE SET NULL */;
+SHOW CREATE TABLE child;
+DROP TABLES child, parent;
