@@ -3958,6 +3958,14 @@ dberr_t btr_cur_pessimistic_update(
     goto err_exit;
   }
 
+  if (optim_err == DB_OVERFLOW) {
+    /* We latch the space before latching any lob pages, to avoid deadlock with
+    threads which first latch the space to acquire a free page, which might be
+    one of the pages which we are about to free, but still hold an x-latch on.*/
+    fil_space_t *space = fil_space_get(index->space);
+    mtr_x_lock_space(space, mtr);
+  }
+
   /* Check for an update that moved an ext field to inline */
   lob::mark_not_partially_updatable(trx, index, update, mtr);
 
@@ -3990,6 +3998,7 @@ dberr_t btr_cur_pessimistic_update(
     /* First reserve enough free space for the file segments
     of the index tree, so that the update will not fail because
     of lack of space */
+    DEBUG_SYNC_C("ib_blob_update_rollback_will_reserve");
 
     ulint n_extents = cursor->tree_height / 16 + 3;
 
