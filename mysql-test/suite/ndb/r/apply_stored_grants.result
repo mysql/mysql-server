@@ -1,4 +1,3 @@
-shutdown;
 Connected to server1 as root
 CREATE DATABASE auth_test_db;
 USE auth_test_db;

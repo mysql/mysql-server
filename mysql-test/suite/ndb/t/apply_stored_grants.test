@@ -3,14 +3,14 @@
 --source suite/ndb/include/ndb_find_tools.inc
 
 # The ACL statements here are similar to distributed_grants.test, but mysql
-# server 2 is shut down at the start of this test. When restarted, it applies
-# the whole snapshot stored in ndb_sql_metadata.
+# server 2 is shut down at the start of this test. When restarted, it will
+# apply the whole snapshot stored in ndb_sql_metadata.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
 connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
 connection mysqld2;
-shutdown;
-source include/wait_until_disconnected.inc;
 enable_reconnect;
+--shutdown_server 30
+
 connection default;
 --echo Connected to server1 as root
 
