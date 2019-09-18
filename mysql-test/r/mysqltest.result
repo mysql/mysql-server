@@ -2158,3 +2158,19 @@ INSERT INTO t2 VALUES(2, RAND(), 5);
 INSERT INTO t2 VALUES(3, RAND(), 6);
 include/diff_tables.inc [default:t1, default:t2]
 DROP TABLE t1, t2;
+#
+#Bug#29769715 MTR: --REPLACE_* COMMANDS DON'T WORK WITH CAT_FILE COMMAND
+#
+def 456.27
+SELECT "abc 456.27" as c1;
+c1
+abc 456.27
+abc 456.27
+def 456.27
+abc 456.27
+abc 456.3
+SELECT "abc 456.27" as c1;
+c1
+abc 456.27
+long_string
+long_string

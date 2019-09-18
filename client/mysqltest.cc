@@ -1700,10 +1700,13 @@ static int cat_file(DYNAMIC_STRING *ds, const char *filename) {
   bool dangling_cr = false;
 
   if ((fd = my_open(filename, O_RDONLY, MYF(0))) < 0) return 1;
+
+  std::string file_content;
+
   while ((len = my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0))) > 0) {
     char *p = buff, *start = buff;
     if (dangling_cr) {
-      if (*p != '\n') dynstr_append_mem(ds, "\r", 1);
+      if (*p != '\n') file_content.append("\r");
       dangling_cr = false;
     }
     while (p < buff + len) {
@@ -1712,20 +1715,25 @@ static int cat_file(DYNAMIC_STRING *ds, const char *filename) {
         /* Add fake newline instead of cr and output the line */
         *p = '\n';
         p++; /* Step past the "fake" newline */
-        dynstr_append_mem(ds, start, p - start);
+        file_content.append(start, p - start);
         p++; /* Step past the "fake" newline */
         start = p;
       } else
         p++;
     }
     if (*(p - 1) == '\r' && len == 512) dangling_cr = true;
-    /* Output any chars that migh be left */
+    size_t buf_len;
+    /* Add any characters that might be left */
     if (dangling_cr)
-      dynstr_append_mem(ds, start, p - start - 1);
+      buf_len = p - start - 1;
     else
-      dynstr_append_mem(ds, start, p - start);
+      buf_len = p - start;
+    file_content.append(start, buf_len);
   }
+
+  replace_dynstr_append(ds, file_content.c_str());
   my_close(fd, MYF(0));
+
   return 0;
 }
 
@@ -4358,6 +4366,7 @@ static void do_cat_file(struct st_command *command) {
   const struct command_arg cat_file_args[] = {
       {"filename", ARG_STRING, true, &ds_filename, "File to read from"}};
   DBUG_TRACE;
+  command->used_replace = true;
 
   check_command_args(command, command->first_argument, cat_file_args,
                      sizeof(cat_file_args) / sizeof(struct command_arg), ' ');
