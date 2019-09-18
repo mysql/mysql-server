@@ -9212,16 +9212,18 @@ bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
         }
 
         // Validate check constraint.
-        bool is_constraint_violated =
-            (!table_cc->value_generator()->expr_item->val_bool() &&
-             !table_cc->value_generator()->expr_item->null_value);
+        Item *check_const_expr_item = table_cc->value_generator()->expr_item;
+        check_const_expr_item->m_in_check_constraint_exec_ctx = true;
+        bool is_constraint_violated = (!check_const_expr_item->val_bool() &&
+                                       !check_const_expr_item->null_value);
+        check_const_expr_item->m_in_check_constraint_exec_ctx = false;
 
         /*
           If check constraint is violated then report an error. If expression
           operand types are incompatible and reported error in conversion even
           then report a more user friendly error. Sql_conditions of DA still has
           a conversion(actual reported) error in the error stack.
-         */
+        */
         if (is_constraint_violated || thd->is_error()) {
           if (thd->is_error()) thd->clear_error();
           my_error(ER_CHECK_CONSTRAINT_VIOLATED, MYF(0), table_cc->name().str);

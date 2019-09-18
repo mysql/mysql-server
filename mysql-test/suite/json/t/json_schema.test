@@ -350,3 +350,143 @@ SELECT JSON_SCHEMA_VALID(j, j) FROM t1 WHERE pk = 1;
 SELECT JSON_SCHEMA_VALID(t2.j, t2.j)
 FROM t1, (SELECT * FROM t1 WHERE pk = 1) t2;
 DROP TABLE t1;
+
+--echo #
+--echo # WL#13195 - TABLE WITH JSON SCHEMA VALIDATION CONSTRAINT SHOULD
+--echo #            RETURN ERROR FOR CONCRETE ROW
+--echo #
+CREATE TABLE t1 (id INT,
+  geometry JSON,
+  CHECK(JSON_SCHEMA_VALID('{
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "required": ["latitude", "longitude"]
+    }', geometry)
+  )
+);
+
+--echo # With WL changes, on CHECK constraint violation detailed information
+--echo # about the failed JSON schema validation is pushed to diagnostics area.
+--echo # SHOW WARNINGS and GET DIAGNOSTICS lists detailed information about the
+--echo # failed schema validation.
+
+--echo # CHECK constraint evaluation fails as required property "longitude" is
+--echo # missing.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES (1, '{"latitude": 0}');
+SHOW WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @p1 = MYSQL_ERRNO, @p2 = MESSAGE_TEXT;
+SELECT @p1, @p2;
+
+--echo # CHECK constraint evaluation fails as latitude is out of range.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES (1, '{"latitude": 181, "longitude": 0}');
+SHOW WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @p1 = MYSQL_ERRNO, @p2 = MESSAGE_TEXT;
+SELECT @p1, @p2;
+
+--echo # CHECK constraint evaluation fails for 3rd row as latitude is out of
+--echo # range.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES (1, '{"latitude": 0, "longitude": 0}'),
+                      (2, '{"latitude": -90, "longitude": -180}'),
+                      (3, '{"latitude": 181, "longitude": 0}'),
+                      (4, '{"latitude": 90, "longitude": 180}');
+SHOW WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @p1 = MYSQL_ERRNO, @p2 = MESSAGE_TEXT;
+SELECT @p1, @p2;
+
+INSERT INTO t1 VALUES (1, '{"latitude": 0, "longitude": 0}'),
+                      (2, '{"latitude": -90, "longitude": -180}'),
+                      (3, '{"latitude": 90, "longitude": 180}');
+--echo # CHECK constraint evaluation fails as required property "longitude"
+--echo # is missing.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t1 SET geometry = '{"latitude": 90}';
+SHOW WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @p1 = MYSQL_ERRNO, @p2 = MESSAGE_TEXT;
+SELECT @p1, @p2;
+
+--echo # CHECK constraint evaluation fails as latitude is out of range.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t1 SET geometry = '{"latitude": 181, "longitude": 0}';
+SHOW WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @p1 = MYSQL_ERRNO, @p2 = MESSAGE_TEXT;
+SELECT @p1, @p2;
+
+--echo # CHECK constraint evaluation fails for 3rd row as latitude is out of
+--echo # range.
+--error ER_CHECK_CONSTRAINT_VIOLATED
+UPDATE t1 SET geometry = IF (id = 3, '{"latitude": 181, "longitude": 0}',
+                                     '{"latitude": 90, "longitude": 0}');
+SHOW WARNINGS;
+GET DIAGNOSTICS CONDITION 1 @p1 = MYSQL_ERRNO, @p2 = MESSAGE_TEXT;
+SELECT @p1, @p2;
+DROP TABLE t1;
+
+--echo # With ALTER TABLE and INSERT statements verify constraint evaluation
+--echo # with NULL value.
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2);
+ALTER TABLE t1 ADD COLUMN jcol1 JSON,
+               ADD COLUMN jcol2 JSON,
+               ADD CONSTRAINT CHECK (json_schema_valid('{
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                      "type": "integer"
+                      },
+                      "name": {
+                      "type": "string"
+                      },
+                      "price": {
+                      "type": "number",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                      }
+                    },
+                    "required": ["id","name","price"]}',`jcol1`)),
+               ADD CONSTRAINT CHECK (json_schema_valid('{
+                    "type": "object",
+                    "properties": {
+                      "latitude": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                      },
+                      "longitude": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                      }
+                    },
+                    "required": ["latitude", "longitude"]}',`jcol2`));
+INSERT INTO t1 ( jcol1 ) VALUES ('{"id": 2, "name": "shiva", "price": 1 }');
+
+--echo # With ALTER TABLE and INSERT statements verify constraint evaluation
+--echo # with reference in JSON schema.
+ALTER TABLE t1 ADD COLUMN jcol3 JSON,
+               ADD CONSTRAINT CHECK(json_schema_valid('{
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                      "type": "integer"
+                      },
+                      "$ref": "http://example.com"
+                    },
+                    "required": ["id","$ref"]}',`jcol3`));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 ( jcol3 ) VALUES ('{"id": 3, "$ref": "http://example.com"}');
+SHOW WARNINGS;
+DROP TABLE t1;

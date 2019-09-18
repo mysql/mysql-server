@@ -677,10 +677,25 @@ static bool do_json_schema_validation(
 bool Item_func_json_schema_valid::val_bool() {
   DBUG_ASSERT(fixed);
   bool validation_result = false;
-  if (do_json_schema_validation(args[0], args[1], func_name(),
-                                m_cached_schema_validator.get(), &null_value,
-                                &validation_result, nullptr)) {
-    return error_bool();
+
+  if (m_in_check_constraint_exec_ctx) {
+    Json_schema_validation_report validation_report;
+    if (do_json_schema_validation(args[0], args[1], func_name(),
+                                  m_cached_schema_validator.get(), &null_value,
+                                  &validation_result, &validation_report)) {
+      return error_bool();
+    }
+
+    if (!null_value && !validation_result) {
+      my_error(ER_JSON_SCHEMA_VALIDATION_ERROR_WITH_DETAILED_REPORT, MYF(0),
+               validation_report.human_readable_reason().c_str());
+    }
+  } else {
+    if (do_json_schema_validation(args[0], args[1], func_name(),
+                                  m_cached_schema_validator.get(), &null_value,
+                                  &validation_result, nullptr)) {
+      return error_bool();
+    }
   }
 
   DBUG_ASSERT(maybe_null || !null_value);

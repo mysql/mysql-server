@@ -2729,6 +2729,12 @@ class Item : public Parse_tree_node {
   bool null_value;  ///< True if item is null
   bool unsigned_flag;
   bool m_is_window_function;  ///< True if item represents window func
+  /**
+    True if item is a top most element in the expression being
+    evaluated for a check constraint.
+  */
+  bool m_in_check_constraint_exec_ctx{false};
+
  private:
   /**
     True if this is an expression from the select list of a derived table

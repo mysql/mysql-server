@@ -9179,6 +9179,9 @@ ER_CLIENT_KEYRING_UDF_KEY_TOO_LONG
 ER_CLIENT_KEYRING_UDF_KEY_TYPE_TOO_LONG
   eng "Function '%s' failed because key type is too long."
 
+ER_JSON_SCHEMA_VALIDATION_ERROR_WITH_DETAILED_REPORT
+  eng "%s."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
