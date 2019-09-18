@@ -173,6 +173,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section)};
 
+  SCOPED_TRACE("// starting router");
   ProcessWrapper &http_server = launch_router({"-c", conf_file});
 
   // doesn't really matter which file we use here, we are not going to do any
@@ -184,6 +185,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   auto &server_mock =
       launch_mysql_server_mock(json_stmts, mock_port_, EXIT_SUCCESS, false);
 
+  SCOPED_TRACE("// checking port is ready");
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, mock_port_, 5000ms));
   // wait for route being available if we expect it to be and plan to do some
   // connections to it (which are routes: "ro" and "Aaz")
@@ -218,6 +220,12 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
         << http_server.get_full_output() << "\n"
         << http_server.get_full_logfile();
   }
+
+  // wait a bit until the routing plugin really closed the sockets
+  //
+  // the routing plugin has a server-greeting-timeout of 100ms
+  // add a few more on top for our close-and-forget in wait_for_port_ready()
+  std::this_thread::sleep_for(200ms);
 
   EXPECT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), http_server));
