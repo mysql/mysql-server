@@ -11696,22 +11696,29 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
 
 /**
   Initialize TABLE::field for the new table with appropriate
-  column defaults. Can be default values from TABLE_SHARE or
-  function defaults from Create_field.
+  column static defaults.
+
+  @note Can be plain default values from TABLE_SHARE::default_values
+        or datetime function defaults. We don't handle general
+        expression defaults here as their values need to be evaluated
+        for each row and such evaluation might result in error.
 
   @param altered_table  TABLE object for the new version of the table.
-  @param create         Create_field containing function defaults.
+  @param create         Create_field list for new version of the table,
+                        which is used for identifying new columns.
 */
 
-static void set_column_defaults(TABLE *altered_table,
-                                List<Create_field> &create) {
+static void set_column_static_defaults(TABLE *altered_table,
+                                       List<Create_field> &create) {
   // Initialize TABLE::field default values
   restore_record(altered_table, s->default_values);
 
+  // Now set datetime expression defaults for new columns.
   List_iterator<Create_field> iter(create);
   for (uint i = 0; i < altered_table->s->fields; ++i) {
     const Create_field *definition = iter++;
-    if (definition->field == NULL)  // this column didn't exist in old table.
+    if (definition->field == nullptr &&
+        altered_table->field[i]->has_insert_default_datetime_value_expression())
       altered_table->field[i]->evaluate_insert_default_function();
   }
 }
@@ -16404,7 +16411,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     altered_table->column_bitmaps_set_no_signal(&altered_table->s->all_set,
                                                 &altered_table->s->all_set);
 
-    set_column_defaults(altered_table, alter_info->create_list);
+    set_column_static_defaults(altered_table, alter_info->create_list);
 
     if (ha_alter_info.handler_flags == 0) {
       /*
@@ -17546,7 +17553,7 @@ static int copy_data_between_tables(
   }
   thd->get_stmt_da()->reset_current_row_for_condition();
 
-  set_column_defaults(to, create);
+  set_column_static_defaults(to, create);
 
   to->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
 
