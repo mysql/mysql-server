@@ -1369,6 +1369,43 @@ bool versionsSpanBoundary(int verA, int verB, int incBoundaryVer)
            (maxPeerVer >= incBoundaryVer) );
 }
 
+#define NDB_USE_CONFIG_VERSION_V2_80 NDB_MAKE_VERSION(8,0,18)
+
+/**
+ * This function skips the test case if it is configured to do a non-initial restart
+ * but actually requires an initial restart.
+ */
+static int checkUpgradeCompatibleConfigFileformatVersion(
+    NDBT_Context* ctx, NDBT_Step* step) {
+  const Uint32 problemBoundary = NDB_USE_CONFIG_VERSION_V2_80;
+
+  const bool need_initial_mgmd_restart = versionsSpanBoundary(
+                                           preVersion,
+                                           postVersion,
+                                           problemBoundary);
+
+  const Uint32 initial_mgmd_restart = ctx->getProperty(
+                                             "InitialMgmdRestart", Uint32(0));
+  if (initial_mgmd_restart == 1)
+  {
+    ndbout << "InitialMgmdRestart is set to 1" << endl;
+    return NDBT_OK;
+  }
+  if (need_initial_mgmd_restart)
+  {
+    /**
+     * Test case is configured for non initial mgmd restart but
+     * upgrade/downgrade needs initial restart
+     */
+    ndbout << "Skipping test due to incompatible config versions"
+           << "with non-initial mgmd restart" << endl;
+    return NDBT_SKIPPED;
+  }
+  ndbout << "Config versions are compatible" << endl;
+  return NDBT_OK;
+}
+
+
 #define SchemaTransVersion NDB_MAKE_VERSION(6,4,0)
 
 int runPostUpgradeDecideDDL(NDBT_Context* ctx, NDBT_Step* step)
@@ -1935,6 +1972,7 @@ TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runBug48416);
   STEP(runUpgrade_NR1);
   VERIFIER(startPostUpgradeChecks);
@@ -1947,6 +1985,8 @@ POSTUPGRADE("Upgrade_NR1")
 TESTCASE("Upgrade_NR2",
 	 "Test that one node in each nodegroup can be upgradde simultaneously"){
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR2);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -1958,6 +1998,8 @@ POSTUPGRADE("Upgrade_NR2")
 TESTCASE("Upgrade_NR3",
 	 "Test that one node in each nodegroup can be upgradde simultaneously"){
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR3);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -1973,6 +2015,7 @@ TESTCASE("Upgrade_FS",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(runSkipIfCannotKeepFS);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   INITIALIZER(runLoadAll);
   STEP(runUpgrade_Traffic);
@@ -1988,6 +2031,8 @@ TESTCASE("Upgrade_Traffic",
 {
   TC_PROPERTY("UseRangeScanT1", (Uint32)1);
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2006,6 +2051,7 @@ TESTCASE("Upgrade_Traffic_FS",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(runSkipIfCannotKeepFS);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2020,6 +2066,8 @@ TESTCASE("Upgrade_Traffic_one",
 	 "Test upgrade with traffic, *one* table and restart --initial")
 {
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2037,6 +2085,7 @@ TESTCASE("Upgrade_Traffic_FS_one",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(runSkipIfCannotKeepFS);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2051,6 +2100,8 @@ TESTCASE("Upgrade_Api_Only",
          "Test that upgrading the Api node only works")
 {
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2070,6 +2121,8 @@ TESTCASE("Upgrade_Api_Before_NR1",
 {
   /* Api, then MGMD(s), then NDBDs */
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2087,6 +2140,8 @@ TESTCASE("Upgrade_Api_NDBD_MGMD",
          "Test that updating in reverse order works")
 {
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2104,6 +2159,8 @@ TESTCASE("Upgrade_Mixed_MGMD_API_NDBD",
          "Test that upgrading MGMD/API partially before data nodes works")
 {
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_NotAllMGMD); /* Upgrade an MGMD */
   STEP(runBasic);
@@ -2124,6 +2181,8 @@ TESTCASE("Bug14702377",
          "Dirty PK read of non-existent tuple  6.3->7.x hangs"){
   TC_PROPERTY("HalfStartedHold", (Uint32)1);
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Half);
   STEP(runBug14702377);
@@ -2141,6 +2200,7 @@ TESTCASE("Upgrade_SR_ManyTablesMaxFrag",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(runSkipIfCannotKeepFS);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(createManyTables);
   STEP(runUpgrade_SR);
   VERIFIER(startPostUpgradeChecks);
@@ -2159,6 +2219,7 @@ TESTCASE("Upgrade_Newer_LCP_FS_Fail",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(runSkipIfPostCanKeepFS);
+  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   STEP(runUpgradeAndFail);
   // No postupgradecheck required as the upgrade is expected to fail
 }
