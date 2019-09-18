@@ -17261,7 +17261,7 @@ static MYSQL_SYSVAR_BOOL(
     " commit acknowledge of write transactions to accomplish this.",
     NULL, /* check func.  */
     NULL, /* update func. */
-    1     /* default      */
+    0     /* default      */
 );
 
 static void ndb_data_node_neighbour_update_func(THD *, SYS_VAR *, void *var_ptr,
