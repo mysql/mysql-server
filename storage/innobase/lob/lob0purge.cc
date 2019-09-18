@@ -277,11 +277,6 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       row_log_table_blob_free(index, ref.page_no());
     }
 
-    /* Ensure that the btr mtr is not holding any x-latch on the first page of
-     * LOB. */
-    ut_ad(!mtr_is_block_fix(ctx->get_mtr(), first.get_block(),
-                            MTR_MEMO_PAGE_X_FIX, index->table));
-
     first.free_all_frag_node_pages();
     first.free_all_index_pages();
     first.dealloc();
@@ -461,15 +456,15 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     return;
   }
 
-  first_page_t first(mtr, index);
-  first.load_x(page_id, page_size);
-
   ut_a(page_type == FIL_PAGE_TYPE_LOB_FIRST);
 
   if (is_rollback) {
     rollback(ctx, index, trxid, undo_no, ref, rec_type, uf);
     return;
   }
+
+  first_page_t first(mtr, index);
+  first.load_x(page_id, page_size);
 
   trx_id_t last_trx_id = first.get_last_trx_id();
   undo_no_t last_undo_no = first.get_last_trx_undo_no();
