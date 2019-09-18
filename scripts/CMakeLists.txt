@@ -424,10 +424,12 @@ ELSE()
       )
   ENDIF()
 
+  # mysqld_safe used in mtr even for systemd platforms
   IF(WITH_SYSTEMD)
     SET(BIN_SCRIPTS
       mysql_config
       mysqldumpslow
+      mysqld_safe
       )
   ELSE()
     SET(BIN_SCRIPTS

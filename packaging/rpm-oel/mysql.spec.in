@@ -1350,6 +1350,9 @@ fi
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
+%if 0%{?systemd}
+%attr(755, root, root) %{_bindir}/mysqld_safe
+%endif
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest

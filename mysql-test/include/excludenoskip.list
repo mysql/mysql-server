@@ -37,9 +37,6 @@ have_partition_open_file_limit.inc
 table_compress_2.test
 table_compress_3.test
 have_posix_locale.inc
-# Checks if mysqld_safe is installed in the path specified by MTR. mysqld_safe
-# is obsolete on platforms that use systemd to monitor mysqld.
-have_mysqld_safe.inc
 # Test need to run only on Linux and OSX and skip all other platforms.
 costmodel_planchange.test
 # Checks if server is started with MET timezone. Including the below inc file until Bug#25188655 is fixed.
