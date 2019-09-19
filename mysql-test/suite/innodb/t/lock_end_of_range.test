@@ -611,3 +611,34 @@ INSERT INTO t1 (id,val) VALUES (1,1),(2,2) ,(3,3), (4,4), (5,5), (6,6),   (9,9);
 --disconnect con2
 
 DROP TABLE t1;
+--echo #
+--echo # Bug #30112238 - [INNODB] ASSERTION FAILURE: ROW0SEL.CC.*DIRECTION != 0
+--echo #
+
+CREATE TABLE t1 (
+        id INT PRIMARY KEY
+);
+
+INSERT INTO t1 (id) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9);
+ANALYZE TABLE t1;
+
+
+--connect (view_keeper,localhost,root,,)
+        BEGIN;
+        SELECT * FROM t1;
+
+--connection default
+
+DELETE FROM t1 WHERE id<=5;
+
+BEGIN;
+--sorted_result
+SELECT index_name, lock_type, lock_mode, lock_status, lock_data FROM performance_schema.data_locks WHERE object_name='t1';
+SELECT id FROM t1 FORCE INDEX (PRIMARY) WHERE id<=5 FOR UPDATE;
+--sorted_result
+SELECT index_name, lock_type, lock_mode, lock_status, lock_data FROM performance_schema.data_locks WHERE object_name='t1';
+COMMIT;
+
+--disconnect view_keeper
+
+DROP TABLE t1;

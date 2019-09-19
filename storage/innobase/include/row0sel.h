@@ -208,7 +208,8 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 @return DB_SUCCESS or error code */
 dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
                         row_prebuilt_t *prebuilt, ulint match_mode,
-                        ulint direction) MY_ATTRIBUTE((warn_unused_result));
+                        const ulint direction)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Count rows in a R-Tree leaf level.
  @return DB_SUCCESS if successful */

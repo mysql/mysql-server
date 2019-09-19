@@ -4375,7 +4375,6 @@ static row_to_range_relation_t row_compare_row_to_range(
           row_to_range_relation.row_can_be_in_range = false;
           if (prebuilt->m_stop_tuple_found) {
             ut_ad(stop_len == index_len);
-            ut_ad(direction != 0);
             row_to_range_relation.gap_can_intersect_range = false;
             return (row_to_range_relation);
           }
@@ -4416,7 +4415,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 @return DB_SUCCESS or error code */
 dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
                         row_prebuilt_t *prebuilt, ulint match_mode,
-                        ulint direction) {
+                        const ulint direction) {
   DBUG_TRACE;
 
   dict_index_t *index = prebuilt->index;

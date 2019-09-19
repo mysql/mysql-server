@@ -8726,3 +8726,41 @@ PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
 PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	5
 ROLLBACK;
 DROP TABLE t1;
+#
+# Bug #30112238 - [INNODB] ASSERTION FAILURE: ROW0SEL.CC.*DIRECTION != 0
+#
+CREATE TABLE t1 (
+id INT PRIMARY KEY
+);
+INSERT INTO t1 (id) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+BEGIN;
+SELECT * FROM t1;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+DELETE FROM t1 WHERE id<=5;
+BEGIN;
+SELECT index_name, lock_type, lock_mode, lock_status, lock_data FROM performance_schema.data_locks WHERE object_name='t1';
+index_name	lock_type	lock_mode	lock_status	lock_data
+SELECT id FROM t1 FORCE INDEX (PRIMARY) WHERE id<=5 FOR UPDATE;
+id
+SELECT index_name, lock_type, lock_mode, lock_status, lock_data FROM performance_schema.data_locks WHERE object_name='t1';
+index_name	lock_type	lock_mode	lock_status	lock_data
+NULL	TABLE	IX	GRANTED	NULL
+PRIMARY	RECORD	X	GRANTED	1
+PRIMARY	RECORD	X	GRANTED	2
+PRIMARY	RECORD	X	GRANTED	3
+PRIMARY	RECORD	X	GRANTED	4
+PRIMARY	RECORD	X	GRANTED	5
+COMMIT;
+DROP TABLE t1;
