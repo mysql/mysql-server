@@ -17413,6 +17413,12 @@ static int copy_data_between_tables(
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
   int error;
   Copy_field *copy, *copy_end;
+  Field **ptr;
+  /*
+    Fields which values need to be generated for each row, i.e. either
+    generated fields or newly added fields with generated default values.
+  */
+  Field **gen_fields, **gen_fields_end;
   ulong found_count, delete_count;
   List<Item> fields;
   List<Item> all_fields;
@@ -17438,6 +17444,12 @@ static int copy_data_between_tables(
 
   if (!(copy = new (thd->mem_root) Copy_field[to->s->fields]))
     return -1; /* purecov: inspected */
+
+  if (!(gen_fields = thd->mem_root->ArrayAlloc<Field *>(
+            to->s->gen_def_field_count + to->s->vfields))) {
+    destroy_array(copy, to->s->fields);
+    return -1;
+  }
 
   if (to->file->ha_external_lock(thd, F_WRLCK)) {
     destroy_array(copy, to->s->fields);
@@ -17465,10 +17477,24 @@ static int copy_data_between_tables(
   List_iterator<Create_field> it(create);
   const Create_field *def;
   copy_end = copy;
-  for (Field **ptr = to->field; *ptr; ptr++) {
+  gen_fields_end = gen_fields;
+  for (ptr = to->field; *ptr; ptr++) {
     def = it++;
+    if ((*ptr)->is_gcol()) {
+      /*
+        Values in generated columns need to be (re)generated even for
+        pre-existing columns, as they might depend on other columns,
+        values in which might have changed as result of this ALTER.
+        Because of this there is no sense in copying old values for
+        these columns.
+        TODO: Figure out if we can avoid even reading these old values
+              from SE.
+      */
+      *(gen_fields_end++) = *ptr;
+      continue;
+    }
     // Array fields will be properly generated during GC update loop below
-    if (def->is_array) continue;
+    DBUG_ASSERT(!def->is_array);
     if (def->field) {
       if (*ptr == to->next_number_field) {
         auto_increment_field_copied = true;
@@ -17482,6 +17508,15 @@ static int copy_data_between_tables(
           thd->variables.sql_mode |= MODE_NO_AUTO_VALUE_ON_ZERO;
       }
       (copy_end++)->set(*ptr, def->field, false);
+    } else {
+      /*
+        New column. Add it to the array of columns requiring value
+        generation if it has generated default.
+      */
+      if ((*ptr)->has_insert_default_general_value_expression()) {
+        DBUG_ASSERT(!((*ptr)->is_gcol()));
+        *(gen_fields_end++) = *ptr;
+      }
     }
   }
 
@@ -17584,40 +17619,32 @@ static int copy_data_between_tables(
     }
 
     /*
-      @todo After we evaluate what other return values from
-      save_in_field() that should be treated as errors, we can remove
-      to check thd->is_error() below.
+      Iterate through all generated columns and all new columns which have
+      generated defaults and evaluate their values. This needs to happen
+      after copying values for old columns and storing default values for
+      new columns without generated defaults, as generated values might
+      depend on these values.
+      OTOH generated columns/generated defaults need to be processed in
+      the order in which their columns are present in table as generated
+      values are allowed to depend on each other as long as there are no
+      forward references (i.e. references to other columns with generated
+      values which come later in the table).
     */
-    if ((update_generated_write_fields(to->write_set, to)) || thd->is_error()) {
-      error = 1;
-      break;
-    }
-
-    Field **field_ptr;
-    if (to->gen_def_fields_ptr) {
-      // Iterate over generated default fields in the table
-      for (field_ptr = to->gen_def_fields_ptr; *field_ptr; field_ptr++) {
-        Field *current_col = (*field_ptr);
-        Field *from_column = from->field[current_col->field_index];
-        // Update those fields that are marked in the bitmap but only if the
-        // column did not exist before (add column)
-        if (current_col->m_default_val_expr->expr_item &&
-            bitmap_is_set(to->write_set, current_col->field_index) &&
-            (from_column == nullptr)) {
-          // Generate the actual value for the default expression
-          bool err_ret =
-              current_col->m_default_val_expr->expr_item->save_in_field(
-                  current_col, false);
-          if (err_ret && to->in_use->is_error()) error = true;
-          if (to->fields_set_during_insert)
-            bitmap_set_bit(to->fields_set_during_insert,
-                           current_col->field_index);
-        }
+    for (ptr = gen_fields; ptr != gen_fields_end; ptr++) {
+      Item *expr_item;
+      if ((*ptr)->is_gcol()) {
+        expr_item = (*ptr)->gcol_info->expr_item;
+      } else {
+        DBUG_ASSERT((*ptr)->has_insert_default_general_value_expression());
+        expr_item = (*ptr)->m_default_val_expr->expr_item;
       }
-      if (error) {
+      expr_item->save_in_field(*ptr, false);
+      if (thd->is_error()) {
+        error = 1;
         break;
       }
     }
+    if (error) break;
 
     error = invoke_table_check_constraints(thd, to);
     if (error) break;

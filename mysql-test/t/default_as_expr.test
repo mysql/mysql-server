@@ -972,3 +972,92 @@ DROP TABLE pk_t1;
 --error ER_INVALID_DEFAULT
 CREATE TABLE t2 (a INT AUTO_INCREMENT DEFAULT(0));
 
+--echo #
+--echo # Bug#30302907 "ADDITION OF COLUMNS WITH GENERATED DEFAULTS IS
+--echo #               BROKEN IN ALTER TABLE COPY".
+--echo #
+
+--echo #
+--echo # 1) Simple case, when generated column value depends on generated
+--echo #    default value.
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT (a), ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED;
+--echo # Repeat the test with explicit ALGORITHM=COPY
+ALTER TABLE t2 ADD COLUMN b INT DEFAULT (a), ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED, ALGORITHM=COPY;
+--echo # INPLACE addition of generated columns and defaults is not supported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t3 ADD COLUMN b INT DEFAULT (a), ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED, ALGORITHM=INPLACE;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+DROP TABLES t1, t2, t3;
+
+--echo #
+--echo # 2) Column with generated default "replaces" old column.
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 DROP COLUMN b, ADD COLUMN c INT DEFAULT (a);
+ALTER TABLE t2 DROP COLUMN b, ADD COLUMN c INT DEFAULT (a), ALGORITHM=COPY;
+--echo # INPLACE addition of generated defaults is not supported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t3 DROP COLUMN b, ADD COLUMN c INT DEFAULT (a), ALGORITHM=INPLACE;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+DROP TABLES t1, t2, t3;
+
+--echo #
+--echo # 3) Column with generated default which is shifted to new poisition.
+CREATE TABLE t1 (a INT, b INT DEFAULT (1+1));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1, 0), (2, 0);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN c INT AFTER a;
+ALTER TABLE t2 ADD COLUMN c INT AFTER a, ALGORITHM=COPY;
+ALTER TABLE t3 ADD COLUMN c INT AFTER a, ALGORITHM=INPLACE;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+DROP TABLES t1, t2, t3;
+
+--echo #
+--echo # 4) Complex case. Addition of generated column which depends on
+--echo #    generated default, which depends on generated column, which
+--echo #    which depends on generated default.
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT (a),
+               ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED,
+               ADD COLUMN d INT DEFAULT (c),
+               ADD COLUMN e INT GENERATED ALWAYS AS (-d) STORED;
+ALTER TABLE t2 ADD COLUMN b INT DEFAULT (a),
+               ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED,
+               ADD COLUMN d INT DEFAULT (c),
+               ADD COLUMN e INT GENERATED ALWAYS AS (-d) STORED,
+               ALGORITHM=COPY;
+--echo # INPLACE addition of generated columns and defaults is not supported.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t3 ADD COLUMN b INT DEFAULT (a),
+               ADD COLUMN c INT GENERATED ALWAYS AS (-b) STORED,
+               ADD COLUMN d INT DEFAULT (c),
+               ADD COLUMN e INT GENERATED ALWAYS AS (-d) STORED,
+               ALGORITHM=INPLACE;
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t3;
+DROP TABLES t1, t2, t3;
