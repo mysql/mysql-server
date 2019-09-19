@@ -641,5 +641,21 @@ CREATE USER bug21464621 IDENTIFIED BY 'password' PASSWORD EXPIRE;
 #cleanup
 DROP USER bug21464621;
 
+
+--echo #
+--echo # WL#13038: Make mysql command line tool's --binary-as-hex be on by
+--echo #   default for interactive terminals
+--echo #
+
+--let $file = $MYSQLTEST_VARDIR/tmp/wl13038.out
+--exec $MYSQL --binary-as-hex -e "\s" 2>&1 > $file
+--let $assert_text=check the output of mysql for the binary-as-hex mark in mysql status
+--let $assert_file=$file
+--let $assert_select="Binary data as.*Hexadecimal"
+--let $assert_count=0
+--source include/assert_grep.inc
+--remove_file $file
+
+
 --echo
 --echo End of tests

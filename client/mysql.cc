@@ -163,6 +163,7 @@ static bool ignore_errors = false, wait_flag = false, quick = false,
             show_warnings = false, executing_query = false,
             interrupted_query = false, ignore_spaces = false,
             sigint_received = false, opt_syslog = false, opt_binhex = false;
+static bool opt_binary_as_hex_set_explicitly = false;
 static bool debug_info_flag, debug_check_flag;
 static bool column_types_flag;
 static bool preserve_comments = false;
@@ -1310,6 +1311,8 @@ int main(int argc, char *argv[]) {
     my_end(0);
     return EXIT_FAILURE;
   }
+  if (!opt_binary_as_hex_set_explicitly && isatty(0) && isatty(1))
+    opt_binhex = true;
   if (mysql_server_init(0, nullptr, nullptr)) {
     put_error(NULL);
     my_end(0);
@@ -1630,8 +1633,8 @@ static struct my_option my_long_options[] = {
      0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
      (uchar **)&opt_bind_addr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"binary-as-hex", 0, "Print binary data as hex", &opt_binhex, &opt_binhex,
-     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"binary-as-hex", OPT_MYSQL_BINARY_AS_HEX, "Print binary data as hex",
+     &opt_binhex, &opt_binhex, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &charsets_dir, &charsets_dir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2027,6 +2030,10 @@ bool get_one_option(int optid,
     case '?':
       usage(0);
       exit(0);
+    case OPT_MYSQL_BINARY_AS_HEX:
+      opt_binhex = (argument != disabled_my_option);
+      opt_binary_as_hex_set_explicitly = true;
+      break;
   }
   return false;
 }
@@ -4716,6 +4723,7 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress) tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
+  if (opt_binhex) tee_fprintf(stdout, "Binary data as:\t\tHexadecimal\n");
 
   if ((status_str = mysql_stat(&mysql)) && !mysql_error(&mysql)[0]) {
     ulong sec;

@@ -534,5 +534,10 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 user()
 bug21464621@localhost
 DROP USER bug21464621;
+#
+# WL#13038: Make mysql command line tool's --binary-as-hex be on by
+#   default for interactive terminals
+#
+include/assert_grep.inc [check the output of mysql for the binary-as-hex mark in mysql status]
 
 End of tests
