@@ -87,6 +87,8 @@ class ThreadContext : public Ndb_local_connection {
   void deserialize_users(std::string &);
   bool cache_was_rebuilt() const { return m_rebuilt_cache; }
   void serialize_snapshot_user_list(std::string *out_str);
+  void consider_all_local_users_for_drop();
+  void handle_dropped_users();
 
   /* NDB Transactions */
   bool read_snapshot();
@@ -136,6 +138,7 @@ class ThreadContext : public Ndb_local_connection {
   Mem_root_array<char *> m_read_keys;
   Mem_root_array<unsigned short> m_grant_count;
   Mem_root_array<char *> m_current_rows;
+  Mem_root_array<char *> m_delete_users;
   Mem_root_array<std::string> m_statement_users;
   Mem_root_array<std::string> m_intersection;
   Mem_root_array<std::string> m_extra_grants;
@@ -193,6 +196,7 @@ ThreadContext::ThreadContext(THD *thd)
       m_read_keys(&mem_root),
       m_grant_count(&mem_root),
       m_current_rows(&mem_root),
+      m_delete_users(&mem_root),
       m_statement_users(&mem_root),
       m_intersection(&mem_root),
       m_extra_grants(&mem_root),
@@ -248,10 +252,7 @@ void ThreadContext::serialize_snapshot_user_list(std::string *out_str) {
    Sets m_read_keys to a set of buffers that can be used in NdbScanFilter
 */
 void ThreadContext::deserialize_users(std::string &str) {
-  /* As an optimization, prefer a complete snapshot refresh to a partial
-     refresh of n users if n is greater than half. */
-  int max = local_granted_users.size() / 2;
-  int nfound = 0;
+  unsigned long nfound = 0;
 
   for (size_t pos = 0; pos < str.length();) {
     /* Find the 4th quote mark in 'user'@'host' */
@@ -262,17 +263,20 @@ void ThreadContext::deserialize_users(std::string &str) {
     }
     size_t len = end + 1 - pos;
     std::string user = str.substr(pos, len);
-    if (get_local_user(user) && (++nfound > max)) {
-      ndb_log_verbose(9, "deserialize_users() choosing complete refresh");
-      m_read_keys.clear();
-      return;
-    }
+    if (get_local_user(user)) nfound++;
+    m_users_in_snapshot.push_back(user);
     {
       char *buf = getBuffer(len + 4);
       metadata_table.packName(buf, user);
       m_read_keys.push_back(buf);
     }
     pos = end + 2;
+  }
+  /* As an optimization, prefer a complete snapshot refresh to a partial
+     refresh of n users if n is greater than half. */
+  if (nfound > local_granted_users.size() / 2) {
+    ndb_log_verbose(9, "deserialize_users() choosing complete refresh");
+    m_read_keys.clear();
   }
 }
 
@@ -483,12 +487,17 @@ const NdbError *store_snapshot(NdbTransaction *tx, ThreadContext *ctx) {
 }
 
 /* write_snapshot()
-   m_current_rows holds a set of USER and GRANT records to be written.
+
    m_read_keys holds a list of USER records to read.
    m_grant_count holds the number of grants that will be stored for each user.
    m_read_keys and m_grant_count are in one-to-one correspondence.
    Any extraneous old grants for a user above m_grant_count will be deleted.
-   After execute(), m_current_rows, m_read_keys, and m_grant_count are cleared.
+
+   m_current_rows holds a set of USER and GRANT records to be written.
+   m_delete_users holds a set of USER records to be deleted.
+
+   After execute(), m_current_rows, m_read_keys, m_grant_count, and
+   m_delete_users are all cleared.
 */
 const NdbError *ThreadContext::write_snapshot(NdbTransaction *tx) {
   Mem_root_array<char *> read_results(&mem_root);
@@ -522,11 +531,17 @@ const NdbError *ThreadContext::write_snapshot(NdbTransaction *tx) {
     Buffer::writeTuple(row, tx);
   }
 
+  /* Delete user records for DROP USER */
+  for (char *key : m_delete_users) {
+    Buffer::deleteTuple(key, tx);
+  }
+
   bool r = tx->execute(Commit);
 
   m_current_rows.clear();
   m_read_keys.clear();
   m_grant_count.clear();
+  m_delete_users.clear();
 
   return r ? &tx->getNdbError() : nullptr;
 }
@@ -557,13 +572,13 @@ int ThreadContext::update_users(const Mem_root_array<std::string> &list) {
 }
 
 void ThreadContext::drop_user(std::string user, bool is_revoke) {
-  std::string drop("DROP USER IF EXISTS ");
-  std::string revoke("REVOKE NDB_STORED_USER ON *.* FROM ");
-  std::string *s = is_revoke ? &revoke : &drop;
-  std::string statement(*s + user);
   unsigned int zero = 0;
-
-  m_current_rows.push_back(Row(TYPE_USER, user, 0, &zero, statement));
+  if (is_revoke) {
+    std::string statement("REVOKE NDB_STORED_USER ON *.* FROM " + user);
+    m_current_rows.push_back(Row(TYPE_USER, user, 0, &zero, statement));
+  } else {
+    m_delete_users.push_back(Key(TYPE_USER, user, 0));
+  }
   m_read_keys.push_back(Key(TYPE_USER, user, 0));
   m_grant_count.push_back(0);
   m_users_in_snapshot.push_back(user);
@@ -628,7 +643,8 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
   run_acl_statement(revoke_all + name);
 }
 
-/* Apply the snapshot in m_current_rows
+/* Apply the snapshot in m_current_rows,
+   removing each applied user from m_users_in_snapshot.
  */
 void ThreadContext::apply_current_snapshot() {
   for (const char *row : m_current_rows) {
@@ -646,6 +662,7 @@ void ThreadContext::apply_current_snapshot() {
     switch (type) {
       case TYPE_USER:
         m_applied_users++;
+        m_users_in_snapshot.erase_value(name);
         is_null = !metadata_table.getNote(row, &note);
         if (is_null) {
           ndb_log_error("Unexpected NULL in ndb_sql_metadata table");
@@ -653,7 +670,7 @@ void ThreadContext::apply_current_snapshot() {
         if (note > 0) {
           create_user(name, statement);
         } else {
-          /* The user has been dropped, or had NDB_STORED_USER revoked */
+          /* REVOKE NDB_STORED_USER ON *.* FROM user, or 8.0.18 DROP USER */
           if (get_local_user(name)) {
             run_acl_statement(statement);
           }
@@ -672,6 +689,28 @@ void ThreadContext::apply_current_snapshot() {
 
   /* Extra DEFAULT ROLE statements added by create_user() */
   for (std::string grant : m_extra_grants) run_acl_statement(grant);
+}
+
+/* After apply_current_snapshot() has iteratively removed users from
+   m_users_in_snapshot, any user remaining there must be dropped.
+*/
+void ThreadContext::handle_dropped_users() {
+  const std::string drop("DROP USER IF EXISTS ");
+
+  for (std::string user : m_users_in_snapshot) {
+    ndb_log_info("Dropping user %s not present in stored snapshot",
+                 user.c_str());
+    run_acl_statement(drop + user);
+  }
+}
+
+/* At server startup time, any local user with NDB_STORED_USER may have
+   been dropped while the server was down, so m_users_in_snapshot is
+   initialized with the whole list of local users.
+*/
+void ThreadContext::consider_all_local_users_for_drop() {
+  for (std::string user : local_granted_users)
+    m_users_in_snapshot.push_back(user);
 }
 
 void ThreadContext::write_status_message_to_server_log() {
@@ -862,8 +901,10 @@ bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
 
   (void)context.build_cache_of_ndb_users();
 
+  context.consider_all_local_users_for_drop();
   context.apply_current_snapshot();
   context.write_status_message_to_server_log();
+  context.handle_dropped_users();
   return true;  // success
 }
 
@@ -916,5 +957,6 @@ bool Ndb_stored_grants::update_users_from_snapshot(THD *thd,
 
   (void)context.build_cache_of_ndb_users();
   context.apply_current_snapshot();
+  context.handle_dropped_users();
   return true;  // success
 }
