@@ -162,6 +162,7 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 
 SELECT * FROM t1 WHERE i1 > 50 AND i1 <= 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE i1 BETWEEN 50 AND 52 AND MOD(i2,2)=1 ORDER BY i1 DESC;
@@ -170,6 +171,7 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE i1 BETWEEN 50 AND 52 AND i2 BETWEEN 495 AND 515 ORDER BY i1, i2 DESC;
@@ -177,6 +179,7 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
@@ -187,10 +190,12 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3 DESC);
+ANALYZE TABLE t1;
 eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1, i2 DESC, i3);
+ANALYZE TABLE t1;
 let $query1=
   SELECT * FROM t1   WHERE 
     ((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
@@ -201,10 +206,12 @@ eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+ANALYZE TABLE t1;
 eval EXPLAIN $query1;
 eval $query1; 
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3);
+ANALYZE TABLE t1;
 let query1=
   SELECT * FROM t1
   WHERE ( (i1=50 AND i2=495 and i3=4) OR i1 BETWEEN 70 AND 72) AND
@@ -218,6 +225,7 @@ ALTER TABLE t1 ADD COLUMN (i4 INTEGER NOT NULL);
 UPDATE t1 SET i4=i3;
 
 ALTER TABLE t1 DROP INDEX k1, ADD INDEX k1(i1 DESC, i2, i3 DESC, i4);
+ANALYZE TABLE t1;
 let $query1=
   SELECT * FROM t1   WHERE
     ((i1 BETWEEN 48 AND 62 AND i2 BETWEEN 395 AND 615 AND
@@ -250,6 +258,7 @@ create table t1 (a int not null, b int, c varchar(10),
 insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
 insert into t1 values (0, NULL, NULL), (0, NULL, 'b'), (0, 0, NULL), (0, 0, 'b'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'a'), (0, 0, 'b'), (0, 0, 'c'),(0,0,'b');
 
+ANALYZE TABLE t1;
 explain select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
 flush status;
 select * from t1 where a >= 1 and a < 3 and b >0 order by a desc,b desc;
@@ -258,6 +267,7 @@ drop table t1;
 
 create table t1 (a1 int, a2 char(3), key k1(a1 desc));
 insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
+ANALYZE TABLE t1;
 --echo # Shouldn't optimize tables away on DESC index
 --replace_column 10 # 11 # 
 explain select min(a1) from t1;
@@ -393,6 +403,8 @@ INSERT INTO dd VALUES
 ('3'),
 ('4'),
 ('5');
+
+ANALYZE TABLE dd;
 
 SET SESSION DEBUG="+d,force_lis_for_group_by";
 
@@ -579,6 +591,7 @@ INSERT INTO t2 VALUES
 (12,5,'qukkoeiws'),
 (13,9,'ukko'),
 (14,3,'kkoeiwsgp');
+ANALYZE TABLE t1, t2;
 
 let $query= SELECT t1.pk, t2.col_int_key, 
            t1.col_varchar_key, t2.col_varchar_key
@@ -696,6 +709,7 @@ INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4);
+ANALYZE TABLE t1;
 
 SELECT
 t1 . pk AS field1,
@@ -728,6 +742,7 @@ INSERT INTO t1 VALUES (25,9), (24,1), (23,-74383360), (22,-855900160),
 (15,1808465920), (14,NULL), (13,588644352), (12,3), (11,6), (10,NULL),
 (9,NULL), (8,8), (7,NULL), (6,NULL), (5,-1018232832), (4,5), (3,NULL),
 (2,NULL), (1,NULL);
+ANALYZE TABLE t1;
 
 SELECT DISTINCT
 t1 . pk AS field1
@@ -820,6 +835,7 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1(pk, col_int, col_int_key) VALUES (4,3,6), (5,4,8), (6,2,4);
+ANALYZE TABLE t1, t2;
 
 SELECT STRAIGHT_JOIN
 t1 . col_int_key AS field1 ,

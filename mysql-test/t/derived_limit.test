@@ -9,6 +9,7 @@
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+ANALYZE TABLE t1;
 
 # LIMIT in non-recursive CTE.
 

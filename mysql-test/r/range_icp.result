@@ -2237,8 +2237,8 @@ INSERT INTO t2 VALUES
 EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	t2	NULL	ref	PRIMARY,col_int_key	col_int_key	5	test.t1.col_int	1	33.33	Using index condition
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t2	NULL	ref	PRIMARY,col_int_key	col_int_key	5	test.t1.col_int	#	#	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
@@ -2258,8 +2258,8 @@ FLUSH TABLES;
 EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	6	33.33	Range checked for each record (index map: 0x3)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	#	#	Range checked for each record (index map: 0x3)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
@@ -3088,11 +3088,11 @@ EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE t7.a IN (t5.b, t6.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t5	NULL	ref	a	a	5	test.t6.a	1	100.00	NULL
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	28.57	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
@@ -3105,21 +3105,21 @@ a	b	a	b	a	b
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_last	0
-Handler_read_next	4
+Handler_read_next	6
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	13
+Handler_read_rnd_next	6
 EXPLAIN SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	100.00	NULL
-1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t5	NULL	ref	a	a	5	test.t6.a	1	100.00	NULL
 1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	14.29	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t6`.`a` = `test`.`t5`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
+Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
 FLUSH STATUS;
 SELECT *
 FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
@@ -3130,12 +3130,12 @@ a	b	a	b	a	b
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	4
+Handler_read_key	9
 Handler_read_last	0
-Handler_read_next	2
+Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	13
+Handler_read_rnd_next	6
 #
 # Regression tests of the worklog below.
 #
@@ -3704,7 +3704,7 @@ WHERE id IN (66136539, 68983258, 89628210, 77869520, 82543198, 67538272,
 70923271, 68066180)
 AND (giant_table.flags & 0x01) = 0 AND giant_table.some_other_id = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	giant_table	NULL	range	PRIMARY,some_other_id	PRIMARY	4	NULL	20	0.36	Using where
+1	SIMPLE	giant_table	NULL	range	PRIMARY,some_other_id	PRIMARY	4	NULL	20	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`giant_table`.`id` AS `id`,`test`.`giant_table`.`something` AS `something`,`test`.`giant_table`.`comment` AS `comment`,`test`.`giant_table`.`time_created` AS `time_created`,`test`.`giant_table`.`one_id` AS `one_id`,`test`.`giant_table`.`other_id` AS `other_id`,`test`.`giant_table`.`some_other_id` AS `some_other_id`,`test`.`giant_table`.`flags` AS `flags` from `test`.`giant_table` where ((`test`.`giant_table`.`some_other_id` = 0) and (`test`.`giant_table`.`id` in (66136539,68983258,89628210,77869520,82543198,67538272,84673401,61069031,68214385,77282865,76991297,64569216,89481638,74534074,70396537,80076375,63308530,77908270,70923271,68066180)) and ((`test`.`giant_table`.`flags` & 0x01) = 0))
 DROP PROCEDURE p;

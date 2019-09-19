@@ -3,6 +3,9 @@
 #
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE WITH cte AS (SELECT * FROM t1 LIMIT 5) SELECT * FROM cte;
 EXPLAIN
 -> Table scan on cte
