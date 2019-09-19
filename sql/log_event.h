@@ -587,6 +587,8 @@ class Replicated_columns_view : public Table_columns_view<> {
 
     @param table reference to the target TABLE object.
     @param column_index index for the column to be tested for filtering,
+
+    @return true if the field is to be filtered out and false otherwise.
    */
   bool inbound_filtering(TABLE const *table, size_t column_index);
   /**
@@ -596,6 +598,8 @@ class Replicated_columns_view : public Table_columns_view<> {
 
     @param table reference to the target TABLE object.
     @param column_index index for the column to be tested for filtering,
+
+    @return true if the field is to be filtered out and false otherwise.
    */
   bool outbound_filtering(TABLE const *table, size_t column_index);
 
