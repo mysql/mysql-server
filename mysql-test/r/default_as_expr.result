@@ -1035,6 +1035,16 @@ truths
 DROP TABLE t1;
 DROP TABLE t2;
 #
+# Bug#30271792 "SERVER CRASH DURING ALTER TABLER ADD COLUMN IN
+#               DIAGNOSTICS_AREA::SET_OK_STATUS".
+#
+CREATE TEMPORARY TABLE t1 (pk INT PRIMARY KEY);
+# The below ALTER TABLE should not fail on assert.
+# Since the table is empty no erroneous default value is
+# evaluated so there is no error either.
+ALTER TABLE t1 ADD COLUMN i INT DEFAULT ( "foobar" ), ALGORITHM=COPY;
+DROP TEMPORARY TABLE t1;
+#
 # Bug#29596969: DEFAULT EXPRESSION IS IGNORED IN CREATE TABLE QUERY,
 # IF THE FIELD IS MARKED AS PK
 #
