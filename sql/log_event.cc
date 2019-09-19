@@ -868,11 +868,17 @@ bool Replicated_columns_view::is_inbound_filtering_enabled() {
 bool Replicated_columns_view::inbound_filtering(TABLE const *table,
                                                 size_t column_index) {
   if (!this->is_inbound_filtering_enabled()) return false;
+  // If the set of filtered columns is changed, we need to replicate the change
+  // in other blocks that reproduce the behavior - Rapid binlog parser, for
+  // instance.
   return bitmap_is_set(&table->fields_for_functional_indexes, column_index);
 }
 
 bool Replicated_columns_view::outbound_filtering(TABLE const *table,
                                                  size_t column_index) {
+  // If the set of filtered columns is changed, we need to replicate the change
+  // in other blocks that reproduce the behavior - Rapid binlog parser, for
+  // instance.
   return bitmap_is_set(&table->fields_for_functional_indexes, column_index);
 }
 #endif
