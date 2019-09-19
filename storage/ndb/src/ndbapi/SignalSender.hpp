@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,8 +76,14 @@ private:
 
 class SignalSender  : public trp_client {
 public:
-  SignalSender(TransporterFacade *facade, int blockNo = -1);
-  SignalSender(Ndb_cluster_connection* connection);
+  /**
+   * deliverAll option set to true also delivers signals which may be
+   * frequent.
+   * Care should be taken to ensure that these are handled promptly to
+   * avoid excessive buffering
+   */
+  SignalSender(TransporterFacade *facade, int blockNo = -1, bool deliverAll = false);
+  SignalSender(Ndb_cluster_connection* connection, bool deliverAll = false);
   virtual ~SignalSender();
   
   int lock();
@@ -107,6 +113,7 @@ private:
   int m_blockNo;
   TransporterFacade * theFacade;
   bool m_locked;
+  bool m_deliverAll;
   
 public:
   /**

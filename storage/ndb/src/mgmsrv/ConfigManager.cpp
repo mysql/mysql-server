@@ -1812,7 +1812,9 @@ void
 ConfigManager::set_facade(TransporterFacade * f)
 {
   m_facade = f;
-  m_ss = new SignalSender(f, MGM_CONFIG_MAN);
+  m_ss = new SignalSender(f,
+                          MGM_CONFIG_MAN,  // blockNum
+                          true);           // deliverAll
   require(m_ss != 0);
 }
 
