@@ -435,6 +435,7 @@ class SEL_ARG;
 class SEL_ROOT;
 
 typedef Prealloced_array<QUICK_RANGE *, 16> Quick_ranges;
+typedef Prealloced_array<Quick_ranges *, 16> Quick_ranges_array;
 
 /*
   MRR range sequence, array<QUICK_RANGE> implementation: sequence traversal
@@ -466,11 +467,13 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   friend bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick,
                              KEY_PART *key, SEL_ARG *key_tree, uchar *min_key,
                              uint min_key_flag, uchar *max_key,
-                             uint max_key_flag, uint *desc_flag);
+                             uint max_key_flag, uint *desc_flag,
+                             uint num_key_parts);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM *, uint idx,
                                               SEL_ROOT *key_tree,
                                               uint mrr_flags, uint mrr_buf_size,
-                                              MEM_ROOT *alloc);
+                                              MEM_ROOT *alloc,
+                                              uint num_key_parts);
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param, uint n_ranges,
                                           uint flags);
@@ -895,10 +898,18 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   bool seen_first_key;         /* Denotes whether the first key was retrieved.*/
   KEY_PART_INFO *min_max_arg_part; /* The keypart of the only argument field */
                                    /* of all MIN/MAX functions.              */
-  uint min_max_arg_len; /* The length of the MIN/MAX argument field */
-  uchar *key_infix;     /* Infix of constants from equality predicates. */
+  uint min_max_arg_len;     /* The length of the MIN/MAX argument field */
+  bool min_max_keypart_asc; /* TRUE if min_max key part is ascending. */
   uint key_infix_len;
+  uint key_infix_parts; /* Indicates the number infix attributes */
+  // The current infix range position (in key_infix_ranges) used for row
+  // retrieval.
+  uint cur_infix_range_position[MAX_REF_PARTS];
+  // Indicates if all infix ranges have been used to retrieve rows (all ranges
+  // in key_infix_ranges)
+  bool seen_all_infix_ranges;
   Quick_ranges min_max_ranges; /* Array of range ptrs for the MIN/MAX field. */
+  Quick_ranges_array key_infix_ranges; /* Array of key infix range arrays.   */
   uint real_prefix_len; /* Length of key prefix extended with key_infix. */
   uint real_key_parts;  /* A number of keyparts in the above value.      */
   List<Item_sum> *min_functions;
@@ -910,10 +921,6 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
     through index read
   */
   bool is_index_scan;
-  /**
-    Whether used part of the index has desc key parts
-  */
-  bool has_desc_keyparts;
 
  public:
   /*
@@ -925,12 +932,14 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   *quick_prefix_select; /* For retrieval of group prefixes. */
  private:
   int next_prefix();
+  bool append_next_infix();
+  void reset_group();
   int next_min_in_range();
   int next_max_in_range();
   int next_min();
   int next_max();
-  void update_min_result(bool reset);
-  void update_max_result(bool reset);
+  void update_min_result(bool *reset);
+  void update_max_result(bool *reset);
 
  public:
   QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join, bool have_min,
@@ -940,10 +949,9 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
                              uint used_key_parts, KEY *index_info,
                              uint use_index, const Cost_estimate *cost_est,
                              ha_rows records, uint key_infix_len,
-                             uchar *key_infix, MEM_ROOT *parent_alloc,
-                             bool is_index_scan);
+                             MEM_ROOT *parent_alloc, bool is_index_scan);
   ~QUICK_GROUP_MIN_MAX_SELECT();
-  bool add_range(SEL_ARG *sel_range);
+  bool add_range(SEL_ARG *sel_range, int idx);
   void update_key_stat();
   void adjust_prefix_ranges();
   int init();
