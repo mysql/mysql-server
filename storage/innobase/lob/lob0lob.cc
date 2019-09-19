@@ -1399,6 +1399,11 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 
 dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
                                      const upd_t *update, mtr_t *mtr) {
+  if (!index->is_clustered()) {
+    /* Only clustered index can have LOBs. */
+    return (DB_SUCCESS);
+  }
+
   const ulint n_fields = upd_get_n_fields(update);
 
   for (ulint i = 0; i < n_fields; i++) {
@@ -1408,9 +1413,13 @@ dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
       continue;
     }
 
-    const dfield_t *field = &ufield->new_val;
+    if (ufield->is_virtual()) {
+      continue;
+    }
 
-    if (ufield->ext_in_old && !dfield_is_ext(field)) {
+    const dfield_t *new_field = &ufield->new_val;
+
+    if (ufield->ext_in_old && !dfield_is_ext(new_field)) {
       const dfield_t *old_field = &ufield->old_val;
       byte *field_ref = old_field->blobref();
       ref_t ref(field_ref);

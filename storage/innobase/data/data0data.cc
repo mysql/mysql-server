@@ -750,8 +750,8 @@ std::ostream &dfield_t::print(std::ostream &out) const {
     out << ref;
   }
 
-  out << ", spatial_status=" << spatial_status << ", len=" << len << ", type="
-      << "]";
+  out << ", spatial_status=" << spatial_status << ", len=" << len
+      << ", type=" << type << "]";
 
   return (out);
 }

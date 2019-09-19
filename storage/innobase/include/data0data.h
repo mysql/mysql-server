@@ -650,6 +650,8 @@ struct dfield_t {
   unsigned len; /*!< data length; UNIV_SQL_NULL if SQL null */
   dtype_t type; /*!< type of data */
 
+  bool is_virtual() const { return (type.is_virtual()); }
+
   void reset() {
     data = nullptr;
     ext = FALSE;
