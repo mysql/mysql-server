@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,8 +121,9 @@ SimpleSignal::print(FILE * out) const {
   }
 }
 
-SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
+SignalSender::SignalSender(TransporterFacade *facade, int blockNo, bool deliverAll)
 {
+  m_deliverAll = deliverAll;
   theFacade = facade;
   Uint32 res = open(theFacade, blockNo);
   assert(res != 0);
@@ -130,8 +131,9 @@ SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
   m_locked = false;
 }
 
-SignalSender::SignalSender(Ndb_cluster_connection* connection)
+SignalSender::SignalSender(Ndb_cluster_connection* connection, bool deliverAll)
 {
+  m_deliverAll = deliverAll;
   theFacade = connection->m_impl.m_transporter_facade;
   Uint32 res = open(theFacade, -1);
   assert(res != 0);
@@ -316,6 +318,18 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
     theFacade->perform_close_clnt(this);
     return;
   }
+  if (!m_deliverAll)
+  {
+    const Uint32 gsn = signal->readSignalNumber();
+    if (gsn == GSN_SUB_GCP_COMPLETE_REP ||
+        gsn == GSN_API_REGCONF ||
+        gsn == GSN_API_REGREQ)
+    {
+      /* Low level repetitive signal, skip it */
+      return;
+    }
+  }
+
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
   for(Uint32 i = 0; i<s->header.m_noOfSections; i++){
