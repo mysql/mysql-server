@@ -100,7 +100,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED NOT NULL,
   PRIMARY KEY (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 alter table t1 add column c int generated always as (a+2) stored primary key;
 ERROR 42000: Multiple primary key defined
 drop table t1;
@@ -114,7 +114,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -127,7 +127,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -147,7 +147,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t2;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -169,7 +169,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -191,7 +191,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 create table t1 (a int, b int generated always as (a % 2) virtual);
 alter table t1 modify b int generated always as (a % 2) stored references t2(a);
@@ -201,7 +201,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 drop table t2;
 FK options
@@ -224,7 +224,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -236,7 +236,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -249,7 +249,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -262,7 +262,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((5 * 2)) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 describe t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
@@ -296,6 +296,8 @@ ERROR HY000: Generated column 'col_int_nokey' cannot refer to auto-increment col
 create table t1 (a int, b int generated always as(-a) virtual, c int generated always as (b + 1) stored);
 insert into t1(a) values(1),(2);
 create table tt as select * from t1;
+Warnings:
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 select * from t1 order by a;
 a	b	c
 1	-1	0
@@ -337,7 +339,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
   `c` varchar(12) GENERATED ALWAYS AS (_utf8mb4'aaaabb') STORED,
   `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM t1 order by a;
 a	b	c	d
 1	2	aaaabb	aaaabb
@@ -350,10 +352,11 @@ t2	CREATE TABLE `t2` (
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
   `c` varchar(12) GENERATED ALWAYS AS (_utf8mb4'aaaabb') STORED,
   `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 CREATE TABLE t3 AS SELECT * FROM t1;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -361,7 +364,7 @@ t3	CREATE TABLE `t3` (
   `b` int(11) DEFAULT NULL,
   `c` varchar(12) DEFAULT NULL,
   `d` blob
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM t3 order by a;
 a	b	c	d
 1	2	aaaabb	aaaabb
@@ -369,13 +372,14 @@ a	b	c	d
 CREATE TABLE t4 AS SELECT b,c,d FROM t1;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `b` int(11) DEFAULT NULL,
   `c` varchar(12) DEFAULT NULL,
   `d` blob
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM t4 order by b;
 b	c	d
 2	aaaabb	aaaabb
@@ -412,6 +416,8 @@ INSERT INTO t2 values(1);
 CREATE TABLE t1 (c1 INT, c2 INT AS (c1 * 2)) SELECT 1 AS c1, a AS c2 from t2;
 ERROR HY000: The value specified for generated column 'c2' in table 't1' is not allowed.
 CREATE TABLE t1 (c1 INT, c2 INT AS (c1 * 2)) SELECT 1 AS c1, 5;
+Warnings:
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 SELECT * FROM t1;
 c2	c1	5
 2	1	5
@@ -440,7 +446,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS (_utf8mb4'foo bar') VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE t1;
 CREATE TABLE t1 (i INT);
 ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar");
@@ -452,7 +458,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS (_utf8mb4'foo bar') VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE t1;
 CREATE TABLE t1 (i INT COLLATE utf8_bin, c INT COLLATE utf8_bin GENERATED ALWAYS AS (10));
 Warnings:
@@ -463,7 +469,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   `c` int(11) GENERATED ALWAYS AS (10) VIRTUAL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE t1;
 # Check for a charset mismatch processing:
 CREATE TABLE t1 (t CHAR(10) CHARACTER SET utf8 COLLATE ascii_bin GENERATED ALWAYS AS ("foo bar"));

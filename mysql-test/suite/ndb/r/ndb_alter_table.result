@@ -484,7 +484,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL DEFAULT '0',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 alter table t1 alter b set default 1;
 show create table t1;
 Table	Create Table
@@ -493,7 +493,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL DEFAULT '1',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 create table t1 (a int not null, b int not null) engine=ndb;
 insert into t1 values (1, 300), (2, 200), (3, 100);
@@ -667,7 +667,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `value` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='comment1'
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1 comment1'
 /*!50100 PARTITION BY KEY (id) */
 DROP TABLE t1;
 #test alter table with and without ENGINE clause
@@ -678,7 +678,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 /*!50100 PARTITION BY KEY (id) */
 DROP TABLE t1;
 CREATE TABLE t1(id INT, PRIMARY KEY(id)) ENGINE=NDB CHARSET=latin1;
@@ -688,7 +688,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 /*!50100 PARTITION BY KEY (id) */
 DROP TABLE t1;
 bug#24577931 table comment is case sensitive
@@ -717,7 +717,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 id Int NOT NULL AT=FIXED ST=MEMORY

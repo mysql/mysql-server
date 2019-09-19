@@ -14,7 +14,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   KEY `b_2` (`b`,`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
@@ -26,7 +26,7 @@ t5	CREATE TABLE `t5` (
   PRIMARY KEY (`c`,`b`,`a`,`d`),
   KEY `d` (`d`),
   KEY `c` (`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 RENAME TABLE t2 to t2_temp_name, t5 to t2, t2_temp_name to t5;
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -39,7 +39,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`c`,`b`,`a`,`d`),
   KEY `d` (`d`),
   KEY `c` (`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
@@ -49,7 +49,7 @@ t5	CREATE TABLE `t5` (
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   KEY `b_2` (`b`,`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 == verify_mysql_dd.inc ==
 USE ndb_ddl_test;
 RENAME TABLE t5 to t50, t50 to t500, t500 to t2;
@@ -65,7 +65,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`c`,`b`,`a`,`d`),
   KEY `d` (`d`),
   KEY `c` (`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
@@ -75,5 +75,5 @@ t5	CREATE TABLE `t5` (
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   KEY `b_2` (`b`,`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 == verify_mysql_dd.inc ==

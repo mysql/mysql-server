@@ -8603,6 +8603,8 @@ SELECT JSON_QUOTE('table') AS field1;
 field1
 "table"
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+Warnings:
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 SELECT * FROM t;
 field1
 "table"
@@ -8614,6 +8616,8 @@ SELECT JSON_UNQUOTE( '"table"' ) AS field1;
 field1
 table
 CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+Warnings:
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 SELECT * FROM t1;
 field1
 table
@@ -8631,6 +8635,8 @@ SELECT JSON_QUOTE('table') AS field1;
 field1
 "table"
 CREATE TABLE t SELECT JSON_QUOTE('table') AS field1;
+Warnings:
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 SELECT * FROM t;
 field1
 "table"
@@ -8642,6 +8648,8 @@ SELECT JSON_UNQUOTE( '"table"' ) AS field1;
 field1
 table
 CREATE TABLE t1 SELECT JSON_unquote( '"table"' ) AS field1;
+Warnings:
+Warning	1296	Got error 4502 'Table property is READ_BACKUP=1, but not in comment' from NDB
 SELECT * FROM t1;
 field1
 table

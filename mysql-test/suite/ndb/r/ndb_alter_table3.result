@@ -70,7 +70,7 @@ t2	CREATE TABLE `t2` (
   KEY `fk2` (`b`),
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #create an index on t2(a) using 'create index'
 create index id1 on t2(a);
 #verify that the implicit key on col `a` is gone now and fk is intact.
@@ -85,7 +85,7 @@ t2	CREATE TABLE `t2` (
   KEY `id1` (`a`),
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
 insert into t2 values (1,10,100), (2,20,200);
 insert into t2 values (5,50,500);
@@ -109,7 +109,7 @@ t2	CREATE TABLE `t2` (
   KEY `id1` (`a`),
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #verify that the fks are intact in t2 and t3
 insert into t2 values (3,30,300), (4,40,400);
 insert into t2 values (5,50,500);

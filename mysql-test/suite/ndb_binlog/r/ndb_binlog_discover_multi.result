@@ -33,12 +33,12 @@ t1	CREATE TABLE `t1` (
   `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(16) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 show create table test_db.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 # Insert into tables and check binlog
 insert into t1 (b) values('String to find');
 # Wait for the row to be committed to binlog

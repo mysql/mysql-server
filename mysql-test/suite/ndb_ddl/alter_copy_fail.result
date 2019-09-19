@@ -14,7 +14,7 @@ t8	CREATE TABLE `t8` (
   `c` datetime NOT NULL,
   `d` int(10) unsigned DEFAULT NULL,
   `e` int(11) NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM t8 ORDER BY a;
 a	b	c	d	e
 1	1-t8	2017-10-20 09:13:01	NULL	1
@@ -38,7 +38,7 @@ t8	CREATE TABLE `t8` (
   `c` datetime NOT NULL,
   `d` int(10) unsigned DEFAULT NULL,
   `e` int(11) NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0
@@ -53,7 +53,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 set debug='+d,ndb_simulate_alter_failure_rename1';
 ALTER TABLE t1
 ADD COLUMN c INT,
@@ -68,7 +68,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0
@@ -95,7 +95,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 == verify_mysql_dd.inc ==
 Number of tables with temp name in NDB
 0

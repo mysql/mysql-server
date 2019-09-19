@@ -216,7 +216,7 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`a`),
   KEY `d` (`d`),
   KEY `f` (`f`)
-) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM test.t order by a;
 a	b	c	d	e	f
 1	2	3	aaa1	bbb1	ccccc1

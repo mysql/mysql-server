@@ -40,7 +40,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 "--- Insert into t1 --" as "";
@@ -114,7 +114,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
 --- Perform basic operation on master ---
 --- and ensure replicated correctly --- 
 "--- Insert into t1 --" as "";

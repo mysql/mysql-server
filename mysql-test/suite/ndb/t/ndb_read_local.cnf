@@ -1,5 +1,6 @@
 !include ../my.cnf
-
+[mysqld]
+ndb-read-backup=0
 [cluster_config.1]
 ndbd=,,,,,
 ndb_mgmd=

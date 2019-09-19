@@ -59,7 +59,7 @@ show create table create_db.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 show create table create_db.t2;
 ERROR 42S02: Table 'create_db.t2' doesn't exist
 # Verify that the database alter_db1 were properly altered
@@ -89,7 +89,7 @@ show create table restore_db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 # restore_db2 was dropped when both mysqlds were alive
 # so it would have been discovered with default charset
 show create database restore_db2;
@@ -99,7 +99,7 @@ show create table restore_db2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 # restore_db3 was dropped when server1 was down
 # when server1 came up, it should have been
 # preserved the database with previous setting
@@ -110,7 +110,7 @@ show create table restore_db3.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 #
 # Cleanup
 #

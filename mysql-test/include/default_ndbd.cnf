@@ -1,4 +1,3 @@
-
 [cluster_config]
 #UseShm= 1
 MaxNoOfSavedMessages=          1000

@@ -143,7 +143,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`),
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`),
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 create table t2 (
 a int primary key,
 b int not null,
@@ -166,7 +166,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`),
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`),
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 set @@ndb_show_foreign_key_mock_tables= 1;
 show create table t1;
 Table	Create Table
@@ -183,7 +183,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `t2` (`b`),
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `t3` (`b`),
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `t4` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 set @@ndb_show_foreign_key_mock_tables= 0;
 drop table t1, t2;
 #
@@ -743,7 +743,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk1`),
   KEY `b` (`b`),
   CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t3;
 create table t2 (
 pk2 int not null primary key,
@@ -791,7 +791,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
   CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 #
 # Truncating referenced table -> not allowed
@@ -863,7 +863,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
   CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1, t2;
 #
 # Truncate with multiple foreign keys
@@ -906,7 +906,7 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_fk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`),
   CONSTRAINT `t1_fk_3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`),
   CONSTRAINT `t1_fk_4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1, t2;
 #
 # Create child table referencing mock parent, insert data and

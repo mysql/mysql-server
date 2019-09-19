@@ -46,7 +46,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -138,7 +138,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;
@@ -455,7 +455,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
 --- Show table on slave ---
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -547,7 +547,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
 --- Make sure that our tables on slave are still same engine ---
 --- and that the alter statements replicated correctly ---
 SHOW CREATE TABLE t1;

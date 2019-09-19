@@ -35,7 +35,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 # test defaults
 insert into t1 (a) values (0);
 select * from t1;
@@ -105,7 +105,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1105949732775
@@ -162,7 +162,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 # restore data from backup
 # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;

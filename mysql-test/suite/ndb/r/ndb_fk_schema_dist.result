@@ -42,7 +42,7 @@ parent	CREATE TABLE `parent` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #restore fk for further testing
@@ -67,7 +67,7 @@ parent	CREATE TABLE `parent` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #Testing create table
@@ -108,7 +108,7 @@ parent	CREATE TABLE `parent` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #setup for child referring multiple parents
@@ -121,7 +121,7 @@ child	CREATE TABLE `child` (
   `ref` int(11) DEFAULT NULL,
   KEY `fk2` (`ref`),
   CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 alter table child
 drop foreign key fk2,
 add constraint fk1 foreign key (ref) references parent(a);
@@ -151,7 +151,7 @@ parent	CREATE TABLE `parent` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #altering column in parent2 should fail with error
@@ -191,7 +191,7 @@ parent	CREATE TABLE `parent` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #altering column in parent2 should also pass
@@ -229,7 +229,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
   UNIQUE KEY `a` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #restore parent to old definition
 alter table parent change column a a int;
 #cleanup

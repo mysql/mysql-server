@@ -744,5 +744,5 @@ categorylinks	CREATE TABLE `categorylinks` (
   KEY `cl_timestamp` (`cl_to`,`cl_timestamp`),
   KEY `cl_collation` (`cl_collation`),
   KEY `cl_sortkey` (`cl_to`,`cl_type`,`cl_sortkey`,`cl_from`)
-) ENGINE=ndbcluster DEFAULT CHARSET=binary
+) ENGINE=ndbcluster DEFAULT CHARSET=binary COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE categorylinks;

@@ -23,7 +23,7 @@ self_ref	CREATE TABLE `self_ref` (
   UNIQUE KEY `ix` (`i`),
   KEY `fk_j_unique_i` (`j`),
   CONSTRAINT `fk_j_unique_i` FOREIGN KEY (`j`) REFERENCES `self_ref` (`i`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE self_ref;
 # A self referencing FK can use the supporting index as parent index
 # if it is unique.
@@ -40,7 +40,7 @@ self_ref	CREATE TABLE `self_ref` (
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ix` (`i`),
   CONSTRAINT `fk_i_unique_i` FOREIGN KEY (`i`) REFERENCES `self_ref` (`i`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE self_ref;
 # But not if it's not unique.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
@@ -64,7 +64,7 @@ self_ref	CREATE TABLE `self_ref` (
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`),
   CONSTRAINT `fk_ij_unique_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref` (`j`, `i`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 CREATE TABLE self_ref_hash(pk INT PRIMARY KEY, i INT, j INT,
 UNIQUE INDEX ijx(i, j) USING HASH,
 CONSTRAINT fk_ij_unique_hash_ji FOREIGN KEY (i, j)
@@ -81,7 +81,7 @@ self_ref_hash	CREATE TABLE `self_ref_hash` (
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`) USING HASH,
   CONSTRAINT `fk_ij_unique_hash_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref_hash` (`j`, `i`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 CREATE TABLE self_ref_btree(pk INT PRIMARY KEY, i INT, j INT,
 UNIQUE INDEX ijx(i, j) USING BTREE,
 CONSTRAINT fk_ij_unique_btree_ji FOREIGN KEY (i, j)
@@ -96,7 +96,7 @@ self_ref_btree	CREATE TABLE `self_ref_btree` (
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`) USING BTREE,
   CONSTRAINT `fk_ij_unique_btree_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref_btree` (`j`, `i`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLES self_ref, self_ref_hash, self_ref_btree;
 # If there is an index with the same columns as the FK, but in
 # different order, a supporting key will be created.
@@ -115,7 +115,7 @@ self_ref	CREATE TABLE `self_ref` (
   UNIQUE KEY `ijx` (`j`,`i`),
   KEY `fk_ij_diff_order_ji` (`i`,`j`),
   CONSTRAINT `fk_ij_diff_order_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref` (`j`, `i`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE self_ref;
 #
 # Additional coverage for bug#25722927 "NEWDD FK: ALTER TABLE CHANGE
@@ -486,7 +486,7 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `e` FOREIGN KEY (`fk4`) REFERENCES `t1` (`id`),
   CONSTRAINT `t2_fk_1` FOREIGN KEY (`fk1`) REFERENCES `t1` (`id`),
   CONSTRAINT `t2_fk_2` FOREIGN KEY (`fk3`) REFERENCES `t1` (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE TABLE_NAME = 't2' ORDER BY CONSTRAINT_NAME;
 CONSTRAINT_NAME
@@ -524,7 +524,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `c1` FOREIGN KEY (`fk1`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`fk2`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME
@@ -560,7 +560,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME
@@ -603,7 +603,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_4` FOREIGN KEY (`fk6`) REFERENCES `parent` (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME
@@ -646,7 +646,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_11` FOREIGN KEY (`fk8`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME
@@ -690,7 +690,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_12` FOREIGN KEY (`fk9`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME
@@ -737,7 +737,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME
@@ -785,7 +785,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_fk_12` FOREIGN KEY (`fk10`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_2` FOREIGN KEY (`fk3`) REFERENCES `parent` (`pk`),
   CONSTRAINT `child_fk_3` FOREIGN KEY (`fk4`) REFERENCES `parent` (`pk`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE constraint_schema='test' AND table_name='child' ORDER BY constraint_name ASC;
 CONSTRAINT_NAME

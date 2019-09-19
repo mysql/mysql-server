@@ -48,7 +48,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -164,7 +164,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 e Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -193,7 +193,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -239,7 +239,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -355,7 +355,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 e Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -384,7 +384,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -431,7 +431,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -547,7 +547,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 e Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -576,7 +576,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -624,7 +624,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -740,7 +740,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 e Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -769,7 +769,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -847,7 +847,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC
@@ -965,7 +965,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 e Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -994,7 +994,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY DYNAMIC

@@ -20,7 +20,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -51,7 +51,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -83,7 +83,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -114,7 +114,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -159,7 +159,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -191,7 +191,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -244,7 +244,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -276,7 +276,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -308,7 +308,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -363,7 +363,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -396,7 +396,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`c1`, `b1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -435,7 +435,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`b1`, `c1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -468,7 +468,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`, `c2`) REFERENCES `t1` (`b1`, `c1`)
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 
 ndb_show_tables completed.....
 
@@ -516,7 +516,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table db2.t1;
 # restore particular table and check for fk problem
 # verify the tables present
@@ -525,13 +525,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 show create table db2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table db1.t1, db2.t1;
 # verify that restoring table with FK whose parent doesn't exist, fails
 # cleanup
