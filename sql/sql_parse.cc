@@ -5483,8 +5483,11 @@ bool Alter_info::add_field(
     }
   }
 
-  // Avoid having sequential definitions for DEFAULT in combination with expr
-  if (default_val_expr && default_value) {
+  // 1) Reject combinations of DEFAULT <value> and DEFAULT (<expression>).
+  // 2) Reject combinations of DEFAULT (<expression>) and AUTO_INCREMENT.
+  // (Combinations of DEFAULT <value> and AUTO_INCREMENT are rejected above.)
+  if ((default_val_expr && default_value) ||
+      (default_val_expr && (type_modifier & AUTO_INCREMENT_FLAG))) {
     my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
     return true;
   }
