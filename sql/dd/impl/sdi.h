@@ -71,25 +71,33 @@ typedef String_type Sdi_type;
   ----------------------------------------------------------------------------
   Initial version.
 
-  80016: Current
+
+  80016: Published in 8.0.16
   ----------------------------------------------------------------------------
   Changes from version 1:
 
   - Bug#29210646: DD::INDEX_IMPL::M_HIDDEN NOT INCLUDED IN SDI
 
 
-  800XX: Next SDI version number after the previous is public. The next
-         server version > 80016 where a change to the SDI JSON format is made.
+  80019: Current
   ----------------------------------------------------------------------------
   Changes from version 80016:
 
-  - No changes, this version number is not active yet.
+  - Bug#30326020: SUBPARTITIONING NOT REFLECTED IN SDI
 
+
+  800XX: Next SDI version number after the previous is public. The next
+         server version > current SDI version where a change to the SDI
+         JSON format is made.
+  ----------------------------------------------------------------------------
+  Changes from current version:
+
+  - No changes, this version number is not active yet.
 
   If a new SDI version is published in a MRU, it will not
   be possible to import this version into previous MRUs within the same GA.
 */
-constexpr const std::uint64_t SDI_VERSION = 80016;
+constexpr const std::uint64_t SDI_VERSION = 80019;
 
 /**
   @defgroup serialize_api (De)serialize api functions.

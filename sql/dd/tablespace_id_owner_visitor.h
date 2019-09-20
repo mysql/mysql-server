@@ -65,7 +65,7 @@ bool visit_tablespace_id_owners(const Table &t, VISITOR_TYPE &&visitor) {
     }
 
     // Visit subpartitions, if any
-    for (const Partition *sp : p->sub_partitions()) {
+    for (const Partition *sp : p->subpartitions()) {
       if (visitor(*sp)) {
         return true;
       }

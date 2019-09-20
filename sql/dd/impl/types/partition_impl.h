@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -246,14 +246,14 @@ class Partition_impl : public Entity_object_impl, public Partition {
   // Sub Partition collection.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Partition *add_sub_partition();
+  virtual Partition *add_subpartition();
 
-  virtual const Table::Partition_collection &sub_partitions() const {
-    return m_sub_partitions;
+  virtual const Table::Partition_collection &subpartitions() const {
+    return m_subpartitions;
   }
 
-  virtual Table::Partition_collection *sub_partitions() {
-    return &m_sub_partitions;
+  virtual Table::Partition_collection *subpartitions() {
+    return &m_subpartitions;
   }
 
   virtual const Partition *parent() const { return m_parent; }
@@ -316,7 +316,7 @@ class Partition_impl : public Entity_object_impl, public Partition {
 
   Partition_values m_values;
   Partition_indexes m_indexes;
-  Table::Partition_collection m_sub_partitions;
+  Table::Partition_collection m_subpartitions;
 
   // References to loosely-coupled objects.
 

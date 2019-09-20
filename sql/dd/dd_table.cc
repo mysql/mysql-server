@@ -1716,7 +1716,7 @@ static bool fill_dd_partition_from_create_info(
           partition_element *sub_elem;
           uint sub_part_num = 0;
           while ((sub_elem = sub_it++)) {
-            dd::Partition *sub_obj = part_obj->add_sub_partition();
+            dd::Partition *sub_obj = part_obj->add_subpartition();
 
             sub_obj->set_engine(tab_obj->engine());
             if (sub_elem->part_comment)

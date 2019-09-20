@@ -288,7 +288,72 @@
                         "value_utf8": "200"
                     }
                 ],
-                "indexes": []
+                "indexes": [],
+                "subpartitions": [
+                    {
+                        "name": "p11", "decoded-name": "§]",
+                        "parent_partition_id": 5,
+                        "number": 0,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p1#sp#p11"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p12", "decoded-name": "§]",
+                        "parent_partition_id": 5,
+                        "number": 1,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p1#sp#p12"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p13", "decoded-name": "§]",
+                        "parent_partition_id": 5,
+                        "number": 2,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p1#sp#p13"
+                            }
+                        ],
+                        "subpartitions": []
+                    }
+                ]
             },
             {
                 "name": "p2",
@@ -309,7 +374,72 @@
                         "value_utf8": "600"
                     }
                 ],
-                "indexes": []
+                "indexes": [],
+                "subpartitions": [
+                    {
+                        "name": "p21", "decoded-name": "§m",
+                        "parent_partition_id": 9,
+                        "number": 0,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p2#sp#p21"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p22", "decoded-name": "§m",
+                        "parent_partition_id": 9,
+                        "number": 1,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p2#sp#p22"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p23", "decoded-name": "§m",
+                        "parent_partition_id": 9,
+                        "number": 2,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p2#sp#p23"
+                            }
+                        ],
+                        "subpartitions": []
+                    }
+                ]
             },
             {
                 "name": "p3",
@@ -330,7 +460,72 @@
                         "value_utf8": "1800"
                     }
                 ],
-                "indexes": []
+                "indexes": [],
+                "subpartitions": [
+                    {
+                        "name": "p31", "decoded-name": "§}",
+                        "parent_partition_id": 13,
+                        "number": 0,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p3#sp#p31"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p32", "decoded-name": "§}",
+                        "parent_partition_id": 13,
+                        "number": 1,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p3#sp#p32"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p33", "decoded-name": "§}",
+                        "parent_partition_id": 13,
+                        "number": 2,
+                        "se_private_id":NNN,
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                                "index_opx": 0,
+                                "tablespace_ref": "test/t18_#p#p3#sp#p33"
+                            }
+                        ],
+                        "subpartitions": []
+                    }
+                ]
             }
         ],
         "collation_id": 255
