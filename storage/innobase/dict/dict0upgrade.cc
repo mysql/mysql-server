@@ -29,7 +29,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_show.h>
 #include <sql_table.h>
 #include <sql_tablespace.h>
+
+#include <algorithm>
 #include <regex>
+
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -780,7 +783,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                                    &read_auto_inc);
           ++processed_indexes_num;
           if (has_auto_inc) {
-            set_if_bigger(max_auto_inc, read_auto_inc);
+            max_auto_inc = std::max(max_auto_inc, read_auto_inc);
           }
           break;
         }

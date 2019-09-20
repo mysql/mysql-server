@@ -3918,8 +3918,8 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
       while ((item_equal = it++)) {
         if (item_equal->resolve_type(thd)) return true;
         item_equal->update_used_tables();
-        set_if_bigger(thd->lex->current_select()->max_equal_elems,
-                      item_equal->members());
+        thd->lex->current_select()->max_equal_elems = std::max(
+            thd->lex->current_select()->max_equal_elems, item_equal->members());
       }
 
       Item_cond_and *const item_cond_and = down_cast<Item_cond_and *>(cond);
@@ -3974,8 +3974,9 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
         if ((item_equal = cond_equal.current_level.pop())) {
           if (item_equal->resolve_type(thd)) return true;
           item_equal->update_used_tables();
-          set_if_bigger(thd->lex->current_select()->max_equal_elems,
-                        item_equal->members());
+          thd->lex->current_select()->max_equal_elems =
+              std::max(thd->lex->current_select()->max_equal_elems,
+                       item_equal->members());
           *retcond = item_equal;
           return false;
         }
@@ -3996,8 +3997,9 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
         while ((item_equal = it++)) {
           if (item_equal->resolve_type(thd)) return true;
           item_equal->update_used_tables();
-          set_if_bigger(thd->lex->current_select()->max_equal_elems,
-                        item_equal->members());
+          thd->lex->current_select()->max_equal_elems =
+              std::max(thd->lex->current_select()->max_equal_elems,
+                       item_equal->members());
         }
         and_cond->cond_equal = cond_equal;
         args->concat((List<Item> *)&cond_equal.current_level);
@@ -10908,7 +10910,7 @@ void JOIN::refine_best_rowcount() {
     as an estimate. If LIMIT 1 is specified, the query block will be
     considered "const", with actual row count 0 or 1.
   */
-  set_if_smaller(best_rowcount, unit->select_limit_cnt);
+  best_rowcount = std::min(best_rowcount, unit->select_limit_cnt);
 }
 
 List<Item> *JOIN::get_current_fields() {

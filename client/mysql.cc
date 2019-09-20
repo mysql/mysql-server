@@ -2014,7 +2014,7 @@ bool get_one_option(int optid,
     case 'B':
       status.batch = true;
       status.add_to_history = false;
-      set_if_bigger(opt_silent, 1);  // more silent
+      opt_silent = std::max(opt_silent, 1U);  // more silent
       break;
     case 'W':
 #ifdef _WIN32

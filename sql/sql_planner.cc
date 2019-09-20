@@ -596,7 +596,7 @@ Key_use *Optimize_table_order::find_best_ref(
                     (keyinfo->user_defined_key_parts - 1);
               else
                 tmp_fanout = a;
-              set_if_bigger(tmp_fanout, 1.0);
+              tmp_fanout = std::max(tmp_fanout, 1.0);
             }
             cur_fanout = (ulong)tmp_fanout;
           }
@@ -630,7 +630,8 @@ Key_use *Optimize_table_order::find_best_ref(
         }
 
         // Limit the number of matched rows
-        set_if_smaller(tmp_fanout, (double)thd->variables.max_seeks_for_key);
+        tmp_fanout =
+            std::min(tmp_fanout, double(thd->variables.max_seeks_for_key));
         if (table->covering_keys.is_set(key)) {
           // We can use only index tree
           const Cost_estimate index_read_cost =

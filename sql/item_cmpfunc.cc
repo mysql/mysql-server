@@ -3697,11 +3697,11 @@ bool Item_func_case::resolve_type(THD *thd) {
 uint Item_func_case::decimal_precision() const {
   int max_int_part = 0;
   for (uint i = 0; i < ncases; i += 2)
-    set_if_bigger(max_int_part, args[i + 1]->decimal_int_part());
+    max_int_part = max(max_int_part, args[i + 1]->decimal_int_part());
 
   if (else_expr_num != -1)
-    set_if_bigger(max_int_part, args[else_expr_num]->decimal_int_part());
-  return min<uint>(max_int_part + decimals, DECIMAL_MAX_PRECISION);
+    max_int_part = max(max_int_part, args[else_expr_num]->decimal_int_part());
+  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
 }
 
 /**
@@ -7165,8 +7165,8 @@ Item *Item_func_eq::create_cast_if_needed(MEM_ROOT *mem_root,
 
   if (cast_to_decimal) {
     const int precision =
-        std::max(args[0]->decimal_precision(), args[1]->decimal_precision());
-    const int scale = std::max(args[0]->decimals, args[1]->decimals);
+        max(args[0]->decimal_precision(), args[1]->decimal_precision());
+    const int scale = max(args[0]->decimals, args[1]->decimals);
 
     return new (mem_root)
         Item_typecast_decimal(POS(), argument, precision, scale);
@@ -7184,8 +7184,8 @@ HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
           mem_root, join_condition->arguments()[1])),
       m_left_used_tables(join_condition->arguments()[0]->used_tables()),
       m_right_used_tables(join_condition->arguments()[1]->used_tables()),
-      m_max_character_length(std::max(m_left_extractor->max_char_length(),
-                                      m_right_extractor->max_char_length())) {}
+      m_max_character_length(max(m_left_extractor->max_char_length(),
+                                 m_right_extractor->max_char_length())) {}
 
 longlong Arg_comparator::extract_value_from_argument(THD *thd, Item *item,
                                                      bool left_argument,

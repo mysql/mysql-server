@@ -5183,7 +5183,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
               used_key_parts && used_key_parts <= actual_key_parts(keyinfo)
                   ? keyinfo->records_per_key(used_key_parts - 1)
                   : 1.0f;
-          set_if_bigger(rec_per_key, 1.0f);
+          rec_per_key = std::max(rec_per_key, 1.0f);
           /*
             With a grouping query each group containing on average
             rec_per_key records produces only one row that will
@@ -5226,7 +5226,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
                                    refkey_rows_estimate);
         rec_per_key =
             keyinfo->records_per_key(keyinfo->user_defined_key_parts - 1);
-        set_if_bigger(rec_per_key, 1.0f);
+        rec_per_key = std::max(rec_per_key, 1.0f);
         /*
           Here we take into account the fact that rows are
           accessed in sequences rec_per_key records in each.

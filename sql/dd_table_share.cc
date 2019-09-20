@@ -464,8 +464,9 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
       keyinfo->usable_key_parts = usable_parts;  // Filesort
 
-      set_if_bigger(share->max_key_length,
-                    keyinfo->key_length + keyinfo->user_defined_key_parts);
+      share->max_key_length =
+          std::max(share->max_key_length,
+                   keyinfo->key_length + keyinfo->user_defined_key_parts);
       share->total_key_length += keyinfo->key_length;
       /*
          MERGE tables do not have unique indexes. But every key could be
@@ -473,7 +474,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
          */
       if ((keyinfo->flags & HA_NOSAME) ||
           (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
-        set_if_bigger(share->max_unique_length, keyinfo->key_length);
+        share->max_unique_length =
+            std::max(share->max_unique_length, keyinfo->key_length);
 
       ++idx_it;
     }

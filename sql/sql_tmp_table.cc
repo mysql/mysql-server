@@ -1467,7 +1467,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     Push the LIMIT clause to the temporary table creation, so that we
     materialize only up to 'rows_limit' records instead of all result records.
   */
-  set_if_smaller(share->max_rows, rows_limit);
+  share->max_rows = std::min(share->max_rows, rows_limit);
   param->end_write_records = rows_limit;
 
   if (group && !unique_constraint_via_hash_field) {
@@ -2107,7 +2107,8 @@ static bool alloc_record_buffers(TABLE *table) {
                                            thd->variables.max_heap_table_size)
                                      : thd->variables.tmp_table_size) /
                                 share->reclength);
-  set_if_bigger(share->max_rows, 1);  // For dummy start options
+  share->max_rows =
+      std::max(share->max_rows, ha_rows(1));  // For dummy start options
 
   return false;
 }

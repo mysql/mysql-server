@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,8 +84,8 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
         adjust the records per key estimate for small tables. For an
         empty table we assume records per key is 1.
       */
-      set_if_smaller(rec_per_key_all,
-                     max(rec_per_key_t(table_rows) / 10, 1.0f));
+      rec_per_key_all =
+          std::min(rec_per_key_all, max(rec_per_key_t(table_rows) / 10, 1.0f));
     }
   }
 

@@ -23,6 +23,7 @@
 
 #include "sql/spatial.h"
 
+#include <algorithm>
 #include <cmath>  // isfinite
 #include <map>
 #include <memory>
@@ -3555,7 +3556,7 @@ bool Gis_geometry_collection::dimension(uint32 *res_dim,
     if (!(geom = scan_header_and_create(wkb, &buffer)) ||
         geom->dimension(&dim, wkb))
       return true;
-    set_if_bigger(*res_dim, dim);
+    *res_dim = std::max(*res_dim, dim);
   }
   return false;
 }

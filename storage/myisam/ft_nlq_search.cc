@@ -202,7 +202,7 @@ static int walk_and_push(void *v_from, uint32, void *v_best) {
   QUEUE *best = static_cast<QUEUE *>(v_best);
   DBUG_TRACE;
   from->doc.weight += from->tmp_weight * from->word_ptr->weight;
-  set_if_smaller(best->elements, ft_query_expansion_limit - 1);
+  best->elements = std::min(best->elements, uint(ft_query_expansion_limit - 1));
   queue_insert(best, (uchar *)&from->doc);
   return 0;
 }

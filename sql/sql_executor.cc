@@ -3995,7 +3995,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
           We should return to join_tab->firstmatch_return after we have
           enumerated all the suffixes for current prefix row combination
         */
-        set_if_smaller(return_tab, qep_tab->firstmatch_return);
+        return_tab = std::min(return_tab, qep_tab->firstmatch_return);
       }
 
       /*
@@ -4004,9 +4004,9 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
         we found a row, as no new rows can be added to the result.
       */
       if (not_used_in_distinct && found_records != join->found_records)
-        set_if_smaller(return_tab, qep_tab_idx - 1);
+        return_tab = std::min(return_tab, plan_idx(qep_tab_idx - 1));
 
-      set_if_smaller(join->return_tab, return_tab);
+      join->return_tab = std::min(join->return_tab, return_tab);
     } else {
       if (qep_tab->not_null_compl) {
         /* a NULL-complemented row is not in a table so cannot be locked */

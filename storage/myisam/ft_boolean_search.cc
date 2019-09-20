@@ -62,6 +62,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -347,7 +349,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, bool init_search) {
     FTB_EXPR *tmp;
 
     for (tmp = ftbw->max_docid_expr; tmp; tmp = tmp->up)
-      set_if_bigger(max_docid, tmp->max_docid);
+      max_docid = std::max(max_docid, tmp->max_docid);
 
     if (ftbw->docid[0] < max_docid) {
       sflag |= SEARCH_SAME;

@@ -375,7 +375,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
           ((uint64)res->length() / res->charset()->mbminlen + 1) *
               write_cs->mbmaxlen +
           1;
-      set_if_smaller(estimated_bytes, UINT_MAX32);
+      estimated_bytes = std::min(estimated_bytes, uint64(UINT_MAX32));
       if (cvt_str.mem_realloc((uint32)estimated_bytes)) {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32)estimated_bytes);
         goto err;

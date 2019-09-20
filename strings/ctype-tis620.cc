@@ -61,6 +61,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -690,8 +692,8 @@ static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uchar *dst,
   }
 
   len = thai2sortable(dst, len);
-  set_if_smaller(dstlen, nweights);
-  set_if_smaller(len, dstlen);
+  dstlen = std::min(dstlen, size_t(nweights));
+  len = std::min(len, size_t(dstlen));
   len = my_strxfrm_pad(cs, dst, dst + len, dst + dstlen, (uint)(dstlen - len),
                        flags);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len < dstlen0) {

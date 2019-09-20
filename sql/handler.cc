@@ -34,6 +34,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
 #include <atomic>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/foreach.hpp>
@@ -3652,7 +3653,8 @@ int handler::update_auto_increment() {
         if (auto_inc_intervals_count <= AUTO_INC_DEFAULT_NB_MAX_BITS) {
           nb_desired_values =
               AUTO_INC_DEFAULT_NB_ROWS * (1 << auto_inc_intervals_count);
-          set_if_smaller(nb_desired_values, AUTO_INC_DEFAULT_NB_MAX);
+          nb_desired_values =
+              std::min(nb_desired_values, ulonglong(AUTO_INC_DEFAULT_NB_MAX));
         } else
           nb_desired_values = AUTO_INC_DEFAULT_NB_MAX;
       }

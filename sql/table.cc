@@ -2134,8 +2134,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
       keyinfo->usable_key_parts = usable_parts;  // Filesort
 
-      set_if_bigger(share->max_key_length,
-                    keyinfo->key_length + keyinfo->user_defined_key_parts);
+      share->max_key_length =
+          std::max(share->max_key_length,
+                   keyinfo->key_length + keyinfo->user_defined_key_parts);
       share->total_key_length += keyinfo->key_length;
       /*
         MERGE tables do not have unique indexes. But every key could be
@@ -2143,7 +2144,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       */
       if ((keyinfo->flags & HA_NOSAME) ||
           (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
-        set_if_bigger(share->max_unique_length, keyinfo->key_length);
+        share->max_unique_length =
+            std::max(share->max_unique_length, keyinfo->key_length);
     }
     if (primary_key < MAX_KEY && (share->keys_in_use.is_set(primary_key))) {
       share->primary_key = primary_key;
@@ -5890,7 +5892,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name, bool invisible,
 
   // Code above didn't change TABLE; start with changing TABLE_SHARE:
   if (modify_share) {
-    set_if_bigger(s->max_key_length, key_len);
+    s->max_key_length = std::max(s->max_key_length, key_len);
     s->key_parts += key_part_count;
     DBUG_ASSERT(s->keys < s->max_tmp_keys);
     s->keys++;

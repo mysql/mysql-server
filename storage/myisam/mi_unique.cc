@@ -24,6 +24,8 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -104,7 +106,7 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const uchar *record) {
       uint pack_length = keyseg->bit_start;
       uint tmp_length = (pack_length == 1 ? (uint)*pos : uint2korr(pos));
       pos += pack_length; /* Skip VARCHAR length */
-      set_if_smaller(length, tmp_length);
+      length = std::min(length, tmp_length);
     } else if (keyseg->flag & HA_BLOB_PART) {
       uint tmp_length = _mi_calc_blob_length(keyseg->bit_start, pos);
       memcpy(&pos, pos + keyseg->bit_start, sizeof(char *));
@@ -172,8 +174,8 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
         pos_a += 2; /* Skip VARCHAR length */
         pos_b += 2;
       }
-      set_if_smaller(a_length, keyseg->length); /* Safety */
-      set_if_smaller(b_length, keyseg->length); /* safety */
+      a_length = std::min(a_length, uint(keyseg->length)); /* Safety */
+      b_length = std::min(b_length, uint(keyseg->length)); /* safety */
     } else if (keyseg->flag & HA_BLOB_PART) {
       /* Only compare 'length' characters if length != 0 */
       a_length = _mi_calc_blob_length(keyseg->bit_start, pos_a);
@@ -184,8 +186,8 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
           This is used in some cases when we are not interested in comparing
           the whole length of the blob.
         */
-        set_if_smaller(a_length, keyseg->length);
-        set_if_smaller(b_length, keyseg->length);
+        a_length = std::min(a_length, uint(keyseg->length));
+        b_length = std::min(b_length, uint(keyseg->length));
       }
       memcpy(&pos_a, pos_a + keyseg->bit_start, sizeof(char *));
       memcpy(&pos_b, pos_b + keyseg->bit_start, sizeof(char *));

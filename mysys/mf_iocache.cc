@@ -1474,7 +1474,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
       else
         info->error = 0;
       if (!append_cache) {
-        set_if_bigger(info->end_of_file, (pos_in_file + length));
+        info->end_of_file = std::max(info->end_of_file, (pos_in_file + length));
       } else {
         info->end_of_file += (info->write_pos - info->append_read_pos);
         DBUG_ASSERT(info->end_of_file == mysql_file_tell(info->file, MYF(0)));

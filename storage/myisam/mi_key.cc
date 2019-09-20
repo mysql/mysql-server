@@ -23,6 +23,7 @@
 /* Functions to handle keys */
 
 #include <sys/types.h>
+#include <algorithm>
 #include <cmath>
 
 #include "m_ctype.h"
@@ -37,7 +38,7 @@
   do {                                                              \
     if (length > char_length)                                       \
       char_length = my_charpos(cs, pos, pos + length, char_length); \
-    set_if_smaller(char_length, length);                            \
+    char_length = std::min(char_length, length);                    \
   } while (0)
 
 static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
@@ -122,7 +123,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
       uint pack_length = (keyseg->bit_start == 1 ? 1 : 2);
       uint tmp_length = (pack_length == 1 ? (uint)*pos : uint2korr(pos));
       pos += pack_length; /* Skip VARCHAR length */
-      set_if_smaller(length, tmp_length);
+      length = std::min(length, tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
       memcpy((uchar *)key, pos, (size_t)char_length);
@@ -131,7 +132,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
     } else if (keyseg->flag & HA_BLOB_PART) {
       uint tmp_length = _mi_calc_blob_length(keyseg->bit_start, pos);
       memcpy(&pos, pos + keyseg->bit_start, sizeof(char *));
-      set_if_smaller(length, tmp_length);
+      length = std::min(length, tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
       if (char_length > 0) memcpy((uchar *)key, pos, (size_t)char_length);
@@ -243,7 +244,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, const uchar *old,
       /* Length of key-part used with mi_rkey() always 2 */
       uint tmp_length = uint2korr(pos);
       pos += 2;
-      set_if_smaller(length, tmp_length); /* Safety */
+      length = std::min(length, tmp_length); /* Safety */
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
       old += 2; /* Skip length */

@@ -43,6 +43,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include <sql_show.h>
 #include <sql_table.h>
 #include <strfunc.h>
+#include <algorithm>
 #include <new>
 
 #include "dd/dd.h"
@@ -787,7 +788,8 @@ inline int ha_innopart::initialize_auto_increment(bool /* no_lock */) {
         partition tables still doesn't modify the
         in-memory counter while persisted one could
         be updated if it's updated to larger value. */
-        set_if_bigger(max_auto_inc, ut_max(read_auto_inc, persisted_auto_inc));
+        max_auto_inc =
+            std::max(max_auto_inc, ut_max(read_auto_inc, persisted_auto_inc));
         dict_table_autoinc_unlock(ib_table);
         continue;
       }
@@ -811,7 +813,7 @@ inline int ha_innopart::initialize_auto_increment(bool /* no_lock */) {
 
           auto_inc =
               innobase_next_autoinc(read_auto_inc, 1, 1, 0, col_max_value);
-          set_if_bigger(max_auto_inc, auto_inc);
+          max_auto_inc = std::max(max_auto_inc, ib_uint64_t(auto_inc));
           dict_table_autoinc_initialize(ib_table, auto_inc);
           break;
         }
@@ -3553,7 +3555,8 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
           return error;
         }
       }
-      set_if_bigger(stats.update_time, (ulong)ib_table->update_time);
+      stats.update_time =
+          std::max(stats.update_time, ulong(ib_table->update_time));
     }
 
     if (is_analyze || innobase_stats_on_metadata) {

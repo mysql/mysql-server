@@ -5989,13 +5989,14 @@ static void test_lc_time_sz() {
     size_t max_day_len = 0;
     for (const char **month = (*loc)->month_names->type_names; *month;
          month++) {
-      set_if_bigger(max_month_len,
-                    my_numchars_mb(&my_charset_utf8_general_ci, *month,
-                                   *month + strlen(*month)));
+      max_month_len = std::max(
+          max_month_len, my_numchars_mb(&my_charset_utf8_general_ci, *month,
+                                        *month + strlen(*month)));
     }
     for (const char **day = (*loc)->day_names->type_names; *day; day++) {
-      set_if_bigger(max_day_len, my_numchars_mb(&my_charset_utf8_general_ci,
-                                                *day, *day + strlen(*day)));
+      max_day_len =
+          std::max(max_day_len, my_numchars_mb(&my_charset_utf8_general_ci,
+                                               *day, *day + strlen(*day)));
     }
     if ((*loc)->max_month_name_length != max_month_len ||
         (*loc)->max_day_name_length != max_day_len) {

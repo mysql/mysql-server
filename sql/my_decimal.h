@@ -236,7 +236,7 @@ inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
     unsigned_flag is ignored in this case.
   */
   DBUG_ASSERT(precision || !scale);
-  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
+  precision = std::min(precision, uint(DECIMAL_MAX_PRECISION));
   return my_decimal_precision_to_length_no_truncation(precision, scale,
                                                       unsigned_flag);
 }

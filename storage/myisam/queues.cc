@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
@@ -147,7 +149,7 @@ static int resize_queue(QUEUE *queue, PSI_memory_key psi_key,
                                        (max_elements + 1) * sizeof(void *),
                                        MYF(MY_WME))) == 0)
     return 1;
-  set_if_smaller(queue->elements, max_elements);
+  queue->elements = std::min(queue->elements, max_elements);
   queue->max_elements = max_elements;
   queue->root = new_root;
   return 0;

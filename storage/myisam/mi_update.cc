@@ -155,8 +155,8 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec) {
       key_changed |= HA_STATE_CHANGED; /* Must update index file */
   }
   if (auto_key_changed)
-    set_if_bigger(info->s->state.auto_increment,
-                  retrieve_auto_increment(info, newrec));
+    info->s->state.auto_increment = std::max(
+        info->s->state.auto_increment, retrieve_auto_increment(info, newrec));
   if (share->calc_checksum)
     info->state->checksum += (info->checksum - old_checksum);
 

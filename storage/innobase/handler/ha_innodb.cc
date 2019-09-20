@@ -59,6 +59,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <strfunc.h>
 #include <time.h>
 
+#include <algorithm>
+
 #include <sql_table.h>
 #include "mysql/components/services/system_variable_source.h"
 
@@ -18657,10 +18659,10 @@ void ha_innobase::get_auto_increment(
       trx->n_autoinc_rows = 1;
     }
 
-    set_if_bigger(*first_value, autoinc);
+    *first_value = std::max(*first_value, autoinc);
     /* Not in the middle of a mult-row INSERT. */
   } else if (m_prebuilt->autoinc_last_value == 0) {
-    set_if_bigger(*first_value, autoinc);
+    *first_value = std::max(*first_value, autoinc);
     /* Check for -ve values. */
   } else if (*first_value > col_max_value && trx->n_autoinc_rows > 0) {
     /* Set to next logical value. */

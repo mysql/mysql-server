@@ -58,6 +58,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -494,9 +496,10 @@ int chk_key(MI_CHECK *param, MI_INFO *info) {
                                llstr(auto_increment, buff));
       }
       if (param->testflag & T_AUTO_INC) {
-        set_if_bigger(info->s->state.auto_increment, auto_increment);
-        set_if_bigger(info->s->state.auto_increment,
-                      param->auto_increment_value);
+        info->s->state.auto_increment =
+            std::max(info->s->state.auto_increment, auto_increment);
+        info->s->state.auto_increment = std::max(info->s->state.auto_increment,
+                                                 param->auto_increment_value);
       }
 
       /* Check that there isn't a row with auto_increment = 0 in the table */
@@ -2552,7 +2555,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
   /* for compressed tables */
   max_pack_reclength = share->base.pack_reclength;
   if (share->options & HA_OPTION_COMPRESS_RECORD)
-    set_if_bigger(max_pack_reclength, share->max_pack_length);
+    max_pack_reclength = std::max(max_pack_reclength, share->max_pack_length);
   if (!(sort_param = (MI_SORT_PARAM *)my_malloc(
             mi_key_memory_MI_SORT_PARAM,
             (uint)share->base.keys *
@@ -3877,9 +3880,10 @@ int recreate_table(MI_CHECK *param, MI_INFO **org_info, char *filename) {
 
   file_length = (ulonglong)mysql_file_seek(info.dfile, 0L, MY_SEEK_END, MYF(0));
   tmp_length = file_length + file_length / 10;
-  set_if_bigger(file_length, param->max_data_file_length);
-  set_if_bigger(file_length, tmp_length);
-  set_if_bigger(file_length, (ulonglong)share.base.max_data_file_length);
+  file_length = std::max(file_length, param->max_data_file_length);
+  file_length = std::max(file_length, tmp_length);
+  file_length =
+      std::max(file_length, ulonglong(share.base.max_data_file_length));
 
   if (share.options & HA_OPTION_COMPRESS_RECORD)
     share.base.records = max_records = info.state->records;
@@ -4068,9 +4072,11 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       info->s->state.auto_increment = param->auto_increment_value;
   } else {
     ulonglong auto_increment = retrieve_auto_increment(info, record);
-    set_if_bigger(info->s->state.auto_increment, auto_increment);
+    info->s->state.auto_increment =
+        std::max(info->s->state.auto_increment, auto_increment);
     if (!repair_only)
-      set_if_bigger(info->s->state.auto_increment, param->auto_increment_value);
+      info->s->state.auto_increment =
+          std::max(info->s->state.auto_increment, param->auto_increment_value);
   }
   mi_extra(info, HA_EXTRA_NO_KEYREAD, 0);
   my_free(mi_get_rec_buff_ptr(info, record));
@@ -4165,7 +4171,7 @@ void update_key_parts(MI_KEYDEF *keyinfo, ulong *rec_per_key_part,
       for some weird keys (e.g. FULLTEXT) tmp can be <1 here.
       let's ensure it is not
     */
-    set_if_bigger(tmp, 1);
+    tmp = std::max(tmp, 1ULL);
     if (tmp >= (ulonglong) ~(ulong)0) tmp = (ulonglong) ~(ulong)0;
 
     *rec_per_key_part = (ulong)tmp;

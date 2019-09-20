@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 
 #include "mysql_com.h"
 #include "sql/my_decimal.h"
@@ -1827,8 +1828,8 @@ bool Item_func_date_format::resolve_type(THD *thd) {
     char_length = format_length(arg1->val_str(&str));
   } else {
     fixed_length = false;
-    char_length = min<uint32>(arg1->max_char_length(), MAX_BLOB_WIDTH) * 10;
-    set_if_smaller(char_length, MAX_BLOB_WIDTH);
+    char_length = min(min(arg1->max_char_length(), uint32(MAX_BLOB_WIDTH)) * 10,
+                      uint32(MAX_BLOB_WIDTH));
   }
   set_data_type_string(char_length);
   maybe_null = true;  // If wrong date

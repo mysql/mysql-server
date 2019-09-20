@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <array>
 #include <bitset>
 #include <type_traits>
@@ -703,8 +704,7 @@ static char *check_struct_option(char *cur_arg, char *key_name) {
      dot found, the option is not a struct option.
   */
   if ((equal_pos > dot_pos) && (space_pos > dot_pos)) {
-    size_t len = dot_pos - cur_arg;
-    set_if_smaller(len, FN_REFLEN - 1);
+    size_t len = std::min(size_t(dot_pos - cur_arg), size_t(FN_REFLEN - 1));
     strmake(key_name, cur_arg, len);
     return ++dot_pos;
   } else {

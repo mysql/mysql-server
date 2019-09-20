@@ -589,8 +589,8 @@ void Item_func::fix_num_length_and_dec() {
   uint fl_length = 0;
   decimals = 0;
   for (uint i = 0; i < arg_count; i++) {
-    set_if_bigger(decimals, args[i]->decimals);
-    set_if_bigger(fl_length, args[i]->max_length);
+    decimals = max(decimals, args[i]->decimals);
+    fl_length = max(fl_length, args[i]->max_length);
   }
   max_length = float_length(decimals);
   if (fl_length > max_length) {
@@ -1520,8 +1520,8 @@ void Item_typecast_signed::print(const THD *thd, String *str,
 }
 
 bool Item_typecast_signed::resolve_type(THD *) {
-  fix_char_length(std::min<uint32>(args[0]->max_char_length(),
-                                   MY_INT64_NUM_DECIMAL_DIGITS));
+  fix_char_length(
+      min<uint32>(args[0]->max_char_length(), MY_INT64_NUM_DECIMAL_DIGITS));
   return reject_geometry_args(arg_count, args, this);
 }
 
@@ -2115,13 +2115,13 @@ bool Item_func_div::resolve_type(THD *thd) {
   switch (hybrid_type) {
     case REAL_RESULT: {
       decimals = max(args[0]->decimals, args[1]->decimals) + prec_increment;
-      set_if_smaller(decimals, DECIMAL_NOT_SPECIFIED);
+      decimals = min(decimals, uint8(DECIMAL_NOT_SPECIFIED));
       uint tmp = float_length(decimals);
       if (decimals == DECIMAL_NOT_SPECIFIED)
         max_length = tmp;
       else {
         max_length = args[0]->max_length - args[0]->decimals + decimals;
-        set_if_smaller(max_length, tmp);
+        max_length = min(max_length, tmp);
       }
       break;
     }
@@ -2869,9 +2869,8 @@ bool Item::bit_func_returns_binary(const Item *a, const Item *b) {
 // Conversion functions
 
 bool Item_func_integer::resolve_type(THD *) {
-  max_length = args[0]->max_length - args[0]->decimals + 1;
-  uint tmp = float_length(decimals);
-  set_if_smaller(max_length, tmp);
+  max_length =
+      min(args[0]->max_length - args[0]->decimals + 1, float_length(decimals));
   return reject_geometry_args(arg_count, args, this);
 }
 
@@ -4403,7 +4402,7 @@ bool Item_func_udf_decimal::resolve_type(THD *) {
 bool Item_func_udf_str::resolve_type(THD *) {
   uint result_length = 0;
   for (uint i = 0; i < arg_count; i++)
-    result_length = std::max(result_length, args[i]->max_length);
+    result_length = max(result_length, args[i]->max_length);
   // If the UDF has an init function, this may be overridden later.
   set_data_type_string(result_length, &my_charset_bin);
   return false;
@@ -7414,7 +7413,8 @@ Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
   }
   thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
 
-  set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
+  component_name->length =
+      min(component_name->length, size_t(MAX_SYS_VAR_LENGTH));
 
   var->do_deprecated_warning(thd);
 

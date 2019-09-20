@@ -35,6 +35,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -797,7 +799,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
               */
               my_off_t next_pos;
               ulong rest_length = length - MI_MAX_BLOCK_LENGTH;
-              set_if_bigger(rest_length, MI_MIN_BLOCK_LENGTH);
+              rest_length = std::max(rest_length, ulong(MI_MIN_BLOCK_LENGTH));
               next_pos = del_block.filepos + del_block.block_len - rest_length;
 
               if (update_backward_delete_link(info, info->s->state.dellink,

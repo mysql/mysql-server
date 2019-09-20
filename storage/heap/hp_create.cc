@@ -24,6 +24,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -67,7 +69,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
       We have to store sometimes uchar* del_link in records,
       so the record length should be at least sizeof(uchar*)
     */
-    set_if_bigger(reclength, sizeof(uchar *));
+    reclength = std::max(reclength, uint(sizeof(uchar *)));
 
     for (i = key_segs = max_length = 0, keyinfo = keydef; i < keys;
          i++, keyinfo++) {

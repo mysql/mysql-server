@@ -46,14 +46,7 @@
 
 #define MY_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MY_MIN(a, b) ((a) < (b) ? (a) : (b))
-#define set_if_bigger(a, b)   \
-  do {                        \
-    if ((a) < (b)) (a) = (b); \
-  } while (0)
-#define set_if_smaller(a, b)  \
-  do {                        \
-    if ((a) > (b)) (a) = (b); \
-  } while (0)
+
 #define test_all_bits(a, b) (((a) & (b)) == (b))
 
 #endif  // MY_MACROS_INCLUDED

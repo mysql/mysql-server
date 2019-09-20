@@ -708,8 +708,6 @@ int decimal_shift(decimal_t *dec, int shift) {
   int point = ROUND_UP(dec->intg) * DIG_PER_DEC1;
   /* new point position */
   int new_point = point + shift;
-  /* number of digits in result */
-  int digits_int, digits_frac;
   /* length of result and new fraction in big digits*/
   int new_len, new_frac_len;
   /* return code */
@@ -725,10 +723,9 @@ int decimal_shift(decimal_t *dec, int shift) {
     return E_DEC_OK;
   }
 
-  digits_int = new_point - beg;
-  set_if_bigger(digits_int, 0);
-  digits_frac = end - new_point;
-  set_if_bigger(digits_frac, 0);
+  /* number of digits in result */
+  int digits_int = std::max(new_point - beg, 0);
+  int digits_frac = std::max(end - new_point, 0);
 
   if ((new_len = ROUND_UP(digits_int) +
                  (new_frac_len = ROUND_UP(digits_frac))) > dec->len) {
@@ -1830,11 +1827,11 @@ static int do_add(const decimal_t *from1, const decimal_t *from2,
   to->frac = MY_MAX(from1->frac, from2->frac);
   to->intg = intg0 * DIG_PER_DEC1;
   if (unlikely(error)) {
-    set_if_smaller(to->frac, frac0 * DIG_PER_DEC1);
-    set_if_smaller(frac1, frac0);
-    set_if_smaller(frac2, frac0);
-    set_if_smaller(intg1, intg0);
-    set_if_smaller(intg2, intg0);
+    to->frac = std::min(to->frac, frac0 * DIG_PER_DEC1);
+    frac1 = std::min(frac1, frac0);
+    frac2 = std::min(frac2, frac0);
+    intg1 = std::min(intg1, intg0);
+    intg2 = std::min(intg2, intg0);
   }
 
   /* part 1 - max(frac) ... min (frac) */
@@ -1944,10 +1941,10 @@ static int do_sub(const decimal_t *from1, const decimal_t *from2,
   to->frac = MY_MAX(from1->frac, from2->frac);
   to->intg = intg1 * DIG_PER_DEC1;
   if (unlikely(error)) {
-    set_if_smaller(to->frac, frac0 * DIG_PER_DEC1);
-    set_if_smaller(frac1, frac0);
-    set_if_smaller(frac2, frac0);
-    set_if_smaller(intg2, intg1);
+    to->frac = std::min(to->frac, frac0 * DIG_PER_DEC1);
+    frac1 = std::min(frac1, frac0);
+    frac2 = std::min(frac2, frac0);
+    intg2 = std::min(intg2, intg1);
   }
   carry = 0;
 
@@ -2067,12 +2064,12 @@ int decimal_mul(const decimal_t *from_1, const decimal_t *from_2,
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error); /* bound size */
   to->sign = from1->sign != from2->sign;
   to->frac = from1->frac + from2->frac; /* store size in digits */
-  set_if_smaller(to->frac, DECIMAL_NOT_SPECIFIED);
+  to->frac = std::min(to->frac, DECIMAL_NOT_SPECIFIED);
   to->intg = intg0 * DIG_PER_DEC1;
 
   if (unlikely(error)) {
-    set_if_smaller(to->frac, frac0 * DIG_PER_DEC1);
-    set_if_smaller(to->intg, intg0 * DIG_PER_DEC1);
+    to->frac = std::min(to->frac, frac0 * DIG_PER_DEC1);
+    to->intg = std::min(to->intg, intg0 * DIG_PER_DEC1);
     if (unlikely(iii > intg0)) /* bounded integer-part */
     {
       iii -= intg0;
@@ -2267,7 +2264,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
     }
 
   len1 = (i = ROUND_UP(prec1)) + ROUND_UP(2 * frac2 + scale_incr + 1) + 1;
-  set_if_bigger(len1, 3);
+  len1 = std::max(len1, 3);
   if (!(tmp1 = (dec1 *)my_alloca(len1 * sizeof(dec1)))) return E_DEC_OOM;
   memcpy(tmp1, buf1, i * sizeof(dec1));
   memset(tmp1 + i, 0, (len1 - i) * sizeof(dec1));

@@ -3458,8 +3458,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
           while ((imerge = it++)) {
             new_conj_trp = get_best_disjunct_quick(&param, imerge, &best_cost);
             if (new_conj_trp)
-              set_if_smaller(param.table->quick_condition_rows,
-                             new_conj_trp->records);
+              param.table->quick_condition_rows =
+                  min(param.table->quick_condition_rows, new_conj_trp->records);
             if (!best_conj_trp ||
                 (new_conj_trp &&
                  new_conj_trp->cost_est < best_conj_trp->cost_est)) {
@@ -5905,7 +5905,8 @@ static TRP_ROR_INTERSECT *get_best_ror_intersect(
     /* Prevent divisons by zero */
     ha_rows best_rows = double2rows(intersect_best->out_rows);
     if (!best_rows) best_rows = 1;
-    set_if_smaller(param->table->quick_condition_rows, best_rows);
+    param->table->quick_condition_rows =
+        min(param->table->quick_condition_rows, best_rows);
     trp->records = best_rows;
     trp->index_scan_cost = intersect_best->index_scan_cost;
     trp->cpk_scan = cpk_scan_used ? cpk_scan : NULL;
@@ -10363,9 +10364,12 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
                         key_tree->rkey_func_flag)))
     return true;  // out of memory
 
-  set_if_bigger(quick->max_used_key_length, range->min_length);
-  set_if_bigger(quick->max_used_key_length, range->max_length);
-  set_if_bigger(quick->used_key_parts, (uint)key_tree->part + 1);
+  quick->max_used_key_length =
+      std::max(quick->max_used_key_length, uint(range->min_length));
+  quick->max_used_key_length =
+      std::max(quick->max_used_key_length, uint(range->max_length));
+  quick->used_key_parts =
+      std::max(quick->used_key_parts, uint(key_tree->part + 1));
   if (quick->ranges.push_back(range)) return true;
 
 end:
@@ -12789,7 +12793,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     quick_prefix_selectivity =
         (double)quick_prefix_records / (double)table_records;
     num_groups = (uint)rint(num_groups * quick_prefix_selectivity);
-    set_if_bigger(num_groups, 1);
+    num_groups = std::max(num_groups, 1U);
   }
 
   if (used_key_parts > group_key_parts) {
@@ -12801,7 +12805,7 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     else {
       // If no index statistics then we use a guessed records per key value.
       keys_in_subgroup = guess_rec_per_key(table, index_info, used_key_parts);
-      set_if_smaller(keys_in_subgroup, keys_per_group);
+      keys_in_subgroup = std::min(keys_in_subgroup, keys_per_group);
     }
 
     /*
@@ -14603,7 +14607,7 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
     keys_per_group = guess_rec_per_key(table, index_info, distinct_key_parts);
 
   num_groups = (uint)(skip_scan_records / keys_per_group) + 1;
-  set_if_bigger(num_groups, 1);
+  num_groups = std::max(num_groups, 1U);
 
   /* Calculate filtering effect for the range condition */
   {
@@ -14631,14 +14635,12 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
       max distinct values is used as an argument. So number of
       keys in distinct group is divided by keys_per_range.
     */
-    double max_distinct_values =
-        static_cast<double>((uint)keys_per_group / (uint)keys_per_range);
-    set_if_bigger(max_distinct_values, 1.0);
+    double max_distinct_values = max(
+        1.0, static_cast<double>(uint(keys_per_group) / uint(keys_per_range)));
     float filtering_effect = where_cond->get_filtering_effect(
         table->in_use, table->pos_in_table_list->map(), used_tables,
         &ignored_fields, max_distinct_values);
-    *records = skip_scan_records * filtering_effect;
-    set_if_bigger(*records, 1);
+    *records = max(ha_rows(1), ha_rows(skip_scan_records * filtering_effect));
   }
 
   /* Estimate IO cost. */

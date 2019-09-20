@@ -84,7 +84,7 @@ char *sql_strmake_with_convert(const char *str, size_t arg_length,
   size_t new_length = to_cs->mbmaxlen * arg_length;
   max_res_length--;  // Reserve place for end null
 
-  set_if_smaller(new_length, max_res_length);
+  new_length = std::min(new_length, max_res_length);
   if (!(pos = (char *)(*THR_MALLOC)->Alloc(new_length + 1)))
     return pos;  // Error
 

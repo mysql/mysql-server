@@ -3518,7 +3518,7 @@ static int find_uniq_filename(char *name, uint32 new_index_number) {
   for (i = dir_info->number_off_files; i--; file_info++) {
     if (strncmp(file_info->name, start, length) == 0 &&
         is_number(file_info->name + length, &number, false)) {
-      set_if_bigger(max_found, number);
+      max_found = std::max(max_found, number);
     }
   }
   my_dirend(dir_info);

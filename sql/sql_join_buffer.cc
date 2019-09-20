@@ -1043,7 +1043,7 @@ uint JOIN_CACHE_BKA::aux_buffer_incr() {
   */
   rec_per_key_t rec_per_key =
       tab->key_info[ref->key].records_per_key(ref->key_parts - 1);
-  set_if_bigger(rec_per_key, 1.0f);
+  rec_per_key = std::max(rec_per_key, 1.0f);
   incr += static_cast<uint>(tab->file->stats.mrr_length_per_rec * rec_per_key);
   return incr;
 }

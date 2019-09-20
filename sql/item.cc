@@ -4882,8 +4882,9 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
               thd->lex->in_sum_func->base_select->nest_level >=
                   select->nest_level) {
             Item::Type ref_type = (*reference)->type();
-            set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
-                          select->nest_level);
+            thd->lex->in_sum_func->max_aggr_level =
+                max(thd->lex->in_sum_func->max_aggr_level,
+                    int8(select->nest_level));
             set_field(*from_field);
             fixed = true;
             mark_as_dependent(thd, last_checked_context->select_lex,
@@ -4918,8 +4919,9 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
           if (thd->lex->in_sum_func &&
               thd->lex->in_sum_func->base_select->nest_level >=
                   select->nest_level)
-            set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
-                          select->nest_level);
+            thd->lex->in_sum_func->max_aggr_level =
+                max(thd->lex->in_sum_func->max_aggr_level,
+                    int8(select->nest_level));
 
           if ((*reference)->used_tables() != 0)
             mark_as_dependent(thd, last_checked_context->select_lex,
@@ -5285,8 +5287,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
     if (thd->lex->in_sum_func &&
         thd->lex->in_sum_func->base_select->nest_level ==
             context->select_lex->nest_level)
-      set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
-                    context->select_lex->nest_level);
+      thd->lex->in_sum_func->max_aggr_level =
+          max(thd->lex->in_sum_func->max_aggr_level,
+              int8(context->select_lex->nest_level));
 
     // If view column reference, Item in *reference is completely resolved:
     if (from_field == view_ref_found) {
@@ -5627,8 +5630,7 @@ String *Item::check_well_formed_result(String *str, bool send_error,
     const char *print_byte = str->ptr() + valid_length;
     THD *thd = current_thd;
     char hexbuf[7];
-    size_t diff = str_end - print_byte;
-    set_if_smaller(diff, 3);
+    size_t diff = min(size_t(str_end - print_byte), size_t(3));
     octet2hex(hexbuf, print_byte, diff);
     if (send_error && length_error) {
       my_error(ER_INVALID_CHARACTER_STRING, MYF(0), cs->csname, hexbuf);
@@ -6840,8 +6842,8 @@ void Item::aggregate_char_length(Item **args, uint nitems) {
   */
   bool bin_charset = collation.collation == &my_charset_bin;
   for (uint i = 0; i < nitems; i++)
-    set_if_bigger(char_length, bin_charset ? args[i]->max_length
-                                           : args[i]->max_char_length());
+    char_length = max(char_length, bin_charset ? args[i]->max_length
+                                               : args[i]->max_char_length());
   if (char_length * collation.collation->mbmaxlen > max_length)
     fix_char_length(char_length);
 }
@@ -6860,10 +6862,10 @@ void Item::aggregate_float_properties(Item **item, uint nitems) {
   uint32 maxl = 0;
   for (uint i = 0; i < nitems; i++) {
     if (decimals_cnt != DECIMAL_NOT_SPECIFIED) {
-      set_if_bigger(decimals_cnt, item[i]->decimals);
-      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
+      decimals_cnt = max(decimals_cnt, item[i]->decimals);
+      length = max(length, (item[i]->max_length - item[i]->decimals));
     }
-    set_if_bigger(maxl, item[i]->max_length);
+    maxl = max(maxl, item[i]->max_length);
   }
   if (decimals_cnt != DECIMAL_NOT_SPECIFIED) {
     maxl = length;
@@ -6890,8 +6892,8 @@ void Item::aggregate_decimal_properties(Item **item, uint nitems) {
   int max_int_part = 0;
   uint8 decimal_cnt = 0;
   for (uint i = 0; i < nitems; i++) {
-    set_if_bigger(decimal_cnt, item[i]->decimals);
-    set_if_bigger(max_int_part, item[i]->decimal_int_part());
+    decimal_cnt = max(decimal_cnt, item[i]->decimals);
+    max_int_part = max(max_int_part, item[i]->decimal_int_part());
   }
   int precision = min(max_int_part + decimal_cnt, DECIMAL_MAX_PRECISION);
   set_data_type_decimal(precision, decimal_cnt);
@@ -6910,15 +6912,15 @@ void Item::aggregate_temporal_properties(Item **item, uint nitems) {
   switch (data_type()) {
     case MYSQL_TYPE_DATETIME:
       for (uint i = 0; i < nitems; i++)
-        set_if_bigger(decimal_cnt, item[i]->datetime_precision());
-      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+        decimal_cnt = max(decimal_cnt, uint8(item[i]->datetime_precision()));
+      decimal_cnt = min(decimal_cnt, uint8(DATETIME_MAX_DECIMALS));
       set_data_type_datetime(decimal_cnt);
       break;
 
     case MYSQL_TYPE_TIMESTAMP:
       for (uint i = 0; i < nitems; i++)
-        set_if_bigger(decimal_cnt, item[i]->datetime_precision());
-      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+        decimal_cnt = max(decimal_cnt, uint8(item[i]->datetime_precision()));
+      decimal_cnt = min(decimal_cnt, uint8(DATETIME_MAX_DECIMALS));
       set_data_type_timestamp(decimal_cnt);
       break;
 
@@ -6934,8 +6936,8 @@ void Item::aggregate_temporal_properties(Item **item, uint nitems) {
 
     case MYSQL_TYPE_TIME:
       for (uint i = 0; i < nitems; i++)
-        set_if_bigger(decimal_cnt, item[i]->time_precision());
-      set_if_smaller(decimal_cnt, DATETIME_MAX_DECIMALS);
+        decimal_cnt = max(decimal_cnt, uint8(item[i]->time_precision()));
+      decimal_cnt = min(decimal_cnt, uint8(DATETIME_MAX_DECIMALS));
       set_data_type_time(decimal_cnt);
       break;
 
@@ -6975,7 +6977,7 @@ bool Item::aggregate_string_properties(const char *name, Item **items,
     */
     fix_char_length(max_length);
   } else
-    set_if_smaller(decimals, DECIMAL_NOT_SPECIFIED);
+    decimals = min(decimals, uint8(DECIMAL_NOT_SPECIFIED));
   aggregate_char_length(items, nitems);
 
   /*
@@ -7182,20 +7184,20 @@ float Item_field::get_cond_filter_default_probability(
       // ENUM can only have the values defined in the typelib
       const uint enum_values = static_cast<Field_enum *>(field)->typelib->count;
       max_distinct_values =
-          std::min(static_cast<double>(enum_values), max_distinct_values);
+          min(static_cast<double>(enum_values), max_distinct_values);
       break;
     }
     case MYSQL_TYPE_BIT: {
       // BIT(N) can have no more than 2^N distinct values
       const uint bits = static_cast<Field_bit *>(field)->field_length;
       const double combos = pow(2.0, (int)bits);
-      max_distinct_values = std::min(combos, max_distinct_values);
+      max_distinct_values = min(combos, max_distinct_values);
       break;
     }
     default:
       break;
   }
-  return std::max(static_cast<float>(1 / max_distinct_values), default_filter);
+  return max(static_cast<float>(1 / max_distinct_values), default_filter);
 }
 
 Item_ref::Item_ref(Name_resolution_context *context_arg, Item **item,
@@ -7447,8 +7449,9 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         if (thd->lex->in_sum_func &&
             thd->lex->in_sum_func->base_select->nest_level >=
                 last_checked_context->select_lex->nest_level)
-          set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
-                        last_checked_context->select_lex->nest_level);
+          thd->lex->in_sum_func->max_aggr_level =
+              max(thd->lex->in_sum_func->max_aggr_level,
+                  int8(last_checked_context->select_lex->nest_level));
         return false;
       }
       if (ref == 0) {
@@ -7469,8 +7472,9 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
       if (thd->lex->in_sum_func &&
           thd->lex->in_sum_func->base_select->nest_level >=
               last_checked_context->select_lex->nest_level)
-        set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
-                      last_checked_context->select_lex->nest_level);
+        thd->lex->in_sum_func->max_aggr_level =
+            max(thd->lex->in_sum_func->max_aggr_level,
+                int8(last_checked_context->select_lex->nest_level));
     }
   }
 

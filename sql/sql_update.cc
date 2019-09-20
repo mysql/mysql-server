@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <utility>
@@ -1740,8 +1741,8 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   /* Allocate copy fields */
   max_fields = 0;
   for (uint i = 0; i < update_table_count; i++)
-    set_if_bigger(max_fields,
-                  fields_for_table[i]->elements + select->leaf_table_count);
+    max_fields = std::max(max_fields, size_t(fields_for_table[i]->elements +
+                                             select->leaf_table_count));
   copy_field = new (thd->mem_root) Copy_field[max_fields];
 
   for (TABLE_LIST *ref = leaves; ref != NULL; ref = ref->next_leaf) {

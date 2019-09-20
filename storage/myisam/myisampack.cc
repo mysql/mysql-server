@@ -950,14 +950,14 @@ static int get_statistic(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
           memcpy(&pos, start_pos + field_length, sizeof(char *));
           end_pos = pos + blob_length;
           tot_blob_length += blob_length;
-          set_if_bigger(count->max_length, blob_length);
+          count->max_length = std::max(count->max_length, blob_length);
         } else if (count->field_type == FIELD_VARCHAR) {
           uint pack_length = HA_VARCHAR_PACKLENGTH(count->field_length - 1);
           length = (pack_length == 1 ? (uint) * (uchar *)start_pos
                                      : uint2korr(start_pos));
           pos = start_pos + pack_length;
           end_pos = pos + length;
-          set_if_bigger(count->max_length, length);
+          count->max_length = std::max(count->max_length, ulong(length));
         }
 
         /* Evaluate 'max_zero_fill' for short fields. */

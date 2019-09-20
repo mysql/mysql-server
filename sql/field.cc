@@ -1849,8 +1849,7 @@ type_conversion_status Field::store(const char *to, size_t length,
 */
 uchar *Field::pack(uchar *to, const uchar *from, uint max_length,
                    bool low_byte_first MY_ATTRIBUTE((unused))) const {
-  uint32 length = pack_length();
-  set_if_smaller(length, max_length);
+  uint32 length = std::min(pack_length(), max_length);
   memcpy(to, from, length);
   return to + length;
 }
@@ -2749,8 +2748,9 @@ Field_new_decimal::Field_new_decimal(uchar *ptr_arg, uint32 len_arg,
                                      bool zero_arg, bool unsigned_arg)
     : Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                 field_name_arg, dec_arg, zero_arg, unsigned_arg) {
-  precision = my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
-  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
+  precision =
+      std::min(my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg),
+               uint(DECIMAL_MAX_PRECISION));
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size = my_decimal_get_binary_size(precision, dec);
@@ -2761,8 +2761,9 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                                      bool unsigned_arg)
     : Field_num(nullptr, len_arg, maybe_null_arg ? &dummy_null_buffer : nullptr,
                 0, NONE, name, dec_arg, false, unsigned_arg) {
-  precision = my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
-  set_if_smaller(precision, DECIMAL_MAX_PRECISION);
+  precision =
+      std::min(my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg),
+               uint(DECIMAL_MAX_PRECISION));
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
               (dec <= DECIMAL_MAX_SCALE));
   bin_size = my_decimal_get_binary_size(precision, dec);
@@ -6677,8 +6678,8 @@ int Field_varstring::cmp_max(const uchar *a_ptr, const uchar *b_ptr,
     a_length = uint2korr(a_ptr);
     b_length = uint2korr(b_ptr);
   }
-  set_if_smaller(a_length, max_len);
-  set_if_smaller(b_length, max_len);
+  a_length = std::min(a_length, max_len);
+  b_length = std::min(b_length, max_len);
   diff = field_charset->coll->strnncollsp(field_charset, a_ptr + length_bytes,
                                           a_length, b_ptr + length_bytes,
                                           b_length);
@@ -6697,7 +6698,7 @@ int Field_varstring::key_cmp(const uchar *key_ptr, uint max_key_length) const {
   local_char_length =
       my_charpos(field_charset, ptr + length_bytes, ptr + length_bytes + length,
                  local_char_length);
-  set_if_smaller(length, local_char_length);
+  length = std::min(length, local_char_length);
   return field_charset->coll->strnncollsp(field_charset, ptr + length_bytes,
                                           length, key_ptr + HA_KEY_BLOB_LENGTH,
                                           uint2korr(key_ptr));
@@ -6827,7 +6828,7 @@ size_t Field_varstring::get_key_image(uchar *buff, size_t length,
   uchar *pos = ptr + length_bytes;
   local_char_length =
       my_charpos(field_charset, pos, pos + f_length, local_char_length);
-  set_if_smaller(f_length, local_char_length);
+  f_length = std::min(f_length, local_char_length);
   /* Key is always stored with 2 bytes */
   int2store(buff, f_length);
   memcpy(buff + HA_KEY_BLOB_LENGTH, pos, f_length);
@@ -6858,8 +6859,8 @@ int Field_varstring::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
     a_length = uint2korr(a_ptr);
     b_length = uint2korr(b_ptr);
   }
-  set_if_smaller(a_length, max_length);
-  set_if_smaller(b_length, max_length);
+  a_length = std::min(a_length, max_length);
+  b_length = std::min(b_length, max_length);
   if (a_length != b_length) return 1;
   return memcmp(a_ptr + length_bytes, b_ptr + length_bytes, a_length);
 }
@@ -7227,7 +7228,7 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length,
   uint local_char_length = length / field_charset->mbmaxlen;
   local_char_length =
       my_charpos(field_charset, blob, blob + blob_length, local_char_length);
-  set_if_smaller(blob_length, local_char_length);
+  blob_length = std::min(blob_length, local_char_length);
 
   if ((uint32)length > blob_length) {
     /*
@@ -9232,9 +9233,9 @@ size_t calc_pack_length(dd::enum_column_types type, size_t char_length,
     } break;
     case dd::enum_column_types::NEWDECIMAL: {
       uint decimals = numeric_scale;
-      ulong precision =
-          my_decimal_length_to_precision(char_length, decimals, is_unsigned);
-      set_if_smaller(precision, DECIMAL_MAX_PRECISION);
+      uint precision = std::min(
+          my_decimal_length_to_precision(char_length, decimals, is_unsigned),
+          uint(DECIMAL_MAX_PRECISION));
       DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
                   (decimals <= DECIMAL_MAX_SCALE));
       pack_length = my_decimal_get_binary_size(precision, decimals);

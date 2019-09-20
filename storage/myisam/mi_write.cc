@@ -27,6 +27,8 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -135,8 +137,8 @@ int mi_write(MI_INFO *info, uchar *record) {
     info->state->checksum += info->checksum;
   }
   if (share->base.auto_key)
-    set_if_bigger(info->s->state.auto_increment,
-                  retrieve_auto_increment(info, record));
+    info->s->state.auto_increment = std::max(
+        info->s->state.auto_increment, retrieve_auto_increment(info, record));
   info->update = (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_WRITTEN |
                   HA_STATE_ROW_CHANGED);
   info->state->records++;

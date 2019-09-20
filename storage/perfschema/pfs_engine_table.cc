@@ -1406,7 +1406,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
       size_t char_length;
       char_length =
           my_charpos(cs, pos, pos + string_len, string_len / cs->mbmaxlen);
-      set_if_smaller(string_len, char_length);
+      string_len = std::min(string_len, char_length);
     }
     const uchar *end = skip_trailing_space(pos, string_len);
     *buffer_length = (uint)(end - pos);

@@ -26,6 +26,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -129,8 +131,8 @@ TEST_F(DecimalTest, Multiply) {
   EXPECT_EQ(E_DEC_OK, chars_2_decimal(arg2, &d2));
 
   // Limit the precision, otherwise "1.75" will be truncated to "1."
-  set_if_smaller(d1.frac, DECIMAL_NOT_SPECIFIED);
-  set_if_smaller(d2.frac, DECIMAL_NOT_SPECIFIED);
+  d1.frac = std::min(d1.frac, DECIMAL_NOT_SPECIFIED);
+  d2.frac = std::min(d2.frac, DECIMAL_NOT_SPECIFIED);
   EXPECT_EQ(
       0, my_decimal_mul(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, &prod, &d1, &d2));
   EXPECT_EQ(DECIMAL_NOT_SPECIFIED, d1.frac);

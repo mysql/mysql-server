@@ -2165,8 +2165,7 @@ uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start reading at the beginning of the cache block. */
       filepos -= offset;
       /* Do not read beyond the end of the cache block. */
-      read_length = length;
-      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      read_length = std::min(length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       if (block_length > keycache->key_cache_block_size || offset)
@@ -2338,8 +2337,7 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start loading at the beginning of the cache block. */
       filepos -= offset;
       /* Do not load beyond the end of the cache block. */
-      read_length = length;
-      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      read_length = std::min(length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       /* The block has been read by the caller already. */
@@ -2593,8 +2591,7 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
       /* Start writing at the beginning of the cache block. */
       filepos -= offset;
       /* Do not write beyond the end of the cache block. */
-      read_length = length;
-      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
+      read_length = std::min(length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       /* Request the cache block that matches file/pos. */
@@ -2722,8 +2719,8 @@ int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
         a flush.
       */
       block->status &= ~BLOCK_FOR_UPDATE;
-      set_if_smaller(block->offset, offset);
-      set_if_bigger(block->length, read_length + offset);
+      block->offset = std::min(block->offset, offset);
+      block->length = std::max(block->length, read_length + offset);
 
       /* Threads may be waiting for the changes to be complete. */
       release_whole_queue(&block->wqueue[COND_FOR_REQUESTED]);

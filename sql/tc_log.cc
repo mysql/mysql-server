@@ -28,6 +28,8 @@
 #include <fcntl.h>
 #include <string.h>
 
+#include <algorithm>
+
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_loglevel.h"
@@ -247,7 +249,8 @@ TC_LOG_MMAP::PAGE *TC_LOG_MMAP::get_active_from_pool() {
   if (new_active->free == new_active->size)  // we've chosen an empty page
   {
     tc_log_cur_pages_used++;
-    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
+    tc_log_max_pages_used =
+        std::max(tc_log_max_pages_used, tc_log_cur_pages_used);
   }
 
   *best_p = (*best_p)->next;
@@ -438,7 +441,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid MY_ATTRIBUTE((unused))) {
   *x = 0;
   p->free++;
   DBUG_ASSERT(p->free <= p->size);
-  set_if_smaller(p->ptr, x);
+  p->ptr = std::min(p->ptr, x);
   if (p->free == p->size)  // the page is completely empty
     tc_log_cur_pages_used--;
   if (p->waiters == 0)                 // the page is in pool and ready to rock

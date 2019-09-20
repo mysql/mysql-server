@@ -9935,7 +9935,7 @@ void do_get_replace_column(struct st_command *command) {
     my_free(replace_column[column_number - 1]);
     replace_column[column_number - 1] =
         my_strdup(PSI_NOT_INSTRUMENTED, to, MYF(MY_WME | MY_FAE));
-    set_if_bigger(max_replace_column, column_number);
+    max_replace_column = std::max(max_replace_column, column_number);
   }
   my_free(start);
   command->last_argument = command->end;

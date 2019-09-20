@@ -365,8 +365,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
       as its parent's nest level.
     */
     if (in_sum_func->base_select->nest_level >= aggr_select->nest_level)
-      set_if_bigger(in_sum_func->max_sum_func_level, aggr_select->nest_level);
-    set_if_bigger(in_sum_func->max_sum_func_level, max_sum_func_level);
+      in_sum_func->max_sum_func_level =
+          max(in_sum_func->max_sum_func_level, int8(aggr_select->nest_level));
+    in_sum_func->max_sum_func_level =
+        max(in_sum_func->max_sum_func_level, max_sum_func_level);
   }
 
   aggr_select->set_agg_func_used(true);
@@ -479,7 +481,7 @@ void Item_sum::print(const THD *thd, String *str,
 void Item_sum::fix_num_length_and_dec() {
   decimals = 0;
   for (uint i = 0; i < arg_count; i++)
-    set_if_bigger(decimals, args[i]->decimals);
+    decimals = max(decimals, args[i]->decimals);
   max_length = float_length(decimals);
 }
 
@@ -1367,7 +1369,7 @@ bool Item_sum_bit::resolve_type(THD *thd) {
   if (bit_func_returns_binary(args[0], nullptr)) {
     hybrid_type = STRING_RESULT;
     for (uint i = 0; i < arg_count; i++)
-      max_length = std::max(max_length, args[i]->max_length);
+      max_length = max(max_length, args[i]->max_length);
     if (max_length > (CONVERT_IF_BIGGER_TO_BLOB - 1)) {
       /*
         Implementation of Item_sum_bit_field expects that "result_field" is
@@ -3796,7 +3798,7 @@ bool Item_sum_udf_str::resolve_type(THD *) {
   set_data_type(MYSQL_TYPE_VARCHAR);
   max_length = 0;
   for (uint i = 0; i < arg_count; i++)
-    set_if_bigger(max_length, args[i]->max_length);
+    max_length = max(max_length, args[i]->max_length);
   return false;
 }
 

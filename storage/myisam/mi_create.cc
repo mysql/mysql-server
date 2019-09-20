@@ -27,6 +27,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <algorithm>
+
 #include "my_bit.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -410,7 +412,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
       set_my_errno(HA_WRONG_CREATE_OPTION);
       goto err_no_lock;
     }
-    set_if_bigger(max_key_block_length, keydef->block_length);
+    max_key_block_length =
+        std::max(max_key_block_length, uint(keydef->block_length));
     keydef->keylength = (uint16)key_length;
     keydef->minlength = (uint16)(length - min_key_length_skip);
     keydef->maxlength = (uint16)length;

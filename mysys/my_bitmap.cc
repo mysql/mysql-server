@@ -203,7 +203,7 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size) {
 
   DBUG_ASSERT(map->bitmap &&
               (prefix_size <= map->n_bits || prefix_size == (uint)~0));
-  set_if_smaller(prefix_size, map->n_bits);
+  prefix_size = std::min(prefix_size, map->n_bits);
   if ((prefix_bytes = prefix_size / 8)) memset(m, 0xff, prefix_bytes);
   m += prefix_bytes;
   if ((prefix_bits = prefix_size & 7)) {

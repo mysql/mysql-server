@@ -1320,7 +1320,7 @@ void Item_str_func::left_right_max_length() {
     if (length_val.is_negative())
       char_length = 0;
     else if (length_val <= Integer_value(INT_MAX32, false))
-      char_length = std::min(char_length, static_cast<uint32>(length));
+      char_length = min(char_length, static_cast<uint32>(length));
   }
 
 end:
@@ -1444,7 +1444,7 @@ bool Item_func_substr::resolve_type(THD *) {
     if (length_val.is_negative())
       max_char_length = 0;
     else if (length_val <= Integer_value(INT_MAX, false))
-      max_char_length = std::min(max_char_length, static_cast<uint32>(length));
+      max_char_length = min(max_char_length, static_cast<uint32>(length));
   }
 
 end:
@@ -1512,7 +1512,7 @@ String *Item_func_substr_index::val_str(String *str) {
           continue;
         }
       skip:
-        ptr += std::max(1U, my_ismbchar(res->charset(), ptr, strend));
+        ptr += max(1U, my_ismbchar(res->charset(), ptr, strend));
       } /* either not found or got total number when count<0 */
 
       if (pass == 0) /* count < 0 */
@@ -1842,7 +1842,7 @@ bool Item_func_soundex::resolve_type(THD *) {
   uint32 char_length = args[0]->max_char_length();
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   DBUG_ASSERT(collation.collation != NULL);
-  set_if_bigger(char_length, 4);
+  char_length = max(char_length, 4U);
   set_data_type_string(char_length);
   tmp_value.set_charset(collation.collation);
   return false;
@@ -2125,8 +2125,8 @@ bool Item_func_elt::resolve_type(THD *) {
     return true;
 
   for (uint i = 1; i < arg_count; i++) {
-    set_if_bigger(char_length, args[i]->max_char_length());
-    set_if_bigger(decimals, args[i]->decimals);
+    char_length = max(char_length, args[i]->max_char_length());
+    decimals = max(decimals, args[i]->decimals);
   }
   set_data_type_string(char_length);
   maybe_null = true;  // NULL if wrong first arg
@@ -3113,9 +3113,9 @@ String *Item_func_weight_string::val_str(String *str) {
     if (num_codepoints) {
       // Truncate the string to the requested number of code points.
       input_length =
-          std::min(input_length, cs->cset->charpos(cs, input->ptr(),
-                                                   input->ptr() + input_length,
-                                                   num_codepoints));
+          min(input_length,
+              cs->cset->charpos(cs, input->ptr(), input->ptr() + input_length,
+                                num_codepoints));
     } else {
       /*
         Give in exactly the right number of code points, so that we
@@ -3549,7 +3549,7 @@ bool Item_func_quote::resolve_type(THD *thd) {
     single quotes added by QUOTE. NULLs print as NULL without single quotes
     so their maximum length is 4.
   */
-  ulonglong max_result_length = std::max<ulonglong>(
+  ulonglong max_result_length = max<ulonglong>(
       4, static_cast<ulonglong>(args[0]->max_char_length()) * 2U + 2U);
   collation.set(args[0]->collation);
   set_data_type_string(max_result_length);

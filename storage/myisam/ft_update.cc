@@ -26,6 +26,7 @@
 
 #include <math.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -289,7 +290,7 @@ uint _mi_ft_convert_to_ft2(MI_INFO *info, uint keynr, uchar *key) {
   /* we'll generate one pageful at once, and insert the rest one-by-one */
   /* calculating the length of this page ...*/
   length = (keyinfo->block_length - 2) / keyinfo->keylength;
-  set_if_smaller(length, da->elements);
+  length = std::min(length, da->elements);
   length = length * keyinfo->keylength;
 
   get_key_full_length_rdonly(key_length, key);

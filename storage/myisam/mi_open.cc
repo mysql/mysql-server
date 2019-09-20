@@ -35,6 +35,7 @@
 
 #include "my_config.h"
 
+#include <algorithm>
 #include <memory>
 
 #include <errno.h>
@@ -343,7 +344,8 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
                         end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
           share->have_rtree = true;
-        set_if_smaller(share->blocksize, share->keyinfo[i].block_length);
+        share->blocksize =
+            std::min(share->blocksize, uint(share->keyinfo[i].block_length));
         share->keyinfo[i].seg = pos;
         for (j = 0; j < share->keyinfo[i].keysegs; j++, pos++) {
           disk_pos = mi_keyseg_read(disk_pos, pos);
