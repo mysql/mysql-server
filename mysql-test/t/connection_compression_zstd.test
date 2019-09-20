@@ -12,9 +12,6 @@
 #                                                                   #
 #####################################################################
 
-# Avoid running the test with --ps-protocol till Bug#30290568 is fixed.
---source include/no_protocol.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -47,38 +44,8 @@ FLUSH STATUS;
 SELECT * FROM t1;
 --let $size_uncompressed = query_get_value(SHOW STATUS LIKE 'Bytes_sent', Value, 1)
 
+
 SET GLOBAL protocol_compression_algorithms="zstd";
-# Test zstd compressed connection with default compression level.
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
-connect(zstd_con, localhost, root,,,,,,,zstd);
-SHOW STATUS LIKE 'Compression%';
-FLUSH STATUS;
-SELECT * FROM t1;
---let $size_compressed_default = query_get_value(SHOW STATUS LIKE 'Bytes_sent', Value, 1)
-connection default;
-disconnect zstd_con;
-
-# Test zstd compressed connection with minimum compression level.
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
-connect(zstd_con, localhost, root,,,,,,,zstd,1);
-SHOW STATUS LIKE 'Compression%';
-FLUSH STATUS;
-SELECT * FROM t1;
---let $size_compressed_level1 = query_get_value(SHOW STATUS LIKE 'Bytes_sent', Value, 1)
-connection default;
-disconnect zstd_con;
-
-# Test zstd compressed connection with mid-range compression level.
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
-connect(zstd_con, localhost, root,,,,,,,zstd,10);
-SHOW STATUS LIKE 'Compression%';
-FLUSH STATUS;
-SELECT * FROM t1;
---let $size_compressed_level10 = query_get_value(SHOW STATUS LIKE 'Bytes_sent', Value, 1)
-connection default;
-disconnect zstd_con;
-
-
 # Test zstd compressed connection with maximum compression level.
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect(zstd_con, localhost, root,,,,,,,zstd,22);
@@ -89,21 +56,9 @@ SELECT * FROM t1;
 connection default;
 disconnect zstd_con;
 
-# Validate size of data sent by the server under different compression settings
---let $assert_cond = $size_compressed_level1 < $size_uncompressed
---let $assert_text = Size of data transferred with zstd level 1 compression should be less than uncompressed transfer
---source include/assert.inc
-
---let $assert_cond = $size_compressed_default < $size_compressed_level1
---let $assert_text = Size of data transferred with default zstd level compression should be less that with level 1
---source include/assert.inc
-
---let $assert_cond = $size_compressed_level10 < $size_compressed_default
---let $assert_text = Size of data transferred with default zstd level 10 compression should be less that with default level(3)
---source include/assert.inc
-
---let $assert_cond = $size_compressed_level22 < $size_compressed_level10
---let $assert_text = Size of data transferred with default zstd level 22 compression should be less that with level 10
+# Validate size of data transferred between the highest compression level offered by zstd and uncompressed data.
+--let $assert_cond = $size_compressed_level22 < $size_uncompressed
+--let $assert_text = Size of data transferred with default zstd level 22 compression should be less than the uncompressed data.
 --source include/assert.inc
 
 SET @@global.protocol_compression_algorithms=default;
