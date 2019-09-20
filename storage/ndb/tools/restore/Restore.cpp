@@ -45,6 +45,7 @@ extern thread_local EmulatedJamBuffer* NDB_THREAD_TLS_JAM;
 extern NdbRecordPrintFormat g_ndbrecord_print_format;
 extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
+extern bool opt_include_stored_grants;
 
 #define LOG_MSGLEN 1024
 
@@ -635,7 +636,10 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_SCHEMA_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 ||
-        strcmp(tableName, "mysql/def/ndb_schema_result") == 0)
+        strcmp(tableName, "mysql/def/ndb_schema_result") == 0 ||
+        (strcmp(tableName, "mysql/def/ndb_sql_metadata") == 0
+         && !opt_include_stored_grants)
+       )
     {
       table->m_isSysTable = true;
       if (strcmp(tableName, "SYSTAB_0") == 0 ||
@@ -644,27 +648,24 @@ RestoreMetaData::markSysTables()
     }
   }
   for (i = 0; i < getNoOfTables(); i++) {
-    TableS* blobTable = allTables[i];
-    const char* blobTableName = blobTable->getTableName();
-    // yet another match blob
-    int cnt, id1, id2;
+    TableS* auxTable = allTables[i];
+    const char* auxTableName = auxTable->getTableName();
+    // Use pattern matching to find blob tables or ordered indexes and
+    // associate them with their main tables
+    static constexpr const char * indxPattern = "sys/def/%d/";
+    static constexpr const char * blobPattern = "%[^/]/%[^/]/NDB$BLOB_%d_%d";
+     int id1, id2 = ~(Uint32)0;
     char buf[256];
-    cnt = sscanf(blobTableName, "%[^/]/%[^/]/NDB$BLOB_%d_%d",
-                 buf, buf, &id1, &id2);
-    if (cnt == 4) {
-      Uint32 j;
-      for (j = 0; j < getNoOfTables(); j++) {
-        TableS* table = allTables[j];
-        if (table->getTableId() == (Uint32) id1) {
-          if (table->m_isSysTable)
-            blobTable->m_isSysTable = true;
-          blobTable->m_main_table = table;
-          blobTable->m_main_column_id = id2;
-          break;
-        }
-      }
-      if (j == getNoOfTables()) {
-        restoreLogger.log_error("Restore: Bad primary table id in %s", blobTableName);
+
+    if((sscanf(auxTableName, indxPattern, &id1) == 1) ||
+       (sscanf(auxTableName, blobPattern, buf, buf, &id1, &id2) == 4)) {
+      TableS *mainTable = getTable(id1);
+      if(mainTable) {
+        auxTable->m_isSysTable = mainTable->m_isSysTable;
+        auxTable->m_main_table = mainTable;
+        auxTable->m_main_column_id = id2;
+      } else {
+        restoreLogger.log_error("Restore: Bad primary table id in %s", auxTableName);
         return false;
       }
     }

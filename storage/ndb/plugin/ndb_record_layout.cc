@@ -90,7 +90,8 @@ void Ndb_record_layout::setValue(int idx, unsigned short value,
   DBUG_ASSERT(record_specs[idx].column->getSizeInBytes() == sizeof(short));
 
   setNotNull(idx, data);
-  int2store((data + record_specs[idx].offset), value);
+  data += record_specs[idx].offset;
+  *(reinterpret_cast<unsigned short *>(data)) = value;
 }
 
 void Ndb_record_layout::setValue(int idx, std::string value, char *data) const {
@@ -105,7 +106,8 @@ void Ndb_record_layout::setValue(int idx, unsigned int *value,
   DBUG_ASSERT(idx < (int)m_columns);
   if (value) {
     setNotNull(idx, data);
-    int4store((data + record_specs[idx].offset), *value);
+    data += record_specs[idx].offset;
+    *(reinterpret_cast<unsigned int *>(data)) = *value;
   } else {
     setNull(idx, data);
   }
@@ -122,7 +124,7 @@ bool Ndb_record_layout::getValue(const char *data, int idx,
   DBUG_ASSERT(idx < (int)m_columns);
   if (isNull(data, idx)) return false;
   data += record_specs[idx].offset;
-  *value = uint2korr(data);
+  *value = *reinterpret_cast<const unsigned short *>(data);
   return true;
 }
 
@@ -140,6 +142,6 @@ bool Ndb_record_layout::getValue(const char *data, int idx,
   DBUG_ASSERT(idx < (int)m_columns);
   if (isNull(data, idx)) return false;
   data += record_specs[idx].offset;
-  *value = uint4korr(data);
+  *value = *reinterpret_cast<const int *>(data);
   return true;
 }
