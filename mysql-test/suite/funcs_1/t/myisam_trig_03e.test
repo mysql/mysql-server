@@ -5,6 +5,7 @@
 #
 # Set $engine_type
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 let $engine_type= myisam;
 

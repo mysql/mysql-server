@@ -18,57 +18,31 @@ utf8mb4
 '#--------------------FN_DYNVARS_008_02-------------------------#'
 'connection default'
 DROP TABLE IF EXISTS t1;
-'--check if setting session character_set_database effects new databases'
-SET @@session.character_set_server = utf8;
+'------Check if load data uses character_set_database----------'
+USE test;
+CREATE TABLE t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=MyISAM CHARACTER SET utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-SELECT @@session.character_set_database;
-@@session.character_set_database
-utf8mb4
-SET @@session.character_set_database = latin5;
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+'Verify with latin';
+SET @@session.character_set_database = latin1;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
-SELECT @@session.character_set_database;
-@@session.character_set_database
-latin5
-CREATE DATABASE db1;
-USE db1;
-SHOW CREATE DATABASE db1;
-Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
-CREATE TABLE t1(a INT, b VARCHAR(40));
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(40) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
-DROP TABLE t1;
-DROP DATABASE db1;
-'--ascii character set specified--'
-CREATE DATABASE db1 CHARACTER SET ascii;
-USE db1;
-SHOW CREATE DATABASE db1;
-Database	Create Database
-db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
-CREATE TABLE t1(a INT, b VARCHAR(40));
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` varchar(40) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=ascii
-DROP TABLE t1;
-DROP DATABASE db1;
-SET GLOBAL character_set_server=latin5;
-CREATE DATABASE csdb CHARACTER SET = utf8;
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
+SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
+count(*)
+2433
+TRUNCATE TABLE t1;
+'Verify with utf8';
+SET @@session.character_set_database = utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-USE csdb;
-DROP DATABASE csdb;
-SELECT @@character_set_database;
-@@character_set_database
-latin5
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
+SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
+count(*)
+1
+DROP TABLE IF EXISTS t1;
 SET @@global.character_set_database = @global_character_set_database;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.

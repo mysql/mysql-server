@@ -19,6 +19,9 @@
 #                                                                             #
 ###############################################################################
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 --echo '#--------------------FN_DYNVARS_008_01-------------------------#'
 ########################################################################
 # Check if setting character_set_database is changed in new connection #
@@ -51,47 +54,28 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 #==============================================================================
---echo '--check if setting session character_set_database effects new databases'
+--echo '------Check if load data uses character_set_database----------'
 #==============================================================================
 
-SET @@session.character_set_server = utf8;
-SELECT @@session.character_set_database;
-SET @@session.character_set_database = latin5;
-SELECT @@session.character_set_database;
+USE test;
+CREATE TABLE t1 (a CHAR(4) CHARACTER SET utf8) ENGINE=MyISAM CHARACTER SET utf8;
 
-CREATE DATABASE db1;
-USE db1;
-SHOW CREATE DATABASE db1;
-CREATE TABLE t1(a INT, b VARCHAR(40));
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
-DROP DATABASE db1;
+--echo 'Verify with latin';
+SET @@session.character_set_database = latin1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
+SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
+TRUNCATE TABLE t1;
 
-#==============================================================================
---echo '--ascii character set specified--'
-#==============================================================================
-CREATE DATABASE db1 CHARACTER SET ascii;
-USE db1;
-SHOW CREATE DATABASE db1;
-CREATE TABLE t1(a INT, b VARCHAR(40));
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
-DROP DATABASE db1;
+--echo 'Verify with utf8';
+SET @@session.character_set_database = utf8;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/std_data/charset_utf8.txt' INTO TABLE t1;
+SELECT count(*) FROM t1 WHERE CHAR_LENGTH(a)>1;
 
-#==============================================================================
-SET GLOBAL character_set_server=latin5;
-
-connect (con2, localhost, root,,);
-connection con2;
-
-CREATE DATABASE csdb CHARACTER SET = utf8;
-USE csdb;
-DROP DATABASE csdb;
-SELECT @@character_set_database;
-
-connection default;
-disconnect con2;
-
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
 
 #restore
 SET @@global.character_set_database = @global_character_set_database;

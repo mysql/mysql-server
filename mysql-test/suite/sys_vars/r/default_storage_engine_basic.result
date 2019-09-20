@@ -18,10 +18,6 @@ SELECT @@session.default_storage_engine;
 @@session.default_storage_engine
 InnoDB
 '#--------------------FN_DYNVARS_005_02-------------------------#'
-SET @@global.default_storage_engine = MYISAM;
-SELECT @@global.default_storage_engine;
-@@global.default_storage_engine
-MyISAM
 SET @@global.default_storage_engine = MERGE;
 SELECT @@global.default_storage_engine;
 @@global.default_storage_engine
@@ -35,10 +31,6 @@ SELECT @@global.default_storage_engine;
 @@global.default_storage_engine
 InnoDB
 '#--------------------FN_DYNVARS_005_03-------------------------#'
-SET @@session.default_storage_engine = MYISAM;
-SELECT @@session.default_storage_engine;
-@@session.default_storage_engine
-MyISAM
 SET @@session.default_storage_engine = MERGE;
 SELECT @@session.default_storage_engine;
 @@session.default_storage_engine
@@ -88,7 +80,7 @@ ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
 SET @@global.default_storage_engine = FALSE;
 ERROR 42000: Incorrect argument type to variable 'default_storage_engine'
 '#---------------------FN_DYNVARS_001_8----------------------#'
-SET @@default_storage_engine = MYISAM;
+SET @@default_storage_engine = INNODB;
 SELECT @@default_storage_engine = @@local.default_storage_engine;
 @@default_storage_engine = @@local.default_storage_engine
 1

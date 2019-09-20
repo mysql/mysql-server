@@ -18,10 +18,6 @@ SELECT @@session.default_tmp_storage_engine;
 @@session.default_tmp_storage_engine
 InnoDB
 '#--------------------FN_DYNVARS_005_02-------------------------#'
-SET @@global.default_tmp_storage_engine = MYISAM;
-SELECT @@global.default_tmp_storage_engine;
-@@global.default_tmp_storage_engine
-MyISAM
 SET @@global.default_tmp_storage_engine = MERGE;
 SELECT @@global.default_tmp_storage_engine;
 @@global.default_tmp_storage_engine
@@ -35,10 +31,6 @@ SELECT @@global.default_tmp_storage_engine;
 @@global.default_tmp_storage_engine
 InnoDB
 '#--------------------FN_DYNVARS_005_03-------------------------#'
-SET @@session.default_tmp_storage_engine = MYISAM;
-SELECT @@session.default_tmp_storage_engine;
-@@session.default_tmp_storage_engine
-MyISAM
 SET @@session.default_tmp_storage_engine = MERGE;
 SELECT @@session.default_tmp_storage_engine;
 @@session.default_tmp_storage_engine
@@ -87,14 +79,6 @@ SET @@global.default_tmp_storage_engine = TRUE;
 ERROR 42000: Incorrect argument type to variable 'default_tmp_storage_engine'
 SET @@global.default_tmp_storage_engine = FALSE;
 ERROR 42000: Incorrect argument type to variable 'default_tmp_storage_engine'
-'#---------------------FN_DYNVARS_001_8----------------------#'
-SET @@default_tmp_storage_engine = MYISAM;
-SELECT @@default_tmp_storage_engine = @@local.default_tmp_storage_engine;
-@@default_tmp_storage_engine = @@local.default_tmp_storage_engine
-1
-SELECT @@local.default_tmp_storage_engine = @@session.default_tmp_storage_engine;
-@@local.default_tmp_storage_engine = @@session.default_tmp_storage_engine
-1
 '#---------------------FN_DYNVARS_001_9----------------------#'
 SET default_tmp_storage_engine = MEMORY;
 SELECT @@default_tmp_storage_engine;
@@ -107,21 +91,6 @@ ERROR 42S02: Unknown table 'session' in field list
 SELECT default_tmp_storage_engine = @@session.default_tmp_storage_engine;
 ERROR 42S22: Unknown column 'default_tmp_storage_engine' in 'field list'
 SET @@default_tmp_storage_engine = @start_global_value;
-SET default_tmp_storage_engine = MyISAM;
-SET default_storage_engine = MyISAM;
-CREATE TABLE t1 (a INT);
-CREATE TEMPORARY TABLE t2 (b INT);
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TEMPORARY TABLE `t2` (
-  `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t1, t2;
 SET default_tmp_storage_engine = InnoDB;
 CREATE TABLE t1 (a INT);
 CREATE TEMPORARY TABLE t2 (b INT);
@@ -129,7 +98,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (

@@ -21,7 +21,7 @@ if (!$require_case_insensitive_file_system)
   --source include/have_case_sensitive_file_system.inc
 }
 
---source include/have_myisam.inc
+#--source include/have_myisam.inc
 let $engine_type= InnoDB;
 
 let $is_table = KEY_COLUMN_USAGE;

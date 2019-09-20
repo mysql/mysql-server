@@ -8,7 +8,7 @@
 # 2008-06-04 mleich Create this script based on older scripts and new code.
 #
 
-
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 let $engine_type= MyISAM;
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';

@@ -34,8 +34,6 @@ SELECT @@session.default_tmp_storage_engine;
 # Change the value of default_tmp_storage_engine to a valid value for GLOBAL Scope #
 ########################################################################
 
-SET @@global.default_tmp_storage_engine = MYISAM;
-SELECT @@global.default_tmp_storage_engine;
 SET @@global.default_tmp_storage_engine = MERGE;
 SELECT @@global.default_tmp_storage_engine;
 SET @@global.default_tmp_storage_engine = MEMORY;
@@ -49,8 +47,6 @@ SELECT @@global.default_tmp_storage_engine;
 # Change the value of default_tmp_storage_engine to a valid value for SESSION Scope #
 #########################################################################
  
-SET @@session.default_tmp_storage_engine = MYISAM;
-SELECT @@session.default_tmp_storage_engine;
 SET @@session.default_tmp_storage_engine = MERGE;
 SELECT @@session.default_tmp_storage_engine;
 SET @@session.default_tmp_storage_engine = MEMORY;
@@ -123,17 +119,6 @@ SET @@global.default_tmp_storage_engine = TRUE;
 SET @@global.default_tmp_storage_engine = FALSE;
 
 
---echo '#---------------------FN_DYNVARS_001_8----------------------#'
-###############################################################
-#  Check if accessing variable with SESSION,LOCAL and without #
-#  SCOPE points to same session variable                      #
-###############################################################
-
-SET @@default_tmp_storage_engine = MYISAM;
-SELECT @@default_tmp_storage_engine = @@local.default_tmp_storage_engine;
-SELECT @@local.default_tmp_storage_engine = @@session.default_tmp_storage_engine;
-
-
 --echo '#---------------------FN_DYNVARS_001_9----------------------#'
 #########################################################################
 #   Check if default_tmp_storage_engine can be accessed with and without @@ sign    #
@@ -150,14 +135,6 @@ SELECT default_tmp_storage_engine = @@session.default_tmp_storage_engine;
 
 # check the old obsolete name
 SET @@default_tmp_storage_engine = @start_global_value;
-
-SET default_tmp_storage_engine = MyISAM;
-SET default_storage_engine = MyISAM;
-CREATE TABLE t1 (a INT);
-CREATE TEMPORARY TABLE t2 (b INT);
-SHOW CREATE TABLE t1;
-SHOW CREATE TABLE t2;
-DROP TABLE t1, t2;
 
 SET default_tmp_storage_engine = InnoDB;
 CREATE TABLE t1 (a INT);
