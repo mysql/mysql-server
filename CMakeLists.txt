@@ -25,6 +25,17 @@ MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 IF(WIN32)
   # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+  IF(CMAKE_GENERATOR MATCHES "Visual Studio" AND CMAKE_GENERATOR MATCHES "2019")
+    IF(CMAKE_VERSION MATCHES "MSVC")
+      # It is the bundled version, ignore version check,
+      # (although this seems to be buggy too).
+    ELSE()
+      # Bug in msbuild, install the latest in the 3.15 series as a workaround.
+      # https://gitlab.kitware.com/cmake/cmake/issues/19303
+      # custom commands are re-built every time
+      CMAKE_MINIMUM_REQUIRED(VERSION 3.15.3)
+    ENDIF()
+  ENDIF()
 ELSEIF(APPLE)
   # Version 3.12.4 is needed because the new build system of Xcode is not
   # supported by cmake. 3.12.4 will force using the legacy build system.
