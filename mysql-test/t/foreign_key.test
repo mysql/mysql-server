@@ -4655,3 +4655,17 @@ ALTER TABLE child DROP FOREIGN KEY c1;
 ALTER TABLE child ADD CONSTRAINT c2 FOREIGN KEY (fk) REFERENCES parent /*! (id) */ /*!40008 ON DELETE SET NULL */;
 SHOW CREATE TABLE child;
 DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug#21919887 "STATEMENTS IN "EXECUTABLE COMMENTS" ARE IGNORING
+--echo #               CONSTRAINTS".
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+/*!50101 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) */;
+SHOW CREATE TABLE child;
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+/*! ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) */;
+SHOW CREATE TABLE child;
+DROP TABLES child, parent;

@@ -4872,3 +4872,27 @@ child	CREATE TABLE `child` (
   CONSTRAINT `c2` FOREIGN KEY (`fk`) REFERENCES `parent` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES child, parent;
+#
+# Bug#21919887 "STATEMENTS IN "EXECUTABLE COMMENTS" ARE IGNORING
+#               CONSTRAINTS".
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+/*!50101 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) */;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE child;
+CREATE TABLE child (fk INT);
+/*! ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) */;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLES child, parent;
