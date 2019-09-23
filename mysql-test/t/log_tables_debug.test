@@ -92,7 +92,8 @@ SET SESSION long_query_time=0;
 SET @@session.debug = '+d,slow_log_table_max_rows_examined';
 SET @@session.long_query_time = @old_long_query_time;
 SET @@session.debug = '-d,slow_log_table_max_rows_examined';
-SELECT rows_examined,db,sql_text FROM mysql.slow_log;
+SELECT rows_examined,db,query_time,lock_time,sql_text FROM mysql.slow_log WHERE rows_examined > 0;
+# If the above overflows either TIME field, run "REPAIR TABLE mysql.slow_log;"
 
 --echo End of 8.0 tests
 

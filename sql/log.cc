@@ -1049,16 +1049,22 @@ bool Log_to_csv_event_handler::log_slow(
     MYSQL_TIME t;
     t.neg = false;
 
+    // overflow TIME-max
+    DBUG_EXECUTE_IF("slow_log_table_max_rows_examined", {
+      query_utime = (longlong)1555826389LL * 1000000 + 1;
+      lock_utime = query_utime;
+    });
+
     /* fill in query_time field */
-    calc_time_from_sec(&t,
-                       static_cast<long>(min((longlong)(query_utime / 1000000),
-                                             (longlong)TIME_MAX_VALUE_SECONDS)),
+    query_utime = min((ulonglong)query_utime,
+                      (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
+    calc_time_from_sec(&t, static_cast<long>(query_utime / 1000000LL),
                        query_utime % 1000000);
     table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t);
     /* lock_time */
-    calc_time_from_sec(&t,
-                       static_cast<long>(min((longlong)(lock_utime / 1000000),
-                                             (longlong)TIME_MAX_VALUE_SECONDS)),
+    lock_utime = min((ulonglong)lock_utime,
+                     (ulonglong)TIME_MAX_VALUE_SECONDS * 1000000LL);
+    calc_time_from_sec(&t, static_cast<long>(lock_utime / 1000000LL),
                        lock_utime % 1000000);
     table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t);
     /* rows_sent */
