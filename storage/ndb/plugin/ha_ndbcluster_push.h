@@ -256,8 +256,6 @@ class ndb_pushed_builder_ctx {
           m_depend_parents(),
           m_parent(MAX_TABLES),
           m_ancestors(),
-          m_fanout(1.0),
-          m_child_fanout(1.0),
           m_op(NULL) {}
 
     int m_maybe_pushable;  // OR'ed bits from 'enum_pushability'
@@ -306,16 +304,6 @@ class ndb_pushed_builder_ctx {
      * All ancestors available throught the 'm_parent' chain
      */
     ndb_table_access_map m_ancestors;
-
-    /**
-     * The fanout of this table.
-     */
-    double m_fanout;
-
-    /**
-     * The (cross) product of all child fanouts.
-     */
-    double m_child_fanout;
 
     const NdbQueryOperationDef *m_op;
   } m_tables[MAX_TABLES];

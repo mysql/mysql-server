@@ -196,35 +196,6 @@ Join_plan::Join_plan(const JOIN *join)
     return get_qep_tab()->table();
   }
 
-  double Table_access::get_fanout() const
-  {
-    switch (get_access_type())
-    {
-      case AT_PRIMARY_KEY:
-      case AT_UNIQUE_KEY:
-        return 1.0;
-
-      case AT_ORDERED_INDEX_SCAN:
-        DBUG_ASSERT(get_qep_tab()->position());
-        DBUG_ASSERT(get_qep_tab()->position()->rows_fetched > 0.0);
-        return get_qep_tab()->position()->rows_fetched;
-
-      case AT_MULTI_PRIMARY_KEY:
-      case AT_MULTI_UNIQUE_KEY:
-      case AT_MULTI_MIXED:
-        DBUG_ASSERT(get_qep_tab()->position());
-        DBUG_ASSERT(get_qep_tab()->position()->rows_fetched > 0.0);
-        return get_qep_tab()->position()->rows_fetched;
-
-      case AT_TABLE_SCAN:
-        DBUG_ASSERT(get_qep_tab()->table()->file->stats.records > 0.0);
-        return static_cast<double>(get_qep_tab()->table()->file->stats.records);
-
-      default:
-        return 99999999.0;
-    }
-  }
-
   /** Get the QEP_TAB object that corresponds to this operation.*/
   const QEP_TAB* Table_access::get_qep_tab() const
   {

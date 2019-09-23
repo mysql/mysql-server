@@ -206,8 +206,6 @@ namespace AQP
 
     TABLE* get_table() const;
 
-    double get_fanout() const;
-
     Item_equal* get_item_equal(const Item_field* field_item) const;
 
     void dbug_print() const;

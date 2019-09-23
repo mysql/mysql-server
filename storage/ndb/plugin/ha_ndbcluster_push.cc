@@ -442,8 +442,7 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
  *
  *  2) Determine the parent to be used among the set of possible
  *     parents. This is decided based on simple heuristic where
- *     the goal is to employ filters as soon as possible,
- *     reduce the fanout of intermediate results, and utilize
+ *     the goal is to employ filters as soon as possible, and utilize
  *     the parallelism of the SPJ block whenever considdered optimal.
  *
  *  3) Build the pushed query.
@@ -1172,13 +1171,6 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
   DBUG_TRACE;
   const uint root_no = m_join_root->get_access_no();
 
-  for (uint tab_no = root_no; tab_no < m_plan.get_access_count(); tab_no++) {
-    if (m_join_scope.contain(tab_no)) {
-      m_tables[tab_no].m_fanout = m_plan.get_table_access(tab_no)->get_fanout();
-      m_tables[tab_no].m_child_fanout = 1.0;
-    }
-  }
-
   // Find an optimal order for joining the tables
   for (uint tab_no = m_plan.get_access_count() - 1; tab_no > root_no;
        tab_no--) {
@@ -1240,7 +1232,6 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     const uint parent_no = parents.first_table(root_no);
     DBUG_ASSERT(parent_no < tab_no);
     table.m_parent = parent_no;
-    m_tables[parent_no].m_child_fanout *= table.m_fanout * table.m_child_fanout;
 
     /**
      * Any remaining parent dependencies for this table has to be
