@@ -964,6 +964,38 @@ explain
 #           to get a deterministic sorting order wo/ '--sorted_result'
 #           
 
+#
+# Bug #30338585
+#    SPJ INTEGRATION: FAILS TO DETECT FILESORT OF A TABLE IN MIDDLE OF PUSHED JOIN
+#
+# Extracted from TPC-H Q16, which failed to detect that the first
+# table in the query plan required a 'filesort', and thus should not
+# have been pushed. That effectively voided the entire pushed join and
+# caused poor performance. The correct query plan for Q16 would be
+# to 'filesort' the first table, then push the join of the two preceeding
+# tables.
+#
+# Below is a test case transformed to the test tables we normally use.
+# Optimizer will decide to presort t1 into a temporary table before
+# joining with t2. Thus the below query should not be pushed.
+#
+
+explain format=tree
+select straight_join t1.b, count(distinct t2.b) as cnt
+from t1
+join t1 as t2 on t2.a = t1.c
+group by t1.b
+order by t1.b, cnt;
+
+select straight_join t1.b, count(distinct t2.b) as cnt
+from t1
+join t1 as t2 on t2.a = t1.c
+group by t1.b
+order by t1.b, cnt;
+
+# Remaining (Original) test cases for eliminating filesort'ed tables
+# from a pushed join:
+
 ## Non-pushed join w/ 'simple order' on non_PK - Presorts parent table.
 explain
 select *

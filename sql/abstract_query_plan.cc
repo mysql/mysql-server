@@ -474,39 +474,7 @@ Join_plan::Join_plan(const JOIN *join)
   */
   bool Table_access::filesort_before_join() const
   {
-    if (m_access_type == AT_PRIMARY_KEY ||
-        m_access_type == AT_UNIQUE_KEY)
-    {
-      return false;
-    }
-
-    const QEP_TAB* const qep_tab= get_qep_tab();
-    JOIN* const join= qep_tab->join();
-
-    /**
-     Table will be presorted before joining with child tables, if:
-      1) This is the first non-const table
-      2) There are more tables to be joined
-      3) It is not already decide to write entire join result to temp.
-      4a) The GROUP BY is 'simple' and does not match an orderd index
-      4b) The ORDER BY is 'simple' and does not match an orderd index
-
-     A 'simple' order/group by contain only column references to
-     the first non-const table
-    */
-    if (qep_tab == join->qep_tab + join->const_tables &&    // First non-const table
-        !join->plan_is_const())                         // There are more tables
-    {
-      if (join->need_tmp_before_win)
-        return false;
-      else if (join->group_list && join->simple_group)
-        return (join->m_ordered_index_usage!=JOIN::ORDERED_INDEX_GROUP_BY);
-      else if (join->order && join->simple_order)
-        return (join->m_ordered_index_usage!=JOIN::ORDERED_INDEX_ORDER_BY);
-      else
-        return false;
-    }
-    return false;
+    return (get_qep_tab()->filesort != nullptr);
   }
 
 }

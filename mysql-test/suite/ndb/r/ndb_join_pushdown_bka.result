@@ -2186,6 +2186,36 @@ a	b	c	d	a	b	c	d
 2	2	2	2	2	2	2	2
 2	4	5	1	1	4	2	3
 4	3	1	2	2	3	4	5
+explain format=tree
+select straight_join t1.b, count(distinct t2.b) as cnt
+from t1
+join t1 as t2 on t2.a = t1.c
+group by t1.b
+order by t1.b, cnt;
+EXPLAIN
+-> Sort: <temporary>.b, <temporary>.cnt
+    -> Stream results
+        -> Group aggregate: count(distinct t2.b)
+            -> Sort: <temporary>.b
+                -> Table scan on <temporary>
+                    -> Temporary table
+                        -> Batched key access inner join
+                            -> Batch input rows
+                                -> Table scan on t1  (cost=4001.60 rows=16)
+                            -> Multi-range index lookup on t2 using PRIMARY (a=t1.c)
+
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+select straight_join t1.b, count(distinct t2.b) as cnt
+from t1
+join t1 as t2 on t2.a = t1.c
+group by t1.b
+order by t1.b, cnt;
+b	cnt
+1	4
+2	4
+3	4
+4	4
 explain
 select *
 from t1
