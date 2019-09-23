@@ -1,0 +1,29 @@
+--source setup.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Test INPLACE ALTER failures at various stages
+--echo #  - on failure, they should rollback restoring the
+--echo #    original table definitions if not already committed.
+--echo #
+--echo # Failure when meta-data is missing when trying to commit
+SHOW CREATE TABLE t8;
+SELECT * FROM t8 ORDER BY a;
+
+set @save_debug = @@global.debug;
+set global debug='-d'; # Switch DEBUG/TRACING OFF
+set global debug='+d,ndb_missing_table_in_inplace_alter';
+call mtr.add_suppression("Failed to complete inplace alter table commit");
+--error ER_INTERNAL_ERROR
+ALTER TABLE t8
+  RENAME COLUMN d to d_new,
+  ALGORITHM = INPLACE;
+set global debug=@save_debug;
+
+# ALTER TABLE is not properly rolled back (Bug#30302405)
+SHOW CREATE TABLE t8;
+--let $ndb_desc_opts= -i -d ndb_ddl_test t8
+--source suite/ndb/include/ndb_desc_print.inc
+
+--source cleanup.inc
+

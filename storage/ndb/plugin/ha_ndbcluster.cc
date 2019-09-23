@@ -15843,6 +15843,7 @@ bool ha_ndbcluster::commit_inplace_alter_table(
   NDB_ALTER_DATA *alter_data = (NDB_ALTER_DATA *)ha_alter_info->handler_ctx;
   const Uint32 table_id = alter_data->table_id;
   const Uint32 table_version = alter_data->old_table_version;
+  bool abort = false;  // OK
 
   // Pass pointer to table_def for usage by schema dist participant
   // in the binlog thread of this mysqld.
@@ -15867,28 +15868,51 @@ bool ha_ndbcluster::commit_inplace_alter_table(
     Ndb_table_guard ndbtab_g(alter_data->dictionary, name);
     const NDBTAB *ndbtab = ndbtab_g.get_table();
 
-    // The id should still be the same as before the alter
-    DBUG_ASSERT((Uint32)ndbtab->getObjectId() == table_id);
-    // The version should have been changed by the alter
-    DBUG_ASSERT((Uint32)ndbtab->getObjectVersion() != table_version);
+    if (DBUG_EVALUATE_IF("ndb_missing_table_in_inplace_alter", true, false)) {
+      ndbtab = nullptr;
+    }
 
-    ndb_dd_table_set_object_id_and_version(new_table_def, table_id,
-                                           ndbtab->getObjectVersion());
+    if (ndbtab == nullptr) {
+      // Since the schema transaction has already been committed at this
+      // point we cannot properly abort (Bug#30302405),
+      // but write an error in the log instead.
+      // Local DD will need to be synchronised with new schema in cluster
+      const NdbError &err = alter_data->dictionary->getNdbError();
+      ndb_log_error(
+          "Failed to complete inplace alter table commit for '%s', "
+          "table not found, error %u: %s",
+          name, err.code, err.message);
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "Failed to complete inplace alter table commit, "
+               "table not found");
+      abort = true;  // ERROR
+    } else {
+      // The id should still be the same as before the alter
+      DBUG_ASSERT((Uint32)ndbtab->getObjectId() == table_id);
+      // The version should have been changed by the alter
+      DBUG_ASSERT((Uint32)ndbtab->getObjectVersion() != table_version);
 
-    // Also check and correct the partition count if required.
-    const bool check_partition_count_result =
-        ndb_dd_table_check_partition_count(new_table_def,
-                                           ndbtab->getPartitionCount());
-    if (!check_partition_count_result) {
-      ndb_dd_table_fix_partition_count(new_table_def,
-                                       ndbtab->getPartitionCount());
+      ndb_dd_table_set_object_id_and_version(new_table_def, table_id,
+                                             ndbtab->getObjectVersion());
+
+      // Also check and correct the partition count if required.
+      const bool check_partition_count_result =
+          ndb_dd_table_check_partition_count(new_table_def,
+                                             ndbtab->getPartitionCount());
+      if (!check_partition_count_result) {
+        ndb_dd_table_fix_partition_count(new_table_def,
+                                         ndbtab->getPartitionCount());
+      }
     }
   }
 
-  // Unpin the NDB_SHARE of the altered table
-  NDB_SHARE::release_reference(m_share, "inplace_alter");
+  if (!abort) {
+    // Unpin the NDB_SHARE of the altered table
+    NDB_SHARE::release_reference(m_share, "inplace_alter");
+  }
+  // else abort_inplace_alter_table will unpin the NDB_SHARE
 
-  return false;  // OK
+  return abort;
 }
 
 bool ha_ndbcluster::abort_inplace_alter_table(
