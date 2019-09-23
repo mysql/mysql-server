@@ -90,46 +90,51 @@ TARGET_INCLUDE_DIRECTORIES(routertest_http_matcher
 
 IF(LIBFUZZER_COMPILE_FLAGS)
   ## http_auth_backend
-  ADD_EXECUTABLE(routerfuzz_auth_backend
+  MYSQL_ADD_EXECUTABLE(routerfuzz_auth_backend
     fuzz_auth_backend.cc
     ../src/http_auth_backend.cc
     ../src/kdf_sha_crypt.cc
     ../src/kdf_pbkdf2.cc
     ../src/mcf_error.cc
     ../src/base64.cc
+    COMPONENT Router
+    LINK_LIBRARIES ${SSL_LIBRARIES}
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    SKIP_INSTALL
     )
-  TARGET_LINK_LIBRARIES(routerfuzz_auth_backend ${SSL_LIBRARIES})
   TARGET_INCLUDE_DIRECTORIES(routerfuzz_auth_backend
     PRIVATE $<TARGET_PROPERTY:http_auth_backend,INCLUDE_DIRECTORIES>)
 
   LIBFUZZER_ADD_TEST(routerfuzz_auth_backend
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_auth_backend)
-  ADD_DEPENDENCIES(mysqlrouter_all routerfuzz_auth_backend)
 
   ## http_auth_method_basic
-  ADD_EXECUTABLE(routerfuzz_auth_method_basic
+  MYSQL_ADD_EXECUTABLE(routerfuzz_auth_method_basic
     fuzz_auth_method_basic.cc
     ../src/http_auth_method_basic.cc
     ../src/base64.cc
+    COMPONENT Router
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    SKIP_INSTALL
     )
-  TARGET_LINK_LIBRARIES(routerfuzz_auth_method_basic)
   TARGET_INCLUDE_DIRECTORIES(routerfuzz_auth_method_basic
     PRIVATE $<TARGET_PROPERTY:http_server,INCLUDE_DIRECTORIES>)
 
   LIBFUZZER_ADD_TEST(routerfuzz_auth_method_basic
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_auth_method_basic)
-  ADD_DEPENDENCIES(mysqlrouter_all routerfuzz_auth_method_basic)
 
   ## base64
-  ADD_EXECUTABLE(routerfuzz_base64
+  MYSQL_ADD_EXECUTABLE(routerfuzz_base64
     fuzz_base64.cc
     ../src/base64.cc
+    COMPONENT Router
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    SKIP_INSTALL
     )
-  TARGET_LINK_LIBRARIES(routerfuzz_base64)
+  TARGET_INCLUDE_DIRECTORIES(routerfuzz_base64
+    PRIVATE $<TARGET_PROPERTY:http_common,INCLUDE_DIRECTORIES>)
 
   LIBFUZZER_ADD_TEST(routerfuzz_base64
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus_base64)
-  ADD_DEPENDENCIES(mysqlrouter_all routerfuzz_base64)
-  TARGET_INCLUDE_DIRECTORIES(routerfuzz_base64
-    PRIVATE $<TARGET_PROPERTY:http_common,INCLUDE_DIRECTORIES>)
+
 ENDIF()

@@ -71,18 +71,9 @@ ELSE()
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
-  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES})
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(router_lib crypt32)
-ENDIF()
+  ${CMAKE_DL_LIBS} harness-library mysqlclient ${SSL_LIBRARIES}
+  )
 TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC ../include)
-IF(WITH_HARNESS)
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}")
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC
-    "${PROJECT_BINARY_DIR}/include/mysql/harness")
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/include")
-  TARGET_INCLUDE_DIRECTORIES(router_lib PUBLIC "${PROJECT_BINARY_DIR}/harness")
-ENDIF()
 
 SET_TARGET_PROPERTIES(router_lib PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
@@ -104,26 +95,23 @@ ENDIF()
 ADD_INSTALL_RPATH_FOR_OPENSSL(router_lib)
 SET_PATH_TO_SSL(router_lib ${CMAKE_BINARY_DIR}/library_output_directory)
 
-MYSQL_ADD_EXECUTABLE(${MYSQL_ROUTER_TARGET} ${source_files} COMPONENT Router)
-# add mysqlrouter to the build-all target
-ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
-  ${MYSQL_ROUTER_TARGET})
-
-ADD_INSTALL_RPATH(${MYSQL_ROUTER_TARGET} "${ROUTER_INSTALL_RPATH}")
-
-TARGET_LINK_LIBRARIES(${MYSQL_ROUTER_TARGET}
+MYSQL_ADD_EXECUTABLE(mysqlrouter
+  ${source_files}
+  COMPONENT Router
+  LINK_LIBRARIES
+  harness-library
+  router_lib
   ${CMAKE_DL_LIBS}
-  router_lib harness-library
   )
-IF(WIN32)
-  TARGET_LINK_LIBRARIES(${MYSQL_ROUTER_TARGET} crypt32)
-ENDIF()
+
+ADD_INSTALL_RPATH(mysqlrouter "${ROUTER_INSTALL_RPATH}")
+
 IF(SOLARIS)
-  TARGET_LINK_LIBRARIES(${MYSQL_ROUTER_TARGET} -lnsl -lsocket)
+  TARGET_LINK_LIBRARIES(mysqlrouter -lnsl -lsocket)
 ENDIF()
 
 IF(APPLE)
-  SET_TARGET_PROPERTIES(${MYSQL_ROUTER_TARGET} PROPERTIES
+  SET_TARGET_PROPERTIES(mysqlrouter PROPERTIES
     LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
 
@@ -136,7 +124,6 @@ INSTALL(TARGETS router_lib
 MYSQL_ADD_EXECUTABLE(mysqlrouter_keyring
   keyring_cli.cc
   keyring_frontend.cc
+  COMPONENT Router
+  LINK_LIBRARIES router_lib
   )
-TARGET_LINK_LIBRARIES(mysqlrouter_keyring router_lib)
-ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
-  mysqlrouter_keyring)

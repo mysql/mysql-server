@@ -55,7 +55,7 @@ TARGET_LINK_LIBRARIES(metadata_cache PRIVATE
   ${PROTOBUF_LITE_LIBRARY}
   )
 
-ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} mysqlxclient_lite)
+ADD_DEPENDENCIES(mysqlrouter_all mysqlxclient_lite)
 
 IF(WIN32)
   INSTALL(TARGETS metadata_cache

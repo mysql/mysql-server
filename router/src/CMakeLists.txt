@@ -56,9 +56,9 @@ IF (APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
   )
 
-  ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
+  ADD_DEPENDENCIES(mysqlrouter_all
     link_openssl_dlls_for_install_mysqlrouter)
-  ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
+  ADD_DEPENDENCIES(mysqlrouter_all
     link_openssl_dlls_for_build_mysqlrouter)
 
   INSTALL(FILES

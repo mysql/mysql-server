@@ -27,11 +27,12 @@ SET(TESTS
 )
 
 FOREACH(TEST ${TESTS})
-  add_test_file(${TEST} MODULE harness
+  ADD_TEST_FILE(${TEST} MODULE harness
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
     LIB_DEPENDS test-helpers)
 ENDFOREACH()
 
 ROUTERTEST_GET_TARGET(test_target "test_plugin_keepalive.cc" harness)
-create_harness_test_directory_post_build(${test_target} keepalive)
-CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data)
+CREATE_HARNESS_TEST_DIRECTORY_POST_BUILD(${test_target} keepalive)
+CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data
+  "keepalive.cfg.in")

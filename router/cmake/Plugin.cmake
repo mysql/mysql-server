@@ -85,7 +85,7 @@ FUNCTION(add_harness_plugin NAME)
   ADD_LIBRARY(${NAME} SHARED ${_option_SOURCES})
 
   # add plugin to build-all target
-  ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} ${NAME})
+  ADD_DEPENDENCIES(mysqlrouter_all ${NAME})
   IF(_option_OUTPUT_NAME)
     SET_TARGET_PROPERTIES(${NAME}
       PROPERTIES OUTPUT_NAME ${_option_OUTPUT_NAME})

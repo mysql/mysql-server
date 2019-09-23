@@ -30,6 +30,8 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
 
+    COMPONENT Router
+
     LINK_LIBRARIES
     harness-library
     mysqlclient
@@ -45,7 +47,6 @@ IF(LIBFUZZER_COMPILE_FLAGS)
   LIBFUZZER_ADD_TEST(routerfuzz_router_uri
     INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri
     )
-  ADD_DEPENDENCIES(mysqlrouter_all routerfuzz_router_uri)
 
 
   # FIXME: uri.cc depends on split_string() from utils.cc which pulls in
@@ -56,6 +57,8 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     fuzz_router_uri_tostring.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
+
+    COMPONENT Router
 
     LINK_LIBRARIES
     harness-library
@@ -73,5 +76,4 @@ IF(LIBFUZZER_COMPILE_FLAGS)
     INITIAL_CORPUS_DIR
     ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri_tostring
     )
-  ADD_DEPENDENCIES(mysqlrouter_all routerfuzz_router_uri_tostring)
 ENDIF()

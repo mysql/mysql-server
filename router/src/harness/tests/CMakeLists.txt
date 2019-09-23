@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(SYSTEM ${GMOCK_INCLUDE_DIRS})
 
 IF(NOT BUILD_IS_SINGLE_CONFIG)
   FOREACH(config ${CMAKE_CONFIGURATION_TYPES})
-    execute_process(
+    EXECUTE_PROCESS(
       COMMAND ${CMAKE_COMMAND} -E
       make_directory ${CMAKE_CURRENT_BINARY_DIR}/${config}/var
       COMMAND ${CMAKE_COMMAND} -E
@@ -34,7 +34,7 @@ IF(NOT BUILD_IS_SINGLE_CONFIG)
     )
   ENDFOREACH()
 ELSE()
-  execute_process(
+  EXECUTE_PROCESS(
     COMMAND ${CMAKE_COMMAND} -E
     make_directory ${CMAKE_CURRENT_BINARY_DIR}/var
     COMMAND ${CMAKE_COMMAND} -E
@@ -74,7 +74,7 @@ SET(TESTS
 )
 
 FOREACH(TEST ${TESTS})
-  add_test_file(${TEST} MODULE ${TEST_MODULE}
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/src/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/tests/include/
@@ -88,7 +88,7 @@ SET(TESTS
 )
 
 FOREACH(TEST ${TESTS})
-  add_test_file(${TEST} MODULE ${TEST_MODULE}
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
     LIB_DEPENDS test-helpers;${SSL_LIBRARIES})
 ENDFOREACH()
@@ -99,11 +99,22 @@ SET(TESTS
 )
 
 FOREACH(TEST ${TESTS})
-  add_test_file(${TEST} MODULE ${TEST_MODULE}
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/include/)
 ENDFOREACH()
 
 
 # Use configuration file templates to generate configuration files
-CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data)
-COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data)
+CONFIGURE_TEST_FILE_TEMPLATES(${CMAKE_CURRENT_SOURCE_DIR}/data
+  "tests-good-1.cfg.in;tests-good-2.cfg.in;tests-start-1.cfg.in")
+SET(TEST_FILES
+  logger.cfg
+  logger.d/default.cfg
+  logger.d/magic.cfg
+  logger.d/one.cfg
+  magic-alt.cfg
+  tests-bad-1.cfg
+  tests-bad-2.cfg
+  tests-bad-3.cfg
+  )
+COPY_TEST_FILES(${CMAKE_CURRENT_SOURCE_DIR}/data "${TEST_FILES}")
