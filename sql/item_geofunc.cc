@@ -5082,7 +5082,7 @@ static ConvertUnitResult ConvertUnit(Item *to_unit,
                               &convert_errors) ||
         convert_errors) {
       /* purecov:begin inspected */
-      my_error(ER_OOM, MYF(0));
+      my_error(ER_DA_OOM, MYF(0));
       return ConvertUnitResult::kError;
       /* purecov: end */
     }

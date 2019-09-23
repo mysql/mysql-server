@@ -3077,7 +3077,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
                           m_attributes.srs_name.str,
                           m_attributes.srs_name.length, thd->charset())) {
     /* purecov: begin inspected */
-    my_error(ER_OOM, MYF(0));
+    my_error(ER_DA_OOM, MYF(0));
     return nullptr;
     /* purecov: end */
   }
@@ -3106,7 +3106,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
                           m_attributes.definition.str,
                           m_attributes.definition.length, thd->charset())) {
     /* purecov: begin inspected */
-    my_error(ER_OOM, MYF(0));
+    my_error(ER_DA_OOM, MYF(0));
     return nullptr;
     /* purecov: end */
   }
@@ -3127,7 +3127,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
                             m_attributes.organization.str,
                             m_attributes.organization.length, thd->charset())) {
       /* purecov: begin inspected */
-      my_error(ER_OOM, MYF(0));
+      my_error(ER_DA_OOM, MYF(0));
       return nullptr;
       /* purecov: end */
     }
@@ -3164,7 +3164,7 @@ Sql_cmd *PT_create_srs::make_cmd(THD *thd) {
                             m_attributes.description.str,
                             m_attributes.description.length, thd->charset())) {
       /* purecov: begin inspected */
-      my_error(ER_OOM, MYF(0));
+      my_error(ER_DA_OOM, MYF(0));
       return nullptr;
       /* purecov: end */
     }

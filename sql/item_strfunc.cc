@@ -2846,7 +2846,7 @@ String *Item_func_lpad::val_str(String *str) {
 
   if (!pad_char_length) return make_empty_result();
   if (str->alloc(byte_count)) {
-    my_error(ER_OOM, MYF(0));
+    my_error(ER_DA_OOM, MYF(0));
     return error_str();
   }
 
