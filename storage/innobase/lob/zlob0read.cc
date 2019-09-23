@@ -171,6 +171,9 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
     }
 
     cur_entry.reset(nullptr);
+    mtr_commit(&mtr);
+    mtr_start(&mtr);
+    first.load_x(first_page_no);
   }
 
   const ulint total_read = len - remain;

@@ -65,11 +65,15 @@ void ut_set_assert_callback(std::function<void()> &callback);
 #define ut_ad(EXPR) ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR) EXPR
+/** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
+#define ut_o(EXPR)
 #else
 /** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR)
+/** Opposite of ut_d().  Does nothing if UNIV_DEBUG is defined. */
+#define ut_o(EXPR) EXPR
 #endif
 
 /** Debug crash point */

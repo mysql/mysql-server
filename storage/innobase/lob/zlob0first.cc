@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -334,22 +334,36 @@ std::ostream &z_first_page_t::print(std::ostream &out) const {
 singly linked to each other.  The head of the list is maintained in the
 first page. */
 void z_first_page_t::free_all_frag_node_pages() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+
+  load_x(&local_mtr);
+
   while (true) {
     page_no_t page_no = get_frag_node_page_no();
     if (page_no == FIL_NULL) {
       break;
     }
 
-    z_frag_node_page_t frag_node_page(m_mtr, m_index);
+    z_frag_node_page_t frag_node_page(&local_mtr, m_index);
     frag_node_page.load_x(page_no);
     page_no_t next_page = frag_node_page.get_next_page_no();
     set_frag_node_page_no(next_page);
     frag_node_page.dealloc();
+
+    restart_mtr(&local_mtr);
   }
+  mtr_commit(&local_mtr);
 }
 
 /** Free all the index pages. */
 void z_first_page_t::free_all_index_pages() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+
+  load_x(&local_mtr);
   while (true) {
     page_no_t page_no = get_index_page_no();
     if (page_no == FIL_NULL) {
@@ -360,7 +374,9 @@ void z_first_page_t::free_all_index_pages() {
     page_no_t next_page = index_page.get_next_page_no();
     set_index_page_no(next_page);
     index_page.dealloc();
+    restart_mtr(&local_mtr);
   }
+  mtr_commit(&local_mtr);
 }
 
 ulint z_first_page_t::size_of_index_entries() const {
@@ -474,32 +490,44 @@ void z_first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
 
 #ifdef UNIV_DEBUG
 bool z_first_page_t::validate() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+
   ut_ad(get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
   flst_base_node_t *flst = index_list();
-  fil_addr_t node_loc = flst_get_first(flst, m_mtr);
+  fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
-  z_index_entry_t cur_entry(m_mtr, m_index);
+  z_index_entry_t cur_entry(&local_mtr, m_index);
 
   while (!fil_addr_is_null(node_loc)) {
-    flst_node_t *node = addr2ptr_x(node_loc);
+    flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
     cur_entry.reset(node);
 
-    ut_ad(z_validate_strm(m_index, cur_entry, m_mtr));
+    ut_ad(z_validate_strm(m_index, cur_entry, &local_mtr));
 
     flst_base_node_t *vers = cur_entry.get_versions_list();
-    fil_addr_t ver_loc = flst_get_first(vers, m_mtr);
+    fil_addr_t ver_loc = flst_get_first(vers, &local_mtr);
 
     while (!fil_addr_is_null(ver_loc)) {
-      flst_node_t *ver_node = addr2ptr_x(ver_loc);
-      z_index_entry_t vers_entry(ver_node, m_mtr, m_index);
-      ut_ad(z_validate_strm(m_index, vers_entry, m_mtr));
+      flst_node_t *ver_node = addr2ptr_x(ver_loc, &local_mtr);
+      z_index_entry_t vers_entry(ver_node, &local_mtr, m_index);
+      ut_ad(z_validate_strm(m_index, vers_entry, &local_mtr));
       ver_loc = vers_entry.get_next();
+      restart_mtr(&local_mtr);
+      node = addr2ptr_x(node_loc, &local_mtr);
+      cur_entry.reset(node);
     }
 
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
+
+    restart_mtr(&local_mtr);
   }
+
+  mtr_commit(&local_mtr);
   return (true);
 }
 #endif /* UNIV_DEBUG */

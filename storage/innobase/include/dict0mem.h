@@ -1236,6 +1236,11 @@ struct dict_index_t {
 
     return (0);
   }
+
+ public:
+  /** Get the page size of the tablespace to which this index belongs.
+  @return the page size. */
+  page_size_t get_page_size() const;
 };
 
 /** The status of online index creation */

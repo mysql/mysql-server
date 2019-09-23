@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -156,9 +156,22 @@ struct z_first_page_t {
     return (m_block);
   }
 
+  /** Load the first page using given mini transaction. The first page must
+  already be x-latched by the m_mtr.
+  @param[in]	mtr   the mini transaction in which first page is to be loaded.
+  @return	the buffer block of first page. */
+  buf_block_t *load_x(mtr_t *mtr) const {
+    ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
+    buf_block_t *tmp = buf_page_get(m_block->page.id, m_index->get_page_size(),
+                                    RW_X_LATCH, mtr);
+    ut_ad(tmp == m_block);
+    return (tmp);
+  }
+
   /** Load the first page of the compressed LOB with x-latch.
   @param[in]   page_id   the page identifier of first page
   @param[in]   page_size the page size information of table.
+  @param[in]   mtr       the mini transaction context.
   @return buffer block of the first page. */
   buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size);
 
@@ -443,9 +456,17 @@ struct z_first_page_t {
   @param[in]	addr	given file address
   @return	the file list node pointer. */
   flst_node_t *addr2ptr_x(fil_addr_t &addr) const {
+    return (addr2ptr_x(addr, m_mtr));
+  }
+
+  /** Load the page, in x-latch mode, containing the given file address.
+  @param[in]	addr	given file address
+  @param[in]	mtr     the mini transaction context to be used.
+  @return	the file list node pointer. */
+  flst_node_t *addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const {
     space_id_t space = dict_index_get_space(m_index);
     const page_size_t page_size = dict_table_page_size(m_index->table);
-    return (fut_get_ptr(space, page_size, addr, RW_X_LATCH, m_mtr));
+    return (fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr));
   }
 
   /** Load the page, in s-latch mode, containing the given file address.
@@ -480,6 +501,21 @@ struct z_first_page_t {
   /** Get the buffer block of the first page of LOB.
   @return the buffer block of the first page of LOB. */
   buf_block_t *get_block() const { return (m_block); }
+
+ public:
+  void set_mtr(mtr_t *mtr) { m_mtr = mtr; }
+
+  /** Restart the given mtr. The first page must already be x-latched by the
+  m_mtr.
+  @param[in]   mtr   the mini transaction context which is to be restarted. */
+  void restart_mtr(mtr_t *mtr) {
+    ut_ad(mtr != m_mtr);
+
+    mtr_commit(mtr);
+    mtr_start(mtr);
+    mtr->set_log_mode(m_mtr->get_log_mode());
+    load_x(mtr);
+  }
 
  private:
   /** The buffer block of the first page. */
