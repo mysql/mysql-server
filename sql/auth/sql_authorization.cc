@@ -3913,13 +3913,13 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
       return true;
     }
   } else if (table_ref->nested_join) {
-    bool error = false;
-    List_iterator<TABLE_LIST> it(table_ref->nested_join->join_list);
-    TABLE_LIST *table;
-    while (!error && (table = it++))
-      error |= check_column_grant_in_table_ref(thd, table, name, length,
-                                               want_privilege);
-    return error;
+    for (TABLE_LIST *table : table_ref->nested_join->join_list) {
+      if (check_column_grant_in_table_ref(thd, table, name, length,
+                                          want_privilege)) {
+        return true;
+      }
+    }
+    return false;
   } else {
     // Regular, persistent base table
     grant = &table_ref->grant;

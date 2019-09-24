@@ -645,7 +645,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   Opt_trace_array trace_steps(trace, "steps");
 
   if (multitable) {
-    if (select->top_join_list.elements > 0)
+    if (!select->top_join_list.empty())
       propagate_nullability(&select->top_join_list, false);
 
     Prepared_stmt_arena_holder ps_holder(thd);

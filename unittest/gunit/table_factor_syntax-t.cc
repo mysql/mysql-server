@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,8 +81,8 @@ void check_query_block(SELECT_LEX *block, int select_list_item,
   EXPECT_EQ(1U, block->item_list.elements);
   EXPECT_EQ(select_list_item, block->item_list.head()->val_int());
 
-  EXPECT_EQ(1U, block->top_join_list.elements);
-  EXPECT_STREQ(tablename, block->top_join_list.head()->alias);
+  EXPECT_EQ(1U, block->top_join_list.size());
+  EXPECT_STREQ(tablename, block->top_join_list.front()->alias);
 }
 
 TEST_F(TableFactorSyntaxTest, Single) {
@@ -93,8 +93,8 @@ TEST_F(TableFactorSyntaxTest, Single) {
   EXPECT_EQ(term, top_union->first_select());
   EXPECT_EQ(nullptr, term->next_select());
 
-  ASSERT_EQ(1U, term->top_join_list.elements);
-  EXPECT_STREQ("dt", term->top_join_list.head()->alias);
+  ASSERT_EQ(1U, term->top_join_list.size());
+  EXPECT_STREQ("dt", term->top_join_list.front()->alias);
 
   SELECT_LEX_UNIT *inner_union = term->first_inner_unit();
 
@@ -111,8 +111,8 @@ TEST_F(TableFactorSyntaxTest, TablelessTableSubquery) {
   EXPECT_EQ(term, top_union->first_select());
   EXPECT_EQ(nullptr, term->next_select());
 
-  ASSERT_EQ(1U, term->top_join_list.elements);
-  EXPECT_STREQ("a", term->top_join_list.head()->alias);
+  ASSERT_EQ(1U, term->top_join_list.size());
+  EXPECT_STREQ("a", term->top_join_list.front()->alias);
 
   SELECT_LEX_UNIT *inner_union = term->first_inner_unit();
 
@@ -142,8 +142,8 @@ TEST_F(TableFactorSyntaxTest, Union) {
   ASSERT_FALSE(d1a->context == NULL);
   EXPECT_EQ(dt, d1a->context->first_name_resolution_table);
 
-  EXPECT_EQ(1U, block->top_join_list.elements);
-  EXPECT_STREQ("dt", block->top_join_list.head()->alias);
+  EXPECT_EQ(1U, block->top_join_list.size());
+  EXPECT_STREQ("dt", block->top_join_list.front()->alias);
 
   SELECT_LEX_UNIT *inner_union = block->first_inner_unit();
 
@@ -199,20 +199,20 @@ TEST_F(TableFactorSyntaxTest, NestedTableReferenceList) {
   EXPECT_STREQ("t1", term1->table_list.first->alias);
   EXPECT_STREQ("t1", term2->table_list.first->alias);
 
-  EXPECT_STREQ("(nest_last_join)", term1->join_list->head()->alias);
-  EXPECT_STREQ("(nest_last_join)", term2->join_list->head()->alias);
+  EXPECT_STREQ("(nest_last_join)", term1->join_list->front()->alias);
+  EXPECT_STREQ("(nest_last_join)", term2->join_list->front()->alias);
 
-  TABLE_LIST *t2_join_t3_join_t4 = term1->join_list->head();
-  TABLE_LIST *t2_join_t3_join_t4_2 = term2->join_list->head();
+  TABLE_LIST *t2_join_t3_join_t4 = term1->join_list->front();
+  TABLE_LIST *t2_join_t3_join_t4_2 = term2->join_list->front();
 
-  TABLE_LIST *t3_join_t4 = t2_join_t3_join_t4->nested_join->join_list.head();
+  TABLE_LIST *t3_join_t4 = t2_join_t3_join_t4->nested_join->join_list.front();
   TABLE_LIST *t3_join_t4_2 =
-      t2_join_t3_join_t4_2->nested_join->join_list.head();
+      t2_join_t3_join_t4_2->nested_join->join_list.front();
 
   EXPECT_STREQ("(nest_last_join)", t3_join_t4->alias);
   EXPECT_STREQ("(nest_last_join)", t3_join_t4_2->alias);
 
-  EXPECT_STREQ("t4", t3_join_t4->nested_join->join_list.head()->alias);
+  EXPECT_STREQ("t4", t3_join_t4->nested_join->join_list.front()->alias);
 }
 
 TEST_F(TableFactorSyntaxTest, LimitAndOrder) {

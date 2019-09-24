@@ -2810,7 +2810,7 @@ bool JOIN::get_best_combination() {
     table, and will later be used to track the position of any materialized
     temporary tables.
   */
-  const bool has_semijoin = !select_lex->sj_nests.is_empty();
+  const bool has_semijoin = !select_lex->sj_nests.empty();
   uint outer_target = 0;
   uint inner_target = primary_tables + num_tmp_tables;
   uint sjm_nests = 0;
@@ -2970,10 +2970,9 @@ bool JOIN::get_best_combination() {
   if (select_lex->outer_join) make_outerjoin_info();
 
   // sjm is no longer needed, trash it. To reuse it, reset its members!
-  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest = sj_list_it++))
+  for (TABLE_LIST *sj_nest : select_lex->sj_nests) {
     TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
+  }
 
   return false;
 }
@@ -4097,7 +4096,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
 
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
-                       List<TABLE_LIST> *join_list,
+                       memroot_deque<TABLE_LIST *> *join_list,
                        COND_EQUAL **cond_equal_ref) {
   COND_EQUAL *cond_equal = 0;
 
@@ -4127,12 +4126,9 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
   *cond_equal_ref = cond_equal;
 
   if (join_list) {
-    TABLE_LIST *table;
-    List_iterator<TABLE_LIST> li(*join_list);
-
-    while ((table = li++)) {
+    for (TABLE_LIST *table : *join_list) {
       if (table->join_cond_optim()) {
-        List<TABLE_LIST> *nested_join_list =
+        memroot_deque<TABLE_LIST *> *nested_join_list =
             table->nested_join ? &table->nested_join->join_list : NULL;
         Item *join_cond;
         if (build_equal_items(thd, table->join_cond_optim(), &join_cond,
@@ -4640,12 +4636,10 @@ static bool propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     First unused bit in nested_join_map after the call.
 */
 
-uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
+uint build_bitmap_for_nested_joins(memroot_deque<TABLE_LIST *> *join_list,
                                    uint first_unused) {
   DBUG_TRACE;
-  List_iterator<TABLE_LIST> li(*join_list);
-  TABLE_LIST *table;
-  while ((table = li++)) {
+  for (TABLE_LIST *table : *join_list) {
     NESTED_JOIN *nested_join;
     if ((nested_join = table->nested_join)) {
       // We should have a join condition or a semi-join condition or both
@@ -4661,7 +4655,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
       if (table->join_cond()) {
         DBUG_ASSERT(first_unused < sizeof(nested_join_map) * 8);
         nested_join->nj_map = (nested_join_map)1 << first_unused++;
-        nested_join->nj_total = nested_join->join_list.elements;
+        nested_join->nj_total = nested_join->join_list.size();
       } else if (table->is_sj_nest()) {
         NESTED_JOIN *const outer_nest =
             table->embedding ? table->embedding->nested_join : NULL;
@@ -4671,7 +4665,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
           table count.
         */
         if (outer_nest)
-          outer_nest->nj_total += (nested_join->join_list.elements - 1);
+          outer_nest->nj_total += (nested_join->join_list.size() - 1);
       } else
         DBUG_ASSERT(false);
 
@@ -4966,12 +4960,12 @@ bool JOIN::make_join_plan() {
     throughout the lifetime of a query, so this operation can be performed
     on the first optimization only.
   */
-  if (!select_lex->sj_pullout_done && select_lex->sj_nests.elements &&
+  if (!select_lex->sj_pullout_done && !select_lex->sj_nests.empty() &&
       pull_out_semijoin_tables(this))
     return true;
 
   select_lex->sj_pullout_done = true;
-  const uint sj_nests = select_lex->sj_nests.elements;  // Changed by pull-out
+  const uint sj_nests = select_lex->sj_nests.size();  // Changed by pull-out
 
   if (!(select_lex->active_options() & OPTION_NO_CONST_TABLES)) {
     // Detect tables that are const (0 or 1 row) and read their contents.
@@ -5061,7 +5055,7 @@ bool JOIN::make_join_plan() {
 
 bool JOIN::init_planner_arrays() {
   // Up to one extra slot per semi-join nest is needed (if materialized)
-  const uint sj_nests = select_lex->sj_nests.elements;
+  const uint sj_nests = select_lex->sj_nests.size();
   const uint table_count = select_lex->leaf_table_count;
 
   DBUG_ASSERT(primary_tables == 0 && tables == 0);
@@ -5628,7 +5622,7 @@ bool JOIN::estimate_rowcount() {
 */
 
 void JOIN::set_semijoin_embedding() {
-  DBUG_ASSERT(!select_lex->sj_nests.is_empty());
+  DBUG_ASSERT(!select_lex->sj_nests.empty());
 
   JOIN_TAB *const tab_end = join_tab + primary_tables;
 
@@ -5751,7 +5745,7 @@ static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd) {
           !select->has_ft_funcs() &&                                 // F1.c
           (!select->is_grouped() && !select->is_distinct()) &&       // F1.d
           !select->is_ordered() &&                                   // F1.e
-          select->join_list->elements == 1 &&                        // F2
+          select->join_list->size() == 1 &&                          // F2
           !thd->lex->is_explain());                                  // F3
 }
 
@@ -6163,11 +6157,9 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 
 static bool optimize_semijoin_nests_for_materialization(JOIN *join) {
   DBUG_TRACE;
-  List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
   Opt_trace_context *const trace = &join->thd->opt_trace;
 
-  while ((sj_nest = sj_list_it++)) {
+  for (TABLE_LIST *sj_nest : join->select_lex->sj_nests) {
     /* As a precaution, reset pointers that were used in prior execution */
     sj_nest->nested_join->sjm.positions = NULL;
 
@@ -6320,28 +6312,29 @@ static bool find_eq_ref_candidate(TABLE_LIST *tl, table_map sj_inner_tables) {
 */
 
 static bool pull_out_semijoin_tables(JOIN *join) {
-  TABLE_LIST *sj_nest;
   DBUG_TRACE;
 
-  DBUG_ASSERT(!join->select_lex->sj_nests.is_empty());
+  DBUG_ASSERT(!join->select_lex->sj_nests.empty());
 
-  List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
   Opt_trace_context *const trace = &join->thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_array trace_pullout(trace, "pulled_out_semijoin_tables");
 
   /* Try pulling out tables from each semi-join nest */
-  while ((sj_nest = sj_list_it++)) {
-    if (sj_nest->is_aj_nest()) continue;
+  for (auto sj_list_it = join->select_lex->sj_nests.begin();
+       sj_list_it != join->select_lex->sj_nests.end();) {
+    TABLE_LIST *sj_nest = *sj_list_it;
+    if (sj_nest->is_aj_nest()) {
+      ++sj_list_it;
+      continue;
+    }
     table_map pulled_tables = 0;
-    List_iterator<TABLE_LIST> child_li(sj_nest->nested_join->join_list);
-    TABLE_LIST *tbl;
     /*
       Calculate set of tables within this semi-join nest that have
       other dependent tables
     */
     table_map dep_tables = 0;
-    while ((tbl = child_li++)) {
+    for (TABLE_LIST *tbl : sj_nest->nested_join->join_list) {
       TABLE *const table = tbl->table;
       if (table && (table->reginfo.join_tab->dependent &
                     sj_nest->nested_join->used_tables))
@@ -6355,8 +6348,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
     bool pulled_a_table;
     do {
       pulled_a_table = false;
-      child_li.rewind();
-      while ((tbl = child_li++)) {
+      for (TABLE_LIST *tbl : sj_nest->nested_join->join_list) {
         if (tbl->table && !(pulled_tables & tbl->map()) &&
             !(dep_tables & tbl->map())) {
           if (find_eq_ref_candidate(
@@ -6376,7 +6368,6 @@ static bool pull_out_semijoin_tables(JOIN *join) {
       }
     } while (pulled_a_table);
 
-    child_li.rewind();
     /*
       Move the pulled out TABLE_LIST elements to the parents.
     */
@@ -6386,40 +6377,48 @@ static bool pull_out_semijoin_tables(JOIN *join) {
     /* sj_inner_tables is a copy of nested_join->used_tables */
     sj_nest->sj_inner_tables = sj_nest->nested_join->used_tables;
 
+    bool remove = false;
     if (pulled_tables) {
-      List<TABLE_LIST> *upper_join_list =
+      memroot_deque<TABLE_LIST *> *upper_join_list =
           (sj_nest->embedding != NULL)
               ? &sj_nest->embedding->nested_join->join_list
               : &join->select_lex->top_join_list;
 
       Prepared_stmt_arena_holder ps_arena_holder(join->thd);
 
-      while ((tbl = child_li++)) {
+      for (auto child_li = sj_nest->nested_join->join_list.begin();
+           child_li != sj_nest->nested_join->join_list.end();) {
+        TABLE_LIST *tbl = *child_li;
         if (tbl->table && !(sj_nest->nested_join->used_tables & tbl->map())) {
           /*
             Pull the table up in the same way as simplify_joins() does:
             update join_list and embedding pointers but keep next[_local]
             pointers.
           */
-          child_li.remove();
+          child_li = sj_nest->nested_join->join_list.erase(child_li);
 
-          if (upper_join_list->push_back(tbl)) return true;
+          upper_join_list->push_back(tbl);
 
           tbl->join_list = upper_join_list;
           tbl->embedding = sj_nest->embedding;
+        } else {
+          ++child_li;
         }
       }
 
       /* Remove the sj-nest itself if we've removed everything from it */
       if (!sj_nest->nested_join->used_tables) {
-        List_iterator<TABLE_LIST> li(*upper_join_list);
-        /* Find the sj_nest in the list. */
-        while (sj_nest != li++) {
-        }
-        li.remove();
+        upper_join_list->erase(std::find(upper_join_list->begin(),
+                                         upper_join_list->end(), sj_nest));
         /* Also remove it from the list of SJ-nests: */
-        sj_list_it.remove();
+        remove = true;
       }
+    }
+
+    if (remove) {
+      sj_list_it = join->select_lex->sj_nests.erase(sj_list_it);
+    } else {
+      ++sj_list_it;
     }
   }
   return false;
@@ -7616,21 +7615,28 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
                                   TABLE_LIST *nested_join_table,
                                   Key_field **end, uint *and_level,
                                   SARGABLE_PARAM **sargables) {
-  List_iterator<TABLE_LIST> li(nested_join_table->nested_join->join_list);
-  List_iterator<TABLE_LIST> li2(nested_join_table->nested_join->join_list);
+  memroot_deque<TABLE_LIST *> &join_list =
+      nested_join_table->nested_join->join_list;
+  auto li = join_list.begin();
+  auto li_end = join_list.end();
+  auto li2 = join_list.begin();
+  auto li2_end = join_list.end();
   bool have_another = false;
   table_map tables = 0;
   TABLE_LIST *table;
-  DBUG_ASSERT(nested_join_table->nested_join);
 
-  while ((table = li++) ||
-         (have_another && (li = li2, have_another = false, (table = li++)))) {
+  while (
+      (table = (li != li_end) ? *li++ : nullptr) ||
+      (have_another && li2 != join_list.end() &&
+       (li = li2, li_end = li2_end, have_another = false, (table = *li++)))) {
     if (table->nested_join) {
       if (!table->join_cond_optim()) {
         /* It's a semi-join nest. Walk into it as if it wasn't a nest */
         have_another = true;
         li2 = li;
-        li = List_iterator<TABLE_LIST>(table->nested_join->join_list);
+        li2_end = li_end;
+        li = table->nested_join->join_list.begin();
+        li_end = table->nested_join->join_list.end();
       } else {
         if (add_key_fields_for_nj(thd, join, table, end, and_level, sargables))
           return true;
@@ -7989,14 +7995,10 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
 
   /* Process ON conditions for the nested joins */
-  {
-    List_iterator<TABLE_LIST> li(select_lex->top_join_list);
-    TABLE_LIST *tl;
-    while ((tl = li++)) {
-      if (tl->nested_join &&
-          add_key_fields_for_nj(thd, join, tl, &end, &and_level, sargables))
-        return true;
-    }
+  for (TABLE_LIST *tl : select_lex->top_join_list) {
+    if (tl->nested_join &&
+        add_key_fields_for_nj(thd, join, tl, &end, &and_level, sargables))
+      return true;
   }
 
   /* Generate keys descriptions for derived tables */
@@ -9853,7 +9855,8 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
 */
 
 bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
-                   List<TABLE_LIST> *join_list, Item::cond_result *cond_value) {
+                   memroot_deque<TABLE_LIST *> *join_list,
+                   Item::cond_result *cond_value) {
   DBUG_TRACE;
   Opt_trace_context *const trace = &thd->opt_trace;
 
@@ -10651,7 +10654,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
     Opt_trace_array trace_subqmat_steps(trace, "steps");
 
     // Up to one extra slot per semi-join nest is needed (if materialized)
-    const uint sj_nests = select_lex->sj_nests.elements;
+    const uint sj_nests = select_lex->sj_nests.size();
 
     if (!(best_positions = new (thd->mem_root) POSITION[tables + sj_nests]))
       return true;

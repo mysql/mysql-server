@@ -884,10 +884,7 @@ static bool fix_join_cond_for_insert(THD *thd, TABLE_LIST *tr) {
 
   if (tr->nested_join == NULL) return false;
 
-  List_iterator<TABLE_LIST> li(tr->nested_join->join_list);
-  TABLE_LIST *ti;
-
-  while ((ti = li++)) {
+  for (TABLE_LIST *ti : tr->nested_join->join_list) {
     if (fix_join_cond_for_insert(thd, ti)) return true; /* purecov: inspected */
   }
   return false;
@@ -908,9 +905,9 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables) {
   }
 
   DBUG_ASSERT(tables->is_view());
-  List_iterator<TABLE_LIST> it(*tables->view_tables);
-  TABLE_LIST *tbl;
-  while ((tbl = it++)) prepare_for_positional_update(tbl->table, tbl);
+  for (TABLE_LIST *tbl : *tables->view_tables) {
+    prepare_for_positional_update(tbl->table, tbl);
+  }
 
   return;
 }

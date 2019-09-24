@@ -30,6 +30,7 @@
 
 #include "lex_string.h"
 #include "map_helpers.h"
+#include "memroot_deque.h"
 #include "my_base.h"  // ha_extra_function
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -249,7 +250,8 @@ Field *find_field_in_table_sef(TABLE *table, const char *name);
 Item **find_item_in_list(THD *thd, Item *item, List<Item> &items, uint *counter,
                          find_item_error_report_type report_error,
                          enum_resolution_type *resolution);
-bool setup_natural_join_row_types(THD *thd, List<TABLE_LIST> *from_clause,
+bool setup_natural_join_row_types(THD *thd,
+                                  memroot_deque<TABLE_LIST *> *from_clause,
                                   Name_resolution_context *context);
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);

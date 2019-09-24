@@ -1311,7 +1311,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
-  if (join->select_lex->sj_nests.is_empty()) return false;
+  if (join->select_lex->sj_nests.empty()) return false;
 
   QEP_TAB *const qep_array = join->qep_tab;
   for (tableno = join->const_tables; tableno < join->primary_tables;) {
@@ -1885,7 +1885,7 @@ bool JOIN::init_ref_access() {
 */
 void JOIN::set_semijoin_info() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
-  if (select_lex->sj_nests.is_empty()) return;
+  if (select_lex->sj_nests.empty()) return;
 
   for (uint tableno = const_tables; tableno < tables;) {
     JOIN_TAB *const tab = best_ref[tableno];

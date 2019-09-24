@@ -2049,10 +2049,10 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       ftfunc_list(&ftfunc_list_alloc),
       ftfunc_list_alloc(),
       join(NULL),
-      top_join_list(),
+      top_join_list(*THR_MALLOC),
       join_list(&top_join_list),
       embedding(NULL),
-      sj_nests(),
+      sj_nests(*THR_MALLOC),
       leaf_tables(NULL),
       leaf_table_count(0),
       derived_table_count(0),
@@ -2680,10 +2680,10 @@ static void print_table_array(const THD *thd, String *str,
   @param query_type    type of the query is being generated
 */
 
-static void print_join(const THD *thd, String *str, List<TABLE_LIST> *tables,
+static void print_join(const THD *thd, String *str,
+                       memroot_deque<TABLE_LIST *> *tables,
                        enum_query_type query_type) {
   /* List is reversed => we should reverse it before using */
-  List_iterator_fast<TABLE_LIST> ti(*tables);
 
   /*
     If the QT_NO_DATA_EXPANSION flag is specified, we print the
@@ -2706,9 +2706,10 @@ static void print_join(const THD *thd, String *str, List<TABLE_LIST> *tables,
   const bool print_const_tables = (query_type & QT_NO_DATA_EXPANSION);
   Table_array tables_to_print(PSI_NOT_INSTRUMENTED);
 
-  for (TABLE_LIST *t = ti++; t; t = ti++)
+  for (TABLE_LIST *t : *tables) {
     if (print_const_tables || !t->optimized_away)
       if (tables_to_print.push_back(t)) return; /* purecov: inspected */
+  }
 
   if (tables_to_print.empty()) {
     str->append(STRING_WITH_LEN("dual"));
@@ -3348,10 +3349,9 @@ bool SELECT_LEX_UNIT::accept(Select_lex_visitor *visitor) {
   return visitor->visit(this);
 }
 
-bool accept_for_join(List<TABLE_LIST> *tables, Select_lex_visitor *visitor) {
-  List_iterator<TABLE_LIST> ti(*tables);
-  TABLE_LIST *t;
-  while ((t = ti++)) {
+bool accept_for_join(memroot_deque<TABLE_LIST *> *tables,
+                     Select_lex_visitor *visitor) {
+  for (TABLE_LIST *t : *tables) {
     if (accept_table(t, visitor)) return true;
   }
   return false;
@@ -4313,11 +4313,9 @@ void SELECT_LEX::include_chain_in_global(SELECT_LEX **start) {
    SELECT_LEX::get_optimizable_conditions().
    @returns true if OOM
 */
-static bool get_optimizable_join_conditions(THD *thd,
-                                            List<TABLE_LIST> &join_list) {
-  TABLE_LIST *table;
-  List_iterator<TABLE_LIST> li(join_list);
-  while ((table = li++)) {
+static bool get_optimizable_join_conditions(
+    THD *thd, memroot_deque<TABLE_LIST *> &join_list) {
+  for (TABLE_LIST *table : join_list) {
     NESTED_JOIN *const nested_join = table->nested_join;
     if (nested_join &&
         get_optimizable_join_conditions(thd, nested_join->join_list))
@@ -4411,18 +4409,13 @@ void SELECT_LEX::update_semijoin_strategies(THD *thd) {
 
   uint opt_switches = thd->variables.optimizer_switch & sj_strategy_mask;
 
-  List_iterator<TABLE_LIST> sj_list_it(sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest = sj_list_it++)) {
+  for (TABLE_LIST *sj_nest : sj_nests) {
     /*
       After semi-join transformation, original SELECT_LEX with hints is lost.
       Fetch hints from last table in semijoin nest, as join_list has the
       convention to list join operators' arguments in reverse order.
     */
-    List_iterator<TABLE_LIST> table_list(sj_nest->nested_join->join_list);
-    TABLE_LIST *table, *last = nullptr;
-    while ((table = table_list++)) last = table;
-    table = last;
+    TABLE_LIST *table = sj_nest->nested_join->join_list.back();
     sj_nest->nested_join->sj_enabled_strategies =
         table->opt_hints_qb
             ? table->opt_hints_qb->sj_enabled_strategies(opt_switches)
@@ -4524,13 +4517,10 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const {
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-static bool walk_join_condition(List<TABLE_LIST> *tables,
+static bool walk_join_condition(memroot_deque<TABLE_LIST *> *tables,
                                 Item_processor processor, enum_walk walk,
                                 uchar *arg) {
-  TABLE_LIST *table;
-  List_iterator<TABLE_LIST> li(*tables);
-
-  while ((table = li++)) {
+  for (const TABLE_LIST *table : *tables) {
     if (table->join_cond() && table->join_cond()->walk(processor, walk, arg))
       return true;
 

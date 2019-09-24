@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,10 @@ struct Semijoin_mat_optimize {
   they can be processed as inner joins instead of outer joins.
 */
 struct NESTED_JOIN {
-  List<TABLE_LIST> join_list;   /* list of elements in the nested join */
+  NESTED_JOIN() : join_list(*THR_MALLOC) {}
+
+  memroot_deque<TABLE_LIST *>
+      join_list;                /* list of elements in the nested join */
   table_map used_tables{0};     /* bitmap of tables in the nested join */
   table_map not_null_tables{0}; /* tables that rejects nulls           */
   /**

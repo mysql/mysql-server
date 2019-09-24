@@ -128,7 +128,7 @@ Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
           (emb_sjm_nest ? (join->all_table_map & ~emb_sjm_nest->sj_inner_tables)
                         : 0) |
           (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
-      has_sj(!(join->select_lex->sj_nests.is_empty() || emb_sjm_nest)),
+      has_sj(!(join->select_lex->sj_nests.empty() || emb_sjm_nest)),
       test_all_ref_keys(false),
       found_plan_with_allowed_sj(false),
       got_final_plan(false) {}
@@ -1273,8 +1273,8 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         (is_join_buffering ||                        // 2a
          remaining_tables != 0 ||                    // 2b
          tab->join()->select_lex->master_unit()->outer_select() !=
-             NULL ||                                       // 2c
-         !tab->join()->select_lex->sj_nests.is_empty() ||  // 2d
+             NULL ||                                    // 2c
+         !tab->join()->select_lex->sj_nests.empty() ||  // 2d
          ((tab->join()->order || tab->join()->group_list) &&
           tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||  // 2e
          thd->lex->is_explain())))                                 // 2f
@@ -2096,7 +2096,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
   const Cost_model_server *const cost_model = join->cost_model();
 
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
-  DBUG_ASSERT(join->select_lex->sj_nests.is_empty());
+  DBUG_ASSERT(join->select_lex->sj_nests.empty());
 
   Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
 
@@ -3339,7 +3339,7 @@ bool Optimize_table_order::fix_semijoin_strategies() {
 
   DBUG_TRACE;
 
-  if (join->select_lex->sj_nests.is_empty()) return false;
+  if (join->select_lex->sj_nests.empty()) return false;
 
   Opt_trace_context *const trace = &thd->opt_trace;
 

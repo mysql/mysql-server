@@ -4366,7 +4366,7 @@ void TABLE::reset_item_list(List<Item> *item_list) const {
 
 TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator, const char *alias,
                                         TABLE_LIST *embedding,
-                                        List<TABLE_LIST> *belongs_to,
+                                        memroot_deque<TABLE_LIST *> *belongs_to,
                                         SELECT_LEX *select) {
   DBUG_ASSERT(belongs_to && select);
 
@@ -4387,7 +4387,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator, const char *alias,
   join_nest->select_lex = select;
   join_nest->nested_join->first_nested = NO_PLAN_IDX;
 
-  join_nest->nested_join->join_list.empty();
+  join_nest->nested_join->join_list.clear();
 
   return join_nest;
 }
@@ -4401,15 +4401,12 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator, const char *alias,
 */
 
 bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select) {
-  DBUG_ASSERT(nested_join->join_list.is_empty());
+  DBUG_ASSERT(nested_join->join_list.empty());
 
-  List_iterator_fast<TABLE_LIST> li(select->top_join_list);
-  TABLE_LIST *tl;
-  while ((tl = li++)) {
+  for (TABLE_LIST *tl : select->top_join_list) {
     tl->embedding = this;
     tl->join_list = &nested_join->join_list;
-    if (nested_join->join_list.push_back(tl))
-      return true; /* purecov: inspected */
+    nested_join->join_list.push_back(tl);
   }
 
   return false;
@@ -4546,8 +4543,7 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond) {
       return true; /* purecov: inspected */
   }
   if (!table->nested_join) return false;
-  List_iterator<TABLE_LIST> li(table->nested_join->join_list);
-  while (TABLE_LIST *tbl = li++) {
+  for (TABLE_LIST *tbl : table->nested_join->join_list) {
     if (tbl->is_view()) continue;
     Item *cond;
     if (merge_join_conditions(thd, tbl, &cond))
@@ -4805,8 +4801,8 @@ TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution() {
 
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
-    List_iterator_fast<TABLE_LIST> it(cur_nested_join->join_list);
-    cur_table_ref = it++;
+    cur_table_ref = cur_nested_join->join_list.front();
+
     /*
       If the current nested join is a RIGHT JOIN, the operands in
       'join_list' are in reverse order, thus the first operand is
@@ -4814,8 +4810,7 @@ TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution() {
       is in the end of the list of join operands.
     */
     if (!(cur_table_ref->outer_join & JOIN_TYPE_RIGHT)) {
-      TABLE_LIST *next;
-      while ((next = it++)) cur_table_ref = next;
+      cur_table_ref = cur_nested_join->join_list.back();
     }
     if (cur_table_ref->is_leaf_for_name_resolution()) break;
   }
@@ -4849,17 +4844,14 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution() {
 
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
-    cur_table_ref = cur_nested_join->join_list.head();
+    cur_table_ref = cur_nested_join->join_list.front();
     /*
       If the current nested is a RIGHT JOIN, the operands in
       'join_list' are in reverse order, thus the last operand is in the
       end of the list.
     */
     if ((cur_table_ref->outer_join & JOIN_TYPE_RIGHT)) {
-      List_iterator_fast<TABLE_LIST> it(cur_nested_join->join_list);
-      TABLE_LIST *next;
-      cur_table_ref = it++;
-      while ((next = it++)) cur_table_ref = next;
+      cur_table_ref = cur_nested_join->join_list.back();
     }
     if (cur_table_ref->is_leaf_for_name_resolution()) break;
   }
@@ -4952,8 +4944,6 @@ Security_context *TABLE_LIST::find_view_security_context(THD *thd) {
 */
 
 bool TABLE_LIST::prepare_security(THD *thd) {
-  List_iterator_fast<TABLE_LIST> tb(*view_tables);
-  TABLE_LIST *tbl;
   DBUG_TRACE;
   Security_context *save_security_ctx = thd->security_context();
 
@@ -4962,7 +4952,7 @@ bool TABLE_LIST::prepare_security(THD *thd) {
   /* Acl_map was previously checked out by get_aclroot */
   thd->set_security_context(find_view_security_context(thd));
   opt_trace_disable_if_no_security_context_access(thd);
-  while ((tbl = tb++)) {
+  for (TABLE_LIST *tbl : *view_tables) {
     DBUG_ASSERT(tbl->referencing_view);
     const char *local_db, *local_table_name;
     if (tbl->is_view()) {

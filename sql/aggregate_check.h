@@ -741,7 +741,7 @@ class Group_check : public Item_tree_walker {
                          table_map weak_tables, bool weak_side_upwards);
   void find_fd_in_cond(Item *cond, table_map weak_tables,
                        bool weak_side_upwards);
-  void find_fd_in_joined_table(List<TABLE_LIST> *join_list);
+  void find_fd_in_joined_table(memroot_deque<TABLE_LIST *> *join_list);
   void to_opt_trace2(Opt_trace_context *ctx, Opt_trace_object *parent);
   void find_group_in_fd(Item *item);
   Item *select_expression(uint idx);

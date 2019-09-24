@@ -6144,15 +6144,15 @@ TABLE_LIST *SELECT_LEX::end_nested_join() {
   join_list = ptr->join_list;
   embedding = ptr->embedding;
   nested_join = ptr->nested_join;
-  if (nested_join->join_list.elements == 1) {
-    TABLE_LIST *embedded = nested_join->join_list.head();
-    join_list->pop();
+  if (nested_join->join_list.size() == 1) {
+    TABLE_LIST *embedded = nested_join->join_list.front();
+    join_list->pop_front();
     embedded->join_list = join_list;
     embedded->embedding = embedding;
-    if (join_list->push_front(embedded)) return NULL;
+    join_list->push_front(embedded);
     ptr = embedded;
-  } else if (nested_join->join_list.elements == 0) {
-    join_list->pop();
+  } else if (nested_join->join_list.empty()) {
+    join_list->pop_front();
     ptr = 0;  // return value
   }
   return ptr;
@@ -6180,16 +6180,18 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt) {
       thd->mem_root, "(nest_last_join)", embedding, join_list, this);
   if (ptr == NULL) return NULL;
 
-  List<TABLE_LIST> *const embedded_list = &ptr->nested_join->join_list;
+  memroot_deque<TABLE_LIST *> *const embedded_list =
+      &ptr->nested_join->join_list;
 
   for (uint i = 0; i < table_cnt; i++) {
-    TABLE_LIST *table = join_list->pop();
+    TABLE_LIST *table = join_list->front();
+    join_list->pop_front();
     table->join_list = embedded_list;
     table->embedding = ptr;
     embedded_list->push_back(table);
     if (table->natural_join) ptr->is_natural_join = true;
   }
-  if (join_list->push_front(ptr)) return NULL;
+  join_list->push_front(ptr);
 
   return ptr;
 }
@@ -6209,7 +6211,7 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt) {
 
 bool SELECT_LEX::add_joined_table(TABLE_LIST *table) {
   DBUG_TRACE;
-  if (join_list->push_front(table)) return true;
+  join_list->push_front(table);
   table->join_list = join_list;
   table->embedding = embedding;
   return false;
@@ -6245,11 +6247,13 @@ bool SELECT_LEX::add_joined_table(TABLE_LIST *table) {
 */
 
 TABLE_LIST *SELECT_LEX::convert_right_join() {
-  TABLE_LIST *tab2 = join_list->pop();
-  TABLE_LIST *tab1 = join_list->pop();
-  DBUG_TRACE;
+  TABLE_LIST *tab2 = join_list->front();
+  join_list->pop_front();
+  TABLE_LIST *tab1 = join_list->front();
+  join_list->pop_front();
 
-  if (join_list->push_front(tab2) || join_list->push_front(tab1)) return NULL;
+  join_list->push_front(tab2);
+  join_list->push_front(tab1);
   tab1->outer_join |= JOIN_TYPE_RIGHT;
 
   return tab1;

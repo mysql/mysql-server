@@ -32,6 +32,7 @@
 #include "libbinlogevents/include/table_id.h"  // Table_id
 #include "m_ctype.h"
 #include "map_helpers.h"
+#include "memroot_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
@@ -2624,7 +2625,7 @@ struct TABLE_LIST {
   /// Create a TABLE_LIST object representing a nested join
   static TABLE_LIST *new_nested_join(MEM_ROOT *allocator, const char *alias,
                                      TABLE_LIST *embedding,
-                                     List<TABLE_LIST> *belongs_to,
+                                     memroot_deque<TABLE_LIST *> *belongs_to,
                                      SELECT_LEX *select);
 
   Item **join_cond_ref() { return &m_join_cond; }
@@ -3274,7 +3275,7 @@ struct TABLE_LIST {
     - in case of the view it is the list of all (not only underlying
     tables but also used in subquery ones) tables of the view.
   */
-  List<TABLE_LIST> *view_tables{nullptr};
+  memroot_deque<TABLE_LIST *> *view_tables{nullptr};
   /* most upper view this table belongs to */
   TABLE_LIST *belong_to_view{nullptr};
   /*
@@ -3375,7 +3376,7 @@ struct TABLE_LIST {
   /// The nested join containing this table reference.
   TABLE_LIST *embedding{nullptr};
   /// The join list immediately containing this table reference
-  List<TABLE_LIST> *join_list{nullptr};
+  memroot_deque<TABLE_LIST *> *join_list{nullptr};
   /// stop PS caching
   bool cacheable_table{false};
   /**

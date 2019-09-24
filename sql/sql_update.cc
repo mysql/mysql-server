@@ -1347,7 +1347,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     apply_semijoin = false;
   }
 
-  if (select->top_join_list.elements > 0)
+  if (!select->top_join_list.empty())
     propagate_nullability(&select->top_join_list, false);
 
   if (select->setup_tables(thd, table_list, false))

@@ -3218,7 +3218,8 @@ retry_share : {
         if (!table_list->is_view()) return true;
 
         // Create empty list of view_tables.
-        table_list->view_tables = new (thd->mem_root) List<TABLE_LIST>;
+        table_list->view_tables =
+            new (thd->mem_root) memroot_deque<TABLE_LIST *>(thd->mem_root);
         if (table_list->view_tables == nullptr) return true;
 
         table_list->view_db.str = table_list->db;
@@ -7482,9 +7483,7 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       in the table references used by NATURAL/USING the join.
     */
     if (table_name && table_name[0]) {
-      List_iterator<TABLE_LIST> it(table_list->nested_join->join_list);
-      TABLE_LIST *table;
-      while ((table = it++)) {
+      for (TABLE_LIST *table : table_list->nested_join->join_list) {
         if ((fld = find_field_in_table_ref(
                  thd, table, name, length, item_name, db_name, table_name, ref,
                  want_privilege, allow_rowid, cached_field_index_ptr,
@@ -8426,16 +8425,18 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   /* Call the procedure recursively for each nested table reference. */
-  if (table_ref->nested_join) {
-    List_iterator_fast<TABLE_LIST> nested_it(table_ref->nested_join->join_list);
-    TABLE_LIST *same_level_left_neighbor = nested_it++;
+  if (table_ref->nested_join && !table_ref->nested_join->join_list.empty()) {
+    auto nested_it = table_ref->nested_join->join_list.begin();
+    TABLE_LIST *same_level_left_neighbor = *nested_it++;
     TABLE_LIST *same_level_right_neighbor = NULL;
     /* Left/right-most neighbors, possibly at higher levels in the join tree. */
     TABLE_LIST *real_left_neighbor, *real_right_neighbor;
 
     while (same_level_left_neighbor) {
       TABLE_LIST *cur_table_ref = same_level_left_neighbor;
-      same_level_left_neighbor = nested_it++;
+      same_level_left_neighbor =
+          (nested_it == table_ref->nested_join->join_list.end()) ? nullptr
+                                                                 : *nested_it++;
       /*
         The order of RIGHT JOIN operands is reversed in 'join list' to
         transform it into a LEFT JOIN. However, in this procedure we need
@@ -8450,7 +8451,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       if (same_level_left_neighbor &&
           cur_table_ref->outer_join & JOIN_TYPE_RIGHT) {
         /* This can happen only for JOIN ... ON. */
-        DBUG_ASSERT(table_ref->nested_join->join_list.elements == 2);
+        DBUG_ASSERT(table_ref->nested_join->join_list.size() == 2);
         std::swap(same_level_left_neighbor, cur_table_ref);
       }
 
@@ -8479,16 +8480,15 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
   */
   if (table_ref->is_natural_join) {
     DBUG_ASSERT(table_ref->nested_join &&
-                table_ref->nested_join->join_list.elements == 2);
-    List_iterator_fast<TABLE_LIST> operand_it(
-        table_ref->nested_join->join_list);
+                table_ref->nested_join->join_list.size() == 2);
+    auto operand_it = table_ref->nested_join->join_list.begin();
     /*
       Notice that the order of join operands depends on whether table_ref
       represents a LEFT or a RIGHT join. In a RIGHT join, the operands are
       in inverted order.
      */
-    TABLE_LIST *table_ref_2 = operand_it++; /* Second NATURAL join operand.*/
-    TABLE_LIST *table_ref_1 = operand_it++; /* First NATURAL join operand. */
+    TABLE_LIST *table_ref_2 = *operand_it++; /* Second NATURAL join operand.*/
+    TABLE_LIST *table_ref_1 = *operand_it++; /* First NATURAL join operand. */
     List<String> *using_fields = table_ref->join_using_fields;
     uint found_using_fields;
 
@@ -8570,24 +8570,27 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     true   Error
     false  OK
 */
-bool setup_natural_join_row_types(THD *thd, List<TABLE_LIST> *from_clause,
+bool setup_natural_join_row_types(THD *thd,
+                                  memroot_deque<TABLE_LIST *> *from_clause,
                                   Name_resolution_context *context) {
   DBUG_TRACE;
   thd->where = "from clause";
-  if (from_clause->elements == 0)
+  if (from_clause->empty())
     return false; /* We come here in the case of UNIONs. */
 
-  List_iterator_fast<TABLE_LIST> table_ref_it(*from_clause);
-  TABLE_LIST *table_ref; /* Current table reference. */
+  auto table_ref_it = from_clause->begin();
   /* Table reference to the left of the current. */
-  TABLE_LIST *left_neighbor;
+  TABLE_LIST *left_neighbor = *table_ref_it++;
   /* Table reference to the right of the current. */
-  TABLE_LIST *right_neighbor = NULL;
+  TABLE_LIST *right_neighbor = nullptr;
 
   /* Note that tables in the list are in reversed order */
-  for (left_neighbor = table_ref_it++; left_neighbor;) {
-    table_ref = left_neighbor;
-    left_neighbor = table_ref_it++;
+  while (left_neighbor) {
+    /* Current table reference. */
+    TABLE_LIST *table_ref = left_neighbor;
+    left_neighbor =
+        (table_ref_it == from_clause->end()) ? nullptr : *table_ref_it++;
+
     /*
       Do not redo work if already done:
       - for prepared statements and stored procedures,

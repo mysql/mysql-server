@@ -289,11 +289,9 @@ void Item_subselect::accumulate_condition(Item *item) {
 
   @param tables  References to joined tables.
 */
-void Item_subselect::accumulate_join_condition(List<TABLE_LIST> *tables) {
-  TABLE_LIST *table_ref;
-  List_iterator<TABLE_LIST> li(*tables);
-
-  while ((table_ref = li++)) {
+void Item_subselect::accumulate_join_condition(
+    memroot_deque<TABLE_LIST *> *tables) {
+  for (const TABLE_LIST *table_ref : *tables) {
     if (table_ref->join_cond()) accumulate_condition(table_ref->join_cond());
 
     if (table_ref->nested_join != NULL)

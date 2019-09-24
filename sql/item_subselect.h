@@ -154,7 +154,7 @@ class Item_subselect : public Item_result_field {
   /// block.
   void accumulate_condition(Item *item);
   /// Accumulate properties from a join condition within a query block.
-  void accumulate_join_condition(List<TABLE_LIST> *tables);
+  void accumulate_join_condition(memroot_deque<TABLE_LIST *> *tables);
 
  public:
   /// Accumulate used tables
