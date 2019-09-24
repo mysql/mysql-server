@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,7 @@ std::string RandomGenerator::generate_strong_password(
   length -= static_cast<unsigned>(result.length());
   result += generate_identifier(length, AlphabetAll);
 
-  std::random_shuffle(result.begin(), result.end());
+  std::shuffle(result.begin(), result.end(), urng);
 
   return result;
 }

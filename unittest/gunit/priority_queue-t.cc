@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <functional>
 #include <iostream>
 #include <iterator>
+#include <random>
 #include <sstream>
 #include <vector>
 #include "my_config.h"
@@ -613,7 +614,9 @@ TEST_F(PriorityQueueTest, DifferentCtors) {
 }
 
 TEST_F(PriorityQueueTest, Swap) {
-  std::random_shuffle(keys, keys + 10);
+  std::random_device rng;
+  std::mt19937 urng(rng());
+  std::shuffle(keys, keys + 10, urng);
   Priority_queue<int> pq(keys, keys + 10);
   std::stringstream ss1, ss2;
   ss1 << pq;
