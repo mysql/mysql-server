@@ -26,16 +26,16 @@ INCLUDE(CheckCSourceRuns)
 
 SET(FREEBSD 1)
 
-# We require at least Clang 4.0.
+# We require at least Clang 6.0 (FreeBSD 12).
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_CLANG)
     CHECK_C_SOURCE_RUNS("
       int main()
       {
-        return (__clang_major__ < 4);
+        return (__clang_major__ < 6);
       }" HAVE_SUPPORTED_CLANG_VERSION)
     IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 4.0 or newer is required!")
+      MESSAGE(FATAL_ERROR "Clang 6.0 or newer is required!")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_GNU)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
