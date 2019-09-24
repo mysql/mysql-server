@@ -1,0 +1,312 @@
+SET GLOBAL DEBUG="+d, parallel_read_buffering_print";
+#
+# Sampling on an empty table
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='sampled_pages_read';
+NAME	COUNT
+sampled_pages_read	0
+CREATE TABLE t1 (a INT);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	a	{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+DROP TABLE t1;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	0
+sampled_pages_skipped	0
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Case where only root node is present
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50), (60), (70), (80), (90), (100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	a	{"buckets": [[10, 0.1], [20, 0.2], [30, 0.30000000000000004], [40, 0.4], [50, 0.5], [60, 0.6], [70, 0.7], [80, 0.7999999999999999], [90, 0.8999999999999999], [100, 0.9999999999999999]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+DROP TABLE t1;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	1
+sampled_pages_skipped	0
+SET GLOBAL innodb_monitor_disable = "module_sampling";
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+SET DEBUG='-d,histogram_force_sampling';
+#
+# Case where only two levels is present with sampling_percentage = 50
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	a	{"buckets": [], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+DROP TABLE t1;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	0
+sampled_pages_skipped	2
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+set global innodb_limit_optimistic_insert_debug = 0;
+SET DEBUG='-d,histogram_force_sampling';
+#
+# Case where only two levels is present with sampling_percentage = 100
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	a	{"buckets": [[10, 0.3333333333333333], [20, 0.6666666666666666], [30, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+DROP TABLE t1;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	2
+sampled_pages_skipped	0
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+set global innodb_limit_optimistic_insert_debug = 0;
+#
+# Normal case with small dataset
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	a	{"buckets": [[10, 0.2], [20, 0.4], [30, 0.6000000000000001], [40, 0.8], [50, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+set global innodb_limit_optimistic_insert_debug = 0;
+DROP TABLE t1;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	3
+sampled_pages_skipped	0
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Check that histogram with sampling works as expected with large dataset
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE t1 (col1 DOUBLE);
+INSERT INTO t1 SELECT RAND(1);
+INSERT INTO t1 SELECT RAND(2) FROM t1;
+INSERT INTO t1 SELECT RAND(3) FROM t1;
+INSERT INTO t1 SELECT RAND(4) FROM t1;
+INSERT INTO t1 SELECT RAND(5) FROM t1;
+INSERT INTO t1 SELECT RAND(6) FROM t1;
+INSERT INTO t1 SELECT RAND(7) FROM t1;
+INSERT INTO t1 SELECT RAND(8) FROM t1;
+INSERT INTO t1 SELECT RAND(9) FROM t1;
+INSERT INTO t1 SELECT RAND(10) FROM t1;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 5 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col1';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col1	{"buckets": [[0.00004702340815870409, 0.19875090960296887, 0.19921875, 102], [0.19918984193279393, 0.40927049183218783, 0.400390625, 103], [0.40959737115502115, 0.6413875069854664, 0.599609375, 102], [0.6414533095820372, 0.8141234059018301, 0.80078125, 103], [0.8141827833039526, 0.9968274254322308, 1.0, 102]], "data-type": "double", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "equi-height", "number-of-buckets-specified": 5}
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	257
+sampled_pages_skipped	0
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Check that histogram with sampling works as expected with large dataset and different sampling percentage
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col1';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	col1	{"buckets": [[0.011373644705278468, 0.03017090822585943, 0.021352313167259787, 12], [0.03405159156215525, 0.044861410786268686, 0.03914590747330961, 10], [0.049177242488765385, 0.06786640646668747, 0.060498220640569395, 12], [0.07857959631698168, 0.09110339925727193, 0.07829181494661921, 10], [0.09856132520228748, 0.11407946153923819, 0.099644128113879, 12], [0.11910874780184473, 0.129664404438496, 0.12099644128113879, 12], [0.132179152343589, 0.14524669865634915, 0.1387900355871886, 10], [0.1479271511993624, 0.15668530311126755, 0.1601423487544484, 12], [0.15768891215109165, 0.17241666668319763, 0.18149466192170818, 12], [0.17409675212027204, 0.19918984193279393, 0.199288256227758, 10], [0.1999328222125143, 0.216489489391902, 0.2206405693950178, 12], [0.21769908929029394, 0.24205637652618472, 0.23843416370106763, 10], [0.24642437905671483, 0.2554747008303876, 0.2597864768683274, 12], [0.2565202594329792, 0.276700429876056, 0.28113879003558717, 12], [0.28239297799988927, 0.29336898335569445, 0.298932384341637, 10], [0.29497343608641385, 0.3172216995779627, 0.3202846975088968, 12], [0.3191653679303502, 0.34015713198125097, 0.3416370106761566, 12], [0.3420773095843171, 0.3719145416951874, 0.3594306049822064, 10], [0.37191512377179703, 0.38107701333339977, 0.3807829181494662, 12], [0.3845601374139638, 0.40927049183218783, 0.398576512455516, 10], [0.4124046241980089, 0.43636083271015513, 0.4199288256227758, 12], [0.43802819255555814, 0.47071218906968104, 0.4412811387900356, 12], [0.4808846427881016, 0.4900072752405026, 0.45907473309608543, 10], [0.4916654513139887, 0.5085141952228864, 0.4804270462633452, 12], [0.5092900120739732, 0.5514262202674767, 0.501779359430605, 12], [0.5526589048585472, 0.5636943686415389, 0.5195729537366548, 10], [0.5640317495577333, 0.5841969005616353, 0.5409252669039146, 12], [0.5873414348693019, 0.5919730324223387, 0.5587188612099644, 10], [0.5985926087932593, 0.6130504166828938, 0.5800711743772242, 12], [0.6151958486206791, 0.6418956067803275, 0.6014234875444839, 12], [0.6445010235947566, 0.6636503838595472, 0.6192170818505338, 10], [0.6659471072870745, 0.6720468659624894, 0.6405693950177936, 12], [0.6730587460781063, 0.6905340884724018, 0.6583629893238434, 10], [0.6941590809208891, 0.6967593940876046, 0.6797153024911032, 12], [0.6983557359300142, 0.7161791238153159, 0.701067615658363, 12], [0.7164718487453384, 0.739992664884769, 0.7188612099644128, 10], [0.7419578132610375, 0.7537429209367772, 0.7402135231316725, 12], [0.7539859458375592, 0.7693821729807017, 0.7615658362989324, 12], [0.7747330169889453, 0.8011622101079321, 0.7793594306049823, 10], [0.8066996930229474, 0.8140214363243631, 0.800711743772242, 12], [0.8141234059018301, 0.8357672494237938, 0.8185053380782918, 10], [0.8366077466277477, 0.843116940784377, 0.8398576512455516, 12], [0.84848795165167, 0.8700312132668041, 0.8612099644128114, 12], [0.8723847157064683, 0.8808078327037467, 0.8790035587188612, 10], [0.8812683977943551, 0.8986274859855208, 0.900355871886121, 12], [0.903314814812797, 0.9308878350359274, 0.9217081850533808, 12], [0.9310047411648601, 0.9578673000986383, 0.9395017793594306, 10], [0.9607241777337382, 0.9739582445229946, 0.9608540925266904, 12], [0.9793567359255224, 0.9863100619859155, 0.9786476868327402, 10], [0.9869397673634251, 0.9955119751351997, 1.0, 12]], "data-type": "double", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "equi-height", "number-of-buckets-specified": 50}
+DROP TABLE t1;
+set global innodb_limit_optimistic_insert_debug = 0;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	141
+sampled_pages_skipped	116
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+SET DEBUG='-d,histogram_force_sampling';
+#
+# Normal case with small dataset with different sampling_percentage
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50), (60), (70), (80), (90), (100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6000000000000001], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	3
+sampled_pages_skipped	3
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Case to check if same rows are returned  for the same seed
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'a'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	a	{"buckets": [[40, 0.2], [50, 0.4], [80, 0.6000000000000001], [90, 0.8], [100, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+DROP TABLE t1;
+set global innodb_limit_optimistic_insert_debug = 0;
+SET DEBUG='-d,histogram_force_sampling';
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	3
+sampled_pages_skipped	3
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Case were there is an error while buffering
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+SET GLOBAL DEBUG='+d,parallel_reader_histogram_induce_error';
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (10), (20), (30), (40), (50), (60), (70), (80), (90), (100);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'a';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+DROP TABLE t1;
+set global innodb_limit_optimistic_insert_debug = 0;
+SET GLOBAL DEBUG='-d,parallel_reader_histogram_induce_error';
+SET DEBUG='-d,histogram_force_sampling';
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	0
+sampled_pages_skipped	0
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Case were partitions are involved
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+CREATE TABLE p (col1 INT PRIMARY KEY, col2 INT, col3 INT)
+PARTITION BY KEY (col1) PARTITIONS 4;
+INSERT INTO p VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2 WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.p	histogram	status	Histogram statistics created for column 'col2'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col2';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+DROP TABLE p;
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	3
+sampled_pages_skipped	0
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# Case were there is an error while buffering when partitions are involved
+#
+SET GLOBAL innodb_monitor_enable = module_sampling;
+SET DEBUG='+d,histogram_force_sampling';
+SET GLOBAL DEBUG='+d,parallel_reader_histogram_induce_error';
+set global innodb_limit_optimistic_insert_debug = 2;
+CREATE TABLE p (col1 INT PRIMARY KEY, col2 INT, col3 INT)
+PARTITION BY KEY (col1) PARTITIONS 4;
+INSERT INTO p VALUES (1, 1, 1), (2, 2, 2), (3, 3, 3);
+ANALYZE TABLE p UPDATE HISTOGRAM ON col2 WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.p	histogram	status	Histogram statistics created for column 'col2'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'col2';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	p	col2	{"buckets": [[1, 0.3333333333333333], [2, 0.6666666666666666], [3, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 0.5, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
+NAME	COUNT
+sampled_pages_read	3
+sampled_pages_skipped	0
+DROP TABLE p;
+set global innodb_limit_optimistic_insert_debug = 0;
+SET GLOBAL DEBUG='-d,parallel_reader_histogram_induce_error';
+SET DEBUG='-d,histogram_force_sampling';
+SET GLOBAL innodb_monitor_disable = module_sampling;
+SET GLOBAL innodb_monitor_reset_all = "module_sampling";
+#
+# RAPID use case : Break from sampling after sampling half the records
+#
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+SET DEBUG = "+d,sample_read_sample_half";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON id WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'id'.
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'id';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+test	t1	id	{"buckets": [[1, 0.2], [2, 0.4], [3, 0.6000000000000001], [4, 0.8], [5, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 50}
+SET DEBUG = "-d, sample_read_sample_half";
+DROP TABLE t1;
+#
+# Error case where the table is discared
+#
+CREATE TABLE t1 (id int);
+ALTER TABLE t1 DISCARD TABLESPACE;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON id WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	Tablespace has been discarded for table 'test/t1'
+DROP TABLE t1;
+#
+# Simulated error case where parallel read thread returns error
+#
+CREATE TABLE t1 (id int);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+SET GLOBAL DEBUG = "+d,simulate_sample_read_error";
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON id WITH 50 BUCKETS;
+Table	Op	Msg_type	Msg_text
+SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, JSON_REMOVE(histogram, '$."last-updated"') FROM information_schema.column_statistics WHERE COLUMN_NAME = 'id';
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
+SET GLOBAL DEBUG = "-d,simulate_sample_read_error";
+DROP TABLE t1;
+#
+# Cleanup
+#
+SET GLOBAL innodb_monitor_enable = default;
+Warnings:
+Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+SET GLOBAL innodb_monitor_disable = default;
+Warnings:
+Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+SET GLOBAL innodb_monitor_reset_all = default;
+Warnings:
+Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+SET GLOBAL DEBUG="-d, parallel_read_buffering_print";

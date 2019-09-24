@@ -2895,8 +2895,9 @@ int handler::ha_ft_read(uchar *buf) {
   return result;
 }
 
-int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
-                            enum_sampling_method) {
+int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
+                            int sampling_seed,
+                            enum_sampling_method sampling_method) {
   DBUG_TRACE;
   DBUG_ASSERT(sampling_percentage >= 0.0);
   DBUG_ASSERT(sampling_percentage <= 100.0);
@@ -2906,20 +2907,21 @@ int handler::ha_sample_init(double sampling_percentage, int sampling_seed,
   m_random_number_engine.seed(sampling_seed);
   m_sampling_percentage = sampling_percentage;
 
-  int result = sample_init();
+  int result = sample_init(scan_ctx, sampling_percentage, sampling_seed,
+                           sampling_method);
   inited = (result != 0) ? NONE : SAMPLING;
   return result;
 }
 
-int handler::ha_sample_end() {
+int handler::ha_sample_end(void *scan_ctx) {
   DBUG_TRACE;
   DBUG_ASSERT(inited == SAMPLING);
   inited = NONE;
-  int result = sample_end();
+  int result = sample_end(scan_ctx);
   return result;
 }
 
-int handler::ha_sample_next(uchar *buf) {
+int handler::ha_sample_next(void *scan_ctx, uchar *buf) {
   DBUG_TRACE;
   DBUG_ASSERT(inited == SAMPLING);
 
@@ -2929,7 +2931,7 @@ int handler::ha_sample_next(uchar *buf) {
 
   int result;
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
-                      { result = sample_next(buf); })
+                      { result = sample_next(scan_ctx, buf); })
 
   if (result == 0 && m_update_generated_read_fields) {
     result = update_generated_read_fields(buf, table);
@@ -2940,11 +2942,16 @@ int handler::ha_sample_next(uchar *buf) {
   return result;
 }
 
-int handler::sample_init() { return rnd_init(true); }
+int handler::sample_init(void *&scan_ctx MY_ATTRIBUTE((unused)), double, int,
+                         enum_sampling_method) {
+  return rnd_init(true);
+}
 
-int handler::sample_end() { return rnd_end(); }
+int handler::sample_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
+  return rnd_end();
+}
 
-int handler::sample_next(uchar *buf) {
+int handler::sample_next(void *scan_ctx MY_ATTRIBUTE((unused)), uchar *buf) {
   // Temporary set inited to RND, since we are calling rnd_next().
   int res = rnd_next(buf);
 

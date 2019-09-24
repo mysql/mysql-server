@@ -692,7 +692,7 @@ enum enum_binlog_command {
   LOGCOM_DROP_DB,
 };
 
-enum class enum_sampling_method { SYSTEM };
+enum class enum_sampling_method { SYSTEM, NONE };
 
 /* Bits in used_fields */
 #define HA_CREATE_USED_AUTO (1L << 0)
@@ -4654,10 +4654,41 @@ class handler {
 
   double index_in_memory_estimate(uint keyno) const;
 
-  int ha_sample_init(double sampling_percentage, int sampling_seed,
-                     enum_sampling_method sampling_method);
-  int ha_sample_next(uchar *buf);
-  int ha_sample_end();
+  /**
+    Initialize sampling.
+
+    @param[out] scan_ctx  A scan context created by this method that has to be
+    used in sample_next
+    @param[in]  sampling_percentage percentage of records that need to be
+    sampled
+    @param[in]  sampling_seed       random seed that the random generator will
+    use
+    @param[in]  sampling_method     sampling method to be used; currently only
+    SYSTEM sampling is supported
+
+    @return 0 for success, else one of the HA_xxx values in case of error.
+  */
+  int ha_sample_init(void *&scan_ctx, double sampling_percentage,
+                     int sampling_seed, enum_sampling_method sampling_method);
+
+  /**
+    Get the next record for sampling.
+
+    @param[in]  scan_ctx  Scan context of the sampling
+    @param[in]  buf       buffer to place the read record
+
+    @return 0 for success, else one of the HA_xxx values in case of error.
+  */
+  int ha_sample_next(void *scan_ctx, uchar *buf);
+
+  /**
+    End sampling.
+
+    @param[in] scan_ctx  Scan context of the sampling
+
+    @return 0 for success, else one of the HA_xxx values in case of error.
+  */
+  int ha_sample_end(void *scan_ctx);
 
  private:
   int check_collation_compatibility();
@@ -6076,9 +6107,28 @@ class handler {
     return false;
   }
 
-  virtual int sample_init();
-  virtual int sample_next(uchar *buf);
-  virtual int sample_end();
+  /** Initialize sampling.
+  @param[out] scan_ctx  A scan context created by this method that has to be
+  used in sample_next
+  @param[in]  sampling_percentage percentage of records that need to be sampled
+  @param[in]  sampling_seed       random seed
+  @param[in]  sampling_method     sampling method to be used; currently only
+  SYSTEM sampling is supported
+  @return 0 for success, else failure. */
+  virtual int sample_init(void *&scan_ctx, double sampling_percentage,
+                          int sampling_seed,
+                          enum_sampling_method sampling_method);
+
+  /** Get the next record for sampling.
+  @param[in] scan_ctx   Scan context of the sampling
+  @param[in] buf        buffer to place the read record
+  @return 0 for success, else failure. */
+  virtual int sample_next(void *scan_ctx, uchar *buf);
+
+  /** End sampling.
+  @param[in] scan_ctx  Scan context of the sampling
+  @return 0 for success, else failure. */
+  virtual int sample_end(void *scan_ctx);
 
   /**
    * Prepares secondary engine for loading a table.

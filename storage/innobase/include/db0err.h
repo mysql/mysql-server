@@ -194,6 +194,8 @@ enum dberr_t {
   DB_RECORD_NOT_FOUND = 1500,
   DB_END_OF_BLOCK,
   DB_END_OF_INDEX,
+  DB_END_SAMPLE_READ,
+
   /** Generic error code for "Not found" type of errors */
   DB_NOT_FOUND,
 

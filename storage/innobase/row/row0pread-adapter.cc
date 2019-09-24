@@ -61,9 +61,9 @@ Parallel_reader_adapter::~Parallel_reader_adapter() {
   }
 }
 
-bool Parallel_reader_adapter::add_scan(trx_t *trx,
-                                       const Parallel_reader::Config &config,
-                                       Parallel_reader::F &&f) {
+dberr_t Parallel_reader_adapter::add_scan(trx_t *trx,
+                                          const Parallel_reader::Config &config,
+                                          Parallel_reader::F &&f) {
   return (m_parallel_reader.add_scan(trx, config, std::move(f)));
 }
 

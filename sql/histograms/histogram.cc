@@ -730,26 +730,29 @@ static bool fill_value_maps(
   std::random_device rd;
   std::uniform_int_distribution<int> dist;
   int sampling_seed = dist(rd);
+
   DBUG_EXECUTE_IF("histogram_force_sampling", {
     sampling_seed = 1;
     sample_percentage = 50.0;
   });
 
+  void *scan_ctx = nullptr;
+
   for (auto &value_map : value_maps)
     value_map.second->set_sampling_rate(sample_percentage / 100.0);
 
-  if (table->file->ha_sample_init(sample_percentage, sampling_seed,
+  if (table->file->ha_sample_init(scan_ctx, sample_percentage, sampling_seed,
                                   enum_sampling_method::SYSTEM)) {
-    DBUG_ASSERT(false); /* purecov: deadcode */
     return true;
   }
 
-  auto handler_guard = create_scope_guard([table]() {
-    table->file->ha_sample_end(); /* purecov: deadcode */
+  auto handler_guard = create_scope_guard([table, scan_ctx]() {
+    table->file->ha_sample_end(scan_ctx); /* purecov: deadcode */
   });
 
   // Read the data from each column into its own Value_map.
-  int res = table->file->ha_sample_next(table->record[0]);
+  int res = table->file->ha_sample_next(scan_ctx, table->record[0]);
+
   while (res == 0) {
     for (Field *field : fields) {
       histograms::Value_map_base *value_map =
@@ -840,14 +843,21 @@ static bool fill_value_maps(
       }
     }
 
-    res = table->file->ha_sample_next(table->record[0]);
+    res = table->file->ha_sample_next(scan_ctx, table->record[0]);
+
+    DBUG_EXECUTE_IF(
+        "sample_read_sample_half", static uint count = 1;
+        if (count == std::max(1ULL, table->file->stats.records) / 2) {
+          res = HA_ERR_END_OF_FILE;
+          break;
+        } ++count;);
   }
 
   if (res != HA_ERR_END_OF_FILE) return true; /* purecov: deadcode */
 
   // Close the handler
   handler_guard.commit();
-  if (table->file->ha_sample_end()) {
+  if (table->file->ha_sample_end(scan_ctx)) {
     DBUG_ASSERT(false); /* purecov: deadcode */
     return true;
   }

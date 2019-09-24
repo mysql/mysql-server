@@ -175,6 +175,7 @@ SET(INNOBASE_SOURCES
 	row/row0pread.cc
 	row/row0purge.cc
 	row/row0pread-adapter.cc
+	row/row0pread-histogram.cc
 	row/row0row.cc
 	row/row0sel.cc
 	row/row0uins.cc

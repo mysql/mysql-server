@@ -151,6 +151,12 @@ struct srv_stats_t {
 
   /** Number of system rows inserted */
   ulint_ctr_64_t n_system_rows_inserted;
+
+  /** Number of sampled pages read */
+  ulint_ctr_64_t n_sampled_pages_read;
+
+  /** Number of sampled pages skipped */
+  ulint_ctr_64_t n_sampled_pages_skipped;
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -1109,26 +1115,28 @@ struct export_var_t {
   ulint innodb_os_log_pending_writes;          /*!< srv_os_log_pending_writes */
   ulint innodb_os_log_pending_fsyncs;          /*!< fil_n_pending_log_flushes */
   ulint innodb_page_size;                      /*!< UNIV_PAGE_SIZE */
-  ulint innodb_pages_created;             /*!< buf_pool->stat.n_pages_created */
-  ulint innodb_pages_read;                /*!< buf_pool->stat.n_pages_read */
-  ulint innodb_pages_written;             /*!< buf_pool->stat.n_pages_written */
-  ulint innodb_row_lock_waits;            /*!< srv_n_lock_wait_count */
-  ulint innodb_row_lock_current_waits;    /*!< srv_n_lock_wait_current_count */
-  int64_t innodb_row_lock_time;           /*!< srv_n_lock_wait_time
-                                          / 1000 */
-  ulint innodb_row_lock_time_avg;         /*!< srv_n_lock_wait_time
-                                          / 1000
-                                          / srv_n_lock_wait_count */
-  ulint innodb_row_lock_time_max;         /*!< srv_n_lock_max_wait_time
-                                          / 1000 */
-  ulint innodb_rows_read;                 /*!< srv_n_rows_read */
-  ulint innodb_rows_inserted;             /*!< srv_n_rows_inserted */
-  ulint innodb_rows_updated;              /*!< srv_n_rows_updated */
-  ulint innodb_rows_deleted;              /*!< srv_n_rows_deleted */
-  ulint innodb_system_rows_read;          /*!< srv_n_system_rows_read */
-  ulint innodb_system_rows_inserted;      /*!< srv_n_system_rows_inserted */
-  ulint innodb_system_rows_updated;       /*!< srv_n_system_rows_updated */
-  ulint innodb_system_rows_deleted;       /*!< srv_n_system_rows_deleted*/
+  ulint innodb_pages_created;          /*!< buf_pool->stat.n_pages_created */
+  ulint innodb_pages_read;             /*!< buf_pool->stat.n_pages_read */
+  ulint innodb_pages_written;          /*!< buf_pool->stat.n_pages_written */
+  ulint innodb_row_lock_waits;         /*!< srv_n_lock_wait_count */
+  ulint innodb_row_lock_current_waits; /*!< srv_n_lock_wait_current_count */
+  int64_t innodb_row_lock_time;        /*!< srv_n_lock_wait_time
+                                       / 1000 */
+  ulint innodb_row_lock_time_avg;      /*!< srv_n_lock_wait_time
+                                       / 1000
+                                       / srv_n_lock_wait_count */
+  ulint innodb_row_lock_time_max;      /*!< srv_n_lock_max_wait_time
+                                       / 1000 */
+  ulint innodb_rows_read;              /*!< srv_n_rows_read */
+  ulint innodb_rows_inserted;          /*!< srv_n_rows_inserted */
+  ulint innodb_rows_updated;           /*!< srv_n_rows_updated */
+  ulint innodb_rows_deleted;           /*!< srv_n_rows_deleted */
+  ulint innodb_system_rows_read;       /*!< srv_n_system_rows_read */
+  ulint innodb_system_rows_inserted;   /*!< srv_n_system_rows_inserted */
+  ulint innodb_system_rows_updated;    /*!< srv_n_system_rows_updated */
+  ulint innodb_system_rows_deleted;    /*!< srv_n_system_rows_deleted*/
+  ulint innodb_sampled_pages_read;
+  ulint innodb_sampled_pages_skipped;
   ulint innodb_num_open_files;            /*!< fil_n_file_opened */
   ulint innodb_truncated_status_writes;   /*!< srv_truncated_status_writes */
   ulint innodb_undo_tablespaces_total;    /*!< total number of undo tablespaces

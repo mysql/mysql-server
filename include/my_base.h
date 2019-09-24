@@ -984,8 +984,10 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_WRONG_TABLE_NAME 206
 /** Path is too long for the OS */
 #define HA_ERR_TOO_LONG_PATH 207
+/** Histogram sampling initialization failed */
+#define HA_ERR_SAMPLING_INIT_FAILED 208
 /** Copy of last error number */
-#define HA_ERR_LAST 207
+#define HA_ERR_LAST 208
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

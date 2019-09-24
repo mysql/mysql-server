@@ -263,6 +263,16 @@ page_no_t btr_node_ptr_get_child_page_no(
     const rec_t *rec,     /*!< in: node pointer record */
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
     MY_ATTRIBUTE((warn_unused_result));
+
+/** Returns the child page of a node pointer and sx-latches it.
+@param[in]  node_ptr  node pointer
+@param[in]  index index
+@param[in]  offsets array returned by rec_get_offsets()
+@param[in]  mtr mtr
+@return child page, sx-latched */
+buf_block_t *btr_node_ptr_get_child(const rec_t *node_ptr, dict_index_t *index,
+                                    const ulint *offsets, mtr_t *mtr);
+
 /** Create the root node for a new index tree.
 @param[in]	type			type of the index
 @param[in]	space			space where created

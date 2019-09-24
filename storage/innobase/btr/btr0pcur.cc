@@ -149,7 +149,8 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     but always do a search */
 
     btr_cur_open_at_index_side(m_rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
-                               index, latch_mode, get_btr_cur(), 0, mtr);
+                               index, latch_mode, get_btr_cur(), m_read_level,
+                               mtr);
 
     m_latch_mode = BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode);
 
@@ -197,7 +198,8 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
         offsets2 = rec_get_offsets(rec, index, nullptr, m_old_n_fields, &heap);
 
-        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index));
+        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index, nullptr,
+                           false));
         mem_heap_free(heap);
 #endif /* UNIV_DEBUG */
         return (true);

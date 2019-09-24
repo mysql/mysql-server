@@ -233,10 +233,12 @@ TEST_F(HandlerTest, SamplingInterfaceAllRows) {
   table->set_handler(&mock_handler);
 
   uchar buffer[8];
+  void *scan_ctx = nullptr;
 
   // rnd_init should be called exactly one time by ha_sample_init.
   EXPECT_CALL(mock_handler, rnd_init(true)).Times(1);
-  EXPECT_EQ(mock_handler.ha_sample_init(100.0, 0, enum_sampling_method::SYSTEM),
+  EXPECT_EQ(mock_handler.ha_sample_init(scan_ctx, 100.0, 0,
+                                        enum_sampling_method::SYSTEM),
             0);
   EXPECT_EQ(mock_handler.inited, handler::SAMPLING);
 
@@ -247,11 +249,12 @@ TEST_F(HandlerTest, SamplingInterfaceAllRows) {
   const int num_iterations = 100;
   EXPECT_CALL(mock_handler, rnd_next(buffer)).Times(num_iterations);
 
-  for (int i = 0; i < num_iterations; ++i) mock_handler.ha_sample_next(buffer);
+  for (int i = 0; i < num_iterations; ++i)
+    mock_handler.ha_sample_next(scan_ctx, buffer);
 
   // rnd_end should be called exactly one time by ha_sample_end.
   EXPECT_CALL(mock_handler, rnd_end()).Times(1);
-  EXPECT_EQ(mock_handler.ha_sample_end(), 0);
+  EXPECT_EQ(mock_handler.ha_sample_end(scan_ctx), 0);
   EXPECT_EQ(mock_handler.inited, handler::NONE);
 }
 
@@ -263,10 +266,12 @@ TEST_F(HandlerTest, SamplingInterfaceNoRows) {
   table->set_handler(&mock_handler);
 
   uchar buffer[8];
+  void *scan_ctx = nullptr;
 
   // rnd_init should be called exactly one time by ha_sample_init.
   EXPECT_CALL(mock_handler, rnd_init(true)).Times(1);
-  EXPECT_EQ(mock_handler.ha_sample_init(0.0, 0, enum_sampling_method::SYSTEM),
+  EXPECT_EQ(mock_handler.ha_sample_init(scan_ctx, 0.0, 0,
+                                        enum_sampling_method::SYSTEM),
             0);
   EXPECT_EQ(mock_handler.inited, handler::SAMPLING);
 
@@ -276,11 +281,11 @@ TEST_F(HandlerTest, SamplingInterfaceNoRows) {
   */
   EXPECT_CALL(mock_handler, rnd_next(buffer)).Times(0);
 
-  for (int i = 0; i < 100; ++i) mock_handler.ha_sample_next(buffer);
+  for (int i = 0; i < 100; ++i) mock_handler.ha_sample_next(scan_ctx, buffer);
 
   // rnd_end should be called exactly one time by ha_sample_end.
   EXPECT_CALL(mock_handler, rnd_end()).Times(1);
-  EXPECT_EQ(mock_handler.ha_sample_end(), 0);
+  EXPECT_EQ(mock_handler.ha_sample_end(scan_ctx), 0);
   EXPECT_EQ(mock_handler.inited, handler::NONE);
 }
 

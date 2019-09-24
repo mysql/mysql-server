@@ -1196,14 +1196,14 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
 
   Parallel_reader::Config config(full_scan, m_prebuilt->table->first_index());
 
-  auto success =
+  dberr_t err =
       adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
         return (adapter->process_rows(ctx));
       });
 
-  if (!success) {
+  if (err != DB_SUCCESS) {
     UT_DELETE(adapter);
-    return (HA_ERR_GENERIC);
+    return (convert_error_code_to_mysql(err, 0, ha_thd()));
   }
 
   scan_ctx = adapter;
@@ -9772,14 +9772,14 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
 
     Parallel_reader::Config config(FULL_SCAN, m_prebuilt->table->first_index());
 
-    auto success =
+    dberr_t err =
         adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
           return (adapter->process_rows(ctx));
         });
 
-    if (!success) {
+    if (err != DB_SUCCESS) {
       UT_DELETE(adapter);
-      return (HA_ERR_GENERIC);
+      return (convert_error_code_to_mysql(err, 0, ha_thd()));
     }
   }
 

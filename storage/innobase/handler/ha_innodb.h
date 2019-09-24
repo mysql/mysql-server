@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "handler.h"
 #include "my_dbug.h"
 #include "row0pread-adapter.h"
+#include "row0pread-histogram.h"
 #include "trx0trx.h"
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
@@ -212,6 +213,29 @@ class ha_innobase : public handler {
   int reset() override;
 
   int external_lock(THD *thd, int lock_type) override;
+
+  /** Initialize sampling.
+  @param[out] scan_ctx  A scan context created by this method that has to be
+  used in sample_next
+  @param[in]  sampling_percentage percentage of records that need to be sampled
+  @param[in]  sampling_seed       random seed that the random generator will use
+  @param[in]  sampling_method     sampling method to be used; currently only
+  SYSTEM sampling is supported
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_init(void *&scan_ctx, double sampling_percentage,
+                  int sampling_seed,
+                  enum_sampling_method sampling_method) override;
+
+  /** Get the next record for sampling.
+  @param[in]  scan_ctx  Scan context of the sampling
+  @param[in]  buf       buffer to place the read record
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_next(void *scan_ctx, uchar *buf) override;
+
+  /** End sampling.
+  @param[in] scan_ctx  Scan context of the sampling
+  @return 0 for success, else one of the HA_xxx values in case of error. */
+  int sample_end(void *scan_ctx) override;
 
   /** MySQL calls this function at the start of each SQL statement
   inside LOCK TABLES. Inside LOCK TABLES the "::external_lock" method

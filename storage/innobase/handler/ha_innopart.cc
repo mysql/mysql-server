@@ -2079,6 +2079,95 @@ int ha_innopart::read_range_next_in_part(uint part, uchar *record) {
   return (error);
 }
 
+int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
+                             int sampling_seed,
+                             enum_sampling_method sampling_method) {
+  DBUG_ASSERT(table_share->is_missing_primary_key() ==
+              m_prebuilt->clust_index_was_generated);
+
+  ut_ad(sampling_percentage >= 0.0);
+  ut_ad(sampling_percentage <= 100.0);
+  ut_ad(sampling_method == enum_sampling_method::SYSTEM);
+
+  if (sampling_percentage <= 0.0 || sampling_percentage > 100.0 ||
+      sampling_method != enum_sampling_method::SYSTEM) {
+    return (0);
+  }
+
+  auto trx = m_prebuilt->trx;
+  innobase_register_trx(ht, ha_thd(), trx);
+  trx_start_if_not_started_xa(trx, false);
+  trx_assign_read_view(trx);
+
+  /* Parallel read is not currently supported for sampling. */
+  size_t n_threads = 1;
+
+  Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
+      n_threads, sampling_seed, sampling_percentage, sampling_method));
+
+  if (sampler == nullptr) {
+    return (HA_ERR_OUT_OF_MEM);
+  }
+
+  scan_ctx = sampler;
+
+  const auto first_used_partition = m_part_info->get_first_used_partition();
+
+  for (auto i = first_used_partition; i < m_tot_parts;
+       i = m_part_info->get_next_used_partition(i)) {
+    set_partition(i);
+
+    if (dict_table_is_discarded(m_prebuilt->table)) {
+      ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
+                  m_prebuilt->table->name.m_name);
+
+      return (HA_ERR_NO_SUCH_TABLE);
+    }
+
+    build_template(true);
+
+    auto index = m_prebuilt->table->first_index();
+
+    auto success = sampler->init(trx, index, m_prebuilt);
+
+    if (!success) {
+      return (HA_ERR_SAMPLING_INIT_FAILED);
+    }
+  }
+
+  dberr_t db_err = sampler->run();
+
+  if (db_err != DB_SUCCESS) {
+    return (convert_error_code_to_mysql(db_err, 0, ha_thd()));
+  }
+
+  return (0);
+}
+
+int ha_innopart::sample_next(void *scan_ctx, uchar *buf) {
+  dberr_t err = DB_SUCCESS;
+
+  auto sampler = static_cast<Histogram_sampler *>(scan_ctx);
+
+  sampler->set(buf);
+
+  /** Buffer rows one by one */
+  err = sampler->buffer_next();
+
+  if (err == DB_END_OF_INDEX) {
+    return HA_ERR_END_OF_FILE;
+  }
+
+  return (convert_error_code_to_mysql(err, 0, ha_thd()));
+}
+
+int ha_innopart::sample_end(void *scan_ctx) {
+  auto sampler = static_cast<Histogram_sampler *>(scan_ctx);
+  UT_DELETE(sampler);
+
+  return (0);
+}
+
 /** Initialize a table scan in a specific partition.
 @param[in]	part_id	Partition to initialize.
 @param[in]	scan	True if table/index scan false otherwise (for rnd_pos)

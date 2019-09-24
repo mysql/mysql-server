@@ -1035,6 +1035,10 @@ static SHOW_VAR innodb_status_variables[] = {
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"system_rows_updated", (char *)&export_vars.innodb_system_rows_updated,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"sampled_pages_read", (char *)&export_vars.innodb_sampled_pages_read,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+    {"sampled_pages_skipped", (char *)&export_vars.innodb_sampled_pages_skipped,
+     SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {"num_open_files", (char *)&export_vars.innodb_num_open_files, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"truncated_status_writes",
@@ -10123,6 +10127,93 @@ int ha_innobase::index_last(uchar *buf) /*!< in/out: buffer for the row */
   }
 
   return error;
+}
+
+int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
+                             int sampling_seed,
+                             enum_sampling_method sampling_method) {
+  ut_ad(table_share->is_missing_primary_key() ==
+        m_prebuilt->clust_index_was_generated);
+
+  ut_ad(sampling_percentage >= 0.0);
+  ut_ad(sampling_percentage <= 100.0);
+  ut_ad(sampling_method == enum_sampling_method::SYSTEM);
+
+  if (sampling_percentage <= 0.0 || sampling_percentage > 100.0 ||
+      sampling_method != enum_sampling_method::SYSTEM) {
+    return (0);
+  }
+
+  if (dict_table_is_discarded(m_prebuilt->table)) {
+    ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
+                m_prebuilt->table->name.m_name);
+
+    return (HA_ERR_NO_SUCH_TABLE);
+  }
+
+  int err = change_active_index(table_share->primary_key);
+
+  if (err != 0) {
+    return (err);
+  }
+
+  auto trx = m_prebuilt->trx;
+  innobase_register_trx(ht, ha_thd(), trx);
+  trx_start_if_not_started_xa(trx, false);
+  trx_assign_read_view(trx);
+
+  /* Parallel read is not currently supported for sampling. */
+  size_t n_threads = 1;
+
+  Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
+      n_threads, sampling_seed, sampling_percentage, sampling_method));
+
+  if (sampler == nullptr) {
+    return (HA_ERR_OUT_OF_MEM);
+  }
+
+  scan_ctx = static_cast<void *>(sampler);
+
+  auto index = m_prebuilt->table->first_index();
+
+  auto success = sampler->init(trx, index, m_prebuilt);
+
+  if (!success) {
+    return (HA_ERR_SAMPLING_INIT_FAILED);
+  }
+
+  dberr_t db_err = sampler->run();
+
+  if (db_err != DB_SUCCESS) {
+    return (convert_error_code_to_mysql(db_err, 0, ha_thd()));
+  }
+
+  return (0);
+}
+
+int ha_innobase::sample_next(void *scan_ctx, uchar *buf) {
+  dberr_t err = DB_SUCCESS;
+
+  Histogram_sampler *sampler = static_cast<Histogram_sampler *>(scan_ctx);
+
+  sampler->set(buf);
+
+  /** Buffer rows one by one */
+  err = sampler->buffer_next();
+
+  if (err == DB_END_OF_INDEX) {
+    return HA_ERR_END_OF_FILE;
+  }
+
+  return (convert_error_code_to_mysql(err, 0, ha_thd()));
+}
+
+int ha_innobase::sample_end(void *scan_ctx) {
+  Histogram_sampler *sampler = static_cast<Histogram_sampler *>(scan_ctx);
+
+  UT_DELETE(sampler);
+
+  return (0);
 }
 
 int ha_innobase::read_range_first(const key_range *start_key,

@@ -200,6 +200,7 @@ statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
 @param[out] matched_fields number of completely matched fields
 within the first field not completely matched
+@param[in] cmp_btree_recs true if we're comparing two b-tree records
 @return the comparison result
 @retval 0 if rec1 is equal to rec2
 @retval negative if rec1 is less than rec2
@@ -207,7 +208,7 @@ within the first field not completely matched
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
                            const dict_index_t *index, bool nulls_unequal,
-                           ulint *matched_fields);
+                           ulint *matched_fields, bool cmp_btree_recs = true);
 
 /** Compare two B-tree records.
 Only the common first fields are compared, and externally stored field
@@ -218,13 +219,14 @@ are treated as equal.
 @param[in]	offsets2	rec_get_offsets(rec2, index)
 @param[in]	index		B-tree index
 @param[out]	matched_fields	number of completely matched fields
-                                within the first field not completely matched
+within the first field not completely matched
+@param[in]  cmp_btree_recs  true if the both the records are b-tree records
 @return positive, 0, negative if rec1 is greater, equal, less, than rec2,
 respectively */
 UNIV_INLINE
 int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
                 const ulint *offsets2, const dict_index_t *index,
-                ulint *matched_fields = NULL);
+                ulint *matched_fields = NULL, bool cmp_btree_recs = true);
 
 /** Compare two data fields.
 @param[in] dfield1 data field

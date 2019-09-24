@@ -994,7 +994,7 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
                            const dict_index_t *index, bool nulls_unequal,
-                           ulint *matched_fields) {
+                           ulint *matched_fields, bool cmp_btree_recs) {
   ut_ad(rec1 != nullptr);
   ut_ad(rec2 != nullptr);
   ut_ad(index != nullptr);
@@ -1008,13 +1008,16 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
 
   *matched_fields = 0;
 
-  /* Test if rec is the predefined minimum record */
-  if (rec_get_info_bits(rec1, comp) & REC_INFO_MIN_REC_FLAG) {
-    /* There should only be one such record. */
-    ut_ad(!(rec_get_info_bits(rec2, comp) & REC_INFO_MIN_REC_FLAG));
-    return (-1);
-  } else if (rec_get_info_bits(rec2, comp) & REC_INFO_MIN_REC_FLAG) {
-    return (1);
+  /* NOTE: This is an optimisation where we're comparing two B-tree records
+  during index validation. */
+  if (cmp_btree_recs) {
+    /* Test if rec is the predefined minimum record */
+    if (rec_get_info_bits(rec1, comp) & REC_INFO_MIN_REC_FLAG) {
+      ut_ad(!(rec_get_info_bits(rec2, comp) & REC_INFO_MIN_REC_FLAG));
+      return (-1);
+    } else if (rec_get_info_bits(rec2, comp) & REC_INFO_MIN_REC_FLAG) {
+      return (1);
+    }
   }
 
   ulint i;

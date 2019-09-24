@@ -35,6 +35,8 @@ Created 2018-01-27 by Sunny Bains. */
 #include <functional>
 #include <vector>
 
+#include "os0thread-create.h"
+#include "row0sel.h"
 #include "univ.i"
 
 // Forward declarations
@@ -149,12 +151,16 @@ class Parallel_reader {
   struct Config {
     /** Constructor.
     @param[in] scan_range       Range to scan.
-    @param[in] index            Cluster index to scan. */
-    Config(const Scan_range &scan_range, dict_index_t *index)
+    @param[in] index            Cluster index to scan.
+    @param[in] read_level       Btree level from which records need to be read.
+  */
+    Config(const Scan_range &scan_range, dict_index_t *index,
+           size_t read_level = 0)
         : m_scan_range(scan_range),
           m_index(index),
           m_is_compact(dict_table_is_comp(index->table)),
-          m_page_size(dict_tf_to_fsp_flags(index->table->flags)) {}
+          m_page_size(dict_tf_to_fsp_flags(index->table->flags)),
+          m_read_level(read_level) {}
 
     /** Copy constructor.
     @param[in] config           Instance to copy from. */
@@ -162,7 +168,8 @@ class Parallel_reader {
         : m_scan_range(config.m_scan_range),
           m_index(config.m_index),
           m_is_compact(config.m_is_compact),
-          m_page_size(config.m_page_size) {}
+          m_page_size(config.m_page_size),
+          m_read_level(config.m_read_level) {}
 
     /** Range to scan. */
     const Scan_range m_scan_range;
@@ -178,11 +185,15 @@ class Parallel_reader {
 
     /** if true then enable separate read ahead threads. */
     bool m_read_ahead{true};
+
+    /** Btree level from which records need to be read. */
+    size_t m_read_level{0};
   };
 
   /** Constructor.
-  @param[in]  max_threads       Maximum number of threads to use. */
-  explicit Parallel_reader(size_t max_threads);
+  @param[in]  max_threads Maximum number of threads to use.
+  @param[in]  sync        true if the read is synchronous */
+  explicit Parallel_reader(size_t max_threads, bool sync = true);
 
   /** Destructor. */
   ~Parallel_reader();
@@ -201,12 +212,35 @@ class Parallel_reader {
   }
 
   /** Add scan context.
-  @param[in,out]  trx           Covering transaction.
-  @param[in] config             Scan condfiguration.
-  @param[in] f                  Callback function.
-  @return true on success. */
-  bool add_scan(trx_t *trx, const Config &config, F &&f)
+  @param[in,out]  trx         Covering transaction.
+  @param[in]      config      Scan condfiguration.
+  @param[in]      f           Callback function.
+  (default is 0 which is leaf level)
+  @return error. */
+  dberr_t add_scan(trx_t *trx, const Config &config, F &&f)
       MY_ATTRIBUTE((warn_unused_result));
+
+  /** Wait for the join of threads spawned by the parallel reader. */
+  void join() {
+    for (auto &t : m_parallel_read_threads) {
+      t.wait();
+    }
+
+    for (auto &t : m_read_ahead_threads) {
+      t.wait();
+    }
+  }
+
+  /** Get the error stored in the global error state.
+  @return global error state. */
+  dberr_t get_error_state() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_err);
+  }
+
+  /** @return true if the tree is empty, else false. */
+  bool is_tree_empty() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_ctx_id.load(std::memory_order_relaxed) == 0);
+  }
 
   /** Set the callback that must be called before any processing.
   @param[in] f                  Call before first row is processed.*/
@@ -354,13 +388,22 @@ class Parallel_reader {
   std::atomic<uint64_t> m_submitted{};
 
   /** Number of read ahead requests processed. */
-  std::atomic<uint64_t> m_consumed{};
+  std::atomic<uint64_t> m_consumed;
 
   /** Error during parallel read. */
   std::atomic<dberr_t> m_err{DB_SUCCESS};
 
+  /** List of threads used for read_ahead purpose. */
+  std::vector<IB_thread> m_read_ahead_threads;
+
+  /** List of threads used for paralle_read purpose. */
+  std::vector<IB_thread> m_parallel_read_threads;
+
   /** Number of threads currently doing parallel reads. */
   static std::atomic_size_t s_active_threads;
+
+  /** If the caller wants to wait for the parallel_read to finish it's run */
+  bool m_sync;
 
   friend class Ctx;
   friend class Scan_ctx;
@@ -372,8 +415,8 @@ class Parallel_reader::Scan_ctx {
   /** Constructor.
   @param[in]  reader          Parallel reader that owns this context.
   @param[in]  id              ID of this scan context.
-  @param[in]  config          Range scan config.
   @param[in]  trx             Transaction covering the scan.
+  @param[in]  config          Range scan config.
   @param[in]  f               Callback function. */
   Scan_ctx(Parallel_reader *reader, size_t id, trx_t *trx,
            const Parallel_reader::Config &config, F &&f);
@@ -443,11 +486,12 @@ class Parallel_reader::Scan_ctx {
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Partition the B+Tree for parallel read.
-  @param[in] scan_range         Range for partitioning.
-  @param[in] level              Sub-range required level (0 == root).
+  @param[in] scan_range Range for partitioning.
+  @param[in,out]  ranges        Ranges to scan.
+  @param[in] split_level  Sub-range required level (0 == root).
   @return the partition scan ranges. */
-  Ranges partition(const Scan_range &scan_range, size_t level)
-      MY_ATTRIBUTE((warn_unused_result));
+  dberr_t partition(const Scan_range &scan_range, Ranges &ranges,
+                    size_t split_level);
 
   /** Find the page number of the node that contains the search key. If the
   key is null then we assume -infinity.
@@ -459,10 +503,10 @@ class Parallel_reader::Scan_ctx {
 
   /** Traverse from given sub-tree page number to start of the scan range
   from the given page number.
-  @param[in]  page_no           Page number of sub-tree.
+  @param[in]      page_no       Page number of sub-tree.
   @param[in,out]  mtr           Mini-transaction.
-  @param[in] key                Key of the first record in the range.
-  @param[in,out] savepoints     Blocks S latched and accessed.
+  @param[in]      key           Key of the first record in the range.
+  @param[in,out]  savepoints    Blocks S latched and accessed.
   @return the leaf node page cursor. */
   page_cur_t start_range(page_no_t page_no, mtr_t *mtr, const dtuple_t *key,
                          Savepoints &savepoints) const
@@ -480,12 +524,12 @@ class Parallel_reader::Scan_ctx {
   @param[in]      scan_range    Partition based on this scan range.
   @param[in]      page_no       Page to partition at if at required level.
   @param[in]      depth         Sub-range current level.
-  @param[in]      level         Sub-range starting level (0 == root).
+  @param[in]      split_level   Sub-range starting level (0 == root).
   @param[in,out]  ranges        Ranges to scan.
   @param[in,out]  mtr           Mini-transaction */
-  void create_ranges(const Scan_range &scan_range, page_no_t page_no,
-                     size_t depth, const size_t level, Ranges &ranges,
-                     mtr_t *mtr);
+  dberr_t create_ranges(const Scan_range &scan_range, page_no_t page_no,
+                        size_t depth, const size_t split_level, Ranges &ranges,
+                        mtr_t *mtr);
 
   /** Build a dtuple_t from rec_t.
   @param[in]      rec           Build the dtuple from this record.
@@ -600,6 +644,8 @@ class Parallel_reader::Scan_ctx {
   Scan_ctx &operator=(const Scan_ctx &) = delete;
 };
 
+class PCursor;
+
 /** Parallel reader execution context. */
 class Parallel_reader::Ctx {
  private:
@@ -638,6 +684,18 @@ class Parallel_reader::Ctx {
   @return DB_SUCCESS or error code. */
   dberr_t traverse() MY_ATTRIBUTE((warn_unused_result));
 
+  /** Traverse the records in a node.
+  @param[in]  pcursor persistent b-tree cursor
+  @param[in]  mtr mtr
+  @return error */
+  dberr_t traverse_recs(PCursor *pcursor, mtr_t *mtr);
+
+  /** Move to the next node in the specified level.
+  @param[in]  pcursor persistent b-tree cursor
+  @param[in]  mtr mtr
+  @return success */
+  bool move_to_next_node(PCursor *pcursor, mtr_t *mtr);
+
   /** Split the context into sub-ranges and add them to the execution queue.
   @return DB_SUCCESS or error code. */
   dberr_t split() MY_ATTRIBUTE((warn_unused_result));
@@ -664,6 +722,11 @@ class Parallel_reader::Ctx {
 
   /** Current row. */
   const rec_t *m_rec{};
+
+  /** True if m_rec is the first record in the page. */
+  bool m_first_rec{true};
+
+  ulint *m_offsets{};
 
   /** Start of a new range to scan. */
   bool m_start{};

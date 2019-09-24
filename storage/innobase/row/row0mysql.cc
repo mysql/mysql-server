@@ -4506,7 +4506,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
   Parallel_reader::Config config(full_scan, index);
 
   // clang-format off
-  auto success = reader.add_scan(
+  dberr_t err = reader.add_scan(
     trx, config, [&](const Parallel_reader::Ctx* ctx) {
 
     const auto rec = ctx->m_rec;
@@ -4592,15 +4592,11 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 
   // clang-format off
 
-  dberr_t err;
-
-  if (success) {
+  if (err == DB_SUCCESS) {
     prev_tuples.resize(max_threads);
     prev_blocks.resize(max_threads);
 
     err = reader.run();
-  } else {
-    err = DB_ERROR;
   }
 
   for (auto heap : heaps) {

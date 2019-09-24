@@ -622,9 +622,7 @@ void btr_node_ptr_set_child_page_no(
   }
 }
 
-/** Returns the child page of a node pointer and sx-latches it.
- @return child page, sx-latched */
-static buf_block_t *btr_node_ptr_get_child(
+buf_block_t *btr_node_ptr_get_child(
     const rec_t *node_ptr, /*!< in: node pointer */
     dict_index_t *index,   /*!< in: index */
     const ulint *offsets,  /*!< in: array returned by rec_get_offsets() */

@@ -287,6 +287,8 @@ dml_system_reads	disabled
 dml_system_inserts	disabled
 dml_system_deletes	disabled
 dml_system_updates	disabled
+sampled_pages_read	disabled
+sampled_pages_skipped	disabled
 ddl_background_drop_tables	disabled
 ddl_online_create_index	disabled
 ddl_pending_alter_table	disabled

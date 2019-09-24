@@ -636,7 +636,10 @@ dtuple_t *row_rec_to_index_entry_low(
   entry = dtuple_create(heap, rec_len);
 
   dtuple_set_n_fields_cmp(entry, dict_index_get_n_unique_in_tree(index));
-  ut_ad(rec_len == dict_index_get_n_fields(index)
+
+  ut_ad(rec_len == dict_index_get_n_fields(index) ||
+        /* non-leaf record which has keys and child page no as record data */
+        rec_len == dict_index_get_n_unique(index) + 1
         /* a record for older SYS_INDEXES table
         (missing merge_threshold column) is acceptable. */
         || (index->table->id == DICT_INDEXES_ID &&
