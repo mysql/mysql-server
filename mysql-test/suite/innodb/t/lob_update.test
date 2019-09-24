@@ -4,6 +4,8 @@
 --echo # BUF0BUF.CC:4189:PAGE_SIZE.EQUALS
 --echo #
 
+--source include/have_innodb_max_16k.inc
+
 CREATE TABLE tb
 (id INT PRIMARY KEY,
  t1 LONGBLOB,
