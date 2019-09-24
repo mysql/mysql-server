@@ -24,6 +24,7 @@
 
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <random>
 #include <vector>
 
 #include "my_byteorder.h"
@@ -51,7 +52,9 @@ class AlignmentTest : public ::testing::Test {
     for (int ix = 0; ix < num_records; ++ix) {
       aligned_data[ix] = ix / 10;
     }
-    std::random_shuffle(aligned_data, aligned_data + num_records);
+    std::random_device rng;
+    std::mt19937 urng(rng());
+    std::shuffle(aligned_data, aligned_data + num_records, urng);
     memcpy(unaligned_data + 1, aligned_data, num_records * sizeof(int));
   }
 
