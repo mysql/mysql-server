@@ -914,10 +914,10 @@ bool fsp_header_write_encryption(space_id_t space_id, ulint space_flags,
   }
 
   if (rotate_encryption) {
-    /* If is in recovering, skip all master key id is rotated
-    tablespaces. */
+    /* If called during recovery, skip all tablespaces which have updated
+    master_key_id. */
     master_key_id = mach_read_from_4(page + offset + ENCRYPTION_MAGIC_SIZE);
-    if (master_key_id == Encryption::s_master_key_id) {
+    if (srv_is_being_started && master_key_id == Encryption::s_master_key_id) {
       ut_ad(memcmp(page + offset, ENCRYPTION_KEY_MAGIC_V1,
                    ENCRYPTION_MAGIC_SIZE) == 0 ||
             memcmp(page + offset, ENCRYPTION_KEY_MAGIC_V2,
