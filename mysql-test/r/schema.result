@@ -311,3 +311,27 @@ DROP SCHEMA IF EXISTS broken;
 # Create and drop schema again to make sure nothing is left behind
 CREATE SCHEMA broken;
 DROP SCHEMA broken;
+
+Bug#30344462: CHANGING DEFAULT ENCRYPTION FOR A SCHEMA WILL RESET
+DEFAULT COLLATION
+
+CREATE SCHEMA s CHARACTER SET ascii;
+USE s;
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW VARIABLES LIKE 'collation_database';
+Variable_name	Value
+collation_database	ascii_general_ci
+ALTER SCHEMA s ENCRYPTION = 'n';
+# Without the patch, altering encryption would also
+# reset the default collation, and if the schema is
+# the currently used schema, the 'collation_database'
+# variable would also be reset.
+SHOW CREATE SCHEMA s;
+Database	Create Database
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET ascii */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW VARIABLES LIKE 'collation_database';
+Variable_name	Value
+collation_database	ascii_general_ci
+DROP SCHEMA s;
