@@ -38,4 +38,7 @@ MaxNoOfConcurrentTransactions=32
 ReservedConcurrentTransactions=32
 
 [mysqld]
+# Make sure (write) transaction uses data node 2
 ndb-data-node-neighbour=2
+# insert select in same transaction seems to find another node than 2 with RB on. Right or wrong?
+ndb-read-backup=0

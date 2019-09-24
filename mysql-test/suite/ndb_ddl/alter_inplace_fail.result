@@ -12,7 +12,7 @@ t8	CREATE TABLE `t8` (
   `c` datetime NOT NULL,
   `d` int(10) unsigned DEFAULT NULL,
   `e` int(11) NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM t8 ORDER BY a;
 a	b	c	d	e
 1	1-t8	2017-10-20 09:13:01	NULL	1
@@ -37,7 +37,7 @@ t8	CREATE TABLE `t8` (
   `c` datetime NOT NULL,
   `d_new` int(10) unsigned DEFAULT NULL,
   `e` int(11) NOT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 -- t8 --
 Version: Any
 Fragment type: HashMapPartition
@@ -59,7 +59,7 @@ PartitionBalance: FOR_RP_BY_LDM
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
-Table options:
+Table options: readbackup
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int NULL AT=FIXED ST=MEMORY
