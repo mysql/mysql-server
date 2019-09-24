@@ -118,6 +118,8 @@ struct HttpServerPlainParams {
   std::string test_name;
   std::string test_scenario_id;
 
+  std::string http_hostname;
+
   std::vector<std::pair<std::string, std::string>> http_section;
 
   bool expected_success;
@@ -197,7 +199,6 @@ class HttpServerPlainTest
  protected:
   TcpPortPool port_pool_;
   uint16_t http_port_;
-  std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
   static TempDirectory http_base_dir_;
 };
@@ -266,10 +267,12 @@ TEST_P(HttpServerPlainTest, ensure) {
     SCOPED_TRACE("// preparing client and connection object");
     IOContext io_ctx;
 
-    RestClient rest_client(io_ctx, http_hostname_, http_port);
+    RestClient rest_client(io_ctx, GetParam().http_hostname, http_port);
 
     SCOPED_TRACE("// wait http port connectable");
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port));
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port,
+                                             kDefaultPortReadyTimeout,
+                                             GetParam().http_hostname));
 
     SCOPED_TRACE("// requesting " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
@@ -285,9 +288,13 @@ TEST_P(HttpServerPlainTest, ensure) {
   }
 }
 
+const std::string localhost_ipv4("127.0.0.1");
+const std::string localhost_ipv6("::1");
+
 static const HttpServerPlainParams http_server_static_files_params[]{
     {"bind-address-ipv4-any",
      "WL11891::TS-3",
+     localhost_ipv4,
      {
          {"bind_address", "0.0.0.0"},
          {"port", kPlaceholder},
@@ -302,6 +309,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"bind-address-ipv6-any",
      "WL11891::TS-3",
+     localhost_ipv6,
      {
          {"bind_address", "::"},
          {"port", kPlaceholder},
@@ -316,6 +324,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"bind-address-ipv4-localhost",
      "WL11891::TS-6",
+     localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
          {"port", kPlaceholder},
@@ -330,6 +339,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"bind-address-ipv4-localhost-ws",
      "WL11891::TS-7",
+     localhost_ipv4,
      {
          {"bind_address", " 127.0.0.1"},
          {"port", kPlaceholder},
@@ -345,6 +355,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"bind-address-duplicated",
      "WL11891::TS-9",
+     localhost_ipv4,
      {
          {"bind_address", " 127.0.0.1"},
          {"bind_address", " 127.0.0.1"},
@@ -362,6 +373,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port-non-default",
      "WL11891::TS-10",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
      },
@@ -375,6 +387,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port-invalid",
      "WL11891::TS-12",
+     localhost_ipv4,
      {
          {"port", "-1"},
      },
@@ -388,6 +401,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port-duplicated",
      "WL11891::TS-13",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"port", kPlaceholder},
@@ -402,6 +416,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"port",
      "WL11891::TS-14",
+     localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
          {"port", kPlaceholder},
@@ -418,6 +433,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, static_folder does not exist",
      "WL11891::TS-16",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", "does-not-exist"},
@@ -432,6 +448,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, empty static_folder with trailing spaces",
      "WL11891::TS-18",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", " "},
@@ -446,6 +463,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, empty static_folder",
      "WL11891::TS-18",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", ""},
@@ -460,6 +478,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, static_folder dirname with spaces",
      "WL11891::TS-18",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir + "/" + kSubdirWithSpace},
@@ -476,6 +495,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"TRACE, file-exists",
      "WL11891::TS-20",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -490,6 +510,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"CONNECT, file-exists",
      "WL11891::TS-21",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -504,6 +525,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"POST, file-exists",
      "WL11891::TS-22",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -518,6 +540,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, file exists",
      "WL11891:TS-23,WL11891::TS-15",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -532,6 +555,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, file does not exists",
      "WL11891::TS-24",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -546,6 +570,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"PUT, file-exists",
      "WL11891::TS-25",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -560,6 +585,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"PATCH, file-exists",
      "WL11891::TS-26",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -574,6 +600,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"DELETE, file-exists",
      "WL11891::TS-27",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -590,6 +617,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"GET, escaping",
      "WL11891::TS-29",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -606,6 +634,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"dir, no index-file",
      "",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -620,6 +649,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"not leave root, ..",
      "WL11891::TS-31",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -634,6 +664,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"not leave root, ..%2f",
      "WL11891::TS-31",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -648,6 +679,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"long-uri",
      "WL11891::TS-32",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -662,6 +694,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"URI parser, double question-mark",
      "",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -676,6 +709,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"edge-case, special chars",
      "",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -692,6 +726,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"file exists, ssl=0, no ssl-params",
      "WL12524::TS_01",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -707,6 +742,7 @@ static const HttpServerPlainParams http_server_static_files_params[]{
 
     {"file exists, ssl=0, ssl-params ignored",
      "WL12524::TS_02",
+     localhost_ipv4,
      {
          {"port", kPlaceholder},
          {"static_folder", kHttpBasedir},
@@ -747,6 +783,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
     // port is not in use by something else
     {"all defaults",
      "WL11891::TS-3",
+     localhost_ipv4,
      {},
      true,
      "^$",
@@ -757,6 +794,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
      404},
     {"bind-any-port-default",
      "WL11891::TS-5",
+     localhost_ipv4,
      {
          {"bind_address", "0.0.0.0"},
      },
@@ -769,6 +807,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
      404},
     {"bind-localhost-port-default",
      "WL11891::TS-6",
+     localhost_ipv4,
      {
          {"bind_address", "127.0.0.1"},
      },
@@ -782,6 +821,7 @@ const HttpServerPlainParams http_server_static_files_unusable_params[]{
 
     {"port",
      "WL11891::TS-11",
+     localhost_ipv4,
      {
          {"port", std::to_string(kHttpDefaultPort)},
      },

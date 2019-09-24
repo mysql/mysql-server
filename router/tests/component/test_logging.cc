@@ -216,22 +216,20 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // Error: Cannot create file in directory /etc/passwd/mysqlrouter.log: Not a
     // directory
     const std::string out = router.get_full_output();
+    const std::string prefix("Cannot create file in directory " + logging_dir +
+                             ": ");
 #ifndef _WIN32
-    EXPECT_THAT(out.c_str(), HasSubstr("Cannot create file in directory " +
-                                       logging_dir + ": Not a directory\n"));
+    EXPECT_THAT(out.c_str(), HasSubstr(prefix + "Not a directory\n"));
 #else
     // on Windows emulate (wine) we get ENOTDIR
     // with native windows we get ENOENT
 
     EXPECT_THAT(
         out.c_str(),
-        ::testing::AllOf(
-            ::testing::HasSubstr("Cannot create file in directory " +
-                                 logging_dir),
-            ::testing::AnyOf(
-                ::testing::EndsWith("Directory name invalid.\n\n"),
-                ::testing::EndsWith(
-                    "The system cannot find the path specified.\n\n"))));
+        ::testing::AnyOf(
+            ::testing::HasSubstr(prefix + "Directory name invalid.\n"),
+            ::testing::HasSubstr(
+                prefix + "The system cannot find the path specified.\n")));
 #endif
   }
 }
