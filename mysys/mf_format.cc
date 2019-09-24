@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <cstring>
 
 #include "m_string.h"
@@ -117,7 +118,7 @@ char *fn_format(char *to, const char *name, const char *dir,
     tmp_length = strlength(startpos);
     DBUG_PRINT("error",
                ("dev: '%s'  ext: '%s'  length: %u", dev, ext, (uint)length));
-    (void)strmake(to, startpos, MY_MIN(tmp_length, FN_REFLEN - 1));
+    (void)strmake(to, startpos, std::min(tmp_length, size_t{FN_REFLEN - 1}));
   } else {
     if (to == startpos) {
       memmove(buff, name, length); /* Save name for last copy */

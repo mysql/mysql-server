@@ -68,9 +68,9 @@
 #define MI_NAME_DEXT ".MYD"
 
 /* Possible values for myisam_block_size (must be power of 2) */
-#define MI_KEY_BLOCK_LENGTH 1024     /* default key block length */
-#define MI_MIN_KEY_BLOCK_LENGTH 1024 /* Min key block length */
-#define MI_MAX_KEY_BLOCK_LENGTH 16384
+#define MI_KEY_BLOCK_LENGTH 1024U     /* default key block length */
+#define MI_MIN_KEY_BLOCK_LENGTH 1024U /* Min key block length */
+#define MI_MAX_KEY_BLOCK_LENGTH 16384U
 
 /*
   In the following macros '_keyno_' is 0 .. keys-1.

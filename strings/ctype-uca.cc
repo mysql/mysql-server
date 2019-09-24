@@ -2562,7 +2562,7 @@ static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem, char *errstr,
                                       const char *col_name) {
   char tail[30];
   size_t len = lexem->end - lexem->prev;
-  strmake(tail, lexem->prev, (size_t)MY_MIN(len, sizeof(tail) - 1));
+  strmake(tail, lexem->prev, std::min(len, sizeof(tail) - 1));
   errstr[errsize - 1] = '\0';
   snprintf(errstr, errsize - 1, "%s at '%s' for COLLATION : %s",
            txt[0] ? txt : "Syntax error", tail, col_name);

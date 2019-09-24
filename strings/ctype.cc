@@ -30,6 +30,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -940,7 +942,7 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
     return my_convert_internal(to, to_length, to_cs, from, from_length, from_cs,
                                errors);
 
-  length = length2 = MY_MIN(to_length, from_length);
+  length = length2 = std::min(to_length, from_length);
 
 #if defined(__i386__) || defined(_WIN32) || defined(__x86_64__)
   /*

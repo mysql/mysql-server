@@ -1970,7 +1970,7 @@ int filecopy(MI_CHECK *param, File to, File from, my_off_t start,
   ulong buff_length;
   DBUG_TRACE;
 
-  buff_length = (ulong)MY_MIN(param->write_buffer_length, length);
+  buff_length = std::min<ulong>(param->write_buffer_length, length);
   if (!(buff =
             (char *)my_malloc(mi_key_memory_filecopy, buff_length, MYF(0)))) {
     buff = tmp_buff;
@@ -2115,7 +2115,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
 
   if (share->data_file_type == DYNAMIC_RECORD)
     length =
-        MY_MAX(share->base.min_pack_length + 1, share->base.min_block_length);
+        std::max(share->base.min_pack_length + 1, share->base.min_block_length);
   else if (share->data_file_type == COMPRESSED_RECORD)
     length = share->base.min_block_length;
   else
@@ -2194,7 +2194,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
           (see _create_index_by_sort)
         */
         sort_info.max_records =
-            10 * MY_MAX(param->sort_buffer_length, MIN_SORT_BUFFER) /
+            10 * std::max(param->sort_buffer_length, MIN_SORT_BUFFER) /
             sort_param.key_length;
       }
 
@@ -2528,7 +2528,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
 
   if (share->data_file_type == DYNAMIC_RECORD)
     rec_length =
-        MY_MAX(share->base.min_pack_length + 1, share->base.min_block_length);
+        std::max(share->base.min_pack_length + 1, share->base.min_block_length);
   else if (share->data_file_type == COMPRESSED_RECORD)
     rec_length = share->base.min_block_length;
   else

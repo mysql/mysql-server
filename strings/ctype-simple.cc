@@ -32,6 +32,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
 #include <limits>
 
 #include "m_ctype.h"
@@ -99,7 +100,7 @@ size_t my_strnxfrm_simple(const CHARSET_INFO *cs, uchar *dst, size_t dstlen,
   const uchar *end;
   const uchar *remainder;
   size_t frmlen;
-  if ((frmlen = MY_MIN(dstlen, nweights)) > srclen) frmlen = srclen;
+  if ((frmlen = std::min<size_t>(dstlen, nweights)) > srclen) frmlen = srclen;
   end = src + frmlen;
 
   // Do the first few bytes.
@@ -169,7 +170,7 @@ int my_strnncollsp_simple(const CHARSET_INFO *cs, const uchar *a,
   size_t length;
   int res;
 
-  end = a + (length = MY_MIN(a_length, b_length));
+  end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (map[*a++] != map[*b++]) return ((int)map[a[-1]] - (int)map[b[-1]]);
   }
@@ -675,7 +676,7 @@ size_t my_long10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     val = new_val;
   }
 
-  len = MY_MIN(len, (size_t)(e - p));
+  len = std::min(len, size_t(e - p));
   memcpy(dst, p, len);
   return len + sign;
 }
@@ -722,7 +723,7 @@ size_t my_longlong10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     long_val = quo;
   }
 
-  len = MY_MIN(len, (size_t)(e - p));
+  len = std::min(len, size_t(e - p));
 cnv:
   memcpy(dst, p, len);
   return len + sign;
@@ -918,7 +919,7 @@ size_t my_well_formed_len_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                size_t nchars, int *error) {
   size_t nbytes = (size_t)(end - start);
   *error = 0;
-  return MY_MIN(nbytes, nchars);
+  return std::min(nbytes, nchars);
 }
 
 size_t my_lengthsp_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
@@ -994,7 +995,7 @@ static size_t my_well_formed_len_ascii(
     }
     start++;
   }
-  return MY_MIN((size_t)(end - oldstart), nchars);
+  return std::min<size_t>(end - oldstart, nchars);
 }
 }  // extern "C"
 
@@ -1496,7 +1497,7 @@ size_t my_strxfrm_pad(const CHARSET_INFO *cs, uchar *str, uchar *frmend,
                       uchar *strend, uint nweights, uint flags) {
   if (nweights && frmend < strend) {
     // PAD SPACE behavior.
-    uint fill_length = MY_MIN((uint)(strend - frmend), nweights * cs->mbminlen);
+    uint fill_length = std::min<uint>(strend - frmend, nweights * cs->mbminlen);
     cs->cset->fill(cs, (char *)frmend, fill_length, cs->pad_char);
     frmend += fill_length;
   }

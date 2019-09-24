@@ -26,6 +26,8 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -652,7 +654,7 @@ static uint find_longest_bitstream(uint16 *table, uint16 *end) {
       return OFFSET_TABLE_SIZE;
     }
     length2 = find_longest_bitstream(next, end) + 1;
-    length = MY_MAX(length, length2);
+    length = std::max(length, length2);
   }
   return length;
 }
@@ -1252,7 +1254,7 @@ uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
   }
   info->filepos = filepos + head_length;
   if (file > 0) {
-    info->offset = MY_MIN(info->rec_len, ref_length - head_length);
+    info->offset = std::min<ulong>(info->rec_len, ref_length - head_length);
     memcpy(*rec_buff_p, header + head_length, info->offset);
   }
   return 0;

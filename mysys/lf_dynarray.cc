@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +142,7 @@ void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx) {
     alloc = static_cast<uchar *>(
         my_malloc(key_memory_lf_dynarray,
                   LF_DYNARRAY_LEVEL_LENGTH * array->size_of_element +
-                      MY_MAX(array->size_of_element, sizeof(void *)),
+                      std::max<uint>(array->size_of_element, sizeof(void *)),
                   MYF(MY_WME | MY_ZEROFILL)));
     if (unlikely(!alloc)) {
       return (NULL);

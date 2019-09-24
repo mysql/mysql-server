@@ -1045,7 +1045,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
     It can be bigger if _my_b_write() is called with a big length.
   */
   while (write_length) {
-    size_t copy_length = MY_MIN(write_length, write_cache->buffer_length);
+    size_t copy_length = std::min(write_length, write_cache->buffer_length);
     int MY_ATTRIBUTE((unused)) rc;
 
     rc = lock_io_cache(write_cache, write_cache->pos_in_file);
@@ -1193,7 +1193,7 @@ read_append_buffer:
       TODO: figure out if the assert below is needed or correct.
     */
     DBUG_ASSERT(pos_in_file == info->end_of_file);
-    copy_len = MY_MIN(Count, len_in_buff);
+    copy_len = std::min(Count, len_in_buff);
     memcpy(Buffer, info->append_read_pos, copy_len);
     info->append_read_pos += copy_len;
     Count -= copy_len;

@@ -50,6 +50,7 @@
 
 #include "my_config.h"
 
+#include <algorithm>
 #include <limits>
 
 #include "decimal.h"
@@ -162,7 +163,7 @@ static size_t my_fcvt_internal(double x, int precision, bool shorten, char *to,
   if (precision > 0 && !shorten) {
     if (len <= decpt) *dst++ = '.';
 
-    for (i = precision - MY_MAX(0, (len - decpt)); i > 0; i--) *dst++ = '0';
+    for (i = precision - std::max(0, (len - decpt)); i > 0; i--) *dst++ = '0';
   }
 
   *dst = '\0';
@@ -314,8 +315,9 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
   /* We want to remove '-' from equations early */
   if (x < 0.) width--;
 
-  res = dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : MY_MIN(width, FLT_DIG),
-             &decpt, &sign, &end, buf, sizeof(buf));
+  res =
+      dtoa(x, 4, type == MY_GCVT_ARG_DOUBLE ? width : std::min(width, FLT_DIG),
+           &decpt, &sign, &end, buf, sizeof(buf));
   if (decpt == DTOA_OVERFLOW) {
     dtoa_free(res, buf, sizeof(buf));
     *to++ = '0';

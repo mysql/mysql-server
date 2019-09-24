@@ -28,6 +28,7 @@
 #include "storage/perfschema/pfs_instr_class.h"
 
 #include <string.h>
+#include <algorithm>
 #include <atomic>
 
 #include "lex_string.h"
@@ -992,7 +993,7 @@ static void configure_instr_class(PFS_instr_class *entry) {
       if (e->m_name_length >= match_length) {
         entry->m_enabled = e->m_enabled;
         entry->m_timed = e->m_timed;
-        match_length = MY_MAX(e->m_name_length, match_length);
+        match_length = std::max(e->m_name_length, match_length);
       }
     }
   }

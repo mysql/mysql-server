@@ -23,6 +23,7 @@
 
 #include "storage/perfschema/pfs_variable.h"
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -655,7 +656,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
                                query_scope, show_var_type, NULL, &m_charset,
                                m_value_str, &m_value_length);
 
-  m_value_length = MY_MIN(m_value_length, SHOW_VAR_FUNC_BUFF_SIZE);
+  m_value_length = std::min(m_value_length, size_t{SHOW_VAR_FUNC_BUFF_SIZE});
 
   /* Returned value may reference a string other than m_value_str. */
   if (value != m_value_str) {
@@ -1461,7 +1462,7 @@ void Status_variable::init(const SHOW_VAR *show_var,
   value =
       get_one_variable(current_thd, show_var, query_scope, m_type, status_vars,
                        &m_charset, m_value_str, &m_value_length);
-  m_value_length = MY_MIN(m_value_length, SHOW_VAR_FUNC_BUFF_SIZE);
+  m_value_length = std::min(m_value_length, size_t{SHOW_VAR_FUNC_BUFF_SIZE});
 
   /* Returned value may reference a string other than m_value_str. */
   if (value != m_value_str) {

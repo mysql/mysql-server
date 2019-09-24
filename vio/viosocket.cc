@@ -45,6 +45,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <algorithm>
+
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -181,7 +183,7 @@ size_t vio_read_buff(Vio *vio, uchar *buf, size_t size) {
                        mysql_socket_getfd(vio->mysql_socket), buf, (uint)size));
 
   if (vio->read_pos < vio->read_end) {
-    rc = MY_MIN((size_t)(vio->read_end - vio->read_pos), size);
+    rc = std::min<size_t>(vio->read_end - vio->read_pos, size);
     memcpy(buf, vio->read_pos, rc);
     vio->read_pos += rc;
     /*

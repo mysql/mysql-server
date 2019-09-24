@@ -43,6 +43,8 @@
 #endif
 #include <time.h>
 
+#include <algorithm>
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_stacktrace.h"
@@ -133,7 +135,7 @@ static int safe_print_str(const char *addr, int max_len) {
 
   /* Read up to the maximum number of bytes. */
   while (total) {
-    count = MY_MIN(sizeof(buf), total);
+    count = std::min(sizeof(buf), total);
 
     if ((nbytes = pread(fd, buf, count, offset)) < 0) {
       /* Just in case... */

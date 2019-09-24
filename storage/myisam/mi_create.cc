@@ -402,8 +402,8 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     block_length =
         (keydef->block_length ? my_round_up_to_next_power(keydef->block_length)
                               : myisam_block_size);
-    block_length = MY_MAX(block_length, MI_MIN_KEY_BLOCK_LENGTH);
-    block_length = MY_MIN(block_length, MI_MAX_KEY_BLOCK_LENGTH);
+    block_length = std::max(block_length, MI_MIN_KEY_BLOCK_LENGTH);
+    block_length = std::min(block_length, MI_MAX_KEY_BLOCK_LENGTH);
 
     keydef->block_length = (uint16)MI_BLOCK_SIZE(
         length - real_length_diff, pointer, MI_MAX_KEYPTR_SIZE, block_length);
@@ -491,7 +491,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
     got from MYI file header (see also myisampack.c:save_state)
   */
   share.base.key_reflength =
-      mi_get_pointer_length(MY_MAX(ci->key_file_length, tmp), 3);
+      mi_get_pointer_length(std::max(ci->key_file_length, tmp), 3);
   share.base.keys = share.state.header.keys = keys;
   share.state.header.uniques = uniques;
   share.state.header.fulltext_keys = fulltext_keys;
@@ -524,7 +524,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   share.base.min_block_length =
       (share.base.pack_reclength + 3 < MI_EXTEND_BLOCK_LENGTH &&
        !share.base.blobs)
-          ? MY_MAX(share.base.pack_reclength, MI_MIN_BLOCK_LENGTH)
+          ? std::max(share.base.pack_reclength, ulong{MI_MIN_BLOCK_LENGTH})
           : MI_EXTEND_BLOCK_LENGTH;
   if (!(flags & HA_DONT_TOUCH_DATA))
     share.state.create_time = (long)time((time_t *)0);

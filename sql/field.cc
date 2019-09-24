@@ -111,7 +111,7 @@ uchar Field::dummy_null_buffer = ' ';
 #define LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
-  ((ulong)((1LL << MY_MIN(arg, 4) * 8) - 1LL))
+  ((ulong)((1LL << std::min(arg, 4U) * 8) - 1LL))
 
 /*
   Rules for merging different types of fields in UNION
@@ -1307,9 +1307,9 @@ static void push_numerical_conversion_warning(
     THD *thd, const char *str, uint length, const CHARSET_INFO *cs,
     const char *typestr, int error, const char *field_name = "UNKNOWN",
     ulong row_num = 0) {
-  char buf[MY_MAX(MY_MAX(DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE,
-                         LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE),
-                  DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE)];
+  char buf[std::max(std::max(DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE,
+                             LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE),
+                    DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE)];
 
   String tmp(buf, sizeof(buf), cs);
   tmp.copy(str, length, cs);
@@ -2138,8 +2138,8 @@ bool Field::get_timestamp(struct timeval *tm, int *warnings) const {
 type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  uint length = (uint)my_TIME_to_str(*ltime, buff,
-                                     MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
+  uint length = my_TIME_to_str(*ltime, buff,
+                               std::min(dec_arg, uint8{DATETIME_MAX_DECIMALS}));
   /* Avoid conversion when field character set is ASCII compatible */
   return store(
       buff, length,

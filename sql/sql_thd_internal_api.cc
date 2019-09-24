@@ -22,6 +22,8 @@
 
 #include "sql/sql_thd_internal_api.h"
 
+#include <algorithm>
+
 #include "my_config.h"
 
 #include <fcntl.h>
@@ -190,7 +192,7 @@ LEX_CSTRING thd_query_unsafe(THD *thd) {
 size_t thd_query_safe(THD *thd, char *buf, size_t buflen) {
   mysql_mutex_lock(&thd->LOCK_thd_query);
   LEX_CSTRING query_string = thd->query();
-  size_t len = MY_MIN(buflen - 1, query_string.length);
+  size_t len = std::min(buflen - 1, query_string.length);
   if (len > 0) strncpy(buf, query_string.str, len);
   buf[len] = '\0';
   mysql_mutex_unlock(&thd->LOCK_thd_query);

@@ -628,15 +628,17 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
     /* Copy the variable content into the buffer. We do not guarantee that the
        variable value will fit into buffer. The buffer should be large enough
        to be used for the test purposes. */
-    buffer_data = sprintf(buffer, "name=\"%.*s\"",
-                          MY_MIN((int)event_gvar->variable_name.length,
-                                 (int)(sizeof(buffer) - 8)),
-                          event_gvar->variable_name.str);
+    buffer_data =
+        sprintf(buffer, "name=\"%.*s\"",
+                static_cast<int>(std::min(event_gvar->variable_name.length,
+                                          (sizeof(buffer) - 8))),
+                event_gvar->variable_name.str);
 
-    buffer_data += sprintf(buffer + buffer_data, " value=\"%.*s\"",
-                           MY_MIN((int)event_gvar->variable_value.length,
-                                  (int)(sizeof(buffer) - 16)),
-                           event_gvar->variable_value.str);
+    buffer_data +=
+        sprintf(buffer + buffer_data, " value=\"%.*s\"",
+                static_cast<int>(std::min(event_gvar->variable_value.length,
+                                          (sizeof(buffer) - 16))),
+                event_gvar->variable_value.str);
     buffer[buffer_data] = '\0';
 
     switch (event_gvar->event_subclass) {

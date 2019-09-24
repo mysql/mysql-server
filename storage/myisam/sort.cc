@@ -134,7 +134,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info, bool no_messages,
   error = 1;
   maxbuffer = 1;
 
-  memavl = MY_MAX(sortbuff_size, MIN_SORT_BUFFER);
+  memavl = std::max(sortbuff_size, MIN_SORT_BUFFER);
   records = info->sort_info->max_records;
   sort_length = info->key_length;
 
@@ -327,7 +327,7 @@ void *thr_find_all_keys(void *arg) {
   memset(&sort_param->unique, 0, sizeof(sort_param->unique));
   sort_keys = (uchar **)NULL;
 
-  memavl = MY_MAX(sort_param->sortbuff_size, MIN_SORT_BUFFER);
+  memavl = std::max(sort_param->sortbuff_size, MIN_SORT_BUFFER);
   idx = (uint)sort_param->sort_info->max_records;
   sort_length = sort_param->key_length;
   maxbuffer = 1;
@@ -741,7 +741,7 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint count;
   uint length;
 
-  if ((count = (uint)MY_MIN((ha_rows)buffpek->max_keys, buffpek->count))) {
+  if ((count = std::min<ha_rows>(buffpek->max_keys, buffpek->count))) {
     if (mysql_file_pread(fromfile->file, (uchar *)buffpek->base,
                          (length = sort_length * count), buffpek->file_pos,
                          MYF_RW))
@@ -761,7 +761,7 @@ static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
   uint idx;
   uchar *buffp;
 
-  if ((count = (uint)MY_MIN((ha_rows)buffpek->max_keys, buffpek->count))) {
+  if ((count = std::min<ha_rows>(buffpek->max_keys, buffpek->count))) {
     buffp = buffpek->base;
 
     for (idx = 1; idx <= count; idx++) {

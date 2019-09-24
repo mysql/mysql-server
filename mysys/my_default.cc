@@ -82,6 +82,7 @@
 #include <winbase.h>
 #endif
 
+#include <algorithm>
 #include <map>
 #include <string>
 
@@ -1021,7 +1022,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       end[0] = 0;
 
       strmake(curr_gr, ptr,
-              MY_MIN((size_t)(end - ptr) + 1, sizeof(curr_gr) - 1));
+              std::min<size_t>((end - ptr) + 1, sizeof(curr_gr) - 1));
 
       /* signal that a new group is found */
       opt_handler(handler_ctx, curr_gr, NULL, NULL);

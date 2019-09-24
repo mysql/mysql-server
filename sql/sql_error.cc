@@ -819,7 +819,7 @@ ErrConvString::ErrConvString(const my_decimal *nr) {
 
 ErrConvString::ErrConvString(const MYSQL_TIME *ltime, uint dec) {
   buf_length =
-      my_TIME_to_str(*ltime, err_buffer, MY_MIN(dec, DATETIME_MAX_DECIMALS));
+      my_TIME_to_str(*ltime, err_buffer, min(dec, uint{DATETIME_MAX_DECIMALS}));
 }
 
 /**
@@ -912,7 +912,7 @@ size_t convert_error_message(char *to, size_t to_length,
   to_end = (uchar *)(to + to_length);
 
   if (!to_cs || from_cs == to_cs || to_cs == &my_charset_bin) {
-    length = MY_MIN(to_length, from_length);
+    length = min(to_length, from_length);
     memmove(to, from, length);
     to[length] = 0;
     return length;

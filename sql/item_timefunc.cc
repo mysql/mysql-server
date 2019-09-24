@@ -229,14 +229,14 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
       switch (*++ptr) {
           /* Year */
         case 'Y':
-          tmp = val + MY_MIN(4, val_len);
+          tmp = val + min(4, val_len);
           l_time->year = (int)my_strtoll10(val, &tmp, &error);
           if ((int)(tmp - val) <= 2)
             l_time->year = year_2000_handling(l_time->year);
           val = tmp;
           break;
         case 'y':
-          tmp = val + MY_MIN(2, val_len);
+          tmp = val + min(2, val_len);
           l_time->year = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           l_time->year = year_2000_handling(l_time->year);
@@ -245,7 +245,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Month */
         case 'm':
         case 'c':
-          tmp = val + MY_MIN(2, val_len);
+          tmp = val + min(2, val_len);
           l_time->month = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -262,15 +262,15 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Day */
         case 'd':
         case 'e':
-          tmp = val + MY_MIN(2, val_len);
+          tmp = val + min(2, val_len);
           l_time->day = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
         case 'D':
-          tmp = val + MY_MIN(2, val_len);
+          tmp = val + min(2, val_len);
           l_time->day = (int)my_strtoll10(val, &tmp, &error);
           /* Skip 'st, 'nd, 'th .. */
-          val = tmp + MY_MIN((int)(val_end - tmp), 2);
+          val = tmp + min<long>((val_end - tmp), 2);
           break;
 
           /* Hour */
@@ -281,14 +281,14 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* fall through */
         case 'k':
         case 'H':
-          tmp = val + MY_MIN(2, val_len);
+          tmp = val + min(2, val_len);
           l_time->hour = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
 
           /* Minute */
         case 'i':
-          tmp = val + MY_MIN(2, val_len);
+          tmp = val + min(2, val_len);
           l_time->minute = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -296,7 +296,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Second */
         case 's':
         case 'S':
-          tmp = val + MY_MIN(2, val_len);
+          tmp = val + min(2, val_len);
           l_time->second = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -345,7 +345,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           val = tmp;
           break;
         case 'j':
-          tmp = val + MY_MIN(val_len, 3);
+          tmp = val + min(val_len, 3);
           yearday = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -357,7 +357,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
         case 'u':
           sunday_first_n_first_week_non_iso = (*ptr == 'U' || *ptr == 'V');
           strict_week_number = (*ptr == 'V' || *ptr == 'v');
-          tmp = val + MY_MIN(val_len, 2);
+          tmp = val + min(val_len, 2);
           if ((week_number = (int)my_strtoll10(val, &tmp, &error)) < 0 ||
               (strict_week_number && !week_number) || week_number > 53)
             goto err;
@@ -368,7 +368,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
         case 'X':
         case 'x':
           strict_week_number_year_type = (*ptr == 'X');
-          tmp = val + MY_MIN(4, val_len);
+          tmp = val + min(4, val_len);
           strict_week_number_year = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -1970,7 +1970,7 @@ null_date:
 }
 
 bool Item_func_from_unixtime::resolve_type(THD *thd) {
-  set_data_type_datetime(MY_MIN(args[0]->decimals, DATETIME_MAX_DECIMALS));
+  set_data_type_datetime(min(args[0]->decimals, uint8{DATETIME_MAX_DECIMALS}));
   maybe_null = true;
   thd->time_zone_used = true;
   return false;
@@ -2086,11 +2086,11 @@ bool Item_date_add_interval::resolve_type(THD *) {
        int_type <= INTERVAL_SECOND_MICROSECOND))
     interval_dec = DATETIME_MAX_DECIMALS;
   else if (int_type == INTERVAL_SECOND && args[1]->decimals > 0)
-    interval_dec = MY_MIN(args[1]->decimals, DATETIME_MAX_DECIMALS);
+    interval_dec = min(args[1]->decimals, uint8{DATETIME_MAX_DECIMALS});
 
   if (arg0_data_type == MYSQL_TYPE_DATETIME ||
       arg0_data_type == MYSQL_TYPE_TIMESTAMP) {
-    uint8 dec = MY_MAX(args[0]->datetime_precision(), interval_dec);
+    uint8 dec = max<uint8>(args[0]->datetime_precision(), interval_dec);
     set_data_type_datetime(dec);
   } else if (arg0_data_type == MYSQL_TYPE_DATE) {
     if (int_type <= INTERVAL_DAY || int_type == INTERVAL_YEAR_MONTH)
@@ -2098,7 +2098,7 @@ bool Item_date_add_interval::resolve_type(THD *) {
     else
       set_data_type_datetime(interval_dec);
   } else if (arg0_data_type == MYSQL_TYPE_TIME) {
-    uint8 dec = MY_MAX(args[0]->time_precision(), interval_dec);
+    uint8 dec = max<uint8>(args[0]->time_precision(), interval_dec);
     set_data_type_time(dec);
   } else {
     /* Behave as a usual string function when return type is VARCHAR. */
@@ -2555,11 +2555,10 @@ bool Item_func_add_time::resolve_type(THD *) {
     when the first argument is MYSQL_TYPE_DATE.
   */
   if (args[0]->data_type() == MYSQL_TYPE_TIME && !is_date) {
-    uint8 dec = MY_MAX(args[0]->time_precision(), args[1]->time_precision());
+    uint8 dec = max(args[0]->time_precision(), args[1]->time_precision());
     set_data_type_time(dec);
   } else if (args[0]->is_temporal_with_date_and_time() || is_date) {
-    uint8 dec =
-        MY_MAX(args[0]->datetime_precision(), args[1]->time_precision());
+    uint8 dec = max(args[0]->datetime_precision(), args[1]->time_precision());
     set_data_type_datetime(dec);
   } else {
     set_data_type_char(MAX_DATETIME_FULL_WIDTH, default_charset());
@@ -2784,7 +2783,7 @@ bool Item_func_maketime::get_time(MYSQL_TIME *ltime) {
       Display fractional part up to nanoseconds (9 digits),
       which is the maximum precision of my_decimal2lldiv_t().
     */
-    int dec = MY_MIN(args[2]->decimals, 9);
+    int dec = min(args[2]->decimals, uint8{9});
     len += sprintf(buf + len, ".%0*lld", dec,
                    second.rem / (ulong)log_10_int[9 - dec]);
   }

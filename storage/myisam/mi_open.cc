@@ -333,7 +333,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     my_stpcpy(share->index_file_name, index_name);
     my_stpcpy(share->data_file_name, data_name);
 
-    share->blocksize = MY_MIN(IO_SIZE, myisam_block_size);
+    share->blocksize = std::min(ulong{IO_SIZE}, myisam_block_size);
     {
       HA_KEYSEG *pos = share->keyparts;
       uint32 ftkey_nr = 1;
@@ -486,7 +486,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     share->base.margin_key_file_length =
         (share->base.max_key_file_length -
          (keys ? MI_INDEX_BLOCK_MARGIN * share->blocksize * keys : 0));
-    share->blocksize = MY_MIN(IO_SIZE, myisam_block_size);
+    share->blocksize = std::min(ulong{IO_SIZE}, myisam_block_size);
     share->data_file_type = STATIC_RECORD;
     if (share->options & HA_OPTION_COMPRESS_RECORD) {
       share->data_file_type = COMPRESSED_RECORD;
@@ -665,10 +665,11 @@ uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf) {
     /* to simplify initial init of info->rec_buf in mi_open and mi_extra */
     if (length == (ulong)-1) {
       if (info->s->options & HA_OPTION_COMPRESS_RECORD)
-        length = MY_MAX(info->s->base.pack_reclength, info->s->max_pack_length);
+        length =
+            std::max(info->s->base.pack_reclength, info->s->max_pack_length);
       else
         length = info->s->base.pack_reclength;
-      length = MY_MAX(length, info->s->base.max_key_length);
+      length = std::max<ulong>(length, info->s->base.max_key_length);
       /* Avoid unnecessary realloc */
       if (newptr && length == old_length) return newptr;
     }

@@ -61,6 +61,8 @@
 #include <stdio.h>
 #include <string>
 
+#include <algorithm>
+
 #include "client_async_authentication.h"
 #include "compression.h"  // validate_compression_attributes
 #include "errmsg.h"
@@ -1199,7 +1201,7 @@ ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
       }
 
       (void)strmake(net->last_error, (char *)pos,
-                    MY_MIN((uint)len, (uint)sizeof(net->last_error) - 1));
+                    std::min<ulong>(len, sizeof(net->last_error) - 1));
     } else
       set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
     /*

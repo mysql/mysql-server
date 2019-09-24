@@ -28,6 +28,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
@@ -406,7 +408,7 @@ uint my_instr_mb(const CHARSET_INFO *cs, const char *b, size_t b_length,
 int my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s, size_t slen, const uchar *t,
                         size_t tlen, bool t_is_prefix) {
-  size_t len = MY_MIN(slen, tlen);
+  size_t len = std::min(slen, tlen);
   int cmp = len == 0 ? 0 : memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
@@ -440,7 +442,7 @@ int my_strnncollsp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   size_t length;
   int res;
 
-  end = a + (length = MY_MIN(a_length, b_length));
+  end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (*a++ != *b++) return ((int)a[-1] - (int)b[-1]);
   }

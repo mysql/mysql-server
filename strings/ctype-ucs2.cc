@@ -34,6 +34,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
@@ -60,7 +62,7 @@ static unsigned long lfactor[9] = {
 static inline int my_bincmp(const uchar *s, const uchar *se, const uchar *t,
                             const uchar *te) {
   int slen = (int)(se - s), tlen = (int)(te - t);
-  int len = MY_MIN(slen, tlen);
+  int len = std::min(slen, tlen);
   int cmp = memcmp(s, t, len);
   return cmp ? cmp : slen - tlen;
 }
@@ -2233,7 +2235,7 @@ static int my_strnncollsp_utf32_bin(
   se = s + slen;
   te = t + tlen;
 
-  for (minlen = MY_MIN(slen, tlen); minlen; minlen -= 4) {
+  for (minlen = std::min(slen, tlen); minlen; minlen -= 4) {
     my_wc_t s_wc = my_utf32_get(s);
     my_wc_t t_wc = my_utf32_get(t);
     if (s_wc != t_wc) return s_wc > t_wc ? 1 : -1;
@@ -2650,7 +2652,7 @@ static int my_strnncollsp_ucs2(const CHARSET_INFO *cs, const uchar *s,
   se = s + slen;
   te = t + tlen;
 
-  for (minlen = MY_MIN(slen, tlen); minlen; minlen -= 2) {
+  for (minlen = std::min(slen, tlen); minlen; minlen -= 2) {
     int s_wc = uni_plane->page[s[0]] ? (int)uni_plane->page[s[0]][s[1]].sort
                                      : (((int)s[0]) << 8) + (int)s[1];
 
@@ -2706,7 +2708,7 @@ static size_t my_well_formed_len_ucs2(
   size_t nbytes = ((size_t)(e - b)) & ~(size_t)1;
   *error = 0;
   nchars *= 2;
-  return MY_MIN(nbytes, nchars);
+  return std::min(nbytes, nchars);
 }
 
 static int my_wildcmp_ucs2_ci(const CHARSET_INFO *cs, const char *str,
@@ -2765,7 +2767,7 @@ static int my_strnncollsp_ucs2_bin(
   se = s + slen;
   te = t + tlen;
 
-  for (minlen = MY_MIN(slen, tlen); minlen; minlen -= 2) {
+  for (minlen = std::min(slen, tlen); minlen; minlen -= 2) {
     int s_wc = s[0] * 256 + s[1];
     int t_wc = t[0] * 256 + t[1];
     if (s_wc != t_wc) return s_wc > t_wc ? 1 : -1;

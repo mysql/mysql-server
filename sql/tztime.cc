@@ -33,6 +33,8 @@
 
 #include "sql/tztime.h"
 
+#include <algorithm>
+
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>
@@ -234,7 +236,7 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
       uchar buf[sizeof(struct tzhead) + sizeof(my_time_t) * TZ_MAX_TIMES +
                 TZ_MAX_TIMES + sizeof(TRAN_TYPE_INFO) * TZ_MAX_TYPES +
 #ifdef ABBR_ARE_USED
-                MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
+                std::max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1))) +
 #endif
                 sizeof(LS_INFO) * TZ_MAX_LEAPS];
     } u;
@@ -1744,7 +1746,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   uchar types[TZ_MAX_TIMES];
   TRAN_TYPE_INFO ttis[TZ_MAX_TYPES];
 #ifdef ABBR_ARE_USED
-  char chars[MY_MAX(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
+  char chars[std::max(TZ_MAX_CHARS + 1, (2 * (MY_TZNAME_MAX + 1)))];
 #endif
   /*
     Used as a temporary tz_info until we decide that we actually want to

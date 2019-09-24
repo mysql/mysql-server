@@ -90,6 +90,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <algorithm>
+
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -1379,7 +1381,6 @@ void _db_dump_(uint _line_, const char *keyword, const unsigned char *memory,
     DoPrefix(cs, _line_);
     if (TRACING) {
       Indent(cs, cs->level + 1);
-      pos = MY_MIN(MY_MAX(cs->level - cs->stack->sub_level, 0) * INDENT, 80);
     } else {
       fprintf(cs->stack->out_file, "%.*s: ", cs->func_len, cs->func);
     }
@@ -1795,7 +1796,7 @@ int _db_keyword_(CODE_STATE *cs, const char *keyword, int strict) {
 static void Indent(CODE_STATE *cs, int indent) {
   int count;
 
-  indent = MY_MAX(indent - 1 - cs->stack->sub_level, 0) * INDENT;
+  indent = std::max<int>(indent - 1 - cs->stack->sub_level, 0) * INDENT;
   for (count = 0; count < indent; count++) {
     if ((count % INDENT) == 0)
       fputc('|', cs->stack->out_file);

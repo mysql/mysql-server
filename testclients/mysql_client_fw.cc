@@ -24,6 +24,8 @@
 #include <mysql/client_plugin.h>
 #include <mysqld_error.h>
 
+#include <algorithm>
+
 #include "errmsg.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -546,7 +548,7 @@ static int my_process_stmt_result(MYSQL_STMT *stmt) {
     return row_count;
   }
 
-  field_count = MY_MIN(mysql_num_fields(result), MAX_RES_FIELDS);
+  field_count = std::min(mysql_num_fields(result), unsigned{MAX_RES_FIELDS});
 
   memset(buffer, 0, sizeof(buffer));
   memset(length, 0, sizeof(length));

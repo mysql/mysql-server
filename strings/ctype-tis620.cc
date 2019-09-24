@@ -633,7 +633,7 @@ static int my_strnncollsp_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   a_length = thai2sortable(a, a_length);
   b_length = thai2sortable(b, b_length);
 
-  end = a + (length = MY_MIN(a_length, b_length));
+  end = a + (length = std::min(a_length, b_length));
   while (a < end) {
     if (*a++ != *b++) {
       res = ((int)a[-1] - (int)b[-1]);
@@ -678,7 +678,7 @@ static size_t my_strnxfrm_tis620(const CHARSET_INFO *cs, uchar *dst,
                                  size_t dstlen, uint nweights, const uchar *src,
                                  size_t srclen, uint flags) {
   size_t dstlen0 = dstlen;
-  size_t min_len = MY_MIN(dstlen, srclen);
+  size_t min_len = std::min(dstlen, srclen);
   size_t len = 0;
 
   /*

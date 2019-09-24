@@ -1146,8 +1146,8 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
       if (huff_counts->field_length > 2 &&
           huff_counts->empty_fields +
                   (records - huff_counts->empty_fields) *
-                      (1 + max_bit(MY_MAX(huff_counts->max_pre_space,
-                                          huff_counts->max_end_space))) <
+                      (1 + max_bit(std::max(huff_counts->max_pre_space,
+                                            huff_counts->max_end_space))) <
               records * max_bit(huff_counts->field_length)) {
         huff_counts->pack_type |= PACK_TYPE_SPACE_FIELDS;
       } else {
@@ -2733,7 +2733,7 @@ static int save_state_mrg(File file, PACK_MRG_INFO *mrg, my_off_t new_length,
   /* See comment above in save_state about key_file_length handling. */
   if (mrg->src_file_has_indexes_disabled) {
     isam_file->s->state.state.key_file_length =
-        MY_MAX(isam_file->s->state.state.key_file_length, new_length);
+        std::max(isam_file->s->state.state.key_file_length, new_length);
   }
   state.dellink = HA_OFFSET_ERROR;
   state.version = (ulong)time((time_t *)0);

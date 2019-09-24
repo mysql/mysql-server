@@ -34,6 +34,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -1204,7 +1206,7 @@ extern "C" {
 static int my_strnncoll_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                              const uchar *a, size_t a_length, const uchar *b,
                              size_t b_length, bool b_is_prefix) {
-  size_t length = MY_MIN(a_length, b_length);
+  size_t length = std::min(a_length, b_length);
   int res = my_strnncoll_big5_internal(&a, &b, length);
   return res ? res : (int)((b_is_prefix ? length : a_length) - b_length);
 }
@@ -1214,7 +1216,7 @@ static int my_strnncoll_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static int my_strnncollsp_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                const uchar *a, size_t a_length, const uchar *b,
                                size_t b_length) {
-  size_t length = MY_MIN(a_length, b_length);
+  size_t length = std::min(a_length, b_length);
   int res = my_strnncoll_big5_internal(&a, &b, length);
 
   if (!res && a_length != b_length) {

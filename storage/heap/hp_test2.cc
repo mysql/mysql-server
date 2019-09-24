@@ -27,12 +27,14 @@
 #include <signal.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "storage/heap/heapdef.h" /* Because of hp_find_block */
 
-#define MAX_RECORDS 100000
+#define MAX_RECORDS 100000U
 #define MAX_KEYS 4
 
 static int get_options(int argc, char *argv[]);
@@ -144,7 +146,7 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < recant; i++) {
     n1 = rnd(1000);
     n2 = rnd(100);
-    n3 = rnd(MY_MIN(recant * 5, MAX_RECORDS));
+    n3 = rnd(std::min(recant * 5, MAX_RECORDS));
     make_record(record, n1, n2, n3, "Pos", write_count);
 
     if (heap_write(file, record)) {
@@ -210,7 +212,7 @@ int main(int argc, char *argv[]) {
   for (i = 0; i < write_count / 10; i++) {
     n1 = rnd(1000);
     n2 = rnd(100);
-    n3 = rnd(MY_MIN(recant * 2, MAX_RECORDS));
+    n3 = rnd(std::min(recant * 2, MAX_RECORDS));
     make_record(record2, n1, n2, n3, "XXX", update);
     if (rnd(2) == 1) {
       if (heap_scan_init(file)) goto err;

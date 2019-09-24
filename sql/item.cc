@@ -634,9 +634,9 @@ uint Item::time_precision() {
     // Nanosecond rounding is not needed, for performance purposes
     if ((tmp = val_str(&buf)) &&
         str_to_time(tmp, &ltime, TIME_FRAC_TRUNCATE, &status) == 0)
-      return MY_MIN(status.fractional_digits, DATETIME_MAX_DECIMALS);
+      return min(status.fractional_digits, uint{DATETIME_MAX_DECIMALS});
   }
-  return MY_MIN(decimals, DATETIME_MAX_DECIMALS);
+  return min(decimals, uint8{DATETIME_MAX_DECIMALS});
 }
 
 uint Item::datetime_precision() {
@@ -651,9 +651,9 @@ uint Item::datetime_precision() {
             current_thd, &status.warnings,
             str_to_datetime(tmp, &ltime, TIME_FRAC_TRUNCATE | TIME_FUZZY_DATE,
                             &status)))
-      return MY_MIN(status.fractional_digits, DATETIME_MAX_DECIMALS);
+      return min(status.fractional_digits, uint{DATETIME_MAX_DECIMALS});
   }
-  return MY_MIN(decimals, DATETIME_MAX_DECIMALS);
+  return min(decimals, uint8{DATETIME_MAX_DECIMALS});
 }
 
 void Item::print_item_w_name(const THD *thd, String *str,
@@ -3716,8 +3716,8 @@ String *Item_param::val_str(String *str) {
       return NULL;
     case TIME_VALUE: {
       if (str->reserve(MAX_DATE_STRING_REP_LENGTH)) break;
-      str->length((uint)my_TIME_to_str(
-          value.time, str->ptr(), MY_MIN(decimals, DATETIME_MAX_DECIMALS)));
+      str->length(my_TIME_to_str(value.time, str->ptr(),
+                                 min(decimals, uint8{DATETIME_MAX_DECIMALS})));
       str->set_charset(&my_charset_bin);
       return str;
     }
@@ -3766,8 +3766,8 @@ const String *Item_param::query_val_str(const THD *thd, String *str) const {
       buf = str->c_ptr_quick();
       ptr = buf;
       *ptr++ = '\'';
-      ptr += (uint)my_TIME_to_str(value.time, ptr,
-                                  MY_MIN(decimals, DATETIME_MAX_DECIMALS));
+      ptr += my_TIME_to_str(value.time, ptr,
+                            min(decimals, uint8{DATETIME_MAX_DECIMALS}));
       *ptr++ = '\'';
       str->length((uint32)(ptr - buf));
       break;
@@ -8689,7 +8689,7 @@ String *Item_cache_datetime::val_str(String *) {
       TIME_from_longlong_packed(&ltime, data_type(), int_value);
       if ((null_value =
                my_TIME_to_str(&ltime, &cached_string,
-                              MY_MIN(decimals, DATETIME_MAX_DECIMALS))))
+                              min(decimals, uint8{DATETIME_MAX_DECIMALS}))))
         return NULL;
       str_value_cached = true;
     } else if (!cache_value() || null_value)

@@ -33,6 +33,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -68,7 +70,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
                            uint init_alloc, uint alloc_increment) {
   DBUG_TRACE;
   if (!alloc_increment) {
-    alloc_increment = MY_MAX((8192 - MALLOC_OVERHEAD) / element_size, 16);
+    alloc_increment = std::max((8192 - MALLOC_OVERHEAD) / element_size, 16U);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
       alloc_increment = init_alloc * 2;
   }

@@ -28,6 +28,8 @@
 
 #include "storage/perfschema/table_helper.h"
 
+#include <algorithm>
+
 #include "my_config.h"
 
 #include "my_compiler.h"
@@ -1377,7 +1379,8 @@ int PFS_variable_name_row::make_row(const char *str, size_t length) {
   DBUG_ASSERT(length <= sizeof(m_str));
   DBUG_ASSERT(length <= NAME_CHAR_LEN);
 
-  m_length = (uint)MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
+  /* enforce max name length */
+  m_length = std::min(length, size_t{NAME_CHAR_LEN});
   if (m_length > 0) {
     memcpy(m_str, str, length);
   }

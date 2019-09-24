@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include <algorithm>
+
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -112,7 +114,7 @@ int main(int argc, char **argv) {
   log_filename = myisam_log_filename;
   get_options(&argc, &argv);
   /* Number of MyISAM files we can have open at one time */
-  max_files = (my_set_max_open_files(MY_MIN(max_files, 8)) - 6) / 2;
+  max_files = (my_set_max_open_files(std::min(max_files, 8U)) - 6) / 2;
   if (update)
     printf("Trying to %s MyISAM files according to log '%s'\n",
            (recover ? "recover" : "update"), log_filename);
