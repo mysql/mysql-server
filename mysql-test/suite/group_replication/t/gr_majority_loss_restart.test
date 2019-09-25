@@ -103,7 +103,7 @@ SET SESSION sql_log_bin= 1;
 --source include/kill_and_restart_mysqld.inc
 
 # Give it some time to try and fail
---sleep 20
+--sleep 75
 
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc

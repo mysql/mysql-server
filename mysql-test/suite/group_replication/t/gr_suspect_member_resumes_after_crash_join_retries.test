@@ -1,0 +1,123 @@
+#######################################################################################
+#
+# In a group of 3 servers, we crash one of them, restart it and make it join the group
+# again, it will succeed. This will happen due to internal join retries, configured
+# in GR and happening at GCS level.
+#
+# When it finally is expelled from the group, as its suspicion
+# on other members times out, it is finally able to rejoin the group.
+#
+# Test :
+# 0. This test requires a group with 3 servers.
+# 1. Set the group_replication_member_expel_timeout parameter to 20 seconds.
+#    This will exercise timeouts and retries.
+# 2. Create table t1 and insert some data, checking that it is replicated to all
+#    servers.
+# 3. Crash server 3 and make it restart with start_on_boot so that it starts
+#    trying to join the group.
+# 4. Check that server 3 transitioned from ONLINE to UNREACHEABLE.
+# 5. Check that all members are online, and server 4 was able to rejoin the group
+# 6. Clean up.
+#######################################################################################
+
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Set group_replication_member_expel_timeout to
+--echo #    20 seconds.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 20;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 20;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET GLOBAL group_replication_member_expel_timeout = 20;
+set session sql_log_bin=0;
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("Error connecting to all peers. Member join failed. Local port: *.*");
+set session sql_log_bin=1;
+
+
+--echo
+--echo ############################################################
+--echo # 2. Create a table and insert some data. Check that
+--echo #    it is replicated to all servers.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Crash server 3 and it will restart with start on boot.
+--echo #    It will try to rejoin immediatly
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --group_replication_start_on_boot=1
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/kill_and_restart_mysqld.inc
+
+--echo #
+--echo # Restarting server 3
+--echo # Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Check that all members are still in the group on
+--echo #    servers 1 and 2, which should both be ONLINE.
+--echo #    Server 3 should still be in the group but UNREACHABLE.
+--echo #    This is a proof that we did not have any implicit rejoin.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Make sure that all servers joined the group and that we
+--echo #    have exactly 3 ONLINE group members.
+--echo #    Node 3 was able to rejoin
+--echo #
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+DROP TABLE t1;
+
+--source include/group_replication_end.inc
+
