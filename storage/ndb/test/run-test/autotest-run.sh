@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.23"
+VERSION="autotest-run.sh version 1.24"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -183,10 +183,13 @@ on_exit() {
 ####################################
 # Revert copy of test programs
 ####################################
-  if [ -f "${run_dir}/revert_copy_missing_ndbclient_test_programs" ]
-  then
-    source "${run_dir}/revert_copy_missing_ndbclient_test_programs"
-  fi
+  for f in "${run_dir}/revert_copy_missing_ndbclient_test_programs"*
+  do
+    if [ -f "${f}" ]
+    then
+      source "${f}"
+    fi
+  done
 ####################################
 # Remove the lock file before exit #
 ####################################
@@ -378,6 +381,11 @@ done
 rm -f d.tmp.$$
 
 copy_missing_ndbclient_test_programs() {
+  if [ -f "${2}/bin/testDowngrade" ]
+  then
+    # Assume nothing need to be copied
+    return
+  fi
   (
     export LD_LIBRARY_PATH="${1}/bin:${1}/lib"
     for prog in testDowngrade testUpgrade
@@ -390,6 +398,8 @@ copy_missing_ndbclient_test_programs() {
           cp -p "${1}/bin/${prog}" "${2}/bin/${prog}"
       fi
     done
+    # May for example copy suite files *grade*-tests.txt and
+    # config files conf-*grade*.cnf
     for file in "${1}"/mysql-test/ndb/*grade*
     do
       f=$(basename "${file}")
@@ -400,14 +410,14 @@ copy_missing_ndbclient_test_programs() {
           cp -p "${file}" "${2}/mysql-test/ndb/${f}"
       fi
     done
-  ) > revert_copy_missing_ndbclient_test_programs
+  ) > revert_copy_missing_ndbclient_test_programs${3}
 }
 prefix="--prefix=$install_dir --prefix0=$install_dir0"
 if [ -n "$install_dir1" ]
 then
     prefix="$prefix --prefix1=$install_dir1"
-    copy_missing_ndbclient_test_programs ${install_dir0} ${install_dir1}
-    copy_missing_ndbclient_test_programs ${install_dir1} ${install_dir0}
+    copy_missing_ndbclient_test_programs ${install_dir0} ${install_dir1} _0_1
+    copy_missing_ndbclient_test_programs ${install_dir1} ${install_dir0} _1_0
 fi
 
 # If verbose level 0, use default verbose mode (1) for atrt anyway
