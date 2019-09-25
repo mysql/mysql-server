@@ -1,6 +1,7 @@
 # WL#12637 Distribute ACL changes in MySQL Cluster
 
 --source include/have_ndb.inc
+--source suite/ndb/include/ndb_find_tools.inc
 
 connection default;
 --echo Connected to server1 as root
@@ -190,3 +191,7 @@ DROP USER ndb_u6@a;
 DROP ROLE R3;
 
 DROP DATABASE auth_test_db;
+
+# Delete the "REVOKE" statements left in ndb_sql_metadata
+--disable_result_log
+--exec $NDB_DELETE_ALL -d mysql ndb_sql_metadata
