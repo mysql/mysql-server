@@ -1,0 +1,344 @@
+--echo #
+--echo # Bug#30128418: IMPORT TABLESPACE MUST CHECK DESCENDING INDEX DEFINITION
+--echo #
+
+# Test the implementation of InnoDB export CFG version 4 (IB_EXPORT_CFG_VERSION_V4).
+# It shows what happens when a sort order of a key on a secondary index
+# may or may not differ from the file being imported and what happens when the
+# imported CFG file is using an old version which does not know about sort order.
+
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let $DB = `SELECT DATABASE()`
+
+--echo ###
+--echo ### EXPORT #1: Backup Ascending key IBD and v3 CFG
+--echo ###
+
+--echo # Create a table with a normal ascending secondary key and export it.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2);
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+SHOW CREATE TABLE t1;
+
+--echo # Export the table using IB_EXPORT_CFG_VERSION_V3,
+--echo # which does not export the DESC flag.
+SET GLOBAL DEBUG='+d,ib_export_use_cfg_version_3';
+FLUSH TABLES t1 FOR EXPORT;
+SET GLOBAL DEBUG='-d,ib_export_use_cfg_version_3';
+--echo # Back-up the IBD and the v3 CFG file
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd $MYSQLD_DATADIR/$DB/t1.ibd.ascend
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v3
+--echo # Unlock the table, which deletes the CFG file.
+UNLOCK TABLES;
+
+--echo ###
+--echo ### EXPORT #2: Backup v4 CFG for Ascending key IBD
+--echo ###
+
+--echo # Export the table using IB_EXPORT_CFG_VERSION_V4,
+--echo # which will export the DESC flag on the secondary index.
+FLUSH TABLES t1 FOR EXPORT;
+
+--echo # Back-up the v4 CFG file
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v4
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo ###
+--echo ### EXPORT #3: Backup Descending key IBD and v3 CFG
+--echo ###
+
+--echo # Create a table with a descending secondary key and export it.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2);
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+SHOW CREATE TABLE t1;
+
+--echo # Export the table using IB_EXPORT_CFG_VERSION_V3,
+--echo # which does not export the DESC flag.
+SET GLOBAL DEBUG='+d,ib_export_use_cfg_version_3';
+FLUSH TABLES t1 FOR EXPORT;
+SET GLOBAL DEBUG='-d,ib_export_use_cfg_version_3';
+
+--echo # Back-up the IBD and the v3 CFG file
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd $MYSQLD_DATADIR/$DB/t1.ibd.descend
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg.descend.v3
+
+--echo # Unlock the table, which deletes the CFG file.
+UNLOCK TABLES;
+
+--echo ###
+--echo ### EXPORT #4: Backup v4 CFG for Descending key IBD
+--echo ###
+
+--echo # Export the table using IB_EXPORT_CFG_VERSION_V4,
+--echo # which will export the DESC flag on the secondary index.
+FLUSH TABLES t1 FOR EXPORT;
+
+--echo # Back-up the v4 CFG with the descending key.
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg.descend.v4
+
+--echo # Unlock the table, which deletes the cfg file.
+UNLOCK TABLES;
+
+--echo ###
+--echo ### EXPORT #5: Backup with a future version 99 CFG
+--echo ###
+
+--echo # Export the table using a future version IB_EXPORT_CFG_VERSION_V99,
+SET GLOBAL DEBUG='+d,ib_export_use_cfg_version_99';
+FLUSH TABLES t1 FOR EXPORT;
+SET GLOBAL DEBUG='-d,ib_export_use_cfg_version_99';
+
+--echo # Back-up the v99 CFG with the descending key.
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg.descend.v99
+
+--echo # Unlock the table, which deletes the cfg file.
+UNLOCK TABLES;
+
+--echo ###
+--echo ### IMPORT TEST #1: Ascending key IBD and v3 CFG to Discarded Ascending Key IBD
+--echo ###
+
+--echo # Recreate the table without the DESC attribute on the secondary key.
+DROP TABLE t1;
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the ascending key IBD and the v3 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.ascend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v3 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Import the table.  Since both the discarded IBD and the imported
+--echo # IBD match, the import succeeds.
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+--echo # Show that column b is sorted correctly.
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+DROP TABLE t1;
+
+--echo ###
+--echo ### IMPORT TEST #2: Ascending key IBD and v4 CFG to Discarded Ascending Key IBD
+--echo ###
+
+--echo # Recreate the table without the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the ascending key IBD and the v4 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.ascend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v4 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Import the table.  Since both the discarded IBD and the imported
+--echo # IBD match, the import succeeds.
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+--echo # Show that column b is sorted correctly.
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+DROP TABLE t1;
+
+--echo ###
+--echo ### IMPORT TEST #3: Ascending key IBD and v3 CFG to Discarded Descending Key IBD
+--echo ###
+
+--echo # Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the ascending key IBD and the v3 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.ascend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v3 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Attempt to import the table.  Since the DESC flag is not available in the
+--echo # CFG file, we assume it is ascending, which is different from the exported
+--echo # table. The error message will complain about Index b field b.
+--echo # The import will abort and delete the cfg file.
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd
+
+--echo ###
+--echo ### IMPORT TEST #4 Ascending key IBD and v4 CFG to Discarded Descending Key IBD
+--echo ###
+
+--echo # Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the ascending key IBD and the v4 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.ascend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v4 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Attempt to import the table.  Since the DESC flag if the discarded table
+--echo # is different from the exported table, the error message will complain about
+--echo # Index b field b. The import will abort and delete the cfg file.
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd
+
+--echo ###
+--echo ### IMPORT TEST #5: Descending key IBD and v3 CFG to Discarded Ascending Key IBD
+--echo ###
+
+--echo # Recreate the table without the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the descending key IBD and the v3 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.descend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v3 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Attempt to import the table.  Since the DESC flag is not available in the
+--echo # CFG file, we assume it is ascending, which matches the exported table.
+--echo # So the import succeeds, but the sort order of the keys in the imported
+--echo # file is descending and all new keys will be ascending.
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+--echo # Show that column b is sorted inconsistently.
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+DROP TABLE t1;
+
+--echo ###
+--echo ### IMPORT TEST #6: Descending key IBD and v4 CFG to Discarded Ascending Key IBD
+--echo ###
+
+--echo # Recreate the table without the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the descending key IBD and the v4 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.descend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v4 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Attempt to import the table.  Since the DESC flag if the discarded table
+--echo # is different from the exported table, the error message will complain about
+--echo # column b in index b. The import will abort and delete the cfg file.
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd
+
+--echo ###
+--echo ### IMPORT TEST #7: Descending key IBD and v3 CFG to Discarded Descending Key IBD
+--echo ###
+
+--echo # Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the descending key IBD and the v3 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.descend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v3 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Attempt to import the table.  Since the DESC flag is not available in the
+--echo # CFG file, we wrongly assume it is ascending. Since this is different from
+--echo # the exported table, the error message will complain about column b in index b.
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd
+
+--echo ###
+--echo ### IMPORT TEST #8: Descending key IBD and v4 CFG to Discarded Descending Key IBD
+--echo ###
+
+--echo # Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the descending key IBD and the v4 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.descend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v4 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Import the table successfuly.
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+--echo # Show that column b is descending.
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+SELECT * FROM t1 order by a;
+SELECT * FROM t1 order by b;
+
+--echo ###
+--echo ### IMPORT TEST #9: Any unknown version will be rejected with a clear error message.
+--echo ###
+
+--echo # Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # Restore the descending key IBD and the v99 version of the CFG.
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd.descend $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v99 $MYSQLD_DATADIR/$DB/t1.cfg
+
+--echo # Attempt to import the table.
+--error ER_IMP_INCOMPATIBLE_CFG_VERSION
+ALTER TABLE t1 IMPORT TABLESPACE;
+SHOW WARNINGS;
+
+--echo # Cleanup
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd.ascend
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd.descend
+--remove_file $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v3
+--remove_file $MYSQLD_DATADIR/$DB/t1.cfg.ascend.v4
+--remove_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v3
+--remove_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v4
+--remove_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v99
+

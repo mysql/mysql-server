@@ -9253,6 +9253,9 @@ ER_FAILED_TO_DETERMINE_IF_ROLE_IS_MANDATORY
 ER_FAILED_TO_FETCH_MANDATORY_ROLE_LIST
   eng "Failed to acquire lock on user management service, unable to fetch mandatory role list"
 
+ER_IMP_INCOMPATIBLE_CFG_VERSION
+  eng "Failed to import %s because the CFG file version (%u) is not compatible with the current version (%u)"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

@@ -1,0 +1,419 @@
+#
+# Bug#30128418: IMPORT TABLESPACE MUST CHECK DESCENDING INDEX DEFINITION
+#
+###
+### EXPORT #1: Backup Ascending key IBD and v3 CFG
+###
+# Create a table with a normal ascending secondary key and export it.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2);
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Export the table using IB_EXPORT_CFG_VERSION_V3,
+# which does not export the DESC flag.
+SET GLOBAL DEBUG='+d,ib_export_use_cfg_version_3';
+FLUSH TABLES t1 FOR EXPORT;
+SET GLOBAL DEBUG='-d,ib_export_use_cfg_version_3';
+# Back-up the IBD and the v3 CFG file
+# Unlock the table, which deletes the CFG file.
+UNLOCK TABLES;
+###
+### EXPORT #2: Backup v4 CFG for Ascending key IBD
+###
+# Export the table using IB_EXPORT_CFG_VERSION_V4,
+# which will export the DESC flag on the secondary index.
+FLUSH TABLES t1 FOR EXPORT;
+# Back-up the v4 CFG file
+UNLOCK TABLES;
+DROP TABLE t1;
+###
+### EXPORT #3: Backup Descending key IBD and v3 CFG
+###
+# Create a table with a descending secondary key and export it.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2);
+SELECT * FROM t1;
+a	b
+2	2
+1	1
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Export the table using IB_EXPORT_CFG_VERSION_V3,
+# which does not export the DESC flag.
+SET GLOBAL DEBUG='+d,ib_export_use_cfg_version_3';
+FLUSH TABLES t1 FOR EXPORT;
+SET GLOBAL DEBUG='-d,ib_export_use_cfg_version_3';
+# Back-up the IBD and the v3 CFG file
+# Unlock the table, which deletes the CFG file.
+UNLOCK TABLES;
+###
+### EXPORT #4: Backup v4 CFG for Descending key IBD
+###
+# Export the table using IB_EXPORT_CFG_VERSION_V4,
+# which will export the DESC flag on the secondary index.
+FLUSH TABLES t1 FOR EXPORT;
+# Back-up the v4 CFG with the descending key.
+# Unlock the table, which deletes the cfg file.
+UNLOCK TABLES;
+###
+### EXPORT #5: Backup with a future version 99 CFG
+###
+# Export the table using a future version IB_EXPORT_CFG_VERSION_V99,
+SET GLOBAL DEBUG='+d,ib_export_use_cfg_version_99';
+FLUSH TABLES t1 FOR EXPORT;
+SET GLOBAL DEBUG='-d,ib_export_use_cfg_version_99';
+# Back-up the v99 CFG with the descending key.
+# Unlock the table, which deletes the cfg file.
+UNLOCK TABLES;
+###
+### IMPORT TEST #1: Ascending key IBD and v3 CFG to Discarded Ascending Key IBD
+###
+# Recreate the table without the DESC attribute on the secondary key.
+DROP TABLE t1;
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the ascending key IBD and the v3 version of the CFG.
+# Import the table.  Since both the discarded IBD and the imported
+# IBD match, the import succeeds.
+ALTER TABLE t1 IMPORT TABLESPACE;
+# Show that column b is sorted correctly.
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+3	3
+4	4
+DROP TABLE t1;
+###
+### IMPORT TEST #2: Ascending key IBD and v4 CFG to Discarded Ascending Key IBD
+###
+# Recreate the table without the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the ascending key IBD and the v4 version of the CFG.
+# Import the table.  Since both the discarded IBD and the imported
+# IBD match, the import succeeds.
+ALTER TABLE t1 IMPORT TABLESPACE;
+# Show that column b is sorted correctly.
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+a	b
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+3	3
+4	4
+DROP TABLE t1;
+###
+### IMPORT TEST #3: Ascending key IBD and v3 CFG to Discarded Descending Key IBD
+###
+# Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the ascending key IBD and the v3 version of the CFG.
+# Attempt to import the table.  Since the DESC flag is not available in the
+# CFG file, we assume it is ascending, which is different from the exported
+# table. The error message will complain about Index b field b.
+# The import will abort and delete the cfg file.
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Index b field b is descending which does not match metadata file which is ascending)
+DROP TABLE t1;
+###
+### IMPORT TEST #4 Ascending key IBD and v4 CFG to Discarded Descending Key IBD
+###
+# Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the ascending key IBD and the v4 version of the CFG.
+# Attempt to import the table.  Since the DESC flag if the discarded table
+# is different from the exported table, the error message will complain about
+# Index b field b. The import will abort and delete the cfg file.
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Index b field b is descending which does not match metadata file which is ascending)
+DROP TABLE t1;
+###
+### IMPORT TEST #5: Descending key IBD and v3 CFG to Discarded Ascending Key IBD
+###
+# Recreate the table without the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the descending key IBD and the v3 version of the CFG.
+# Attempt to import the table.  Since the DESC flag is not available in the
+# CFG file, we assume it is ascending, which matches the exported table.
+# So the import succeeds, but the sort order of the keys in the imported
+# file is descending and all new keys will be ascending.
+ALTER TABLE t1 IMPORT TABLESPACE;
+# Show that column b is sorted inconsistently.
+SELECT * FROM t1;
+a	b
+2	2
+1	1
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by b;
+a	b
+2	2
+1	1
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+a	b
+2	2
+1	1
+3	3
+4	4
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t1 order by b;
+a	b
+2	2
+1	1
+3	3
+4	4
+DROP TABLE t1;
+###
+### IMPORT TEST #6: Descending key IBD and v4 CFG to Discarded Ascending Key IBD
+###
+# Recreate the table without the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the descending key IBD and the v4 version of the CFG.
+# Attempt to import the table.  Since the DESC flag if the discarded table
+# is different from the exported table, the error message will complain about
+# column b in index b. The import will abort and delete the cfg file.
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Index b field b is ascending which does not match metadata file which is descending)
+DROP TABLE t1;
+###
+### IMPORT TEST #7: Descending key IBD and v3 CFG to Discarded Descending Key IBD
+###
+# Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the descending key IBD and the v3 version of the CFG.
+# Attempt to import the table.  Since the DESC flag is not available in the
+# CFG file, we wrongly assume it is ascending. Since this is different from
+# the exported table, the error message will complain about column b in index b.
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Index b field b is descending which does not match metadata file which is ascending)
+DROP TABLE t1;
+###
+### IMPORT TEST #8: Descending key IBD and v4 CFG to Discarded Descending Key IBD
+###
+# Recreate the table with the DESC attribute on the secondary key.
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a), KEY (b DESC));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the descending key IBD and the v4 version of the CFG.
+# Import the table successfuly.
+ALTER TABLE t1 IMPORT TABLESPACE;
+# Show that column b is descending.
+SELECT * FROM t1;
+a	b
+2	2
+1	1
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+INSERT INTO t1 VALUES (3, 3);
+INSERT INTO t1 VALUES (4, 4);
+SELECT * FROM t1;
+a	b
+4	4
+3	3
+2	2
+1	1
+SELECT * FROM t1 order by a;
+a	b
+1	1
+2	2
+3	3
+4	4
+SELECT * FROM t1 order by b;
+a	b
+1	1
+2	2
+3	3
+4	4
+###
+### IMPORT TEST #9: Any unknown version will be rejected with a clear error message.
+###
+# Discard the table which deletes the IBD file.
+ALTER TABLE t1 DISCARD TABLESPACE;
+# Restore the descending key IBD and the v99 version of the CFG.
+# Attempt to import the table.
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (4)
+SHOW WARNINGS;
+Level	Code	Message
+Error	3950	Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (4)
+Warning	1816	InnoDB: ALTER TABLE `test`.`t1` IMPORT TABLESPACE failed with error 48 : 'Unsupported'
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+# Cleanup
+DROP TABLE t1;

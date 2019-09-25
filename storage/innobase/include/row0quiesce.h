@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -40,11 +40,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct trx_t;
 
 /** The version number of the export meta-data text file. */
-#define IB_EXPORT_CFG_VERSION_V1 0x1UL
+#define IB_EXPORT_CFG_VERSION_V1 1
 /** The v2 .cfg has space flags written */
-#define IB_EXPORT_CFG_VERSION_V2 0x2UL
+#define IB_EXPORT_CFG_VERSION_V2 2
 /** The v3 .cfg writes instant column default values in metadata section. */
-#define IB_EXPORT_CFG_VERSION_V3 0x3UL
+#define IB_EXPORT_CFG_VERSION_V3 3
+/** The v4 .cfg has the is_ascending boolean written for each index column. */
+#define IB_EXPORT_CFG_VERSION_V4 4
+/** Future version used to test that the correct error message is returned. */
+#define IB_EXPORT_CFG_VERSION_V99 99
 
 /** Quiesce the tablespace that the table resides in. */
 void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
