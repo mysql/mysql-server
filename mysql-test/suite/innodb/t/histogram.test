@@ -24,7 +24,7 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON b WITH 50 BUCKETS;
 SELECT SCHEMA_NAME, TABLE_NAME, COLUMN_NAME FROM information_schema.column_statistics WHERE COLUMN_NAME = 'b';
 DROP TABLE t1;
 
---replace_regex /[0-9][0-9]/XX/
+--replace_regex /[0-9]+/XX/
 SELECT NAME,COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE SUBSYSTEM='sampling';
 
 SET GLOBAL innodb_monitor_disable = module_sampling;
