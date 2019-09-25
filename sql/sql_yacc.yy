@@ -8224,6 +8224,10 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_drop_check_constraint($3.str);
           }
+        | DROP CONSTRAINT ident
+          {
+            $$= NEW_PTN PT_alter_table_drop_constraint($3.str);
+          }
         | DISABLE_SYM KEYS
           {
             $$= NEW_PTN PT_alter_table_enable_keys(false);
@@ -8250,7 +8254,11 @@ alter_list_item:
           }
         | ALTER CHECK_SYM ident constraint_enforcement
           {
-            $$ = NEW_PTN PT_alter_table_check_constraint($3.str, $4);
+            $$ = NEW_PTN PT_alter_table_enforce_check_constraint($3.str, $4);
+          }
+        | ALTER CONSTRAINT ident constraint_enforcement
+          {
+            $$ = NEW_PTN PT_alter_table_enforce_constraint($3.str, $4);
           }
         | RENAME opt_to table_ident
           {

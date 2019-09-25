@@ -63,8 +63,9 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
       alter_index_visibility_list(mem_root,
                                   rhs.alter_index_visibility_list.begin(),
                                   rhs.alter_index_visibility_list.end()),
-      alter_state_list(mem_root, rhs.alter_state_list.begin(),
-                       rhs.alter_state_list.end()),
+      alter_constraint_enforcement_list(
+          mem_root, rhs.alter_constraint_enforcement_list.begin(),
+          rhs.alter_constraint_enforcement_list.end()),
       check_constraint_spec_list(mem_root,
                                  rhs.check_constraint_spec_list.begin(),
                                  rhs.check_constraint_spec_list.end()),

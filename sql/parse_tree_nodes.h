@@ -3220,22 +3220,52 @@ class PT_alter_table_drop_check_constraint final : public PT_alter_table_drop {
                             Alter_info::DROP_CHECK_CONSTRAINT, name) {}
 };
 
-class PT_alter_table_check_constraint final : public PT_alter_table_action {
+class PT_alter_table_drop_constraint final : public PT_alter_table_drop {
+ public:
+  explicit PT_alter_table_drop_constraint(const char *name)
+      : PT_alter_table_drop(Alter_drop::ANY_CONSTRAINT,
+                            Alter_info::DROP_ANY_CONSTRAINT, name) {}
+};
+
+class PT_alter_table_enforce_constraint : public PT_alter_table_action {
   typedef PT_alter_table_action super;
 
+ protected:
+  PT_alter_table_enforce_constraint(
+      Alter_constraint_enforcement::Type alter_type,
+      Alter_info::Alter_info_flag alter_info_flag, const char *name,
+      bool is_enforced)
+      : super(alter_info_flag),
+        m_constraint_enforcement(alter_type, name, is_enforced) {}
+
  public:
-  explicit PT_alter_table_check_constraint(const char *name, bool state)
-      : super(state ? Alter_info::ENFORCE_CHECK_CONSTRAINT
-                    : Alter_info::SUSPEND_CHECK_CONSTRAINT),
-        cc_state(Alter_state::Type::CHECK_CONSTRAINT, name, state) {}
+  explicit PT_alter_table_enforce_constraint(const char *name, bool is_enforced)
+      : super(is_enforced ? Alter_info::ENFORCE_ANY_CONSTRAINT
+                          : Alter_info::SUSPEND_ANY_CONSTRAINT),
+        m_constraint_enforcement(
+            Alter_constraint_enforcement::Type::ANY_CONSTRAINT, name,
+            is_enforced) {}
 
   bool contextualize(Table_ddl_parse_context *pc) override {
     return (super::contextualize(pc) ||
-            pc->alter_info->alter_state_list.push_back(&cc_state));
+            pc->alter_info->alter_constraint_enforcement_list.push_back(
+                &m_constraint_enforcement));
   }
 
  private:
-  Alter_state cc_state;
+  Alter_constraint_enforcement m_constraint_enforcement;
+};
+
+class PT_alter_table_enforce_check_constraint final
+    : public PT_alter_table_enforce_constraint {
+ public:
+  explicit PT_alter_table_enforce_check_constraint(const char *name,
+                                                   bool is_enforced)
+      : PT_alter_table_enforce_constraint(
+            Alter_constraint_enforcement::Type::CHECK_CONSTRAINT,
+            is_enforced ? Alter_info::ENFORCE_CHECK_CONSTRAINT
+                        : Alter_info::SUSPEND_CHECK_CONSTRAINT,
+            name, is_enforced) {}
 };
 
 class PT_alter_table_enable_keys final : public PT_alter_table_action {

@@ -132,7 +132,8 @@
 #include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec*
 #include "sql/sql_class.h"             // THD
 #include "sql/sql_const.h"
-#include "sql/sql_db.h"  // get_default_db_collation
+#include "sql/sql_constraint.h"  // Constraint_type_resolver
+#include "sql/sql_db.h"          // get_default_db_collation
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"  // QEP_TAB_standalone
 #include "sql/sql_handler.h"
@@ -14306,7 +14307,15 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
             Check constraints to be dropped are already handled by the
             prepare_check_constraints_for_alter().
           */
-          DBUG_ASSERT(false);
+          break;
+        case Alter_drop::ANY_CONSTRAINT:
+          /*
+            Constraint type is resolved by name and a new Alter_drop element
+            with resolved type is added to the Alter_drop list.
+            Alter_drop::ANY_CONSTRAINT element is retained in the Alter_drop
+            list to support re-execution of stored routine or prepared
+            statement.
+          */
           break;
         default:
           DBUG_ASSERT(false);
@@ -15960,6 +15969,26 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   while ((create_field = list_it++)) {
     if (create_field->change != nullptr) columns.emplace(create_field->change);
   }
+
+  /*
+    Type of a constraint marked for DROP with DROP CONSTRAINT clause is unknown.
+    Resolve type of a constraint by name.
+  */
+  Drop_constraint_type_resolver drop_constraint_type_resolver(alter_info);
+  if (drop_constraint_type_resolver.is_type_resolution_needed() &&
+      (drop_constraint_type_resolver.resolve_constraints_type(thd, table,
+                                                              old_table_def)))
+    return true;
+
+  /*
+    Type of a constraint marked for ALTER with ALTER CONSTRAINT clause is
+    unknown. Resolve type of a constraint by name.
+  */
+  Enforce_constraint_type_resolver enforce_constraint_type_resolver(alter_info);
+  if (enforce_constraint_type_resolver.is_type_resolution_needed() &&
+      (enforce_constraint_type_resolver.resolve_constraints_type(
+          thd, table, old_table_def)))
+    return true;
 
   // Prepare check constraints for alter table operation.
   if (prepare_check_constraints_for_alter(thd, table, alter_info, &alter_ctx))
@@ -18214,8 +18243,6 @@ static bool prepare_check_constraints_for_alter(
   DBUG_TRACE;
   MDL_request_list cc_mdl_request_list;
   Sql_check_constraint_spec_list new_check_cons_list(thd->mem_root);
-  Mem_root_array<const Alter_drop *> new_drop_list(thd->mem_root);
-  Mem_root_array<const Alter_state *> new_state_list(thd->mem_root);
   uint cc_max_generated_number = 0;
   uint table_name_len = strlen(alter_tbl_ctx->table_name);
 
@@ -18251,19 +18278,16 @@ static bool prepare_check_constraints_for_alter(
      while adding new check constraints with the same name.
   */
   std::vector<const char *> dropped_cc_names;
-  for (const Alter_drop *cc_drop : alter_info->drop_list) {
-    if (cc_drop->type != Alter_drop::CHECK_CONSTRAINT) {
-      new_drop_list.push_back(cc_drop);
-      continue;
-    }
+  for (const Alter_drop *drop : alter_info->drop_list) {
+    if (drop->type != Alter_drop::CHECK_CONSTRAINT) continue;
 
     bool cc_found = false;
     if (table->table_check_constraint_list != nullptr) {
       for (Sql_table_check_constraint *table_cc :
            *table->table_check_constraint_list) {
         if (!my_strcasecmp(system_charset_info, table_cc->name().str,
-                           cc_drop->name)) {
-          dropped_cc_names.push_back(cc_drop->name);
+                           drop->name)) {
+          dropped_cc_names.push_back(drop->name);
           cc_found = true;
           break;
         }
@@ -18271,7 +18295,7 @@ static bool prepare_check_constraints_for_alter(
     }
 
     if (!cc_found) {
-      my_error(ER_CHECK_CONSTRAINT_NOT_FOUND, MYF(0), cc_drop->name);
+      my_error(ER_CHECK_CONSTRAINT_NOT_FOUND, MYF(0), drop->name);
       return true;
     }
   }
@@ -18284,7 +18308,7 @@ static bool prepare_check_constraints_for_alter(
     (dropped_cc_names) to be dropped.
   */
   if (table->table_check_constraint_list != nullptr) {
-    for (const Alter_drop *drop : new_drop_list) {
+    for (const Alter_drop *drop : alter_info->drop_list) {
       if (drop->type == Alter_drop::COLUMN) {
         for (Sql_table_check_constraint *table_cc :
              *table->table_check_constraint_list) {
@@ -18392,6 +18416,28 @@ static bool prepare_check_constraints_for_alter(
     }
   }
 
+  // Update check constraint enforcement state (i.e. enforced or not enforced).
+  for (auto *alter_constraint : alter_info->alter_constraint_enforcement_list) {
+    if (alter_constraint->type !=
+        Alter_constraint_enforcement::Type::CHECK_CONSTRAINT)
+      continue;
+
+    bool cc_found = false;
+    for (auto &cc_spec : new_check_cons_list) {
+      if (!my_strcasecmp(system_charset_info, cc_spec->name.str,
+                         alter_constraint->name)) {
+        cc_found = true;
+        // Update status.
+        cc_spec->is_enforced = alter_constraint->is_enforced;
+        break;
+      }
+    }
+    if (!cc_found) {
+      my_error(ER_CHECK_CONSTRAINT_NOT_FOUND, MYF(0), alter_constraint->name);
+      return true;
+    }
+  }
+
   /*
     Handle new check constraints added to the table.
 
@@ -18432,29 +18478,6 @@ static bool prepare_check_constraints_for_alter(
     if (alter_tbl_ctx->is_database_changed() ||
         find_cc_name(dropped_cc_names, cc_spec->name.str) == nullptr)
       new_cc_names.push_back(cc_spec->name.str);
-  }
-
-  // Update check constraint state (i.e. enforced or not enforced).
-  for (auto *cc_state : alter_info->alter_state_list) {
-    if (cc_state->type != Alter_state::Type::CHECK_CONSTRAINT) {
-      new_state_list.push_back(cc_state);
-      continue;
-    }
-
-    bool cc_found = false;
-    for (auto &cc_spec : new_check_cons_list) {
-      if (!my_strcasecmp(system_charset_info, cc_spec->name.str,
-                         cc_state->name)) {
-        cc_found = true;
-        // Update status.
-        cc_spec->is_enforced = cc_state->state;
-        break;
-      }
-    }
-    if (!cc_found) {
-      my_error(ER_CHECK_CONSTRAINT_NOT_FOUND, MYF(0), cc_state->name);
-      return true;
-    }
   }
 
   /*
@@ -18565,16 +18588,6 @@ static bool prepare_check_constraints_for_alter(
       return true;
     }
   }
-
-  alter_info->drop_list.clear();
-  alter_info->drop_list.resize(new_drop_list.size());
-  std::move(new_drop_list.begin(), new_drop_list.end(),
-            alter_info->drop_list.begin());
-
-  alter_info->alter_state_list.clear();
-  alter_info->alter_state_list.resize(new_state_list.size());
-  std::move(new_state_list.begin(), new_state_list.end(),
-            alter_info->alter_state_list.begin());
 
   alter_info->check_constraint_spec_list.clear();
   alter_info->check_constraint_spec_list.resize(new_check_cons_list.size());

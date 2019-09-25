@@ -9193,6 +9193,16 @@ ER_DA_UDF_INVALID_COLLATION
 
 ER_DA_UDF_INVALID_EXTENSION_ARGUMENT_TYPE
   eng "Invalid extension argument type '%s' was specified. Refer the MySQL manual for the valid UDF extension arguments type."
+
+ER_MULTIPLE_CONSTRAINTS_WITH_SAME_NAME
+  eng "Table has multiple constraints with the name '%-.192s'. Please use constraint specific '%s' clause."
+
+ER_CONSTRAINT_NOT_FOUND
+  eng "Constraint '%-.192s' does not exist."
+
+ER_ALTER_CONSTRAINT_ENFORCEMENT_NOT_SUPPORTED
+  eng "Altering constraint enforcement is not supported for the constraint '%-.192s'. Enforcement state alter is not supported for the PRIMARY, UNIQUE and FOREIGN KEY type constraints."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
