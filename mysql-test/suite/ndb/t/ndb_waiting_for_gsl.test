@@ -1,0 +1,40 @@
+--source include/have_debug.inc
+--source include/have_multi_ndb.inc
+--source have_ndb_error_insert.inc
+
+# Delay alter table infinitely using error insert
+--connection server1
+--let $ndb_desc_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+CREATE TABLE t1 (a int) engine ndb;
+# error insert 6217, will keep Dbdict::execALTER_TABLE_REQ() in an loop with a interval of 1 sec.
+# As the signal is not allowed to excuted, ALTER will be struck with holding GSL for some period of time.
+--exec $NDB_MGM -e'all error 6217' > /dev/null
+--send ALTER TABLE t1 ALGORITHM = COPY, ADD COLUMN b INT;
+
+
+# As GSL is held by alter in Server1, restart Server2 and check if ndb-wait-setup timeout occurs
+# Without patch, restart will hang for more than ndb-wait-setup
+--connection server2
+--disable_query_log
+call mtr.add_suppression("NDB: Tables not available after [0-9]* seconds. Consider increasing --ndb-wait-setup value");
+--enable_query_log
+--let $mysqld_name=mysqld.2.1
+--source include/restart_mysqld.inc
+
+# Reap for alter in Server1, and thereby release GSL
+--connection server1
+--error 1005
+--reap
+
+# Restart Server2 and check if it starts with NDB
+--connection server2
+--exec $NDB_MGM -e'all error 0' > /dev/null
+--let $mysqld_name=mysqld.2.1
+--source include/restart_mysqld.inc
+drop table t1;
+
+--let $assert_text= Checking if ndb-wait-setup timeout
+--let $assert_select=Tables not available after
+--let $assert_file= $ndb_desc_file
+--let $assert_count= 1
+--source include/assert_grep.inc

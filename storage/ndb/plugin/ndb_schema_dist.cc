@@ -29,8 +29,10 @@
 #include <mutex>
 
 #include "my_dbug.h"
+#include "mysqld_error.h"
 #include "ndbapi/ndb_cluster_connection.hpp"
 #include "sql/query_options.h"  // OPTION_BIN_LOG
+#include "sql/sql_error.h"
 #include "sql/sql_thd_internal_api.h"
 #include "storage/ndb/plugin/ndb_anyvalue.h"
 #include "storage/ndb/plugin/ndb_dist_priv_util.h"
@@ -124,7 +126,8 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
       DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false)) {
     // The NDB_SHARE for mysql.ndb_schema hasn't been created or not setup
     // yet -> schema distribution is not ready
-    m_thd_ndb->push_warning("Schema distribution is not ready");
+    push_warning(m_thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                 "Schema distribution is not ready");
     return false;
   }
 
@@ -254,7 +257,7 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client() {
     NDB_SHARE::release_reference(m_share, m_share_reference.c_str());
   }
 
-  if (m_thd_ndb->is_slave_thread()) {
+  if (m_thd_ndb && m_thd_ndb->is_slave_thread()) {
     // Copy-out slave thread statistics
     // NOTE! This is just a "convenient place" to call this
     // function, it could be moved to "end of statement"(if there

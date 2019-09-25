@@ -867,6 +867,12 @@ ulong opt_ndb_slave_conflict_role;
 static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
                                     const NdbOperation *op);
 
+static bool ndbcluster_notify_alter_table(THD *, const MDL_key *,
+                                          ha_notification_type);
+
+static bool ndbcluster_notify_exclusive_mdl(THD *, const MDL_key *,
+                                            ha_notification_type, bool *);
+
 static int handle_row_conflict(
     NDB_CONFLICT_FN_SHARE *cfn_share, const char *tab_name,
     const char *handling_type, const NdbRecord *key_rec,
@@ -10148,6 +10154,10 @@ int rename_table_impl(THD *thd, Ndb *ndb,
     }
   });
 
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::rename_table"))
+    return HA_ERR_NO_CONNECTION;
+
   NDBDICT *dict = ndb->getDictionary();
   NDBDICT::List index_list;
   if (my_strcasecmp(system_charset_info, new_dbname, old_dbname)) {
@@ -10198,7 +10208,6 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   NDB_SHARE_KEY *new_key = NDB_SHARE::create_key(to);
   (void)NDB_SHARE::rename_share(share, new_key);
 
-  Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx(false);
   const bool rollback_in_progress =
       (ddl_ctx != nullptr && ddl_ctx->rollback_in_progress());
@@ -10490,10 +10499,6 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier.c_str());
     return HA_WRONG_CREATE_OPTION;
   }
-
-  Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::rename_table"))
-    return HA_ERR_NO_CONNECTION;
 
   // Open the table which is to be renamed(aka. the old)
   Ndb *ndb = get_ndb(thd);
@@ -10893,10 +10898,6 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *) {
   }
 
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  if (!thd_ndb->has_required_global_schema_lock(
-          "ha_ndbcluster::delete_table")) {
-    return HA_ERR_NO_CONNECTION;
-  }
 
   if (ndb_name_is_temp(m_tabname)) {
     const char *orig_table_name =
@@ -10920,6 +10921,11 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *) {
       clear_table_from_dictionary_cache(thd_ndb->ndb, m_dbname,
                                         orig_table_name);
       return 0;
+    }
+
+    if (!thd_ndb->has_required_global_schema_lock(
+            "ha_ndbcluster::delete_table")) {
+      return HA_ERR_NO_CONNECTION;
     }
 
     /* This the final phase of a copy alter. Delay the drop of the table with
@@ -11877,6 +11883,8 @@ static int ndb_wait_setup_func(ulong max_wait) {
 */
 
 static int ndb_wait_setup_server_startup(void *) {
+  ndbcluster_hton->notify_alter_table = ndbcluster_notify_alter_table;
+  ndbcluster_hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
   // Signal components that server is started
   ndb_index_stat_thread.set_server_started();
   ndbcluster_binlog_set_server_started();
@@ -12219,9 +12227,9 @@ static int ndbcluster_init(void *handlerton_ptr) {
 
   hton->check_fk_column_compat = ndbcluster_check_fk_column_compat;
   hton->pre_dd_shutdown = ndbcluster_pre_dd_shutdown;
-  hton->notify_alter_table = ndbcluster_notify_alter_table;
-  hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
 
+  // notify_alter_table and notify_exclusive_mdl will be registered latter
+  // SO, that GSL will not be held unnecessary for non-ndb tables.
   hton->post_ddl = ndbcluster_post_ddl;
 
   // Initialize NdbApi
