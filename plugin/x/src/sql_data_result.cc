@@ -65,7 +65,8 @@ void Sql_data_result::get_next_field(bool *value) {
 
 void Sql_data_result::get_next_field(std::string *value) {
   validate_field_index({MYSQL_TYPE_VARCHAR, MYSQL_TYPE_STRING,
-                        MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB});
+                        MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+                        MYSQL_TYPE_LONG_BLOB});
 
   Field_value *field_value = get_value();
 
@@ -93,7 +94,7 @@ bool Sql_data_result::next_row() {
 }
 
 Sql_data_result::Field_value &Sql_data_result::validate_field_index_no_null(
-    std::initializer_list<enum_field_types> field_types) {
+    const std::vector<enum_field_types> &field_types) {
   validate_field_index(field_types);
   Field_value *result = get_value();
   if (nullptr == result)
@@ -102,7 +103,7 @@ Sql_data_result::Field_value &Sql_data_result::validate_field_index_no_null(
 }
 
 void Sql_data_result::validate_field_index(
-    std::initializer_list<enum_field_types> field_types) const {
+    const std::vector<enum_field_types> &field_types) const {
   if (0 == m_resultset.get_row_list().size())
     throw ngs::Error(ER_DATA_OUT_OF_RANGE, "Resultset doesn't contain data");
 

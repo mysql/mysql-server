@@ -25,11 +25,11 @@ CREATE USER test_user@localhost;
 
 #
 # I.1
-Got expected error: Requested collection option 'foo', doesn't exists. (code 5181)
+Got expected error: Requested collection option 'foo' doesn't exist. (code 5181)
 
 #
 # I.2
-Got expected error: Requested collection option 'foo', doesn't exists. (code 5181)
+Got expected error: Requested collection option 'foo' doesn't exist. (code 5181)
 # I.3
 Got expected error: Invalid value for argument 'options' (code 5017)
 # I.4
@@ -127,7 +127,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5181
-  msg: "Requested collection option \'foo\', doesn\'t exists."
+  msg: "Requested collection option \'foo\' doesn\'t exist."
   sql_state: "HY000"
 }
 

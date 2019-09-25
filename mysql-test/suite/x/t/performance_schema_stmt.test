@@ -231,6 +231,42 @@ Mysqlx.Crud.Delete {
 -->recvresult
 -->callmacro Show_sql_history
 
+-->echo ######### get validation error when working with collections #########
+stmtadmin create_collection	{"schema": "xtest", "name": "test3", "options": {
+  "validation": {
+    "schema": {
+      "type": "object", "properties": {
+        "value": {"type": "number", "minimum": 0, "maximum": 10}
+      },
+      "required": ["value"]
+    }
+  }
+}};
+-->recvresult
+-->callmacro Clear_sql_history
+Mysqlx.Crud.Insert {
+  collection {
+    name: "test3"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "{\"_id\": \"one\", \"value\": 100}"
+        }
+      }
+    }
+  }
+}
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->callmacro Show_sql_history
+-->stmtadmin drop_collection	{"schema":"xtest", "name":"test3"}
+-->recvresult
+
 -->callmacro Clear_sql_history
 -->echo ######### create_collection_index #########
 -->stmtadmin create_collection_index	{"schema": "xtest", "collection":"test2", "name":"foo", "unique":true, "fields":{"field":"$.foo", "type":"TEXT(1)", "required":false}}

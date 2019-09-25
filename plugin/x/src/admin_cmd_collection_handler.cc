@@ -34,6 +34,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/admin_cmd_arguments.h"
+#include "plugin/x/src/get_detailed_validation_error.h"
 #include "plugin/x/src/helper/generate_hash.h"
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/helper/sql_commands.h"
@@ -212,7 +213,7 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
   if (validation_elements.size() == 0)
     return ngs::Error(
         ER_X_CMD_ARGUMENT_OBJECT_EMPTY,
-        "Arguments value used under \"validation\", must be an object with at"
+        "Arguments value used under \"validation\" must be an object with at"
         " least one field");
 
   ngs::Error_code error = get_validation_info(
@@ -250,9 +251,7 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
   Empty_resultset rset;
   error = m_session->data_context().execute(tmp.c_str(), tmp.length(), &rset);
   if (error.error == ER_CHECK_CONSTRAINT_VIOLATED) {
-    return ngs::Error(ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA,
-                      "Document is not valid, according to the schema "
-                      "assigned to collection");
+    return get_detailed_validation_error(m_session->data_context());
   }
   // Check if modification was not performed on an old type of collection
   // (without validation), if so then modify the collection and add a validation
@@ -284,9 +283,7 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
     Empty_resultset rset;
     error = m_session->data_context().execute(tmp.c_str(), tmp.length(), &rset);
     if (error.error == ER_CHECK_CONSTRAINT_VIOLATED)
-      return ngs::Error(ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA,
-                        "Document is not valid, according to the schema "
-                        "assigned to collection");
+      return get_detailed_validation_error(m_session->data_context());
   } else if (error) {
     return error;
   }
@@ -349,7 +346,7 @@ ngs::Error_code Admin_command_collection_handler::get_collection_options(
   for (const auto &option : options) {
     if (!m_collection_option_handler.contains_handler(option))
       return ngs::Error(ER_X_COLLECTION_OPTION_DOESNT_EXISTS,
-                        "Requested collection option '%s', doesn't exists.",
+                        "Requested collection option '%s' doesn't exist.",
                         option.c_str());
   }
 

@@ -1,0 +1,318 @@
+## Test validation errors when doing operations on collections
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Tests start here
+
+create schema xtest;
+
+--let $xtest_file= $MYSQL_TMP_DIR/validation_errors.tmp
+--write_file $xtest_file
+-->import validation_schema.macro
+-->quiet
+
+varlet %BASE_SCHEMA% {"type": "object", "properties":
+  {"size": {"type": "number", "minimum": 0, "maximum": 1000}},
+  "required": ["size"]};
+
+-->macro Create_and_fill_test_collection
+-->callmacro Create_coll_with_validation	test_coll	%BASE_SCHEMA%	strict
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "size": 10}'
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "two", "size": 20}'
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "three", "size": 30}'
+-->recvresult
+-->endmacro
+
+-->macro Assert_validation_error 	%REQUIREMENT%
+recvmessage Mysqlx.Error {
+  severity: ERROR
+  code: 5180
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/size\' failed requirement \'%REQUIREMENT%\' at JSON Schema location \'#/properties/size\'."
+  sql_state: "HY000"
+};
+-->endmacro
+
+-->echo
+-->echo
+-->echo ## I. Check validation errors on collection insert.
+-->echo #
+-->echo # 1. Insert one invalid value to an empty collection.
+-->echo # 2. Insert one invalid value to a non-empty collection.
+-->echo # 3. Insert multiple values where one is invalid.
+-->echo # 4. Insert multiple invalid values.
+-->echo
+-->echo ## II. Check validation errors on collection update.
+-->echo # 1. Update one element in a collection.
+-->echo # 2. Update multiple elements in a collection.
+-->echo
+-->echo ## III. Check validation errors on schema enable.
+-->echo # 1. Enable schema for collection with one element not matching the
+-->echo #    schema.
+-->echo # 2. Enable schema for collection with multiple elements not matching
+-->echo #    the schema.
+-->echo
+-->echo ## IV. Check validation errors on schema update.
+-->echo # 1. Update schema for collection with one element not matching the
+-->echo #    new schema.
+-->echo # 2. Update schema for collection with multiple elements not matching
+-->echo #    the new schema.
+
+-->echo
+-->echo #
+-->echo # I.1
+-->callmacro Create_coll_with_validation	test_coll	%BASE_SCHEMA%	strict
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "size": 1234}'
+-->callmacro Assert_validation_error	maximum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # I.2
+-->callmacro Create_and_fill_test_collection
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "four", "size": -1}'
+-->callmacro Assert_validation_error	minimum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # I.3
+-->callmacro Create_coll_with_validation	test_coll	%BASE_SCHEMA%	strict
+Mysqlx.Crud.Insert {
+  collection {
+    name: "test_coll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "one", "size": 34}'
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "two", "size": 72}'
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "x", "size": -2}'
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "four", "size": 172}'
+        }
+      }
+    }
+  }
+}
+-->callmacro Assert_validation_error	minimum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # I.4
+-->callmacro Create_coll_with_validation	test_coll	%BASE_SCHEMA%	strict
+Mysqlx.Crud.Insert {
+  collection {
+    name: "test_coll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "one", "size": 34}'
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "x", "size": 1072}'
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "y", "size": -2}'
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id": "z", "size": 1072}'
+        }
+      }
+    }
+  }
+}
+-->callmacro Assert_validation_error	maximum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # II.1
+-->callmacro Create_and_fill_test_collection
+callmacro Update_item test_coll
+	size
+	{type: V_SINT v_signed_int: 20}
+	{type: V_SINT v_signed_int: -20};
+-->callmacro Assert_validation_error	minimum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # II.2
+-->callmacro Create_and_fill_test_collection
+Mysqlx.Crud.Update {
+  collection { name: "test_coll" schema: "xtest"}
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "size"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {type: V_SINT v_signed_int: 0}
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {type: MEMBER value: 'size'}
+    }
+    operation: ITEM_SET
+    value: {
+      type: LITERAL literal {type: V_SINT v_signed_int: -1}
+    }
+  }
+}
+-->callmacro Assert_validation_error	minimum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # III.1
+-->callmacro Create_coll_with_validation	test_coll	%BASE_SCHEMA%	off
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "size": 10}'
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "two", "size": -1}'
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "three", "size": 30}'
+-->recvresult
+-->callmacro Modify_level test_coll	strict
+-->callmacro Assert_validation_error	minimum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # III.2
+-->callmacro Create_coll_with_validation	test_coll	%BASE_SCHEMA%	off
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "size": 1200}'
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "two", "size": -1}'
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "three", "size": -1}'
+-->recvresult
+-->callmacro Modify_level test_coll	strict
+-->callmacro Assert_validation_error	maximum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # IV.1
+-->callmacro Create_and_fill_test_collection
+varlet %SCHEMA% {"type": "object", "properties":
+  {"size": {"type": "number", "minimum": 25, "maximum": 1000}},
+  "required": ["size"]};
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "test_coll",
+  "options": {
+    "validation": {
+      "schema": %SCHEMA%,
+      "level": "strict"
+    }
+  }
+};
+-->callmacro Assert_validation_error	minimum
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # IV.2
+-->callmacro Create_and_fill_test_collection
+varlet %SCHEMA% {"type": "object", "properties":
+  {"size": {"type": "number", "minimum": 100, "maximum": 1000}},
+  "required": ["size"]};
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "test_coll",
+  "options": {
+    "validation": {
+      "schema": %SCHEMA%,
+      "level": "strict"
+    }
+  }
+};
+-->callmacro Assert_validation_error	minimum
+-->callmacro Drop_collection	test_coll
+
+-->noquiet
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc
+drop schema if exists xtest;

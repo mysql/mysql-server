@@ -66,7 +66,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 
@@ -76,7 +76,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 
@@ -106,7 +106,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 
@@ -116,7 +116,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 
@@ -402,7 +402,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 
@@ -412,7 +412,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 
@@ -442,7 +442,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 
@@ -452,7 +452,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/latitude\' failed requirement \'maximum\' at JSON Schema location \'#/properties/latitude\'."
   sql_state: "HY000"
 }
 

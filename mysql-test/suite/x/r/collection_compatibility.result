@@ -410,7 +410,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/amount\' failed requirement \'minimum\' at JSON Schema location \'#/properties/amount\'."
   sql_state: "HY000"
 }
 
@@ -500,7 +500,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5181
-  msg: "Requested collection option \'foo\', doesn\'t exists."
+  msg: "Requested collection option \'foo\' doesn\'t exist."
   sql_state: "HY000"
 }
 
@@ -922,7 +922,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/amount\' failed requirement \'minimum\' at JSON Schema location \'#/properties/amount\'."
   sql_state: "HY000"
 }
 
@@ -1012,7 +1012,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5181
-  msg: "Requested collection option \'foo\', doesn\'t exists."
+  msg: "Requested collection option \'foo\' doesn\'t exist."
   sql_state: "HY000"
 }
 
@@ -1474,7 +1474,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5180
-  msg: "Document is not valid, according to the schema assigned to collection"
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/amount\' failed requirement \'minimum\' at JSON Schema location \'#/properties/amount\'."
   sql_state: "HY000"
 }
 
@@ -1572,7 +1572,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5181
-  msg: "Requested collection option \'foo\', doesn\'t exists."
+  msg: "Requested collection option \'foo\' doesn\'t exist."
   sql_state: "HY000"
 }
 

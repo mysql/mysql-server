@@ -28,6 +28,7 @@
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
+#include "plugin/x/src/get_detailed_validation_error.h"
 #include "plugin/x/src/insert_statement_builder.h"
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/document_id_generator.h"
@@ -133,9 +134,7 @@ ngs::Error_code Crud_command_handler::error_handling(
                         "Unable upsert data in document collection '%s'",
                         msg.collection().name().c_str());
     case ER_CHECK_CONSTRAINT_VIOLATED:
-      return ngs::Error(ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA,
-                        "Document is not valid, according to the schema "
-                        "assigned to collection");
+      return get_detailed_validation_error(m_session->data_context());
   }
   return error;
 }
@@ -183,9 +182,7 @@ ngs::Error_code Crud_command_handler::error_handling(
                         "document collection table");
 
     case ER_CHECK_CONSTRAINT_VIOLATED:
-      return ngs::Error(ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA,
-                        "Document is not valid, according to the schema "
-                        "assigned to collection");
+      return get_detailed_validation_error(m_session->data_context());
   }
   return error;
 }

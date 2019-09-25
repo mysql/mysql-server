@@ -106,6 +106,25 @@ SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'jso
 SELECT @@lower_case_table_names
 ALTER TABLE `xtest`.`test2` MODIFY COLUMN _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}') VIRTUAL
 0 rows affected
+######### get validation error when working with collections #########
+
+command ok
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5180
+  msg: "Document is not valid according to the schema assigned to collection. The JSON document location \'#/value\' failed requirement \'maximum\' at JSON Schema location \'#/properties/value\'."
+  sql_state: "HY000"
+}
+
+Query
+SELECT @@mysqlx_document_id_unique_prefix,@@auto_increment_offset,@@auto_increment_increment
+INSERT INTO `xtest`.`test3` (doc) VALUES ('{\"_id\": \"one\", \"value\": 100}')
+GET DIAGNOSTICS CONDITION 1 @$internal_validation_error_message = MESSAGE_TEXT
+SELECT @$internal_validation_error_message
+0 rows affected
+
+command ok
 ######### create_collection_index #########
 
 command ok

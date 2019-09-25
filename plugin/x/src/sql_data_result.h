@@ -28,6 +28,7 @@
 #include <initializer_list>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/xpl_resultset.h"
@@ -90,9 +91,9 @@ class Sql_data_result {
 
   Field_value *get_value() { return (*m_row_index).fields[m_field_index++]; }
   Field_value &validate_field_index_no_null(
-      std::initializer_list<enum_field_types> field_types);
+      const std::vector<enum_field_types> &field_types);
   void validate_field_index(
-      std::initializer_list<enum_field_types> field_types) const;
+      const std::vector<enum_field_types> &field_types) const;
 
   Collect_resultset m_resultset;
   std::size_t m_field_index;
