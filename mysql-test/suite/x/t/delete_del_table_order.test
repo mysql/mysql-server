@@ -55,7 +55,7 @@ Mysqlx.Crud.Delete {
 
 -->sql
 SELECT * FROM xtest.mytable;
-SELECT * FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
+SELECT doc FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
 -->endsql
 
 Mysqlx.Crud.Delete {
@@ -84,7 +84,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
+SELECT doc FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
 -->endsql
 EOF
 

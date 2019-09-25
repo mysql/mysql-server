@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,23 +25,27 @@
 #ifndef PLUGIN_X_SRC_IO_XPL_LISTENER_UNIX_SOCKET_H_
 #define PLUGIN_X_SRC_IO_XPL_LISTENER_UNIX_SOCKET_H_
 
-#include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "plugin/x/src/interface/listener.h"
+#include "plugin/x/src/interface/operations_factory.h"
+#include "plugin/x/src/interface/socket.h"
+#include "plugin/x/src/interface/socket_events.h"
 
 namespace xpl {
 
-class Listener_unix_socket : public ngs::Listener_interface {
+class Listener_unix_socket : public iface::Listener {
  public:
-  using Socket_ptr = ngs::Socket_interface::Shared_ptr;
+  using Socket_ptr = std::shared_ptr<iface::Socket>;
 
  public:
   Listener_unix_socket(
-      ngs::Operations_factory_interface::Shared_ptr operations_factory,
-      const std::string &unix_socket_path, ngs::Socket_events_interface &event,
-      const uint32 backlog);
+      std::shared_ptr<iface::Operations_factory> operations_factory,
+      const std::string &unix_socket_path, iface::Socket_events &event,
+      const uint32_t backlog);
   ~Listener_unix_socket() override;
 
   void report_properties(On_report_properties on_prop) override;
@@ -55,15 +59,15 @@ class Listener_unix_socket : public ngs::Listener_interface {
   void loop() override;
 
  private:
-  ngs::Operations_factory_interface::Shared_ptr m_operations_factory;
+  std::shared_ptr<iface::Operations_factory> m_operations_factory;
   const std::string m_unix_socket_path;
-  const uint32 m_backlog;
+  const uint32_t m_backlog;
 
   std::string m_last_error;
   Sync_variable_state m_state;
 
   Socket_ptr m_unix_socket;
-  ::ngs::Socket_events_interface &m_event;
+  iface::Socket_events &m_event;
 };
 
 }  // namespace xpl

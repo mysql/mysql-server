@@ -27,9 +27,6 @@
 
 #include "plugin/x/client/xconnection_impl.h"
 
-#include "my_config.h"
-#include "my_dbug.h"
-
 #include <errno.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -38,15 +35,17 @@
 #include <openssl/x509v3.h>
 #endif  // HAVE_OPENSSL
 #include <cassert>
-#include <chrono>
-#include <future>
+#include <chrono>  // NOLINT(build/c++11)
+#include <future>  // NOLINT(build/c++11)
 #include <limits>
 #include <sstream>
 #include <string>
 
-#include "errmsg.h"
-#include "my_macros.h"
-#include "scope_guard.h"
+#include "errmsg.h"       // NOLINT(build/include_subdir)
+#include "my_config.h"    // NOLINT(build/include_subdir)
+#include "my_dbug.h"      // NOLINT(build/include_subdir)
+#include "my_macros.h"    // NOLINT(build/include_subdir)
+#include "scope_guard.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/client/context/xconnection_config.h"
 #include "plugin/x/client/context/xssl_config.h"
@@ -344,7 +343,7 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
 
   const auto timeout = m_context->m_connection_config.m_timeout_session_connect;
   const auto delay = std::chrono::milliseconds(
-      timeout > 0 ? timeout : std::numeric_limits<std::int32_t>::max());
+      timeout > 0 ? timeout : std::numeric_limits<int32_t>::max());
   if (addr_future.wait_for(delay) == std::future_status::timeout) {
     return XError(CR_X_SESSION_CONNECT_TIMEOUT,
                   "Session_connect_timeout limit exceeded", true);
@@ -539,7 +538,8 @@ XError Connection_impl::get_ssl_error(const int error_id) {
     @retval non 1 for Error
     @retval 1 Success
 */
-int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
+int set_fips_mode(const uint32_t fips_mode,
+                  char err_string[OPENSSL_ERROR_LENGTH]) {
   int rc = -1;
   unsigned int fips_mode_old = -1;
   unsigned long err_library = 0;
@@ -570,8 +570,9 @@ XError Connection_impl::activate_tls() {
     return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_NOT_CONFIGURATED, true};
 
   char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
-  if (set_fips_mode(static_cast<int>(m_context->m_ssl_config.m_ssl_fips_mode),
-                    err_string) != 1) {
+  if (set_fips_mode(
+          static_cast<uint32_t>(m_context->m_ssl_config.m_ssl_fips_mode),
+          err_string) != 1) {
     return XError{CR_SSL_CONNECTION_ERROR, err_string, true};
   }
   auto ssl_ctx_flags = process_tls_version(

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,13 @@
 
 namespace xpl {
 
-long Ssl_context_options::ssl_ctx_verify_depth() {
+int64_t Ssl_context_options::ssl_ctx_verify_depth() {
   if (nullptr == m_vio_ssl) return 0;
 
   return ssl_wrapper_ctx_verify_depth(m_vio_ssl);
 }
 
-long Ssl_context_options::ssl_ctx_verify_mode() {
+int64_t Ssl_context_options::ssl_ctx_verify_mode() {
   if (nullptr == m_vio_ssl) return 0;
 
   return ssl_wrapper_ctx_verify_mode(m_vio_ssl);
@@ -59,32 +59,32 @@ std::string Ssl_context_options::ssl_server_not_before() {
   return result;
 }
 
-long Ssl_context_options::ssl_sess_accept_good() {
+int64_t Ssl_context_options::ssl_sess_accept_good() {
   if (nullptr == m_vio_ssl) return 0;
 
   return ssl_wrapper_sess_accept_good(m_vio_ssl);
 }
 
-long Ssl_context_options::ssl_sess_accept() {
+int64_t Ssl_context_options::ssl_sess_accept() {
   if (nullptr == m_vio_ssl) return 0;
 
   return ssl_wrapper_sess_accept(m_vio_ssl);
 }
 
-long Ssl_context_options::ssl_accept_renegotiates() { return 0; }
+int64_t Ssl_context_options::ssl_accept_renegotiates() { return 0; }
 
-long Ssl_context_options::ssl_session_cache_hits() { return 0; }
+int64_t Ssl_context_options::ssl_session_cache_hits() { return 0; }
 
-long Ssl_context_options::ssl_session_cache_misses() { return 0; }
+int64_t Ssl_context_options::ssl_session_cache_misses() { return 0; }
 
 std::string Ssl_context_options::ssl_session_cache_mode() { return "OFF"; }
 
-long Ssl_context_options::ssl_session_cache_overflows() { return 0; }
+int64_t Ssl_context_options::ssl_session_cache_overflows() { return 0; }
 
-long Ssl_context_options::ssl_session_cache_size() { return 0; }
+int64_t Ssl_context_options::ssl_session_cache_size() { return 0; }
 
-long Ssl_context_options::ssl_session_cache_timeouts() { return 0; }
+int64_t Ssl_context_options::ssl_session_cache_timeouts() { return 0; }
 
-long Ssl_context_options::ssl_used_session_cache_entries() { return 0; }
+int64_t Ssl_context_options::ssl_used_session_cache_entries() { return 0; }
 
 }  // namespace xpl

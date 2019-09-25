@@ -24,7 +24,11 @@
 
 #include "plugin/x/src/xpl_system_variables.h"
 
-#include "my_sys.h"
+#include <stdlib.h>
+
+#include <cstdint>
+
+#include "my_sys.h"  // NOLINT(build/include_subdir)
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 

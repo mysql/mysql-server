@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <algorithm>
 #include <map>
+#include <memory>
+#include <string>
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
@@ -125,7 +127,7 @@ void Broker_task::distribute(const Notice_descriptor &notice_descriptor) {
 
   m_task_context.m_client_list->enumerate(
       [&notice_descriptor,
-       &binary_notice](std::shared_ptr<ngs::Client_interface> &client) -> bool {
+       &binary_notice](std::shared_ptr<iface::Client> &client) -> bool {
         auto &session_out_queue = client->session()->get_notice_output_queue();
 
         session_out_queue.emplace(notice_descriptor.m_notice_type,
@@ -139,7 +141,7 @@ std::shared_ptr<std::string> Broker_task::create_notice_message(
   using Protocol_type = Mysqlx::Notice::GroupReplicationStateChanged_Type;
   using Notice_type_map = std::map<Notice_type, Protocol_type>;
 
-  const static Notice_type_map map_types{
+  static const Notice_type_map map_types{
       {Notice_type::k_group_replication_quorum_loss,
        Protocol_type::GroupReplicationStateChanged_Type_MEMBERSHIP_QUORUM_LOSS},
       {Notice_type::k_group_replication_view_changed,

@@ -31,18 +31,15 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <cinttypes>
 #include <functional>
 #include <sstream>
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
-#include "my_macros.h"
-#include "my_systime.h"  // my_sleep
+#include "my_macros.h"   // NOLINT(build/include_subdir)
+#include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
@@ -53,6 +50,10 @@
 #include "plugin/x/src/capabilities/handler_connection_attributes.h"
 #include "plugin/x/src/capabilities/handler_readonly_value.h"
 #include "plugin/x/src/capabilities/handler_tls.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
+#include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
@@ -72,9 +73,9 @@ class No_idle_processing : public xpl::iface::Waiting_for_io {
 
 }  // namespace details
 
-Client::Client(std::shared_ptr<Vio_interface> connection,
-               Server_interface &server, Client_id client_id,
-               Protocol_monitor_interface *pmon,
+Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
+               xpl::iface::Server &server, Client_id client_id,
+               xpl::iface::Protocol_monitor *pmon,
                const Global_timeouts &timeouts)
     : m_client_id(client_id),
       m_server(server),
@@ -310,8 +311,9 @@ void Client::on_read_timeout() {
   warning.set_msg("IO Read error: read_timeout exceeded");
   std::string warning_data;
   warning.SerializeToString(&warning_data);
-  m_encoder->send_notice(Frame_type::k_warning, Frame_scope::k_global,
-                         warning_data, force_flush);
+  m_encoder->send_notice(xpl::iface::Frame_type::k_warning,
+                         xpl::iface::Frame_scope::k_global, warning_data,
+                         force_flush);
 }
 
 // this will be called on socket errors, but also when halt_and_wait() is called
@@ -322,8 +324,8 @@ void Client::on_network_error(const int error) {
     set_close_reason_if_non_fatal(Close_reason::k_write_timeout);
   }
 
-  log_debug("%s, %i: on_network_error(error:%i)", client_id(),
-            static_cast<int>(m_state.load()), error);
+  log_debug("%s, %" PRIu32 ": on_network_error(error:%i)", client_id(),
+            static_cast<uint32_t>(m_state.load()), error);
 
   if (m_state != State::k_closing && error != 0)
     set_close_reason_if_non_fatal(Close_reason::k_net_error);
@@ -361,7 +363,7 @@ void Client::on_client_addr(const bool skip_resolve) {
 
   switch (m_connection->get_type()) {
     case xpl::Connection_tcpip: {
-      m_connection->peer_addr(m_client_addr, m_client_port);
+      m_connection->peer_addr(&m_client_addr, &m_client_port);
     } break;
 
     case xpl::Connection_namedpipe:
@@ -394,8 +396,8 @@ void Client::on_accept() {
             client_address());
 
   DBUG_EXECUTE_IF("client_accept_timeout", {
-    std::int32_t i = 0;
-    const std::int32_t max_iterations = 1000;
+    int32_t i = 0;
+    const int32_t max_iterations = 1000;
     while (m_server.is_running() && i < max_iterations) {
       my_sleep(10000);
       ++i;
@@ -407,7 +409,7 @@ void Client::on_accept() {
   // it can be accessed directly (no other thread access thus object)
   m_state = State::k_accepted;
 
-  set_encoder(allocate_object<Protocol_encoder>(
+  set_encoder(ngs::allocate_object<Protocol_encoder>(
       m_connection,
       std::bind(&Client::on_network_error, this, std::placeholders::_1),
       m_protocol_monitor, &m_memory_block_pool));
@@ -423,31 +425,31 @@ void Client::on_accept() {
   }
 
   if (xpl::Plugin_system_variables::m_enable_hello_notice)
-    m_encoder->send_notice(Frame_type::k_server_hello, Frame_scope::k_global,
-                           "", true);
+    m_encoder->send_notice(xpl::iface::Frame_type::k_server_hello,
+                           xpl::iface::Frame_scope::k_global, "", true);
 }
 
-void Client::on_session_auth_success(Session_interface &) {
+void Client::on_session_auth_success(xpl::iface::Session *) {
   // this is called from worker thread
   State expected = State::k_authenticating_first;
   m_state.compare_exchange_strong(expected, State::k_running);
 }
 
-void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused))) {
-  log_debug("%s: Session %i removed", client_id(), s.session_id());
+void Client::on_session_close(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
+  log_debug("%s: Session %i removed", client_id(), s->session_id());
 
   // no more open sessions, disconnect
   disconnect_and_trigger_close();
 
-  if (s.state_before_close() != ngs::Session_interface::k_authenticating) {
+  if (s->state_before_close() != xpl::iface::Session::State::k_authenticating) {
     ++xpl::Global_status_variables::instance().m_closed_sessions_count;
   }
 
   remove_client_from_server();
 }
 
-void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
-  log_debug("%s: Resetting session %i", client_id(), s.session_id());
+void Client::on_session_reset(xpl::iface::Session *s MY_ATTRIBUTE((unused))) {
+  log_debug("%s: Resetting session %i", client_id(), s->session_id());
 
   if (!create_session()) {
     m_state = State::k_closing;
@@ -458,9 +460,9 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
 }
 
 void Client::on_server_shutdown() {
-  log_debug("%s: closing client because of shutdown (state: %i)", client_id(),
-            static_cast<int>(m_state.load()));
-  std::shared_ptr<ngs::Session_interface> local_copy = m_session;
+  log_debug("%s: closing client because of shutdown (state: %" PRIu32 ")",
+            client_id(), static_cast<uint32_t>(m_state.load()));
+  std::shared_ptr<xpl::iface::Session> local_copy = m_session;
 
   if (local_copy) local_copy->on_kill();
 
@@ -468,12 +470,12 @@ void Client::on_server_shutdown() {
   disconnect_and_trigger_close();
 }
 
-Protocol_monitor_interface &Client::get_protocol_monitor() {
+xpl::iface::Protocol_monitor &Client::get_protocol_monitor() {
   return *m_protocol_monitor;
 }
 
-void Client::set_encoder(Protocol_encoder_interface *enc) {
-  m_encoder = Memory_instrumented<Protocol_encoder_interface>::Unique_ptr(enc);
+void Client::set_encoder(xpl::iface::Protocol_encoder *enc) {
+  m_encoder.reset(enc);
   m_encoder->get_flusher()->set_write_timeout(m_write_timeout);
 
   if (m_session) m_session->set_proto(m_encoder.get());
@@ -556,8 +558,8 @@ xpl::iface::Waiting_for_io *Client::get_idle_processing() {
 }
 
 bool Client::create_session() {
-  std::shared_ptr<Session_interface> session(
-      m_server.create_session(*this, *m_encoder, 1));
+  std::shared_ptr<xpl::iface::Session> session(
+      m_server.create_session(this, m_encoder.get(), 1));
   if (!session) {
     log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
                 m_client_addr.c_str());

@@ -24,14 +24,14 @@
 
 #include "plugin/x/src/crud_cmd_handler.h"
 
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
 #include "plugin/x/src/insert_statement_builder.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/document_id_generator.h"
+#include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/update_statement_builder.h"
@@ -45,9 +45,9 @@ namespace xpl {
 
 template <typename B, typename M>
 ngs::Error_code Crud_command_handler::execute(
-    const B &builder, const M &msg, ngs::Resultset_interface &resultset,
+    const B &builder, const M &msg, iface::Resultset &resultset,
     Status_variable variable,
-    bool (ngs::Protocol_encoder_interface::*send_ok)()) {
+    bool (iface::Protocol_encoder::*send_ok)()) {
   m_session->update_status(variable);
   m_qb.clear();
   try {
@@ -68,13 +68,13 @@ ngs::Error_code Crud_command_handler::execute(
 
 template <typename B, typename M>
 void Crud_command_handler::notice_handling(
-    const ngs::Resultset_interface::Info &info, const B & /*builder*/,
+    const iface::Resultset::Info &info, const B & /*builder*/,
     const M & /*msg*/) const {
   notice_handling_common(info);
 }
 
 void Crud_command_handler::notice_handling_common(
-    const ngs::Resultset_interface::Info &info) const {
+    const iface::Resultset::Info &info) const {
   const auto &notice_config = m_session->get_notice_configuration();
   if (info.num_warnings > 0 &&
       notice_config.is_notice_enabled(ngs::Notice_type::k_warning))
@@ -95,7 +95,7 @@ inline bool check_message(const std::string &msg, const char *pattern,
 ngs::Error_code Crud_command_handler::execute_crud_insert(
     const Mysqlx::Crud::Insert &msg) {
   auto &id_agg = m_session->get_document_id_aggregator();
-  ngs::Document_id_aggregator_interface::Retention_guard g(&id_agg);
+  iface::Document_id_aggregator::Retention_guard g(&id_agg);
   ngs::Error_code error = id_agg.configue(&m_session->data_context());
   if (error) return error;
 
@@ -104,7 +104,7 @@ ngs::Error_code Crud_command_handler::execute_crud_insert(
   Empty_resultset rset;
   return execute(Insert_statement_builder(gen, &id_agg), msg, rset,
                  &ngs::Common_status_variables::m_crud_insert,
-                 &ngs::Protocol_encoder_interface::send_exec_ok);
+                 &iface::Protocol_encoder::send_exec_ok);
 }
 
 template <>
@@ -132,13 +132,17 @@ ngs::Error_code Crud_command_handler::error_handling(
       return ngs::Error(ER_X_BAD_UPSERT_DATA,
                         "Unable upsert data in document collection '%s'",
                         msg.collection().name().c_str());
+    case ER_CHECK_CONSTRAINT_VIOLATED:
+      return ngs::Error(ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA,
+                        "Document is not valid, according to the schema "
+                        "assigned to collection");
   }
   return error;
 }
 
 template <>
 void Crud_command_handler::notice_handling(
-    const ngs::Resultset_interface::Info &info,
+    const iface::Resultset::Info &info,
     const Insert_statement_builder &builder,
     const Mysqlx::Crud::Insert &msg) const {
   notice_handling_common(info);
@@ -160,7 +164,7 @@ ngs::Error_code Crud_command_handler::execute_crud_update(
   Empty_resultset rset;
   return execute(Update_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_update,
-                 &ngs::Protocol_encoder_interface::send_exec_ok);
+                 &iface::Protocol_encoder::send_exec_ok);
 }
 
 template <>
@@ -177,13 +181,18 @@ ngs::Error_code Crud_command_handler::error_handling(
       return ngs::Error(ER_X_BAD_UPDATE_DATA,
                         "Invalid data for update operation on "
                         "document collection table");
+
+    case ER_CHECK_CONSTRAINT_VIOLATED:
+      return ngs::Error(ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA,
+                        "Document is not valid, according to the schema "
+                        "assigned to collection");
   }
   return error;
 }
 
 template <>
 void Crud_command_handler::notice_handling(
-    const ngs::Resultset_interface::Info &info,
+    const iface::Resultset::Info &info,
     const Update_statement_builder & /*builder*/,
     const Mysqlx::Crud::Update & /*msg*/) const {
   notice_handling_common(info);
@@ -198,12 +207,12 @@ ngs::Error_code Crud_command_handler::execute_crud_delete(
   Empty_resultset rset;
   return execute(Delete_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_delete,
-                 &ngs::Protocol_encoder_interface::send_exec_ok);
+                 &iface::Protocol_encoder::send_exec_ok);
 }
 
 template <>
 void Crud_command_handler::notice_handling(
-    const ngs::Resultset_interface::Info &info,
+    const iface::Resultset::Info &info,
     const Delete_statement_builder & /*builder*/,
     const Mysqlx::Crud::Delete & /*msg*/) const {
   notice_handling_common(info);
@@ -222,7 +231,7 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
 
 template <>
 void Crud_command_handler::notice_handling(
-    const ngs::Resultset_interface::Info &info,
+    const iface::Resultset::Info &info,
     const Find_statement_builder & /*builder*/,
     const Mysqlx::Crud::Find & /*msg*/) const {}
 
@@ -258,7 +267,7 @@ ngs::Error_code Crud_command_handler::execute_create_view(
   Empty_resultset rset;
   return execute(View_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_create_view,
-                 &ngs::Protocol_encoder_interface::send_ok);
+                 &iface::Protocol_encoder::send_ok);
 }
 
 ngs::Error_code Crud_command_handler::execute_modify_view(
@@ -268,7 +277,7 @@ ngs::Error_code Crud_command_handler::execute_modify_view(
   Empty_resultset rset;
   return execute(View_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_modify_view,
-                 &ngs::Protocol_encoder_interface::send_ok);
+                 &iface::Protocol_encoder::send_ok);
 }
 
 ngs::Error_code Crud_command_handler::execute_drop_view(
@@ -278,7 +287,7 @@ ngs::Error_code Crud_command_handler::execute_drop_view(
   Empty_resultset rset;
   return execute(View_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_drop_view,
-                 &ngs::Protocol_encoder_interface::send_ok);
+                 &iface::Protocol_encoder::send_ok);
 }
 
 }  // namespace xpl

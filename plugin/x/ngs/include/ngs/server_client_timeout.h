@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,18 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_CLIENT_TIMEOUT_H_
 
 #include <functional>
+#include <memory>
 
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/src/helper/chrono.h"
+#include "plugin/x/src/interface/client.h"
 
 namespace ngs {
 
 class Server_client_timeout {
  public:
-  Server_client_timeout(const xpl::chrono::Time_point &release_all_before_time);
-  void validate_client_state(std::shared_ptr<Client_interface> client);
+  explicit Server_client_timeout(
+      const xpl::chrono::Time_point &release_all_before_time);
+  void validate_client_state(std::shared_ptr<xpl::iface::Client> client);
 
   xpl::chrono::Time_point get_oldest_client_accept_time();
 

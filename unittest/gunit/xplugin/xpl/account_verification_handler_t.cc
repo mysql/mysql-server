@@ -37,7 +37,7 @@ namespace xpl {
 #define NOT !
 
 namespace test {
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
 
 namespace {
 const char *const EMPTY = "";
@@ -57,17 +57,17 @@ const char *const WRONG_AUTH_PLUGIN_NAME = "wrong_password";
 
 class User_verification_test : public Test {
  public:
-  StrictMock<xpl::test::Mock_client> mock_client;
-  StrictMock<ngs::test::Mock_session> mock_session;
-  StrictMock<ngs::test::Mock_vio> mock_connection;
-  StrictMock<ngs::test::Mock_sql_data_context> mock_sql_data_context;
-  ngs::test::Mock_account_verification *mock_account_verification{
-      ngs::allocate_object<StrictMock<ngs::test::Mock_account_verification>>()};
+  StrictMock<Mock_client> mock_client;
+  StrictMock<Mock_session> mock_session;
+  StrictMock<Mock_vio> mock_connection;
+  StrictMock<Mock_sql_data_context> mock_sql_data_context;
+  Mock_account_verification *mock_account_verification{
+      new StrictMock<Mock_account_verification>()};
 
-  ngs::Authentication_info m_auth_info;
+  iface::Authentication_info m_auth_info;
 
   Account_verification_handler handler{
-      &mock_session, ngs::Account_verification_interface::Account_native,
+      &mock_session, iface::Account_verification::Account_type::k_native,
       mock_account_verification};
 
   void SetUp() {
@@ -275,7 +275,7 @@ class Split_sasl_message_test
     : public User_verification_test,
       public WithParamInterface<Test_param_sasl_message> {
  public:
-  StrictMock<ngs::test::Mock_authentication_interface> mock_authentication;
+  StrictMock<Mock_authentication_interface> mock_authentication;
 };
 
 TEST_P(Split_sasl_message_test, Split_sasl_message_on_given_param) {

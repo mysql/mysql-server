@@ -25,17 +25,21 @@
 #include "plugin/x/src/admin_cmd_handler.h"
 
 #include <algorithm>
+#include <memory>
 #include <set>
 
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/interface/notice_configuration_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
+#include "plugin/x/src/admin_cmd_arguments.h"
 #include "plugin/x/src/admin_cmd_index.h"
 #include "plugin/x/src/helper/get_system_variable.h"
+#include "plugin/x/src/helper/sql_commands.h"
 #include "plugin/x/src/helper/string_case.h"
+#include "plugin/x/src/interface/notice_configuration.h"
+#include "plugin/x/src/mysql_function_names.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
@@ -51,11 +55,10 @@ namespace details {
 class Notice_configuration_commiter {
  public:
   using Notice_type = ngs::Notice_type;
-  using Notice_configuration_interface = ngs::Notice_configuration_interface;
 
  public:
   Notice_configuration_commiter(
-      Notice_configuration_interface *notice_configuration)
+      iface::Notice_configuration *notice_configuration)
       : m_notice_configuration(notice_configuration) {}
 
   bool try_to_mark_notice(const std::string &notice_name) {
@@ -77,7 +80,7 @@ class Notice_configuration_commiter {
   }
 
  private:
-  Notice_configuration_interface *m_notice_configuration;
+  iface::Notice_configuration *m_notice_configuration;
   std::set<Notice_type> m_marked_notices;
 };
 
@@ -94,6 +97,10 @@ Admin_command_handler::Command_handler::Command_handler()
           {"create_collection", &Admin_command_handler::create_collection},
           {"drop_collection", &Admin_command_handler::drop_collection},
           {"ensure_collection", &Admin_command_handler::ensure_collection},
+          {"modify_collection_options",
+           &Admin_command_handler::modify_collection_options},
+          {"get_collection_options",
+           &Admin_command_handler::get_collection_options},
           {"create_collection_index",
            &Admin_command_handler::create_collection_index},
           {"drop_collection_index",
@@ -112,7 +119,12 @@ ngs::Error_code Admin_command_handler::Command_handler::execute(
                       k_mysqlx_namespace, command.c_str());
 
   try {
-    return (admin->*(iter->second))(args);
+    auto error = (admin->*(iter->second))(args);
+    if (error.error == ER_X_CMD_INVALID_ARGUMENT) {
+      return ngs::Error(error.error, "%s for %s command", error.message.c_str(),
+                        command.c_str());
+    }
+    return error;
   } catch (std::exception &e) {
     log_error(ER_XPLUGIN_FAILED_TO_EXECUTE_ADMIN_CMD, command.c_str(),
               e.what());
@@ -120,8 +132,8 @@ ngs::Error_code Admin_command_handler::Command_handler::execute(
   }
 }
 
-Admin_command_handler::Admin_command_handler(ngs::Session_interface *session)
-    : m_session(session) {}
+Admin_command_handler::Admin_command_handler(iface::Session *session)
+    : m_session(session), m_collection_handler(session, k_mysqlx_namespace) {}
 
 ngs::Error_code Admin_command_handler::execute(const std::string &command,
                                                Command_arguments *args) {
@@ -154,7 +166,7 @@ ngs::Error_code Admin_command_handler::ping(Command_arguments *args) {
 namespace {
 
 struct Client_data_ {
-  ngs::Client_interface::Client_id id{0};
+  iface::Client::Client_id id{0};
   std::string user;
   std::string host;
   uint64_t session{0};
@@ -162,20 +174,19 @@ struct Client_data_ {
 };
 
 void get_client_data(std::vector<Client_data_> *clients_data,
-                     const ngs::Session_interface &requesting_session,
-                     const ngs::Sql_session_interface &da,
-                     ngs::Client_interface *client) {
+                     const iface::Session &requesting_session,
+                     const iface::Sql_session &da, iface::Client *client) {
   // The client object is handled by different thread,
   // when accessing its session we need to hold it in
   // shared_pointer to be sure that the session is
   // not reseted (by Mysqlx::Session::Reset) in middle
   // of this operations.
-  auto session = client->session_smart_ptr();
+  auto session = client->session_shared_ptr();
   Client_data_ c;
 
   if (session) {
     const std::string user =
-        session->state() == ngs::Session_interface::k_ready
+        session->state() == iface::Session::State::k_ready
             ? session->data_context().get_authenticated_user_name()
             : "";
     if (requesting_session.can_see_user(user)) {
@@ -214,7 +225,7 @@ ngs::Error_code Admin_command_handler::list_clients(Command_arguments *args) {
     Server::Server_ptr server(Server::get_instance());
     if (server) {
       MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-      std::vector<ngs::Client_ptr> client_list;
+      std::vector<std::shared_ptr<iface::Client>> client_list;
 
       (*server)->server().get_client_list().get_all_clients(client_list);
 
@@ -291,57 +302,16 @@ ngs::Error_code Admin_command_handler::kill_client(Command_arguments *args) {
   return ngs::Success();
 }
 
-namespace {
-
-ngs::Error_code create_collection_impl(ngs::Sql_session_interface *da,
-                                       const std::string &schema,
-                                       const std::string &name) {
-  Query_string_builder qb;
-  qb.put("CREATE TABLE ");
-  if (!schema.empty()) qb.quote_identifier(schema).dot();
-  qb.quote_identifier(name).put(
-      " (doc JSON,"
-      "_id VARBINARY(32) GENERATED ALWAYS AS "
-      "(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY"
-      ") CHARSET utf8mb4 ENGINE=InnoDB;");
-
-  const ngs::PFS_string &tmp(qb.get());
-  log_debug("CreateCollection: %s", tmp.c_str());
-  Empty_resultset rset;
-  return da->execute_sql(tmp.c_str(), tmp.length(), &rset);
-}
-
-}  // namespace
-
 /* Stmt: create_collection
  * Required arguments:
  * - name: string - name of created collection
  * - schema: string - name of collection's schema
+ * - options: object, optional - additional collection options
  */
 ngs::Error_code Admin_command_handler::create_collection(
     Command_arguments *args) {
   DBUG_TRACE;
-  m_session->update_status(
-      &ngs::Common_status_variables::m_stmt_create_collection);
-
-  std::string schema;
-  std::string collection;
-
-  ngs::Error_code error =
-      args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
-          .string_arg({"name"}, &collection, Argument_appearance::k_obligatory)
-          .end();
-  if (error) return error;
-
-  if (schema.empty()) return ngs::Error_code(ER_X_BAD_SCHEMA, "Invalid schema");
-  if (collection.empty())
-    return ngs::Error_code(ER_X_BAD_TABLE, "Invalid collection name");
-
-  error =
-      create_collection_impl(&m_session->data_context(), schema, collection);
-  if (error) return error;
-  m_session->proto().send_exec_ok();
-  return ngs::Success();
+  return m_collection_handler.create_collection(args);
 }
 
 /* Stmt: drop_collection
@@ -352,37 +322,7 @@ ngs::Error_code Admin_command_handler::create_collection(
 ngs::Error_code Admin_command_handler::drop_collection(
     Command_arguments *args) {
   DBUG_TRACE;
-  m_session->update_status(
-      &ngs::Common_status_variables::m_stmt_drop_collection);
-
-  Query_string_builder qb;
-  std::string schema;
-  std::string collection;
-
-  ngs::Error_code error =
-      args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
-          .string_arg({"name"}, &collection, Argument_appearance::k_obligatory)
-          .end();
-  if (error) return error;
-
-  if (schema.empty()) return ngs::Error_code(ER_X_BAD_SCHEMA, "Invalid schema");
-  if (collection.empty())
-    return ngs::Error_code(ER_X_BAD_TABLE, "Invalid collection name");
-
-  qb.put("DROP TABLE ")
-      .quote_identifier(schema)
-      .dot()
-      .quote_identifier(collection);
-
-  const ngs::PFS_string &tmp(qb.get());
-  log_debug("DropCollection: %s", tmp.c_str());
-  Empty_resultset rset;
-  error =
-      m_session->data_context().execute_sql(tmp.data(), tmp.length(), &rset);
-  if (error) return error;
-  m_session->proto().send_exec_ok();
-
-  return ngs::Success();
+  return m_collection_handler.drop_collection(args);
 }
 
 /* Stmt: create_collection_index
@@ -407,8 +347,8 @@ ngs::Error_code Admin_command_handler::drop_collection(
  * VARCHAR and CHAR are now indexable because:
  * - varchar column needs to be created with a length, which would limit
  *   documents to have that field smaller than that
- * - if we use left() to truncate the value of the column, then the index won't
- *   be usable unless queries also specify left(), which is not desired.
+ * - if we use left() to truncate the value of the column, then the index
+ * won't be usable unless queries also specify left(), which is not desired.
  */
 ngs::Error_code Admin_command_handler::create_collection_index(
     Command_arguments *args) {
@@ -446,7 +386,7 @@ inline bool is_fixed_notice_name(const std::string &notice) {
          fixed_notice_names_end;
 }
 
-inline void add_notice_row(ngs::Protocol_encoder_interface *proto,
+inline void add_notice_row(iface::Protocol_encoder *proto,
                            const std::string &notice, longlong status) {
   proto->start_row();
   proto->row_builder()->field_string(notice.c_str(), notice.length());
@@ -575,7 +515,7 @@ ngs::Error_code Admin_command_handler::list_notices(Command_arguments *args) {
 }
 
 namespace {
-ngs::Error_code is_schema_selected_and_exists(ngs::Sql_session_interface *da,
+ngs::Error_code is_schema_selected_and_exists(iface::Sql_session *da,
                                               const std::string &schema) {
   Query_string_builder qb;
   qb.put("SHOW TABLES");
@@ -585,48 +525,13 @@ ngs::Error_code is_schema_selected_and_exists(ngs::Sql_session_interface *da,
   return da->execute_sql(qb.get().data(), qb.get().length(), &rset);
 }
 
-#define DOC_ID_REGEX R"(\\$\\._id)"
-#define DOC_ID_REGEX_NO_BACKSLASH_ESCAPES R"(\$\._id)"
-
-#define JSON_EXTRACT_REGEX(member) \
-  R"(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\'')" member R"(\\\\''\\))"
-#define JSON_EXTRACT_REGEX_NO_BACKSLASH_ESCAPES(member) \
-  R"(json_extract\(`doc`,(_[[:alnum:]]+)?\\'')" member R"(\\''\))"
-
-#define JSON_EXTRACT_UNQUOTE_REGEX(member) \
-  R"(^json_unquote\\()" JSON_EXTRACT_REGEX(member) R"(\\)$)"
-
-#define JSON_EXTRACT_UNQUOTE_REGEX_NO_BACKSLASH_ESCAPES(member) \
-  R"(^json_unquote\()" JSON_EXTRACT_REGEX_NO_BACKSLASH_ESCAPES(member) R"(\)$)"
-
-#define COUNT_WHEN(expresion) \
-  "COUNT(CASE WHEN (" expresion ") THEN 1 ELSE NULL END)"
-
-const char *const k_count_doc =
-    COUNT_WHEN("column_name = 'doc' AND data_type = 'json'");
-const char *const k_count_id = COUNT_WHEN(
-    "column_name = '_id' AND generation_expression RLIKE "
-    "'" JSON_EXTRACT_UNQUOTE_REGEX(DOC_ID_REGEX) "'");
-const char *const k_count_gen = COUNT_WHEN(
-    "column_name != '_id' AND column_name != 'doc' AND "
-    "generation_expression RLIKE '" JSON_EXTRACT_REGEX(DOC_MEMBER_REGEX) "'");
-
-const char *const k_count_id_no_backslash_escapes = COUNT_WHEN(
-    "column_name = '_id' AND generation_expression RLIKE "
-    "'" JSON_EXTRACT_UNQUOTE_REGEX_NO_BACKSLASH_ESCAPES(
-        DOC_ID_REGEX_NO_BACKSLASH_ESCAPES) "'");
-const char *const k_count_gen_no_backslash_escapes = COUNT_WHEN(
-    "column_name != '_id' AND column_name != 'doc' AND "
-    "generation_expression RLIKE '" JSON_EXTRACT_REGEX_NO_BACKSLASH_ESCAPES(
-        DOC_MEMBER_REGEX_NO_BACKSLASH_ESCAPES) "'");
-
 }  // namespace
 
 /* Stmt: list_objects
  * Required arguments:
  * - schema: string, optional - name of listed object's schema
- * - pattern: string, optional - a filter to use for matching object names to be
- * returned
+ * - pattern: string, optional - a filter to use for matching object names to
+ * be returned
  */
 ngs::Error_code Admin_command_handler::list_objects(Command_arguments *args) {
   m_session->update_status(&ngs::Common_status_variables::m_stmt_list_objects);
@@ -662,7 +567,9 @@ ngs::Error_code Admin_command_handler::list_objects(Command_arguments *args) {
           "IF(ANY_VALUE(T.table_type) LIKE '%VIEW', "
           "IF(COUNT(*)=1 AND ")
       .put(k_count_doc)
-      .put("=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = ");
+      .put("=1, 'COLLECTION_VIEW', 'VIEW'), IF(")
+      .put(k_count_without_schema)
+      .put("-2 = ");
 
   if (m_session->data_context().is_sql_mode_set("NO_BACKSLASH_ESCAPES")) {
     qb.put(k_count_gen_no_backslash_escapes)
@@ -704,87 +611,40 @@ ngs::Error_code Admin_command_handler::list_objects(Command_arguments *args) {
   return ngs::Success();
 }
 
-namespace {
-bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
-                   const std::string &name) {
-  Query_string_builder qb;
-  qb.put("SELECT COUNT(*) AS cnt,").put(k_count_doc).put(" AS doc,");
-
-  if (da->is_sql_mode_set("NO_BACKSLASH_ESCAPES"))
-    qb.put(k_count_id_no_backslash_escapes)
-        .put(" AS id,")
-        .put(k_count_gen_no_backslash_escapes);
-  else
-    qb.put(k_count_id).put(" AS id,").put(k_count_gen);
-
-  qb.put(
-        " AS gen "
-        "FROM information_schema.columns "
-        "WHERE table_name = ")
-      .quote_string(name)
-      .put(" AND table_schema = ");
-  if (schema.empty())
-    qb.put("schema()");
-  else
-    qb.quote_string(schema);
-
-  Sql_data_result result(da);
-  try {
-    result.query(qb.get());
-    if (result.size() != 1) {
-      log_debug(
-          "Unable to recognize '%s' as a collection; query result size: "
-          "%" PRIu64,
-          std::string(schema.empty() ? name : schema + "." + name).c_str(),
-          static_cast<uint64_t>(result.size()));
-      return false;
-    }
-    int64_t cnt = 0, doc = 0, id = 0, gen = 0;
-    result.get(&cnt, &doc, &id, &gen);
-    return doc == 1 && id == 1 && (cnt == gen + doc + id);
-  } catch (const ngs::Error_code &DEBUG_VAR(e)) {
-    log_debug(
-        "Unable to recognize '%s' as a collection; exception message: '%s'",
-        std::string(schema.empty() ? name : schema + "." + name).c_str(),
-        e.message.c_str());
-    return false;
-  }
-}
-
-}  // namespace
-
 /* Stmt: ensure_collection
  * Required arguments:
  * - name: string - name of created collection
  * - schema: string, optional - name of collection's schema
+ * - options: object, optional - additional collection options
  */
 ngs::Error_code Admin_command_handler::ensure_collection(
     Command_arguments *args) {
-  m_session->update_status(
-      &ngs::Common_status_variables::m_stmt_ensure_collection);
-  std::string schema;
-  std::string collection;
+  DBUG_TRACE;
+  return m_collection_handler.ensure_collection(args);
+}
 
-  ngs::Error_code error =
-      args->string_arg({"schema"}, &schema, Argument_appearance::k_optional)
-          .string_arg({"name"}, &collection, Argument_appearance::k_obligatory)
-          .end();
-  if (error) return error;
+/* Stmt: modify_collection_options
+ * Required arguments:
+ * - name: string - name of collection
+ * - schema: string - name of collection's schema
+ * - options: object, optional - additional collection options
+ */
+ngs::Error_code Admin_command_handler::modify_collection_options(
+    Command_arguments *args) {
+  DBUG_TRACE;
+  return m_collection_handler.modify_collection_options(args);
+}
 
-  if (collection.empty())
-    return ngs::Error_code(ER_X_BAD_TABLE, "Invalid collection name");
-
-  error =
-      create_collection_impl(&m_session->data_context(), schema, collection);
-  if (error) {
-    if (error.error != ER_TABLE_EXISTS_ERROR) return error;
-    if (!is_collection(&m_session->data_context(), schema, collection))
-      return ngs::Error(
-          ER_X_INVALID_COLLECTION, "Table '%s' exists but is not a collection",
-          (schema.empty() ? collection : schema + '.' + collection).c_str());
-  }
-  m_session->proto().send_exec_ok();
-  return ngs::Success();
+/* Stmt: get_collection_options
+ * Required arguments:
+ * - name: string - name of collection
+ * - schema: string - name of collection's schema
+ * - options: object - collection options to fetch
+ */
+ngs::Error_code Admin_command_handler::get_collection_options(
+    Command_arguments *args) {
+  DBUG_TRACE;
+  return m_collection_handler.get_collection_options(args);
 }
 
 const char *const Admin_command_handler::Command_arguments::k_placeholder = "?";

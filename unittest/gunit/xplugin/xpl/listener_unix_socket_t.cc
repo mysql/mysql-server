@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,24 +22,24 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "my_config.h"
-
 #include <errno.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_inttypes.h"
-#include "my_io.h"
+#include <cstdint>
+
+#include "my_config.h"  // NOLINT(build/include_subdir)
+#include "my_io.h"      // NOLINT(build/include_subdir)
+
 #include "plugin/x/src/io/xpl_listener_unix_socket.h"
 #include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
 
 namespace xpl {
+namespace test {
 
-namespace tests {
+using namespace ::testing;  // NOLINT(build/namespaces)
 
-using namespace ::testing;
-
-const uint32 BACKLOG = 122;
+const uint32_t BACKLOG = 122;
 const my_socket SOCKET_OK = 10;
 const int BIND_OK = 0;
 const int LISTEN_ERR = -1;
@@ -54,9 +54,9 @@ const int FSYNC_OK = 0;
 const int CLOSE_ERR = -1;
 const int CLOSE_OK = 0;
 const int CURRENT_PID = 6;
-const std::string UNIX_SOCKET_FILE_CONTENT = "X6\n";  // "X%d" % CURRENT_PID
-const std::string UNIX_SOCKET_FILE = "/tmp/xplugin_test.sock";
-const std::string UNIX_SOCKET_LOCK_FILE = "/tmp/xplugin_test.sock.lock";
+const char *const UNIX_SOCKET_FILE_CONTENT = "X6\n";  // "X%d" % CURRENT_PID
+const char *const UNIX_SOCKET_FILE = "/tmp/xplugin_test.sock";
+const char *const UNIX_SOCKET_LOCK_FILE = "/tmp/xplugin_test.sock.lock";
 
 MATCHER(EqInvalidSocket, "") {
   return INVALID_SOCKET == mysql_socket_getfd(arg);
@@ -64,19 +64,18 @@ MATCHER(EqInvalidSocket, "") {
 
 MATCHER_P(EqCastToCStr, expected, "") {
   std::string force_string = expected;
-  return force_string == (char *)arg;
+  return force_string == static_cast<char *>(arg);
 }
 
 class Listener_unix_socket_testsuite : public Test {
  public:
   void SetUp() {
-    m_mock_factory = std::make_shared<StrictMock<ngs::test::Mock_factory>>();
-    m_mock_socket = std::make_shared<StrictMock<ngs::test::Mock_socket>>();
-    m_mock_system = std::make_shared<StrictMock<ngs::test::Mock_system>>();
-    m_mock_file = std::make_shared<StrictMock<ngs::test::Mock_file>>();
-    m_mock_socket_invalid =
-        std::make_shared<StrictMock<ngs::test::Mock_socket>>();
-    m_mock_file_invalid = std::make_shared<StrictMock<ngs::test::Mock_file>>();
+    m_mock_factory = std::make_shared<StrictMock<Mock_factory>>();
+    m_mock_socket = std::make_shared<StrictMock<Mock_socket>>();
+    m_mock_system = std::make_shared<StrictMock<Mock_system>>();
+    m_mock_file = std::make_shared<StrictMock<Mock_file>>();
+    m_mock_socket_invalid = std::make_shared<StrictMock<Mock_socket>>();
+    m_mock_file_invalid = std::make_shared<StrictMock<Mock_file>>();
 
     EXPECT_CALL(*m_mock_factory, create_system_interface())
         .WillRepeatedly(Return(m_mock_system));
@@ -99,8 +98,8 @@ class Listener_unix_socket_testsuite : public Test {
     EXPECT_CALL(*m_mock_factory, open_file(StrEq(UNIX_SOCKET_LOCK_FILE), _, _))
         .WillOnce(Return(m_mock_file));
     EXPECT_CALL(*m_mock_file, write(EqCastToCStr(UNIX_SOCKET_FILE_CONTENT),
-                                    UNIX_SOCKET_FILE_CONTENT.length()))
-        .WillOnce(Return(UNIX_SOCKET_FILE_CONTENT.length()));
+                                    strlen(UNIX_SOCKET_FILE_CONTENT)))
+        .WillOnce(Return(strlen(UNIX_SOCKET_FILE_CONTENT)));
     EXPECT_CALL(*m_mock_file, fsync()).WillOnce(Return(FSYNC_OK));
     EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_OK));
   }
@@ -118,11 +117,11 @@ class Listener_unix_socket_testsuite : public Test {
         .WillRepeatedly(Return(SOCKET_OK));  // back in setup_listener()
     EXPECT_CALL(*m_mock_socket, set_socket_thread_owner());
 
-    ngs::Socket_interface::Shared_ptr socket = m_mock_socket;
+    std::shared_ptr<iface::Socket> socket = m_mock_socket;
     EXPECT_CALL(m_mock_socket_events, listen(socket, _)).WillOnce(Return(true));
 
     ASSERT_TRUE(sut->setup_listener(nullptr));
-    ASSERT_TRUE(sut->get_state().is(ngs::State_listener_prepared));
+    ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_prepared));
 
     ASSERT_NO_FATAL_FAILURE(assert_and_clear_mocks());
   }
@@ -135,13 +134,13 @@ class Listener_unix_socket_testsuite : public Test {
     ASSERT_TRUE(Mock::VerifyAndClearExpectations(m_mock_factory.get()));
   }
 
-  std::shared_ptr<ngs::test::Mock_socket> m_mock_socket;
-  std::shared_ptr<ngs::test::Mock_socket> m_mock_socket_invalid;
-  std::shared_ptr<ngs::test::Mock_system> m_mock_system;
-  std::shared_ptr<ngs::test::Mock_file> m_mock_file_invalid;
-  std::shared_ptr<ngs::test::Mock_file> m_mock_file;
-  StrictMock<ngs::test::Mock_socket_events> m_mock_socket_events;
-  std::shared_ptr<ngs::test::Mock_factory> m_mock_factory;
+  std::shared_ptr<Mock_socket> m_mock_socket;
+  std::shared_ptr<Mock_socket> m_mock_socket_invalid;
+  std::shared_ptr<Mock_system> m_mock_system;
+  std::shared_ptr<Mock_file> m_mock_file_invalid;
+  std::shared_ptr<Mock_file> m_mock_file;
+  StrictMock<Mock_socket_events> m_mock_socket_events;
+  std::shared_ptr<Mock_factory> m_mock_factory;
 
   std::shared_ptr<Listener_unix_socket> sut;
 };
@@ -158,7 +157,7 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -172,7 +171,7 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -189,7 +188,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_create_a_lockfile) {
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -207,7 +206,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_open_existing_lockfile) {
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -226,7 +225,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_read_existing_lockfile) {
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -246,7 +245,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_empty_lockfile) {
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -268,7 +267,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_not_x_plugin_lockfile) {
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -295,7 +294,7 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -323,7 +322,7 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -341,7 +340,7 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -355,15 +354,14 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
   EXPECT_CALL(*m_mock_factory, open_file(StrEq(UNIX_SOCKET_LOCK_FILE), _, _))
       .WillOnce(Return(m_mock_file));
-  EXPECT_CALL(*m_mock_file,
-              write(EqCastToCStr(UNIX_SOCKET_FILE_CONTENT.c_str()),
-                    UNIX_SOCKET_FILE_CONTENT.length()))
-      .WillOnce(Return(UNIX_SOCKET_FILE_CONTENT.length()));
+  EXPECT_CALL(*m_mock_file, write(EqCastToCStr(UNIX_SOCKET_FILE_CONTENT),
+                                  strlen(UNIX_SOCKET_FILE_CONTENT)))
+      .WillOnce(Return(strlen(UNIX_SOCKET_FILE_CONTENT)));
   EXPECT_CALL(*m_mock_file, fsync()).WillOnce(Return(FSYNC_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -377,16 +375,15 @@ TEST_F(Listener_unix_socket_testsuite,
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
   EXPECT_CALL(*m_mock_factory, open_file(StrEq(UNIX_SOCKET_LOCK_FILE), _, _))
       .WillOnce(Return(m_mock_file));
-  EXPECT_CALL(*m_mock_file,
-              write(EqCastToCStr(UNIX_SOCKET_FILE_CONTENT.c_str()),
-                    UNIX_SOCKET_FILE_CONTENT.length()))
-      .WillOnce(Return(UNIX_SOCKET_FILE_CONTENT.length()));
+  EXPECT_CALL(*m_mock_file, write(EqCastToCStr(UNIX_SOCKET_FILE_CONTENT),
+                                  strlen(UNIX_SOCKET_FILE_CONTENT)))
+      .WillOnce(Return(strlen(UNIX_SOCKET_FILE_CONTENT)));
   EXPECT_CALL(*m_mock_file, fsync()).WillOnce(Return(FSYNC_OK));
   EXPECT_CALL(*m_mock_file, close()).WillOnce(Return(CLOSE_ERR));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -397,11 +394,11 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_create_socket_failed) {
   EXPECT_CALL(*m_mock_factory, create_socket(_, AF_UNIX, SOCK_STREAM, 0))
       .WillOnce(Return(m_mock_socket_invalid));
   EXPECT_CALL(*m_mock_system, get_socket_error_and_message(_, _))
-      .WillOnce(DoAll(SetArgReferee<0>(0), SetArgReferee<1>("")));
+      .WillOnce(DoAll(SetArgPointee<0>(0), SetArgPointee<1>("")));
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -415,7 +412,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_listen_failed) {
   EXPECT_CALL(*m_mock_socket, bind(_, _)).WillOnce(Return(BIND_OK));
   EXPECT_CALL(*m_mock_socket, listen(_)).WillOnce(Return(LISTEN_ERR));
   EXPECT_CALL(*m_mock_system, get_socket_error_and_message(_, _))
-      .WillOnce(DoAll(SetArgReferee<0>(0), SetArgReferee<1>("")));
+      .WillOnce(DoAll(SetArgPointee<0>(0), SetArgPointee<1>("")));
   EXPECT_CALL(*m_mock_socket, get_socket_fd())
       .WillOnce(Return(SOCKET_OK))              // before m_mock_socket.close()
       .WillRepeatedly(Return(INVALID_SOCKET));  // after  m_mock_socket.close()
@@ -424,7 +421,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_listen_failed) {
                   // second call in SUT destructor
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -444,7 +441,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_event_regiester_failure) {
       .WillRepeatedly(Return(SOCKET_OK));  // back in setup_listener()
   EXPECT_CALL(*m_mock_socket, set_socket_thread_owner());
 
-  ngs::Socket_interface::Shared_ptr socket = m_mock_socket;
+  std::shared_ptr<iface::Socket> socket = m_mock_socket;
   EXPECT_CALL(m_mock_socket_events, listen(socket, _)).WillOnce(Return(false));
 
   EXPECT_CALL(*m_mock_system, unlink(StrEq(UNIX_SOCKET_LOCK_FILE)))
@@ -453,7 +450,7 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_event_regiester_failure) {
   EXPECT_CALL(*m_mock_socket, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 
 #endif
 }
@@ -484,7 +481,7 @@ TEST_F(Listener_unix_socket_testsuite, unix_socket_unsupported) {
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
+  ASSERT_TRUE(sut->get_state().is(iface::Listener::State::k_stopped));
 #endif
 }
 
@@ -515,6 +512,5 @@ TEST_F(Listener_unix_socket_testsuite, close_listener_closes_valid_socket) {
 #endif
 }
 
-}  // namespace tests
-
+}  // namespace test
 }  // namespace xpl

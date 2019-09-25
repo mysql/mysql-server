@@ -1,0 +1,483 @@
+## Test create_collection command in context of schema validation
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Tests start here
+
+create schema xtest default charset 'utf8mb4';
+
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_collection_with_validation.tmp
+--write_file $xtest_file
+-->import validation_schema.macro
+-->varlet %TEST_COLL% test_coll
+
+-->macro Drop_test_collection
+-->callmacro Drop_collection	%TEST_COLL%
+-->endmacro
+
+varlet %CREATE_COLLECTION_ARG_HEAD% {
+       "schema": "xtest", "name": "%TEST_COLL%", "options": {"validation":;
+-->varlet %CREATE_COLLECTION_ARG_TAIL% }}
+
+-->macro Create_collection_validation_string %LEVEL%
+varlet %STR% %CREATE_COLLECTION_ARG_HEAD% {"schema": "{
+ \"id\": \"http://json-schema.org/geo\",
+ \"$schema\": \"http://json-schema.org/draft-06/schema#\",
+ \"description\": \"A geographical coordinate\",
+ \"type\": \"object\",
+ \"properties\": {
+   \"latitude\": {\"type\": \"number\", \"minimum\": -90, \"maximum\": 90},
+   \"longitude\": {\"type\": \"number\", \"minimum\": -180, \"maximum\": 180}},
+ \"required\": [\"latitude\", \"longitude\"]}",
+ "level": %LEVEL%}
+ %CREATE_COLLECTION_ARG_TAIL%;
+-->stmtadmin COMMAND	%STR%
+-->endmacro
+
+-->macro Create_collection_validation_obj %LEVEL%
+varlet %STR% %CREATE_COLLECTION_ARG_HEAD% {"schema": {
+  "id": "http://json-schema.org/geo",
+  "$schema": "http://json-schema.org/draft-06/schema#",
+  "description": "A geographical coordinate",
+  "type": "object",
+  "properties": {
+    "latitude": {"type": "number", "minimum": -90, "maximum": 90},
+    "longitude": {"type": "number", "minimum": -180, "maximum": 180}},
+  "required": ["latitude", "longitude"]},
+ "level": %LEVEL%}
+ %CREATE_COLLECTION_ARG_TAIL%;
+-->stmtadmin COMMAND	%STR%
+-->endmacro
+
+-->echo
+-->echo
+-->echo ## I. Check validation schema setting when creating a collection. Check
+-->echo #     result of insert operation which violates the check constraints.
+-->echo #
+-->echo # 1. Check collection creation with valid schema encoded as protobuf
+-->echo #    string.
+-->echo # 2. Check collection creation with valid schema encoded as
+-->echo #    Mysqlx.Datatypes.Object.
+-->echo # 3. Check that when validation is not enforced then it is possible to
+-->echo #    insert noncopmlying data.
+-->echo # 4. Check collection creation using schema encoded as
+-->echo #    Mysqlx>datatypes.Object containing special characters in key/values.
+-->echo
+-->echo ## II. Check validation level setting.
+-->echo #
+-->echo # 1. Check validation level set to 'off'.
+-->echo #   a. Check validation level for validation encoded as protobuf string.
+-->echo #   b. Check validation level for validation encoded as
+-->echo #      Mysqlx.Datatypes.Object.
+-->echo # 2. Check validation level set to 'strict'.
+-->echo #   a. Check validation level for validation encoded as protobuf string.
+-->echo #   b. Check validation level for validation encoded as
+-->echo #      Mysqlx.Datatypes.Object.
+-->echo # 3. Assert that validation field is optional and check the default
+-->echo #    setting for validation level.
+-->echo #   a. Check validation level for validation encoded as protobuf string.
+-->echo #   b. Check validation level for validation encoded as
+-->echo #      Mysqlx.Datatypes.Object.
+-->echo # 4. Check invalid value for validation level field.
+-->echo #   a. Check validation level for validation encoded as protobuf string.
+-->echo #   b. Check validation level for validation encoded as
+-->echo #      Mysqlx.Datatypes.Object.
+-->echo # 5. Check invalid collection option.
+-->echo
+-->echo ## III. Create collection without the optional validation field.
+-->echo
+-->echo ## IV. Create collection with empty validation schema field.
+-->echo #
+-->echo # 1. Check empty validation schema for validation encoded as protobuf
+-->echo #    string.
+-->echo # 2. Check empty validation schema for validation encoded as
+-->echo #    Mysqlx.Datatypes.Object.
+-->echo
+-->echo ## V. Create collection with invalid validation options.
+-->echo #
+-->echo # 1. Validation contains only unknown fields.
+-->echo # 2. Validation contains valid fields along with unknown fields.
+-->echo # 3. Options is different type than "object".
+
+-->quiet
+
+-->echo
+-->echo #
+-->echo # I.1
+-->callmacro Create_collection_validation_string "strict"
+-->recvresult
+-->stmtsql show create table xtest.%TEST_COLL%
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "one", "latitude":3312}';
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "one", "latitude":45, "longitude":54}';
+-->recvresult
+callmacro Update_item %TEST_COLL%
+	latitude
+	{type: V_SINT v_signed_int: 45}
+	{type: V_SINT v_signed_int: 999};
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+callmacro Update_item %TEST_COLL%
+	latitude
+	{type: V_SINT v_signed_int: 45}
+	{type: V_SINT v_signed_int: 72};
+-->recvresult
+-->stmtsql SELECT * FROM xtest.%TEST_COLL%;
+-->recvresult
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # I.2
+-->callmacro Create_collection_validation_obj "strict"
+-->recvresult
+-->stmtsql show create table xtest.%TEST_COLL%
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "one", "latitude":3312}';
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "one", "latitude":45, "longitude":54}';
+-->recvresult
+callmacro Update_item %TEST_COLL%
+	latitude
+	{type: V_SINT v_signed_int: 45}
+	{type: V_SINT v_signed_int: 999};
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+callmacro Update_item %TEST_COLL%
+	latitude
+	{type: V_SINT v_signed_int: 45}
+	{type: V_SINT v_signed_int: 72};
+-->recvresult
+-->stmtsql select * from xtest.%TEST_COLL%;
+-->recvresult
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # I.3
+-->callmacro Create_collection_validation_string "off"
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "one", "latitude":3312}';
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "two", "latitude":45, "longitude":54}';
+-->recvresult
+-->stmtsql select * from xtest.%TEST_COLL%;
+-->recvresult
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # I.4
+stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options": {
+  "validation": {
+    "schema": {"description": "t`y\\p\"e o`b`\\\\c\"\"t"}
+  }
+}};
+-->recvresult
+-->stmtsql show create table xtest.%TEST_COLL%
+-->recvresult
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # II.1.a
+-->callmacro Create_collection_validation_string "off"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	NO
+-->callmacro Drop_test_collection
+-->callmacro Create_collection_validation_string "OFF"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	NO
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # II.1.b
+-->callmacro Create_collection_validation_obj "off"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	NO
+-->callmacro Drop_test_collection
+-->callmacro Create_collection_validation_obj "OFF"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	NO
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # II.2.a
+-->callmacro Create_collection_validation_string "strict"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Drop_test_collection
+-->callmacro Create_collection_validation_string "STRICT"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # II.2.b
+-->callmacro Create_collection_validation_obj "strict"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Drop_test_collection
+-->callmacro Create_collection_validation_obj "STRICT"
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # II.3.a
+stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options": {
+  "validation": {
+    "schema": "{\"type\": \"object\"}"
+  }
+}};
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # II.3.b
+stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options": {
+  "validation": {
+    "schema": {"type": "object"}
+  }
+}};
+-->recvresult
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # II.4.a
+-->callmacro Create_collection_validation_string "somerandomgarbage"
+-->recverror ER_X_CMD_ARGUMENT_VALUE
+
+-->echo
+-->echo #
+-->echo # II.4.b
+-->callmacro Create_collection_validation_obj "somerandomgarbage"
+-->recverror ER_X_CMD_ARGUMENT_VALUE
+
+-->echo
+-->echo #
+-->echo # II.5
+stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options": {
+  "foo": {
+    "schema": {"type": "object"}
+  }
+}};
+-->recverror ER_X_CMD_INVALID_ARGUMENT
+
+-->echo
+-->echo #
+-->echo # III
+-->stmtadmin COMMAND	{"schema": "xtest", "name": "%TEST_COLL%"}
+-->recvresult
+-->stmtsql show create table xtest.%TEST_COLL%
+-->recvresult
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # IV.1
+stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options": {
+  "validation": {
+    "schema": "{}"
+  }
+}};
+-->recvresult
+-->stmtsql show create table xtest.%TEST_COLL%
+-->recvresult
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # IV.2
+stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options": {
+  "validation": {
+    "schema": {}
+  }
+}};
+-->recvresult
+-->stmtsql show create table xtest.%TEST_COLL%
+-->recvresult
+-->callmacro Drop_test_collection
+
+
+-->echo
+-->echo #
+-->echo # V.1
+stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options": {
+  "validation": {
+    "foo": "bar", "baz": ""
+  }
+}};
+-->recverror ER_X_CMD_NUM_ARGUMENTS
+
+
+-->echo
+-->echo #
+-->echo # V.2
+stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options": {
+  "validation": {
+    "foo": "bar", "level": "off"
+  }
+}};
+-->recverror ER_X_CMD_NUM_ARGUMENTS
+
+-->echo
+-->echo #
+-->echo # V.3
+stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options":
+  "dump" };
+-->recverror ER_X_CMD_ARGUMENT_TYPE
+
+EOF
+
+--let $xtest_file_2= $MYSQL_TMP_DIR/admin_ensure_collection_validation_custom.tmp
+--write_file $xtest_file_2
+
+-->echo
+-->echo
+-->echo ## I. Check that validation schema do not affect how ensure_collection
+-->echo ##    establishes whether to create a collection.
+-->echo #
+-->echo # 1. Try to create two collections with same name and identical
+-->echo #    validation schema.
+-->echo # 2. Try to create two collections with same name and different
+-->echo #    validation schema.
+-->echo # 3. Try to create two collections with same name, one containing
+-->echo #    custom validation schema and the next without a validation schema.
+-->echo # 4. Try to create two collections with different name and identical
+-->echo #    validation schema.
+-->echo # 5. Try to create two collections with different name and different
+-->echo #    validation schema.
+
+-->echo
+-->echo #
+-->echo # I.1
+stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description":"bar"}
+  }
+}};
+-->recvresult
+stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description":"bar"}
+  }
+}};
+-->recvresult
+-->noquiet
+-->stmtsql show create table xtest.test_coll
+-->recvresult
+-->quiet
+-->stmtsql DROP TABLE IF EXISTS xtest.test_coll
+-->recvresult
+
+-->echo
+-->echo #
+-->echo # I.2
+stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description":"baz"}
+  }
+}};
+-->recvresult
+stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description":"foo"}
+  }
+}};
+-->recvresult
+-->noquiet
+-->stmtsql show create table xtest.test_coll
+-->recvresult
+-->quiet
+-->stmtsql DROP TABLE IF EXISTS xtest.test_coll
+-->recvresult
+
+-->echo
+-->echo #
+-->echo # I.3
+stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"description":"custom schema"}
+  }
+}};
+-->recvresult
+-->stmtsql show create table xtest.test_coll
+-->recvresult
+-->stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll"}
+-->recvresult
+-->stmtsql show create table xtest.test_coll
+-->recvresult
+-->stmtsql DROP TABLE IF EXISTS xtest.test_coll
+-->recvresult
+
+-->echo
+-->echo #
+-->echo # I.4
+stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"type":"object"}
+  }
+}};
+-->recvresult
+stmtadmin ensure_collection	{"schema": "xtest", "name": "foo_bar", "options": {
+  "validation": {
+    "schema": {"type":"object"}
+  }
+}};
+-->recvresult
+-->stmtsql DROP TABLE IF EXISTS xtest.test_coll
+-->recvresult
+-->stmtsql DROP TABLE IF EXISTS xtest.foo_bar
+-->recvresult
+
+-->echo
+-->echo #
+-->echo # I.5
+stmtadmin ensure_collection	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": {"type":"object"}
+  }
+}};
+-->recvresult
+stmtadmin ensure_collection	{"schema": "xtest", "name": "foo_bar", "options": {
+  "validation": {
+    "schema": {"description":"foo"}
+  }
+}};
+-->recvresult
+-->stmtsql DROP TABLE IF EXISTS xtest.test_coll
+-->recvresult
+-->stmtsql DROP TABLE IF EXISTS xtest.foo_bar
+-->recvresult
+
+EOF
+
+--let $command=create_collection
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file -vCOMMAND=$command 2>&1
+
+--let $command=ensure_collection
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file -vCOMMAND=$command 2>&1
+
+--let $command=ensure_collection
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file_2 -vCOMMAND=$command 2>&1
+
+## Cleanup
+--remove_file $xtest_file
+--remove_file $xtest_file_2
+--source include/xplugin_drop_user.inc
+drop schema if exists xtest;

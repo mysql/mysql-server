@@ -25,10 +25,14 @@
 #ifndef PLUGIN_X_SRC_XPL_CLIENT_H_
 #define PLUGIN_X_SRC_XPL_CLIENT_H_
 
+#include <memory>
+#include <string>
+
 #include "plugin/x/ngs/include/ngs/client.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/src/global_timeouts.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
+#include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/interface/vio.h"
 
 struct SHOW_VAR;
 
@@ -37,7 +41,7 @@ class Session;
 
 class Client;
 
-class Protocol_monitor : public ngs::Protocol_monitor_interface {
+class Protocol_monitor : public iface::Protocol_monitor {
  public:
   Protocol_monitor() : m_client(0) {}
   void init(Client *client);
@@ -65,9 +69,9 @@ class Protocol_monitor : public ngs::Protocol_monitor_interface {
 
 class Client : public ngs::Client {
  public:
-  Client(std::shared_ptr<ngs::Vio_interface> connection,
-         ngs::Server_interface &server, Client_id client_id,
-         Protocol_monitor *pmon, const Global_timeouts &timeouts);
+  Client(std::shared_ptr<iface::Vio> connection, iface::Server &server,
+         Client_id client_id, Protocol_monitor *pmon,
+         const Global_timeouts &timeouts);
   ~Client() override;
 
  public:  // impl ngs::Client

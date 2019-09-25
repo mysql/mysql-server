@@ -13,6 +13,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
@@ -27,6 +28,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 0 rows affected
 ### Indexes of spatial1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -45,15 +47,18 @@ Table	Create Table
 spatial1	CREATE TABLE `spatial1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   `$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B` geometry GENERATED ALWAYS AS (st_geomfromgeojson(json_extract(`doc`,_utf8mb4'$.first'),1,4326)) STORED NOT NULL /*!80003 SRID 4326 */,
   PRIMARY KEY (`_id`),
-  SPATIAL KEY `one` (`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`)
+  SPATIAL KEY `one` (`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`),
+  CONSTRAINT `$val_strict_BC152A14972B95B2FBEE160AF396AF2E56657864` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 ### Columns of spatial1
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
@@ -69,6 +74,7 @@ Records: 0  Duplicates: 0  Warnings: 0
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 0 rows affected
 ### Indexes of spatial1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -84,6 +90,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
@@ -182,6 +189,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
@@ -200,6 +208,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of spatial1
@@ -223,6 +232,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	geometry	NO	MUL	null	STORED GENERATED
 $ix_gj_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	geometry	NO	MUL	null	STORED GENERATED
 0 rows affected

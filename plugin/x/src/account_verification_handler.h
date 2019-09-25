@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,24 +26,27 @@
 #define PLUGIN_X_SRC_ACCOUNT_VERIFICATION_HANDLER_H_
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/src/interface/account_verification.h"
+#include "plugin/x/src/interface/authentication.h"
+#include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/sql_user_require.h"
 
 namespace xpl {
 
 class Account_verification_handler {
  public:
-  explicit Account_verification_handler(ngs::Session_interface *session)
+  using Unique_ptr = std::unique_ptr<Account_verification_handler>;
+
+  explicit Account_verification_handler(iface::Session *session)
       : m_session(session) {}
   Account_verification_handler(
-      ngs::Session_interface *session,
-      const ngs::Account_verification_interface::Account_type account_type,
-      ngs::Account_verification_interface *verificator)
+      iface::Session *session,
+      const iface::Account_verification::Account_type account_type,
+      iface::Account_verification *verificator)
       : m_session(session), m_account_type(account_type) {
     add_account_verificator(account_type, verificator);
   }
@@ -51,29 +54,28 @@ class Account_verification_handler {
   virtual ~Account_verification_handler() {}
 
   virtual ngs::Error_code authenticate(
-      const ngs::Authentication_interface &account_verificator,
-      ngs::Authentication_info *authenication_info,
+      const iface::Authentication &account_verificator,
+      iface::Authentication_info *authenication_info,
       const std::string &sasl_message) const;
 
   ngs::Error_code verify_account(
       const std::string &user, const std::string &host,
       const std::string &passwd,
-      const ngs::Authentication_info *authenication_info) const;
+      const iface::Authentication_info *authenication_info) const;
 
   void add_account_verificator(
-      const ngs::Account_verification_interface::Account_type account_type,
-      ngs::Account_verification_interface *verificator) {
+      const iface::Account_verification::Account_type account_type,
+      iface::Account_verification *verificator) {
     m_verificators[account_type].reset(verificator);
   }
 
-  virtual const ngs::Account_verification_interface *get_account_verificator(
-      const ngs::Account_verification_interface::Account_type account_type)
-      const;
+  virtual const iface::Account_verification *get_account_verificator(
+      const iface::Account_verification::Account_type account_type) const;
 
  private:
-  typedef std::map<ngs::Account_verification_interface::Account_type,
-                   ngs::Account_verification_interface_ptr>
-      Account_verificator_list;
+  using Account_verificator_list =
+      std::map<iface::Account_verification::Account_type,
+               std::unique_ptr<iface::Account_verification>>;
 
   struct Account_record {
     bool require_secure_transport{true};
@@ -94,7 +96,7 @@ class Account_verification_handler {
                                 std::size_t &element_position,
                                 std::string &sub_message) const;
 
-  ngs::Account_verification_interface::Account_type get_account_verificator_id(
+  iface::Account_verification::Account_type get_account_verificator_id(
       const std::string &plugin_name) const;
 
   ngs::Error_code get_account_record(const std::string &user,
@@ -104,14 +106,11 @@ class Account_verification_handler {
   ngs::PFS_string get_sql(const std::string &user,
                           const std::string &host) const;
 
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Account_verificator_list m_verificators;
-  ngs::Account_verification_interface::Account_type m_account_type =
-      ngs::Account_verification_interface::Account_unsupported;
+  iface::Account_verification::Account_type m_account_type =
+      iface::Account_verification::Account_type::k_unsupported;
 };
-
-typedef ngs::Memory_instrumented<Account_verification_handler>::Unique_ptr
-    Account_verification_handler_ptr;
 
 }  // namespace xpl
 

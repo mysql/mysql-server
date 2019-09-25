@@ -22,34 +22,32 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SOCKET_ACCEPTORS_TASK_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_SOCKET_ACCEPTORS_TASK_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
+#include "plugin/x/src/interface/listener.h"
+#include "plugin/x/src/interface/listener_factory.h"
+#include "plugin/x/src/interface/server_task.h"
+#include "plugin/x/src/interface/socket_events.h"
 
 namespace ngs {
 
-class Socket_acceptors_task : public Server_task_interface {
+class Socket_acceptors_task : public xpl::iface::Server_task {
  public:
-  using On_connection = Listener_interface::On_connection;
+  using On_connection = xpl::iface::Listener::On_connection;
 
  public:
-  Socket_acceptors_task(Listener_factory_interface &listener_factory,
-                        const std::string &tcp_bind_address,
-                        const std::string &network_namespace,
-                        const uint16 tcp_port,
-                        const uint32 tcp_port_open_timeout,
-                        const std::string &unix_socket_file,
-                        const uint32 backlog,
-                        const std::shared_ptr<Socket_events_interface> &event);
+  Socket_acceptors_task(
+      xpl::iface::Listener_factory &listener_factory,
+      const std::string &tcp_bind_address, const std::string &network_namespace,
+      const uint16_t tcp_port, const uint32_t tcp_port_open_timeout,
+      const std::string &unix_socket_file, const uint32_t backlog,
+      const std::shared_ptr<xpl::iface::Socket_events> &event);
 
   bool prepare(Task_context *context) override;
   void stop(const Stop_cause cause = Stop_cause::k_normal_shutdown) override;
@@ -60,28 +58,28 @@ class Socket_acceptors_task : public Server_task_interface {
   void loop() override;
 
  private:
-  using Listener_interfaces = std::vector<Listener_interface *>;
+  using Listener_interfaces = std::vector<xpl::iface::Listener *>;
   class Server_task_time_and_event;
 
   bool prepare_impl(Task_context *context);
   Listener_interfaces get_array_of_listeners();
   void show_startup_log();
 
-  static bool is_listener_configured(Listener_interface *listener);
-  static void log_listener_state(Listener_interface *listener);
-  static void mark_as_stopped(Listener_interface *listener);
-  static void wait_until_stopped(Listener_interface *listener);
-  static void close_listener(Listener_interface *listener);
-  static bool check_listener_status(Listener_interface *listener);
+  static bool is_listener_configured(xpl::iface::Listener *listener);
+  static void log_listener_state(xpl::iface::Listener *listener);
+  static void mark_as_stopped(xpl::iface::Listener *listener);
+  static void wait_until_stopped(xpl::iface::Listener *listener);
+  static void close_listener(xpl::iface::Listener *listener);
+  static bool check_listener_status(xpl::iface::Listener *listener);
 
-  std::shared_ptr<Socket_events_interface> m_event;
+  std::shared_ptr<xpl::iface::Socket_events> m_event;
   std::string m_bind_address;
-  Listener_interface_ptr m_tcp_socket;
-  Listener_interface_ptr m_unix_socket;
+  std::unique_ptr<xpl::iface::Listener> m_tcp_socket;
+  std::unique_ptr<xpl::iface::Listener> m_unix_socket;
 
-  Listener_interface::Sync_variable_state m_time_and_event_state;
+  xpl::iface::Listener::Sync_variable_state m_time_and_event_state;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SOCKET_ACCEPTORS_TASK_H_

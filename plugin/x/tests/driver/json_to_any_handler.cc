@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,10 @@ bool Json_to_any_handler::EndObject(rapidjson::SizeType /*member_count*/) {
 }
 
 bool Json_to_any_handler::StartArray() {
+  Any *any = m_stack.top();
+  if (any->has_type() && any->type() == ::Mysqlx::Datatypes::Any_Type_ARRAY)
+    m_stack.push(any->mutable_array()->add_value());
+
   m_stack.top()->set_type(::Mysqlx::Datatypes::Any_Type_ARRAY);
   m_stack.top()->mutable_array();
   return true;

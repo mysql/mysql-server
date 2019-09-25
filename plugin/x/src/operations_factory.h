@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,22 +27,20 @@
 
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
+#include "plugin/x/src/interface/operations_factory.h"
 
 namespace xpl {
 
-class Operations_factory : public ngs::Operations_factory_interface {
+class Operations_factory : public iface::Operations_factory {
  public:
-  std::shared_ptr<ngs::Socket_interface> create_socket(PSI_socket_key key,
-                                                       int domain, int type,
-                                                       int protocol);
-  std::shared_ptr<ngs::Socket_interface> create_socket(
-      MYSQL_SOCKET mysql_socket);
+  std::shared_ptr<iface::Socket> create_socket(PSI_socket_key key, int domain,
+                                               int type, int protocol);
+  std::shared_ptr<iface::Socket> create_socket(MYSQL_SOCKET mysql_socket);
 
-  std::shared_ptr<ngs::File_interface> open_file(const char *name, int access,
-                                                 int permission);
+  std::shared_ptr<iface::File> open_file(const char *name, int access,
+                                         int permission);
 
-  std::shared_ptr<ngs::System_interface> create_system_interface();
+  std::shared_ptr<iface::System> create_system_interface();
 };
 
 }  // namespace xpl

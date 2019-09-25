@@ -53,10 +53,10 @@ class CapabilityHanderTlsTestSuite : public Test {
         .WillRepeatedly(Return(&mock_ssl_context));
   }
 
-  StrictMock<ngs::test::Mock_vio> mock_connection;
-  StrictMock<xpl::test::Mock_client> mock_client;
-  StrictMock<ngs::test::Mock_ssl_context> mock_ssl_context;
-  StrictMock<ngs::test::Mock_server> mock_server;
+  StrictMock<Mock_vio> mock_connection;
+  StrictMock<Mock_client> mock_client;
+  StrictMock<Mock_ssl_context> mock_ssl_context;
+  StrictMock<Mock_server> mock_server;
 
   Capability_tls sut;
 };
@@ -207,17 +207,17 @@ INSTANTIATE_TEST_CASE_P(FaildInstantiationAlreadyDisabled,
 class CapabilityHanderAuthMechTestSuite : public Test {
  public:
   CapabilityHanderAuthMechTestSuite() : sut(mock_client) {
-    mock_server = std::make_shared<StrictMock<ngs::test::Mock_server>>();
+    mock_server = std::make_shared<StrictMock<Mock_server>>();
 
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(*mock_server));
   }
 
-  std::shared_ptr<StrictMock<ngs::test::Mock_server>> mock_server;
+  std::shared_ptr<StrictMock<Mock_server>> mock_server;
 
-  StrictMock<ngs::test::Mock_vio> mock_connection;
-  StrictMock<xpl::test::Mock_client> mock_client;
+  StrictMock<Mock_vio> mock_connection;
+  StrictMock<Mock_client> mock_client;
 
   Capability_auth_mech sut;
 };
@@ -292,7 +292,7 @@ class Capability_hander_client_interactive_test_suite : public Test {
   }
 
   std::unique_ptr<Capability_client_interactive> sut;
-  StrictMock<xpl::test::Mock_client> mock_client;
+  StrictMock<Mock_client> mock_client;
 };
 
 TEST_F(Capability_hander_client_interactive_test_suite,

@@ -133,10 +133,10 @@ class Scheduler_dynamic {
   }
 
   bool wait_if_idle_then_delete_worker(ulonglong &thread_waiting_started);
-  int32 increase_workers_count();
-  int32 decrease_workers_count();
-  int32 increase_tasks_count();
-  int32 decrease_tasks_count();
+  int32_t increase_workers_count();
+  int32_t decrease_workers_count();
+  int32_t increase_tasks_count();
+  int32_t decrease_tasks_count();
 
   const std::string m_name;
   xpl::Mutex m_worker_pending_mutex;

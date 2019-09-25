@@ -1022,14 +1022,14 @@ RUN insert into mysqlxplugin_coll.main_collection (doc) values ('{"_id": "5", "n
 RUN insert into mysqlxplugin_coll.main_collection (doc) values ('{"_id": "6", "name": "Javier", "Last_Name":"Torres"}')
 
 1 rows affected
-RUN select * from mysqlxplugin_coll.main_collection
-doc	_id
-{"_id": "1", "name": "Omar", "Last_Name": "Andrei"}	1
-{"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}	2
-{"_id": "3", "name": "Rodrigo", "Last_Name": "Kernel"}	3
-{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
-{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
-{"_id": "6", "name": "Javier", "Last_Name": "Torres"}	6
+RUN select doc from mysqlxplugin_coll.main_collection
+doc
+{"_id": "1", "name": "Omar", "Last_Name": "Andrei"}
+{"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}
+{"_id": "3", "name": "Rodrigo", "Last_Name": "Kernel"}
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}
+{"_id": "6", "name": "Javier", "Last_Name": "Torres"}
 0 rows affected
 Delete collection rows with in Operator and based in ID
 send Mysqlx.Crud.Delete {
@@ -1072,12 +1072,12 @@ send Mysqlx.Crud.Delete {
 
 
 2 rows affected
-RUN select * from mysqlxplugin_coll.main_collection
-doc	_id
-{"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}	2
-{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
-{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
-{"_id": "6", "name": "Javier", "Last_Name": "Torres"}	6
+RUN select doc from mysqlxplugin_coll.main_collection
+doc
+{"_id": "2", "name": "Alfonso", "Last_Name": "Pavluchenko"}
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}
+{"_id": "6", "name": "Javier", "Last_Name": "Torres"}
 0 rows affected
 Delete collection row with == Operator
 send Mysqlx.Crud.Delete {
@@ -1114,11 +1114,11 @@ send Mysqlx.Crud.Delete {
 
 
 1 rows affected
-RUN select * from mysqlxplugin_coll.main_collection
-doc	_id
-{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
-{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
-{"_id": "6", "name": "Javier", "Last_Name": "Torres"}	6
+RUN select doc from mysqlxplugin_coll.main_collection
+doc
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}
+{"_id": "6", "name": "Javier", "Last_Name": "Torres"}
 0 rows affected
 Delete collection row with != Operator
 send Mysqlx.Crud.Delete {
@@ -1155,10 +1155,10 @@ send Mysqlx.Crud.Delete {
 
 
 1 rows affected
-RUN select * from mysqlxplugin_coll.main_collection
-doc	_id
-{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}	4
-{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
+RUN select doc from mysqlxplugin_coll.main_collection
+doc
+{"_id": "4", "name": "Omar", "Last_Name": "Kerball"}
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}
 0 rows affected
 Delete collection row with not in Operator
 send Mysqlx.Crud.Delete {
@@ -1195,9 +1195,9 @@ send Mysqlx.Crud.Delete {
 
 
 1 rows affected
-RUN select * from mysqlxplugin_coll.main_collection
-doc	_id
-{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}	5
+RUN select doc from mysqlxplugin_coll.main_collection
+doc
+{"_id": "5", "name": "Omar", "Last_Name": "Lopez"}
 0 rows affected
 Delete collection wrong schema
 send Mysqlx.Crud.Delete {

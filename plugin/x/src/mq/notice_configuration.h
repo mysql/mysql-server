@@ -31,12 +31,12 @@
 
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/interface/notice_configuration_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
+#include "plugin/x/src/interface/notice_configuration.h"
 
 namespace xpl {
 
-class Notice_configuration : public ngs::Notice_configuration_interface {
+class Notice_configuration : public iface::Notice_configuration {
  public:
   using Notice_type = ::ngs::Notice_type;
 

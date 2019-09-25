@@ -13,7 +13,8 @@ null	SELECT ?	1
 
 command ok
 Query
-CREATE TABLE `xtest`.`test` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+SELECT @@lower_case_table_names
+CREATE TABLE `xtest`.`test` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
 0 rows affected
 ######### Crud.Insert #########
 
@@ -91,15 +92,19 @@ DELETE FROM `xtest`.`test` WHERE (`_id` = 'one')
 
 command ok
 Query
-CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+SELECT @@lower_case_table_names
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
 0 rows affected
 ######### ensure_collection #########
 
 command ok
 Query
-CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
+SELECT @@lower_case_table_names
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
 SELECT @@sql_mode
-SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\"|`.*`)))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
+SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND column_name != '_json_schema' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\"|`.*`)))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen, COUNT(CASE WHEN (column_name = '_json_schema') THEN 1 ELSE NULL END) AS validation_schema FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
+SELECT @@lower_case_table_names
+ALTER TABLE `xtest`.`test2` MODIFY COLUMN _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}') VIRTUAL
 0 rows affected
 ######### create_collection_index #########
 
@@ -157,7 +162,7 @@ command ok
 Query
 SHOW TABLES FROM `xtest`
 SELECT @@sql_mode
-SELECT T.table_name AS name, IF(ANY_VALUE(T.table_type) LIKE '%VIEW', IF(COUNT(*)=1 AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\"|`.*`)))*\\\\''\\)') THEN 1 ELSE NULL END) AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1 AND COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END)=1, 'COLLECTION', 'TABLE')) AS type FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C ON (T.table_schema = C.table_schema AND T.table_name = C.table_name) WHERE T.table_schema = 'xtest' GROUP BY name ORDER BY name
+SELECT T.table_name AS name, IF(ANY_VALUE(T.table_type) LIKE '%VIEW', IF(COUNT(*)=1 AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(CASE WHEN (column_name != '_json_schema') THEN 1 ELSE NULL END)-2 = COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND column_name != '_json_schema' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\"|`.*`)))*\\\\''\\)') THEN 1 ELSE NULL END) AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1 AND COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END)=1, 'COLLECTION', 'TABLE')) AS type FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C ON (T.table_schema = C.table_schema AND T.table_name = C.table_name) WHERE T.table_schema = 'xtest' GROUP BY name ORDER BY name
 0 rows affected
 ######### drop_collection #########
 

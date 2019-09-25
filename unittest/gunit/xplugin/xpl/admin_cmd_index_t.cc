@@ -45,7 +45,7 @@ using ::testing::StrictMock;
 
 class Admin_command_index_stub : public Admin_command_index {
  public:
-  explicit Admin_command_index_stub(ngs::Session_interface *session)
+  explicit Admin_command_index_stub(iface::Session *session)
       : Admin_command_index(session) {}
   using Admin_command_index::is_table_support_virtual_columns;
 };
@@ -68,10 +68,10 @@ class Admin_command_index_test : public ::testing::Test {
     args.reset(new Admin_command_arguments_object(list));
   }
 
-  StrictMock<ngs::test::Mock_sql_data_context> data_context;
-  StrictMock<xpl::test::Mock_client> client;
-  StrictMock<ngs::test::Mock_protocol_encoder> encoder;
-  StrictMock<ngs::test::Mock_session> session;
+  StrictMock<Mock_sql_data_context> data_context;
+  StrictMock<Mock_client> client;
+  StrictMock<Mock_protocol_encoder> encoder;
+  StrictMock<Mock_session> session;
   std::unique_ptr<Admin_command_index_stub> command;
   Admin_command_arguments_object::List list;
   std::unique_ptr<Admin_command_arguments_object> args;

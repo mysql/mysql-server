@@ -25,15 +25,16 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_FLUSHER_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_FLUSHER_H_
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 
 #include "my_inttypes.h"
 
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/interface/protocol_flusher.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
+#include "plugin/x/src/interface/vio.h"
 
 namespace protocol {
 
@@ -51,8 +52,8 @@ class Protocol_flusher : public xpl::iface::Protocol_flusher {
  public:
   Protocol_flusher(protocol::Encoding_buffer *buffer,
                    protocol::XMessage_encoder *encoder,
-                   Protocol_monitor_interface *protocol_monitor,
-                   const std::shared_ptr<Vio_interface> &socket,
+                   xpl::iface::Protocol_monitor *protocol_monitor,
+                   const std::shared_ptr<xpl::iface::Vio> &socket,
                    const Error_handler &error_handler)
       : m_buffer(buffer),
         m_encoder(encoder),
@@ -64,7 +65,7 @@ class Protocol_flusher : public xpl::iface::Protocol_flusher {
     Force that next `try_flush` is going to dispatch data.
    */
   void trigger_flush_required() override;
-  void trigger_on_message(const uint8 type) override;
+  void trigger_on_message(const uint8_t type) override;
 
   /**
     Check if flush is required and try to execute it
@@ -91,8 +92,8 @@ class Protocol_flusher : public xpl::iface::Protocol_flusher {
   protocol::Encoding_buffer *m_buffer;
   protocol::XMessage_encoder *m_encoder;
   //  Page_output_stream *m_page_output_stream;
-  Protocol_monitor_interface *m_protocol_monitor;
-  std::shared_ptr<Vio_interface> m_socket;
+  xpl::iface::Protocol_monitor *m_protocol_monitor;
+  std::shared_ptr<xpl::iface::Vio> m_socket;
   uint32_t m_write_timeout =
       static_cast<uint32_t>(Global_timeouts::Default::k_write_timeout);
 

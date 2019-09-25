@@ -29,7 +29,7 @@
 #include <string>
 #include <utility>
 
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
@@ -37,7 +37,7 @@ class PFS_string;
 
 class Sql_data_result {
  public:
-  explicit Sql_data_result(ngs::Sql_session_interface *context);
+  explicit Sql_data_result(iface::Sql_session *context);
 
   void disable_binlog();
   void restore_binlog();
@@ -97,7 +97,7 @@ class Sql_data_result {
   Collect_resultset m_resultset;
   std::size_t m_field_index;
   Collect_resultset::Row_list::const_iterator m_row_index;
-  ngs::Sql_session_interface *m_context;
+  iface::Sql_session *m_context;
 };
 
 }  // namespace xpl

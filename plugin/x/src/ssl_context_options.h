@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,34 +25,37 @@
 #ifndef PLUGIN_X_SRC_SSL_CONTEXT_OPTIONS_H_
 #define PLUGIN_X_SRC_SSL_CONTEXT_OPTIONS_H_
 
+#include <string>
+
 #include "violite.h"
 
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
+#include "plugin/x/src/interface/ssl_context_options.h"
 
 namespace xpl {
 
-class Ssl_context_options : public ngs::Ssl_context_options_interface {
+class Ssl_context_options : public iface::Ssl_context_options {
  public:
-  Ssl_context_options(st_VioSSLFd *vio_ssl = nullptr) : m_vio_ssl(vio_ssl) {}
+  explicit Ssl_context_options(st_VioSSLFd *vio_ssl = nullptr)
+      : m_vio_ssl(vio_ssl) {}
 
-  long ssl_ctx_verify_depth() override;
-  long ssl_ctx_verify_mode() override;
+  int64_t ssl_ctx_verify_depth() override;
+  int64_t ssl_ctx_verify_mode() override;
 
   std::string ssl_server_not_after() override;
   std::string ssl_server_not_before() override;
 
-  long ssl_sess_accept_good() override;
-  long ssl_sess_accept() override;
-  long ssl_accept_renegotiates() override;
+  int64_t ssl_sess_accept_good() override;
+  int64_t ssl_sess_accept() override;
+  int64_t ssl_accept_renegotiates() override;
 
   std::string ssl_session_cache_mode() override;
 
-  long ssl_session_cache_hits() override;
-  long ssl_session_cache_misses() override;
-  long ssl_session_cache_overflows() override;
-  long ssl_session_cache_size() override;
-  long ssl_session_cache_timeouts() override;
-  long ssl_used_session_cache_entries() override;
+  int64_t ssl_session_cache_hits() override;
+  int64_t ssl_session_cache_misses() override;
+  int64_t ssl_session_cache_overflows() override;
+  int64_t ssl_session_cache_size() override;
+  int64_t ssl_session_cache_timeouts() override;
+  int64_t ssl_used_session_cache_entries() override;
 
  private:
   st_VioSSLFd *m_vio_ssl;

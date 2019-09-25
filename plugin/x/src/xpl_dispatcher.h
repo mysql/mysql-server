@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Session;
 
 class Dispatcher {
  public:
-  explicit Dispatcher(ngs::Session_interface *session) : m_session{session} {}
+  explicit Dispatcher(iface::Session *session) : m_session{session} {}
   bool execute(const ngs::Message_request &command);
   void reset();
 
@@ -52,7 +52,7 @@ class Dispatcher {
   ngs::Error_code on_expect_open(const Mysqlx::Expect::Open &msg);
   ngs::Error_code on_expect_close();
 
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Crud_command_handler m_crud_handler{m_session};
   Expectation_stack m_expect_stack;
   Stmt_command_handler m_stmt_handler{m_session};

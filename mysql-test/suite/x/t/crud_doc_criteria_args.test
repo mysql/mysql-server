@@ -41,7 +41,7 @@ insert into mycoll (doc) values ('{"_id": "2", "name": "Bran", "amount": 542.75}
 insert into mycoll (doc) values ('{"_id": "3", "name": "Arya", "amount": 98.89}');
 insert into mycoll (doc) values ('{"_id": "4", "name": "Tassadar", "amount": 57.52}');
 insert into mycoll (doc) values ('{"_id": "5", "name": "Sansa", "amount": null}');
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Find with > Operator and placeholder
@@ -430,7 +430,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with > operator and placeholder
@@ -481,7 +481,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with >= operator and placeholder
@@ -532,7 +532,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with <= operator and placeholder
@@ -583,7 +583,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with Float operator and placeholder
@@ -634,7 +634,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with Double operator and placeholder
@@ -685,7 +685,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with String operator and placeholder
@@ -735,7 +735,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with Null operator and placeholder
@@ -785,7 +785,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with ITEM_REPLACE operator and placeholder
@@ -835,7 +835,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with ITEM_REMOVE operator and placeholder
@@ -876,7 +876,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with ARRAY_APPEND operator and placeholder
@@ -926,7 +926,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Update with ITEM_MERGE value and placeholder
@@ -975,7 +975,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 insert into mycoll (doc) values ('{"_id": "6", "third": ["two"]}');
 -->endsql
 
@@ -1026,7 +1026,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Delete with == operator and placeholder
@@ -1059,7 +1059,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 -->echo Delete with != operator and placeholder
@@ -1095,7 +1095,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.mycoll;
+select doc FROM xtest.mycoll;
 -->endsql
 
 ## Wrong or missing placeholder

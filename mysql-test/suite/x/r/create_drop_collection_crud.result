@@ -39,7 +39,9 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  PRIMARY KEY (`_id`)
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest_1.table2
@@ -47,23 +49,25 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  PRIMARY KEY (`_id`)
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO table2 (doc) VALUES ('{"a":1,"_id":[100,200]}')
 
 1 rows affected
 RUN SELECT * FROM table2
-doc	_id
-{"a": 1, "_id": [100, 200]}	[100, 200]
+doc	_id	_json_schema
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}
 0 rows affected
 RUN ALTER TABLE table2 ADD COLUMN col1 INT 
 
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
+doc	_id	_json_schema	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
 0 rows affected
 RUN SHOW CREATE TABLE table1
 Table	Create Table
@@ -77,25 +81,27 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   `col1` int(11) DEFAULT NULL,
-  PRIMARY KEY (`_id`)
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":2,"_id":[300,400]}',300)
 
 1 rows affected
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
-{"a": 2, "_id": [300, 400]}	[300, 400]	300
+doc	_id	_json_schema	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	{"type": "object"}	300
 0 rows affected
 RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400)
 While executing INSERT INTO table2 (doc,col1) VALUES ('{"a":3,"b":[400,400]}',400):
 Got expected error: Column '_id' cannot be null (code 1048)
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
-{"a": 2, "_id": [300, 400]}	[300, 400]	300
+doc	_id	_json_schema	col1
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	{"type": "object"}	300
 0 rows affected
 send Mysqlx.Crud.Insert {
   collection {
@@ -120,10 +126,10 @@ send Mysqlx.Crud.Insert {
 1 rows affected
 auto-generated id(s): 0000XXXXXXXX0000000000000001
 RUN SELECT * FROM table2
-doc	_id	col1
-{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	0000XXXXXXXX0000000000000001	null
-{"a": 1, "_id": [100, 200]}	[100, 200]	null
-{"a": 2, "_id": [300, 400]}	[300, 400]	300
+doc	_id	_json_schema	col1
+{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	0000XXXXXXXX0000000000000001	{"type": "object"}	null
+{"a": 1, "_id": [100, 200]}	[100, 200]	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	[300, 400]	{"type": "object"}	300
 0 rows affected
 RUN ALTER TABLE table2 DROP COLUMN _id
 
@@ -155,18 +161,20 @@ send Mysqlx.Crud.Insert {
 1 rows affected
 auto-generated id(s): 0000XXXXXXXX0000000000000002
 RUN SELECT * FROM table2
-doc	col1
-{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	null
-{"a": 1, "_id": [100, 200]}	null
-{"a": 2, "_id": [300, 400]}	300
-{"a": 4, "b": [400, 400]}	400
-{"a": 5, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000002"}	null
+doc	_json_schema	col1
+{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	{"type": "object"}	null
+{"a": 1, "_id": [100, 200]}	{"type": "object"}	null
+{"a": 2, "_id": [300, 400]}	{"type": "object"}	300
+{"a": 4, "b": [400, 400]}	{"type": "object"}	400
+{"a": 5, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000002"}	{"type": "object"}	null
 0 rows affected
 RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `col1` int(11) DEFAULT NULL
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  `col1` int(11) DEFAULT NULL,
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE table2
@@ -179,7 +187,9 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  PRIMARY KEY (`_id`)
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
+  PRIMARY KEY (`_id`),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN CREATE TABLE table2_tmp ( col1 INT)
@@ -266,7 +276,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Got expected error: Invalid number of arguments, expected 2 but got 3 (code 5015)
+Got expected error: 'alias' is not a valid field for create_collection command (code 5021)
 Mysqlx.Ok {
   msg: "bye!"
 }

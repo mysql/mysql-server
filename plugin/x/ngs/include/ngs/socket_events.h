@@ -25,17 +25,18 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_SOCKET_EVENTS_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_SOCKET_EVENTS_H_
 
+#include <memory>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/interface/socket_events.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 struct event_base;
 
 namespace ngs {
 
-class Socket_events : public Socket_events_interface {
+class Socket_events : public xpl::iface::Socket_events {
  public:
 #ifdef _WIN32
   // mimick evutil_socket_t in libevent-2.x
@@ -46,8 +47,8 @@ class Socket_events : public Socket_events_interface {
   Socket_events();
   ~Socket_events();
 
-  bool listen(Socket_interface::Shared_ptr s,
-              std::function<void(Connection_acceptor_interface &)> callback);
+  bool listen(std::shared_ptr<xpl::iface::Socket> s,
+              std::function<void(xpl::iface::Connection_acceptor &)> callback);
 
   void add_timer(const std::size_t delay_ms, std::function<bool()> callback);
   void loop();

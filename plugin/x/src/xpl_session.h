@@ -30,9 +30,10 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/client_session.h"
-#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/document_id_aggregator.h"
+#include "plugin/x/src/interface/notice_output_queue.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/mq/notice_configuration.h"
 #include "plugin/x/src/mq/notice_output_queue.h"
 #include "plugin/x/src/sql_data_context.h"
@@ -47,30 +48,30 @@ class Client;
 
 class Session : public ngs::Session {
  public:
-  Session(ngs::Client_interface *client, ngs::Protocol_encoder_interface *proto,
+  Session(iface::Client *client, iface::Protocol_encoder *proto,
           const Session_id session_id);
   ~Session() override;
 
- public:  // impl ngs::Session_interface
+ public:  // impl iface::Session
   ngs::Error_code init() override;
   void on_auth_success(
-      const ngs::Authentication_interface::Response &response) override;
+      const iface::Authentication::Response &response) override;
   void on_auth_failure(
-      const ngs::Authentication_interface::Response &response) override;
+      const iface::Authentication::Response &response) override;
   void on_reset() override;
 
   void mark_as_tls_session() override;
   THD *get_thd() const override;
   bool can_see_user(const std::string &user) const override;
-  ngs::Sql_session_interface &data_context() override { return m_sql; }
-  ngs::Notice_output_queue_interface &get_notice_output_queue() override {
+  iface::Sql_session &data_context() override { return m_sql; }
+  iface::Notice_output_queue &get_notice_output_queue() override {
     return m_notice_output_queue;
   }
-  ngs::Notice_configuration_interface &get_notice_configuration() override {
+  iface::Notice_configuration &get_notice_configuration() override {
     return m_notice_configuration;
   }
 
-  void set_proto(ngs::Protocol_encoder_interface *encoder) override;
+  void set_proto(iface::Protocol_encoder *encoder) override;
 
  public:
   using Variable =
@@ -84,14 +85,14 @@ class Session : public ngs::Session {
 
   bool get_prepared_statement_id(const uint32_t client_stmt_id,
                                  uint32_t *out_stmt_id) const override;
-  ngs::Document_id_aggregator_interface &get_document_id_aggregator() override {
+  iface::Document_id_aggregator &get_document_id_aggregator() override {
     return m_document_id_aggregator;
   }
 
  private:  // reimpl ngs::Session
   void on_kill() override;
 
-  bool handle_ready_message(ngs::Message_request &command) override;
+  bool handle_ready_message(const ngs::Message_request &command) override;
 
  private:
   Sql_data_context m_sql;

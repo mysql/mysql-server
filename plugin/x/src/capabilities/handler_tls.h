@@ -26,12 +26,13 @@
 #define PLUGIN_X_SRC_CAPABILITIES_HANDLER_TLS_H_
 
 #include "plugin/x/src/capabilities/handler.h"
+#include "plugin/x/src/interface/client.h"
 
 namespace xpl {
 
 class Capability_tls : public Capability_handler {
  public:
-  Capability_tls(ngs::Client_interface &client)
+  Capability_tls(iface::Client &client)
       : m_client(client), tls_should_be_enabled(false) {}
 
   std::string name() const override { return "tls"; }
@@ -45,7 +46,7 @@ class Capability_tls : public Capability_handler {
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override;
 
-  ngs::Client_interface &m_client;
+  iface::Client &m_client;
   bool tls_should_be_enabled;
 };
 

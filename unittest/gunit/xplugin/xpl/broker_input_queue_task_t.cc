@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include <chrono>
-#include <thread>
+#include <chrono>  // NOLINT(build/c++11)
+#include <thread>  // NOLINT(build/c++11)
 
 #include "plugin/x/src/mq/broker_task.h"
 #include "plugin/x/src/mq/notice_input_queue.h"
@@ -32,7 +32,7 @@
 namespace xpl {
 namespace test {
 
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
 
 using Notice_type = ngs::Notice_type;
 using Notice_descriptor = ngs::Notice_descriptor;
@@ -42,7 +42,7 @@ const auto kId2 = Notice_type::k_group_replication_view_changed;
 
 class Broker_input_queue_testsuite : public Test {
  public:
-  using Task_context = ngs::Server_task_interface::Task_context;
+  using Task_context = iface::Server_task::Task_context;
 
  public:
   void SetUp() override {
@@ -57,14 +57,14 @@ class Broker_input_queue_testsuite : public Test {
   void assert_do_loop() { sut_task->loop(); }
 
   std::shared_ptr<Mock_client> mock_client{new Mock_client()};
-  ::ngs::test::Mock_session mock_session;
-  StrictMock<::ngs::test::Mock_notice_output_queue> mock_notice_out_queue;
+  Mock_session mock_session;
+  StrictMock<Mock_notice_output_queue> mock_notice_out_queue;
 
   ngs::Client_list m_client_list;
   Task_context m_sut_context{Task_context::On_connection(), false, nullptr,
                              &m_client_list};
   Notice_input_queue m_sut_queue;
-  std::unique_ptr<ngs::Server_task_interface> sut_task{
+  std::unique_ptr<iface::Server_task> sut_task{
       m_sut_queue.create_broker_task()};
 };
 
@@ -125,7 +125,7 @@ TEST_F(Broker_input_queue_testsuite, stop_blocks_until_task_ended) {
 
   sut_task->pre_loop();
   std::thread call_stop([&stop_ended, this]() {
-    sut_task->stop(ngs::Server_task_interface::Stop_cause::k_normal_shutdown);
+    sut_task->stop(iface::Server_task::Stop_cause::k_normal_shutdown);
     stop_ended = true;
   });
 

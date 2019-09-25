@@ -29,12 +29,13 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "errmsg.h"
-#include "my_compiler.h"
+#include "errmsg.h"       // NOLINT(build/include_subdir)
+#include "my_compiler.h"  // NOLINT(build/include_subdir)
 #include "my_inttypes.h"
 #include "plugin/x/client/context/xconnection_config.h"
 #include "plugin/x/client/context/xssl_config.h"
@@ -60,8 +61,8 @@ using ::testing::Test;
 
 class Xcl_protocol_impl_tests : public Test {
  protected:
-  std::array<std::uint8_t, 4> extract_header_from_message(const uchar *data) {
-    std::array<std::uint8_t, 4> header = {{data[0], data[1], data[2], data[3]}};
+  std::array<uint8_t, 4> extract_header_from_message(const uchar *data) {
+    std::array<uint8_t, 4> header = {{data[0], data[1], data[2], data[3]}};
 
 #ifdef WORDS_BIGENDIAN
     std::swap(header[0], header[3]);
@@ -92,8 +93,8 @@ class Xcl_protocol_impl_tests : public Test {
   }
 
   void expect_write_header(const XProtocol::Client_message_type_id id,
-                           const uint32 expected_payload_size,
-                           const int32 error_code = 0) {
+                           const uint32_t expected_payload_size,
+                           const int32_t error_code = 0) {
     EXPECT_CALL(*m_mock_connection, write(_, 5))
         .WillOnce(Invoke(
             [this, id, expected_payload_size, error_code](
@@ -103,7 +104,7 @@ class Xcl_protocol_impl_tests : public Test {
               auto header = this->extract_header_from_message(data);
 
               EXPECT_EQ(expected_payload_size,
-                        *reinterpret_cast<int32 *>(header.data()) - 1);
+                        *reinterpret_cast<int32_t *>(header.data()) - 1);
               return XError{error_code, ""};
             }));
   }
@@ -111,7 +112,7 @@ class Xcl_protocol_impl_tests : public Test {
   template <typename Message_type>
   void expect_write_message_without_payload(
       const Message_from_str<Message_type> &message,
-      const int32 error_code = 0) {
+      const int32_t error_code = 0) {
     const Message_type &message_base = message;
 
     expect_write_message_without_payload(message_base, error_code);
@@ -119,7 +120,7 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_write_message_without_payload(
-      const Message_type &message, const int32 expected_error_code = 0) {
+      const Message_type &message, const int32_t expected_error_code = 0) {
     auto message_binary = Message_encoder::encode(message);
     expect_write_header(Client_message<Message_type>::get_id(),
                         static_cast<uint32>(message_binary.size()),
@@ -128,7 +129,7 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_write_message(const Message_from_str<Message_type> &message,
-                            const int32 error_code = 0) {
+                            const int32_t error_code = 0) {
     const Message_type &message_base = message;
 
     expect_write_message(message_base, error_code);
@@ -136,11 +137,11 @@ class Xcl_protocol_impl_tests : public Test {
 
   template <typename Message_type>
   void expect_write_message(const Message_type &message,
-                            const int32 error_code = 0) {
+                            const int32_t error_code = 0) {
     auto message_binary = Message_encoder::encode(message);
 
-    const std::uint8_t header_size = 5;
-    const std::uint8_t payload_size = message_binary.size();
+    const uint8_t header_size = 5;
+    const uint8_t payload_size = message_binary.size();
     const auto id = Client_message<Message_type>::get_id();
 
     EXPECT_CALL(*m_mock_connection, write(_, header_size + payload_size))
@@ -152,15 +153,15 @@ class Xcl_protocol_impl_tests : public Test {
               auto header = this->extract_header_from_message(data);
 
               EXPECT_EQ(payload_size,
-                        *reinterpret_cast<int32 *>(header.data()) - 1);
+                        *reinterpret_cast<int32_t *>(header.data()) - 1);
               return XError{error_code, ""};
             }));
   }
 
   template <typename Message_type_id>
-  void expect_read_header(const Message_type_id id, const int32 payload_size,
-                          const int32 error_code = 0) {
-    const int32 expected_header_size = 5;
+  void expect_read_header(const Message_type_id id, const int32_t payload_size,
+                          const int32_t error_code = 0) {
+    const int32_t expected_header_size = 5;
 
     EXPECT_CALL(*m_mock_connection, read(_, expected_header_size))
         .WillOnce(
@@ -168,7 +169,7 @@ class Xcl_protocol_impl_tests : public Test {
                        uchar *data, const std::size_t data_length MY_ATTRIBUTE(
                                         (unused))) -> XError {
               // 1byte(type)+ payload_size-bytes(protobuf-msg-payload)
-              *reinterpret_cast<int32 *>(data) = 1 + payload_size;
+              *reinterpret_cast<int32_t *>(data) = 1 + payload_size;
 
 #ifdef WORDS_BIGENDIAN
               std::swap(data[0], data[3]);
@@ -184,7 +185,7 @@ class Xcl_protocol_impl_tests : public Test {
   template <typename Message_type>
   void expect_read_message_without_payload(const Message_type &message
                                                MY_ATTRIBUTE((unused)),
-                                           const int32 error_code = 0) {
+                                           const int32_t error_code = 0) {
     expect_read_header(Server_message<Message_type>::get_id(), 0, error_code);
   }
 
@@ -250,13 +251,13 @@ class Xcl_protocol_impl_tests_with_msg : public Xcl_protocol_impl_tests {
     m_message.reset(new Msg(Msg_descriptor::make_required()));
   }
 
-  XError assert_write_size(const uchar *data, const std::uint32_t size) {
+  XError assert_write_size(const uchar *data, const uint32_t size) {
     EXPECT_EQ(Msg_descriptor::get_id(), data[4]);
     auto header = extract_header_from_message(data);
 
-    const std::uint8_t expected_header_size = 5;
-    const std::uint32_t payload_size =
-        *reinterpret_cast<std::uint32_t *>(header.data()) - 1;
+    const uint8_t expected_header_size = 5;
+    const uint32_t payload_size =
+        *reinterpret_cast<uint32_t *>(header.data()) - 1;
     EXPECT_EQ(size, (payload_size + expected_header_size));
 
     return {};

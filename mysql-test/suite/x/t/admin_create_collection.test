@@ -20,41 +20,96 @@ create database xtest_1 default charset 'utf8mb4';
 -->endmacro
 
 
--->callmacro Admin_stmt	create_collection	{"schema":"xtest","name":"books0"}	0
--->callmacro Admin_stmt	create_collection	{"name":"books1", "schema":"xtest"}	0
--->callmacro Admin_stmt create_collection	{"name":"books1", "schema":"xtest"}	1050
--->callmacro Admin_stmt create_collection	{"name":"books1", "schema":"xtest_1"}	0
+callmacro Admin_stmt	create_collection	{"schema":"xtest","name":"books0"}
+	ER_SUCCESS;
 
--->callmacro Admin_stmt	create_collection	{"schema":"xtest"}	5015
--->callmacro Admin_stmt	create_collection	{"name":"books2"}	5015
--->callmacro Admin_stmt	create_collection	{}	5015
--->callmacro Admin_stmt	create_collection	{"extra":"nothing", "name":"books2", "schema":"xtest"}	5015
+callmacro Admin_stmt	create_collection	{"name":"books1", "schema":"xtest"}
+	ER_SUCCESS;
 
--->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":""}	5113
--->callmacro Admin_stmt	create_collection	{"schema":"", "name":"books2"}	5112
--->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":" "}	1103
--->callmacro Admin_stmt	create_collection	{"schema":" ", "name":"books2"}	1102
+callmacro Admin_stmt create_collection	{"name":"books1", "schema":"xtest"}
+	ER_TABLE_EXISTS_ERROR;
 
--->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":"col lection"}	0
--->callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":"a table name'with\"bad`characters"}	0
+callmacro Admin_stmt create_collection	{"name":"books1", "schema":"xtest_1"}
+	ER_SUCCESS;
+
+callmacro Admin_stmt create_collection
+	{"name":"books1", "schema":"xtest_1", "options": {
+    "validation": {
+      "schema":"{\"type\":\"object\"}"
+    }
+  }}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt create_collection
+	{"name":"stuff", "schema":"xtest_1", "options": {
+    "validation": {
+      "schema":"{\"type\":\"object\"}"
+    }
+  }}
+	ER_SUCCESS;
+
+callmacro Admin_stmt create_collection	{"name":"stuff", "schema":"xtest_1"}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt	create_collection	{"schema":"xtest"}
+	ER_X_CMD_NUM_ARGUMENTS;
+
+callmacro Admin_stmt	create_collection	{"schema":"xtest", "foo": "bar"}
+	ER_X_CMD_NUM_ARGUMENTS;
+
+callmacro Admin_stmt	create_collection	{"name":"books2"}
+	ER_X_CMD_NUM_ARGUMENTS;
+
+callmacro Admin_stmt	create_collection	{}
+	ER_X_CMD_NUM_ARGUMENTS;
+
+callmacro Admin_stmt	create_collection
+	{"invalid_field_name": "nothing",
+    "options": {
+      "validation": {"schema": "{'{\"type\":\"object\"}'}"}
+    },
+    "name":"books2",
+    "schema":"xtest"
+  }
+	ER_X_CMD_INVALID_ARGUMENT;
+
+callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":""}
+	ER_X_BAD_TABLE;
+
+callmacro Admin_stmt	create_collection	{"schema":"", "name":"books2"}
+	ER_X_BAD_SCHEMA;
+
+callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":" "}
+	ER_WRONG_TABLE_NAME;
+
+callmacro Admin_stmt	create_collection	{"schema":" ", "name":"books2"}
+	ER_WRONG_DB_NAME;
+
+callmacro Admin_stmt	create_collection	{"schema":"xtest", "name":"col lection"}
+	ER_SUCCESS;
+
+callmacro Admin_stmt	create_collection
+	{"schema":"xtest", "name":"a table name'with\"bad`characters"}
+	ER_SUCCESS;
+
 
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
-  args { 
+  args {
     type: OBJECT obj {
       fld {
         key:'schema'
         value{type:SCALAR scalar{type:V_STRING v_string{value:'xtest'}}}
-        } 
+        }
       fld {
         key:'name'
         value{type:SCALAR scalar{type:V_STRING v_string{value:'\000'}}}
-      } 
+      }
     }
   }
   namespace: "mysqlx"
 }
--->expecterror 5017
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 
@@ -63,14 +118,30 @@ SHOW TABLES FROM xtest
 -->endsql
 
 
--->callmacro Admin_stmt	drop_collection	{"schema":"xtest","name":"books0"}	0
--->callmacro Admin_stmt	drop_collection	{"name":"books1","schema":"xtest"}	0
--->callmacro Admin_stmt drop_collection	{"name":"books1","schema":"xtest_1"}	0
+callmacro Admin_stmt	drop_collection	{"schema":"xtest","name":"books0"}
+	ER_SUCCESS;
 
--->callmacro Admin_stmt	drop_collection	{"schema":"xtest"}	5015
--->callmacro Admin_stmt	drop_collection	{"name":"books2"}	5015
--->callmacro Admin_stmt	drop_collection	{"extra":"nothing", "name":"books2","schema":"xtest"}	5015
--->callmacro Admin_stmt	drop_collection	{}	5015
+callmacro Admin_stmt	drop_collection	{"name":"books1","schema":"xtest"}
+	ER_SUCCESS;
+
+callmacro Admin_stmt drop_collection	{"name":"books1","schema":"xtest_1"}
+	ER_SUCCESS;
+
+callmacro Admin_stmt	drop_collection	{"schema":"xtest_1","name":"stuff"}
+	ER_SUCCESS;
+
+callmacro Admin_stmt	drop_collection	{"schema":"xtest"}
+	ER_X_CMD_NUM_ARGUMENTS;
+
+callmacro Admin_stmt	drop_collection	{"name":"books2"}
+	ER_X_CMD_NUM_ARGUMENTS;
+
+callmacro Admin_stmt	drop_collection
+	{"extra":"nothing", "name":"books2","schema":"xtest"}
+	ER_X_CMD_INVALID_ARGUMENT;
+
+callmacro Admin_stmt	drop_collection	{}
+	ER_X_CMD_NUM_ARGUMENTS;
 
 -->sql
 SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';

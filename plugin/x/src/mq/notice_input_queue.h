@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef PLUGIN_X_SRC_MQ_NOTICE_INPUT_QUEUE_H_
 #define PLUGIN_X_SRC_MQ_NOTICE_INPUT_QUEUE_H_
 
+#include <cstdint>
 #include <list>
+#include <memory>
 #include <queue>
+#include <string>
 
-#include "my_inttypes.h"
-
-#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
+#include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/mq/broker_context.h"
 #include "plugin/x/src/mq/notice_input_queue.h"
 
@@ -53,7 +54,7 @@ class Notice_input_queue {
 
   bool emplace(const Notice_type notice_id, const std::string &notice_payload);
 
-  std::unique_ptr<ngs::Server_task_interface> create_broker_task();
+  std::unique_ptr<iface::Server_task> create_broker_task();
 
  private:
   std::shared_ptr<Broker_context> m_context;

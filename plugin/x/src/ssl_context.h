@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,13 @@
 #include <violite.h>
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "plugin/x/src/interface/ssl_context.h"
+#include "plugin/x/src/interface/ssl_context_options.h"
+#include "plugin/x/src/interface/vio.h"
 
 namespace xpl {
 
-class Ssl_context : public ngs::Ssl_context_interface {
+class Ssl_context : public iface::Ssl_context {
  public:
   Ssl_context();
   bool setup(const char *tls_version, const char *ssl_key, const char *ssl_ca,
@@ -43,10 +43,9 @@ class Ssl_context : public ngs::Ssl_context_interface {
              const char *ssl_crlpath) override;
   ~Ssl_context() override;
 
-  bool activate_tls(ngs::Vio_interface *conn,
-                    const int handshake_timeout) override;
+  bool activate_tls(iface::Vio *conn, const int32_t handshake_timeout) override;
 
-  ngs::Ssl_context_options_interface &options() override { return *m_options; }
+  iface::Ssl_context_options &options() override { return *m_options; }
   bool has_ssl() override { return nullptr != m_ssl_acceptor; }
   void reset() override;
 
@@ -55,7 +54,7 @@ class Ssl_context : public ngs::Ssl_context_interface {
   bool setup(const Config &config);
 
   st_VioSSLFd *m_ssl_acceptor;
-  std::unique_ptr<ngs::Ssl_context_options_interface> m_options;
+  std::unique_ptr<iface::Ssl_context_options> m_options;
   std::unique_ptr<Config> m_config;
 };
 

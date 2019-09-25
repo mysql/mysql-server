@@ -1,35 +1,35 @@
 /* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License, version 2.0,
- as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
- This program is also distributed with certain software (including
- but not limited to OpenSSL) that is licensed under separate terms,
- as designated in a particular file or component or in included license
- documentation.  The authors of MySQL hereby grant you an additional
- permission to link the program and your derivative works with the
- separately licensed software that they have included with MySQL.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License, version 2.0, for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_inttypes.h"
+#include <cstdint>
+
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/src/operations_factory.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
-namespace ngs {
-
+namespace xpl {
 namespace test {
 
 using ::testing::_;
@@ -49,8 +49,8 @@ ACTION_P2(SetSocketErrnoAndReturn, err, result) {
   return result;
 }
 
-const uint32 k_max_wait_timeout_in_sec = 2;
-const uint32 k_max_read_timeout_in_sec = 2;
+const uint32_t k_max_wait_timeout_in_sec = 2;
+const uint32_t k_max_read_timeout_in_sec = 2;
 
 class Protocol_decoder_test_suite : public ::testing::Test {
  public:
@@ -72,18 +72,19 @@ class Protocol_decoder_test_suite : public ::testing::Test {
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
   std::shared_ptr<Strict_mock_vio> m_mock_vio{new Strict_mock_vio()};
-  std::shared_ptr<Protocol_global_config> m_config_global{
-      new Protocol_global_config()};
-  std::shared_ptr<Protocol_config> m_config{
-      new Protocol_config(m_config_global)};
+  std::shared_ptr<ngs::Protocol_global_config> m_config_global{
+      new ngs::Protocol_global_config()};
+  std::shared_ptr<ngs::Protocol_config> m_config{
+      new ngs::Protocol_config(m_config_global)};
 
   Strict_mock_pmonitor m_mock_protocol_monitor;
   Strict_Mock_wait_for_io m_mock_wait_for_io;
   Mock_message_dispatcher m_mock_dispatcher;
 
-  Protocol_decoder m_sut{&m_mock_dispatcher,        m_mock_vio,
-                         &m_mock_protocol_monitor,  m_config,
-                         k_max_wait_timeout_in_sec, k_max_read_timeout_in_sec};
+  ngs::Protocol_decoder m_sut{
+      &m_mock_dispatcher,        m_mock_vio,
+      &m_mock_protocol_monitor,  m_config,
+      k_max_wait_timeout_in_sec, k_max_read_timeout_in_sec};
 };
 
 /*
@@ -161,5 +162,4 @@ TEST_F(Protocol_decoder_test_suite,
 }
 
 }  // namespace test
-
-}  // namespace ngs
+}  // namespace xpl

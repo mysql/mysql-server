@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
@@ -186,7 +185,7 @@ void Sql_data_context::switch_to_local_user(const std::string &user) {
 ngs::Error_code Sql_data_context::authenticate(
     const char *user, const char *host, const char *ip, const char *db,
     const std::string &passwd,
-    const ngs::Authentication_interface &account_verification,
+    const iface::Authentication &account_verification,
     bool allow_expired_passwords) {
   m_password_expired = false;
 
@@ -220,6 +219,7 @@ ngs::Error_code Sql_data_context::authenticate(
   } else {
     if (error) return error;
   }
+
   error = switch_to_user(user, host, ip, db);
 
   if (!error) {
@@ -398,7 +398,7 @@ MYSQL_THD Sql_data_context::get_thd() const {
 }
 
 ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
-                                          ngs::Resultset_interface *rset) {
+                                          iface::Resultset *rset) {
   const auto error = execute_sql(sql, sql_len, rset);
   if (m_password_expired && !error) {
     // if a SQL command succeeded while password is expired, it means the user
@@ -419,16 +419,16 @@ ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
 
 ngs::Error_code Sql_data_context::execute_sql(const char *sql,
                                               std::size_t sql_len,
-                                              ngs::Resultset_interface *rset) {
+                                              iface::Resultset *rset) {
   COM_DATA data;
   data.com_query.query = sql;
   data.com_query.length = static_cast<unsigned int>(sql_len);
   return execute_server_command(COM_QUERY, data, rset);
 }
 
-ngs::Error_code Sql_data_context::fetch_cursor(const std::uint32_t statement_id,
-                                               const std::uint32_t row_count,
-                                               ngs::Resultset_interface *rset) {
+ngs::Error_code Sql_data_context::fetch_cursor(const uint32_t statement_id,
+                                               const uint32_t row_count,
+                                               iface::Resultset *rset) {
   COM_DATA data;
   data.com_stmt_fetch.stmt_id = statement_id;
   data.com_stmt_fetch.num_rows = row_count;
@@ -454,15 +454,16 @@ ngs::Error_code Sql_data_context::detach() {
   return {};
 }
 
-ngs::Error_code Sql_data_context::prepare_prep_stmt(
-    const char *sql, std::size_t sql_len, ngs::Resultset_interface *rset) {
+ngs::Error_code Sql_data_context::prepare_prep_stmt(const char *sql,
+                                                    std::size_t sql_len,
+                                                    iface::Resultset *rset) {
   COM_DATA data;
   data.com_stmt_prepare = {sql, static_cast<unsigned>(sql_len)};
   return execute_server_command(COM_STMT_PREPARE, data, rset);
 }
 
-ngs::Error_code Sql_data_context::deallocate_prep_stmt(
-    const uint32_t stmt_id, ngs::Resultset_interface *rset) {
+ngs::Error_code Sql_data_context::deallocate_prep_stmt(const uint32_t stmt_id,
+                                                       iface::Resultset *rset) {
   COM_DATA data;
   data.com_stmt_close = {static_cast<unsigned>(stmt_id)};
   return execute_server_command(COM_STMT_CLOSE, data, rset);
@@ -470,7 +471,7 @@ ngs::Error_code Sql_data_context::deallocate_prep_stmt(
 
 ngs::Error_code Sql_data_context::execute_prep_stmt(
     const uint32_t stmt_id, const bool has_cursor, const PS_PARAM *parameters,
-    const std::size_t parameters_count, ngs::Resultset_interface *rset) {
+    const std::size_t parameters_count, iface::Resultset *rset) {
   COM_DATA cmd;
   cmd.com_stmt_execute = {
       static_cast<unsigned long>(stmt_id),     // NOLINT(runtime/int)
@@ -484,7 +485,7 @@ ngs::Error_code Sql_data_context::execute_prep_stmt(
 
 ngs::Error_code Sql_data_context::execute_server_command(
     const enum_server_command cmd, const COM_DATA &cmd_data,
-    ngs::Resultset_interface *rset) {
+    iface::Resultset *rset) {
   ngs::Command_delegate &deleg = rset->get_callbacks();
   deleg.reset();
   if (command_service_run_command(m_mysql_session, cmd, &cmd_data,

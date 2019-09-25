@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ Client_list::Client_list() : m_clients_lock(KEY_rwlock_x_client_list_clients) {}
 
 Client_list::~Client_list() {}
 
-void Client_list::add(Client_ptr client) {
+void Client_list::add(std::shared_ptr<xpl::iface::Client> client) {
   xpl::RWLock_writelock guard(m_clients_lock);
   m_clients.push_back(client);
 }
@@ -48,7 +48,8 @@ void Client_list::remove(const uint64_t client_id) {
 
 Client_list::Match_client::Match_client(uint64_t client_id) : m_id(client_id) {}
 
-bool Client_list::Match_client::operator()(Client_ptr client) {
+bool Client_list::Match_client::operator()(
+    std::shared_ptr<xpl::iface::Client> client) {
   if (client->client_id_num() == m_id) {
     return true;
   }
@@ -56,14 +57,14 @@ bool Client_list::Match_client::operator()(Client_ptr client) {
   return false;
 }
 
-Client_ptr Client_list::find(uint64_t client_id) {
+std::shared_ptr<xpl::iface::Client> Client_list::find(uint64_t client_id) {
   xpl::RWLock_readlock guard(m_clients_lock);
   Match_client matcher(client_id);
 
-  std::list<Client_ptr>::iterator i =
+  std::list<std::shared_ptr<xpl::iface::Client>>::iterator i =
       std::find_if(m_clients.begin(), m_clients.end(), matcher);
 
-  if (m_clients.end() == i) return Client_ptr();
+  if (m_clients.end() == i) return std::shared_ptr<xpl::iface::Client>();
 
   return *i;
 }
@@ -74,7 +75,8 @@ size_t Client_list::size() {
   return m_clients.size();
 }
 
-void Client_list::get_all_clients(std::vector<Client_ptr> &result) {
+void Client_list::get_all_clients(
+    std::vector<std::shared_ptr<xpl::iface::Client>> &result) {
   xpl::RWLock_readlock guard(m_clients_lock);
 
   result.clear();

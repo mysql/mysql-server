@@ -51,11 +51,11 @@ class Cursor_test_suite : public ::testing::Test {
   }
 
   ngs::Metadata_builder m_meta_builder;
-  StrictMock<ngs::test::Mock_protocol_encoder> m_mock_encoder;
-  StrictMock<ngs::test::Mock_session> m_mock_session;
-  StrictMock<ngs::test::Mock_notice_output_queue> m_mock_notice_output_queue;
-  StrictMock<ngs::test::Mock_notice_configuration> m_mock_notice_configuration;
-  StrictMock<ngs::test::Mock_sql_data_context> m_mock_data_context;
+  StrictMock<Mock_protocol_encoder> m_mock_encoder;
+  StrictMock<Mock_session> m_mock_session;
+  StrictMock<Mock_notice_output_queue> m_mock_notice_output_queue;
+  StrictMock<Mock_notice_configuration> m_mock_notice_configuration;
+  StrictMock<Mock_sql_data_context> m_mock_data_context;
   Prepare_command_handler m_handler{&m_mock_session};
 };
 

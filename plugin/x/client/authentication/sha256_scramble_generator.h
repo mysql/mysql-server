@@ -24,18 +24,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef PLUGIN_X_CLIENT_SHA256_SCRAMBLE_GENERATOR_H_
 #define PLUGIN_X_CLIENT_SHA256_SCRAMBLE_GENERATOR_H_
 
+#include <openssl/evp.h>
+
 #include <memory>
 #include <string>
 
-#include <openssl/evp.h>
 #include "openssl/ossl_typ.h"
-#include "sha2.h" /* SHA256_DIGEST_LENGTH */
+#include "sha2.h"  // SHA256_DIGEST_LENGTH  NOLINT(build/include_subdir)
 
 namespace xcl {
 namespace sha256_password {
 
 /* Digest length for caching_sha2_authentication plugin */
-const std::uint32_t CACHING_SHA2_DIGEST_LENGTH = SHA256_DIGEST_LENGTH;
+const uint32_t CACHING_SHA2_DIGEST_LENGTH = SHA256_DIGEST_LENGTH;
 
 /**
   Supported digest information
@@ -47,9 +48,9 @@ enum class Digest_info { SHA256_DIGEST = 0, DIGEST_LAST };
 */
 class Generate_digest {
  public:
-  virtual bool update_digest(const void *src, const std::uint32_t length) = 0;
+  virtual bool update_digest(const void *src, const uint32_t length) = 0;
   virtual bool retrieve_digest(unsigned char *digest,
-                               const std::uint32_t length) = 0;
+                               const uint32_t length) = 0;
   virtual void scrub() = 0;
   virtual ~Generate_digest() = default;
 };
@@ -62,8 +63,8 @@ class SHA256_digest : public Generate_digest {
   SHA256_digest();
   ~SHA256_digest() override;
 
-  bool update_digest(const void *src, std::uint32_t length) override;
-  bool retrieve_digest(unsigned char *digest, std::uint32_t length) override;
+  bool update_digest(const void *src, uint32_t length) override;
+  bool retrieve_digest(unsigned char *digest, uint32_t length) override;
   void scrub() override;
   bool all_ok() const { return m_ok; }
 
@@ -90,8 +91,7 @@ class Generate_scramble {
   Generate_scramble(const std::string &source, const std::string &rnd,
                     Digest_info digest_type = Digest_info::SHA256_DIGEST);
 
-  bool scramble(unsigned char *out_scramble,
-                const std::uint32_t scramble_length);
+  bool scramble(unsigned char *out_scramble, const uint32_t scramble_length);
 
  private:
   /** plaintext source string */
@@ -103,7 +103,7 @@ class Generate_scramble {
   /** Digest generator class */
   std::unique_ptr<Generate_digest> m_digest_generator;
   /** length of the digest */
-  std::uint32_t m_digest_length;
+  uint32_t m_digest_length;
 };
 
 }  // namespace sha256_password

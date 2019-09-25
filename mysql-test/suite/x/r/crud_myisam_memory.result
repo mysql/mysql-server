@@ -110,9 +110,9 @@ send Mysqlx.Crud.Insert {
 last insert id: 11
 Records: 2  Duplicates: 0  Warnings: 0
 RUN SELECT * FROM xplugintest.table2
-doc	_id
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+doc	_id	_json_schema
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	{"type": "object"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2	{"type": "object"}
 0 rows affected
 RUN SELECT * FROM xplugintest.table1
 doc	_id
@@ -127,9 +127,11 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
-  UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
+  UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50)),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
@@ -141,9 +143,9 @@ table1	CREATE TABLE `table1` (
 ) ENGINE=MEMORY AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
-doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2	Omar Mex
+doc	_id	_json_schema	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	{"type": "object"}	Omar Bras
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2	{"type": "object"}	Omar Mex
 0 rows affected
 RUN SELECT * FROM xplugintest.table1
 doc	_id
@@ -250,9 +252,11 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
-  UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
+  UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50)),
+  CONSTRAINT `$val_strict_8A6DECD6D7FCE389DA6206C4247042D2D76E08AD` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
@@ -269,9 +273,9 @@ JSON_EXTRACT(doc,'$.name')
 "\"Omar Argentina\""
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
-doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
-{"id": "2", "_id": "2", "name": "\"Omar Argentina\""}	2	"Omar Argentina"
+doc	_id	_json_schema	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	{"type": "object"}	Omar Bras
+{"id": "2", "_id": "2", "name": "\"Omar Argentina\""}	2	{"type": "object"}	"Omar Argentina"
 0 rows affected
 RUN SELECT * FROM xplugintest.table1
 doc	_id
@@ -343,8 +347,8 @@ JSON_EXTRACT(doc,'$.name')
 "Omar Bras"
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
-doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
+doc	_id	_json_schema	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	{"type": "object"}	Omar Bras
 0 rows affected
 RUN SELECT * FROM xplugintest.table1
 doc	_id
@@ -464,9 +468,9 @@ send Mysqlx.Crud.Insert {
 
 Got expected error: Duplicate entry '10' for key 'table1.PRIMARY' (code 1062)
 RUN SELECT * FROM xplugintest.table2
-doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
-{"id": "3", "_id": "3", "name": "Omar Peru"}	3	Omar Peru
+doc	_id	_json_schema	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	{"type": "object"}	Omar Bras
+{"id": "3", "_id": "3", "name": "Omar Peru"}	3	{"type": "object"}	Omar Peru
 0 rows affected
 RUN SELECT * FROM xplugintest.table1
 doc	_id

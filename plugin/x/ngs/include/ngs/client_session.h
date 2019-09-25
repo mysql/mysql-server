@@ -25,23 +25,23 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_SESSION_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_SESSION_H_
 
-#include <assert.h>
+#include <cassert>
+#include <cstdint>
+#include <memory>
 
-#include "my_inttypes.h"
-
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/interface/authentication.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/session.h"
 
 namespace ngs {
 class Client;
 
-class Session : public Session_interface {
+class Session : public xpl::iface::Session {
  public:
   typedef int32_t Session_id;
 
-  Session(Client_interface *client, Protocol_encoder_interface *proto,
+  Session(xpl::iface::Client *client, xpl::iface::Protocol_encoder *proto,
           const Session_id session_id);
   ~Session() override;
 
@@ -50,22 +50,22 @@ class Session : public Session_interface {
  public:
   void on_close(const bool update_old_state = false) override;
   void on_auth_success(
-      const Authentication_interface::Response &response) override;
+      const xpl::iface::Authentication::Response &response) override;
   void on_auth_failure(
-      const Authentication_interface::Response &response) override;
+      const xpl::iface::Authentication::Response &response) override;
 
   // handle a single message, returns true if message was handled false if not
-  bool handle_message(ngs::Message_request &command) override;
+  bool handle_message(const ngs::Message_request &command) override;
 
-  Client_interface &client() override { return *m_client; }
-  const Client_interface &client() const override { return *m_client; }
+  xpl::iface::Client &client() override { return *m_client; }
+  const xpl::iface::Client &client() const override { return *m_client; }
 
-  Protocol_encoder_interface &proto() override { return *m_encoder; }
-  void set_proto(Protocol_encoder_interface *encode) override;
+  xpl::iface::Protocol_encoder &proto() override { return *m_encoder; }
+  void set_proto(xpl::iface::Protocol_encoder *encode) override;
 
  protected:
-  virtual bool handle_auth_message(ngs::Message_request &command);
-  virtual bool handle_ready_message(ngs::Message_request &command);
+  virtual bool handle_auth_message(const ngs::Message_request &command);
+  virtual bool handle_ready_message(const ngs::Message_request &command);
 
   void stop_auth();
 
@@ -79,9 +79,9 @@ class Session : public Session_interface {
   bool can_authenticate_again() const;
 
  protected:
-  Client_interface *m_client;
-  Protocol_encoder_interface *m_encoder;
-  Authentication_interface_ptr m_auth_handler;
+  xpl::iface::Client *m_client;
+  xpl::iface::Protocol_encoder *m_encoder;
+  std::unique_ptr<xpl::iface::Authentication> m_auth_handler;
   State m_state;
   State m_state_before_close;
   uint8_t m_failed_auth_count = 0;
@@ -89,9 +89,9 @@ class Session : public Session_interface {
 
   const Session_id m_id;
   // true if a session session was already scheduled for execution in a thread
-  int32 m_thread_pending;
+  int32_t m_thread_pending;
   // true if the session is currently assigned to a thread and executing
-  int32 m_thread_active;
+  int32_t m_thread_active;
 
   void check_thread() {
 #ifndef WIN32

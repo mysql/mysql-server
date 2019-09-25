@@ -34,7 +34,8 @@
 #include <utility>
 #include <vector>
 
-#include "my_macros.h"
+#include "my_macros.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/client/mysqlxclient/xconnection.h"
 #include "plugin/x/client/mysqlxclient/xsession.h"
 #include "plugin/x/tests/driver/formatters/console.h"
@@ -57,8 +58,8 @@ struct Connection_options {
   std::string ssl_cipher;
   std::string ssl_key;
   std::string allowed_tls;
-  std::int64_t io_timeout{-1};
-  std::int64_t session_connect_timeout{-1};
+  int64_t io_timeout{-1};
+  int64_t session_connect_timeout{-1};
   bool dont_wait_for_disconnect{false};
   bool trace_protocol{false};
   xcl::Internet_protocol ip_mode{xcl::Internet_protocol::V4};

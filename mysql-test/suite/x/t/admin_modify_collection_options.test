@@ -1,0 +1,485 @@
+## Test modify_collection_options command
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Tests start here
+
+create schema xtest;
+
+--let $xtest_file= $MYSQL_TMP_DIR/admin_modify_collection_options.tmp
+--write_file $xtest_file
+-->import validation_schema.macro
+-->import assert_status_variable.macro
+-->quiet
+
+-->macro Create_basic_collection %NAME%
+stmtadmin create_collection	{"schema": "xtest", "name": "%NAME%", "options": {
+  "validation": {
+    "schema": {"description": "base"}
+  }
+}};
+-->recvresult
+-->endmacro
+
+-->echo
+-->echo
+-->echo ## I. Try to modify non existing collection.
+-->echo
+-->echo ## II. Check modify_collection_options with invalid validation field.
+-->echo #
+-->echo # 1. Empty validation field given.
+-->echo # 2. No validation field given.
+-->echo # 3. Validation contains only unknown fields.
+-->echo # 4. Validation contains valid fields along with unknown fields.
+-->echo # 5. Options contain invalid field.
+-->echo
+-->echo ## III. Check modify_collection_options command with the validation
+-->echo #       level field set.
+-->echo #
+-->echo # 1. Test with invalid validation level value.
+-->echo # 2. Test turning on the validation.
+-->echo # 3. Test turning off the validation.
+-->echo # 4. Check case insensitive values for validation level setting.
+-->echo
+-->echo ## IV. Check modify_collection_options command with the validation
+-->echo #      schema field set.
+-->echo #
+-->echo # 1. Test containing invalid schema field.
+-->echo # 2. Test with empty schema field.
+-->echo # 3. Replace default validation schema with one provided by a user.
+-->echo # 4. Set validation schema encoded as protobuf string.
+-->echo # 5. Set validation schema encoded as Mysqlx.Datatypes.Object.
+-->echo # 6. Check special characters handling inside a validation schema.
+-->echo
+-->echo ## V. Check modify_collection_options command with both validation
+-->echo #     schema and validation level fields set.
+-->echo #
+-->echo # 1. Set validation schema encoded as protobuf string and validation
+-->echo #    level set to off.
+-->echo # 2. Set validation schema encoded as Mysqlx.Datatypes.Object and
+-->echo #    validation level set to strict.
+-->echo # 3. Check modify_collection_options with custom schema and invalid
+-->echo #    level field value.
+-->echo
+-->echo ## VI. Check modify_collection_options command when modification fails.
+-->echo #
+-->echo # 1. Insert some invalid data when validation is disabled, after that
+-->echo #    modification must fail. Fix the offending row and modification
+-->echo #    should pass this time.
+-->echo # 2. Modification fails on existing data, update offending row so that
+-->echo #    it will be in line with the new schema and try again, this time
+-->echo #    modify_collumn_options must pass.
+-->echo # 3. Insert invalid data when validation is disabled, modify collection
+-->echo #    using new schema which would treat existing data as valid and
+-->echo #    enabling the validation.
+-->echo
+-->echo ## VII. Check Mysqlx_stmt_modify_collection_options variable.
+
+
+-->echo
+-->echo #
+-->echo # I
+-->stmtsql DROP TABLE IF EXISTS xtest.tab;
+-->recvresult
+-->callmacro Modify_schema	tab	{"type":"object"}
+-->recverror ER_NO_SUCH_TABLE
+
+
+-->echo
+-->echo #
+-->echo # II.1
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "coll", "options": {
+  "validation": {}
+}};
+-->recverror ER_X_CMD_ARGUMENT_OBJECT_EMPTY
+
+
+-->echo
+-->echo #
+-->echo # II.2
+-->stmtadmin modify_collection_options	{"schema": "xtest", "name": "coll", "options": ""}
+-->recverror ER_X_CMD_ARGUMENT_TYPE
+
+
+-->echo
+-->echo #
+-->echo # II.3
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "coll", "options": {
+  "validation": {
+    "foo": "bar", "baz": ""
+  }
+}};
+-->recverror ER_X_CMD_INVALID_ARGUMENT
+
+
+-->echo
+-->echo #
+-->echo # II.4
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "coll", "options": {
+  "validation": {
+    "foo": "bar", "level": "off"
+  }
+}};
+-->recverror ER_X_CMD_INVALID_ARGUMENT
+
+-->echo
+-->echo #
+-->echo # II.5
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "coll", "options": {
+  "foo": { "x": "y" } }};
+-->recverror ER_X_CMD_INVALID_ARGUMENT
+
+
+-->echo
+-->echo #
+-->echo # III.1
+-->callmacro Modify_level coll	foo
+-->recverror ER_X_CMD_ARGUMENT_VALUE
+
+
+-->echo
+-->echo #
+-->echo # III.2
+-->callmacro Create_coll_with_validation	test_coll	{"description": "base"}	off
+-->callmacro Assert_is_enforced	test_coll	NO
+-->callmacro Modify_level test_coll	strict
+-->recvresult
+-->callmacro Assert_is_enforced	test_coll	YES
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # III.3
+-->callmacro Create_coll_with_validation	test_coll	{"description": "base"}	strict
+-->callmacro Assert_is_enforced	test_coll	YES
+-->callmacro Modify_level test_coll	off
+-->recvresult
+-->callmacro Assert_is_enforced	test_coll	NO
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # III.4
+-->callmacro Create_coll_with_validation	test_coll	{"description": "base"}	STRICT
+-->callmacro Assert_is_enforced	test_coll	YES
+-->callmacro Modify_level test_coll	OfF
+-->recvresult
+-->callmacro Assert_is_enforced	test_coll	NO
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.1
+-->callmacro Create_basic_collection	test_coll
+-->callmacro Modify_schema	test_coll	"surpise surprise"
+-->recverror ER_X_INVALID_VALIDATION_SCHEMA
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one"}'
+-->recvresult
+-->callmacro Modify_schema	test_coll	{"type":"object"}
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "two"}'
+-->recvresult
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.2
+-->callmacro Create_basic_collection	test_coll
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "test_coll", "options": {
+  "validation": {
+    "schema": ""
+  }
+}};
+-->recvresult
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one"}'
+-->recverror ER_INVALID_JSON_TEXT
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.3
+-->stmtadmin create_collection	{"schema": "xtest", "name": "test_coll"}
+-->recvresult
+-->callmacro Show_validation_schema
+-->callmacro Modify_schema	test_coll	{"id": "some id", "description": "modified"}
+-->recvresult
+-->callmacro Show_validation_schema
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.4
+-->callmacro Create_basic_collection	test_coll
+-->callmacro Show_validation_schema
+-->callmacro Modify_schema	test_coll	"{\"description\": \"modified\"}"
+-->recvresult
+-->callmacro Show_validation_schema
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.5
+-->callmacro Create_basic_collection	test_coll
+-->callmacro Modify_schema	test_coll	{"description": "modified"}
+-->recvresult
+-->callmacro Show_validation_schema
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # IV.6
+-->callmacro Create_basic_collection	test_coll
+-->callmacro Modify_schema	test_coll	{"description": "fo\"o`b@\\"}
+-->recvresult
+-->callmacro Show_validation_schema
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # V.1
+-->callmacro Create_coll_with_validation	test_coll	{"description": "base"}	strict
+-->callmacro Assert_is_enforced	test_coll	YES
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "test_coll",
+  "options": {
+    "validation": {
+      "schema": "{\"description\": \"test\"}", "level": "off"
+    }
+  }
+};
+-->recvresult
+-->callmacro Assert_is_enforced	test_coll	NO
+-->callmacro Show_validation_schema
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # V.2
+-->callmacro Create_coll_with_validation	test_coll	{"description": "base"}	off
+-->callmacro Assert_is_enforced	test_coll	NO
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "test_coll",
+  "options": {
+    "validation": {
+      "schema": {"description": "test"},
+      "level": "strict"
+    }
+  }
+};
+-->recvresult
+-->callmacro Assert_is_enforced	test_coll	YES
+-->callmacro Show_validation_schema
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # V.3
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "test_coll",
+  "options": {
+    "validation": {
+      "schema": {"description": "test"},
+      "level": "bad"
+    }
+  }
+};
+-->recverror ER_X_CMD_ARGUMENT_VALUE
+
+
+-->echo
+-->echo #
+-->echo # VI.1
+varlet %STR% {"type": "object",
+ "properties": {
+   "latitude": {"type": "number", "minimum": -90, "maximum": 90}},
+ "required": ["latitude", "longitude"]};
+-->callmacro Create_coll_with_validation	test_coll	%STR%	off
+# Invalid value can be inserted since validation is turned off.
+callmacro Insert_value_to_collection test_coll
+	'{"_id": "one", "latitude":3312}';
+-->recvresult
+# Valid data, insert ok.
+callmacro Insert_value_to_collection test_coll
+	'{"_id": "two", "latitude":45, "longitude":54}';
+-->recvresult
+-->callmacro Assert_not_empty test_coll
+# Fail because existing data does not fit the validation schema.
+-->callmacro Modify_level test_coll	strict
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->callmacro Assert_is_enforced	test_coll	NO
+-->stmtsql DELETE FROM xtest.test_coll WHERE `_id` = "one";
+-->recvresult
+# No more invalid data, modification passes.
+-->callmacro Modify_level test_coll	strict
+-->recvresult
+-->callmacro Assert_is_enforced	test_coll	YES
+# Valid data, insert ok.
+callmacro Insert_value_to_collection
+	test_coll
+	'{"_id": "three", "latitude": 10, "longitude": 11}';
+-->recvresult
+# Now insert with invalid data will fail immediately.
+callmacro Insert_value_to_collection	test_coll
+	'{"_id": "four", "latitude": 521}';
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+# Update to valid value, ok.
+callmacro Update_item test_coll
+	latitude
+	{type: V_SINT v_signed_int: 10}
+	{type: V_SINT v_signed_int: 23};
+-->recvresult
+# Update tries to change data against the schema and fails.
+callmacro Update_item test_coll
+	latitude
+	{type: V_SINT v_signed_int: 23}
+	{type: V_DOUBLE v_double: 1000};
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # VI.2
+varlet %STR% {"type": "object",
+ "properties": {
+ "latitude": {"type": "number", "minimum": -90, "maximum": 90}},
+ "required": ["latitude", "longitude"]};
+-->callmacro Create_coll_with_validation	test_coll	%STR%	strict
+# Insert according to existing schema
+callmacro Insert_value_to_collection test_coll
+	'{"_id": "one", "latitude":80, "longitude":70}';
+-->recvresult
+callmacro Insert_value_to_collection test_coll
+	'{"_id": "two", "latitude":45, "longitude":54}';
+-->recvresult
+-->callmacro Assert_not_empty test_coll
+
+varlet %STR%  "type": "object", "properties": {
+ "latitude": {"type": "number", "maximum": 50}},
+ "required": ["latitude"];
+
+# Modify collection adding new validation schema which is not valid because of
+# a data which was inserted already
+-->callmacro Modify_schema	test_coll	{%STR%}
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+# Change the offending row so that new validation schema should be ok.
+callmacro Update_item test_coll
+	latitude
+	{type: V_SINT v_signed_int: 80}
+	{type: V_DOUBLE v_double: 41.1};
+-->recvresult
+# Modify shema options for updated data should pass.
+-->callmacro Modify_schema	test_coll	{%STR%}
+-->recvresult
+-->stmtsql SHOW CREATE TABLE xtest.test_coll
+-->recvresult
+# Insert valid data according to the new validation schema.
+callmacro Insert_value_to_collection	test_coll
+	'{"_id": "three", "latitude":30}';
+-->recvresult
+# Insert invalid data according to the new validation schema.
+callmacro Insert_value_to_collection	test_coll
+	'{"_id": "four", "latitude":60}';
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+# Update to a valid value according to the new validation schema.
+callmacro Update_item test_coll
+	latitude
+	{type: V_SINT v_signed_int: 30}
+	{type: V_SINT v_signed_int: 31};
+-->recvresult
+# Update to an invalid value according to the new validation schema.
+callmacro Update_item test_coll
+	latitude
+	{type: V_SINT v_signed_int: 31}
+	{type: V_SINT v_signed_int: 131};
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # VI.3
+varlet %STR% {"type": "object",
+ "properties": {
+   "latitude": {"type": "number", "minimum": -90, "maximum": 90}},
+ "required": ["latitude", "longitude"]};
+-->callmacro Create_coll_with_validation	test_coll	%STR%	off
+-->callmacro Assert_is_enforced	test_coll	NO
+# Invalid value can be inserted since validation is turned off.
+callmacro Insert_value_to_collection	test_coll
+	'{"_id": "one", "latitude":100}';
+-->recvresult
+# Valid data, insert ok.
+callmacro Insert_value_to_collection	test_coll
+	'{"_id": "two", "latitude":45, "longitude":54}';
+-->recvresult
+-->callmacro Assert_not_empty test_coll
+# New validation is allowed as it does not conflict with the existing data.
+varlet %STR%  "type": "object", "properties": {
+   "latitude": {"type": "number", "maximum": 150}},
+ "required": ["latitude"];
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "test_coll",
+  "options": {
+    "validation": {
+      "schema": {%STR%},
+      "level": "strict"
+    }
+  }
+};
+-->recvresult
+-->callmacro Assert_is_enforced	test_coll	YES
+# Valid based on the new schema.
+callmacro Insert_value_to_collection	test_coll
+	'{"_id": "three", "latitude":122}';
+-->recvresult
+# Invalid based on the new schema.
+callmacro Insert_value_to_collection	test_coll
+	'{"_id": "four", "latitude":154}';
+-->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->callmacro Drop_collection	test_coll
+
+
+-->echo
+-->echo #
+-->echo # VII
+-->newsession temp
+-->quiet
+-->stmtadmin create_collection	{"schema": "xtest", "name": "test_coll"}
+-->recvresult
+# Initial value.
+-->callmacro Assert_status_variable Mysqlx_stmt_modify_collection_options	0
+stmtadmin modify_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": { "validation": { "level": "off"}}};
+-->recvresult
+# After successful modify_collection_options operation.
+-->callmacro Assert_status_variable Mysqlx_stmt_modify_collection_options	1
+stmtadmin modify_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": { "validation": { "level": "foo"}}};
+-->recverror ER_X_CMD_ARGUMENT_VALUE
+# After unsuccessful modify_collection_options operation.
+-->callmacro Assert_status_variable Mysqlx_stmt_modify_collection_options	2
+stmtadmin modify_collection_options
+	{"schema": "xtest", "name": "test_coll", "options": { "validation": { "level": "off"}}};
+-->recvresult
+# After next successful modify_collection_options operation.
+-->callmacro Assert_status_variable Mysqlx_stmt_modify_collection_options	3
+-->callmacro Drop_collection	test_coll
+-->closesession
+
+EOF
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc
+drop schema if exists xtest;

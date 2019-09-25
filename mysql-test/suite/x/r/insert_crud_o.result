@@ -1396,9 +1396,9 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
-RUN select * from main_collection
-doc	_id
-{"id": "1", "_id": "1", "name": "Omar Port"}	1
+RUN select doc from main_collection
+doc
+{"id": "1", "_id": "1", "name": "Omar Port"}
 0 rows affected
 Insert multiple rows into a Document column
 send Mysqlx.Crud.Insert {
@@ -1434,11 +1434,11 @@ send Mysqlx.Crud.Insert {
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
-RUN select * from main_collection
-doc	_id
-{"id": "1", "_id": "1", "name": "Omar Port"}	1
-{"id": "2", "_id": "2", "name": "Omar Bras"}	2
-{"id": "3", "_id": "3", "name": "Omar Mex"}	3
+RUN select doc from main_collection
+doc
+{"id": "1", "_id": "1", "name": "Omar Port"}
+{"id": "2", "_id": "2", "name": "Omar Bras"}
+{"id": "3", "_id": "3", "name": "Omar Mex"}
 0 rows affected
 Insert malformed JSON into Document column
 send Mysqlx.Crud.Insert {
@@ -1464,11 +1464,11 @@ Got expected error: Invalid JSON text: "Missing a comma or '}' after an object m
 ================================================================================
 CLEAN UP
 ================================================================================
-RUN SELECT * FROM main_collection
-doc	_id
-{"id": "1", "_id": "1", "name": "Omar Port"}	1
-{"id": "2", "_id": "2", "name": "Omar Bras"}	2
-{"id": "3", "_id": "3", "name": "Omar Mex"}	3
+RUN SELECT doc FROM main_collection
+doc
+{"id": "1", "_id": "1", "name": "Omar Port"}
+{"id": "2", "_id": "2", "name": "Omar Bras"}
+{"id": "3", "_id": "3", "name": "Omar Mex"}
 0 rows affected
 RUN DROP SCHEMA if EXISTS mysqlxplugin
 

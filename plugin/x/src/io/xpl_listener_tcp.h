@@ -25,24 +25,27 @@
 #ifndef PLUGIN_X_SRC_IO_XPL_LISTENER_TCP_H_
 #define PLUGIN_X_SRC_IO_XPL_LISTENER_TCP_H_
 
-#include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "plugin/x/src/interface/listener.h"
+#include "plugin/x/src/interface/operations_factory.h"
+#include "plugin/x/src/interface/socket.h"
+#include "plugin/x/src/interface/socket_events.h"
 
 namespace xpl {
 
-class Listener_tcp : public ngs::Listener_interface {
+class Listener_tcp : public iface::Listener {
  public:
-  typedef ngs::Socket_interface Socket_interface;
-  typedef ngs::Socket_interface::Shared_ptr Socket_interface_ptr;
-  typedef ngs::Operations_factory_interface::Shared_ptr Factory_ptr;
+  using Socket_ptr = std::shared_ptr<iface::Socket>;
+  using Factory_ptr = std::shared_ptr<iface::Operations_factory>;
 
   Listener_tcp(Factory_ptr operations_factory, std::string &bind_address,
-               const std::string &network_namespace, const uint16 port,
-               const uint32 port_open_timeout,
-               ngs::Socket_events_interface &event, const uint32 backlog);
+               const std::string &network_namespace, const uint16_t port,
+               const uint32_t port_open_timeout, iface::Socket_events &event,
+               const uint32_t backlog);
   ~Listener_tcp() override;
 
   Sync_variable_state &get_state() override;
@@ -57,17 +60,17 @@ class Listener_tcp : public ngs::Listener_interface {
 
  private:
   std::string choose_property_value(const std::string &value) const;
-  Socket_interface_ptr create_socket();
+  Socket_ptr create_socket();
 
   Factory_ptr m_operations_factory;
   Sync_variable_state m_state;
   std::string m_bind_address;
   std::string m_network_namespace;
   const unsigned short m_port;
-  const uint32 m_port_open_timeout;
-  const uint32 m_backlog;
-  Socket_interface_ptr m_tcp_socket;
-  ngs::Socket_events_interface &m_event;
+  const uint32_t m_port_open_timeout;
+  const uint32_t m_backlog;
+  Socket_ptr m_tcp_socket;
+  iface::Socket_events &m_event;
   std::string m_last_error;
 };
 

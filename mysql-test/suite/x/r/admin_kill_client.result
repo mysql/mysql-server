@@ -3,7 +3,7 @@ set password for unpriv@localhost = 'x';
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
 command ok
-Got expected error: Invalid number of arguments, expected 0 but got 1 (code 5015)
+Got expected error: 'what' is not a valid field for list_clients command (code 5021)
 connecting...
 active session is now 'aux'
 client_id	user	host	sql_session

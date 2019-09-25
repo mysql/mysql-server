@@ -26,21 +26,16 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_
 
 #include <stdint.h>
+
+#include <cstdint>
 #include <functional>
 #include <list>
+#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
-#include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/client_list.h"
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_delegate.h"
-#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/timeout_callback_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/ngs/include/ngs/socket_events.h"
@@ -48,23 +43,31 @@
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
+#include "plugin/x/src/interface/authentication.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/document_id_generator.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/interface/server_delegate.h"
+#include "plugin/x/src/interface/server_task.h"
+#include "plugin/x/src/interface/session.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
+#include "plugin/x/src/interface/ssl_context.h"
+#include "plugin/x/src/interface/timeout_callback.h"
 
 namespace ngs {
 
 class Server;
-class Session_interface;
-class Client_interface;
-class Server_task_interface;
-class Connection_acceptor_interface;
 class Incoming_queue;
 class Scheduler_dynamic;
 class Socket_acceptors_task;
 
-class Server : public Server_interface {
+class Server : public xpl::iface::Server {
  public:
-  using Task_context = Server_task_interface::Task_context;
-  using Stop_cause = Server_task_interface::Stop_cause;
-  using Server_task_vector = std::vector<Server_tasks_interface_ptr>;
+  using Task_context = xpl::iface::Server_task::Task_context;
+  using Stop_cause = xpl::iface::Server_task::Stop_cause;
+  using Server_task_vector =
+      std::vector<std::shared_ptr<xpl::iface::Server_task>>;
 
   enum State {
     State_initializing,
@@ -76,16 +79,16 @@ class Server : public Server_interface {
  public:
   Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
          std::shared_ptr<Scheduler_dynamic> work_scheduler,
-         Server_delegate *delegate,
+         xpl::iface::Server_delegate *delegate,
          std::shared_ptr<Protocol_global_config> config,
          Server_properties *properties, const Server_task_vector &tasks,
-         std::shared_ptr<Timeout_callback_interface> timeout_callback);
+         std::shared_ptr<xpl::iface::Timeout_callback> timeout_callback);
 
-  virtual Ssl_context_interface *ssl_context() const override {
+  xpl::iface::Ssl_context *ssl_context() const override {
     return m_ssl_context.get();
   }
 
-  bool prepare(std::unique_ptr<Ssl_context_interface> ssl_context,
+  bool prepare(std::unique_ptr<xpl::iface::Ssl_context> ssl_context,
                const bool skip_networking, const bool skip_name_resolve);
 
   void start();
@@ -97,7 +100,7 @@ class Server : public Server_interface {
   bool is_terminating();
   bool is_running() override;
 
-  virtual std::shared_ptr<Protocol_global_config> get_config() const override {
+  std::shared_ptr<Protocol_global_config> get_config() const override {
     return m_config;
   }
   std::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const override {
@@ -105,26 +108,27 @@ class Server : public Server_interface {
   }
   Client_list &get_client_list() { return m_client_list; }
   xpl::Mutex &get_client_exit_mutex() override { return m_client_exit_mutex; }
-  Client_ptr get_client(const THD *thd);
+  std::shared_ptr<xpl::iface::Client> get_client(const THD *thd);
 
-  virtual std::shared_ptr<Session_interface> create_session(
-      Client_interface &client, Protocol_encoder_interface &proto,
+  std::shared_ptr<xpl::iface::Session> create_session(
+      xpl::iface::Client *client, xpl::iface::Protocol_encoder *proto,
       const int session_id) override;
 
-  void on_client_closed(const Client_interface &client) override;
+  void on_client_closed(const xpl::iface::Client &client) override;
 
-  Authentication_interface_ptr get_auth_handler(
-      const std::string &name, Session_interface *session) override;
-  void get_authentication_mechanisms(std::vector<std::string> &auth_mech,
-                                     Client_interface &client) override;
+  std::unique_ptr<xpl::iface::Authentication> get_auth_handler(
+      const std::string &name, xpl::iface::Session *session) override;
+  void get_authentication_mechanisms(std::vector<std::string> *auth_mech,
+                                     const xpl::iface::Client &client) override;
   void add_authentication_mechanism(
-      const std::string &name, Authentication_interface::Create initiator,
+      const std::string &name, xpl::iface::Authentication::Create initiator,
       const bool allowed_only_with_secure_connection);
-  void add_sha256_password_cache(SHA256_password_cache_interface *cache);
+  void add_sha256_password_cache(xpl::iface::SHA256_password_cache *cache);
 
   void add_callback(const std::size_t delay_ms, std::function<bool()> callback);
   bool reset_globals();
-  Document_id_generator_interface &get_document_id_generator() const override {
+  xpl::iface::Document_id_generator &get_document_id_generator()
+      const override {
     return *m_id_generator;
   }
 
@@ -132,15 +136,16 @@ class Server : public Server_interface {
   Server(const Server &);
   Server &operator=(const Server &);
 
-  void run_task(std::shared_ptr<Server_task_interface> handler);
+  void run_task(std::shared_ptr<xpl::iface::Server_task> handler);
   void wait_for_clients_closure();
-  void go_through_all_clients(std::function<void(Client_ptr)> callback);
+  void go_through_all_clients(
+      std::function<void(std::shared_ptr<xpl::iface::Client>)> callback);
   bool timeout_for_clients_validation();
   void wait_for_next_client();
 
   // accept one connection, create a connection object for the client and tell
   // it to start reading input
-  void on_accept(Connection_acceptor_interface &acceptor);
+  void on_accept(xpl::iface::Connection_acceptor &acceptor);
   void start_client_supervision_timer(
       const xpl::chrono::Duration &oldest_object_time_ms);
   void restart_client_supervision_timer() override;
@@ -168,29 +173,29 @@ class Server : public Server_interface {
     const bool must_be_secure_connection;
   };
 
-  typedef std::map<Authentication_key, Authentication_interface::Create>
+  typedef std::map<Authentication_key, xpl::iface::Authentication::Create>
       Auth_handler_map;
 
   bool m_timer_running;
   bool m_skip_name_resolve;
-  uint32 m_errors_while_accepting;
-  SHA256_password_cache_interface *m_sha256_password_cache;
+  uint32_t m_errors_while_accepting;
+  xpl::iface::SHA256_password_cache *m_sha256_password_cache;
 
   std::shared_ptr<Socket_acceptors_task> m_acceptors;
   std::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
   std::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
   std::shared_ptr<Protocol_global_config> m_config;
-  std::unique_ptr<Document_id_generator_interface> m_id_generator;
+  std::unique_ptr<xpl::iface::Document_id_generator> m_id_generator;
 
-  std::unique_ptr<Ssl_context_interface> m_ssl_context;
+  std::unique_ptr<xpl::iface::Ssl_context> m_ssl_context;
   xpl::Sync_variable<State> m_state;
   Auth_handler_map m_auth_handlers;
   Client_list m_client_list;
-  Server_delegate *m_delegate;
+  xpl::iface::Server_delegate *m_delegate;
   xpl::Mutex m_client_exit_mutex;
   Server_properties *m_properties;
   Server_task_vector m_tasks;
-  std::shared_ptr<Timeout_callback_interface> m_timeout_callback;
+  std::shared_ptr<xpl::iface::Timeout_callback> m_timeout_callback;
 };
 
 }  // namespace ngs

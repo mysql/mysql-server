@@ -25,27 +25,30 @@
 #ifndef PLUGIN_X_SRC_IO_XPL_LISTENER_FACTORY_H_
 #define PLUGIN_X_SRC_IO_XPL_LISTENER_FACTORY_H_
 
-#include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "plugin/x/src/interface/listener_factory.h"
+#include "plugin/x/src/interface/operations_factory.h"
 
 namespace xpl {
 
-class Listener_factory : public ngs::Listener_factory_interface {
+class Listener_factory : public iface::Listener_factory {
  public:
   Listener_factory();
 
-  ngs::Listener_interface_ptr create_unix_socket_listener(
-      const std::string &unix_socket_path, ngs::Socket_events_interface &event,
-      const uint32 backlog);
+  std::unique_ptr<iface::Listener> create_unix_socket_listener(
+      const std::string &unix_socket_path, iface::Socket_events *event,
+      const uint32_t backlog);
 
-  ngs::Listener_interface_ptr create_tcp_socket_listener(
-      std::string &bind_address, const std::string &network_namespace,
-      const unsigned short port, const uint32 port_open_timeout,
-      ngs::Socket_events_interface &event, const uint32 backlog);
+  std::unique_ptr<iface::Listener> create_tcp_socket_listener(
+      std::string *bind_address, const std::string &network_namespace,
+      const unsigned short port, const uint32_t port_open_timeout,
+      iface::Socket_events *event, const uint32_t backlog);
 
  private:
-  ngs::Operations_factory_interface::Shared_ptr m_operations_factory;
+  std::shared_ptr<iface::Operations_factory> m_operations_factory;
 };
 
 }  // namespace xpl

@@ -29,8 +29,8 @@
 #include <map>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/prepare_param_handler.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/xpl_resultset.h"
@@ -66,7 +66,7 @@ class Prepare_command_handler {
   };
   using Cursor_info_list = std::map<Id_type, Cursor_info>;
 
-  explicit Prepare_command_handler(ngs::Session_interface *session)
+  explicit Prepare_command_handler(iface::Session *session)
       : m_session{session} {}
 
   ngs::Error_code execute_prepare(const Prepare &msg);
@@ -102,20 +102,20 @@ class Prepare_command_handler {
       const Prepared_stmt_info *stmt_info) const;
 
   void send_notices(const Prepared_stmt_info *stmt_info,
-                    const ngs::Resultset_interface::Info &info,
+                    const iface::Resultset::Info &info,
                     const bool is_eof) const;
 
   ngs::Error_code execute_execute_impl(const Execute &msg,
                                        const Prepared_stmt_info &prep_stmt_info,
-                                       ngs::Resultset_interface *rset);
+                                       iface::Resultset *rset);
   ngs::Error_code execute_deallocate_impl(const Id_type client_stmt_id,
                                           const Prepared_stmt_info *stmt_info);
   ngs::Error_code execute_cursor_fetch_impl(const Id_type cursor_id,
                                             Cursor_info *cursor_info,
-                                            const uint64 fetch_rows);
+                                            const uint64_t fetch_rows);
 
  private:
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Query_string_builder m_qb{1024};
   Prepared_stmt_info_list m_prepared_stmt_info;
   Cursor_info_list m_cursors_info;

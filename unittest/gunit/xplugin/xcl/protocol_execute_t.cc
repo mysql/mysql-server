@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_close) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, execute_close_fail_at_write) {
-  const uint32 expected_header_size = 5;
+  const uint32_t expected_header_size = 5;
   const int expected_error_code = 1123;
 
   EXPECT_CALL(*m_mock_connection, write(_, expected_header_size))
@@ -54,7 +54,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_close_fail_at_write) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, execute_close_fail_at_read) {
-  const uint32 expected_header_size = 5;
+  const uint32_t expected_header_size = 5;
   const int expected_error_code = 1124;
 
   EXPECT_CALL(*m_mock_connection, write(_, expected_header_size))
@@ -73,7 +73,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_close_failed_because_of_error_msg) {
   auto msg_send = Send_desc::make_required();
   auto msg_recv = Recv_desc::make_required();
 
-  const uint32 expected_error_code = 1124;
+  const uint32_t expected_error_code = 1124;
   msg_recv.set_code(expected_error_code);
 
   expect_write_message_without_payload(msg_send);
@@ -226,7 +226,7 @@ TYPED_TEST(xcl_protocol_impl_tests_execute_msg, msg_with_payload) {
 }
 
 TYPED_TEST(xcl_protocol_impl_tests_execute_msg, fails_at_message_write) {
-  const uint32 expected_error_code = 23324;
+  const uint32_t expected_error_code = 23324;
   XError out_error;
 
   this->expect_write_message(*this->m_message, expected_error_code);
@@ -264,7 +264,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_fetch_capabilities) {
 
 TEST_F(Xcl_protocol_impl_tests,
        execute_fetch_capabilities_fails_at_header_write) {
-  const uint32 expected_error = 2300;
+  const uint32_t expected_error = 2300;
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
   auto msg_send = Send_desc::make_required();
   XError out_error;
@@ -278,7 +278,7 @@ TEST_F(Xcl_protocol_impl_tests,
 }
 
 TEST_F(Xcl_protocol_impl_tests, execute_fetch_capabilities_fails_at_read) {
-  const uint32 expected_error = 2301;
+  const uint32_t expected_error = 2301;
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
   using Recv_desc = Server_message<::Mysqlx::Connection::Capabilities>;
 
@@ -297,7 +297,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_fetch_capabilities_fails_at_read) {
 
 TEST_F(Xcl_protocol_impl_tests,
        execute_fetch_capabilities_fails_because_recv_error_msg) {
-  const uint32 expected_error = 2302;
+  const uint32_t expected_error = 2302;
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
   using Recv_desc = Server_message<::Mysqlx::Error>;
 
@@ -353,7 +353,7 @@ TEST_F(Xcl_protocol_impl_tests,
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
   using Recv_desc = Server_message<::Mysqlx::Error>;
 
-  const uint32 expected_error_code = 1001;
+  const uint32_t expected_error_code = 1001;
   auto msg_send = Send_desc::make_required();
   auto msg_recv = Recv_desc::make_required();
 
@@ -370,7 +370,7 @@ TEST_F(Xcl_protocol_impl_tests,
        execute_set_capability_failed_because_of_send_error) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
 
-  const uint32 expected_error_code = 1002;
+  const uint32_t expected_error_code = 1002;
   auto msg_send = Send_desc::make_required();
 
   expect_write_message(msg_send, expected_error_code);
@@ -401,7 +401,7 @@ TEST_F(Xcl_protocol_impl_tests,
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
   using Recv_desc = Server_message<::Mysqlx::Ok>;
 
-  const uint32 expected_error_code = 1003;
+  const uint32_t expected_error_code = 1003;
   auto msg_send = Send_desc::make_required();
   auto msg_recv = Recv_desc::make_required();
 

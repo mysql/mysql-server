@@ -68,6 +68,10 @@ class Expression_generator {
         m_default_schema(default_schema),
         m_is_relational(is_relational) {}
 
+  Expression_generator(const Expression_generator &) = default;
+  Expression_generator(Expression_generator &&) = default;
+  virtual ~Expression_generator() = default;
+
   template <typename T>
   inline void feed(const T &expr) const {
     generate(expr);
@@ -81,23 +85,26 @@ class Expression_generator {
   }
   bool is_prep_stmt_mode() const { return m_placeholders != nullptr; }
 
- private:
+ protected:
   using Placeholder = ::google::protobuf::uint32;
 
-  void generate(const Mysqlx::Expr::Expr &arg) const;
-  void generate(const Mysqlx::Expr::Identifier &arg,
-                const bool is_function = false) const;
-  void generate(const Mysqlx::Expr::ColumnIdentifier &arg) const;
-  void generate(const Mysqlx::Expr::FunctionCall &arg) const;
-  void generate(const Mysqlx::Expr::Operator &arg) const;
-  void generate(const Mysqlx::Datatypes::Any &arg) const;
-  void generate(const Mysqlx::Datatypes::Scalar &arg) const;
-  void generate(const Mysqlx::Datatypes::Scalar::Octets &arg) const;
-  void generate(const Document_path &arg) const;
-  void generate(const Placeholder &arg) const;
-  void generate(const Mysqlx::Expr::Object &arg) const;
-  void generate(const Mysqlx::Expr::Object::ObjectField &arg) const;
-  void generate(const Mysqlx::Expr::Array &arg) const;
+  virtual void generate(const Mysqlx::Expr::Expr &arg) const;
+  virtual void generate(const Mysqlx::Expr::Identifier &arg,
+                        const bool is_function = false) const;
+  virtual void generate(const Mysqlx::Expr::ColumnIdentifier &arg) const;
+  virtual void generate(const Mysqlx::Expr::FunctionCall &arg) const;
+  virtual void generate(const Mysqlx::Expr::Operator &arg) const;
+  virtual void generate(const Document_path &arg) const;
+  virtual void generate(const Placeholder &arg) const;
+  virtual void generate(const Mysqlx::Expr::Object &arg) const;
+  virtual void generate(const Mysqlx::Expr::Object::ObjectField &arg) const;
+  virtual void generate(const Mysqlx::Expr::Array &arg) const;
+  virtual void generate(const Mysqlx::Datatypes::Any &arg) const;
+  virtual void generate(const Mysqlx::Datatypes::Scalar &arg) const;
+  virtual void generate(const Mysqlx::Datatypes::Scalar::Octets &arg) const;
+  virtual void generate(const Mysqlx::Datatypes::Array &arg) const;
+  virtual void generate(const Mysqlx::Datatypes::Object &arg) const;
+  virtual void generate(const Mysqlx::Datatypes::Object_ObjectField &arg) const;
 
   template <typename T>
   void generate_for_each(
@@ -133,12 +140,34 @@ class Expression_generator {
   void overlaps_expression(const Mysqlx::Expr::Operator &arg,
                            const char *str) const;
 
+  virtual void handle_object_field(
+      const Mysqlx::Datatypes::Object::ObjectField &arg) const;
+  virtual void handle_string_scalar(
+      const Mysqlx::Datatypes::Scalar &string_scalar) const;
+  virtual void handle_bool_scalar(
+      const Mysqlx::Datatypes::Scalar &bool_scalar) const;
+
   Query_string_builder *m_qb;
   const Arg_list &m_args;
   const std::string &m_default_schema;
   const bool &m_is_relational;
   Prep_stmt_placeholder_list *m_placeholders{nullptr};
 };
+
+template <typename T>
+void Expression_generator::generate_for_each(
+    const Repeated_field_list<T> &list,
+    void (Expression_generator::*generate_fun)(const T &) const,
+    const typename Repeated_field_list<T>::size_type offset) const {
+  if (list.size() == 0) return;
+  using It = typename Repeated_field_list<T>::const_iterator;
+  It end = list.end() - 1;
+  for (It i = list.begin() + offset; i != end; ++i) {
+    (this->*generate_fun)(*i);
+    m_qb->put(",");
+  }
+  (this->*generate_fun)(*end);
+}
 
 template <typename T>
 void generate_expression(

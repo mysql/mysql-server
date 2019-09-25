@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,9 @@
 #include <string>
 #include <vector>
 
+#include "violite.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "violite.h"
 
 namespace xpl {
 
@@ -41,7 +42,7 @@ class String_formatter {
                          const Separator_type &separator) {
     if (elements_array.empty()) return *this;
 
-    uint32 index_of_element = 0;
+    uint32_t index_of_element = 0;
     const auto num_elements_without_last =
         static_cast<uint32>(elements_array.size() - 1);
 

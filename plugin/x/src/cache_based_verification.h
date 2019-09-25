@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@
 #ifndef PLUGIN_X_SRC_CACHE_BASED_VERIFICATION_H_
 #define PLUGIN_X_SRC_CACHE_BASED_VERIFICATION_H_
 
+#include <cstdint>
 #include <string>
+
 #include "plugin/x/src/challenge_response_verification.h"
 
 namespace xpl {
@@ -36,7 +38,7 @@ namespace xpl {
 */
 class Cache_based_verification : public Challenge_response_verification {
  public:
-  explicit Cache_based_verification(ngs::SHA256_password_cache_interface *cache)
+  explicit Cache_based_verification(iface::SHA256_password_cache *cache)
       : Challenge_response_verification(cache) {}
   bool verify_authentication_string(
       const std::string &user, const std::string &host,
@@ -44,7 +46,7 @@ class Cache_based_verification : public Challenge_response_verification {
       const std::string & /* unused */) const override;
 
  private:
-  void hex2octet(uint8 *to, const char *str, std::uint32_t len) const;
+  void hex2octet(uint8_t *to, const char *str, uint32_t len) const;
 };
 
 }  // namespace xpl

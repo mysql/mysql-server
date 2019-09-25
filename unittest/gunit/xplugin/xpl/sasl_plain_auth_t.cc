@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,25 +32,26 @@ namespace xpl {
 #define ER_SUCCESS 0
 
 namespace test {
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
 
 namespace {
 const char *const EMPTY = "";
 const char *const AUTH_DATA = "ALA_MA_KOTA";
 const char *const MECHANISM = "MYSQL41";
 
-AssertionResult assert_responce(
-    const char *e1_expr, const char *e2_expr,
-    const ngs::Authentication_interface::Response &e1,
-    const ngs::Authentication_interface::Response &e2) {
+AssertionResult assert_responce(const char *e1_expr, const char *e2_expr,
+                                const iface::Authentication::Response &e1,
+                                const iface::Authentication::Response &e2) {
   return (e1.data == e2.data && e1.status == e2.status &&
           e1.error_code == e2.error_code)
              ? ::testing::AssertionSuccess()
              : (::testing::AssertionFailure()
-                << "Value of: " << e2_expr << "\nActual: {" << e2.status << ", "
-                << e2.error_code << ", " << e2.data << "}\n"
-                << "Expected: " << e1_expr << "\nWhich is: {" << e1.status
-                << ", " << e1.error_code << ", " << e1.data << "}");
+                << "Value of: " << e2_expr << "\nActual: {"
+                << static_cast<uint32_t>(e2.status) << ", " << e2.error_code
+                << ", " << e2.data << "}\n"
+                << "Expected: " << e1_expr << "\nWhich is: {"
+                << static_cast<uint32_t>(e1.status) << ", " << e1.error_code
+                << ", " << e1.data << "}");
 }
 
 #define ASSERT_RESPONCE(a, b) ASSERT_PRED_FORMAT2(assert_responce, a, b);
@@ -59,19 +60,18 @@ AssertionResult assert_responce(
 class Sasl_plain_auth_test : public Test {
  public:
   StrictMock<Mock_account_verification_handler> *mock_handler{
-      ngs::allocate_object<StrictMock<Mock_account_verification_handler>>(
-          nullptr)};
+      new StrictMock<Mock_account_verification_handler>(nullptr)};
   Sasl_plain_auth auth{mock_handler};
-  StrictMock<ngs::test::Mock_account_verification> mock_account_verification;
+  StrictMock<Mock_account_verification> mock_account_verification;
 
-  typedef ngs::Authentication_interface::Response Response;
+  typedef iface::Authentication::Response Response;
 };
 
 TEST_F(Sasl_plain_auth_test, handle_start_authenticate_succeeded) {
   EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(Return(ngs::Success()));
 
-  ASSERT_RESPONCE(Response(ngs::Authentication_interface::Succeeded),
+  ASSERT_RESPONCE(Response(iface::Authentication::Status::k_succeeded),
                   auth.handle_start(MECHANISM, AUTH_DATA, EMPTY));
 }
 
@@ -80,13 +80,13 @@ TEST_F(Sasl_plain_auth_test, handle_start_authenticate_failed) {
   EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(Return(expect_error));
 
-  ASSERT_RESPONCE(Response(ngs::Authentication_interface::Failed,
+  ASSERT_RESPONCE(Response(iface::Authentication::Status::k_failed,
                            expect_error.error, expect_error.message),
                   auth.handle_start(MECHANISM, AUTH_DATA, EMPTY));
 }
 
 TEST_F(Sasl_plain_auth_test, handle_continue_without_previous_start) {
-  ASSERT_RESPONCE(Response(ngs::Authentication_interface::Error,
+  ASSERT_RESPONCE(Response(iface::Authentication::Status::k_error,
                            ER_NET_PACKETS_OUT_OF_ORDER, EMPTY),
                   auth.handle_continue(AUTH_DATA));
 }
@@ -95,10 +95,10 @@ TEST_F(Sasl_plain_auth_test, handle_continue_allways_failed) {
   EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(Return(ngs::Success()));
 
-  ASSERT_RESPONCE(Response(ngs::Authentication_interface::Succeeded),
+  ASSERT_RESPONCE(Response(iface::Authentication::Status::k_succeeded),
                   auth.handle_start(MECHANISM, AUTH_DATA, EMPTY));
 
-  ASSERT_RESPONCE(Response(ngs::Authentication_interface::Error,
+  ASSERT_RESPONCE(Response(iface::Authentication::Status::k_error,
                            ER_NET_PACKETS_OUT_OF_ORDER, EMPTY),
                   auth.handle_continue(AUTH_DATA));
 }

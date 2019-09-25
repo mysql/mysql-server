@@ -25,33 +25,32 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_ENCODER_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_ENCODER_H_
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "my_inttypes.h"
-
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/helper/chrono.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
+#include "plugin/x/src/interface/vio.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
 namespace ngs {
 
 class Output_buffer;
 
-class Protocol_encoder : public Protocol_encoder_interface {
+class Protocol_encoder : public xpl::iface::Protocol_encoder {
  public:
-  Protocol_encoder(const std::shared_ptr<Vio_interface> &socket,
-                   Error_handler ehandler, Protocol_monitor_interface *pmon,
+  Protocol_encoder(const std::shared_ptr<xpl::iface::Vio> &socket,
+                   Error_handler ehandler, xpl::iface::Protocol_monitor *pmon,
                    Memory_block_pool *memory_block);
 
   xpl::iface::Protocol_flusher *get_flusher() override {
@@ -75,8 +74,8 @@ class Protocol_encoder : public Protocol_encoder_interface {
   void send_notice_generated_document_ids(
       const std::vector<std::string> &ids) override;
 
-  bool send_notice(const Frame_type type, const Frame_scope scope,
-                   const std::string &data,
+  bool send_notice(const xpl::iface::Frame_type type,
+                   const xpl::iface::Frame_scope scope, const std::string &data,
                    const bool force_flush = false) override;
 
   void send_auth_ok(const std::string &data) override;
@@ -103,10 +102,10 @@ class Protocol_encoder : public Protocol_encoder_interface {
                              bool force_buffer_flush = false) override;
   void on_error(int error) override;
 
-  Protocol_monitor_interface &get_protocol_monitor() override;
+  xpl::iface::Protocol_monitor &get_protocol_monitor() override;
 
-  static void log_protobuf(const char *direction_name, const uint8 type,
-                           const Message *msg);
+  static void log_protobuf(const char *direction_name, const uint8_t type,
+                           const ngs::Message *msg);
   static void log_protobuf(const char *direction_name, const Message *request);
   static void log_protobuf(uint8_t type);
 
@@ -115,7 +114,7 @@ class Protocol_encoder : public Protocol_encoder_interface {
   Protocol_encoder &operator=(const Protocol_encoder &) = delete;
 
   Error_handler m_error_handler;
-  Protocol_monitor_interface *m_protocol_monitor;
+  xpl::iface::Protocol_monitor *m_protocol_monitor;
 
   Metadata_builder m_metadata_builder;
   protocol::Encoding_pool m_pool;

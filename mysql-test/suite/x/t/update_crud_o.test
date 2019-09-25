@@ -921,7 +921,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and > operator for multiple docs
@@ -976,7 +976,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and <= operator for multiple docs
@@ -1031,7 +1031,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and >= operator for multiple docs
@@ -1086,7 +1086,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and != operator for multiple docs
@@ -1141,7 +1141,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update order clause update last _id in desc order (_id = 5)
@@ -1208,7 +1208,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with order clause update first two _id in asc order (_id = 1,2)
@@ -1275,7 +1275,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Invalid type of update for Document
@@ -1403,7 +1403,7 @@ Mysqlx.Crud.Update {
 }
 -->recvresult
 -->sql
-SELECT * FROM mysqlxcoll.maincoll where _id > 3;
+select doc FROM mysqlxcoll.maincoll where _id > 3;
 SAVEPOINT A;
 -->endsql
 Mysqlx.Crud.Update {
@@ -1473,10 +1473,10 @@ Mysqlx.Crud.Update {
 }
 -->recvresult
 -->sql
-SELECT * FROM mysqlxcoll.maincoll where _id > 3;
+select doc FROM mysqlxcoll.maincoll where _id > 3;
 ROLLBACK TO SAVEPOINT A;
 COMMIT;
-SELECT * FROM mysqlxcoll.maincoll where _id > 3;
+select doc FROM mysqlxcoll.maincoll where _id > 3;
 -->endsql
 
 -->echo document member _id is immutable
@@ -1531,7 +1531,7 @@ Mysqlx.Crud.Update {
 -->expecterror ER_X_BAD_MEMBER_TO_UPDATE
 -->recvresult
 -->sql
-SELECT * FROM mysqlxcoll.maincoll;
+select doc FROM mysqlxcoll.maincoll;
 -->endsql
 
 
@@ -1658,7 +1658,7 @@ Mysqlx.Crud.Update {
 }
 -->recvresult
 -->sql
-SELECT * FROM mysqlxcoll.maincoll;
+SELECT doc FROM mysqlxcoll.maincoll;
 -->endsql
 
 ## Cleanup

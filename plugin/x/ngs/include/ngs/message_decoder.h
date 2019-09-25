@@ -25,13 +25,13 @@
 
 #include <sys/types.h>
 
+#include <cstdint>
 #include <memory>
 
-#include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/message_cache.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
 #include "plugin/x/src/io/vio_input_stream.h"
 
 namespace ngs {
@@ -42,8 +42,6 @@ enum class Frame_layout {
   k_compressed_multiple_frames,
   k_compressed_group_of_frames
 };
-
-class Client_interface;
 
 /**
  X Protocol Message decoder
@@ -116,7 +114,7 @@ class Message_decoder {
 
  public:
   Message_decoder(Message_dispatcher_interface *dispatcher,
-                  Protocol_monitor_interface *monitor,
+                  xpl::iface::Protocol_monitor *monitor,
                   std::shared_ptr<Protocol_config> config);
 
   /**
@@ -149,7 +147,7 @@ class Message_decoder {
                                     xpl::Vio_input_stream *net_input_stream);
 
   Message_dispatcher_interface *m_dispatcher;
-  Protocol_monitor_interface *m_monitor;
+  xpl::iface::Protocol_monitor *m_monitor;
   std::shared_ptr<Protocol_config> m_config;
   Message_cache m_cache;
 };

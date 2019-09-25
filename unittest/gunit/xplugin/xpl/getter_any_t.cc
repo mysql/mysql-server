@@ -27,7 +27,7 @@
 
 #include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 
-namespace ngs {
+namespace xpl {
 
 namespace test {
 
@@ -86,7 +86,8 @@ class Getter_any_testsuite : public ::testing::Test {
 };
 
 TEST_F(Getter_any_testsuite, put_throwError_whenPutAnyWithoutType) {
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
 TEST_F(Getter_any_testsuite, put_executesNullCallback) {
@@ -95,7 +96,7 @@ TEST_F(Getter_any_testsuite, put_executesNullCallback) {
 
   EXPECT_CALL(mock, put_void());
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesSignedIntCallback) {
@@ -109,7 +110,7 @@ TEST_F(Getter_any_testsuite, put_executesSignedIntCallback) {
               put_void(::testing::Matcher<const ::google::protobuf::int64 &>(
                   expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesUnsignedIntCallback) {
@@ -123,7 +124,7 @@ TEST_F(Getter_any_testsuite, put_executesUnsignedIntCallback) {
               put_void(::testing::Matcher<const ::google::protobuf::uint64 &>(
                   expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesBoolCallback) {
@@ -135,7 +136,7 @@ TEST_F(Getter_any_testsuite, put_executesBoolCallback) {
 
   EXPECT_CALL(mock, put_void(::testing::Matcher<const bool &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesFloatCallback) {
@@ -148,7 +149,7 @@ TEST_F(Getter_any_testsuite, put_executesFloatCallback) {
   EXPECT_CALL(mock,
               put_void(::testing::Matcher<const float &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesDoubleCallback) {
@@ -161,7 +162,7 @@ TEST_F(Getter_any_testsuite, put_executesDoubleCallback) {
   EXPECT_CALL(mock,
               put_void(::testing::Matcher<const double &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue) {
@@ -171,7 +172,8 @@ TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue) {
   any.mutable_scalar()->set_type(Scalar_Type_V_STRING);
   any.mutable_scalar()->mutable_v_string();
 
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
 TEST_F(Getter_any_testsuite, put_executesStringCallback) {
@@ -184,7 +186,7 @@ TEST_F(Getter_any_testsuite, put_executesStringCallback) {
   EXPECT_CALL(
       mock, put_void(::testing::Matcher<const std::string &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 TEST_F(Getter_any_testsuite, put_executesOctetsCallback) {
@@ -197,7 +199,7 @@ TEST_F(Getter_any_testsuite, put_executesOctetsCallback) {
   EXPECT_CALL(
       mock, put_void(::testing::Matcher<const std::string &>(expected_value)));
 
-  Getter_any::put_scalar_value_to_functor(any, *this);
+  ngs::Getter_any::put_scalar_value_to_functor(any, *this);
 }
 
 class Getter_any_type_testsuite
@@ -207,7 +209,8 @@ class Getter_any_type_testsuite
 TEST_P(Getter_any_type_testsuite, put_throwError_whenNotSupportedType) {
   any.set_type(GetParam());
 
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
 INSTANTIATE_TEST_CASE_P(InstantiationNegativeTests, Getter_any_type_testsuite,
@@ -221,7 +224,8 @@ TEST_P(Getter_scalar_type_testsuite, put_throwError_whenNotSupportedType) {
   any.set_type(Any_Type_SCALAR);
   any.mutable_scalar()->set_type(GetParam());
 
-  ASSERT_THROW(Getter_any::put_scalar_value_to_functor(any, *this), Error_code);
+  ASSERT_THROW(ngs::Getter_any::put_scalar_value_to_functor(any, *this),
+               ngs::Error_code);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -232,5 +236,4 @@ INSTANTIATE_TEST_CASE_P(
                       Scalar_Type_V_OCTETS));
 
 }  // namespace test
-
-}  // namespace ngs
+}  // namespace xpl

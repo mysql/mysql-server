@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,22 +28,22 @@
 
 #include "plugin/x/ngs/include/ngs/document_id_generator.h"
 
-namespace ngs {
+namespace xpl {
 namespace test {
 
 class Document_id_generator_test : public ::testing::Test {
  public:
-  Document_id_generator &generator(const uint64_t timestamp,
-                                   const uint64_t serial) {
-    gen.reset(new Document_id_generator(timestamp, serial));
+  iface::Document_id_generator &generator(const uint64_t timestamp,
+                                          const uint64_t serial) {
+    gen.reset(new ngs::Document_id_generator(timestamp, serial));
     return *gen;
   }
 
-  std::unique_ptr<Document_id_generator> gen;
+  std::unique_ptr<iface::Document_id_generator> gen;
 };
 
 TEST_F(Document_id_generator_test, generate_id_sequence_1) {
-  Document_id_generator::Variables vars{0, 1, 1};
+  iface::Document_id_generator::Variables vars{0, 1, 1};
   generator(0, 0);
 
   EXPECT_STREQ("0000000000000000000000000001", gen->generate(vars).c_str());
@@ -65,7 +65,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_1) {
 }
 
 TEST_F(Document_id_generator_test, generate_id_sequence_5) {
-  Document_id_generator::Variables vars{0, 1, 5};
+  iface::Document_id_generator::Variables vars{0, 1, 5};
   generator(0, 0);
 
   EXPECT_STREQ("0000000000000000000000000001", gen->generate(vars).c_str());
@@ -76,7 +76,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_5) {
 }
 
 TEST_F(Document_id_generator_test, generate_id_sequence_16) {
-  Document_id_generator::Variables vars{0, 1, 16};
+  iface::Document_id_generator::Variables vars{0, 1, 16};
   generator(0, 0);
 
   EXPECT_STREQ("0000000000000000000000000001", gen->generate(vars).c_str());
@@ -86,7 +86,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_16) {
 }
 
 TEST_F(Document_id_generator_test, generate_id_sequence_1_1_serial_limit) {
-  Document_id_generator::Variables vars{0, 1, 1};
+  iface::Document_id_generator::Variables vars{0, 1, 1};
   generator(0, std::numeric_limits<uint64_t>::max() - 2);
   EXPECT_STREQ("000000000000fffffffffffffffe", gen->generate(vars).c_str());
   EXPECT_STREQ("000000000000ffffffffffffffff", gen->generate(vars).c_str());
@@ -95,7 +95,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_1_1_serial_limit) {
 }
 
 TEST_F(Document_id_generator_test, generate_id_sequence_0_1_serial_limit) {
-  Document_id_generator::Variables vars{0, 0, 1};
+  iface::Document_id_generator::Variables vars{0, 0, 1};
   generator(0, std::numeric_limits<uint64_t>::max() - 2);
   EXPECT_STREQ("000000000000fffffffffffffffe", gen->generate(vars).c_str());
   EXPECT_STREQ("000000000000ffffffffffffffff", gen->generate(vars).c_str());
@@ -104,7 +104,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_0_1_serial_limit) {
 }
 
 TEST_F(Document_id_generator_test, generate_id_sequence_1_5_serial_limit) {
-  Document_id_generator::Variables vars{0, 1, 5};
+  iface::Document_id_generator::Variables vars{0, 1, 5};
   generator(0, std::numeric_limits<uint64_t>::max() - 2 * 5);
   EXPECT_STREQ("000000000000fffffffffffffff6", gen->generate(vars).c_str());
   EXPECT_STREQ("000000000000fffffffffffffffb", gen->generate(vars).c_str());
@@ -113,7 +113,7 @@ TEST_F(Document_id_generator_test, generate_id_sequence_1_5_serial_limit) {
 }
 
 TEST_F(Document_id_generator_test, generate_id_sequence_0_5_serial_limit) {
-  Document_id_generator::Variables vars{0, 0, 5};
+  iface::Document_id_generator::Variables vars{0, 0, 5};
   generator(0, std::numeric_limits<uint64_t>::max() - 2 * 5);
   EXPECT_STREQ("000000000000fffffffffffffffa", gen->generate(vars).c_str());
   EXPECT_STREQ("000000000000ffffffffffffffff", gen->generate(vars).c_str());
@@ -132,7 +132,7 @@ class Document_id_generator_param_test
       public ::testing::WithParamInterface<Param_document_id> {};
 
 TEST_P(Document_id_generator_param_test, generate_id) {
-  using Variables = Document_id_generator_interface::Variables;
+  using Variables = iface::Document_id_generator::Variables;
   const Param_document_id &param = GetParam();
   std::string result;
   ASSERT_NO_THROW(result = generator(param.timestamp, param.serial)
@@ -162,4 +162,4 @@ INSTANTIATE_TEST_CASE_P(document_id_generation,
                         testing::ValuesIn(document_id_param));
 
 }  // namespace test
-}  // namespace ngs
+}  // namespace xpl

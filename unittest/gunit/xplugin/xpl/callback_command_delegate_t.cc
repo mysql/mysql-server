@@ -25,9 +25,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <cstdint>
 #include <memory>
 
-#include "my_inttypes.h"
 #include "plugin/x/src/callback_command_delegate.h"
 
 namespace ngs {
@@ -57,7 +57,7 @@ const char *EXPECTED_VALUE_STRING = "TEST STRING";
 
 }  // namespace
 
-using namespace ::testing;
+using namespace ::testing;  // NOLINT(build/namespaces)
 
 class Mock_callback_commands {
  public:
@@ -133,8 +133,8 @@ class Callback_command_delegate_testsuite : public Test {
   }
 
   void assert_sut_handle_ok_and_its_status() {
-    const uint expected_status = 1;
-    const uint expected_wrn_count = 2;
+    const uint32_t expected_status = 1;
+    const uint32_t expected_wrn_count = 2;
     const ulonglong expected_affected_rows = 3;
     const ulonglong expected_last_inserted_id = 4;
     const std::string expected_message = "Test message";

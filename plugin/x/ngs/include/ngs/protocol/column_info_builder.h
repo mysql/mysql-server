@@ -25,7 +25,7 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_COLUMN_INFO_BUILDER_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_COLUMN_INFO_BUILDER_H_
 
-#include "my_inttypes.h"
+#include <cstdint>
 
 #include "plugin/x/ngs/include/ngs/protocol/encode_column_info.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"

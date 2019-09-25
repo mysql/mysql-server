@@ -82,7 +82,7 @@ send Mysqlx.Sql.StmtExecute {
 
 Send SELECT FROM table2
 send Mysqlx.Sql.StmtExecute {
-  stmt: " SELECT * FROM xplugintest.table2"
+  stmt: " SELECT doc FROM xplugintest.table2"
 }
 
 Send SELECT FROM table2
@@ -97,9 +97,9 @@ Records: 2  Duplicates: 0  Warnings: 0
 SLEEP (2)
 0
 0 rows affected
-doc	_id
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+doc
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
 0 rows affected
 
 1 rows affected

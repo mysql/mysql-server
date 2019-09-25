@@ -1126,15 +1126,17 @@ TEST(xpl_expr_generator, any_scalar) {
 }
 
 TEST(xpl_expr_generator, any_object) {
-  EXPECT_THROW(generate_expression(Any(Any::Object{{"name", Any(42)}}),
-                                   EMPTY_SCHEMA, DM_TABLE),
-               Expression_generator::Error);
+  EXPECT_STREQ("JSON_OBJECT('name',42)",
+               generate_expression(Any(Any::Object{{"name", Any(42)}}),
+                                   EMPTY_SCHEMA, DM_TABLE)
+                   .c_str());
 }
 
 TEST(xpl_expr_generator, any_array) {
-  EXPECT_THROW(
-      generate_expression(Any(Any::Array{"name", 42}), EMPTY_SCHEMA, DM_TABLE),
-      Expression_generator::Error);
+  EXPECT_STREQ(
+      "JSON_ARRAY('name',42)",
+      generate_expression(Any(Any::Array{"name", 42}), EMPTY_SCHEMA, DM_TABLE)
+          .c_str());
 }
 
 struct Param_function_call {

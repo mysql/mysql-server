@@ -385,10 +385,10 @@ send Mysqlx.Crud.Insert {
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+RUN SELECT doc FROM maincollection
+doc
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
 0 rows affected
 "Non unique value for _id member of `doc` "
 send Mysqlx.Crud.Insert {
@@ -423,10 +423,10 @@ send Mysqlx.Crud.Insert {
 
 Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 "Error expected as non unique value for _id provided for member of JSON doc "
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+RUN SELECT doc FROM maincollection
+doc
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
 0 rows affected
 "No _id member for JSON doc"
 send Mysqlx.Crud.Insert {
@@ -452,11 +452,11 @@ send Mysqlx.Crud.Insert {
 1 rows affected
 auto-generated id(s): 0000XXXXXXXX0000000000000001
 "Error expected as _id member is not provided for JSON doc "
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+RUN SELECT doc FROM maincollection
+doc
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
 0 rows affected
 "projection is not allowed for DOCUMENT table"
 send Mysqlx.Crud.Insert {
@@ -483,11 +483,11 @@ send Mysqlx.Crud.Insert {
 
 Got expected error: Invalid projection for document operation (code 5114)
 "Error expected as projection given for DOCUMENT table "
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+RUN SELECT doc FROM maincollection
+doc
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
 0 rows affected
 "Error when inserting doc as null"
 send Mysqlx.Crud.Insert {
@@ -507,11 +507,11 @@ send Mysqlx.Crud.Insert {
 }
 
 Got expected error (one of: 5114 5115 )
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+RUN SELECT doc FROM maincollection
+doc
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
 0 rows affected
 "enter null value in doc member"
 send Mysqlx.Crud.Insert {
@@ -535,12 +535,12 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
-{"id": null, "_id": "4", "name": "Jackson"}	4
+RUN SELECT doc FROM maincollection
+doc
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
+{"id": null, "_id": "4", "name": "Jackson"}
 0 rows affected
 "Insert using transaction"
 RUN START TRANSACTION
@@ -621,13 +621,13 @@ RUN ROLLBACK TO SAVEPOINT A
 RUN COMMIT
 
 0 rows affected
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
-{"id": null, "_id": "4", "name": "Jackson"}	4
-{"id": null, "_id": "5", "name": "Jimmy "}	5
+RUN SELECT doc FROM maincollection
+doc
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
+{"id": null, "_id": "4", "name": "Jackson"}
+{"id": null, "_id": "5", "name": "Jimmy "}
 0 rows affected
 RUN LOCK TABLES maincollection READ
 
@@ -653,13 +653,13 @@ send Mysqlx.Crud.Insert {
 
 Got expected error: Table 'maincollection' was locked with a READ lock and can't be updated (code 1099)
 "Error as table is locked with read lock"
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
-{"id": null, "_id": "4", "name": "Jackson"}	4
-{"id": null, "_id": "5", "name": "Jimmy "}	5
+RUN SELECT doc FROM maincollection
+doc
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
+{"id": null, "_id": "4", "name": "Jackson"}
+{"id": null, "_id": "5", "name": "Jimmy "}
 0 rows affected
 RUN UNLOCK TABLES
 
@@ -688,14 +688,14 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
-RUN SELECT * FROM maincollection
-doc	_id
-{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
-{"id": "1", "_id": "1", "name": "Omar Bras"}	1
-{"id": "2", "_id": "2", "name": "Omar Mex"}	2
-{"id": null, "_id": "4", "name": "Jackson"}	4
-{"id": null, "_id": "5", "name": "Jimmy "}	5
-{"id": null, "_id": "7", "name": "Jacky"}	7
+RUN SELECT doc FROM maincollection
+doc
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}
+{"id": "1", "_id": "1", "name": "Omar Bras"}
+{"id": "2", "_id": "2", "name": "Omar Mex"}
+{"id": null, "_id": "4", "name": "Jackson"}
+{"id": null, "_id": "5", "name": "Jimmy "}
+{"id": null, "_id": "7", "name": "Jacky"}
 0 rows affected
 RUN UNLOCK TABLES
 

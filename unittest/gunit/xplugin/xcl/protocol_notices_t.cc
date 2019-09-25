@@ -54,7 +54,7 @@ class Xcl_protocol_impl_tests_notices : public Xcl_protocol_impl_tests {
       Mock_handlers *mock, const Notice_type expected_type,
       const Handler_result consume = Handler_result::Continue) {
     const bool expect_global = true;
-    const uint32 expected_payload_size = 0;
+    const uint32_t expected_payload_size = 0;
 
     EXPECT_CALL(*mock, notice_handler(m_sut.get(), expect_global, expected_type,
                                       nullptr, expected_payload_size))

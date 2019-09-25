@@ -28,15 +28,15 @@
 #include <string>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
 template <typename T>
-void get_system_variable(ngs::Sql_session_interface *da,
-                         const std::string &variable, T *value) {
+void get_system_variable(iface::Sql_session *da, const std::string &variable,
+                         T *value) {
   Sql_data_result result(da);
   try {
     result.query(("SELECT @@" + variable).c_str());
@@ -53,8 +53,7 @@ void get_system_variable(ngs::Sql_session_interface *da,
 }
 
 template <typename T>
-T get_system_variable(ngs::Sql_session_interface *da,
-                      const std::string &variable) {
+T get_system_variable(iface::Sql_session *da, const std::string &variable) {
   T value = T();
   get_system_variable(da, variable, &value);
   return value;

@@ -28,9 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "decimal.h"
-#include "m_ctype.h"
-#include "my_compiler.h"
+#include "decimal.h"      // NOLINT(build/include_subdir)
+#include "m_ctype.h"      // NOLINT(build/include_subdir)
+#include "my_compiler.h"  // NOLINT(build/include_subdir)
 #include "mysql/service_command.h"
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
@@ -116,7 +116,7 @@ class Command_delegate {
  protected:
   Info m_info;
   Field_types m_field_types;
-  uint m_sql_errno = 0;
+  uint32_t m_sql_errno = 0;
   std::string m_err_msg;
   std::string m_sqlstate;
 
@@ -140,7 +140,7 @@ class Command_delegate {
     false ok
   */
   virtual int start_result_metadata(
-      uint num_cols, uint flags MY_ATTRIBUTE((unused)),
+      uint32_t num_cols, uint32_t flags MY_ATTRIBUTE((unused)),
       const CHARSET_INFO *resultcs MY_ATTRIBUTE((unused))) {
     m_field_types.clear();
 

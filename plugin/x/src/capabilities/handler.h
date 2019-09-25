@@ -31,10 +31,6 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/interface/capability_handler.h"
 
-namespace ngs {
-class Client_interface;
-}  // namespace ngs
-
 namespace xpl {
 
 class Capability_handler : public iface::Capability_handler {

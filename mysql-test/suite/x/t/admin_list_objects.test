@@ -89,6 +89,24 @@ USE xtest
 -->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
 -->recvresult
 
+-->title -Collection with validation schema
+stmtadmin create_collection	{"schema":"xtest", "name":"stuff", "options": {
+  "validation": {
+    "schema":{"id": "foobar"}
+  }
+}};
+-->recvresult
+stmtadmin create_collection_index	{
+  "schema":"xtest",
+  "collection":"stuff",
+  "name": "stuff_name",
+  "unique": true,
+  "constraint":{"member": "$.name", "type": "text(20)", "required": false}
+};
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"stuff"}
+-->recvresult
+
 -->title -Removing `_id` from collection
 -->stmtsql ALTER TABLE xtest.fruit DROP COLUMN _id;
 -->recvresult

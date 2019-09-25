@@ -25,21 +25,22 @@
 #include "plugin/x/src/streaming_command_delegate.h"
 
 #include <stddef.h>
+
 #include <cinttypes>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <type_traits>
 
-#include "decimal.h"
-#include "my_dbug.h"
+#include "decimal.h"  // NOLINT(build/include_subdir)
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
-#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
+#include "plugin/x/src/interface/notice_output_queue.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/xpl_log.h"
 
@@ -56,8 +57,8 @@ inline bool is_value_charset_valid(const CHARSET_INFO *resultset_cs,
          (resultset_cs == &my_charset_bin) || (value_cs == &my_charset_bin);
 }
 
-inline uint get_valid_charset_collation(const CHARSET_INFO *resultset_cs,
-                                        const CHARSET_INFO *value_cs) {
+inline uint32_t get_valid_charset_collation(const CHARSET_INFO *resultset_cs,
+                                            const CHARSET_INFO *value_cs) {
   const CHARSET_INFO *cs =
       is_value_charset_valid(resultset_cs, value_cs) ? value_cs : resultset_cs;
   return cs ? cs->number : 0;
@@ -76,7 +77,7 @@ class Convert_if_necessary {
     size_t result_length =
         resultset_cs->mbmaxlen * value_length / value_cs->mbminlen;
     m_buff.reset(new char[result_length]());
-    uint errors = 0;
+    uint32_t errors = 0;
     result_length = my_convert(m_buff.get(), result_length, resultset_cs, value,
                                value_length, value_cs, &errors);
     if (errors) {
@@ -99,8 +100,7 @@ class Convert_if_necessary {
 
 }  // namespace
 
-Streaming_command_delegate::Streaming_command_delegate(
-    ngs::Session_interface *session)
+Streaming_command_delegate::Streaming_command_delegate(iface::Session *session)
     : m_proto(&session->proto()),
       m_metadata(m_proto->get_metadata_builder()->get_columns()),
       m_notice_queue(&session->get_notice_output_queue()),
@@ -119,9 +119,9 @@ void Streaming_command_delegate::reset() {
 }
 
 int Streaming_command_delegate::start_result_metadata(
-    uint num_cols, uint flags, const CHARSET_INFO *resultcs) {
-  log_debug("Streaming_command_delegate::start_result_metadata flags:%u",
-            static_cast<int>(flags));
+    uint32_t num_cols, uint32_t flags, const CHARSET_INFO *resultcs) {
+  log_debug("Streaming_command_delegate::start_result_metadata flags:%" PRIu32,
+            flags);
   if (Command_delegate::start_result_metadata(num_cols, flags, resultcs))
     return true;
 
@@ -308,8 +308,8 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   return false;
 }
 
-int Streaming_command_delegate::end_result_metadata(uint server_status,
-                                                    uint warn_count) {
+int Streaming_command_delegate::end_result_metadata(uint32_t server_status,
+                                                    uint32_t warn_count) {
   log_debug("Streaming_command_delegate::end_result_metadata server_status:%i",
             static_cast<int>(server_status));
   Command_delegate::end_result_metadata(server_status, warn_count);
@@ -372,7 +372,8 @@ int Streaming_command_delegate::get_null() {
 }
 
 int Streaming_command_delegate::get_integer(longlong value) {
-  log_debug("Streaming_command_delegate::get_int %i", (int)value);
+  log_debug("Streaming_command_delegate::get_int %" PRIi64,
+            static_cast<int64_t>(value));
   const bool unsigned_flag =
       (m_field_types[m_proto->row_builder()->get_num_fields()].flags &
        UNSIGNED_FLAG) != 0;
@@ -381,8 +382,9 @@ int Streaming_command_delegate::get_integer(longlong value) {
 }
 
 int Streaming_command_delegate::get_longlong(longlong value,
-                                             uint unsigned_flag) {
-  log_debug("Streaming_command_delegate::get_longlong %i", (int)value);
+                                             uint32_t unsigned_flag) {
+  log_debug("Streaming_command_delegate::get_longlong %" PRIi64,
+            static_cast<int64_t>(value));
   // This is a hack to workaround server bugs similar to #77787:
   // Sometimes, server will not report a column to be UNSIGNED in the
   // metadata, but will send the data as unsigned anyway. That will cause the
@@ -435,14 +437,15 @@ int Streaming_command_delegate::get_date(const MYSQL_TIME *value) {
   return false;
 }
 
-int Streaming_command_delegate::get_time(const MYSQL_TIME *value, uint) {
+int Streaming_command_delegate::get_time(const MYSQL_TIME *value, uint32_t) {
   log_debug("Streaming_command_delegate::get_time");
   m_proto->row_builder()->field_time(value);
 
   return false;
 }
 
-int Streaming_command_delegate::get_datetime(const MYSQL_TIME *value, uint) {
+int Streaming_command_delegate::get_datetime(const MYSQL_TIME *value,
+                                             uint32_t) {
   log_debug("Streaming_command_delegate::get_datetime");
   m_proto->row_builder()->field_datetime(value);
 
@@ -509,7 +512,7 @@ void Streaming_command_delegate::handle_ok(uint32_t server_status,
     m_proto->send_exec_ok();
 }
 
-void Streaming_command_delegate::handle_error(uint sql_errno,
+void Streaming_command_delegate::handle_error(uint32_t sql_errno,
                                               const char *const err_msg,
                                               const char *const sqlstate) {
   if (m_handle_ok_received) {

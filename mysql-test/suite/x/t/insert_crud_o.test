@@ -1386,7 +1386,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-select * from main_collection;
+select doc from main_collection;
 -->endsql
 
 -->echo Insert multiple rows into a Document column
@@ -1423,7 +1423,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-select * from main_collection;
+select doc from main_collection;
 -->endsql
 
 -->echo Insert malformed JSON into Document column
@@ -1453,7 +1453,7 @@ Mysqlx.Crud.Insert {
 -->echo CLEAN UP
 -->echo ================================================================================
 -->sql
- SELECT * FROM main_collection;
+ SELECT doc FROM main_collection;
  DROP SCHEMA if EXISTS mysqlxplugin;
  DROP SCHEMA if EXISTS mysqlxplugin_coll;
  DROP USER insertcruduser@localhost;

@@ -24,7 +24,9 @@
 
 #include "plugin/x/src/io/vio_input_stream.h"
 
-#include "my_dbug.h"
+#include <algorithm>
+
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/src/operations_factory.h"
@@ -32,10 +34,10 @@
 
 namespace xpl {
 
-const uint32 k_buffer_size = 1024 * 4;
+const uint32_t k_buffer_size = 1024 * 4;
 
 Vio_input_stream::Vio_input_stream(
-    const std::shared_ptr<ngs::Vio_interface> &connection)
+    const std::shared_ptr<iface::Vio> &connection)
     : m_connection(connection) {
   ngs::allocate_array(m_buffer, k_buffer_size, KEY_memory_x_recv_buffer);
 }

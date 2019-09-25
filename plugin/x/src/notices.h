@@ -30,19 +30,14 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-
-namespace ngs {
-
-class Sql_session_interface;
-class Protocol_encoder_interface;
-
-}  // namespace ngs
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/sql_session.h"
 
 namespace xpl {
 
 namespace notices {
-ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
-                              ngs::Protocol_encoder_interface &proto,
+ngs::Error_code send_warnings(iface::Sql_session &da,
+                              iface::Protocol_encoder &proto,
                               bool skip_single_error = false);
 }  //  namespace notices
 }  // namespace xpl

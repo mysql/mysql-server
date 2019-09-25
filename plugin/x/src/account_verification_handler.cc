@@ -26,7 +26,7 @@
 
 #include "my_sys.h"
 
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/ssl_session_options.h"
@@ -36,8 +36,8 @@
 namespace xpl {
 
 ngs::Error_code Account_verification_handler::authenticate(
-    const ngs::Authentication_interface &account_verificator,
-    ngs::Authentication_info *authenication_info,
+    const iface::Authentication &account_verificator,
+    iface::Authentication_info *authenication_info,
     const std::string &sasl_message) const {
   std::size_t message_position = 0;
   std::string schema = "";
@@ -101,41 +101,40 @@ bool Account_verification_handler::extract_sub_message(
   return true;
 }
 
-const ngs::Account_verification_interface *
+const iface::Account_verification *
 Account_verification_handler::get_account_verificator(
-    const ngs::Account_verification_interface::Account_type account_type)
-    const {
+    const iface::Account_verification::Account_type account_type) const {
   Account_verificator_list::const_iterator i =
       m_verificators.find(account_type);
   return i == m_verificators.end() ? nullptr : i->second.get();
 }
 
-ngs::Account_verification_interface::Account_type
+iface::Account_verification::Account_type
 Account_verification_handler::get_account_verificator_id(
     const std::string &name) const {
   if (name == "mysql_native_password")
-    return ngs::Account_verification_interface::Account_native;
+    return iface::Account_verification::Account_type::k_native;
   if (name == "sha256_password")
-    return ngs::Account_verification_interface::Account_type::Account_sha256;
+    return iface::Account_verification::Account_type::k_sha256;
   if (name == "caching_sha2_password")
-    return ngs::Account_verification_interface::Account_sha2;
-  return ngs::Account_verification_interface::Account_unsupported;
+    return iface::Account_verification::Account_type::k_sha2;
+  return iface::Account_verification::Account_type::k_unsupported;
 }
 
 ngs::Error_code Account_verification_handler::verify_account(
     const std::string &user, const std::string &host, const std::string &passwd,
-    const ngs::Authentication_info *authenication_info) const {
+    const iface::Authentication_info *authenication_info) const {
   Account_record record;
   if (ngs::Error_code error = get_account_record(user, host, record))
     return error;
 
-  ngs::Account_verification_interface::Account_type account_verificator_id;
+  iface::Account_verification::Account_type account_verificator_id;
   // If SHA256_MEMORY is used then no matter what auth_plugin is used we
   // will be using cache-based verification
-  if (m_account_type == ngs::Account_verification_interface::Account_type::
-                            Account_sha256_memory) {
-    account_verificator_id = ngs::Account_verification_interface::Account_type::
-        Account_sha256_memory;
+  if (m_account_type ==
+      iface::Account_verification::Account_type::k_sha256_memory) {
+    account_verificator_id =
+        iface::Account_verification::Account_type::k_sha256_memory;
   } else {
     account_verificator_id =
         get_account_verificator_id(record.auth_plugin_name);

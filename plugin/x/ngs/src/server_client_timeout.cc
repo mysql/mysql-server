@@ -33,12 +33,12 @@ Server_client_timeout::Server_client_timeout(
     : m_release_all_before_time(release_all_before_time) {}
 
 void Server_client_timeout::validate_client_state(
-    std::shared_ptr<Client_interface> client) {
+    std::shared_ptr<xpl::iface::Client> client) {
   const xpl::chrono::Time_point client_accept_time = client->get_accept_time();
-  const auto state = client->get_state();
+  const xpl::iface::Client::Client::State state = client->get_state();
 
-  if (Client_interface::State::k_accepted == state ||
-      Client_interface::State::k_authenticating_first == state) {
+  if (xpl::iface::Client::State::k_accepted == state ||
+      xpl::iface::Client::State::k_authenticating_first == state) {
     if (client_accept_time <= m_release_all_before_time) {
       log_debug("%s: release triggered by timeout in state:%i",
                 client->client_id(), static_cast<int>(state));

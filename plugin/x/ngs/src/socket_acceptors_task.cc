@@ -24,11 +24,11 @@
 
 #include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 
-#include "my_config.h"
-
-#include <stdlib.h>
 #include <algorithm>
+#include <cstdlib>
 #include <iterator>
+
+#include "my_config.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/src/helper/string_formatter.h"
@@ -37,27 +37,27 @@
 namespace ngs {
 
 Socket_acceptors_task::Socket_acceptors_task(
-    Listener_factory_interface &listener_factory,
+    xpl::iface::Listener_factory &listener_factory,
     const std::string &tcp_bind_address, const std::string &network_namespace,
-    const uint16 tcp_port, const uint32 tcp_port_open_timeout,
-    const std::string &unix_socket_file, const uint32 backlog,
-    const std::shared_ptr<Socket_events_interface> &event)
+    const uint16_t tcp_port, const uint32_t tcp_port_open_timeout,
+    const std::string &unix_socket_file, const uint32_t backlog,
+    const std::shared_ptr<xpl::iface::Socket_events> &event)
     : m_event(event),
       m_bind_address(tcp_bind_address),
       m_tcp_socket(listener_factory.create_tcp_socket_listener(
-          m_bind_address, network_namespace, tcp_port, tcp_port_open_timeout,
-          *m_event, backlog)),
+          &m_bind_address, network_namespace, tcp_port, tcp_port_open_timeout,
+          m_event.get(), backlog)),
 #if defined(HAVE_SYS_UN_H)
       m_unix_socket(listener_factory.create_unix_socket_listener(
-          unix_socket_file, *m_event, backlog)),
+          unix_socket_file, m_event.get(), backlog)),
 #endif
-      m_time_and_event_state(State_listener_initializing,
+      m_time_and_event_state(xpl::iface::Listener::State::k_initializing,
                              KEY_mutex_x_socket_acceptors_sync,
                              KEY_cond_x_socket_acceptors_sync) {
 }
 
 bool Socket_acceptors_task::prepare_impl(
-    Server_task_interface::Task_context *context) {
+    xpl::iface::Server_task::Task_context *context) {
   if (context->m_skip_networking) {
     m_tcp_socket->close_listener();
     m_tcp_socket->report_properties(
@@ -78,7 +78,7 @@ bool Socket_acceptors_task::prepare_impl(
 
   const size_t number_of_prepared_listeners =
       std::count_if(listeners.begin(), listeners.end(),
-                    [context](Listener_interface *l) -> bool {
+                    [context](xpl::iface::Listener *l) -> bool {
                       return l->setup_listener(context->m_on_connection);
                     });
 
@@ -93,7 +93,7 @@ bool Socket_acceptors_task::prepare_impl(
 }
 
 bool Socket_acceptors_task::prepare(
-    Server_task_interface::Task_context *context) {
+    xpl::iface::Server_task::Task_context *context) {
   const bool result = prepare_impl(context);
   Listener_interfaces listeners = get_array_of_listeners();
   Server_properties properties;
@@ -124,11 +124,11 @@ void Socket_acceptors_task::stop(const Stop_cause cause) {
 
   switch (cause) {
     case Stop_cause::k_abort:
-      m_time_and_event_state.set(State_listener_stopped);
+      m_time_and_event_state.set(xpl::iface::Listener::State::k_stopped);
       break;
 
     case Stop_cause::k_normal_shutdown:
-      m_time_and_event_state.wait_for(State_listener_stopped);
+      m_time_and_event_state.wait_for(xpl::iface::Listener::State::k_stopped);
       break;
 
     case Stop_cause::k_server_task_triggered_event:
@@ -144,11 +144,11 @@ void Socket_acceptors_task::show_startup_log() {
     std::string combined_status;
     while (pos > 1) {
       const auto listener = listeners[pos - 1];
-      if (listener->get_state().is(State_listener_prepared))
+      if (listener->get_state().is(xpl::iface::Listener::State::k_prepared))
         combined_status += listener->get_name_and_configuration() + " ";
       pos--;
     }
-    if (listeners[0]->get_state().is(State_listener_prepared))
+    if (listeners[0]->get_state().is(xpl::iface::Listener::State::k_prepared))
       combined_status += listeners[0]->get_name_and_configuration();
 
     auto first_non_blank_pos = combined_status.find_first_not_of("\t ");
@@ -171,8 +171,8 @@ Socket_acceptors_task::get_array_of_listeners() {
   return result;
 }
 
-void Socket_acceptors_task::log_listener_state(Listener_interface *listener) {
-  if (!listener->get_state().is(State_listener_prepared)) {
+void Socket_acceptors_task::log_listener_state(xpl::iface::Listener *listener) {
+  if (!listener->get_state().is(xpl::iface::Listener::State::k_prepared)) {
     log_error(ER_XPLUGIN_LISTENER_SETUP_FAILED,
               listener->get_name_and_configuration().c_str(),
               listener->get_last_error().c_str());
@@ -193,19 +193,20 @@ void Socket_acceptors_task::log_listener_state(Listener_interface *listener) {
 }
 
 void Socket_acceptors_task::pre_loop() {
-  m_time_and_event_state.set(State_listener_running);
+  m_time_and_event_state.set(xpl::iface::Listener::State::k_running);
   auto listeners = get_array_of_listeners();
 
   for (auto &listener : listeners)
-    listener->get_state().set(State_listener_running);
+    listener->get_state().set(xpl::iface::Listener::State::k_running);
 }
 
 void Socket_acceptors_task::post_loop() {
   auto listeners = get_array_of_listeners();
 
-  m_time_and_event_state.set(State_listener_stopped);
+  m_time_and_event_state.set(xpl::iface::Listener::State::k_stopped);
 
-  for (auto &l : listeners) l->get_state().set(State_listener_stopped);
+  for (auto &l : listeners)
+    l->get_state().set(xpl::iface::Listener::State::k_stopped);
 }
 
 void Socket_acceptors_task::loop() { m_event->loop(); }

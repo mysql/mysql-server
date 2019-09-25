@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,11 @@
 
 #include "plugin/x/src/native_verification.h"
 
-#include "mysql_com.h"
-#include "password.h"
+#include <cstdint>
+
+#include "my_inttypes.h"  // fix 'ulong' in 'password.h' NOLINT(build/include_subdir)
+#include "mysql_com.h"  // NOLINT(build/include_subdir)
+#include "password.h"   // NOLINT(build/include_subdir)
 
 namespace xpl {
 
@@ -36,12 +39,12 @@ bool Native_verification::verify_authentication_string(
 
   if (db_string.empty()) return false;
 
-  uint8 db_hash[SCRAMBLE_LENGTH + 1] = {0};
-  uint8 user_hash[SCRAMBLE_LENGTH + 1] = {0};
+  uint8_t db_hash[SCRAMBLE_LENGTH + 1] = {0};
+  uint8_t user_hash[SCRAMBLE_LENGTH + 1] = {0};
   ::get_salt_from_password(db_hash, db_string.c_str());
   ::get_salt_from_password(user_hash, client_string.c_str());
-  return 0 ==
-         ::check_scramble((const uchar *)user_hash, k_salt.c_str(), db_hash);
+  return 0 == ::check_scramble(static_cast<const uint8_t *>(user_hash),
+                               k_salt.c_str(), db_hash);
 }
 
 }  // namespace xpl

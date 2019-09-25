@@ -28,10 +28,10 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
@@ -42,7 +42,7 @@ namespace {
 
 class Warning_resultset : public Process_resultset {
  public:
-  Warning_resultset(ngs::Protocol_encoder_interface *proto,
+  Warning_resultset(iface::Protocol_encoder *proto,
                     const bool skip_single_error)
       : m_proto(proto), m_skip_single_error(skip_single_error) {}
 
@@ -64,8 +64,8 @@ class Warning_resultset : public Process_resultset {
 
   bool end_row(Row *row) override {
     if (!m_last_error.empty()) {
-      m_proto->send_notice(ngs::Frame_type::k_warning,
-                           ngs::Frame_scope::k_local, m_last_error);
+      m_proto->send_notice(iface::Frame_type::k_warning,
+                           iface::Frame_scope::k_local, m_last_error);
       m_last_error.clear();
     }
 
@@ -91,14 +91,14 @@ class Warning_resultset : public Process_resultset {
       }
     }
 
-    m_proto->send_notice(ngs::Frame_type::k_warning, ngs::Frame_scope::k_local,
-                         data);
+    m_proto->send_notice(iface::Frame_type::k_warning,
+                         iface::Frame_scope::k_local, data);
     return true;
   }
 
  private:
   Row m_row;
-  ngs::Protocol_encoder_interface *m_proto;
+  iface::Protocol_encoder *m_proto;
   const bool m_skip_single_error;
   std::string m_last_error;
   uint32_t m_num_errors{0u};
@@ -106,8 +106,8 @@ class Warning_resultset : public Process_resultset {
 
 }  // namespace
 
-ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
-                              ngs::Protocol_encoder_interface &proto,
+ngs::Error_code send_warnings(iface::Sql_session &da,
+                              iface::Protocol_encoder &proto,
                               bool skip_single_error) {
   DBUG_TRACE;
   static const std::string q = "SHOW WARNINGS";

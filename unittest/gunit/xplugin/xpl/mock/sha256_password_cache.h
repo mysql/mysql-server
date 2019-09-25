@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,13 +30,13 @@
 
 #include <gmock/gmock.h>
 
-#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/cache_based_verification.h"
 
 namespace xpl {
 namespace test {
 
-class Mock_sha256_password_cache : public ngs::SHA256_password_cache_interface {
+class Mock_sha256_password_cache : public iface::SHA256_password_cache {
  public:
   MOCK_METHOD3(upsert, bool(const std::string &, const std::string &,
                             const std::string &));
@@ -55,7 +55,7 @@ class Mock_sha256_password_cache : public ngs::SHA256_password_cache_interface {
 class Mock_cache_based_verification : public Cache_based_verification {
  public:
   explicit Mock_cache_based_verification(
-      ngs::SHA256_password_cache_interface *cache)
+      iface::SHA256_password_cache *cache)
       : Cache_based_verification(cache) {}
   MOCK_CONST_METHOD0(get_salt, const std::string &());
 };

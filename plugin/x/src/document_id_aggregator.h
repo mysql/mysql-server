@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,26 +27,26 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/interface/document_id_aggregator_interface.h"
+#include "plugin/x/src/interface/document_id_aggregator.h"
 
 namespace xpl {
 
-class Document_id_aggregator : public ngs::Document_id_aggregator_interface {
+class Document_id_aggregator : public iface::Document_id_aggregator {
  public:
-  explicit Document_id_aggregator(ngs::Document_id_generator_interface *gen)
+  explicit Document_id_aggregator(iface::Document_id_generator *gen)
       : m_id_generator(gen) {}
   std::string generate_id() override { return generate_id(m_variables); }
   std::string generate_id(const Variables &vars) override;
   void clear_ids() override { m_document_ids.clear(); }
   const Document_id_list &get_ids() const override { return m_document_ids; }
-  ngs::Error_code configue(ngs::Sql_session_interface *data_context) override;
+  ngs::Error_code configue(iface::Sql_session *data_context) override;
   void set_id_retention(const bool state) override {
     m_id_retention_state = state;
   }
 
  private:
-  ngs::Document_id_generator_interface *m_id_generator;
-  ngs::Document_id_generator_interface::Variables m_variables;
+  iface::Document_id_generator *m_id_generator;
+  iface::Document_id_generator::Variables m_variables;
   Document_id_list m_document_ids;
   bool m_id_retention_state{false};
 };

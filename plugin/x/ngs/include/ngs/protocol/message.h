@@ -40,7 +40,7 @@ class Message_request {
  public:
   ~Message_request() { free_msg(); }
 
-  void reset(const uint8 message_type = 0, Message *message = nullptr,
+  void reset(const uint8_t message_type = 0, Message *message = nullptr,
              const bool must_be_deleted = false) {
     free_msg();
 
@@ -50,7 +50,7 @@ class Message_request {
   }
 
   Message *get_message() const { return m_message; }
-  uint8 get_message_type() const { return m_message_type; }
+  uint8_t get_message_type() const { return m_message_type; }
 
   bool has_message() const { return nullptr != m_message; }
 
@@ -63,7 +63,7 @@ class Message_request {
   }
 
   Message *m_message = nullptr;
-  uint8 m_message_type{0};
+  uint8_t m_message_type{0};
   bool m_must_be_deleted{false};
 };
 

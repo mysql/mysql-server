@@ -34,7 +34,7 @@
 namespace xpl {
 
 ngs::Error_code Index_array_field::add_column_if_necessary(
-    ngs::Sql_session_interface *, const std::string &, const std::string &,
+    iface::Sql_session *, const std::string &, const std::string &,
     Query_string_builder *) const {
   return ngs::Success();
 }

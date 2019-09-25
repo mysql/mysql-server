@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,16 +25,16 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_
 
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/interface/vio.h"
 #include "plugin/x/src/io/connection_type.h"
 
 namespace ngs {
 
-class Vio_wrapper : public Vio_interface {
+class Vio_wrapper : public xpl::iface::Vio {
  public:
-  Vio_wrapper(Vio *vio);
+  Vio_wrapper(::Vio *vio);
 
   ssize_t read(uchar *buffer, ssize_t bytes_to_send) override;
   ssize_t write(const uchar *buffer, ssize_t bytes_to_send) override;
@@ -45,18 +45,18 @@ class Vio_wrapper : public Vio_interface {
   void set_thread_owner() override;
 
   my_socket get_fd() override;
-  xpl::Connection_type get_type() override;
-  sockaddr_storage *peer_addr(std::string &address, uint16 &port) override;
+  xpl::Connection_type get_type() const override;
+  sockaddr_storage *peer_addr(std::string *address, uint16_t *port) override;
 
   int shutdown() override;
 
-  Vio *get_vio() override { return m_vio; }
+  ::Vio *get_vio() override { return m_vio; }
   MYSQL_SOCKET &get_mysql_socket() override { return m_vio->mysql_socket; }
 
   ~Vio_wrapper() override;
 
  private:
-  Vio *m_vio;
+  ::Vio *m_vio;
   xpl::Mutex m_shutdown_mutex;
 };
 

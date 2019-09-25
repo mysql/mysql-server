@@ -1,31 +1,31 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/client/authentication/sha256_scramble_generator.h"
 
 #include <cstring>
 
-#include "my_config.h"
+#include "my_config.h"  // NOLINT(build/include_subdir)
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -33,8 +33,8 @@
 
 #include <openssl/evp.h>
 
-#include "my_dbug.h"     /* DBUG instrumentation */
-#include "my_inttypes.h" /* typedefs */
+#include <cstdint>
+#include "my_dbug.h"  // DBUG instrumentation  NOLINT(build/include_subdir)
 
 namespace xcl {
 namespace sha256_password {
@@ -65,7 +65,7 @@ SHA256_digest::~SHA256_digest() { deinit(); }
     @retval true Problem updating digest
     @retval false Success
 */
-bool SHA256_digest::update_digest(const void *src, const std::uint32_t length) {
+bool SHA256_digest::update_digest(const void *src, const uint32_t length) {
   DBUG_TRACE;
   if (!m_ok || !src) {
     DBUG_PRINT("info", ("Either digest context is not ok or "
@@ -89,7 +89,7 @@ bool SHA256_digest::update_digest(const void *src, const std::uint32_t length) {
     @retval false Success
 */
 bool SHA256_digest::retrieve_digest(unsigned char *digest,
-                                    const std::uint32_t length) {
+                                    const uint32_t length) {
   DBUG_TRACE;
   if (!m_ok || !digest || length != CACHING_SHA2_DIGEST_LENGTH) {
     DBUG_PRINT("info", ("Either digest context is not ok or "
@@ -188,7 +188,7 @@ Generate_scramble::Generate_scramble(
     @retval false Success
 */
 bool Generate_scramble::scramble(unsigned char *out_scramble,
-                                 const std::uint32_t scramble_length) {
+                                 const uint32_t scramble_length) {
   DBUG_TRACE;
   unsigned char *digest_stage1;
   unsigned char *digest_stage2;
@@ -244,7 +244,7 @@ bool Generate_scramble::scramble(unsigned char *out_scramble,
   }
 
   /* XOR(digest_stage1, scramble_stage1) => out_scramble */
-  for (uint i = 0; i < m_digest_length; ++i)
+  for (uint32_t i = 0; i < m_digest_length; ++i)
     out_scramble[i] = (digest_stage1[i] ^ scramble_stage1[i]);
 
   return false;

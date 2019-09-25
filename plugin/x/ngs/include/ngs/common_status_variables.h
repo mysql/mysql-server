@@ -56,6 +56,8 @@ class Common_status_variables {
   Variable m_expect_close;
   Variable m_stmt_create_collection;
   Variable m_stmt_ensure_collection;
+  Variable m_stmt_modify_collection_options;
+  Variable m_stmt_get_collection_options;
   Variable m_stmt_drop_collection;
   Variable m_stmt_create_collection_index;
   Variable m_stmt_drop_collection_index;

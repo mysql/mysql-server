@@ -25,18 +25,21 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
 
-#include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "plugin/x/src/interface/listener_factory.h"
+#include "plugin/x/src/interface/operations_factory.h"
+#include "plugin/x/src/interface/socket.h"
+#include "plugin/x/src/interface/socket_events.h"
+#include "plugin/x/src/interface/ssl_context_options.h"
 #include "plugin/x/src/ssl_session_options.h"
 
-namespace ngs {
-
+namespace xpl {
 namespace test {
 
-class Mock_options_session : public Ssl_session_options_interface {
+class Mock_options_session : public iface::Ssl_session_options {
  public:
   MOCK_CONST_METHOD0(active_tls, bool());
 
@@ -44,38 +47,38 @@ class Mock_options_session : public Ssl_session_options_interface {
   MOCK_CONST_METHOD0(ssl_version, std::string());
   MOCK_CONST_METHOD0(ssl_cipher_list, std::vector<std::string>());
 
-  MOCK_CONST_METHOD0(ssl_verify_depth, long());
-  MOCK_CONST_METHOD0(ssl_verify_mode, long());
-  MOCK_CONST_METHOD0(ssl_sessions_reused, long());
+  MOCK_CONST_METHOD0(ssl_verify_depth, int64_t());
+  MOCK_CONST_METHOD0(ssl_verify_mode, int64_t());
+  MOCK_CONST_METHOD0(ssl_sessions_reused, int64_t());
 
-  MOCK_CONST_METHOD0(ssl_get_verify_result_and_cert, long());
+  MOCK_CONST_METHOD0(ssl_get_verify_result_and_cert, int64_t());
   MOCK_CONST_METHOD0(ssl_get_peer_certificate_issuer, std::string());
   MOCK_CONST_METHOD0(ssl_get_peer_certificate_subject, std::string());
 };
 
-class Mock_options_context : public Ssl_context_options_interface {
+class Mock_options_context : public iface::Ssl_context_options {
  public:
-  MOCK_METHOD0(ssl_ctx_verify_depth, long());
-  MOCK_METHOD0(ssl_ctx_verify_mode, long());
+  MOCK_METHOD0(ssl_ctx_verify_depth, int64_t());
+  MOCK_METHOD0(ssl_ctx_verify_mode, int64_t());
 
   MOCK_METHOD0(ssl_server_not_after, std::string());
   MOCK_METHOD0(ssl_server_not_before, std::string());
 
-  MOCK_METHOD0(ssl_sess_accept_good, long());
-  MOCK_METHOD0(ssl_sess_accept, long());
-  MOCK_METHOD0(ssl_accept_renegotiates, long());
+  MOCK_METHOD0(ssl_sess_accept_good, int64_t());
+  MOCK_METHOD0(ssl_sess_accept, int64_t());
+  MOCK_METHOD0(ssl_accept_renegotiates, int64_t());
 
   MOCK_METHOD0(ssl_session_cache_mode, std::string());
 
-  MOCK_METHOD0(ssl_session_cache_hits, long());
-  MOCK_METHOD0(ssl_session_cache_misses, long());
-  MOCK_METHOD0(ssl_session_cache_overflows, long());
-  MOCK_METHOD0(ssl_session_cache_size, long());
-  MOCK_METHOD0(ssl_session_cache_timeouts, long());
-  MOCK_METHOD0(ssl_used_session_cache_entries, long());
+  MOCK_METHOD0(ssl_session_cache_hits, int64_t());
+  MOCK_METHOD0(ssl_session_cache_misses, int64_t());
+  MOCK_METHOD0(ssl_session_cache_overflows, int64_t());
+  MOCK_METHOD0(ssl_session_cache_size, int64_t());
+  MOCK_METHOD0(ssl_session_cache_timeouts, int64_t());
+  MOCK_METHOD0(ssl_used_session_cache_entries, int64_t());
 };
 
-class Mock_socket : public Socket_interface {
+class Mock_socket : public iface::Socket {
  public:
   MOCK_METHOD2(bind, int(const struct sockaddr *, socklen_t));
   MOCK_METHOD3(accept,
@@ -91,27 +94,27 @@ class Mock_socket : public Socket_interface {
   MOCK_METHOD0(set_socket_thread_owner, void());
 };
 
-class Mock_system : public System_interface {
+class Mock_system : public iface::System {
  public:
-  MOCK_METHOD1(unlink, int(const char *));
-  MOCK_METHOD2(kill, int(int, int));
+  MOCK_METHOD1(unlink, int32_t(const char *));
+  MOCK_METHOD2(kill, int32_t(int32_t, int32_t));
 
-  MOCK_METHOD0(get_ppid, int());
-  MOCK_METHOD0(get_pid, int());
-  MOCK_METHOD0(get_errno, int());
+  MOCK_METHOD0(get_ppid, int32_t());
+  MOCK_METHOD0(get_pid, int32_t());
+  MOCK_METHOD0(get_errno, int32_t());
 
-  MOCK_METHOD0(get_socket_errno, int());
-  MOCK_METHOD1(set_socket_errno, void(const int));
-  MOCK_METHOD2(get_socket_error_and_message, void(int &, std::string &));
+  MOCK_METHOD0(get_socket_errno, int32_t());
+  MOCK_METHOD1(set_socket_errno, void(const int32_t));
+  MOCK_METHOD2(get_socket_error_and_message, void(int32_t *, std::string *));
 
   MOCK_METHOD1(freeaddrinfo, void(addrinfo *));
-  MOCK_METHOD4(getaddrinfo,
-               int(const char *, const char *, const addrinfo *, addrinfo **));
+  MOCK_METHOD4(getaddrinfo, int32_t(const char *, const char *,
+                                    const addrinfo *, addrinfo **));
 
-  MOCK_METHOD1(sleep, void(uint32));
+  MOCK_METHOD1(sleep, void(uint32_t));
 };
 
-class Mock_file : public File_interface {
+class Mock_file : public iface::File {
  public:
   MOCK_METHOD0(is_valid, bool());
 
@@ -121,60 +124,59 @@ class Mock_file : public File_interface {
   MOCK_METHOD0(fsync, int());
 };
 
-class Mock_factory : public Operations_factory_interface {
+class Mock_factory : public iface::Operations_factory {
  public:
   MOCK_METHOD4(create_socket,
-               Socket_interface::Shared_ptr(PSI_socket_key, int, int, int));
-  MOCK_METHOD1(create_socket, Socket_interface::Shared_ptr(MYSQL_SOCKET));
+               std::shared_ptr<iface::Socket>(PSI_socket_key, int, int, int));
+  MOCK_METHOD1(create_socket, std::shared_ptr<iface::Socket>(MYSQL_SOCKET));
 
-  MOCK_METHOD3(open_file, File_interface::Shared_ptr(const char *, int, int));
+  MOCK_METHOD3(open_file, std::shared_ptr<iface::File>(const char *, int, int));
 
-  MOCK_METHOD0(create_system_interface, System_interface::Shared_ptr());
+  MOCK_METHOD0(create_system_interface, std::shared_ptr<iface::System>());
 };
 
-class Mock_socket_events : public Socket_events_interface {
+class Mock_socket_events : public iface::Socket_events {
  public:
-  MOCK_METHOD2(listen,
-               bool(Socket_interface::Shared_ptr,
-                    std::function<void(Connection_acceptor_interface &)>));
+  MOCK_METHOD2(listen, bool(std::shared_ptr<iface::Socket>,
+                            std::function<void(iface::Connection_acceptor &)>));
   MOCK_METHOD2(add_timer, void(const std::size_t, std::function<bool()>));
   MOCK_METHOD0(loop, void());
   MOCK_METHOD0(break_loop, void());
 };
 
-class Mock_listener_factory_interface : public Listener_factory_interface {
+class Mock_listener_factory_interface : public iface::Listener_factory {
  public:
   MOCK_METHOD3(create_unix_socket_listener_ptr,
-               Listener_interface *(const std::string &unix_socket_path,
-                                    Socket_events_interface &event,
-                                    const uint32 backlog));
+               iface::Listener *(const std::string &unix_socket_path,
+                                 iface::Socket_events &event,
+                                 const uint32_t backlog));
 
   MOCK_METHOD6(create_tcp_socket_listener_ptr,
-               Listener_interface *(std::string &bind_address,
-                                    const std::string &network_namespace,
-                                    const unsigned short port,
-                                    const uint32 port_open_timeout,
-                                    Socket_events_interface &event,
-                                    const uint32 backlog));
+               iface::Listener *(std::string &bind_address,
+                                 const std::string &network_namespace,
+                                 const unsigned short port,
+                                 const uint32_t port_open_timeout,
+                                 iface::Socket_events &event,
+                                 const uint32_t backlog));
 
-  Listener_interface_ptr create_unix_socket_listener(
-      const std::string &unix_socket_path, Socket_events_interface &event,
-      const uint32 backlog) {
-    return Listener_interface_ptr{
-        create_unix_socket_listener_ptr(unix_socket_path, event, backlog)};
+  std::unique_ptr<iface::Listener> create_unix_socket_listener(
+      const std::string &unix_socket_path, iface::Socket_events *event,
+      const uint32_t backlog) {
+    return std::unique_ptr<iface::Listener>{
+        create_unix_socket_listener_ptr(unix_socket_path, *event, backlog)};
   }
 
-  Listener_interface_ptr create_tcp_socket_listener(
-      std::string &bind_address, const std::string &network_namespace,
-      const unsigned short port, const uint32 port_open_timeout,
-      Socket_events_interface &event, const uint32 backlog) {
-    return Listener_interface_ptr{
-        create_tcp_socket_listener_ptr(bind_address, network_namespace, port,
-                                       port_open_timeout, event, backlog)};
+  std::unique_ptr<iface::Listener> create_tcp_socket_listener(
+      std::string *bind_address, const std::string &network_namespace,
+      const unsigned short port, const uint32_t port_open_timeout,
+      iface::Socket_events *event, const uint32_t backlog) {
+    return std::unique_ptr<iface::Listener>{
+        create_tcp_socket_listener_ptr(*bind_address, network_namespace, port,
+                                       port_open_timeout, *event, backlog)};
   }
 };
 
 }  // namespace test
-}  // namespace ngs
+}  // namespace xpl
 
 #endif  // UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_

@@ -18,27 +18,42 @@
 -->recvtovar %VALUE% Value
 -->assert_eq %EXPECT_CASE%	%VALUE%
 
--->macro Admin_list_objects_case_sensitive  %SCHEMA%  %ERROR0%  %ERROR1%  %ERROR2%  %ERROR3%
+-->macro Admin_list_objects_case_sensitive  %SCHEMA%  %ERROR0%  %ERROR1%  %ERROR2%  %ERROR3%  %ERROR4%
 -->title -Creating collection in %SCHEMA%
 -->stmtsql CREATE SCHEMA %SCHEMA% DEFAULT CHARSET 'utf8mb4';
 -->expecterror %ERROR0%
 -->recvresult
--->stmtadmin create_collection	{"schema":"%SCHEMA%", "name":"FRUIT"}
+stmtadmin create_collection	{"schema":"%SCHEMA%", "name":"FRUIT", "options": {
+  "validation": {
+    "schema":{"id":"FRUIT"}
+  }
+}};
 -->expecterror %ERROR1%
 -->recvresult
--->stmtadmin create_collection	{"schema":"%SCHEMA%", "name":"fruit"}
+stmtadmin create_collection	{"schema":"%SCHEMA%", "name":"fruit", "options": {
+  "validation": {
+    "schema":{"id":"fruit"}
+  }
+}};
 -->expecterror %ERROR2%
 -->recvresult
--->stmtadmin create_collection	{"schema":"%SCHEMA%", "name":"FrUiT"}
+stmtadmin create_collection	{"schema":"%SCHEMA%", "name":"FrUiT", "options": {
+  "validation": {
+    "schema":{"id":"FrUiT"}
+   }
+ }};
 -->expecterror %ERROR3%
+-->recvresult
+-->stmtadmin create_collection	{"schema":"%SCHEMA%", "name":"FRuit"}
+-->expecterror %ERROR4%
 -->recvresult
 -->stmtadmin list_objects	{"schema":"%SCHEMA%"}
 -->recvresult
 -->endmacro
 
--->callmacro Admin_list_objects_case_sensitive XTEST	ER_SUCCESS	ER_SUCCESS	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%
--->callmacro Admin_list_objects_case_sensitive xtest	%EXPECT_DB_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%
--->callmacro Admin_list_objects_case_sensitive xTeSt	%EXPECT_DB_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%
+-->callmacro Admin_list_objects_case_sensitive XTEST	ER_SUCCESS	ER_SUCCESS	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%
+-->callmacro Admin_list_objects_case_sensitive xtest	%EXPECT_DB_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%
+-->callmacro Admin_list_objects_case_sensitive xTeSt	%EXPECT_DB_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%	%EXPECT_TABLE_ERROR%
 
 -->sql
 DROP SCHEMA IF EXISTS xtest;

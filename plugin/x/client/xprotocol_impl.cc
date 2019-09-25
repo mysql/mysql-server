@@ -32,12 +32,12 @@
 #include <limits>
 #include <string>
 
-#include "errmsg.h"
-#include "my_config.h"
-#include "my_dbug.h"
-#include "my_io.h"
-#include "mysql_com.h"
-#include "sha2.h"
+#include "errmsg.h"     // NOLINT(build/include_subdir)
+#include "my_config.h"  // NOLINT(build/include_subdir)
+#include "my_dbug.h"    // NOLINT(build/include_subdir)
+#include "my_io.h"      // NOLINT(build/include_subdir)
+#include "mysql_com.h"  // NOLINT(build/include_subdir)
+#include "sha2.h"       // NOLINT(build/include_subdir)
 
 #include "plugin/x/client/authentication/password_hasher.h"
 #include "plugin/x/client/authentication/sha256_scramble_generator.h"

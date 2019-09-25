@@ -94,7 +94,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo Send SELECT FROM table2
 Mysqlx.Sql.StmtExecute {
-  stmt: " SELECT * FROM xplugintest.table2"
+  stmt: " SELECT doc FROM xplugintest.table2"
 }
 
 -->echo Send SELECT FROM table2

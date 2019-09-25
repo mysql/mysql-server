@@ -36,10 +36,10 @@ namespace xcl {
 
 class Connection_config {
  public:
-  std::int64_t m_timeout_connect{-1};
-  std::int64_t m_timeout_session_connect{-1};
-  std::int64_t m_timeout_read{-1};
-  std::int64_t m_timeout_write{-1};
+  int64_t m_timeout_connect{-1};
+  int64_t m_timeout_session_connect{-1};
+  int64_t m_timeout_read{-1};
+  int64_t m_timeout_write{-1};
   std::string m_network_namespace;
 };
 

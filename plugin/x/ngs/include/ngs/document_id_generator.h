@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,13 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/interface/document_id_generator.h"
 
 namespace ngs {
 
-class Document_id_generator : public ngs::Document_id_generator_interface {
+class Document_id_generator : public xpl::iface::Document_id_generator {
  public:
   Document_id_generator();
   Document_id_generator(const uint64_t timestamp, const uint64_t serial);

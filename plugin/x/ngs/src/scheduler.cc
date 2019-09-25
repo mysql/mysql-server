@@ -23,11 +23,12 @@
  */
 
 #include <stddef.h>
+
+#include <cstdint>
 #include <functional>
 
-#include "my_inttypes.h"
-#include "my_psi_config.h"
-#include "my_rdtsc.h"
+#include "my_psi_config.h"  // NOLINT(build/include_subdir)
+#include "my_rdtsc.h"       // NOLINT(build/include_subdir)
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
@@ -56,7 +57,7 @@ Scheduler_dynamic::Scheduler_dynamic(const char *name,
 Scheduler_dynamic::~Scheduler_dynamic() { stop(); }
 
 void Scheduler_dynamic::launch() {
-  int32 int_0 = 0;
+  int32_t int_0 = 0;
   if (m_is_running.compare_exchange_strong(int_0, 1)) {
     create_min_num_workers();
     log_debug("Scheduler \"%s\" started.", m_name.c_str());
@@ -83,7 +84,7 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n) {
     (void)e;
     log_debug("Exception in set minimal number of workers \"%s\"", e.what());
 
-    const int32 m = m_workers_count.load();
+    const int32_t m = m_workers_count.load();
     log_warning(ER_XPLUGIN_FAILED_TO_SET_MIN_NUMBER_OF_WORKERS, n, m);
     m_min_workers_count.store(m);
     return m;
@@ -98,7 +99,7 @@ void Scheduler_dynamic::set_idle_worker_timeout(
 }
 
 void Scheduler_dynamic::stop() {
-  int32 int_1 = 1;
+  int32_t int_1 = 1;
   if (m_is_running.compare_exchange_strong(int_1, 0)) {
     while (m_tasks.empty() == false) {
       Task *task = NULL;
@@ -188,7 +189,7 @@ bool Scheduler_dynamic::wait_if_idle_then_delete_worker(
 
   if (!m_tasks.empty()) return false;
 
-  const int64 thread_waiting_for_delta_ms =
+  const int64_t thread_waiting_for_delta_ms =
       my_timer_milliseconds() - thread_waiting_started;
 
   if (thread_waiting_for_delta_ms < m_idle_worker_timeout) {
@@ -289,25 +290,25 @@ void Scheduler_dynamic::create_thread() {
 
 bool Scheduler_dynamic::is_running() { return m_is_running.load() != 0; }
 
-int32 Scheduler_dynamic::increase_workers_count() {
+int32_t Scheduler_dynamic::increase_workers_count() {
   if (m_monitor) m_monitor->on_worker_thread_create();
 
   return ++m_workers_count;
 }
 
-int32 Scheduler_dynamic::decrease_workers_count() {
+int32_t Scheduler_dynamic::decrease_workers_count() {
   if (m_monitor) m_monitor->on_worker_thread_destroy();
 
   return --m_workers_count;
 }
 
-int32 Scheduler_dynamic::increase_tasks_count() {
+int32_t Scheduler_dynamic::increase_tasks_count() {
   if (m_monitor) m_monitor->on_task_start();
 
   return ++m_tasks_count;
 }
 
-int32 Scheduler_dynamic::decrease_tasks_count() {
+int32_t Scheduler_dynamic::decrease_tasks_count() {
   if (m_monitor) m_monitor->on_task_end();
 
   return --m_tasks_count;

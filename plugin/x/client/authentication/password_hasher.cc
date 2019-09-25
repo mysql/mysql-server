@@ -24,15 +24,15 @@
 
 #include "plugin/x/client/authentication/password_hasher.h"
 
+#include <openssl/rand.h>
+#include <openssl/sha.h>
 #include <sys/types.h>
+
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
 
-#include <openssl/rand.h>
-#include <openssl/sha.h>
-
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/client/authentication/mysql41_hash.h"
 
 #define PVERSION41_CHAR '*'
@@ -90,7 +90,7 @@ char *octet2hex(char *to, const char *str, size_t len) {
  *          human readable version of hash_stage2.
  */
 std::string get_password_from_salt(const std::string &hash_stage2) {
-  const std::uint8_t result_size =
+  const uint8_t result_size =
       2 * MYSQL41_HASH_SIZE + 1 /* '\0' sign */ + 1 /* '*' sign */;
   char result[result_size] = {0};
 

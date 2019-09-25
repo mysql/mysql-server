@@ -26,17 +26,16 @@
 #define PLUGIN_X_SRC_STMT_COMMAND_HANDLER_H_
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/src/admin_cmd_handler.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/query_string_builder.h"
 
 namespace xpl {
 
 class Stmt_command_handler {
  public:
-  explicit Stmt_command_handler(ngs::Session_interface *session)
-      : m_session{session} {}
+  explicit Stmt_command_handler(iface::Session *session) : m_session{session} {}
 
   ngs::Error_code execute(const Mysqlx::Sql::StmtExecute &msg);
 
@@ -45,7 +44,7 @@ class Stmt_command_handler {
   ngs::Error_code admin_stmt_execute(const Mysqlx::Sql::StmtExecute &msg);
 
   Query_string_builder m_qb{1024};
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Admin_command_handler m_admin_handler{m_session};
 };
 

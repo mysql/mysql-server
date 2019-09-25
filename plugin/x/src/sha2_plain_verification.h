@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,14 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
+#include "plugin/x/src/interface/account_verification.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
 
 namespace xpl {
 
-class Sha2_plain_verification : public ngs::Account_verification_interface {
+class Sha2_plain_verification : public iface::Account_verification {
  public:
-  explicit Sha2_plain_verification(ngs::SHA256_password_cache_interface *cache)
+  explicit Sha2_plain_verification(iface::SHA256_password_cache *cache)
       : m_sha256_password_cache(cache) {}
   const std::string &get_salt() const override { return k_empty_salt; }
   bool verify_authentication_string(
@@ -46,7 +46,7 @@ class Sha2_plain_verification : public ngs::Account_verification_interface {
   static const std::string k_empty_salt;
   std::string compute_password_hash(const std::string &password,
                                     const std::string &salt) const;
-  ngs::SHA256_password_cache_interface *m_sha256_password_cache;
+  iface::SHA256_password_cache *m_sha256_password_cache;
 };
 
 }  // namespace xpl

@@ -26,16 +26,12 @@
 #define PLUGIN_X_SRC_XPL_SERVER_H_
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "mysql/plugin.h"
 
-#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/timeout_callback_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server.h"
@@ -43,6 +39,11 @@
 #include "plugin/x/src/helper/multithread/lock_container.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/multithread/rw_lock.h"
+#include "plugin/x/src/interface/document_id_generator.h"
+#include "plugin/x/src/interface/ssl_context.h"
+#include "plugin/x/src/interface/ssl_context_options.h"
+#include "plugin/x/src/interface/timeout_callback.h"
+#include "plugin/x/src/interface/vio.h"
 #include "plugin/x/src/mq/broker_task.h"
 #include "plugin/x/src/mq/notice_input_queue.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
@@ -65,12 +66,12 @@ struct Ssl_config;
 
 typedef std::shared_ptr<Server> Server_ptr;
 
-class Server : public ngs::Server_delegate {
+class Server : public iface::Server_delegate {
  public:
   Server(std::shared_ptr<ngs::Socket_acceptors_task> acceptors,
          std::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
          std::shared_ptr<ngs::Protocol_global_config> config,
-         std::shared_ptr<ngs::Timeout_callback_interface> timeout_callback);
+         std::shared_ptr<iface::Timeout_callback> timeout_callback);
 
   static int plugin_main(MYSQL_PLUGIN p);
   static int plugin_exit(MYSQL_PLUGIN p);
@@ -84,8 +85,7 @@ class Server : public ngs::Server_delegate {
 
   ngs::Server &server() { return m_server; }
 
-  ngs::Error_code kill_client(uint64_t client_id,
-                              ngs::Session_interface &requester);
+  ngs::Error_code kill_client(uint64_t client_id, iface::Session &requester);
 
   std::string get_socket_file();
   std::string get_tcp_bind_address();
@@ -95,7 +95,7 @@ class Server : public ngs::Server_delegate {
   typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ptr;
 
   static Server_ptr get_instance() {
-    // TODO: ngs::Locked_container add container that supports shared_ptrs
+    // TODO(bob): ngs::Locked_container add container that supports shared_ptrs
     return instance ? Server_ptr(ngs::allocate_object<Server_with_lock>(
                           std::ref(*instance), std::ref(instance_rwl)))
                     : Server_ptr();
@@ -112,7 +112,6 @@ class Server : public ngs::Server_delegate {
   void reset_globals();
 
  private:
-  static void verify_mysqlx_user_grants(Sql_data_context *context);
   static void initialize_xmessages();
 
   bool on_net_startup();
@@ -125,17 +124,17 @@ class Server : public ngs::Server_delegate {
   void plugin_system_variables_changed();
   void update_global_timeout_values();
 
-  virtual std::shared_ptr<ngs::Client_interface> create_client(
-      std::shared_ptr<ngs::Vio_interface> connection);
-  virtual std::shared_ptr<ngs::Session_interface> create_session(
-      ngs::Client_interface &client, ngs::Protocol_encoder_interface &proto,
-      const ngs::Session_interface::Session_id session_id);
+  virtual std::shared_ptr<iface::Client> create_client(
+      std::shared_ptr<iface::Vio> connection);
+  virtual std::shared_ptr<iface::Session> create_session(
+      iface::Client *client, iface::Protocol_encoder *proto,
+      const iface::Session::Session_id session_id);
 
-  virtual bool will_accept_client(const ngs::Client_interface &client);
-  virtual void did_accept_client(const ngs::Client_interface &client);
-  virtual void did_reject_client(ngs::Server_delegate::Reject_reason reason);
+  virtual bool will_accept_client(const iface::Client &client);
+  virtual void did_accept_client(const iface::Client &client);
+  virtual void did_reject_client(iface::Server_delegate::Reject_reason reason);
 
-  virtual void on_client_closed(const ngs::Client_interface &client);
+  virtual void on_client_closed(const iface::Client &client);
   virtual bool is_terminating() const;
   std::string get_property(const ngs::Server_property_ids id) const;
 
@@ -148,7 +147,7 @@ class Server : public ngs::Server_delegate {
   static RWLock instance_rwl;
   static MYSQL_PLUGIN plugin_ref;
 
-  ngs::Client_interface::Client_id m_client_id;
+  iface::Client::Client_id m_client_id;
   std::atomic<int> m_num_of_connections;
   std::shared_ptr<ngs::Protocol_global_config> m_config;
   std::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;

@@ -24,14 +24,14 @@
 
 #include "plugin/x/src/sql_data_result.h"
 
-#include <stddef.h>
+#include <cstddef>
 #include <algorithm>
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 
 namespace xpl {
 
-Sql_data_result::Sql_data_result(ngs::Sql_session_interface *context)
+Sql_data_result::Sql_data_result(iface::Sql_session *context)
     : m_field_index(0), m_context(context) {}
 
 void Sql_data_result::disable_binlog() {

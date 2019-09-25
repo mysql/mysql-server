@@ -22,8 +22,7 @@
 
 #include <google/protobuf/io/coded_stream.h>
 
-#include "mysqlx_error.h"
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "mysqlx_error.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/ngs/include/ngs/message_decoder.h"
 
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
@@ -76,7 +75,7 @@ bool Message_decoder::Decode_error::was_error() const {
 }
 
 Message_decoder::Message_decoder(Message_dispatcher_interface *dispatcher,
-                                 Protocol_monitor_interface *monitor,
+                                 xpl::iface::Protocol_monitor *monitor,
                                  std::shared_ptr<Protocol_config> config)
     : m_dispatcher(dispatcher), m_monitor(monitor), m_config(config) {}
 

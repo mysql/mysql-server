@@ -25,16 +25,18 @@
 #include "plugin/x/src/xpl_server.h"
 
 #include <openssl/err.h>
-#include "my_config.h"
-#include "my_inttypes.h"
-#include "my_thread_local.h"
+
+#include <cinttypes>
+#include <utility>
+
+#include <cstdint>
+#include "my_config.h"        // NOLINT(build/include_subdir)
+#include "my_thread_local.h"  // NOLINT(build/include_subdir)
+
 #include "mysql/plugin.h"
 #include "mysql/service_ssl_wrapper.h"
 
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
@@ -44,6 +46,9 @@
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/config/config.h"
 #include "plugin/x/src/helper/multithread/rw_lock.h"
+#include "plugin/x/src/interface/authentication.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/listener.h"
 #include "plugin/x/src/io/xpl_listener_factory.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/mysql_variables.h"
@@ -140,11 +145,10 @@ Server *Server::instance;
 RWLock Server::instance_rwl{KEY_rwlock_x_xpl_server_instance};
 std::atomic<bool> Server::exiting{false};
 
-Server::Server(
-    std::shared_ptr<ngs::Socket_acceptors_task> acceptors,
-    std::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-    std::shared_ptr<ngs::Protocol_global_config> config,
-    std::shared_ptr<ngs::Timeout_callback_interface> timeout_callback)
+Server::Server(std::shared_ptr<ngs::Socket_acceptors_task> acceptors,
+               std::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
+               std::shared_ptr<ngs::Protocol_global_config> config,
+               std::shared_ptr<iface::Timeout_callback> timeout_callback)
     : m_client_id(0),
       m_num_of_connections(0),
       m_config(config),
@@ -215,9 +219,9 @@ bool Server::on_verify_server_state() {
   return true;
 }
 
-std::shared_ptr<ngs::Client_interface> Server::create_client(
-    std::shared_ptr<ngs::Vio_interface> connection) {
-  std::shared_ptr<ngs::Client_interface> result;
+std::shared_ptr<iface::Client> Server::create_client(
+    std::shared_ptr<iface::Vio> connection) {
+  std::shared_ptr<iface::Client> result;
   auto global_timeouts = m_config->get_global_timeouts();
   result = ngs::allocate_shared<Client>(
       connection, std::ref(m_server), ++m_client_id,
@@ -225,30 +229,31 @@ std::shared_ptr<ngs::Client_interface> Server::create_client(
   return result;
 }
 
-std::shared_ptr<ngs::Session_interface> Server::create_session(
-    ngs::Client_interface &client, ngs::Protocol_encoder_interface &proto,
+std::shared_ptr<iface::Session> Server::create_session(
+    iface::Client *client, iface::Protocol_encoder *proto,
     const Session::Session_id session_id) {
   return std::shared_ptr<ngs::Session>(
-      ngs::allocate_shared<Session>(&client, &proto, session_id));
+      ngs::allocate_shared<Session>(client, proto, session_id));
 }
 
-void Server::on_client_closed(const ngs::Client_interface &) {
+void Server::on_client_closed(const iface::Client &) {
   ++Global_status_variables::instance().m_closed_connections_count;
 
   // Only accepted clients are calling on_client_closed
   --m_num_of_connections;
 }
 
-bool Server::will_accept_client(const ngs::Client_interface &) {
+bool Server::will_accept_client(const iface::Client &) {
   MUTEX_LOCK(lock, m_accepting_mutex);
 
   ++m_num_of_connections;
 
   log_debug("num_of_connections: %i, max_num_of_connections: %i",
-            (int)m_num_of_connections,
-            (int)Plugin_system_variables::max_connections);
+            static_cast<int>(m_num_of_connections),
+            static_cast<int>(Plugin_system_variables::max_connections));
   bool can_be_accepted =
-      m_num_of_connections <= (int)Plugin_system_variables::max_connections;
+      m_num_of_connections <=
+      static_cast<int>(Plugin_system_variables::max_connections);
 
   if (!can_be_accepted || is_terminating()) {
     --m_num_of_connections;
@@ -258,17 +263,17 @@ bool Server::will_accept_client(const ngs::Client_interface &) {
   return true;
 }
 
-void Server::did_accept_client(const ngs::Client_interface &) {
+void Server::did_accept_client(const iface::Client &) {
   ++Global_status_variables::instance().m_accepted_connections_count;
 }
 
-void Server::did_reject_client(ngs::Server_delegate::Reject_reason reason) {
+void Server::did_reject_client(iface::Server_delegate::Reject_reason reason) {
   switch (reason) {
-    case ngs::Server_delegate::AcceptError:
+    case iface::Server_delegate::Reject_reason::k_accept_error:
       ++Global_status_variables::instance().m_connection_errors_count;
       ++Global_status_variables::instance().m_connection_accept_errors_count;
       break;
-    case ngs::Server_delegate::TooManyConnections:
+    case iface::Server_delegate::Reject_reason::k_too_many_connections:
       ++Global_status_variables::instance().m_rejected_connections_count;
       break;
   }
@@ -325,15 +330,16 @@ static bool parse_bind_address_value(const char *begin_address_value,
     */
     *address_value = std::string(begin_address_value, namespace_separator);
     *network_namespace = std::string(namespace_separator + 1);
-  } else
+  } else {
     *address_value = begin_address_value;
+  }
   return false;
 }
 
 int Server::plugin_main(MYSQL_PLUGIN p) {
   plugin_handle = p;
 
-  uint32 listen_backlog = 50 + Plugin_system_variables::max_connections / 5;
+  uint32_t listen_backlog = 50 + Plugin_system_variables::max_connections / 5;
   if (listen_backlog > 900) listen_backlog = 900;
 
   try {
@@ -472,83 +478,6 @@ int Server::plugin_exit(MYSQL_PLUGIN) {
   return 0;
 }
 
-void Server::verify_mysqlx_user_grants(Sql_data_context *context) {
-  Sql_data_result sql_result(context);
-  int num_of_grants = 0;
-  bool has_no_privileges = false;
-  bool has_select_on_mysql_user = false;
-  bool has_super = false;
-
-  // This method checks if mysqlxsys has correct permissions to
-  // access mysql.user table and the SUPER privilege (for killing sessions)
-  // There are three possible states:
-  // 1) User has permissions to the table but no SUPER
-  // 2) User has permissions to the table and SUPER
-  // 2) User has no permissions, thus previous try of
-  //    creation failed, account is accepted and GRANTS should be
-  //    applied again
-
-  std::string grants;
-  std::string::size_type p;
-
-  sql_result.query("SHOW GRANTS FOR " MYSQLXSYS_ACCOUNT);
-
-  do {
-    sql_result.get(&grants);
-    ++num_of_grants;
-    if (grants == "GRANT USAGE ON *.* TO `" MYSQL_SESSION_USER
-                  "`@`" MYSQLXSYS_HOST "`")
-      has_no_privileges = true;
-
-    bool on_all_schemas = false;
-
-    if ((p = grants.find("ON *.*")) != std::string::npos) {
-      grants.resize(p);  // truncate the non-priv list part of the string
-      on_all_schemas = true;
-    } else if ((p = grants.find("ON `mysql`.*")) != std::string::npos ||
-               (p = grants.find("ON `mysql`.`user`")) != std::string::npos)
-      grants.resize(p);  // truncate the non-priv list part of the string
-    else
-      continue;
-
-    if (grants.find(" ALL ") != std::string::npos) {
-      has_select_on_mysql_user = true;
-      if (on_all_schemas) has_super = true;
-    }
-    if (grants.find(" SELECT ") != std::string::npos ||
-        grants.find(" SELECT,") != std::string::npos)
-      has_select_on_mysql_user = true;
-    if (grants.find(" SUPER ") != std::string::npos ||
-        grants.find(" SUPER,") != std::string::npos)
-      has_super = true;
-  } while (sql_result.next_row());
-
-  if (has_select_on_mysql_user && has_super) {
-    log_debug(
-        "Using %s account for authentication"
-        " which has all required permissions ",
-        MYSQLXSYS_ACCOUNT);
-    return;
-  }
-
-  // If user has no permissions (only default) or only SELECT on mysql.user
-  // lets accept it, and apply the grants
-  if (has_no_privileges && (num_of_grants == 1 ||
-                            (num_of_grants == 2 && has_select_on_mysql_user))) {
-    log_warning(ER_XPLUGIN_EXISTING_USER_ACCOUNT_WITH_INCOMPLETE_GRANTS,
-                MYSQLXSYS_ACCOUNT);
-    throw ngs::Error(ER_X_MYSQLX_ACCOUNT_MISSING_PERMISSIONS,
-                     "%s account without any grants", MYSQLXSYS_ACCOUNT);
-  }
-
-  // Users with some custom grants and without access to mysql.user should be
-  // rejected
-  throw ngs::Error(
-      ER_X_BAD_CONFIGURATION,
-      "%s account already exists but does not have the expected grants",
-      MYSQLXSYS_ACCOUNT);
-}
-
 void Server::net_thread() {
   srv_session_init_thread(plugin_handle);
 
@@ -670,10 +599,11 @@ bool Server::on_net_startup() {
 }
 
 ngs::Error_code Server::kill_client(uint64_t client_id,
-                                    ngs::Session_interface &requester) {
+                                    iface::Session &requester) {
   std::unique_ptr<Mutex_lock> lock(
       new Mutex_lock(server().get_client_exit_mutex(), __FILE__, __LINE__));
-  ngs::Client_ptr found_client = server().get_client_list().find(client_id);
+  std::shared_ptr<iface::Client> found_client =
+      server().get_client_list().find(client_id);
 
   // Locking exit mutex of ensures that the client wont exit Client::run until
   // the kill command ends, and shared_ptr (found_client) will be released
@@ -681,7 +611,7 @@ ngs::Error_code Server::kill_client(uint64_t client_id,
   // of Clients will be released in its thread (Scheduler, Client::run).
 
   if (found_client &&
-      ngs::Client_interface::State::k_closed != found_client->get_state()) {
+      iface::Client::State::k_closed != found_client->get_state()) {
     Client_ptr xpl_client = std::static_pointer_cast<Client>(found_client);
 
     if (client_id == requester.client().client_id_num()) {
@@ -695,7 +625,7 @@ ngs::Error_code Server::kill_client(uint64_t client_id,
 
     {
       MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
-      auto session = xpl_client->session_smart_ptr();
+      auto session = xpl_client->session_shared_ptr();
 
       is_session = (nullptr != session.get());
 
@@ -712,7 +642,7 @@ ngs::Error_code Server::kill_client(uint64_t client_id,
       bool is_killed = false;
       {
         MUTEX_LOCK(lock_session_exit, xpl_client->get_session_exit_mutex());
-        auto session = xpl_client->session_smart_ptr();
+        auto session = xpl_client->session_shared_ptr();
 
         if (session) is_killed = session->data_context().is_killed();
       }
@@ -722,11 +652,11 @@ ngs::Error_code Server::kill_client(uint64_t client_id,
         return ngs::Success();
       }
     }
-    return ngs::Error(ER_KILL_DENIED_ERROR, "Cannot kill client %llu",
-                      static_cast<unsigned long long>(client_id));
+    return ngs::Error(ER_KILL_DENIED_ERROR, "Cannot kill client %" PRIu64,
+                      client_id);
   }
-  return ngs::Error(ER_NO_SUCH_THREAD, "Unknown MySQLx client id %llu",
-                    static_cast<unsigned long long>(client_id));
+  return ngs::Error(ER_NO_SUCH_THREAD, "Unknown MySQLx client id %" PRIu64,
+                    client_id);
 }
 
 std::string Server::get_property(const ngs::Server_property_ids id) const {
@@ -780,7 +710,7 @@ void Server::unregister_services() const {
 }
 
 void Server::reset_globals() {
-  int64 worker_thread_count =
+  int64_t worker_thread_count =
       Global_status_variables::instance().m_worker_thread_count.load();
   Global_status_variables::instance().reset();
   Global_status_variables::instance().m_worker_thread_count +=
@@ -802,7 +732,7 @@ void Server::stop() {
 }
 
 namespace {
-inline ngs::Session_interface *get_client_session(const THD *thd) {
+inline iface::Session *get_client_session(const THD *thd) {
   auto server(Server::get_instance());
   if (!server) return nullptr;
 
@@ -817,7 +747,7 @@ inline ngs::Session_interface *get_client_session(const THD *thd) {
 
 std::string Server::get_document_id(const THD *thd, const uint16_t offset,
                                     const uint16_t increment) {
-  using Variables = ngs::Document_id_generator_interface::Variables;
+  using Variables = iface::Document_id_generator::Variables;
   Variables vars{static_cast<uint16_t>(
                      Plugin_system_variables::m_document_id_unique_prefix),
                  offset, increment};

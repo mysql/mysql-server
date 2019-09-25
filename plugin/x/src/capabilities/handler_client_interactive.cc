@@ -24,16 +24,16 @@
 
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
 
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
+#include "plugin/x/src/interface/client.h"
 
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
 Capability_client_interactive::Capability_client_interactive(
-    ngs::Client_interface &client)
+    iface::Client &client)
     : m_client(client) {
   m_value = m_client.is_interactive();
 }

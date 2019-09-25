@@ -27,15 +27,15 @@
 
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
 #include "plugin/x/src/buffering_command_delegate.h"
 #include "plugin/x/src/custom_command_delegates.h"
+#include "plugin/x/src/interface/notice_output_queue.h"
+#include "plugin/x/src/interface/resultset.h"
 #include "plugin/x/src/streaming_command_delegate.h"
 
 namespace xpl {
 
-class Process_resultset : public ngs::Resultset_interface {
+class Process_resultset : public iface::Resultset {
  public:
   using Row = Callback_command_delegate::Row_data;
   using Field = Callback_command_delegate::Field_value;
@@ -59,7 +59,7 @@ class Process_resultset : public ngs::Resultset_interface {
   Callback_command_delegate m_callback_delegate;
 };
 
-class Empty_resultset : public ngs::Resultset_interface {
+class Empty_resultset : public iface::Resultset {
  public:
   Empty_resultset() : m_callback_delegate() {}
   ngs::Command_delegate &get_callbacks() override {
@@ -73,7 +73,7 @@ class Empty_resultset : public ngs::Resultset_interface {
   Callback_command_delegate m_callback_delegate;
 };
 
-class Collect_resultset : public ngs::Resultset_interface {
+class Collect_resultset : public iface::Resultset {
  public:
   using Row_list = Buffering_command_delegate::Resultset;
   using Row = Buffering_command_delegate::Row_data;
@@ -102,10 +102,9 @@ class Collect_resultset : public ngs::Resultset_interface {
 };
 
 template <typename T = Streaming_command_delegate>
-class Streaming_resultset : public ngs::Resultset_interface {
+class Streaming_resultset : public iface::Resultset {
  public:
-  Streaming_resultset(ngs::Session_interface *session,
-                      const bool compact_metadata)
+  Streaming_resultset(iface::Session *session, const bool compact_metadata)
       : m_streaming_delegate(session) {
     m_streaming_delegate.set_compact_metadata(compact_metadata);
   }
@@ -122,9 +121,9 @@ class Streaming_resultset : public ngs::Resultset_interface {
   T m_streaming_delegate;
 };
 
-class Cursor_resultset : public ngs::Resultset_interface {
+class Cursor_resultset : public iface::Resultset {
  public:
-  Cursor_resultset(ngs::Session_interface *session, const bool compact_metadata,
+  Cursor_resultset(iface::Session *session, const bool compact_metadata,
                    const bool ignore_fetch_suspended)
       : m_cursor_delegate(session, ignore_fetch_suspended) {
     m_cursor_delegate.set_compact_metadata(compact_metadata);

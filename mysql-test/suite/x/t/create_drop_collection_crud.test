@@ -256,7 +256,7 @@ EOF
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 #-- "2 more than two args"
 -->stmtadmin create_collection	{"schema":"xplugintest", "name":"table3", "alias":"table4"}
--->expecterror ER_X_CMD_NUM_ARGUMENTS
+-->expecterror ER_X_CMD_INVALID_ARGUMENT
 -->recvresult
 EOF
 

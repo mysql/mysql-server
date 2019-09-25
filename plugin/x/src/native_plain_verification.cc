@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,7 @@
  */
 
 #include "plugin/x/src/native_plain_verification.h"
-
-#include "mysql_com.h"
-#include "sha1.h"  // for SHA1_HASH_SIZE
+#include "plugin/x/src/helper/generate_hash.h"
 
 namespace xpl {
 
@@ -43,8 +41,8 @@ bool Native_plain_verification::verify_authentication_string(
 
   bool client_string_matches = client_string.empty() && db_string.empty();
 
-  if (!client_string_matches &&
-      compute_password_hash(client_string) == db_string) {
+  std::string hash_string{"*" + generate_hash(client_string)};
+  if (!client_string_matches && hash_string == db_string) {
     client_string_matches = true;
   }
 
@@ -53,14 +51,6 @@ bool Native_plain_verification::verify_authentication_string(
   }
 
   return client_string_matches;
-}
-
-std::string Native_plain_verification::compute_password_hash(
-    const std::string &password) const {
-  std::string hash(2 * SHA1_HASH_SIZE + 2, '\0');
-  make_scrambled_password(&hash[0], password.c_str());
-  hash.resize(2 * SHA1_HASH_SIZE + 1);  // strip the \0
-  return hash;
 }
 
 }  // namespace xpl

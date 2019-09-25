@@ -33,7 +33,8 @@ const uint32_t k_on_idle_timeout_value = 500;
 
 namespace ngs {
 
-bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size,
+bool Protocol_decoder::read_header(uint8_t *message_type,
+                                   uint32_t *message_size,
                                    xpl::iface::Waiting_for_io *wait_for_io) {
   int header_copied = 0;
   int input_size = 0;
@@ -45,7 +46,7 @@ bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size,
   const uint64_t io_read_timeout =
       needs_idle_check ? k_on_idle_timeout_value : m_wait_timeout_in_ms;
 
-  m_vio->set_timeout_in_ms(Vio_interface::Direction::k_read, io_read_timeout);
+  m_vio->set_timeout_in_ms(xpl::iface::Vio::Direction::k_read, io_read_timeout);
 
   uint64_t total_timeout = 0;
 
@@ -84,7 +85,7 @@ bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size,
   if (*message_size > 0) {
     if (input_size == copy_from_input) {
       copy_from_input = 0;
-      m_vio->set_timeout_in_ms(Vio_interface::Direction::k_read,
+      m_vio->set_timeout_in_ms(xpl::iface::Vio::Direction::k_read,
                                m_read_timeout_in_ms);
 
       if (!m_vio_input_stream.Next((const void **)&input, &input_size)) {
@@ -163,11 +164,13 @@ Protocol_decoder::Decode_error Protocol_decoder::read_and_decode_impl(
   return {error_code};
 }
 
-void Protocol_decoder::set_wait_timeout(const uint32 wait_timeout_in_seconds) {
+void Protocol_decoder::set_wait_timeout(
+    const uint32_t wait_timeout_in_seconds) {
   m_wait_timeout_in_ms = wait_timeout_in_seconds * 1000;
 }
 
-void Protocol_decoder::set_read_timeout(const uint32 read_timeout_in_seconds) {
+void Protocol_decoder::set_read_timeout(
+    const uint32_t read_timeout_in_seconds) {
   m_read_timeout_in_ms = read_timeout_in_seconds * 1000;
 }
 

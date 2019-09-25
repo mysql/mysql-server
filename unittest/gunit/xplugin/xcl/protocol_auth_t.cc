@@ -57,13 +57,14 @@ struct Auth_test_messages {
 
   const Message_from_str<Auth_details::Authenticate_continue>
       msg_auth_cont_mysql41{
-          "auth_data: \"schema\\0user\\0\
-*ACFC0C3FA7F3C1F39849B44177D8B82C7F75E0D1\""};
+          "auth_data: \"schema\\0user\\0"
+          "*ACFC0C3FA7F3C1F39849B44177D8B82C7F75E0D1\""};
 
   const Message_from_str<Auth_details::Authenticate_continue>
       msg_auth_cont_sha256_memory{
-          "auth_data: \"schema\\0user\\0\
-8F7B8968AA5212A7FD28DAC463913BE1444D61BE7C891A242BA133460774D5CD\""};
+          "auth_data: \"schema\\0user\\0"
+          "8F7B8968AA5212A7FD28DAC463913BE1444D61BE7C891A242"
+          "BA133460774D5CD\""};
 };
 
 class Xcl_protocol_impl_tests_auth
@@ -71,7 +72,7 @@ class Xcl_protocol_impl_tests_auth
       public ::testing::WithParamInterface<Auth_details> {
  public:
   void assert_authenticate(const std::string &mech,
-                           const int32 error_code = 0) {
+                           const int32_t error_code = 0) {
     auto error = m_sut->execute_authenticate(m_messages.expected_user,
                                              m_messages.expected_pass,
                                              m_messages.expected_schema, mech);
@@ -98,7 +99,7 @@ TEST_F(Xcl_protocol_impl_tests_auth, execute_authenticate_plain_method) {
 
 TEST_F(Xcl_protocol_impl_tests_auth,
        execute_authenticate_plain_method_error_msg) {
-  const int32 expected_error_code = 30001;
+  const int32_t expected_error_code = 30001;
   auto msg_error = Server_message<::Mysqlx::Error>::make_required();
 
   msg_error.set_code(expected_error_code);
@@ -122,7 +123,7 @@ TEST_F(Xcl_protocol_impl_tests_auth,
 
 TEST_F(Xcl_protocol_impl_tests_auth,
        execute_authenticate_plain_method_io_error_at_write) {
-  const int32 expected_error_code = 30002;
+  const int32_t expected_error_code = 30002;
 
   expect_write_message(Auth_test_messages().msg_auth_start_plain.get(),
                        expected_error_code);
@@ -132,7 +133,7 @@ TEST_F(Xcl_protocol_impl_tests_auth,
 
 TEST_F(Xcl_protocol_impl_tests_auth,
        execute_authenticate_plain_method_io_error_at_read) {
-  const int32 expected_error_code = 30003;
+  const int32_t expected_error_code = 30003;
 
   expect_write_message(Auth_test_messages().msg_auth_start_plain.get());
   expect_read_message_without_payload(Auth_details::Authenticate_ok(),
@@ -160,7 +161,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
 
 TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_recv_error_msg1) {
-  const int32 expected_error_code = 30004;
+  const int32_t expected_error_code = 30004;
   auto msg_error = Server_message<::Mysqlx::Error>::make_required();
 
   msg_error.set_code(expected_error_code);
@@ -173,7 +174,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
 
 TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_recv_error_msg2) {
-  const int32 expected_error_code = 30005;
+  const int32_t expected_error_code = 30005;
   auto msg_auth_cont_s =
       Server_message<Auth_details::Authenticate_continue>::make_required();
 
@@ -228,7 +229,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
 
 TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_recv_io_error1) {
-  const int32 expected_error_code = 30006;
+  const int32_t expected_error_code = 30006;
   auto msg_auth_cont_s =
       Server_message<Auth_details::Authenticate_continue>::make_required();
 
@@ -240,7 +241,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
 
 TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_recv_io_error2) {
-  const int32 expected_error_code = 30007;
+  const int32_t expected_error_code = 30007;
   auto msg_auth_cont_s =
       Server_message<Auth_details::Authenticate_continue>::make_required();
 
@@ -259,7 +260,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
 
 TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_write_io_error1) {
-  const int32 expected_error_code = 30008;
+  const int32_t expected_error_code = 30008;
 
   expect_write_message(GetParam().m_start_message.get(), expected_error_code);
 
@@ -268,7 +269,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
 
 TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_write_io_error2) {
-  const int32 expected_error_code = 30009;
+  const int32_t expected_error_code = 30009;
   auto msg_auth_cont_s =
       Server_message<Auth_details::Authenticate_continue>::make_required();
 

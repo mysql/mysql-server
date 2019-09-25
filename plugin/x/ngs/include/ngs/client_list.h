@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,14 @@
 
 #include <algorithm>
 #include <list>
+#include <memory>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/multithread/rw_lock.h"
+#include "plugin/x/src/interface/client.h"
 
 namespace ngs {
-
-typedef std::shared_ptr<Client_interface> Client_ptr;
 
 class Client_list {
  public:
@@ -44,9 +43,9 @@ class Client_list {
 
   size_t size();
 
-  void add(Client_ptr client);
+  void add(std::shared_ptr<xpl::iface::Client> client);
   void remove(uint64_t client_id);
-  Client_ptr find(const uint64_t client_id);
+  std::shared_ptr<xpl::iface::Client> find(const uint64_t client_id);
 
   /**
     Enumerate clients.
@@ -61,13 +60,14 @@ class Client_list {
   template <typename Functor>
   void enumerate(const Functor &matcher);
 
-  void get_all_clients(std::vector<Client_ptr> &result);
+  void get_all_clients(
+      std::vector<std::shared_ptr<xpl::iface::Client>> &result);
 
  private:
   struct Match_client {
-    Match_client(uint64_t client_id);
+    explicit Match_client(uint64_t client_id);
 
-    bool operator()(Client_ptr client);
+    bool operator()(std::shared_ptr<xpl::iface::Client> client);
 
     uint64_t m_id;
   };
@@ -76,7 +76,7 @@ class Client_list {
   Client_list &operator=(const Client_list &);
 
   xpl::RWLock m_clients_lock;
-  std::list<Client_ptr> m_clients;
+  std::list<std::shared_ptr<xpl::iface::Client>> m_clients;
 };
 
 template <typename Functor>

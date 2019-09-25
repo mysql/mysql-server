@@ -18,7 +18,7 @@ set password for unpriv@localhost = 'x';
 -->recvresult
 
 -->stmtadmin list_clients	{"what":"all"}
--->expecterror 5015
+-->expecterror ER_X_CMD_INVALID_ARGUMENT
 -->recvresult
 
 

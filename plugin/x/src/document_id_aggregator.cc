@@ -35,7 +35,7 @@ std::string Document_id_aggregator::generate_id(const Variables &vars) {
 }
 
 ngs::Error_code Document_id_aggregator::configue(
-    ngs::Sql_session_interface *data_context) {
+    iface::Sql_session *data_context) {
   Sql_data_result result(data_context);
   try {
     result.query(

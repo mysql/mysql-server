@@ -12,7 +12,7 @@
 # add/remove variable
 
 let $wait_condition=
-  SELECT COUNT(*)=69 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=71 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -80,6 +80,14 @@ if (`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 
 --let $assert_text= No connections were made, Mysqlx_stmt_create_collection must match default value which is 0.
 --let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_create_collection", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_modify_collection_options must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_modify_collection_options", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_stmt_get_collection_options must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_get_collection_options", Value, 1] = 0
 --source include/assert.inc
 
 --let $assert_text= No connections were made, Mysqlx_stmt_create_collection_index must match default value which is 0.

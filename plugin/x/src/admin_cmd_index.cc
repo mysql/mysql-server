@@ -28,6 +28,7 @@
 #include <cstring>
 #include <memory>
 
+#include "plugin/x/src/helper/generate_hash.h"
 #include "plugin/x/src/index_array_field.h"
 #include "plugin/x/src/index_field.h"
 #include "plugin/x/src/query_string_builder.h"

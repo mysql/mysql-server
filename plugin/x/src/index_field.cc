@@ -28,6 +28,7 @@
 #include <cstring>
 #include <limits>
 
+#include "plugin/x/src/helper/generate_hash.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_regex.h"
@@ -56,14 +57,8 @@ std::string get_prefix(const char *const prefix, const int32_t precision,
 }
 
 std::string docpath_hash(const std::string &path) {
-  std::string hash;
-  hash.resize(2 * SCRAMBLE_LENGTH + 2);
-  // just an arbitrary hash
-  ::make_scrambled_password(&hash[0], path.size() > 2
-                                          ? path.substr(2).c_str()  // skip '$.'
-                                          : path.c_str());  // hash for '$'
-  hash.resize(2 * SCRAMBLE_LENGTH + 1);                     // strip the \0
-  return hash.substr(1);                                    // skip the 1st char
+  return generate_hash(path.size() > 2 ? path.substr(2)  // skip '$.'
+                                       : path);          // hash for '$'
 }
 
 void extract_type_details(const std::string &type_name, int32_t *precision,
@@ -92,7 +87,7 @@ std::string get_virtual_column_name(const char *prefix,
 }  // namespace
 
 ngs::Error_code Index_field::add_column_if_necessary(
-    ngs::Sql_session_interface *sql_session, const std::string &schema,
+    iface::Sql_session *sql_session, const std::string &schema,
     const std::string &collection, Query_string_builder *qb) const {
   ngs::Error_code error;
   const bool is_field_exists =
@@ -105,7 +100,7 @@ ngs::Error_code Index_field::add_column_if_necessary(
   return ngs::Success();
 }
 
-bool Index_field::is_column_exists(ngs::Sql_session_interface *sql_session,
+bool Index_field::is_column_exists(iface::Sql_session *sql_session,
                                    const std::string &schema_name,
                                    const std::string &table_name,
                                    ngs::Error_code *error) const {

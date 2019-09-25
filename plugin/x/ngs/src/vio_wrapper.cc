@@ -31,7 +31,7 @@
 
 namespace ngs {
 
-Vio_wrapper::Vio_wrapper(Vio *vio)
+Vio_wrapper::Vio_wrapper(::Vio *vio)
     : m_vio(vio), m_shutdown_mutex(KEY_mutex_x_vio_shutdown) {}
 
 ssize_t Vio_wrapper::read(uchar *buffer, ssize_t bytes_to_send) {
@@ -80,19 +80,19 @@ void Vio_wrapper::set_thread_owner() {
 
 my_socket Vio_wrapper::get_fd() { return vio_fd(m_vio); }
 
-xpl::Connection_type Vio_wrapper::get_type() {
+xpl::Connection_type Vio_wrapper::get_type() const {
   return xpl::Connection_type_helper::convert_type(vio_type(m_vio));
 }
 
-sockaddr_storage *Vio_wrapper::peer_addr(std::string &address, uint16 &port) {
-  address.resize(256);
-  char *buffer = &address[0];
+sockaddr_storage *Vio_wrapper::peer_addr(std::string *address, uint16_t *port) {
+  address->resize(256);
+  char *buffer = &(*address)[0];
 
   buffer[0] = 0;
 
-  if (vio_peer_addr(m_vio, buffer, &port, address.capacity())) return nullptr;
+  if (vio_peer_addr(m_vio, buffer, port, address->capacity())) return nullptr;
 
-  address.resize(strlen(buffer));
+  address->resize(strlen(buffer));
 
   return &m_vio->remote;
 }

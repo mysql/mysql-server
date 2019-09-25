@@ -27,10 +27,12 @@
 
 #include <stdio.h>
 
+#include <string>
+
 #include "mysql/service_command.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/src/buffering_command_delegate.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/io/connection_type.h"
 #include "plugin/x/src/streaming_command_delegate.h"
 
@@ -47,7 +49,7 @@ typedef Buffering_command_delegate::Field_value Field_value;
 typedef Buffering_command_delegate::Row_data Row_data;
 class Account_verification_handler;
 
-class Sql_data_context : public ngs::Sql_session_interface {
+class Sql_data_context : public iface::Sql_session {
  public:
   Sql_data_context()
       : m_mysql_session(NULL), m_last_sql_errno(0), m_password_expired(false) {}
@@ -57,7 +59,7 @@ class Sql_data_context : public ngs::Sql_session_interface {
   ngs::Error_code authenticate(
       const char *user, const char *host, const char *ip, const char *db,
       const std::string &passwd,
-      const ngs::Authentication_interface &account_verification,
+      const iface::Authentication &account_verification,
       bool allow_expired_passwords) override;
 
   uint64_t mysql_session_id() const override;
@@ -76,22 +78,21 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
   // can only be executed once authenticated
   ngs::Error_code execute(const char *sql, std::size_t sql_len,
-                          ngs::Resultset_interface *rset) override;
+                          iface::Resultset *rset) override;
   ngs::Error_code execute_sql(const char *sql, std::size_t sql_len,
-                              ngs::Resultset_interface *rset) override;
+                              iface::Resultset *rset) override;
   ngs::Error_code prepare_prep_stmt(const char *sql, std::size_t sql_len,
-                                    ngs::Resultset_interface *rset) override;
+                                    iface::Resultset *rset) override;
   ngs::Error_code deallocate_prep_stmt(const uint32_t stmt_id,
-                                       ngs::Resultset_interface *rset) override;
+                                       iface::Resultset *rset) override;
   ngs::Error_code execute_prep_stmt(const uint32_t stmt_id,
                                     const bool has_cursor,
                                     const PS_PARAM *parameters,
                                     const std::size_t parameters_count,
-                                    ngs::Resultset_interface *rset) override;
+                                    iface::Resultset *rset) override;
 
-  ngs::Error_code fetch_cursor(const std::uint32_t id,
-                               const std::uint32_t row_count,
-                               ngs::Resultset_interface *rset) override;
+  ngs::Error_code fetch_cursor(const uint32_t id, const uint32_t row_count,
+                               iface::Resultset *rset) override;
 
   ngs::Error_code attach() override;
   ngs::Error_code detach() override;
@@ -129,14 +130,14 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
   ngs::Error_code execute_server_command(const enum_server_command cmd,
                                          const COM_DATA &cmd_data,
-                                         ngs::Resultset_interface *rset);
+                                         iface::Resultset *rset);
 
   std::string m_username;
   std::string m_hostname;
   std::string m_address;
   std::string m_db;
 
-  ngs::Protocol_encoder_interface *m_proto;
+  iface::Protocol_encoder *m_proto;
   MYSQL_SESSION m_mysql_session;
 
   int m_last_sql_errno;

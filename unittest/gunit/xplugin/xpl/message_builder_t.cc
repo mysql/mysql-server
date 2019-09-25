@@ -1,29 +1,29 @@
 /* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License, version 2.0,
- as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
- This program is also distributed with certain software (including
- but not limited to OpenSSL) that is licensed under separate terms,
- as designated in a particular file or component or in included license
- documentation.  The authors of MySQL hereby grant you an additional
- permission to link the program and your derivative works with the
- separately licensed software that they have included with MySQL.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License, version 2.0, for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "my_inttypes.h"
+#include <cstdint>
 
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
@@ -113,12 +113,12 @@ std::string generate_long_string(const int length) {
 class Message_builder : public Message_builder_encode_resultset<void> {};
 
 TEST_F(Message_builder, encode_compact_metadata) {
-  const uint64 COLLATION = 1u;
+  const uint64_t COLLATION = 1u;
   const auto TYPE = Mysqlx::Resultset::ColumnMetaData::SINT;
   const int DECIMALS = 3;
-  const uint32 FLAGS = 0xabcdu;
-  const uint32 LENGTH = 20u;
-  const uint32 CONTENT_TYPE = 7u;
+  const uint32_t FLAGS = 0xabcdu;
+  const uint32_t LENGTH = 20u;
+  const uint32_t CONTENT_TYPE = 7u;
 
   ::ngs::Column_info_builder column_info;
 
@@ -158,12 +158,12 @@ TEST_F(Message_builder, encode_compact_metadata) {
 }
 
 TEST_F(Message_builder, encode_full_metadata) {
-  const uint64 COLLATION = 2u;
+  const uint64_t COLLATION = 2u;
   const auto TYPE = Mysqlx::Resultset::ColumnMetaData::BYTES;
   const int DECIMALS = 4;
-  const uint32 FLAGS = 0x89abu;
-  const uint32 LENGTH = 0u;
-  const uint32 CONTENT_TYPE = 1u;
+  const uint32_t FLAGS = 0x89abu;
+  const uint32_t LENGTH = 0u;
+  const uint32_t CONTENT_TYPE = 1u;
   const std::string CATALOG = "CATALOG_NAME";
   const std::string TABLE_NAME = "TABLE_NAME";
   const std::string ORG_TABLE_NAME = "ORG_TABLE_NAME";
@@ -241,7 +241,7 @@ TEST_F(Message_builder, encode_notice_with_text) {
 }
 
 TEST_F(Message_builder, encode_notice_frame) {
-  const uint32 TYPE = 2;
+  const uint32_t TYPE = 2;
   const int SCOPE = Mysqlx::Notice::Frame_Scope_GLOBAL;
   const std::string DATA = "\0\0\1\12\12aaa\0";
 
@@ -262,7 +262,7 @@ TEST_F(Message_builder, encode_notice_frame) {
 }
 
 TEST_F(Message_builder, encode_notice_rows_affected) {
-  const uint64 ROWS_AFFECTED = 10001u;
+  const uint64_t ROWS_AFFECTED = 10001u;
 
   m_encoder.encode_notice_rows_affected(ROWS_AFFECTED);
 

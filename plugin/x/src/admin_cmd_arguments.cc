@@ -28,14 +28,14 @@
 #include <limits>
 
 #include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/src/helper/sql_commands.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_regex.h"
 
 namespace xpl {
 
 namespace {
-using Argument_appearance =
-    Admin_command_handler::Command_arguments::Appearance_type;
+using Argument_appearance = iface::Admin_command_arguments::Appearance_type;
 inline bool is_optional(const Argument_appearance appearance) {
   return appearance == Argument_appearance::k_optional;
 }
@@ -45,18 +45,18 @@ using Object_field = ::Mysqlx::Datatypes::Object_ObjectField;
 template <typename T>
 class General_argument_validator {
  public:
-  General_argument_validator(const char *, bool *) {}
+  General_argument_validator(bool *) {}
   void operator()(const T &input, T *output) { *output = input; }
 };
 
 template <typename Type, typename Validator = General_argument_validator<Type>>
 class Argument_type_handler {
  public:
-  Argument_type_handler(const char *name, Type *value)
-      : m_validator(name, &m_error), m_value(value), m_error(false) {}
+  Argument_type_handler(Type *value)
+      : m_validator(&m_error), m_value(value), m_error(false) {}
 
-  explicit Argument_type_handler(const char *name)
-      : m_validator(name, &m_error), m_value(nullptr), m_error(false) {}
+  explicit Argument_type_handler()
+      : m_validator(&m_error), m_value(nullptr), m_error(false) {}
 
   void assign(Type *value) { m_value = value; }
   void operator()(const Type &value) { m_validator(value, m_value); }
@@ -76,8 +76,7 @@ class Argument_type_handler {
 
 class String_argument_validator {
  public:
-  String_argument_validator(const char *name, bool *error)
-      : m_name(name), m_error(error) {}
+  String_argument_validator(bool *error) : m_error(error) {}
 
   void operator()(const std::string &input, std::string *output) {
     if (memchr(input.data(), 0, input.length())) {
@@ -88,14 +87,12 @@ class String_argument_validator {
   }
 
  protected:
-  const char *m_name;
   bool *m_error;
 };
 
 class Docpath_argument_validator : String_argument_validator {
  public:
-  Docpath_argument_validator(const char *name, bool *error)
-      : String_argument_validator(name, error) {}
+  Docpath_argument_validator(bool *error) : String_argument_validator(error) {}
 
   void operator()(const std::string &input, std::string *output) {
     static const std::string k_doc_member_regex =
@@ -120,15 +117,11 @@ inline std::string get_indexed_name(const std::string &name, const int i) {
 Admin_command_arguments_object::Admin_command_arguments_object(const List &args)
     : m_args_empty(args.size() == 0),
       m_is_object(args.size() == 1 && args.Get(0).has_obj()),
-      m_object(m_is_object ? args.Get(0).obj() : Object::default_instance()),
-      m_args_consumed(0) {}
+      m_object(m_is_object ? args.Get(0).obj() : Object::default_instance()) {}
 
 Admin_command_arguments_object::Admin_command_arguments_object(
     const Object &obj)
-    : m_args_empty(true),
-      m_is_object(true),
-      m_object(obj),
-      m_args_consumed(0) {}
+    : m_args_empty(true), m_is_object(true), m_object(obj) {}
 
 void Admin_command_arguments_object::set_number_args_error(
     const std::string &name) {
@@ -142,6 +135,14 @@ void Admin_command_arguments_object::set_arg_value_error(
   m_error =
       ngs::Error(ER_X_CMD_ARGUMENT_VALUE, "Invalid value for argument '%s'",
                  get_path(name).c_str());
+}
+
+void Admin_command_arguments_object::set_arg_type_error(
+    const std::string &name, const std::string &expected_type) {
+  m_error =
+      ngs::Error(ER_X_CMD_ARGUMENT_TYPE,
+                 "Invalid data type for argument '%s', expected '%s' type",
+                 name.c_str(), expected_type.c_str());
 }
 
 template <typename H>
@@ -160,8 +161,6 @@ Admin_command_arguments_object::get_object_field(
     const Argument_name_list &name, const Appearance_type appearance) {
   if (m_error) return nullptr;
 
-  ++m_args_consumed;
-
   if (!m_is_object) {
     if (!is_optional(appearance)) set_number_args_error(*name.begin());
     return nullptr;
@@ -174,6 +173,7 @@ Admin_command_arguments_object::get_object_field(
           return fld.has_key() && fld.key() == arg_name;
         });
     if (i != fld.end()) {
+      m_allowed_keys.push_back(i->key());
       return &(*i);
     }
   }
@@ -193,16 +193,16 @@ void Admin_command_arguments_object::get_scalar_value(const Any &value,
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::string_arg(
-    Argument_name_list name, std::string *ret_value,
+    const Argument_name_list &name, std::string *ret_value,
     const Appearance_type appearance) {
   Argument_type_handler<std::string, String_argument_validator> handler(
-      *name.begin(), ret_value);
+      ret_value);
   get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::string_list(
-    Argument_name_list name, std::vector<std::string> *ret_value,
+    const Argument_name_list &name, std::vector<std::string> *ret_value,
     const Appearance_type appearance) {
   const Object::ObjectField *field = get_object_field(name, appearance);
   if (!field) return *this;
@@ -213,8 +213,7 @@ Admin_command_arguments_object &Admin_command_arguments_object::string_list(
   }
 
   std::vector<std::string> values;
-  Argument_type_handler<std::string, String_argument_validator> handler(
-      *name.begin());
+  Argument_type_handler<std::string, String_argument_validator> handler{};
 
   switch (field->value().type()) {
     case ::Mysqlx::Datatypes::Any_Type_ARRAY:
@@ -248,42 +247,41 @@ Admin_command_arguments_object &Admin_command_arguments_object::string_list(
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::sint_arg(
-    Argument_name_list name, int64_t *ret_value,
+    const Argument_name_list &name, int64_t *ret_value,
     const Appearance_type appearance) {
-  Argument_type_handler<google::protobuf::int64> handler(*name.begin(),
-                                                         ret_value);
+  Argument_type_handler<google::protobuf::int64> handler(ret_value);
   get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::uint_arg(
-    Argument_name_list name, uint64_t *ret_value,
+    const Argument_name_list &name, uint64_t *ret_value,
     const Appearance_type appearance) {
-  Argument_type_handler<google::protobuf::uint64> handler(*name.begin(),
-                                                          ret_value);
+  Argument_type_handler<google::protobuf::uint64> handler(ret_value);
   get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::bool_arg(
-    Argument_name_list name, bool *ret_value,
+    const Argument_name_list &name, bool *ret_value,
     const Appearance_type appearance) {
-  Argument_type_handler<bool> handler(*name.begin(), ret_value);
+  Argument_type_handler<bool> handler(ret_value);
   get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::docpath_arg(
-    Argument_name_list name, std::string *ret_value,
+    const Argument_name_list &name, std::string *ret_value,
     const Appearance_type appearance) {
   Argument_type_handler<std::string, Docpath_argument_validator> handler(
-      *name.begin(), ret_value);
+      ret_value);
   get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::object_list(
-    Argument_name_list name, std::vector<Command_arguments *> *ret_value,
+    const Argument_name_list &name,
+    std::vector<iface::Admin_command_arguments *> *ret_value,
     const Appearance_type appearance, unsigned) {
   const Object::ObjectField *field = get_object_field(name, appearance);
   if (!field) return *this;
@@ -293,7 +291,7 @@ Admin_command_arguments_object &Admin_command_arguments_object::object_list(
     return *this;
   }
 
-  std::vector<Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   switch (field->value().type()) {
     case ::Mysqlx::Datatypes::Any_Type_ARRAY:
       if (field->value().array().value_size() == 0) {
@@ -326,6 +324,38 @@ Admin_command_arguments_object &Admin_command_arguments_object::object_list(
   return *this;
 }
 
+Admin_command_arguments_object &Admin_command_arguments_object::any_arg(
+    const Argument_name_list &name, Any *ret_value,
+    const Argument_appearance appearance) {
+  const Object::ObjectField *field = get_object_field(name, appearance);
+  if (!field) return *this;
+
+  if (!field->value().has_type()) {
+    set_number_args_error(*name.begin());
+    return *this;
+  }
+
+  if (!m_error) *ret_value = field->value();
+
+  return *this;
+}
+
+Admin_command_arguments_object &Admin_command_arguments_object::object_arg(
+    const Argument_name_list &name, Object *ret_value,
+    const Argument_appearance appearance) {
+  const Object::ObjectField *field = get_object_field(name, appearance);
+  if (!field) return *this;
+
+  if (field->value().type() != Mysqlx::Datatypes::Any_Type::Any_Type_OBJECT) {
+    set_arg_type_error(name[0], "object");
+    return *this;
+  }
+
+  if (!m_error) *ret_value = field->value().obj();
+
+  return *this;
+}
+
 Admin_command_arguments_object *Admin_command_arguments_object::add_sub_object(
     const Object &object, const std::string &path) {
   Admin_command_arguments_object *obj =
@@ -339,11 +369,18 @@ const ngs::Error_code &Admin_command_arguments_object::end() {
   if (m_error) return m_error;
 
   if (m_is_object) {
-    if (m_object.fld().size() > m_args_consumed)
-      m_error =
-          ngs::Error(ER_X_CMD_NUM_ARGUMENTS,
-                     "Invalid number of arguments, expected %i but got %i",
-                     m_args_consumed, m_object.fld().size());
+    for (const auto &fld : m_object.fld()) {
+      if (fld.has_key()) {
+        const auto key = fld.key();
+        if (std::none_of(
+                std::begin(m_allowed_keys), std::end(m_allowed_keys),
+                [&key](const std::string &val) { return key == val; })) {
+          m_error = ngs::Error(ER_X_CMD_INVALID_ARGUMENT,
+                               "'%s' is not a valid field", key.c_str());
+          return m_error;
+        }
+      }
+    }
   } else {
     if (!m_args_empty)
       m_error =
@@ -353,9 +390,12 @@ const ngs::Error_code &Admin_command_arguments_object::end() {
   return m_error;
 }
 
-bool Admin_command_arguments_object::is_end() const {
-  return !(m_error.error == 0 && m_is_object &&
-           m_object.fld().size() > m_args_consumed);
+std::vector<std::string> Admin_command_arguments_object::get_obj_keys() const {
+  std::vector<std::string> ret_value;
+  for (const auto &fld : m_object.fld()) {
+    if (fld.has_key()) ret_value.push_back(fld.key());
+  }
+  return ret_value;
 }
 
 }  // namespace xpl

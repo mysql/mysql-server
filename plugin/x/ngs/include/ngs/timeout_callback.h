@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,17 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_TIMEOUT_CALLBACK_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_TIMEOUT_CALLBACK_H_
 
-#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/timeout_callback_interface.h"
+#include <memory>
+
+#include "plugin/x/src/interface/socket_events.h"
+#include "plugin/x/src/interface/timeout_callback.h"
 
 namespace ngs {
 
-class Timeout_callback : public Timeout_callback_interface {
+class Timeout_callback : public xpl::iface::Timeout_callback {
  public:
-  Timeout_callback(const std::shared_ptr<Socket_events_interface> &event)
+  explicit Timeout_callback(
+      const std::shared_ptr<xpl::iface::Socket_events> &event)
       : m_event(event) {}
 
   void add_callback(const std::size_t delay_ms,
@@ -41,7 +44,7 @@ class Timeout_callback : public Timeout_callback_interface {
   }
 
  private:
-  std::shared_ptr<Socket_events_interface> m_event;
+  std::shared_ptr<xpl::iface::Socket_events> m_event;
 };
 
 }  // namespace ngs

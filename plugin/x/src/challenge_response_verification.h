@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,28 +27,27 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
-
 #include "crypt_genhash_impl.h"
+#include "mysql_com.h"
+
+#include "plugin/x/src/interface/account_verification.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
 
 namespace xpl {
 
 /**
   Class for doing account verification for the challenge response authentication
 */
-class Challenge_response_verification
-    : public ngs::Account_verification_interface {
+class Challenge_response_verification : public iface::Account_verification {
  public:
-  explicit Challenge_response_verification(
-      ngs::SHA256_password_cache_interface *cache)
+  explicit Challenge_response_verification(iface::SHA256_password_cache *cache)
       : k_salt(generate_salt()), m_sha256_password_cache(cache) {}
 
   const std::string &get_salt() const override { return k_salt; }
 
  protected:
   const std::string k_salt;
-  ngs::SHA256_password_cache_interface *m_sha256_password_cache;
+  iface::SHA256_password_cache *m_sha256_password_cache;
 
   std::string generate_salt() {
     std::string salt(SCRAMBLE_LENGTH, '\0');

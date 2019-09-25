@@ -321,7 +321,7 @@ class Index_field_is_column_exists_test : public ::testing::Test {
   }
 
   using Sql = ngs::PFS_string;
-  ::testing::StrictMock<ngs::test::Mock_sql_data_context> data_context;
+  ::testing::StrictMock<Mock_sql_data_context> data_context;
   std::unique_ptr<const Index_field> field;
 };
 

@@ -18,7 +18,7 @@ use xtest;
 insert into mycoll (doc) values ('{"_id": "1", "name": "Joe1"}');
 insert into mycoll (doc) values ('{"_id": "2", "name": "Joe2", "last_name": "Smith"}');
 insert into mycoll (doc) values ('{"_id": "3", "name": "Joe2", "last_name": "Shmo"}');
-select * from mycoll;
+select doc from mycoll;
 -->endsql
 
 Mysqlx.Crud.Delete {
@@ -56,7 +56,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
-select * from xtest.mycoll;
+select doc from xtest.mycoll;
 -->endsql
 EOF
 

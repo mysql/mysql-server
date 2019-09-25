@@ -69,16 +69,15 @@ void Notice_output_queue::encode_queued_items(const bool last_force_flush) {
     const bool flush = last_force_flush && (1 == m_queue.size());
 
     if (!m_encoder->send_notice(
-            ::ngs::Frame_type::k_group_replication_state_changed,
-            ::ngs::Frame_scope::k_global, *item, flush))
+            iface::Frame_type::k_group_replication_state_changed,
+            iface::Frame_scope::k_global, *item, flush))
       break;
 
     m_queue.pop();
   }
 }
 
-void Notice_output_queue::set_encoder(
-    ngs::Protocol_encoder_interface *encoder) {
+void Notice_output_queue::set_encoder(iface::Protocol_encoder *encoder) {
   m_encoder = encoder;
 }
 

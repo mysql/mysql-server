@@ -1,0 +1,152 @@
+#
+# Macros specific for tests with schema validation.
+#
+
+-->macro Execute_admin_cmd_with_validation %CMD% %COLLECTION% %VALIDATION_SCHEMA% %LEVEL%
+Mysqlx.Sql.StmtExecute {
+  stmt: "%CMD%"
+  args {
+    type: OBJECT obj {
+      fld {
+        key:'schema'
+        value{type:SCALAR scalar{type:V_STRING v_string{value:'xtest'}}}
+        }
+      fld {
+        key:'name'
+        value{type:SCALAR scalar{type:V_STRING v_string{value:'%COLLECTION%'}}}
+      }
+      fld {
+        key:'options'
+        value{
+          type:OBJECT
+          obj {
+            fld {
+              key:'validation'
+              value{
+                type:OBJECT
+                obj{
+                  fld {
+                    key:'schema'
+                    value{%VALIDATION_SCHEMA%}
+                  }
+                  fld {
+                    key:'level'
+                    value{type:SCALAR scalar{type:V_STRING v_string{value:%LEVEL%}}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  namespace: "mysqlx"
+}
+-->endmacro
+
+-->macro Assert_is_enforced %COLUMN_NAME% %RESULT%
+stmtsql SELECT enforced FROM information_schema.table_constraints WHERE
+  constraint_schema = "xtest" AND table_name ='%COLUMN_NAME%' AND
+  constraint_name LIKE '$val_strict_%';
+-->recvtovar %IS_ENFORCED%
+-->assert_eq %IS_ENFORCED%	%RESULT%
+-->endmacro
+
+-->macro Show_validation_schema
+stmtsql SELECT generation_expression FROM information_schema.columns WHERE
+  table_schema = "xtest" AND column_name ='_json_schema';
+-->recvresult
+-->endmacro
+
+-->macro Insert_value_to_collection %COLLECTION% %VALUE%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "%COLLECTION%"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: %VALUE%
+        }
+      }
+    }
+  }
+}
+-->endmacro
+
+-->macro Create_coll_with_validation %NAME% %VALIDATION% %LEVEL%
+stmtadmin create_collection	{"schema": "xtest", "name": "%NAME%", "options": {
+  "validation": {
+    "schema": %VALIDATION%, "level": "%LEVEL%"
+  }
+}};
+-->recvresult
+-->endmacro
+
+-->macro Modify_schema %NAME% %SCHEMA%
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "%NAME%", "options": {
+  "validation": {
+    "schema": %SCHEMA%
+  }
+}};
+-->endmacro
+
+-->macro Modify_level %NAME% %LEVEL%
+stmtadmin modify_collection_options	{"schema": "xtest", "name": "%NAME%", "options": {
+  "validation": {
+    "level": "%LEVEL%"
+  }
+}};
+-->endmacro
+
+-->macro Update_item %COLLECTION_NAME% %ITEM_NAME% %OLD_VALUE% %NEW_VALUE%
+Mysqlx.Crud.Update {
+  collection { name: "%COLLECTION_NAME%" schema: "xtest"}
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "%ITEM_NAME%"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal %OLD_VALUE%
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {type: MEMBER value: '%ITEM_NAME%'}
+    }
+    operation: ITEM_SET
+    value: {
+      type: LITERAL literal %NEW_VALUE%
+    }
+  }
+}
+-->endmacro
+
+-->macro Drop_collection %COLL_NAME%
+-->stmtsql DROP TABLE IF EXISTS xtest.%COLL_NAME%
+-->recvresult
+-->endmacro
+
+-->macro Assert_not_empty %COLLECTION_NAME%
+-->stmtsql SELECT COUNT(*) FROM xtest.%COLLECTION_NAME%
+-->recvtovar %CNT%
+-->assert_ne %CNT%	0
+-->endmacro

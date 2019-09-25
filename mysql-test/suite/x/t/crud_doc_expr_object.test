@@ -53,7 +53,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 -->echo Selecting object from collection
@@ -267,12 +267,12 @@ Mysqlx.Crud.Update {
     }
   }
 }
-  
+
 #-- Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
 -->sql
-SELECT * FROM xtest.xcoll;
+SELECT doc FROM xtest.xcoll;
 -->endsql
 
 

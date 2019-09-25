@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,33 +24,34 @@
 
 #include "plugin/x/src/operations_factory.h"
 
-#include "my_config.h"
-#include "my_psi_config.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #ifndef _WIN32
 #include <netdb.h>
 #endif
 
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "plugin/x/ngs/include/ngs/memory.h"
+#include <cinttypes>
+#include <cstdint>
+#include <string>
+
+#include "my_io.h"       // NOLINT(build/include_subdir)
+#include "my_systime.h"  // NOLINT(build/include_subdir)
 
 #ifdef HAVE_SYS_UN_H
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #endif
+
 #include "plugin/x/src/config/config.h"
 
 namespace xpl {
 
 namespace details {
 
-class Socket : public ngs::Socket_interface {
+class Socket : public iface::Socket {
  public:
-  Socket(MYSQL_SOCKET mysql_socket) : m_mysql_socket(mysql_socket) {}
+  explicit Socket(MYSQL_SOCKET mysql_socket) : m_mysql_socket(mysql_socket) {}
 
   Socket(PSI_socket_key key MY_ATTRIBUTE((unused)), int domain, int type,
          int protocol)
@@ -98,7 +99,7 @@ class Socket : public ngs::Socket_interface {
   MYSQL_SOCKET m_mysql_socket;
 };
 
-class File : public ngs::File_interface {
+class File : public iface::File {
  public:
   File(const char *name, int access, int permission)
       : m_file_descriptor(::open(name, access, permission)) {}
@@ -144,24 +145,24 @@ class File : public ngs::File_interface {
 
 const int File::INVALID_FILE_DESCRIPTOR = -1;
 
-class System : public ngs::System_interface {
-  int unlink(const char *name) override {
+class System : public iface::System {
+  int32_t unlink(const char *name) override {
     return HAVE_UNIX_SOCKET(::unlink(name), 0);
   }
 
-  int get_errno() override { return errno; }
+  int32_t get_errno() override { return errno; }
 
-  int get_ppid() override { return HAVE_UNIX_SOCKET(::getppid(), 0); }
+  int32_t get_ppid() override { return HAVE_UNIX_SOCKET(::getppid(), 0); }
 
-  int get_pid() override { return HAVE_UNIX_SOCKET(::getpid(), 0); }
+  int32_t get_pid() override { return HAVE_UNIX_SOCKET(::getpid(), 0); }
 
-  int kill(int pid, int signal) override {
+  int32_t kill(int32_t pid, int32_t signal) override {
     return HAVE_UNIX_SOCKET(::kill(pid, signal), 0);
   }
 
-  int get_socket_errno() override { return socket_errno; }
+  int32_t get_socket_errno() override { return socket_errno; }
 
-  void set_socket_errno(const int err) override {
+  void set_socket_errno(const int32_t err) override {
 #if defined(_WIN32)
     // socket_errno resolved on windows to WASGetLastError which can't be set.
     WSASetLastError(err);
@@ -170,58 +171,58 @@ class System : public ngs::System_interface {
 #endif  // defined(_WIN32)
   }
 
-  void get_socket_error_and_message(int &out_err,
-                                    std::string &out_strerr) override {
-    out_err = socket_errno;
+  void get_socket_error_and_message(int32_t *out_err,
+                                    std::string *out_strerr) override {
+    *out_err = socket_errno;
 #ifdef _WIN32
     char *s = nullptr;
     if (0 == FormatMessage(
                  FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                      FORMAT_MESSAGE_IGNORE_INSERTS,
-                 nullptr, out_err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                 nullptr, *out_err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                  reinterpret_cast<LPSTR>(&s), 0, nullptr)) {
       char text[256];
-      snprintf(text, sizeof(text), "Error %i", out_err);
-      out_strerr = text;
+      snprintf(text, sizeof(text), "Error %" PRIi32, *out_err);
+      *out_strerr = text;
     } else {
-      out_strerr = s;
+      *out_strerr = s;
       LocalFree(s);
     }
 #else
-    out_strerr = strerror(out_err);
+    *out_strerr = strerror(*out_err);
 #endif
   }
 
   void freeaddrinfo(addrinfo *ai) override { return ::freeaddrinfo(ai); }
 
-  int getaddrinfo(const char *node, const char *service, const addrinfo *hints,
-                  addrinfo **res) override {
+  int32_t getaddrinfo(const char *node, const char *service,
+                      const addrinfo *hints, addrinfo **res) override {
     return ::getaddrinfo(node, service, hints, res);
   }
 
-  void sleep(uint32 seconds) override { ::sleep(seconds); }
+  void sleep(uint32_t seconds) override { ::sleep(seconds); }
 };
 
 }  // namespace details
 
-std::shared_ptr<ngs::Socket_interface> Operations_factory::create_socket(
+std::shared_ptr<iface::Socket> Operations_factory::create_socket(
     PSI_socket_key key, int domain, int type, int protocol) {
-  return ngs::allocate_shared<details::Socket>(key, domain, type, protocol);
+  return std::make_shared<details::Socket>(key, domain, type, protocol);
 }
 
-std::shared_ptr<ngs::Socket_interface> Operations_factory::create_socket(
+std::shared_ptr<iface::Socket> Operations_factory::create_socket(
     MYSQL_SOCKET mysql_socket) {
-  return ngs::allocate_shared<details::Socket>(mysql_socket);
+  return std::make_shared<details::Socket>(mysql_socket);
 }
 
-std::shared_ptr<ngs::File_interface> Operations_factory::open_file(
-    const char *name, int access, int permission) {
-  return ngs::allocate_shared<details::File>(name, access, permission);
+std::shared_ptr<iface::File> Operations_factory::open_file(const char *name,
+                                                           int access,
+                                                           int permission) {
+  return std::make_shared<details::File>(name, access, permission);
 }
 
-std::shared_ptr<ngs::System_interface>
-Operations_factory::create_system_interface() {
-  return ngs::allocate_shared<details::System>();
+std::shared_ptr<iface::System> Operations_factory::create_system_interface() {
+  return std::make_shared<details::System>();
 }
 
 }  // namespace xpl

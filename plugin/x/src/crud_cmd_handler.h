@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,10 @@
 #define PLUGIN_X_SRC_CRUD_CMD_HANDLER_H_
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/ngs/include/ngs/session_status_variables.h"
+#include "plugin/x/src/interface/resultset.h"
+#include "plugin/x/src/interface/sql_session.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_context.h"
 
@@ -37,7 +37,7 @@ namespace xpl {
 
 class Crud_command_handler {
  public:
-  explicit Crud_command_handler(ngs::Session_interface *session)
+  explicit Crud_command_handler(iface::Session *session)
       : m_session{session}, m_qb{1024} {}
 
   ngs::Error_code execute_crud_insert(const Mysqlx::Crud::Insert &msg);
@@ -55,9 +55,8 @@ class Crud_command_handler {
 
   template <typename B, typename M>
   ngs::Error_code execute(const B &builder, const M &msg,
-                          ngs::Resultset_interface &resultset,
-                          Status_variable variable,
-                          bool (ngs::Protocol_encoder_interface::*send_ok)());
+                          iface::Resultset &resultset, Status_variable variable,
+                          bool (iface::Protocol_encoder::*send_ok)());
 
   template <typename M>
   ngs::Error_code error_handling(const ngs::Error_code &error,
@@ -66,12 +65,12 @@ class Crud_command_handler {
   }
 
   template <typename B, typename M>
-  void notice_handling(const ngs::Resultset_interface::Info &info,
-                       const B &builder, const M &msg) const;
+  void notice_handling(const iface::Resultset::Info &info, const B &builder,
+                       const M &msg) const;
 
-  void notice_handling_common(const ngs::Resultset_interface::Info &info) const;
+  void notice_handling_common(const iface::Resultset::Info &info) const;
 
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
   Query_string_builder m_qb;
 };
 

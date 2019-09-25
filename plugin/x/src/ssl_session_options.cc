@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -56,11 +56,11 @@ std::string Ssl_session_options::ssl_version() const {
 
 std::vector<std::string> Ssl_session_options::ssl_cipher_list() const {
   std::vector<std::string> result;
-  const long num_of_elements = 1024;
+  const int64_t num_of_elements = 1024;
   const char *versions[num_of_elements];
 
   if (active_tls()) {
-    long number_of_items =
+    int64_t number_of_items =
         ssl_wrapper_cipher_list(m_vio->get_vio(), versions, num_of_elements);
 
     std::copy(versions, versions + number_of_items, std::back_inserter(result));
@@ -69,21 +69,21 @@ std::vector<std::string> Ssl_session_options::ssl_cipher_list() const {
   return result;
 }
 
-long Ssl_session_options::ssl_verify_depth() const {
+int64_t Ssl_session_options::ssl_verify_depth() const {
   if (!active_tls()) return 0;
 
   return ssl_wrapper_verify_depth(m_vio->get_vio());
 }
 
-long Ssl_session_options::ssl_verify_mode() const {
+int64_t Ssl_session_options::ssl_verify_mode() const {
   if (!active_tls()) return 0;
 
   return ssl_wrapper_verify_mode(m_vio->get_vio());
 }
 
-long Ssl_session_options::ssl_sessions_reused() const { return 0; }
+int64_t Ssl_session_options::ssl_sessions_reused() const { return 0; }
 
-long Ssl_session_options::ssl_get_verify_result_and_cert() const {
+int64_t Ssl_session_options::ssl_get_verify_result_and_cert() const {
   if (!active_tls()) return 0;
 
   return ssl_wrapper_get_verify_result_and_cert(m_vio->get_vio());

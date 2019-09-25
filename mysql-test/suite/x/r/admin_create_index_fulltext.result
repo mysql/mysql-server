@@ -25,6 +25,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_366242F9B1A1445156C6129A699299650D68D08A	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
@@ -39,6 +40,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 0 rows affected
 ### Indexes of fulltext1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -63,6 +65,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
@@ -77,6 +80,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 0 rows affected
 ### Indexes of fulltext1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -94,6 +98,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
@@ -112,6 +117,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1
@@ -129,6 +135,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 $ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
 0 rows affected
@@ -149,6 +156,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 $ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
 $ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	YES	MUL	null	STORED GENERATED
@@ -171,6 +179,7 @@ command ok
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B	text	NO	MUL	null	STORED GENERATED
 $ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO		null	STORED GENERATED
 $ix_ft_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	YES	MUL	null	STORED GENERATED
@@ -214,6 +223,7 @@ Verify "NOT NULL" for generated column
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 $ix_ft_r_350BEBA0BA8F7BA4E147A3E652BE04A3B53B4479	text	NO	MUL	null	STORED GENERATED
 0 rows affected
 ### Indexes of fulltext1

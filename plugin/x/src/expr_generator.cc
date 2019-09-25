@@ -192,6 +192,15 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Any &arg) const {
     case Mysqlx::Datatypes::Any::SCALAR:
       generate(arg.scalar());
       break;
+
+    case Mysqlx::Datatypes::Any::ARRAY:
+      generate(arg.array());
+      break;
+
+    case Mysqlx::Datatypes::Any::OBJECT:
+      generate(arg.obj());
+      break;
+
     default:
       throw Error(ER_X_EXPR_BAD_TYPE_VALUE,
                   "Invalid value for Mysqlx::Datatypes::Any::Type " +
@@ -224,7 +233,7 @@ void Expression_generator::generate(
         // validate charset for alnum_
         // m_qb->put("_").put(arg.v_string().charset());
       }
-      m_qb->quote_string(arg.v_string().value());
+      handle_string_scalar(arg);
       break;
 
     case Mysqlx::Datatypes::Scalar::V_DOUBLE:
@@ -236,7 +245,7 @@ void Expression_generator::generate(
       break;
 
     case Mysqlx::Datatypes::Scalar::V_BOOL:
-      m_qb->put((arg.v_bool() ? "TRUE" : "FALSE"));
+      handle_bool_scalar(arg);
       break;
 
     default:
@@ -309,19 +318,29 @@ void Expression_generator::generate(const Mysqlx::Expr::Array &arg) const {
   m_qb->put(")");
 }
 
-template <typename T>
-void Expression_generator::generate_for_each(
-    const Repeated_field_list<T> &list,
-    void (Expression_generator::*generate_fun)(const T &) const,
-    const typename Repeated_field_list<T>::size_type offset) const {
-  if (list.size() == 0) return;
-  using It = typename Repeated_field_list<T>::const_iterator;
-  It end = list.end() - 1;
-  for (It i = list.begin() + offset; i != end; ++i) {
-    (this->*generate_fun)(*i);
-    m_qb->put(",");
-  }
-  (this->*generate_fun)(*end);
+void Expression_generator::generate(
+    const Mysqlx::Datatypes::Object &arg) const {
+  m_qb->put("JSON_OBJECT(");
+  generate_for_each(arg.fld(), &Expression_generator::generate);
+  m_qb->put(")");
+}
+
+void Expression_generator::generate(
+    const Mysqlx::Datatypes::Object::ObjectField &arg) const {
+  if (!arg.has_key() || arg.key().empty())
+    throw Error(ER_X_EXPR_BAD_VALUE,
+                "Invalid key for Mysqlx::Datatypes::Object");
+  if (!arg.has_value())
+    throw Error(ER_X_EXPR_BAD_VALUE,
+                "Invalid value for Mysqlx::Datatypes::Object on key '" +
+                    arg.key() + "'");
+  handle_object_field(arg);
+}
+
+void Expression_generator::generate(const Mysqlx::Datatypes::Array &arg) const {
+  m_qb->put("JSON_ARRAY(");
+  generate_for_each(arg.value(), &Expression_generator::generate);
+  m_qb->put(")");
 }
 
 void Expression_generator::generate_unquote_param(
@@ -796,6 +815,22 @@ void Expression_generator::overlaps_expression(
   m_qb->put(",");
   generate_json_only_param(arg.param(1), "OVERLAPS");
   m_qb->put(")");
+}
+
+void Expression_generator::handle_object_field(
+    const Mysqlx::Datatypes::Object::ObjectField &arg) const {
+  m_qb->quote_string(arg.key()).put(",");
+  generate(arg.value());
+}
+
+void Expression_generator::handle_string_scalar(
+    const Mysqlx::Datatypes::Scalar &string_scalar) const {
+  m_qb->quote_string(string_scalar.v_string().value());
+}
+
+void Expression_generator::handle_bool_scalar(
+    const Mysqlx::Datatypes::Scalar &bool_scalar) const {
+  m_qb->put((bool_scalar.v_bool() ? "TRUE" : "FALSE"));
 }
 
 }  // namespace xpl

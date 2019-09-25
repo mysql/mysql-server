@@ -22,11 +22,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "errmsg.h"
-#include "my_config.h"
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "mysql_version.h"
+#include <cstdint>
+
+#include "errmsg.h"         // NOLINT(build/include_subdir)
+#include "my_config.h"      // NOLINT(build/include_subdir)
+#include "my_macros.h"      // NOLINT(build/include_subdir)
+#include "mysql_version.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/generated/mysqlx_error.h"
 #include "plugin/x/generated/mysqlx_version.h"
@@ -42,7 +43,7 @@ const char *expected_pass = "user_pass";
 const char *expected_host = "host";
 const char *expected_socket_file = "socket_file";
 const char *expected_schema = "schema";
-const uint16 expected_port = 1290;
+const uint16_t expected_port = 1290;
 const int expected_error_code = 10;
 const int expected_error_code_success = 0;
 

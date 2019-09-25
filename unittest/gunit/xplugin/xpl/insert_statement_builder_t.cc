@@ -45,7 +45,7 @@ class Insert_statement_builder_stub : public Insert_statement_builder {
   using Insert_statement_builder::add_row;
   using Insert_statement_builder::add_upsert;
   using Insert_statement_builder::add_values;
-  StrictMock<ngs::test::Mock_id_generator> mock_id_generator;
+  StrictMock<Mock_id_generator> mock_id_generator;
   Document_id_aggregator m_id_agg{&mock_id_generator};
 };
 

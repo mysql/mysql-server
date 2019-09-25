@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ namespace xpl {
 
 class Native_verification : public Challenge_response_verification {
  public:
-  explicit Native_verification(ngs::SHA256_password_cache_interface *cache)
+  explicit Native_verification(iface::SHA256_password_cache *cache)
       : Challenge_response_verification(cache) {}
   bool verify_authentication_string(
       const std::string &user, const std::string &host,

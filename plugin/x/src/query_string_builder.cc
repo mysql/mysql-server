@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,12 @@
 
 #include "plugin/x/src/query_string_builder.h"
 
-#include <mutex>
+#include <cstdint>
 
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_sys.h"  // escape_string_for_mysql
+#include <mutex>  // NOLINT(build/c++11)
+
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
+#include "my_sys.h"   // escape_string_for_mysql NOLINT(build/include_subdir)
 #include "mysql/plugin.h"
 
 namespace xpl {
@@ -65,9 +66,9 @@ Query_string_builder &Query_string_builder::quote_identifier_if_needed(
         need_quote = true;
         break;
       }
-  } else
+  } else {
     need_quote = true;
-
+  }
   if (need_quote)
     return quote_identifier(s, length);
   else

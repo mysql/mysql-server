@@ -23,7 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/src/interface/authentication.h"
 #include "unittest/gunit/xplugin/xcl/session_t.h"
 
 namespace xcl {
@@ -85,7 +85,9 @@ class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
     return result;
   }
   const bool k_fatal = true;
-  XError m_ok_auth{ngs::Authentication_interface::Status::Succeeded, ""};
+  XError m_ok_auth{
+      static_cast<int32_t>(xpl::iface::Authentication::Status::k_succeeded),
+      ""};
   XError m_error_failed_auth{ER_ACCESS_DENIED_ERROR,
                              "Invalid user or password"};
   XError m_error_fatal_failed_auth{ER_ACCESS_DENIED_ERROR,

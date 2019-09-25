@@ -170,7 +170,7 @@ int Callback_command_delegate::get_integer(longlong value) {
 }
 
 int Callback_command_delegate::get_longlong(longlong value,
-                                            uint unsigned_flag) {
+                                            uint32_t unsigned_flag) {
   try {
     if (m_current_row)
       m_current_row->fields.push_back(

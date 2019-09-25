@@ -131,7 +131,7 @@ ngs::Error_code Prepare_command_handler::execute_execute(const Execute &msg) {
 
 ngs::Error_code Prepare_command_handler::execute_execute_impl(
     const Execute &msg, const Prepared_stmt_info &prep_stmt_info,
-    ngs::Resultset_interface *rset) {
+    iface::Resultset *rset) {
   // Lets prepare a list of parameters accepted by MySQL session service.
   // Still the parameter list contains pointer data, thus we need to
   // supply additional container to hold the data
@@ -143,7 +143,7 @@ ngs::Error_code Prepare_command_handler::execute_execute_impl(
   error = param_handler.prepare_parameters(msg.args());
   if (error) return error;
 
-  ngs::Document_id_aggregator_interface::Retention_guard g(
+  iface::Document_id_aggregator::Retention_guard g(
       prep_stmt_info.m_type == Prepare::OneOfMessage::INSERT
           ? &m_session->get_document_id_aggregator()
           : nullptr);
@@ -250,9 +250,9 @@ Prepare_command_handler::get_notice_level_flags(
   return retval;
 }
 
-void Prepare_command_handler::send_notices(
-    const Prepared_stmt_info *stmt_info,
-    const ngs::Resultset_interface::Info &info, const bool is_eof) const {
+void Prepare_command_handler::send_notices(const Prepared_stmt_info *stmt_info,
+                                           const iface::Resultset::Info &info,
+                                           const bool is_eof) const {
   DBUG_TRACE;
   const auto &notice_config = m_session->get_notice_configuration();
   if (info.num_warnings > 0 &&
@@ -272,9 +272,10 @@ void Prepare_command_handler::send_notices(
     if (stmt_info->m_is_table_model) {
       if (info.last_insert_id > 0)
         m_session->proto().send_notice_last_insert_id(info.last_insert_id);
-    } else
+    } else {
       m_session->proto().send_notice_generated_document_ids(
           m_session->get_document_id_aggregator().get_ids());
+    }
   }
 }
 
@@ -378,7 +379,7 @@ ngs::Error_code Prepare_command_handler::execute_cursor_fetch(
 
 ngs::Error_code Prepare_command_handler::execute_cursor_fetch_impl(
     const Id_type cursor_id, Cursor_info *cursor_info,
-    const uint64 fetch_rows) {
+    const uint64_t fetch_rows) {
   if (cursor_info->m_resultset.get_callbacks().got_eof())
     return ngs::Error(ER_X_CURSOR_REACHED_EOF,
                       "No more data in cursor (cursor id:%" PRIu32 ")",

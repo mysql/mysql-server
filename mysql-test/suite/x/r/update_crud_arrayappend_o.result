@@ -91,15 +91,15 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\""], "amount": 4.99, "last_name": "Otero"}	1
-{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}	3
-{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": "Jhonny", "amount": 125.45, "last_name": "Test"}	5
-{"_id": "6", "name": null}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\""], "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "Jhonny", "amount": 125.45, "last_name": "Test"}
+{"_id": "6", "name": null}
+{"_id": "7"}
 0 rows affected
 Update a valid collection with string value and > operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -152,15 +152,15 @@ send Mysqlx.Crud.Update {
 
 3 rows affected
 Rows matched: 4  Changed: 3  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\""], "amount": 4.99, "last_name": "Otero"}	1
-{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": "Test"}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\""], "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": "Test"}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 Update a valid collection with string value and < operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -213,15 +213,15 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": "Otero"}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": 120.57, "last_name": "Chrystens"}	2
-{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": "Test"}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": 120.57, "last_name": "Chrystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": "Test"}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 Update a valid collection with string value and <= operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -274,15 +274,15 @@ send Mysqlx.Crud.Update {
 
 3 rows affected
 Rows matched: 3  Changed: 3  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": 120.57, "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": "Leon"}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": "Test"}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": 120.57, "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": "Test"}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 Update a valid collection with string value and >= operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -335,15 +335,15 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 4  Changed: 2  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": 120.57, "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": 120.57, "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": 387.14, "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": 125.45, "last_name": ["Test", "\"ExtraLastName_>=\""]}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 Update a valid collection with string value and != operator for multiple docs
 send Mysqlx.Crud.Update {
@@ -394,15 +394,15 @@ send Mysqlx.Crud.Update {
 
 4 rows affected
 Rows matched: 6  Changed: 4  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 Update append a Double
 send Mysqlx.Crud.Update {
@@ -453,15 +453,15 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 Update append a Float
 send Mysqlx.Crud.Update {
@@ -512,15 +512,15 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 Update append a NULL
 send Mysqlx.Crud.Update {
@@ -570,15 +570,15 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
-{"_id": "6", "name": [null, "\"ExtraName_>\""]}	6
-{"_id": "7"}	7
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10], "last_name": ["Test", "\"ExtraLastName_>=\""]}
+{"_id": "6", "name": [null, "\"ExtraName_>\""]}
+{"_id": "7"}
 0 rows affected
 RUN delete from maincoll where _id in (6,7)
 
@@ -644,13 +644,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": 4.99, "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 Update with order clause update first two _id in asc order (_id = 1,2)
 send Mysqlx.Crud.Update {
@@ -713,13 +713,13 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 Update append a String into a only numbers member
 send Mysqlx.Crud.Update {
@@ -772,13 +772,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 Update append a number into a only String member
 send Mysqlx.Crud.Update {
@@ -829,13 +829,13 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 RUN START TRANSACTION
 
@@ -891,24 +891,24 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536, "\"Iam_rollback\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536, "\"Iam_rollback\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 RUN ROLLBACK
 
 0 rows affected
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 Update transaction commit
 send Mysqlx.Crud.Update {
@@ -964,13 +964,13 @@ Rows matched: 1  Changed: 1  Warnings: 0
 RUN COMMIT
 
 0 rows affected
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536, "\"Iam_rollback\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536, "\"Iam_rollback\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 Update with non existing doc member
 send Mysqlx.Crud.Update {
@@ -1021,13 +1021,13 @@ send Mysqlx.Crud.Update {
 
 0 rows affected
 Rows matched: 4  Changed: 0  Warnings: 0
-RUN select * from maincoll
-doc	_id
-{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}	1
-{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}	2
-{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}	3
-{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}	4
-{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536, "\"Iam_rollback\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}	5
+RUN select doc from maincoll
+doc
+{"_id": "1", "name": ["Victor", "\"VictorArrayAppend\"", "\"ExtraName_<\""], "amount": [4.99, 9876.543], "last_name": ["Otero", "\"ExtraLastName_<=\""]}
+{"_id": "2", "name": ["Gonzalo", "\"ExtraName_<\""], "amount": [120.57, 10, 9876.543], "last_name": ["Chrystens", "\"ExtraLastName_<=\""]}
+{"_id": "3", "name": "Abraham", "amount": [74.56, 10, "\"notanumber\""], "last_name": ["Vega", "\"ExtraLastName_<=\""]}
+{"_id": "4", "name": ["Jennifer", "\"ExtraName_>\""], "amount": [387.14, 10, 156.59874665, 78445.5, null], "last_name": ["Leon", "\"ExtraLastName_>=\""]}
+{"_id": "5", "name": ["Jhonny", "\"ExtraName_>\"", 536, "\"Iam_rollback\""], "amount": [125.45, 10, 1234.56], "last_name": ["Test", "\"ExtraLastName_>=\""]}
 0 rows affected
 Invalid type of update for Document
 send Mysqlx.Crud.Update {

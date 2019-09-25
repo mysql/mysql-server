@@ -130,8 +130,8 @@ TYPED_TEST(Xcl_protocol_impl_tests_with_msg, connection_send_successful) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_fails_at_header) {
-  const int64 expected_error_code = 3000;
-  const int32 expected_payload_size = 10;
+  const int64_t expected_error_code = 3000;
+  const int32_t expected_payload_size = 10;
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
@@ -144,7 +144,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_fails_at_header) {
 
 TEST_F(Xcl_protocol_impl_tests, recv_fails_at_payload) {
   const int expected_error_code = 3000;
-  const int32 expected_payload_size = 10;
+  const int32_t expected_payload_size = 10;
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
@@ -190,8 +190,8 @@ TEST_F(Xcl_protocol_impl_tests, recv_large_message) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_unknown_msg_type) {
-  const int32 invalid_message_id = 255;
-  const int32 expected_payload_size = 10;
+  const int32_t invalid_message_id = 255;
+  const int32_t expected_payload_size = 10;
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
@@ -205,7 +205,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_unknown_msg_type) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_in_single_read_op) {
-  const int32 expected_payload_size = 0;
+  const int32_t expected_payload_size = 0;
   const std::string expected_message_name = "Mysqlx.Ok";
   XProtocol::Server_message_type_id out_id;
   XError out_error;
@@ -343,7 +343,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_ok_fails_on_other_msg) {
 TEST_F(Xcl_protocol_impl_tests, recv_ok_fails_error_msg) {
   using Error_desc = Server_message<::Mysqlx::Error>;
 
-  const uint32 expected_error_code = 23332;
+  const uint32_t expected_error_code = 23332;
   const char *expected_msg = "expected error message";
   const char *expected_sql_state = "expected sql state";
 

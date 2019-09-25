@@ -69,12 +69,12 @@ id	name	price	info
 3	tomato	1.80	{"color": "red"}
 4	mango	3.14	{"color": "green"}
 0 rows affected
-RUN SELECT * FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'))
-doc	_id
-{"_id": "3", "name": "Arya"}	3
-{"_id": "2", "name": "Bran"}	2
-{"_id": "1", "name": "Robb"}	1
-{"_id": "4", "name": "Sansa"}	4
+RUN SELECT doc FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'))
+doc
+{"_id": "3", "name": "Arya"}
+{"_id": "2", "name": "Bran"}
+{"_id": "1", "name": "Robb"}
+{"_id": "4", "name": "Sansa"}
 0 rows affected
 send Mysqlx.Crud.Delete {
   collection {
@@ -100,10 +100,10 @@ send Mysqlx.Crud.Delete {
 
 
 2 rows affected
-RUN SELECT * FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'))
-doc	_id
-{"_id": "1", "name": "Robb"}	1
-{"_id": "4", "name": "Sansa"}	4
+RUN SELECT doc FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'))
+doc
+{"_id": "1", "name": "Robb"}
+{"_id": "4", "name": "Sansa"}
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

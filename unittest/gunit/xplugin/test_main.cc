@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
 
+#include "unittest/gunit/xplugin/xpl/test_environment.h"
+
 #include "m_ctype.h"
 #include "my_sys.h"
 
@@ -34,6 +36,8 @@ int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
 
   my_init();
+
+  ::testing::AddGlobalTestEnvironment(new xpl::Environment());
 
   return RUN_ALL_TESTS();
 }

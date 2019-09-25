@@ -34,7 +34,7 @@ namespace xpl {
 
 class Cursor_command_delegate : public Streaming_command_delegate {
  public:
-  Cursor_command_delegate(ngs::Session_interface *session,
+  Cursor_command_delegate(iface::Session *session,
                           const bool ignore_fetch_suspended_at_cursor_open);
 
   void reset() override {}
@@ -51,7 +51,7 @@ class Cursor_command_delegate : public Streaming_command_delegate {
 
 class Crud_command_delegate : public Streaming_command_delegate {
  public:
-  Crud_command_delegate(ngs::Session_interface *session);
+  Crud_command_delegate(iface::Session *session);
   ~Crud_command_delegate() override;
 
   bool try_send_notices(const uint32_t server_status,
@@ -63,7 +63,7 @@ class Crud_command_delegate : public Streaming_command_delegate {
 
 class Stmt_command_delegate : public Streaming_command_delegate {
  public:
-  Stmt_command_delegate(ngs::Session_interface *session);
+  Stmt_command_delegate(iface::Session *session);
   ~Stmt_command_delegate() override;
 
   bool try_send_notices(const uint32_t server_status,
@@ -90,7 +90,7 @@ class Prepare_command_delegate : public Streaming_command_delegate {
   using Notice_level =
       std::bitset<Notice_level_flags::k_notice_level_flags_size>;
 
-  Prepare_command_delegate(ngs::Session_interface *session);
+  Prepare_command_delegate(iface::Session *session);
   ~Prepare_command_delegate() override;
 
   bool try_send_notices(const uint32_t server_status,

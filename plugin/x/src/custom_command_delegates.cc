@@ -31,7 +31,7 @@
 namespace xpl {
 
 Cursor_command_delegate::Cursor_command_delegate(
-    ngs::Session_interface *session,
+    iface::Session *session,
     const bool ignore_fetch_suspended_at_cursor_open)
     : Streaming_command_delegate(session),
       m_ignore_fetch_suspended(ignore_fetch_suspended_at_cursor_open) {}
@@ -86,7 +86,7 @@ void Cursor_command_delegate::handle_ok(uint32_t server_status,
                               affected_rows, last_insert_id, message);
 }
 
-Crud_command_delegate::Crud_command_delegate(ngs::Session_interface *session)
+Crud_command_delegate::Crud_command_delegate(iface::Session *session)
     : Streaming_command_delegate(session) {}
 
 Crud_command_delegate::~Crud_command_delegate() { on_destruction(); }
@@ -105,7 +105,7 @@ bool Crud_command_delegate::try_send_notices(
   return true;
 }
 
-Stmt_command_delegate::Stmt_command_delegate(ngs::Session_interface *session)
+Stmt_command_delegate::Stmt_command_delegate(iface::Session *session)
     : Streaming_command_delegate(session) {}
 
 Stmt_command_delegate::~Stmt_command_delegate() { on_destruction(); }
@@ -146,7 +146,7 @@ int Stmt_command_delegate::end_result_metadata(uint32_t server_status,
 }
 
 Prepare_command_delegate::Prepare_command_delegate(
-    ngs::Session_interface *session)
+    iface::Session *session)
     : Streaming_command_delegate(session) {}
 
 Prepare_command_delegate::~Prepare_command_delegate() { on_destruction(); }

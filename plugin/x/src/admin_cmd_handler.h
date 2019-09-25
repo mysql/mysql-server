@@ -33,52 +33,17 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
+#include "plugin/x/src/admin_cmd_collection_handler.h"
+#include "plugin/x/src/interface/admin_command_arguments.h"
+#include "plugin/x/src/interface/sql_session.h"
 
 namespace xpl {
 
 class Admin_command_handler {
  public:
-  class Command_arguments {
-   public:
-    using Argument_list = std::vector<std::string>;
-    using List = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>;
-    using Argument_name_list = std::initializer_list<const char *const>;
+  using Command_arguments = iface::Admin_command_arguments;
 
-    static const char *const k_placeholder;
-    enum class Appearance_type { k_obligatory, k_optional };
-
-    virtual ~Command_arguments() {}
-    virtual Command_arguments &string_arg(Argument_name_list name,
-                                          std::string *ret_value,
-                                          const Appearance_type appearance) = 0;
-    virtual Command_arguments &string_list(
-        Argument_name_list name, std::vector<std::string> *ret_value,
-        const Appearance_type appearance) = 0;
-    virtual Command_arguments &sint_arg(Argument_name_list name,
-                                        int64_t *ret_value,
-                                        const Appearance_type appearance) = 0;
-    virtual Command_arguments &uint_arg(Argument_name_list name,
-                                        uint64_t *ret_value,
-                                        const Appearance_type appearance) = 0;
-    virtual Command_arguments &bool_arg(Argument_name_list name,
-                                        bool *ret_value,
-                                        const Appearance_type appearance) = 0;
-    virtual Command_arguments &docpath_arg(
-        Argument_name_list name, std::string *ret_value,
-        const Appearance_type appearance) = 0;
-    virtual Command_arguments &object_list(
-        Argument_name_list name, std::vector<Command_arguments *> *ret_value,
-        const Appearance_type appearance,
-        unsigned expected_members_count = 3) = 0;
-
-    virtual bool is_end() const = 0;
-    virtual const ngs::Error_code &end() = 0;
-    virtual const ngs::Error_code &error() const = 0;
-  };
-
-  explicit Admin_command_handler(ngs::Session_interface *session);
+  explicit Admin_command_handler(iface::Session *session);
 
   ngs::Error_code execute(const std::string &command, Command_arguments *args);
 
@@ -94,9 +59,168 @@ class Admin_command_handler {
   ngs::Error_code list_clients(Command_arguments *args);
   ngs::Error_code kill_client(Command_arguments *args);
 
+  /**
+    Create a new collection.
+
+    Create a collection with a given name in the specified schema. If collection
+    already exists an error is returned. 'create_collection' command supports
+    additional options. Validation option consists of two fields - schema and
+    level. Validation level field is optional and can be used to change the
+    state of validation operations. Validation schema field is required (if
+    validation option is supplied) and can be used to create constraint on
+    a given validation schema for newly created collection. Update
+    Mysqlx_stmt_create_collection variable on each call.
+
+    @param[in] args        list of arguments for create_collection command.
+                           Allowed fields are:
+                            - name (string, required) - name of created
+                              collection.
+                            - schema (string, required) - name of collection's
+                              schema.
+                            - options (object, optional) - additional options
+                              that will be used for collection. Possible fields:
+                              - validation (object, optional) - validation
+                                details. Possible fields:
+                                - schema (object, required) - validation schema
+                                  that may be used when operating on a
+                                  collection.
+                                - level (string, optional) - enables or disables
+                                  validation, default value is "strict".
+
+    @return Result of creating a collection
+      @retval == ER_TABLE_EXISTS_ERROR - specified collection already exists.
+      @retval == ER_X_CMD_NUM_ARGUMENTS - required argument is missing.
+      @retval == ER_X_CMD_INVALID_ARGUMENT - unknown argument provided.
+      @retval == ER_X_BAD_SCHEMA - invalid schema name.
+      @retval == ER_X_BAD_TABLE - invalid table name.
+      @retval == ER_X_CMD_ARGUMENT_VALUE - invalid validation level value.
+      @retval == ER_X_COLLECTION_OPTION_DOESNT_EXISTS - invalid validation
+                 option field.
+  */
   ngs::Error_code create_collection(Command_arguments *args);
+  /**
+    Drop existing collection.
+
+    Drop a collection with a given name in the specified schema. If collection
+    do not exist an error is returned. Update Mysqlx_stmt_drop_collection
+    variable on each call.
+
+    @param[in] args        list of arguments for drop_collection command.
+                           Allowed fields are:
+                            - name (string, required) - name of dropped
+                              collection.
+                            - schema (string, required) - name of collection's
+                              schema.
+
+    @return Result of dropping a collection
+      @retval == ER_X_BAD_TABLE_ERROR - collection do not exist.
+      @retval == ER_X_CMD_NUM_ARGUMENTS - required argument is missing.
+      @retval == ER_X_CMD_INVALID_ARGUMENT - unknown argument provided.
+      @retval == ER_X_BAD_SCHEMA - invalid schema name.
+      @retval == ER_X_BAD_TABLE - invalid table name.
+  */
   ngs::Error_code drop_collection(Command_arguments *args);
+  /**
+    Ensure that a collection exists.
+
+    Ensure that a collection with a given name in the specified schema exists.
+    If not then create a new collection. 'ensure_collection' command supports
+    additional options. Validation option consists of two fields - schema and
+    level. Validation level field is optional and can be used to change the
+    state of validation operations. Validation schema field is required (if
+    validation option is supplied) and can be used to create constraint on
+    a given validation schema for newly created collection. Update
+    Mysqlx_stmt_ensure_collection variable on each call.
+
+    @param[in] args        list of arguments for ensure_collection command.
+                           Allowed fields are:
+                            - name (string, required) - name of created
+                              collection.
+                            - schema (string, required) - name of collection's
+                              schema.
+                            - options (object, optional) - additional options
+                              that will be used for collection. Possible fields:
+                              - validation (object, optional) - validation
+                                details. Possible fields:
+                                - schema (object, required) - validation schema
+                                  that may be used when operating on a
+                                  collection.
+                                - level (string, optional) - enables or disables
+                                  validation, default value is "strict".
+
+    @return Result of creating a collection
+      @retval == ER_X_CMD_NUM_ARGUMENTS - required argument is missing.
+      @retval == ER_X_CMD_INVALID_ARGUMENT - unknown argument provided.
+      @retval == ER_X_BAD_SCHEMA - invalid schema name.
+      @retval == ER_X_BAD_TABLE - invalid table name.
+      @retval == ER_X_CMD_ARGUMENT_VALUE - invalid validation level value.
+      @retval == ER_X_COLLECTION_OPTION_DOESNT_EXISTS - invalid validation
+                 option field.
+  */
   ngs::Error_code ensure_collection(Command_arguments *args);
+  /**
+    Modify options for a specified collection.
+
+    Command used to modify collection options. It can be used to modify
+    validation schema of a collection or enable/disable validation. Update
+    Mysqlx_stmt_modify_collection_options variable on each call.
+
+    @param[in] args        list of arguments for modify_collection_options
+                           command. Allowed fields are:
+                            - name (string, required) - name of collection.
+                            - schema (string, required) - name of collection's
+                              schema.
+                            - options (object, optional) - additional options
+                              that will be used for collection. Possible fields:
+                              - validation (object, optional) - validation
+                                details. Possible fields:
+                                - schema (object, optional) - validation schema
+                                  that may be used when operating on a
+                                  collection.
+                                - level (string, optional) - state of validation
+                                  operations.
+
+    @return Result of modifying a collection options
+      @retval == ER_X_INVALID_NAMESPACE - statement used in an unsupported
+                 namespace.
+      @retval == ER_X_CMD_NUM_ARGUMENTS - required argument is missing.
+      @retval == ER_X_CMD_INVALID_ARGUMENT - unknown argument provided.
+      @retval == ER_X_BAD_SCHEMA - invalid schema name.
+      @retval == ER_X_BAD_TABLE - invalid table name.
+      @retval == ER_X_CMD_ARGUMENT_VALUE - invalid validation field value.
+      @retval == ER_X_COLLECTION_OPTION_DOESNT_EXISTS - invalid validation
+                 option field.
+      @retval == ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA - existing
+                 collection data violates validation schema constraints.
+  */
+  ngs::Error_code modify_collection_options(Command_arguments *args);
+  /**
+    Get options for a specified collection.
+
+    Return a JSON containing requested collection options. Update
+    Mysqlx_stmt_get_collection_options variable on each call.
+
+    @param[in] args        list of arguments for get_collection_options command.
+                           Allowed fields are:
+                            - name (string, required) - name of collection.
+                            - schema (string, required) - name of collection's
+                              schema.
+                            - options (array, required) - options that will be
+                              fetched from a collection.
+
+    @return Result of fetching a collection options
+      @retval == ER_X_INVALID_NAMESPACE - statement used in an unsupported
+                 namespace.
+      @retval == ER_X_CMD_NUM_ARGUMENTS - required argument is missing.
+      @retval == ER_X_CMD_INVALID_ARGUMENT - unknown argument provided.
+      @retval == ER_X_BAD_SCHEMA - invalid schema name.
+      @retval == ER_X_BAD_TABLE - invalid table name.
+      @retval == ER_TABLEACCESS_DENIED_ERROR - user has no access to collection.
+      @retval == ER_NO_SUCH_TABLE - collection do not exist.
+      @retval == ER_X_COLLECTION_OPTION_DOESNT_EXISTS - invalid collection
+                 option field.
+  */
+  ngs::Error_code get_collection_options(Command_arguments *args);
 
   ngs::Error_code create_collection_index(Command_arguments *args);
   ngs::Error_code drop_collection_index(Command_arguments *args);
@@ -115,17 +239,12 @@ class Admin_command_handler {
     ngs::Error_code execute(Admin_command_handler *admin,
                             const std::string &command,
                             Command_arguments *args) const;
+
   } m_command_handler;
 
-  ngs::Session_interface *m_session;
+  iface::Session *m_session;
+  Admin_command_collection_handler m_collection_handler;
 };
-
-#define DOC_MEMBER_REGEX                                                     \
-  R"(\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_)" \
-  R"(\\$]*|\\*|\\".*\\"|`.*`)))*)"
-#define DOC_MEMBER_REGEX_NO_BACKSLASH_ESCAPES                         \
-  R"(\$((\*{2})?(\[([[:digit:]]+|\*)\]|\.([[:alpha:]_\$][[:alnum:]_)" \
-  R"(\$]*|\*|\".*\"|`.*`)))*)"
 
 }  // namespace xpl
 

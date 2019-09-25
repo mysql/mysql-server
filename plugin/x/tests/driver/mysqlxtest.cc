@@ -22,18 +22,19 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#include <cstdint>
 #include <fstream>
 #include <stdexcept>
 
-#include "my_dbug.h"
-#include "my_loglevel.h"
-#include "my_sys.h"
-#include "violite.h"
+#include "my_dbug.h"      // NOLINT(build/include_subdir)
+#include "my_loglevel.h"  // NOLINT(build/include_subdir)
+#include "my_sys.h"       // NOLINT(build/include_subdir)
+#include "violite.h"      // NOLINT(build/include_subdir)
 
 #include "plugin/x/tests/driver/driver_command_line_options.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
 
-static void ignore_traces_from_libraries(enum loglevel ll, uint ecode,
+static void ignore_traces_from_libraries(enum loglevel ll, uint32_t ecode,
                                          va_list args) {}
 
 bool parse_mysql_connstring(const std::string &connstring,

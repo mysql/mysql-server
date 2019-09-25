@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,32 +25,34 @@
 #ifndef PLUGIN_X_SRC_SSL_SESSION_OPTIONS_H_
 #define PLUGIN_X_SRC_SSL_SESSION_OPTIONS_H_
 
-#include "plugin/x/ngs/include/ngs/interface/ssl_session_options_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include <string>
+#include <vector>
+
+#include "plugin/x/src/interface/ssl_session_options.h"
+#include "plugin/x/src/interface/vio.h"
 
 namespace xpl {
 
-class Ssl_session_options : public ngs::Ssl_session_options_interface {
+class Ssl_session_options : public iface::Ssl_session_options {
  public:
-  Ssl_session_options(ngs::Vio_interface *vio) : m_vio(vio) {}
+  explicit Ssl_session_options(iface::Vio *vio) : m_vio(vio) {}
 
   bool active_tls() const override;
   std::string ssl_cipher() const override;
   std::string ssl_version() const override;
   std::vector<std::string> ssl_cipher_list() const override;
 
-  long ssl_verify_depth() const override;
-  long ssl_verify_mode() const override;
+  int64_t ssl_verify_depth() const override;
+  int64_t ssl_verify_mode() const override;
 
-  long ssl_sessions_reused() const override;
-  long ssl_get_verify_result_and_cert() const override;
+  int64_t ssl_sessions_reused() const override;
+  int64_t ssl_get_verify_result_and_cert() const override;
 
   std::string ssl_get_peer_certificate_issuer() const override;
-
   std::string ssl_get_peer_certificate_subject() const override;
 
  private:
-  ngs::Vio_interface *m_vio;
+  iface::Vio *m_vio;
 };
 
 }  // namespace xpl

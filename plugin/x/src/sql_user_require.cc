@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
  */
 
 #include "plugin/x/src/sql_user_require.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_session_options_interface.h"
+#include "plugin/x/src/interface/ssl_session_options.h"
 
 namespace xpl {
 
@@ -33,7 +33,7 @@ const std::string Sql_user_require::SSL_TYPE_X509 = "X509";
 const std::string Sql_user_require::SSL_TYPE_SPECIFIC = "SPECIFIED";
 
 ngs::Error_code Sql_user_require::validate(
-    const ngs::Ssl_session_options_interface &options) const {
+    const iface::Ssl_session_options &options) const {
   if (ssl_type == SSL_TYPE_NONE)
     return ngs::Error_code();
   else if (ssl_type == SSL_TYPE_SSL)
@@ -47,14 +47,14 @@ ngs::Error_code Sql_user_require::validate(
 }
 
 ngs::Error_code Sql_user_require::check_ssl(
-    const ngs::Ssl_session_options_interface &options) const {
+    const iface::Ssl_session_options &options) const {
   if (!options.active_tls()) return ngs::SQLError_access_denied();
 
   return ngs::Error_code();
 }
 
 ngs::Error_code Sql_user_require::check_x509(
-    const ngs::Ssl_session_options_interface &options) const {
+    const iface::Ssl_session_options &options) const {
   ngs::Error_code error;
 
   if ((error = check_ssl(options))) return error;
@@ -66,7 +66,7 @@ ngs::Error_code Sql_user_require::check_x509(
 }
 
 ngs::Error_code Sql_user_require::check_specific(
-    const ngs::Ssl_session_options_interface &options) const {
+    const iface::Ssl_session_options &options) const {
   ngs::Error_code error;
 
   if ((error = check_x509(options))) return error;

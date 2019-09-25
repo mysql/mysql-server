@@ -46,6 +46,7 @@ SET(xplugin_SRC
   src/helper/multithread/mutex.cc
   src/helper/multithread/cond.cc
   src/helper/multithread/rw_lock.cc
+  src/helper/generate_hash.cc
   src/expect/expect.cc
   src/expect/expect_stack.cc
   src/expect/expect_condition_field.cc
@@ -84,11 +85,13 @@ SET(xplugin_SRC
   src/sha256_password_cache.cc
   src/account_verification_handler.cc
   src/admin_cmd_handler.cc
+  src/admin_cmd_collection_handler.cc
   src/admin_cmd_arguments.cc
   src/admin_cmd_index.cc
   src/query_formatter.cc
   src/query_string_builder.cc
   src/expr_generator.cc
+  src/json_generator.cc
   src/crud_cmd_handler.cc
   src/buffering_command_delegate.cc
   src/callback_command_delegate.cc

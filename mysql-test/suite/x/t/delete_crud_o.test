@@ -883,7 +883,7 @@ insert into mysqlxplugin_coll.main_collection (doc) values ('{"_id": "3", "name"
 insert into mysqlxplugin_coll.main_collection (doc) values ('{"_id": "4", "name": "Omar", "Last_Name":"Kerball"}');
 insert into mysqlxplugin_coll.main_collection (doc) values ('{"_id": "5", "name": "Omar", "Last_Name":"Lopez"}');
 insert into mysqlxplugin_coll.main_collection (doc) values ('{"_id": "6", "name": "Javier", "Last_Name":"Torres"}');
-select * from mysqlxplugin_coll.main_collection;
+select doc from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection rows with in Operator and based in ID
@@ -922,7 +922,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxplugin_coll.main_collection;
+ select doc from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection row with == Operator
@@ -960,7 +960,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxplugin_coll.main_collection;
+ select doc from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection row with != Operator
@@ -998,7 +998,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxplugin_coll.main_collection;
+ select doc from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection row with not in Operator
@@ -1036,7 +1036,7 @@ Mysqlx.Crud.Delete {
 -->recvresult
 
 -->sql
- select * from mysqlxplugin_coll.main_collection;
+ select doc from mysqlxplugin_coll.main_collection;
 -->endsql
 
 -->echo Delete collection wrong schema

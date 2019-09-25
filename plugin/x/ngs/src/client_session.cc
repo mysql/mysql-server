@@ -26,14 +26,15 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
 #include "include/my_sys.h"
 
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/src/interface/authentication.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/protocol_monitor.h"
+#include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/xpl_error.h"
 
 #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
@@ -44,14 +45,15 @@ namespace ngs {
 // Code below this line is executed from the network thread
 // ------------------------------------------------------------------------------------------------
 
-Session::Session(Client_interface *client, Protocol_encoder_interface *proto,
+Session::Session(xpl::iface::Client *client,
+                 xpl::iface::Protocol_encoder *proto,
                  const Session_id session_id)
     : m_client(client),  // don't hold a real reference to the parent to avoid
                          // circular reference
       m_encoder(proto),
       m_auth_handler(),
-      m_state(k_authenticating),
-      m_state_before_close(k_authenticating),
+      m_state(State::k_authenticating),
+      m_state_before_close(State::k_authenticating),
       m_id(session_id),
       m_thread_pending(0),
       m_thread_active(0) {
@@ -69,14 +71,14 @@ Session::~Session() {
 }
 
 void Session::on_close(const bool update_old_state) {
-  if (m_state != k_closing) {
+  if (m_state != State::k_closing) {
     if (update_old_state) m_state_before_close = m_state;
-    m_state = k_closing;
-    m_client->on_session_close(*this);
+    m_state = State::k_closing;
+    m_client->on_session_close(this);
   }
 }
 
-void Session::set_proto(Protocol_encoder_interface *encode) {
+void Session::set_proto(xpl::iface::Protocol_encoder *encode) {
   m_encoder = encode;
 }
 
@@ -86,10 +88,10 @@ void Session::set_proto(Protocol_encoder_interface *encode) {
 // Return value means true if message was handled, false if not.
 // If message is handled, ownership of the object is passed on (and should be
 // deleted by the callee)
-bool Session::handle_message(ngs::Message_request &command) {
-  if (m_state == k_authenticating) {
+bool Session::handle_message(const ngs::Message_request &command) {
+  if (m_state == State::k_authenticating) {
     return handle_auth_message(command);
-  } else if (m_state == k_ready) {
+  } else if (m_state == State::k_ready) {
     // handle session commands
     return handle_ready_message(command);
   }
@@ -97,11 +99,11 @@ bool Session::handle_message(ngs::Message_request &command) {
   return false;
 }
 
-bool Session::handle_ready_message(Message_request &command) {
+bool Session::handle_ready_message(const Message_request &command) {
   switch (command.get_message_type()) {
     case Mysqlx::ClientMessages::SESS_CLOSE:
-      m_state = k_closing;
-      m_client->on_session_reset(*this);
+      m_state = State::k_closing;
+      m_client->on_session_reset(this);
       return true;
 
     case Mysqlx::ClientMessages::CON_CLOSE:
@@ -116,8 +118,8 @@ bool Session::handle_ready_message(Message_request &command) {
         on_reset();
         return true;
       }
-      m_state = k_closing;
-      m_client->on_session_reset(*this);
+      m_state = State::k_closing;
+      m_client->on_session_reset(this);
       return true;
     }
   }
@@ -128,11 +130,11 @@ void Session::stop_auth() {
   m_auth_handler.reset();
 
   // request termination
-  m_client->on_session_close(*this);
+  m_client->on_session_close(this);
 }
 
-bool Session::handle_auth_message(Message_request &command) {
-  Authentication_interface::Response r;
+bool Session::handle_auth_message(const Message_request &command) {
+  xpl::iface::Authentication::Response r;
   int8_t type = command.get_message_type();
 
   if (type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START &&
@@ -178,11 +180,11 @@ bool Session::handle_auth_message(Message_request &command) {
   }
 
   switch (r.status) {
-    case Authentication_interface::Succeeded:
+    case xpl::iface::Authentication::Status::k_succeeded:
       on_auth_success(r);
       break;
 
-    case Authentication_interface::Failed:
+    case xpl::iface::Authentication::Status::k_failed:
       on_auth_failure(r);
       break;
 
@@ -194,11 +196,11 @@ bool Session::handle_auth_message(Message_request &command) {
 }
 
 void Session::on_auth_success(
-    const Authentication_interface::Response &response) {
+    const xpl::iface::Authentication::Response &response) {
   log_debug("%s.%u: Login succeeded", m_client->client_id(), m_id);
   m_auth_handler.reset();
-  m_state = k_ready;
-  m_client->on_session_auth_success(*this);
+  m_state = State::k_ready;
+  m_client->on_session_auth_success(this);
   m_encoder->send_auth_ok(response.data);  // send it last, so that
                                            // on_auth_success() can send session
                                            // specific notices
@@ -206,7 +208,7 @@ void Session::on_auth_success(
 }
 
 void Session::on_auth_failure(
-    const Authentication_interface::Response &response) {
+    const xpl::iface::Authentication::Response &response) {
   log_debug("%s.%u: Unsuccessful authentication attempt", m_client->client_id(),
             m_id);
   m_failed_auth_count++;
@@ -252,7 +254,7 @@ bool Session::can_forward_error_code_to_client(const int error_code) {
   // Lets ignore ER_ACCESS_DENIED_ERROR it is used by the plugin to
   // return general authentication problem. It may have not too
   // accurate error message.
-  const static std::set<int> allowed_error_codes{
+  static const std::set<int> allowed_error_codes{
       ER_DBACCESS_DENIED_ERROR,   ER_MUST_CHANGE_PASSWORD_LOGIN,
       ER_ACCOUNT_HAS_BEEN_LOCKED, ER_SECURE_TRANSPORT_REQUIRED,
       ER_SERVER_OFFLINE_MODE,     ER_BAD_DB_ERROR};

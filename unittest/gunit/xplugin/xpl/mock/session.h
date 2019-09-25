@@ -30,54 +30,55 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/client.h"
-#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/document_id_aggregator_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/interface/account_verification.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/document_id_aggregator.h"
+#include "plugin/x/src/interface/protocol_encoder.h"
+#include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/interface/ssl_context.h"
+#include "plugin/x/src/interface/vio.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_resultset.h"
 #include "plugin/x/src/xpl_session.h"
 
-namespace ngs {
+namespace xpl {
 namespace test {
 
-class Mock_vio : public Vio_interface {
+class Mock_vio : public iface::Vio {
  public:
   MOCK_METHOD2(read, ssize_t(uchar *buffer, ssize_t bytes_to_send));
   MOCK_METHOD2(write, ssize_t(const uchar *buffer, ssize_t bytes_to_send));
   MOCK_METHOD2(set_timeout_in_ms,
-               void(const Vio_interface::Direction, const uint64_t timeout));
+               void(const iface::Vio::Direction, const uint64_t timeout));
   MOCK_METHOD1(set_state, void(PSI_socket_state state));
   MOCK_METHOD0(set_thread_owner, void());
   MOCK_METHOD0(get_fd, my_socket());
-  MOCK_METHOD0(get_type, xpl::Connection_type());
+  MOCK_CONST_METHOD0(get_type, Connection_type());
   MOCK_METHOD2(peer_addr,
-               sockaddr_storage *(std::string &address, uint16 &port));
-  MOCK_METHOD0(shutdown, int());
+               sockaddr_storage *(std::string *address, uint16_t *port));
+  MOCK_METHOD0(shutdown, int32_t());
   MOCK_METHOD0(delete_vio, void());
-  MOCK_METHOD0(get_vio, Vio *());
+  MOCK_METHOD0(get_vio, ::Vio *());
   MOCK_METHOD0(get_mysql_socket, MYSQL_SOCKET &());
 };
 
-class Mock_ssl_context : public Ssl_context_interface {
+class Mock_ssl_context : public iface::Ssl_context {
  public:
   MOCK_METHOD8(setup, bool(const char *tls_version, const char *ssl_key,
                            const char *ssl_ca, const char *ssl_capath,
                            const char *ssl_cert, const char *ssl_cipher,
                            const char *ssl_crl, const char *ssl_crlpath));
-  MOCK_METHOD2(activate_tls, bool(Vio_interface *conn, int handshake_timeout));
-  MOCK_METHOD0(options, Ssl_context_options_interface &());
+  MOCK_METHOD2(activate_tls,
+               bool(iface::Vio *conn, const int32_t handshake_timeout));
+  MOCK_METHOD0(options, iface::Ssl_context_options &());
   MOCK_METHOD0(has_ssl, bool());
   MOCK_METHOD0(reset, void());
 };
 
-class Mock_scheduler_dynamic : public Scheduler_dynamic {
+class Mock_scheduler_dynamic : public ngs::Scheduler_dynamic {
  public:
   Mock_scheduler_dynamic() : Scheduler_dynamic("", PSI_NOT_INSTRUMENTED) {}
 
@@ -88,46 +89,44 @@ class Mock_scheduler_dynamic : public Scheduler_dynamic {
   MOCK_METHOD1(set_num_workers, unsigned int(unsigned int n));
 };
 
-class Mock_server : public Server_interface {
+class Mock_server : public iface::Server {
  public:
-  Authentication_interface_ptr get_auth_handler(const std::string &p1,
-                                                Session_interface *p2) {
-    return Authentication_interface_ptr(get_auth_handler2(p1, p2));
+  std::unique_ptr<iface::Authentication> get_auth_handler(const std::string &p1,
+                                                          iface::Session *p2) {
+    return std::unique_ptr<iface::Authentication>(get_auth_handler2(p1, p2));
   }
 
   MOCK_METHOD2(get_auth_handler2,
-               Authentication_interface_ptr::element_type *(
-                   const std::string &, Session_interface *));
-  MOCK_CONST_METHOD0(get_config, std::shared_ptr<Protocol_global_config>());
+               std::unique_ptr<iface::Authentication>::element_type *(
+                   const std::string &, iface::Session *));
+  MOCK_CONST_METHOD0(get_config,
+                     std::shared_ptr<ngs::Protocol_global_config>());
   MOCK_METHOD0(is_running, bool());
   MOCK_CONST_METHOD0(get_worker_scheduler,
-                     std::shared_ptr<Scheduler_dynamic>());
-  MOCK_CONST_METHOD0(ssl_context, Ssl_context_interface *());
-  MOCK_METHOD1(on_client_closed, void(const Client_interface &));
+                     std::shared_ptr<ngs::Scheduler_dynamic>());
+  MOCK_CONST_METHOD0(ssl_context, iface::Ssl_context *());
+  MOCK_METHOD1(on_client_closed, void(const iface::Client &));
   MOCK_METHOD3(create_session,
-               std::shared_ptr<Session_interface>(Client_interface &,
-                                                  Protocol_encoder_interface &,
-                                                  const int));
+               std::shared_ptr<iface::Session>(iface::Client *,
+                                               iface::Protocol_encoder *,
+                                               const int));
   MOCK_METHOD0(get_client_exit_mutex, xpl::Mutex &());
   MOCK_METHOD0(restart_client_supervision_timer, void());
 
   // Workaround for GMOCK undefined behaviour with ResultHolder
   MOCK_METHOD2(get_authentication_mechanisms_void,
                bool(std::vector<std::string> &auth_mech,
-                    Client_interface &client));
-  void get_authentication_mechanisms(std::vector<std::string> &auth_mech,
-                                     Client_interface &client) {
-    get_authentication_mechanisms_void(auth_mech, client);
+                    const iface::Client &client));
+  void get_authentication_mechanisms(std::vector<std::string> *auth_mech,
+                                     const iface::Client &client) {
+    get_authentication_mechanisms_void(*auth_mech, client);
   }
   MOCK_METHOD0(reset_globals, bool());
   MOCK_CONST_METHOD0(get_document_id_generator,
-                     Document_id_generator_interface &());
-  MOCK_CONST_METHOD2(get_document_id_generator_variables,
-                     Error_code(Sql_session_interface *,
-                                Document_id_generator_interface::Variables *));
+                     iface::Document_id_generator &());
 };
 
-class Mock_authentication_interface : public Authentication_interface {
+class Mock_authentication_interface : public iface::Authentication {
  public:
   MOCK_METHOD3(handle_start, Response(const std::string &, const std::string &,
                                       const std::string &));
@@ -135,14 +134,14 @@ class Mock_authentication_interface : public Authentication_interface {
   MOCK_METHOD1(handle_continue, Response(const std::string &));
 
   MOCK_CONST_METHOD3(authenticate_account,
-                     Error_code(const std::string &, const std::string &,
-                                const std::string &));
+                     ngs::Error_code(const std::string &, const std::string &,
+                                     const std::string &));
 
   MOCK_CONST_METHOD0(get_tried_user_name, std::string());
-  MOCK_CONST_METHOD0(get_authentication_info, Authentication_info());
+  MOCK_CONST_METHOD0(get_authentication_info, iface::Authentication_info());
 };
 
-class Mock_account_verification : public Account_verification_interface {
+class Mock_account_verification : public iface::Account_verification {
  public:
   MOCK_CONST_METHOD0(get_salt, const std::string &());
   MOCK_CONST_METHOD4(verify_authentication_string,
@@ -150,10 +149,11 @@ class Mock_account_verification : public Account_verification_interface {
                           const std::string &, const std::string &));
 };
 
-class Mock_sql_data_context : public Sql_session_interface {
+class Mock_sql_data_context : public iface::Sql_session {
  public:
-  MOCK_METHOD1(set_connection_type, Error_code(const xpl::Connection_type));
-  MOCK_METHOD1(execute_kill_sql_session, Error_code(uint64_t));
+  MOCK_METHOD1(set_connection_type,
+               ngs::Error_code(const xpl::Connection_type));
+  MOCK_METHOD1(execute_kill_sql_session, ngs::Error_code(uint64_t));
   MOCK_CONST_METHOD0(is_killed, bool());
   MOCK_CONST_METHOD0(password_expired, bool());
   MOCK_CONST_METHOD0(get_authenticated_user_name, std::string());
@@ -161,37 +161,38 @@ class Mock_sql_data_context : public Sql_session_interface {
   MOCK_CONST_METHOD0(has_authenticated_user_a_super_priv, bool());
   MOCK_CONST_METHOD0(mysql_session_id, uint64_t());
   MOCK_METHOD7(authenticate,
-               Error_code(const char *, const char *, const char *,
-                          const char *, const std::string &,
-                          const Authentication_interface &, bool));
+               ngs::Error_code(const char *, const char *, const char *,
+                               const char *, const std::string &,
+                               const iface::Authentication &, bool));
   MOCK_METHOD3(execute,
-               Error_code(const char *, std::size_t, Resultset_interface *));
+               ngs::Error_code(const char *, std::size_t, iface::Resultset *));
   MOCK_METHOD3(execute_sql,
-               Error_code(const char *, std::size_t, Resultset_interface *));
+               ngs::Error_code(const char *, std::size_t, iface::Resultset *));
   MOCK_METHOD3(fetch_cursor,
-               Error_code(const std::uint32_t, const std::uint32_t,
-                          Resultset_interface *));
+               ngs::Error_code(const std::uint32_t, const std::uint32_t,
+                               iface::Resultset *));
   MOCK_METHOD3(prepare_prep_stmt,
-               Error_code(const char *, std::size_t, Resultset_interface *));
+               ngs::Error_code(const char *, std::size_t, iface::Resultset *));
   MOCK_METHOD2(deallocate_prep_stmt,
-               Error_code(const uint32_t, Resultset_interface *));
+               ngs::Error_code(const uint32_t, iface::Resultset *));
   MOCK_METHOD5(execute_prep_stmt,
-               Error_code(const uint32_t, const bool, const PS_PARAM *,
-                          std::size_t, Resultset_interface *));
-  MOCK_METHOD0(attach, Error_code());
-  MOCK_METHOD0(detach, Error_code());
-  MOCK_METHOD0(reset, Error_code());
+               ngs::Error_code(const uint32_t, const bool, const PS_PARAM *,
+                               std::size_t, iface::Resultset *));
+  MOCK_METHOD0(attach, ngs::Error_code());
+  MOCK_METHOD0(detach, ngs::Error_code());
+  MOCK_METHOD0(reset, ngs::Error_code());
   MOCK_METHOD1(is_sql_mode_set, bool(const std::string &));
 };
 
-class Mock_protocol_encoder : public Protocol_encoder_interface {
+class Mock_protocol_encoder : public iface::Protocol_encoder {
  public:
-  MOCK_METHOD1(send_result, bool(const Error_code &));
+  MOCK_METHOD1(send_result, bool(const ngs::Error_code &));
   MOCK_METHOD0(send_ok, bool());
   MOCK_METHOD1(send_ok, bool(const std::string &));
-  MOCK_METHOD1(send_init_error, bool(const Error_code &));
-  MOCK_METHOD4(send_notice, bool(const Frame_type, const Frame_scope,
-                                 const std::string &, const bool));
+  MOCK_METHOD1(send_init_error, bool(const ngs::Error_code &));
+  MOCK_METHOD4(send_notice,
+               bool(const iface::Frame_type, const iface::Frame_scope,
+                    const std::string &, const bool));
   MOCK_METHOD1(send_rows_affected, void(uint64_t value));
   MOCK_METHOD2(send_local_warning, void(const std::string &, bool));
   MOCK_METHOD1(send_auth_ok, void(const std::string &));
@@ -204,27 +205,24 @@ class Mock_protocol_encoder : public Protocol_encoder_interface {
   MOCK_METHOD0(send_result_fetch_done_more_out_params, bool());
 
   MOCK_METHOD1(send_column_metadata,
-               bool(const Encode_column_info *column_info));
-
-  MOCK_METHOD6(send_column_metadata,
-               bool(uint64_t, int, int, uint32_t, uint32_t, uint32_t));
+               bool(const ngs::Encode_column_info *column_info));
   MOCK_METHOD0(row_builder, protocol::XRow_encoder *());
   MOCK_METHOD0(raw_encoder, protocol::XMessage_encoder *());
   MOCK_METHOD0(start_row, void());
   MOCK_METHOD0(abort_row, void());
   MOCK_METHOD0(send_row, bool());
   MOCK_METHOD3(send_protobuf_message,
-               bool(const uint8_t, const Message &, bool));
+               bool(const uint8_t, const ngs::Message &, bool));
   MOCK_METHOD1(on_error, void(int error));
-  MOCK_METHOD0(get_protocol_monitor, Protocol_monitor_interface &());
-  MOCK_METHOD0(get_metadata_builder, Metadata_builder *());
+  MOCK_METHOD0(get_protocol_monitor, iface::Protocol_monitor &());
+  MOCK_METHOD0(get_metadata_builder, ngs::Metadata_builder *());
 
-  MOCK_METHOD1(enqueue_empty_message, uint8 *(const uint8_t message_id));
+  MOCK_METHOD1(enqueue_empty_message, uint8_t *(const uint8_t message_id));
 
-  MOCK_METHOD0(get_flusher, xpl::iface::Protocol_flusher *());
+  MOCK_METHOD0(get_flusher, iface::Protocol_flusher *());
 
   MOCK_METHOD2(send_error,
-               bool(const Error_code &error_code, const bool init_error));
+               bool(const ngs::Error_code &error_code, const bool init_error));
 
   MOCK_METHOD1(send_notice_rows_affected, void(const uint64_t value));
   MOCK_METHOD1(send_notice_client_id, void(const uint64_t id));
@@ -233,68 +231,64 @@ class Mock_protocol_encoder : public Protocol_encoder_interface {
   MOCK_METHOD1(send_notice_generated_document_ids,
                void(const std::vector<std::string> &ids));
   MOCK_METHOD1(send_notice_txt_message, void(const std::string &message));
-  MOCK_METHOD1(set_flusher_raw, xpl::iface::Protocol_flusher *(
-                                    xpl::iface::Protocol_flusher *flusher));
+  MOCK_METHOD1(set_flusher_raw,
+               iface::Protocol_flusher *(iface::Protocol_flusher *flusher));
 
-  std::unique_ptr<xpl::iface::Protocol_flusher> set_flusher(
-      std::unique_ptr<xpl::iface::Protocol_flusher> flusher) override {
-    std::unique_ptr<xpl::iface::Protocol_flusher> result{
+  std::unique_ptr<iface::Protocol_flusher> set_flusher(
+      std::unique_ptr<iface::Protocol_flusher> flusher) override {
+    std::unique_ptr<iface::Protocol_flusher> result{
         set_flusher_raw(flusher.get())};
     return result;
   }
 };
 
-class Mock_session : public Session_interface {
+class Mock_session : public iface::Session {
  public:
   MOCK_CONST_METHOD0(session_id, Session_id());
-  MOCK_METHOD0(init, Error_code());
+  MOCK_METHOD0(init, ngs::Error_code());
   MOCK_METHOD1(on_close, void(const bool));
   MOCK_METHOD0(on_kill, void());
-  MOCK_METHOD1(on_auth_success,
-               void(const Authentication_interface::Response &));
-  MOCK_METHOD1(on_auth_failure,
-               void(const Authentication_interface::Response &));
+  MOCK_METHOD1(on_auth_success, void(const iface::Authentication::Response &));
+  MOCK_METHOD1(on_auth_failure, void(const iface::Authentication::Response &));
   MOCK_METHOD0(on_reset, void());
-  MOCK_METHOD1(handle_message, bool(Message_request &));
+  MOCK_METHOD1(handle_message, bool(const ngs::Message_request &));
   MOCK_CONST_METHOD0(state, State());
   MOCK_CONST_METHOD0(state_before_close, State());
-  MOCK_METHOD0(get_status_variables, Session_status_variables &());
-  MOCK_METHOD0(client, Client_interface &());
-  MOCK_CONST_METHOD0(client, const Client_interface &());
+  MOCK_METHOD0(get_status_variables, ngs::Session_status_variables &());
+  MOCK_METHOD0(client, iface::Client &());
+  MOCK_CONST_METHOD0(client, const iface::Client &());
   MOCK_CONST_METHOD1(can_see_user, bool(const std::string &));
 
   MOCK_METHOD0(mark_as_tls_session, void());
   MOCK_CONST_METHOD0(get_thd, THD *());
-  MOCK_METHOD0(data_context, Sql_session_interface &());
-  MOCK_METHOD0(proto, Protocol_encoder_interface &());
-  MOCK_METHOD1(set_proto, void(Protocol_encoder_interface *));
-  MOCK_METHOD0(get_notice_configuration, Notice_configuration_interface &());
-  MOCK_METHOD0(get_notice_output_queue, Notice_output_queue_interface &());
+  MOCK_METHOD0(data_context, iface::Sql_session &());
+  MOCK_METHOD0(proto, iface::Protocol_encoder &());
+  MOCK_METHOD1(set_proto, void(iface::Protocol_encoder *));
+  MOCK_METHOD0(get_notice_configuration, iface::Notice_configuration &());
+  MOCK_METHOD0(get_notice_output_queue, iface::Notice_output_queue &());
   MOCK_CONST_METHOD2(get_prepared_statement_id,
                      bool(const uint32_t, uint32_t *));
-  MOCK_METHOD1(
-      update_status,
-      void(Common_status_variables::Variable Common_status_variables::*));
-  MOCK_METHOD0(get_options, Options &());
-  MOCK_METHOD0(get_document_id_aggregator,
-               Document_id_aggregator_interface &());
+  MOCK_METHOD1(update_status, void(ngs::Common_status_variables::Variable
+                                       ngs::Common_status_variables::*));
+  MOCK_METHOD0(get_document_id_aggregator, iface::Document_id_aggregator &());
 };
 
-class Mock_notice_configuration : public Notice_configuration_interface {
+class Mock_notice_configuration : public iface::Notice_configuration {
  public:
   MOCK_CONST_METHOD2(get_notice_type_by_name,
                      bool(const std::string &name,
-                          Notice_type *out_notice_type));
+                          ngs::Notice_type *out_notice_type));
   MOCK_CONST_METHOD2(get_name_by_notice_type,
-                     bool(const Notice_type notice_type,
+                     bool(const ngs::Notice_type notice_type,
                           std::string *out_name));
-  MOCK_CONST_METHOD1(is_notice_enabled, bool(const Notice_type notice_type));
-  MOCK_METHOD2(set_notice, void(const Notice_type notice_type,
+  MOCK_CONST_METHOD1(is_notice_enabled,
+                     bool(const ngs::Notice_type notice_type));
+  MOCK_METHOD2(set_notice, void(const ngs::Notice_type notice_type,
                                 const bool should_be_enabled));
   MOCK_CONST_METHOD0(is_any_dispatchable_notice_enabled, bool());
 };
 
-class Mock_protocol_monitor : public Protocol_monitor_interface {
+class Mock_protocol_monitor : public iface::Protocol_monitor {
  public:
   MOCK_METHOD0(on_notice_warning_send, void());
   MOCK_METHOD0(on_notice_other_send, void());
@@ -315,50 +309,44 @@ class Mock_protocol_monitor : public Protocol_monitor_interface {
   MOCK_METHOD1(on_messages_sent, void(const uint32_t messages));
 };
 
-class Mock_id_generator : public Document_id_generator_interface {
+class Mock_id_generator : public iface::Document_id_generator {
  public:
   MOCK_METHOD1(generate,
-               std::string(const Document_id_generator_interface::Variables &));
+               std::string(const iface::Document_id_generator::Variables &));
 };
 
-class Mock_wait_for_io : public xpl::iface::Waiting_for_io {
+class Mock_wait_for_io : public iface::Waiting_for_io {
  public:
   MOCK_METHOD0(has_to_report_idle_waiting, bool());
   MOCK_METHOD0(on_idle_or_before_read, void());
 };
 
-class Mock_notice_output_queue : public Notice_output_queue_interface {
+class Mock_notice_output_queue : public iface::Notice_output_queue {
  public:
-  MOCK_METHOD2(emplace, void(const Notice_type type,
+  MOCK_METHOD2(emplace, void(const ngs::Notice_type type,
                              const Buffer_shared &binary_notice));
-  MOCK_METHOD0(get_callbacks_waiting_for_io, xpl::iface::Waiting_for_io *());
+  MOCK_METHOD0(get_callbacks_waiting_for_io, iface::Waiting_for_io *());
   MOCK_METHOD1(encode_queued_items,
                void(const bool last_notice_does_force_fulsh));
 
-  MOCK_METHOD1(set_encoder, void(Protocol_encoder_interface *encoder));
+  MOCK_METHOD1(set_encoder, void(iface::Protocol_encoder *encoder));
 };
 
-class Mock_id_aggregator : public Document_id_aggregator_interface {
+class Mock_id_aggregator : public iface::Document_id_aggregator {
  public:
   MOCK_METHOD0(generate_id, std::string());
   MOCK_METHOD1(generate_id, std::string(const Variables &));
   MOCK_METHOD0(clear_ids, void());
   MOCK_CONST_METHOD0(get_ids, const Document_id_list &());
-  MOCK_METHOD1(configue, Error_code(Sql_session_interface *));
+  MOCK_METHOD1(configue, ngs::Error_code(iface::Sql_session *));
   MOCK_METHOD1(set_id_retention, void(const bool));
 };
 
 class Mock_message_dispatcher
-    : public Message_decoder::Message_dispatcher_interface {
+    : public ngs::Message_decoder::Message_dispatcher_interface {
  public:
-  MOCK_METHOD1(handle, void(Message_request *));
+  MOCK_METHOD1(handle, void(ngs::Message_request *));
 };
-
-}  // namespace test
-}  // namespace ngs
-
-namespace xpl {
-namespace test {
 
 class Mock_ngs_client : public ngs::Client {
  public:
@@ -372,7 +360,7 @@ class Mock_ngs_client : public ngs::Client {
   MOCK_METHOD1(handle_message, void(ngs::Message_request *));
 };
 
-class Mock_client : public ngs::Client_interface {
+class Mock_client : public iface::Client {
  public:
   MOCK_METHOD0(get_session_exit_mutex, Mutex &());
 
@@ -381,19 +369,18 @@ class Mock_client : public ngs::Client_interface {
   MOCK_CONST_METHOD0(client_address, const char *());
   MOCK_CONST_METHOD0(client_hostname, const char *());
   MOCK_CONST_METHOD0(client_hostname_or_address, const char *());
-  MOCK_METHOD0(connection, ngs::Vio_interface &());
-  MOCK_CONST_METHOD0(server, ngs::Server_interface &());
-  MOCK_CONST_METHOD0(protocol, ngs::Protocol_encoder_interface &());
+  MOCK_CONST_METHOD0(connection, iface::Vio &());
+  MOCK_CONST_METHOD0(server, iface::Server &());
+  MOCK_CONST_METHOD0(protocol, iface::Protocol_encoder &());
 
   MOCK_CONST_METHOD0(client_id_num, Client_id());
   MOCK_CONST_METHOD0(client_port, int());
 
   MOCK_CONST_METHOD0(get_accept_time, chrono::Time_point());
-  MOCK_CONST_METHOD0(get_state, ngs::Client_interface::State());
+  MOCK_CONST_METHOD0(get_state, Client::State());
 
-  MOCK_METHOD0(session, ngs::Session_interface *());
-  MOCK_CONST_METHOD0(session_smart_ptr,
-                     std::shared_ptr<ngs::Session_interface>());
+  MOCK_METHOD0(session, iface::Session *());
+  MOCK_CONST_METHOD0(session_shared_ptr, std::shared_ptr<iface::Session>());
   MOCK_CONST_METHOD0(supports_expired_passwords, bool());
 
   MOCK_CONST_METHOD0(is_interactive, bool());
@@ -420,10 +407,10 @@ class Mock_client : public ngs::Client_interface {
                void(const Mysqlx::Connection::CapabilitiesSet &));
 
  public:
-  MOCK_METHOD1(on_session_reset_void, bool(ngs::Session_interface &));
-  MOCK_METHOD1(on_session_close_void, bool(ngs::Session_interface &));
-  MOCK_METHOD1(on_session_auth_success_void, bool(ngs::Session_interface &));
-  MOCK_METHOD1(on_connection_close_void, bool(ngs::Session_interface &));
+  MOCK_METHOD1(on_session_reset_void, bool(iface::Session &));
+  MOCK_METHOD1(on_session_close_void, bool(iface::Session &));
+  MOCK_METHOD1(on_session_auth_success_void, bool(iface::Session &));
+  MOCK_METHOD1(on_connection_close_void, bool(iface::Session &));
 
   MOCK_METHOD0(disconnect_and_trigger_close_void, bool());
   MOCK_CONST_METHOD1(is_handler_thd, bool(const THD *));
@@ -436,16 +423,16 @@ class Mock_client : public ngs::Client_interface {
   MOCK_METHOD1(run_void, bool(bool));
   MOCK_METHOD0(reset_accept_time_void, bool());
 
-  void on_session_reset(ngs::Session_interface &arg) override {
-    on_session_reset_void(arg);
+  void on_session_reset(iface::Session *arg) override {
+    on_session_reset_void(*arg);
   }
 
-  void on_session_close(ngs::Session_interface &arg) override {
-    on_session_close_void(arg);
+  void on_session_close(iface::Session *arg) override {
+    on_session_close_void(*arg);
   }
 
-  void on_session_auth_success(ngs::Session_interface &arg) override {
-    on_session_auth_success_void(arg);
+  void on_session_auth_success(iface::Session *arg) override {
+    on_session_auth_success_void(*arg);
   }
 
   void disconnect_and_trigger_close() override {
@@ -465,17 +452,16 @@ class Mock_client : public ngs::Client_interface {
 
 class Mock_account_verification_handler : public Account_verification_handler {
  public:
-  Mock_account_verification_handler(Session *session)
+  explicit Mock_account_verification_handler(Session *session)
       : Account_verification_handler(session) {}
 
   MOCK_CONST_METHOD3(authenticate,
-                     ngs::Error_code(const ngs::Authentication_interface &,
-                                     ngs::Authentication_info *,
+                     ngs::Error_code(const iface::Authentication &,
+                                     iface::Authentication_info *,
                                      const std::string &));
-  MOCK_CONST_METHOD1(
-      get_account_verificator,
-      const ngs::Account_verification_interface *(
-          const ngs::Account_verification_interface::Account_type));
+  MOCK_CONST_METHOD1(get_account_verificator,
+                     const iface::Account_verification *(
+                         const iface::Account_verification::Account_type));
 };
 
 }  // namespace test

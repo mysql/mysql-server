@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #include <gtest/gtest.h>
 
+#include "mysql_com.h"
+
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/native_plain_verification.h"
 #include "plugin/x/src/native_verification.h"
@@ -41,12 +43,12 @@ using ::testing::ReturnRef;
 class User_password_verification : public ::testing::Test {
  public:
   void SetUp() {
-    m_cache_mock.reset(new xpl::test::Mock_sha256_password_cache());
+    m_cache_mock.reset(new Mock_sha256_password_cache());
     m_cached_value = {std::begin(CACHED_VALUE_TABLE),
                       std::end(CACHED_VALUE_TABLE)};
   }
 
-  std::unique_ptr<xpl::test::Mock_sha256_password_cache> m_cache_mock;
+  std::unique_ptr<Mock_sha256_password_cache> m_cache_mock;
 
   const char *const EMPTY = "";
   const char *const EXPECTED_NATIVE_HASH =
@@ -96,7 +98,7 @@ std::string get_hash(const std::string &salt, const std::string &user_string) {
   char scrambled[SCRAMBLE_LENGTH + 1] = {0};
   char hash[2 * SHA1_HASH_SIZE + 2] = {0};
   ::scramble(scrambled, salt.c_str(), user_string.c_str());
-  ::make_password_from_salt(hash, (const uint8 *)scrambled);
+  ::make_password_from_salt(hash, reinterpret_cast<const uint8_t *>(scrambled));
   return hash;
 }
 

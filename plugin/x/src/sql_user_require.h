@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/interface/ssl_session_options_interface.h"
+#include "plugin/x/src/interface/ssl_session_options.h"
 #include "plugin/x/src/sql_data_context.h"
 
 namespace xpl {
@@ -40,7 +40,7 @@ class Sql_user_require {
   std::string ssl_x509_subject;
 
   ngs::Error_code validate(
-      const ngs::Ssl_session_options_interface &options) const;
+      const iface::Ssl_session_options &options) const;
 
  private:
   const static std::string SSL_TYPE_NONE;
@@ -49,11 +49,11 @@ class Sql_user_require {
   const static std::string SSL_TYPE_SPECIFIC;
 
   ngs::Error_code check_ssl(
-      const ngs::Ssl_session_options_interface &options) const;
+      const iface::Ssl_session_options &options) const;
   ngs::Error_code check_x509(
-      const ngs::Ssl_session_options_interface &options) const;
+      const iface::Ssl_session_options &options) const;
   ngs::Error_code check_specific(
-      const ngs::Ssl_session_options_interface &options) const;
+      const iface::Ssl_session_options &options) const;
 };
 
 }  // namespace xpl

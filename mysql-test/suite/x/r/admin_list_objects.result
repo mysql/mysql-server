@@ -48,6 +48,7 @@ Records: 0  Duplicates: 0  Warnings: 0
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
+_json_schema	json	YES		null	VIRTUAL GENERATED
 nothing	int(11)	YES		null	
 0 rows affected
 name	type
@@ -84,6 +85,16 @@ command ok
 command ok
 name	type
 fruit	COLLECTION
+command ok
+
+Collection with validation schema
+---------------------------------
+
+command ok
+
+command ok
+name	type
+stuff	COLLECTION
 command ok
 
 Removing `_id` from collection

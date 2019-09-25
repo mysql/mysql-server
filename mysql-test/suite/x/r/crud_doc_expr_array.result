@@ -125,9 +125,9 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "second": "twenty"}	1
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "second": "twenty"}
 0 rows affected
 Inserting array into collection with all the datatypes
 send Mysqlx.Crud.Insert {
@@ -253,10 +253,10 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "second": "twenty"}	1
-{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "second": "twenty again"}	2
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "second": "twenty"}
+{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "second": "twenty again"}
 0 rows affected
 Selecting array from collection
 send Mysqlx.Crud.Find {
@@ -498,10 +498,10 @@ command ok
 RUN use xtest
 
 0 rows affected
-RUN select * from xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "second": "twenty"}	1
-{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "second": "twenty again"}	2
+RUN select doc from xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "second": "twenty"}
+{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "second": "twenty again"}
 0 rows affected
 Selecting array with sub-array from collection with alias
 send Mysqlx.Crud.Find {
@@ -740,10 +740,10 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": "twenty"}	1
-{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": "twenty again"}	2
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": "twenty"}
+{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": "twenty again"}
 0 rows affected
 Updating collection by array with null values
 send Mysqlx.Crud.Update {
@@ -798,10 +798,10 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": "twenty", "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}	1
-{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": "twenty again", "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}	2
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": "twenty", "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}
+{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": "twenty again", "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
 0 rows affected
 Updating collection by array in a current member value
 send Mysqlx.Crud.Update {
@@ -856,10 +856,10 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"], "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}	1
-{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"], "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}	2
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"], "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}
+{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"], "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
 0 rows affected
 Updating collection by appending an array in a current array member value
 send Mysqlx.Crud.Update {
@@ -896,10 +896,10 @@ send Mysqlx.Crud.Update {
 
 2 rows affected
 Rows matched: 2  Changed: 2  Warnings: 0
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten", [[1, 2, 3, 4, 5]]], "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}	1
-{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again", [[1, 2, 3.13, 4.34, true, null, "extrainfo"]]], "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}	2
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten", [[1, 2, 3, 4, 5]]], "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}
+{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again", [[1, 2, 3.13, 4.34, true, null, "extrainfo"]]], "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
 0 rows affected
 Updating collection by inserting an array in a current array member value using == criteria
 send Mysqlx.Crud.Update {
@@ -961,10 +961,10 @@ send Mysqlx.Crud.Update {
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
-RUN SELECT * FROM xtest.xcoll
-doc	_id
-{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten", [[1, 2, 3, 4, 5]]], "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}	1
-{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[[1, 2, 3.13, 4.34, true, null, "extrainfo"]], [1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again", [[1, 2, 3.13, 4.34, true, null, "extrainfo"]]], "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}	2
+RUN SELECT doc FROM xtest.xcoll
+doc
+{"_id": "1", "first": "ten", "third": "thirty", "units": [1, 2, 3, 4, 5], "dozens": ["ten", "twenty", "thirty"], "second": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten", [[1, 2, 3, 4, 5]]], "NewArray": [[1, 2, 3, 4, 5], ["ten", "twenty", "thirty"], "ten"]}
+{"_id": "2", "first": "ten again", "third": "thirty again", "units": [1, 2, 3.13, 4.34, true, null, "extrainfo"], "dozens": ["ten again", "twenty again", "thirty again"], "second": [[[1, 2, 3.13, 4.34, true, null, "extrainfo"]], [1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again", [[1, 2, 3.13, 4.34, true, null, "extrainfo"]]], "NewArray": [[1, 2, 3.13, 4.34, true, null, "extrainfo"], ["ten again", "twenty again", "thirty again"], "ten again"]}
 0 rows affected
 Error: empty array
 send Mysqlx.Crud.Find {

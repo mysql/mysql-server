@@ -1,42 +1,45 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
-
-#include "my_config.h"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
-#include <stdio.h>  // Solaris header file bug.
-#include <stdlib.h>
+
+#include <cstdint>
+#include <cstdio>  // Solaris header file bug.
+#include <cstdlib>
 #include <limits>
 
-#include "my_inttypes.h"
+#include "my_config.h"  // NOLINT(build/include_subdir)
 #include "mysql/plugin_audit.h"
+#include "typelib.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/sha256_password_cache.h"
+#include "plugin/x/src/ssl_context_options.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "plugin/x/src/xpl_server.h"
@@ -82,7 +85,7 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
 }
 
 template <typename ReturnType,
-          ReturnType (ngs::Ssl_session_options_interface::*method)() const>
+          ReturnType (xpl::Ssl_session_options::*method)() const>
 int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   var->type = SHOW_UNDEF;
   var->value = buff;
@@ -160,7 +163,7 @@ int common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
       // User can reset the session by sending SessionReset, to be secure for
       // released session pointer, the code needs to hold current session by
       // shared_ptr.
-      auto client_session(client->session_smart_ptr());
+      auto client_session(client->session_shared_ptr());
 
       if (client_session) {
         auto &common_status = client_session->get_status_variables();
@@ -179,7 +182,7 @@ int common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
 }
 
 template <typename ReturnType,
-          ReturnType (ngs::Ssl_context_options_interface::*method)()>
+          ReturnType (xpl::iface::Ssl_context_options::*method)()>
 int global_status_variable(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_UNDEF;
   var->value = buff;
@@ -196,7 +199,7 @@ int global_status_variable(THD *, SHOW_VAR *var, char *buff) {
 }
 
 template <typename Copy_type,
-          void (ngs::Client_interface::*method)(const Copy_type value)>
+          void (xpl::iface::Client::*method)(const Copy_type value)>
 void thd_variable(THD *thd, SYS_VAR *sys_var, void *tgt, const void *save) {
   // Lets copy the data to mysqld storage
   // this is going to allow following to return correct value:
@@ -367,7 +370,7 @@ static MYSQL_THDVAR_UINT(
     wait_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for activity on noninteractive "
     "connection",
-    NULL, (&thd_variable<uint32_t, &ngs::Client_interface::set_wait_timeout>),
+    NULL, (&thd_variable<uint32_t, &xpl::iface::Client::set_wait_timeout>),
     Global_timeouts::Default::k_wait_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
@@ -383,14 +386,14 @@ static MYSQL_THDVAR_UINT(
     read_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for blocking read operation to "
     "complete",
-    NULL, (&thd_variable<uint32_t, &ngs::Client_interface::set_read_timeout>),
+    NULL, (&thd_variable<uint32_t, &xpl::iface::Client::set_read_timeout>),
     Global_timeouts::Default::k_read_timeout, 1, 2147483, 0);
 
 static MYSQL_THDVAR_UINT(
     write_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for blocking write operation to "
     "complete",
-    NULL, (&thd_variable<uint32_t, &ngs::Client_interface::set_write_timeout>),
+    NULL, (&thd_variable<uint32_t, &xpl::iface::Client::set_write_timeout>),
     Global_timeouts::Default::k_write_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
@@ -530,6 +533,12 @@ static SHOW_VAR xpl_plugin_status[] = {
         "stmt_ensure_collection",
         ngs::Common_status_variables::m_stmt_ensure_collection),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "stmt_modify_collection_options",
+        ngs::Common_status_variables::m_stmt_modify_collection_options),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "stmt_get_collection_options",
+        ngs::Common_status_variables::m_stmt_get_collection_options),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "stmt_drop_collection_index",
         ngs::Common_status_variables::m_stmt_drop_collection_index),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
@@ -614,38 +623,35 @@ static SHOW_VAR xpl_plugin_status[] = {
 
     SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY(
         "ssl_cipher_list", xpl::Client::get_status_ssl_cipher_list),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_active", bool,
+                                      xpl::Ssl_session_options::active_tls),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_cipher", std::string,
+                                      xpl::Ssl_session_options::ssl_cipher),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_version", std::string,
+                                      xpl::Ssl_session_options::ssl_version),
     SESSION_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_active", bool, ngs::Ssl_session_options_interface::active_tls),
+        "ssl_verify_depth", int64_t,
+        xpl::Ssl_session_options::ssl_verify_depth),
     SESSION_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_cipher", std::string,
-        ngs::Ssl_session_options_interface::ssl_cipher),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_version", std::string,
-        ngs::Ssl_session_options_interface::ssl_version),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_verify_depth", long,
-        ngs::Ssl_session_options_interface::ssl_verify_depth),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_verify_mode", long,
-        ngs::Ssl_session_options_interface::ssl_verify_mode),
+        "ssl_verify_mode", int64_t, xpl::Ssl_session_options::ssl_verify_mode),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_ctx_verify_depth", long,
-        ngs::Ssl_context_options_interface::ssl_ctx_verify_depth),
+        "ssl_ctx_verify_depth", int64_t,
+        xpl::iface::Ssl_context_options::ssl_ctx_verify_depth),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_ctx_verify_mode", long,
-        ngs::Ssl_context_options_interface::ssl_ctx_verify_mode),
+        "ssl_ctx_verify_mode", int64_t,
+        xpl::iface::Ssl_context_options::ssl_ctx_verify_mode),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_finished_accepts", long,
-        ngs::Ssl_context_options_interface::ssl_sess_accept_good),
+        "ssl_finished_accepts", int64_t,
+        xpl::iface::Ssl_context_options::ssl_sess_accept_good),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
-        "ssl_accepts", long,
-        ngs::Ssl_context_options_interface::ssl_sess_accept),
+        "ssl_accepts", int64_t,
+        xpl::iface::Ssl_context_options::ssl_sess_accept),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_server_not_after", std::string,
-        ngs::Ssl_context_options_interface::ssl_server_not_after),
+        xpl::iface::Ssl_context_options::ssl_server_not_after),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_server_not_before", std::string,
-        ngs::Ssl_context_options_interface::ssl_server_not_before),
+        xpl::iface::Ssl_context_options::ssl_server_not_before),
 
     GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("socket", std::string,
                                         xpl::Server::get_socket_file),

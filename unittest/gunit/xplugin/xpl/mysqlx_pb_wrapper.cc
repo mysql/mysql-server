@@ -173,6 +173,12 @@ Any::Object::Object(const std::initializer_list<Any::Object::Fld> &list) {
   }
 }
 
+Any::Object::Object(const std::string &key, Any *value) {
+  Mysqlx::Datatypes::Object_ObjectField *item = m_base.add_fld();
+  item->set_key(key);
+  if (value) item->mutable_value()->CopyFrom(*value);
+}
+
 Object::Object(const std::string &key, Expr *value) {
   Mysqlx::Expr::Object_ObjectField *item = m_base.add_fld();
   item->set_key(key);

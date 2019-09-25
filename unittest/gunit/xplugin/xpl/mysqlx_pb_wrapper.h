@@ -137,6 +137,7 @@ class Any : public Wrapper<::Mysqlx::Datatypes::Any> {
     struct Fld;
     Object() = default;
     Object(const std::initializer_list<Fld> &list);
+    Object(const std::string &key, Any *value);
   };
 
   Any() = default;

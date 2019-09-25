@@ -383,7 +383,7 @@ Mysqlx.Crud.Insert {
 }
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "Non unique value for _id member of `doc` "
@@ -418,7 +418,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 -->echo "Error expected as non unique value for _id provided for member of JSON doc "
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "No _id member for JSON doc"
@@ -442,7 +442,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 -->echo "Error expected as _id member is not provided for JSON doc "
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "projection is not allowed for DOCUMENT table"
@@ -471,7 +471,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 -->echo "Error expected as projection given for DOCUMENT table "
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "Error when inserting doc as null"
@@ -492,7 +492,7 @@ Mysqlx.Crud.Insert {
 -->expecterror ER_X_BAD_PROJECTION,ER_X_DOC_ID_MISSING
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 
@@ -516,7 +516,7 @@ Mysqlx.Crud.Insert {
 }
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->echo "Insert using transaction"
@@ -589,7 +589,7 @@ COMMIT;
 -->endsql
 
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 
@@ -618,7 +618,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 -->echo "Error as table is locked with read lock"
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 -->endsql
 
 -->sql
@@ -644,7 +644,7 @@ Mysqlx.Crud.Insert {
 }
 -->recvresult
 -->sql
-SELECT * FROM maincollection;
+SELECT doc FROM maincollection;
 UNLOCK TABLES;
 -->endsql
 

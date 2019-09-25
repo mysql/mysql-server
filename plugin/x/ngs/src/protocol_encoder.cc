@@ -24,16 +24,16 @@
 
 #include <errno.h>
 #include <sys/types.h>
-#include "my_dbug.h"
-#include "my_io.h"
-#include "my_systime.h"  // my_sleep
 
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "my_dbug.h"     // NOLINT(build/include_subdir)
+#include "my_io.h"       // NOLINT(build/include_subdir)
+#include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
+
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
-
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/src/interface/vio.h"
 
 #include "plugin/x/src/xpl_server.h"
 
@@ -47,10 +47,9 @@ using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
 // Alias for return types
 using Flush_result = xpl::iface::Protocol_flusher::Result;
 
-Protocol_encoder::Protocol_encoder(const std::shared_ptr<Vio_interface> &socket,
-                                   Error_handler ehandler,
-                                   Protocol_monitor_interface *pmon,
-                                   Memory_block_pool *memory_block_pool)
+Protocol_encoder::Protocol_encoder(
+    const std::shared_ptr<xpl::iface::Vio> &socket, Error_handler ehandler,
+    xpl::iface::Protocol_monitor *pmon, Memory_block_pool *memory_block_pool)
     : m_error_handler(ehandler),
       m_protocol_monitor(pmon),
       m_pool{10, memory_block_pool},  // TODO(lkotula): benchmark first argument
@@ -188,7 +187,7 @@ bool Protocol_encoder::send_result_fetch_done_more_out_params() {
       Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS);
 }
 
-Protocol_monitor_interface &Protocol_encoder::get_protocol_monitor() {
+xpl::iface::Protocol_monitor &Protocol_encoder::get_protocol_monitor() {
   return *m_protocol_monitor;
 }
 
@@ -219,7 +218,7 @@ bool Protocol_encoder::send_protobuf_message(const uint8_t type,
 void Protocol_encoder::on_error(int error) { m_error_handler(error); }
 
 void Protocol_encoder::log_protobuf(const char *direction_name,
-                                    const uint8 type, const Message *msg) {
+                                    const uint8_t type, const Message *msg) {
   if (nullptr == msg) {
     log_protobuf(type);
     return;
@@ -252,7 +251,7 @@ void Protocol_encoder::log_protobuf(
 #endif
 }
 
-std::string message_type_to_string(const uint8 type_id) {
+std::string message_type_to_string(const uint8_t type_id) {
   switch (type_id) {
     case Mysqlx::ServerMessages_Type_OK:
       return "OK";
@@ -291,14 +290,14 @@ void Protocol_encoder::log_protobuf(uint8_t type MY_ATTRIBUTE((unused))) {
   log_debug("SEND RAW: Type: %s", message_type_to_string(type).c_str());
 }
 
-bool Protocol_encoder::send_notice(const Frame_type type,
-                                   const Frame_scope scope,
+bool Protocol_encoder::send_notice(const xpl::iface::Frame_type type,
+                                   const xpl::iface::Frame_scope scope,
                                    const std::string &data,
                                    const bool force_flush) {
-  const bool is_global = Frame_scope::k_global == scope;
+  const bool is_global = xpl::iface::Frame_scope::k_global == scope;
   DBUG_LOG("debug", "send_notice, global: " << (is_global ? "yes" : "no"));
 
-  if (Frame_type::k_warning == type)
+  if (xpl::iface::Frame_type::k_warning == type)
     get_protocol_monitor().on_notice_warning_send();
   else if (is_global)
     get_protocol_monitor().on_notice_global_send();
@@ -360,8 +359,8 @@ void Protocol_encoder::send_notice_generated_document_ids(
   // Optimize me
   change.SerializeToString(&serialized_change);
 
-  send_notice(Frame_type::k_session_state_changed, Frame_scope::k_local,
-              serialized_change, false);
+  send_notice(xpl::iface::Frame_type::k_session_state_changed,
+              xpl::iface::Frame_scope::k_local, serialized_change, false);
 }
 
 void Protocol_encoder::send_notice_last_insert_id(const uint64_t id) {

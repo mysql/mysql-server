@@ -88,7 +88,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with == operator and Quotes
@@ -133,7 +133,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with > operator for multiple docs
@@ -178,7 +178,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with < operator for multiple docs
@@ -223,7 +223,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with <= operator for multiple docs
@@ -268,7 +268,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with >= operator for multiple docs
@@ -313,7 +313,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with != operator for multiple docs
@@ -358,10 +358,10 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
--->echo Update item_merge a NULL 
+-->echo Update item_merge a NULL
 Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -403,7 +403,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update item_merge a String into a only numbers member
@@ -448,7 +448,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with order clause update last _id in desc order (_id = 5)
@@ -505,7 +505,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with order clause update first two _id in asc order (_id = 1,2)
@@ -562,7 +562,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update item_merge a number into a only String member
@@ -607,7 +607,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 START TRANSACTION;
 -->endsql
 
@@ -653,9 +653,9 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 ROLLBACK;
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update transaction commit
@@ -701,7 +701,7 @@ Mysqlx.Crud.Update {
 
 -->sql
 COMMIT;
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with non existing doc member
@@ -747,7 +747,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with item_merge with } missing at the end

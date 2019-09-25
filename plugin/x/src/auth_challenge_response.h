@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,25 +25,26 @@
 #ifndef PLUGIN_X_SRC_AUTH_CHALLENGE_RESPONSE_H_
 #define PLUGIN_X_SRC_AUTH_CHALLENGE_RESPONSE_H_
 
+#include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/cache_based_verification.h"
+#include "plugin/x/src/interface/authentication.h"
+#include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/native_verification.h"
 
 namespace xpl {
 
-template <ngs::Account_verification_interface::Account_type Auth_type,
+template <iface::Account_verification::Account_type Auth_type,
           typename Auth_verificator_t>
 class Sasl_challenge_response_auth;
 
 using Sasl_mysql41_auth = Sasl_challenge_response_auth<
-    ngs::Account_verification_interface::Account_native, Native_verification>;
+    iface::Account_verification::Account_type::k_native, Native_verification>;
 
 using Sasl_sha256_memory_auth = Sasl_challenge_response_auth<
-    ngs::Account_verification_interface::Account_sha256_memory,
+    iface::Account_verification::Account_type::k_sha256_memory,
     Cache_based_verification>;
 
 /**
@@ -61,16 +62,15 @@ using Sasl_sha256_memory_auth = Sasl_challenge_response_auth<
   @tparam Auth_type Enum representing account verification type
   @tparam Auth_verificator_t Class that will be used for performing verification
 */
-template <ngs::Account_verification_interface::Account_type Auth_type,
+template <iface::Account_verification::Account_type Auth_type,
           typename Auth_verificator_t>
-class Sasl_challenge_response_auth : public ngs::Authentication_interface {
+class Sasl_challenge_response_auth : public iface::Authentication {
  public:
   explicit Sasl_challenge_response_auth(Account_verification_handler *handler)
       : m_verification_handler(handler), m_state(S_starting) {}
 
-  static ngs::Authentication_interface_ptr create(
-      ngs::Session_interface *session,
-      ngs::SHA256_password_cache_interface *cache);
+  static std::unique_ptr<iface::Authentication> create(
+      iface::Session *session, iface::SHA256_password_cache *cache);
 
   Response handle_start(const std::string &, const std::string &,
                         const std::string &) override;
@@ -81,13 +81,13 @@ class Sasl_challenge_response_auth : public ngs::Authentication_interface {
       const std::string &user, const std::string &host,
       const std::string &passwd) const override;
 
-  ngs::Authentication_info get_authentication_info() const override {
+  iface::Authentication_info get_authentication_info() const override {
     return m_auth_info;
   }
 
  private:
-  Account_verification_handler_ptr m_verification_handler;
-  ngs::Authentication_info m_auth_info;
+  Account_verification_handler::Unique_ptr m_verification_handler;
+  iface::Authentication_info m_auth_info;
 
   enum State { S_starting, S_waiting_response, S_done, S_error } m_state;
 };
@@ -101,20 +101,15 @@ class Sasl_challenge_response_auth : public ngs::Authentication_interface {
 
   @return Pointer to authentication class instance
 */
-template <ngs::Account_verification_interface::Account_type Account_type,
+template <iface::Account_verification::Account_type Account_type,
           typename Auth_verificator_t>
-ngs::Authentication_interface_ptr
+std::unique_ptr<iface::Authentication>
 Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::create(
-    ngs::Session_interface *session,
-    ngs::SHA256_password_cache_interface *cache) {
-  Account_verification_handler *handler =
-      ngs::allocate_object<Account_verification_handler>(
-          session, Account_type,
-          ngs::allocate_object<Auth_verificator_t>(cache));
-  return ngs::Authentication_interface_ptr(
-      ngs::allocate_object<
-          Sasl_challenge_response_auth<Account_type, Auth_verificator_t>>(
-          handler));
+    iface::Session *session, iface::SHA256_password_cache *cache) {
+  Account_verification_handler *handler = new Account_verification_handler(
+      session, Account_type, new Auth_verificator_t(cache));
+  return std::make_unique<
+      Sasl_challenge_response_auth<Account_type, Auth_verificator_t>>(handler);
 }
 
 /**
@@ -123,23 +118,23 @@ Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::create(
   @return Response message containing salt or error if we are on other phase
   of authentication
 */
-template <ngs::Account_verification_interface::Account_type Account_type,
+template <iface::Account_verification::Account_type Account_type,
           typename Auth_verificator_t>
-ngs::Authentication_interface::Response
+iface::Authentication::Response
 Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_start(
     const std::string &, const std::string &, const std::string &) {
   m_auth_info.reset();
 
   if (m_state != S_starting) {
     m_state = S_error;
-    return {Error, ER_NET_PACKETS_OUT_OF_ORDER};
+    return {Status::k_error, ER_NET_PACKETS_OUT_OF_ORDER};
   }
 
-  const ngs::Account_verification_interface *verificator =
+  const iface::Account_verification *verificator =
       m_verification_handler->get_account_verificator(Account_type);
   DBUG_ASSERT(verificator);
   m_state = S_waiting_response;
-  return {Ongoing, 0, verificator->get_salt()};
+  return {Status::k_ongoing, 0, verificator->get_salt()};
 }
 
 /**
@@ -154,21 +149,21 @@ Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_start(
     @retval Succeeded On successful authentication
     @retval Failed On unsuccessful authentication
 */
-template <ngs::Account_verification_interface::Account_type Account_type,
+template <iface::Account_verification::Account_type Account_type,
           typename Auth_verificator_t>
-ngs::Authentication_interface::Response
+iface::Authentication::Response
 Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_continue(
     const std::string &data) {
   if (m_state != S_waiting_response) {
     m_state = S_error;
-    return {Error, ER_NET_PACKETS_OUT_OF_ORDER};
+    return {Status::k_error, ER_NET_PACKETS_OUT_OF_ORDER};
   }
 
   m_state = S_done;
   if (ngs::Error_code error =
           m_verification_handler->authenticate(*this, &m_auth_info, data))
-    return {Failed, error.error, error.message};
-  return {Succeeded};
+    return {Status::k_failed, error.error, error.message};
+  return {Status::k_succeeded};
 }
 
 /**
@@ -180,7 +175,7 @@ Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_continue(
 
   @return Result of user verification
 */
-template <ngs::Account_verification_interface::Account_type Account_type,
+template <iface::Account_verification::Account_type Account_type,
           typename Auth_verificator_t>
 ngs::Error_code Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::
     authenticate_account(const std::string &user, const std::string &host,

@@ -32,7 +32,7 @@ namespace xpl {
 
 class Capability_client_interactive : public Capability_handler {
  public:
-  Capability_client_interactive(ngs::Client_interface &client);
+  Capability_client_interactive(iface::Client &client);
 
   std::string name() const override { return "client.interactive"; }
   bool is_settable() const override { return true; }
@@ -45,7 +45,7 @@ class Capability_client_interactive : public Capability_handler {
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override { return true; }
 
-  ngs::Client_interface &m_client;
+  iface::Client &m_client;
   bool m_value;
 };
 

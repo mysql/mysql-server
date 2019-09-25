@@ -87,7 +87,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and > operator for multiple docs
@@ -133,7 +133,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and < operator for multiple docs
@@ -179,7 +179,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and <= operator for multiple docs
@@ -225,7 +225,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and >= operator for multiple docs
@@ -271,7 +271,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with order clause update last _id in desc order (_id = 5)
@@ -329,7 +329,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with order clause update first two _id in asc order (_id = 1,2)
@@ -387,7 +387,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update a valid collection with string value and != operator for multiple docs
@@ -433,7 +433,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 START TRANSACTION;
 -->endsql
 
@@ -480,9 +480,9 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 ROLLBACK;
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->sql
@@ -533,7 +533,7 @@ Mysqlx.Crud.Update {
 
 -->sql
 COMMIT;
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Update with non existing doc member
@@ -579,7 +579,7 @@ Mysqlx.Crud.Update {
 -->recvresult
 
 -->sql
-select * from maincoll;
+select doc from maincoll;
 -->endsql
 
 -->echo Invalid type of update for Document
@@ -677,7 +677,7 @@ Mysqlx.Crud.Update {
 
 -->echo # Remove already removed item
 -->sql
-select * from mysqlxcoll.maincoll;
+select doc from mysqlxcoll.maincoll;
 -->endsql
 Mysqlx.Crud.Update {
   collection {
@@ -697,7 +697,7 @@ Mysqlx.Crud.Update {
 }
 -->recvresult
 -->sql
-select * from mysqlxcoll.maincoll;
+select doc from mysqlxcoll.maincoll;
 -->endsql
 Mysqlx.Crud.Update {
   collection {
@@ -717,7 +717,7 @@ Mysqlx.Crud.Update {
 }
 -->recvresult
 -->sql
-select * from mysqlxcoll.maincoll;
+select doc from mysqlxcoll.maincoll;
 -->endsql
 -->echo # Can not remove immutable document member _id
 Mysqlx.Crud.Update {
@@ -738,7 +738,7 @@ Mysqlx.Crud.Update {
 }
 -->recverror 5053
 -->sql
-select * from mysqlxcoll.maincoll;
+select doc from mysqlxcoll.maincoll;
 -->endsql
 
 ## Cleanup

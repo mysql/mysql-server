@@ -1,0 +1,86 @@
+## Test of general functionality of modify_collection_options admin command.
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/resultset.xpl
+-->import assert_messages.macro
+-->import assert_notices.macro
+-->import validation_schema.macro
+
+-->macro Create_base_collection
+varlet %SCHEMA% type:SCALAR scalar{
+ type:V_STRING v_string{value:
+  "{\"type\": \"object\", \"properties\":
+  {\"latitude\": {\"type\": \"number\", \"minimum\": -90, \"maximum\": 90}},
+  \"required\": [\"latitude\"]}"}};
+-->callmacro Execute_admin_cmd_with_validation create_collection	test_coll	%SCHEMA%	"strict"
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "one", "latitude": 82}'
+-->callmacro Assert_notice_session_state	ROWS_AFFECTED	v_unsigned_int:1
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Insert_value_to_collection	test_coll	'{"_id": "two", "latitude": 49}'
+-->callmacro Assert_notice_session_state	ROWS_AFFECTED	v_unsigned_int:1
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->endmacro
+
+-->varlet %COMMAND% modify_collection_options
+
+-->echo
+-->echo
+-->echo ## I. Check command flow when using a modify_collection_options admin
+-->echo ##    command.
+-->echo #
+-->echo # 1. Modify existing schema with other valid schema.
+-->echo # 2. Modify existing schema with schema that does not match to existing
+-->echo #    collection content.
+
+-->echo
+-->echo #
+-->echo # I.1
+-->callmacro Create_base_collection
+varlet %NEW_SCHEMA% type:SCALAR scalar{
+ type:V_STRING v_string{value:
+  "{\"type\": \"object\", \"properties\":
+  {\"latitude\": {\"type\": \"number\", \"minimum\": -90, \"maximum\": 100}},
+  \"required\": [\"latitude\"]}"}};
+callmacro Execute_admin_cmd_with_validation %COMMAND%
+	test_coll
+	%NEW_SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Sql.StmtExecuteOk
+-->callmacro Drop_collection	test_coll
+
+-->echo
+-->echo #
+-->echo # I.2
+-->callmacro Create_base_collection
+varlet %NEW_SCHEMA% type:SCALAR scalar{
+ type:V_STRING v_string{value:
+  "{\"type\": \"object\", \"properties\":
+  {\"latitude\": {\"type\": \"number\", \"minimum\": -90, \"maximum\": 50}},
+  \"required\": [\"latitude\"]}"}};
+callmacro Execute_admin_cmd_with_validation %COMMAND%
+	test_coll
+	%NEW_SCHEMA%
+	"strict";
+-->callmacro Assert_message Mysqlx.Error
+-->callmacro Drop_collection	test_coll
+
+EOF
+
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=xtest
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

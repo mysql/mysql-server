@@ -19,7 +19,7 @@ create user abc@localhost identified by 'abc';
 
 
 -->stmtadmin ping	{"schema":"xtest"}
--->expecterror ER_X_CMD_NUM_ARGUMENTS
+-->expecterror ER_X_CMD_INVALID_ARGUMENT
 -->recvresult
 
 

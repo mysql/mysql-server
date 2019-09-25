@@ -13,11 +13,11 @@ RUN insert into mycoll (doc) values ('{"_id": "2", "name": "Joe2", "last_name": 
 RUN insert into mycoll (doc) values ('{"_id": "3", "name": "Joe2", "last_name": "Shmo"}')
 
 1 rows affected
-RUN select * from mycoll
-doc	_id
-{"_id": "1", "name": "Joe1"}	1
-{"_id": "2", "name": "Joe2", "last_name": "Smith"}	2
-{"_id": "3", "name": "Joe2", "last_name": "Shmo"}	3
+RUN select doc from mycoll
+doc
+{"_id": "1", "name": "Joe1"}
+{"_id": "2", "name": "Joe2", "last_name": "Smith"}
+{"_id": "3", "name": "Joe2", "last_name": "Shmo"}
 0 rows affected
 send Mysqlx.Crud.Delete {
   collection {
@@ -59,9 +59,9 @@ send Mysqlx.Crud.Delete {
 
 
 2 rows affected
-RUN select * from xtest.mycoll
-doc	_id
-{"_id": "2", "name": "Joe2", "last_name": "Smith"}	2
+RUN select doc from xtest.mycoll
+doc
+{"_id": "2", "name": "Joe2", "last_name": "Smith"}
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

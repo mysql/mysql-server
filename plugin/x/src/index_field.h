@@ -41,12 +41,12 @@ class Index_field : public Admin_command_index::Index_field_interface {
       ngs::Error_code *error);
 
   ngs::Error_code add_column_if_necessary(
-      ngs::Sql_session_interface *sql_session, const std::string &schema,
+      iface::Sql_session *sql_session, const std::string &schema,
       const std::string &collection, Query_string_builder *qb) const override;
   void add_field(Query_string_builder *qb) const override;
   bool is_required() const override { return m_is_required; }
 
-  bool is_column_exists(ngs::Sql_session_interface *sql_session,
+  bool is_column_exists(iface::Sql_session *sql_session,
                         const std::string &schema,
                         const std::string &collection,
                         ngs::Error_code *error) const;

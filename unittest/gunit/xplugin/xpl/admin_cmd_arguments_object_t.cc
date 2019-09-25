@@ -34,8 +34,7 @@ namespace test {
 
 class Admin_command_arguments_object_test : public ::testing::Test {
  public:
-  using Argument_appearance =
-      Admin_command_handler::Command_arguments::Appearance_type;
+  using Argument_appearance = iface::Admin_command_arguments::Appearance_type;
 
   Admin_command_arguments_object_test()
       : extractor(new Admin_command_arguments_object(args)) {}
@@ -48,20 +47,6 @@ class Admin_command_arguments_object_test : public ::testing::Test {
   Admin_command_arguments_object::List args;
   std::unique_ptr<Admin_command_arguments_object> extractor;
 };
-
-TEST_F(Admin_command_arguments_object_test, is_end_empty_args) {
-  ASSERT_TRUE(extractor->is_end());
-}
-
-TEST_F(Admin_command_arguments_object_test, is_end_empty_obj) {
-  set_arguments(Any::Object{});
-  ASSERT_TRUE(extractor->is_end());
-}
-
-TEST_F(Admin_command_arguments_object_test, is_end_one_val) {
-  set_arguments(Any::Object{{"first", Scalar(42)}});
-  ASSERT_FALSE(extractor->is_end());
-}
 
 TEST_F(Admin_command_arguments_object_test, end_empty_args) {
   ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->end());
@@ -86,7 +71,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg) {
           ->string_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ("bunny", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_no_obj) {
@@ -97,7 +81,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg_no_obj) {
           ->string_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_empty_arg) {
@@ -109,7 +92,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg_empty_arg) {
           ->string_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_no_arg) {
@@ -121,7 +103,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg_no_arg) {
           ->string_arg({"second"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_twice) {
@@ -135,7 +116,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg_twice) {
           .end());
   ASSERT_EQ("carrot", value1);
   ASSERT_EQ("bunny", value2);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_twice_no_arg) {
@@ -149,7 +129,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg_twice_no_arg) {
           .end());
   ASSERT_EQ("bunny", value1);
   ASSERT_EQ("none", value2);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_diff_type) {
@@ -161,7 +140,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg_diff_type) {
           ->string_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_arg_second_name) {
@@ -173,7 +151,6 @@ TEST_F(Admin_command_arguments_object_test, string_arg_second_name) {
                                      Argument_appearance::k_obligatory)
                         .end());
   ASSERT_EQ("bunny", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, sint_arg) {
@@ -184,7 +161,6 @@ TEST_F(Admin_command_arguments_object_test, sint_arg) {
       extractor->sint_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(42, value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, sint_arg_bad_val) {
@@ -195,7 +171,6 @@ TEST_F(Admin_command_arguments_object_test, sint_arg_bad_val) {
       extractor->sint_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(-666, value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, sint_arg_negative) {
@@ -206,7 +181,6 @@ TEST_F(Admin_command_arguments_object_test, sint_arg_negative) {
       extractor->sint_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(-42, value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, uint_arg) {
@@ -217,7 +191,6 @@ TEST_F(Admin_command_arguments_object_test, uint_arg) {
       extractor->uint_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(42, value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, uint_arg_negative) {
@@ -228,7 +201,6 @@ TEST_F(Admin_command_arguments_object_test, uint_arg_negative) {
       extractor->uint_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(666, value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, bool_arg_true) {
@@ -239,7 +211,6 @@ TEST_F(Admin_command_arguments_object_test, bool_arg_true) {
       extractor->bool_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_TRUE(value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, bool_arg_false) {
@@ -250,7 +221,6 @@ TEST_F(Admin_command_arguments_object_test, bool_arg_false) {
       extractor->bool_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_FALSE(value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional) {
@@ -261,7 +231,6 @@ TEST_F(Admin_command_arguments_object_test, optional) {
       extractor->string_arg({"first"}, &value, Argument_appearance::k_optional)
           .end());
   ASSERT_EQ("bunny", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional_second_name) {
@@ -273,7 +242,6 @@ TEST_F(Admin_command_arguments_object_test, optional_second_name) {
                                      Argument_appearance::k_optional)
                         .end());
   ASSERT_EQ("bunny", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional_empty_args) {
@@ -284,7 +252,6 @@ TEST_F(Admin_command_arguments_object_test, optional_empty_args) {
       extractor->string_arg({"first"}, &value, Argument_appearance::k_optional)
           .end());
   ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional_no_obj) {
@@ -294,7 +261,6 @@ TEST_F(Admin_command_arguments_object_test, optional_no_obj) {
       extractor->string_arg({"first"}, &value, Argument_appearance::k_optional)
           .end());
   ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional_second) {
@@ -309,7 +275,6 @@ TEST_F(Admin_command_arguments_object_test, optional_second) {
           .end());
   ASSERT_EQ("bunny", value1);
   ASSERT_EQ(666, value2);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional_inside) {
@@ -326,7 +291,6 @@ TEST_F(Admin_command_arguments_object_test, optional_inside) {
   ASSERT_EQ("bunny", value1);
   ASSERT_EQ("none", value2);
   ASSERT_EQ(42, value3);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, optional_inside_second_name) {
@@ -344,30 +308,27 @@ TEST_F(Admin_command_arguments_object_test, optional_inside_second_name) {
   ASSERT_EQ("bunny", value1);
   ASSERT_EQ("none", value2);
   ASSERT_EQ(42, value3);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, end_to_many_args) {
   set_arguments(Any::Object{{"first", "bunny"}, {"third", 42u}});
   std::string value("none");
   ASSERT_ERROR_CODE(
-      ER_X_CMD_NUM_ARGUMENTS,
+      ER_X_CMD_INVALID_ARGUMENT,
       extractor
           ->string_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ("bunny", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, end_to_many_args_optional) {
   set_arguments(Any::Object{{"first", "bunny"}, {"third", 42u}});
   std::string value("none");
   ASSERT_ERROR_CODE(
-      ER_X_CMD_NUM_ARGUMENTS,
+      ER_X_CMD_INVALID_ARGUMENT,
       extractor->string_arg({"second"}, &value, Argument_appearance::k_optional)
           .end());
   ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_list_one_value) {
@@ -379,7 +340,6 @@ TEST_F(Admin_command_arguments_object_test, string_list_one_value) {
           ->string_list({"first"}, &values, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(std::vector<std::string>{"bunny"}, values);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_list_array_one) {
@@ -391,7 +351,6 @@ TEST_F(Admin_command_arguments_object_test, string_list_array_one) {
           ->string_list({"first"}, &values, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(std::vector<std::string>{"bunny"}, values);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_list_array) {
@@ -404,7 +363,6 @@ TEST_F(Admin_command_arguments_object_test, string_list_array) {
           .end());
   std::vector<std::string> expect{"bunny", "carrot"};
   ASSERT_EQ(expect, values);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_list_array_mix) {
@@ -421,7 +379,6 @@ TEST_F(Admin_command_arguments_object_test, string_list_array_mix) {
   std::vector<std::string> expect{"bunny", "carrot"};
   ASSERT_EQ(expect, values1);
   ASSERT_EQ(42u, value2);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_list_empty) {
@@ -434,7 +391,6 @@ TEST_F(Admin_command_arguments_object_test, string_list_empty) {
           ->string_list({"first"}, &values, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(std::vector<std::string>(), values);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, string_list_bad_arg) {
@@ -447,20 +403,18 @@ TEST_F(Admin_command_arguments_object_test, string_list_bad_arg) {
           ->string_list({"first"}, &values, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(std::vector<std::string>(), values);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, object_list_one_value) {
   set_arguments(Any::Object{{"first", Any::Object{{"second", 42u}}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values,
                                       Argument_appearance::k_obligatory, 0)
                         .end());
   ASSERT_EQ(1u, values.size());
-  ASSERT_TRUE(extractor->is_end());
   uint64_t value2 = 666;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
@@ -468,21 +422,19 @@ TEST_F(Admin_command_arguments_object_test, object_list_one_value) {
           ->uint_arg({"second"}, &value2, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(42u, value2);
-  ASSERT_TRUE(values[0]->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, object_list_array_one) {
   set_arguments(
       Any::Object{{"first", Any::Array{Any::Object{{"second", 42u}}}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values,
                                       Argument_appearance::k_obligatory, 0)
                         .end());
   ASSERT_EQ(1u, values.size());
-  ASSERT_TRUE(extractor->is_end());
   uint64_t value2 = 666;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
@@ -490,7 +442,6 @@ TEST_F(Admin_command_arguments_object_test, object_list_array_one) {
           ->uint_arg({"second"}, &value2, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(42u, value2);
-  ASSERT_TRUE(values[0]->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, object_list_array) {
@@ -498,14 +449,13 @@ TEST_F(Admin_command_arguments_object_test, object_list_array) {
       Any::Object{{"first", Any::Array{Any::Object{{"second", 42u}},
                                        Any::Object{{"third", -44}}}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values,
                                       Argument_appearance::k_obligatory, 0)
                         .end());
   ASSERT_EQ(2u, values.size());
-  ASSERT_TRUE(extractor->is_end());
   uint64_t value1 = 666;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
@@ -513,7 +463,6 @@ TEST_F(Admin_command_arguments_object_test, object_list_array) {
           ->uint_arg({"second"}, &value1, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(42u, value1);
-  ASSERT_TRUE(values[0]->is_end());
   int64_t value2 = 666;
   ASSERT_ERROR_CODE(
       ER_X_SUCCESS,
@@ -521,34 +470,31 @@ TEST_F(Admin_command_arguments_object_test, object_list_array) {
           ->sint_arg({"third"}, &value2, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(-44, value2);
-  ASSERT_TRUE(values[1]->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, object_list_empty) {
   set_arguments(Any::Object{{"first", Any::Array{}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
                     extractor
                         ->object_list({"first"}, &values,
                                       Argument_appearance::k_obligatory, 0)
                         .end());
   ASSERT_EQ(0u, values.size());
-  ASSERT_TRUE(extractor->is_end());
 }
 
 TEST_F(Admin_command_arguments_object_test, object_list_array_bad_arg) {
   set_arguments(Any::Object{
       {"first", Any::Array{Any::Object{{"second", 42u}}, "bunny"}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
                     extractor
                         ->object_list({"first"}, &values,
                                       Argument_appearance::k_obligatory, 0)
                         .end());
   ASSERT_EQ(0u, values.size());
-  ASSERT_TRUE(extractor->is_end());
 }
 
 struct Param_docpath_arg {
@@ -570,7 +516,6 @@ TEST_P(Admin_command_arguments_docpath_test, docpath_arg) {
           ->docpath_arg({"first"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ(param.expect_error == ER_X_SUCCESS ? param.path : "none", value);
-  ASSERT_TRUE(extractor->is_end());
 }
 
 Param_docpath_arg docpath_arg_param[] = {
@@ -761,7 +706,7 @@ TEST_F(Admin_command_arguments_object_test,
 TEST_F(Admin_command_arguments_object_test,
        object_arg_error_msg_invalid_value) {
   set_arguments(Any::Object{{"first", "bunny"}});
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR(INVALID_VALUE_ERROR("first"),
                extractor
                    ->object_list({"first"}, &values,
@@ -773,7 +718,7 @@ TEST_F(Admin_command_arguments_object_test,
 TEST_F(Admin_command_arguments_object_test,
        object_arg_string_arg_error_msg_invalid_value) {
   set_arguments(Any::Object{{"first", Any::Object{{"second", 42u}}}});
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values,
@@ -794,7 +739,7 @@ TEST_F(Admin_command_arguments_object_test,
        object_arg_object_arg_string_arg_error_msg_invalid_value) {
   set_arguments(Any::Object{
       {"first", Any::Object{{"second", Any::Object{{"third", 42u}}}}}});
-  std::vector<Admin_command_arguments_object::Command_arguments *> values1;
+  std::vector<iface::Admin_command_arguments *> values1;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values1,
@@ -802,7 +747,7 @@ TEST_F(Admin_command_arguments_object_test,
                         .end());
   ASSERT_FALSE(values1.empty());
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values2;
+  std::vector<iface::Admin_command_arguments *> values2;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     values1[0]
                         ->object_list({"second"}, &values2,
@@ -822,7 +767,7 @@ TEST_F(Admin_command_arguments_object_test,
 TEST_F(Admin_command_arguments_object_test,
        object_arg_string_arg_error_msg_invalid_number) {
   set_arguments(Any::Object{{"first", Any::Object{{"second", "bunny"}}}});
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values,
@@ -843,7 +788,7 @@ TEST_F(Admin_command_arguments_object_test,
        object_list_string_arg_error_msg_invalid_value) {
   set_arguments(
       Any::Object{{"first", Any::Array{Any::Object{{"second", 42u}}}}});
-  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  std::vector<iface::Admin_command_arguments *> values;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values,
@@ -865,7 +810,7 @@ TEST_F(Admin_command_arguments_object_test,
   set_arguments(Any::Object{
       {"first",
        Any::Array{Any::Object{{"second", Any::Object{{"third", 42u}}}}}}});
-  std::vector<Admin_command_arguments_object::Command_arguments *> values1;
+  std::vector<iface::Admin_command_arguments *> values1;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values1,
@@ -873,7 +818,7 @@ TEST_F(Admin_command_arguments_object_test,
                         .end());
   ASSERT_FALSE(values1.empty());
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values2;
+  std::vector<iface::Admin_command_arguments *> values2;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     values1[0]
                         ->object_list({"second"}, &values2,
@@ -895,7 +840,7 @@ TEST_F(Admin_command_arguments_object_test,
   set_arguments(Any::Object{
       {"first", Any::Array{Any::Object{
                     {"second", Any::Array{Any::Object{{"third", 42u}}}}}}}});
-  std::vector<Admin_command_arguments_object::Command_arguments *> values1;
+  std::vector<iface::Admin_command_arguments *> values1;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor
                         ->object_list({"first"}, &values1,
@@ -903,7 +848,7 @@ TEST_F(Admin_command_arguments_object_test,
                         .end());
   ASSERT_FALSE(values1.empty());
 
-  std::vector<Admin_command_arguments_object::Command_arguments *> values2;
+  std::vector<iface::Admin_command_arguments *> values2;
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     values1[0]
                         ->object_list({"second"}, &values2,
@@ -918,6 +863,289 @@ TEST_F(Admin_command_arguments_object_test,
           ->string_arg({"third"}, &value, Argument_appearance::k_obligatory)
           .end());
   ASSERT_EQ("none", value);
+}
+
+TEST_F(Admin_command_arguments_object_test, check_size_empty) {
+  set_arguments(Any::Object{});
+  ASSERT_EQ(extractor->size(), 0);
+}
+
+TEST_F(Admin_command_arguments_object_test, check_size_not_empty) {
+  set_arguments(Any::Object{{"first", Any::Object{}},
+                            {"second", Any::Object{}},
+                            {"third", Any::Object{}}});
+  ASSERT_EQ(extractor->size(), 3);
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_scalar) {
+  set_arguments(Any::Object{{"first", Any{42}}});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->any_arg({"first"}, &value, Argument_appearance::k_obligatory)
+          .end());
+  ASSERT_TRUE(value.has_scalar());
+  ASSERT_EQ(42, value.scalar().v_signed_int());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_array) {
+  set_arguments(Any::Object{{"first", Any::Array{102, 42}}});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->any_arg({"first"}, &value, Argument_appearance::k_obligatory)
+          .end());
+  ASSERT_TRUE(value.has_array());
+  ASSERT_TRUE(value.array().value(0).has_scalar());
+  ASSERT_EQ(102, value.array().value(0).scalar().v_signed_int());
+  ASSERT_TRUE(value.array().value(1).has_scalar());
+  ASSERT_EQ(42, value.array().value(1).scalar().v_signed_int());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_object) {
+  set_arguments(Any::Object{{"first", Any::Object{{"second", 42}}}});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->any_arg({"first"}, &value, Argument_appearance::k_obligatory)
+          .end());
+  ASSERT_TRUE(value.has_obj());
+  ASSERT_TRUE(value.obj().fld(0).has_key());
+  ASSERT_EQ("second", value.obj().fld(0).key());
+  ASSERT_TRUE(value.obj().fld(0).has_value());
+  ASSERT_TRUE(value.obj().fld(0).value().has_scalar());
+  ASSERT_EQ(42, value.obj().fld(0).value().scalar().v_signed_int());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_all_of) {
+  set_arguments(
+      Any::Object{{"first", Any{42}}, {"second", Any::Array{111, 112}}});
+  ::Mysqlx::Datatypes::Any first_val, second_val;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor
+          ->any_arg({"first"}, &first_val, Argument_appearance::k_obligatory)
+          .any_arg({"second"}, &second_val, Argument_appearance::k_obligatory)
+          .end());
+  ASSERT_TRUE(first_val.has_scalar());
+  ASSERT_EQ(42, first_val.scalar().v_signed_int());
+  ASSERT_TRUE(second_val.has_array());
+  ASSERT_TRUE(second_val.array().value(0).has_scalar());
+  ASSERT_EQ(111, second_val.array().value(0).scalar().v_signed_int());
+  ASSERT_TRUE(second_val.array().value(1).has_scalar());
+  ASSERT_EQ(112, second_val.array().value(1).scalar().v_signed_int());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_one_of) {
+  set_arguments(
+      Any::Object{{"first", Any{42}}, {"second", Any::Array{111, 112}}});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_INVALID_ARGUMENT,
+      extractor->any_arg({"first"}, &value, Argument_appearance::k_obligatory)
+          .end());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_none_of) {
+  set_arguments(Any::Object{{"first", Any{42}}});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_NUM_ARGUMENTS,
+      extractor->any_arg({"second"}, &value, Argument_appearance::k_obligatory)
+          .end());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_wrong_type) {
+  set_arguments(Any{44});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_NUM_ARGUMENTS,
+      extractor->any_arg({"first"}, &value, Argument_appearance::k_obligatory)
+          .end());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_optional) {
+  set_arguments(Any::Object{{"first", Any{44}}});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->any_arg({"first"}, &value, Argument_appearance::k_optional)
+          .end());
+  ASSERT_TRUE(value.has_scalar());
+  ASSERT_EQ(44, value.scalar().v_signed_int());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_optional_empty_set) {
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->any_arg({"first"}, &value, Argument_appearance::k_optional)
+          .end());
+  ASSERT_FALSE(value.has_scalar());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_optional_not_in_set) {
+  set_arguments(Any::Object{{"first", Any{44}}});
+  ::Mysqlx::Datatypes::Any value;
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_INVALID_ARGUMENT,
+      extractor->any_arg({"second"}, &value, Argument_appearance::k_optional)
+          .end());
+}
+
+TEST_F(Admin_command_arguments_object_test, any_arg_optional_one_of) {
+  set_arguments(Any::Object{
+      {"first", Any{42}}, {"second", Any::Array{111, 112}}, {"third", Any{3}}});
+  ::Mysqlx::Datatypes::Any first_val, second_val, third_val, fourth_val;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor
+          ->any_arg({"first"}, &first_val, Argument_appearance::k_obligatory)
+          .any_arg({"second"}, &second_val, Argument_appearance::k_obligatory)
+          .any_arg({"third"}, &third_val, Argument_appearance::k_obligatory)
+          .any_arg({"not_in_set"}, &fourth_val, Argument_appearance::k_optional)
+          .end());
+  ASSERT_TRUE(first_val.has_scalar());
+  ASSERT_EQ(42, first_val.scalar().v_signed_int());
+  ASSERT_TRUE(second_val.has_array());
+  ASSERT_TRUE(second_val.array().value(0).has_scalar());
+  ASSERT_EQ(111, second_val.array().value(0).scalar().v_signed_int());
+  ASSERT_TRUE(second_val.array().value(1).has_scalar());
+  ASSERT_EQ(112, second_val.array().value(1).scalar().v_signed_int());
+  ASSERT_TRUE(third_val.has_scalar());
+  ASSERT_EQ(3, third_val.scalar().v_signed_int());
+  ASSERT_FALSE(fourth_val.has_scalar());
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg) {
+  set_arguments(Any::Object{{"first", Any::Object{{"second", 42}}}});
+  ::Mysqlx::Datatypes::Object value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor
+          ->object_arg({"first"}, &value, Argument_appearance::k_obligatory)
+          .end());
+  ASSERT_TRUE(value.fld(0).has_key());
+  ASSERT_EQ("second", value.fld(0).key());
+  ASSERT_TRUE(value.fld(0).has_value());
+  ASSERT_TRUE(value.fld(0).value().has_scalar());
+  ASSERT_EQ(42, value.fld(0).value().scalar().v_signed_int());
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg_all_of) {
+  set_arguments(Any::Object{{"first", Any::Object{{"foo", 42}}},
+                            {"second", Any::Object{{"bar", 43}}},
+                            {"third", Any::Object{{"baz", 44}}}});
+  ::Mysqlx::Datatypes::Object value1, value2, value3;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor
+          ->object_arg({"first"}, &value1, Argument_appearance::k_obligatory)
+          .object_arg({"second"}, &value2, Argument_appearance::k_obligatory)
+          .object_arg({"third"}, &value3, Argument_appearance::k_obligatory)
+          .end());
+  ASSERT_TRUE(value1.fld(0).has_key());
+  ASSERT_EQ("foo", value1.fld(0).key());
+  ASSERT_TRUE(value1.fld(0).has_value());
+  ASSERT_TRUE(value1.fld(0).value().has_scalar());
+  ASSERT_EQ(42, value1.fld(0).value().scalar().v_signed_int());
+
+  ASSERT_TRUE(value2.fld(0).has_key());
+  ASSERT_EQ("bar", value2.fld(0).key());
+  ASSERT_TRUE(value2.fld(0).has_value());
+  ASSERT_TRUE(value2.fld(0).value().has_scalar());
+  ASSERT_EQ(43, value2.fld(0).value().scalar().v_signed_int());
+
+  ASSERT_TRUE(value3.fld(0).has_key());
+  ASSERT_EQ("baz", value3.fld(0).key());
+  ASSERT_TRUE(value3.fld(0).has_value());
+  ASSERT_TRUE(value3.fld(0).value().has_scalar());
+  ASSERT_EQ(44, value3.fld(0).value().scalar().v_signed_int());
+
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg_one_of) {
+  set_arguments(Any::Object{{"first", Any::Object{{"foo", 42}}},
+                            {"second", Any::Object{{"bar", 43}}},
+                            {"third", Any::Object{{"baz", 44}}}});
+  ::Mysqlx::Datatypes::Object value1, value2;
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_INVALID_ARGUMENT,
+      extractor
+          ->object_arg({"first"}, &value1, Argument_appearance::k_obligatory)
+          .object_arg({"third"}, &value2, Argument_appearance::k_obligatory)
+          .end());
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg_wrong_type) {
+  set_arguments(Any{44});
+  ::Mysqlx::Datatypes::Object value;
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_NUM_ARGUMENTS,
+      extractor
+          ->object_arg({"first"}, &value, Argument_appearance::k_obligatory)
+          .end());
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg_optional) {
+  set_arguments(Any::Object{{"first", Any::Object{{"foo", 42}}}});
+  ::Mysqlx::Datatypes::Object value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_arg({"first"}, &value, Argument_appearance::k_optional)
+          .end());
+
+  ASSERT_TRUE(value.fld(0).has_key());
+  ASSERT_EQ("foo", value.fld(0).key());
+  ASSERT_TRUE(value.fld(0).has_value());
+  ASSERT_TRUE(value.fld(0).value().has_scalar());
+  ASSERT_EQ(42, value.fld(0).value().scalar().v_signed_int());
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg_optional_empty_set) {
+  ::Mysqlx::Datatypes::Object value;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_arg({"first"}, &value, Argument_appearance::k_optional)
+          .end());
+
+  ASSERT_EQ(0, value.fld_size());
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg_optional_not_in_set) {
+  set_arguments(Any::Object{{"first", Any::Object{{"foo", 42}}}});
+  ::Mysqlx::Datatypes::Object value;
+  ASSERT_ERROR_CODE(
+      ER_X_CMD_INVALID_ARGUMENT,
+      extractor->object_arg({"second"}, &value, Argument_appearance::k_optional)
+          .end());
+}
+
+TEST_F(Admin_command_arguments_object_test, object_arg_optional_one_of) {
+  set_arguments(Any::Object{{"first", Any::Object{{"foo", 42}}},
+                            {"second", Any::Object{{"bar", 43}}}});
+
+  ::Mysqlx::Datatypes::Object value1, value2, value3;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor
+          ->object_arg({"first"}, &value1, Argument_appearance::k_obligatory)
+          .object_arg({"second"}, &value2, Argument_appearance::k_obligatory)
+          .object_arg({"not_in_set"}, &value3, Argument_appearance::k_optional)
+          .end());
+
+  ASSERT_TRUE(value1.fld(0).has_key());
+  ASSERT_EQ("foo", value1.fld(0).key());
+  ASSERT_TRUE(value1.fld(0).has_value());
+  ASSERT_TRUE(value1.fld(0).value().has_scalar());
+  ASSERT_EQ(42, value1.fld(0).value().scalar().v_signed_int());
+
+  ASSERT_TRUE(value2.fld(0).has_key());
+  ASSERT_EQ("bar", value2.fld(0).key());
+  ASSERT_TRUE(value2.fld(0).has_value());
+  ASSERT_TRUE(value2.fld(0).value().has_scalar());
+  ASSERT_EQ(43, value2.fld(0).value().scalar().v_signed_int());
+
 }
 
 }  // namespace test

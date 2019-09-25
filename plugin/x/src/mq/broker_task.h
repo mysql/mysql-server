@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,18 +20,20 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PLUGIN_X_SRC_MQ_BORKER_H_
-#define PLUGIN_X_SRC_MQ_BORKER_H_
+#ifndef PLUGIN_X_SRC_MQ_BROKER_TASK_H_
+#define PLUGIN_X_SRC_MQ_BROKER_TASK_H_
 
-#include "my_inttypes.h"
+#include <cstdint>
+#include <memory>
+#include <string>
 
-#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
+#include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/mq/broker_context.h"
 
 namespace xpl {
 
-class Broker_task : public ::ngs::Server_task_interface {
+class Broker_task : public iface::Server_task {
  public:
   using Notice_descriptor = ::ngs::Notice_descriptor;
   using Notice_type = ngs::Notice_type;
@@ -39,7 +41,7 @@ class Broker_task : public ::ngs::Server_task_interface {
   using State = Broker_context::State;
 
  public:
-  Broker_task(std::shared_ptr<Broker_context> context);
+  explicit Broker_task(std::shared_ptr<Broker_context> context);
 
   bool prepare(Task_context *context) override;
   void stop(const Stop_cause) override;
@@ -63,4 +65,4 @@ class Broker_task : public ::ngs::Server_task_interface {
 
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_MQ_BORKER_H_
+#endif  // PLUGIN_X_SRC_MQ_BROKER_TASK_H_

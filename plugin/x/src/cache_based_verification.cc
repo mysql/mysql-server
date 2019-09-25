@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#include "sha2.h"  // NOLINT(build/include_subdir)
+
 #include "plugin/x/src/cache_based_verification.h"
 #include "plugin/x/src/sha256_password_cache.h"
-#include "sha2.h"
 
 namespace xpl {
 
@@ -36,9 +37,9 @@ namespace xpl {
   @param[in] str Input buffer; 'str' and 'to' may not overlap;
   @param[in] len length for character string; len % 2 == 0
  */
-void Cache_based_verification::hex2octet(std::uint8_t *to, const char *str,
-                                         std::uint32_t len) const {
-  auto char_val = [](std::uint8_t X) {
+void Cache_based_verification::hex2octet(uint8_t *to, const char *str,
+                                         uint32_t len) const {
+  auto char_val = [](uint8_t X) {
     return (X >= '0' && X <= '9'
                 ? X - '0'
                 : X >= 'A' && X <= 'Z' ? X - 'A' + 10 : X - 'a' + 10);
@@ -76,7 +77,7 @@ bool Cache_based_verification::verify_authentication_string(
   auto stored_hash = m_sha256_password_cache->get_entry(user, host);
   if (!stored_hash.first) return false;
 
-  std::uint8_t client_string[SHA256_DIGEST_LENGTH];
+  uint8_t client_string[SHA256_DIGEST_LENGTH];
   hex2octet(client_string, client_string_hex.c_str(), SHA256_DIGEST_LENGTH * 2);
 
   sha2_password::Validate_scramble validate_scramble(

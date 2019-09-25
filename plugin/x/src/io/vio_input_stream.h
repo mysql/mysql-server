@@ -29,7 +29,7 @@
 #include <my_inttypes.h>
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "plugin/x/src/interface/vio.h"
 
 namespace xpl {
 
@@ -38,8 +38,7 @@ class Vio_input_stream : public google::protobuf::io::ZeroCopyInputStream {
   using gint64 = google::protobuf::int64;
 
  public:
-  explicit Vio_input_stream(
-      const std::shared_ptr<ngs::Vio_interface> &connection);
+  explicit Vio_input_stream(const std::shared_ptr<iface::Vio> &connection);
   ~Vio_input_stream() override;
 
   bool was_io_error() const;
@@ -63,7 +62,7 @@ class Vio_input_stream : public google::protobuf::io::ZeroCopyInputStream {
  private:
   bool read_more_data();
 
-  std::shared_ptr<ngs::Vio_interface> m_connection;
+  std::shared_ptr<iface::Vio> m_connection;
 
   // Internal buffer
   char *m_buffer;

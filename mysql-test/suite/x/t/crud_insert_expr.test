@@ -157,7 +157,7 @@ Mysqlx.Crud.Insert {
 -->sql
 SELECT hex("one");
 SELECT hex("two");
-SELECT * FROM xtest.mycoll;
+SELECT doc, _id FROM xtest.mycoll;
 -->endsql
 
 ## Cleanup
