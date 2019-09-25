@@ -25,6 +25,8 @@
 // Implements
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
+#include <sstream>
+
 #include "sql/sql_class.h"                            // THD
 #include "sql/sql_table.h"                            // build_table_filename
 #include "storage/ndb/include/ndbapi/Ndb.hpp"         // Ndb
@@ -32,8 +34,9 @@
 #include "storage/ndb/plugin/ndb_dd_client.h"         // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"  // ndb_dd_disk_data_get_object_id_and_version
 #include "storage/ndb/plugin/ndb_dd_table.h"  // ndb_dd_table_get_object_id_and_version
-#include "storage/ndb/plugin/ndb_log.h"          // ndb_log_*
-#include "storage/ndb/plugin/ndb_metadata.h"     // Ndb_metadata
+#include "storage/ndb/plugin/ndb_local_connection.h"  // Ndb_local_connection
+#include "storage/ndb/plugin/ndb_log.h"               // ndb_log_*
+#include "storage/ndb/plugin/ndb_metadata.h"          // Ndb_metadata
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"  // ndb_logfile_group_exists
 #include "storage/ndb/plugin/ndb_schema_dist.h"  // Ndb_schema_dist
 #include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
@@ -41,39 +44,48 @@
 #include "storage/ndb/plugin/ndb_thd.h"          // get_thd_ndb
 #include "storage/ndb/plugin/ndb_thd_ndb.h"      // Thd_ndb
 
-const char *Ndb_metadata_sync::object_type_str(
-    object_detected_type type) const {
-  switch (type) {
-    case LOGFILE_GROUP_OBJECT:
-      return "LOGFILE GROUP";
-    case TABLESPACE_OBJECT:
-      return "TABLESPACE";
-    case TABLE_OBJECT:
-      return "TABLE";
-    default:
+std::string Ndb_metadata_sync::object_type_and_name_str(
+    const Detected_object &object) const {
+  std::stringstream type_name_str;
+  switch (object.m_type) {
+    case LOGFILE_GROUP_OBJECT: {
+      type_name_str << "Logfile group "
+                    << "'" << object.m_name << "'";
+      break;
+    }
+    case TABLESPACE_OBJECT: {
+      type_name_str << "Tablespace "
+                    << "'" << object.m_name << "'";
+      break;
+    }
+    case SCHEMA_OBJECT: {
+      type_name_str << "Schema "
+                    << "'" << object.m_schema_name << "'";
+      break;
+    }
+    case TABLE_OBJECT: {
+      type_name_str << "Table "
+                    << "'" << object.m_schema_name << "." << object.m_name
+                    << "'";
+      break;
+    }
+    default: {
       DBUG_ASSERT(false);
-      return "";
+      type_name_str << "";
+    }
   }
+  return type_name_str.str();
 }
 
 bool Ndb_metadata_sync::object_sync_pending(
     const Detected_object &object) const {
   for (const auto &detected_object : m_objects) {
     if (detected_object.m_type == object.m_type &&
-        detected_object.m_db_name == object.m_db_name &&
+        detected_object.m_schema_name == object.m_schema_name &&
         detected_object.m_name == object.m_name) {
-      if (object.m_type == object_detected_type::TABLE_OBJECT) {
-        ndb_log_info(
-            "Object '%s.%s' of type %s is already in the queue of "
-            "objects waiting to be synchronized",
-            object.m_db_name.c_str(), object.m_name.c_str(),
-            object_type_str(object.m_type));
-      } else {
-        ndb_log_info(
-            "Object '%s' of type %s is already in the queue of objects"
-            " waiting to be synchronized",
-            object.m_name.c_str(), object_type_str(object.m_type));
-      }
+      ndb_log_info(
+          "%s is already in the queue of objects waiting to be synchronized",
+          object_type_and_name_str(detected_object).c_str());
       return true;
     }
   }
@@ -85,20 +97,11 @@ bool Ndb_metadata_sync::object_blacklisted(
   std::lock_guard<std::mutex> guard(m_blacklist_mutex);
   for (const auto &blacklisted_object : m_blacklist) {
     if (blacklisted_object.m_type == object.m_type &&
-        blacklisted_object.m_db_name == object.m_db_name &&
+        blacklisted_object.m_schema_name == object.m_schema_name &&
         blacklisted_object.m_name == object.m_name) {
-      if (object.m_type == object_detected_type::TABLE_OBJECT) {
-        ndb_log_info(
-            "Object '%s.%s' of type %s is currently blacklisted and needs to "
-            "be synced manually",
-            object.m_db_name.c_str(), object.m_name.c_str(),
-            object_type_str(object.m_type));
-      } else {
-        ndb_log_info(
-            "Object '%s' of type %s is currently blacklisted and needs to be "
-            "synced manually",
-            object.m_name.c_str(), object_type_str(object.m_type));
-      }
+      ndb_log_info(
+          "%s is currently blacklisted and needs to be synced manually",
+          object_type_and_name_str(blacklisted_object).c_str());
       return true;
     }
   }
@@ -135,6 +138,20 @@ bool Ndb_metadata_sync::add_tablespace(const std::string &tablespace_name) {
   return true;
 }
 
+bool Ndb_metadata_sync::add_schema(const std::string &schema_name) {
+  std::lock_guard<std::mutex> guard(m_objects_mutex);
+  const Detected_object obj(schema_name, "",
+                            object_detected_type::SCHEMA_OBJECT);
+  if (object_sync_pending(obj) || object_blacklisted(obj)) {
+    return false;
+  }
+  m_objects.emplace_back(obj);
+  ndb_log_info(
+      "Schema '%s' added to queue of objects waiting to be synchronized",
+      schema_name.c_str());
+  return true;
+}
+
 bool Ndb_metadata_sync::add_table(const std::string &schema_name,
                                   const std::string &table_name) {
   std::lock_guard<std::mutex> guard(m_objects_mutex);
@@ -156,11 +173,12 @@ bool Ndb_metadata_sync::object_queue_empty() const {
   return m_objects.empty();
 }
 
-void Ndb_metadata_sync::get_next_object(std::string &db_name, std::string &name,
+void Ndb_metadata_sync::get_next_object(std::string &schema_name,
+                                        std::string &name,
                                         object_detected_type &type) {
   std::lock_guard<std::mutex> guard(m_objects_mutex);
   const Detected_object obj = m_objects.front();
-  db_name = obj.m_db_name;
+  schema_name = obj.m_schema_name;
   name = obj.m_name;
   type = obj.m_type;
   m_objects.pop_front();
@@ -181,26 +199,25 @@ int show_ndb_metadata_blacklist_size(THD *, SHOW_VAR *var, char *) {
   return 0;
 }
 
-void Ndb_metadata_sync::add_object_to_blacklist(const std::string &db_name,
+void Ndb_metadata_sync::add_object_to_blacklist(const std::string &schema_name,
                                                 const std::string &name,
                                                 object_detected_type type) {
   std::lock_guard<std::mutex> guard(m_blacklist_mutex);
-  const Detected_object obj(db_name, name, type);
+  const Detected_object obj(schema_name, name, type);
   m_blacklist.emplace_back(obj);
-  ndb_log_info("Object '%s' of type %s added to blacklist", name.c_str(),
-               object_type_str(type));
+  ndb_log_info("%s added to blacklist", object_type_and_name_str(obj).c_str());
   increment_blacklist_size();
 }
 
 bool Ndb_metadata_sync::get_blacklist_object_for_validation(
-    std::string &db_name, std::string &name, object_detected_type &type) {
+    std::string &schema_name, std::string &name, object_detected_type &type) {
   std::lock_guard<std::mutex> guard(m_blacklist_mutex);
   for (Detected_object &obj : m_blacklist) {
     switch (obj.m_validation_state) {
       case object_validation_state::PENDING: {
         // Found object pending validation. Retrieve details and mark the object
         // as being validated
-        db_name = obj.m_db_name;
+        schema_name = obj.m_schema_name;
         name = obj.m_name;
         type = obj.m_type;
         obj.m_validation_state = object_validation_state::IN_PROGRESS;
@@ -224,7 +241,7 @@ bool Ndb_metadata_sync::get_blacklist_object_for_validation(
 }
 
 bool Ndb_metadata_sync::check_blacklist_object_mismatch(
-    THD *thd, const std::string &db_name, const std::string &name,
+    THD *thd, const std::string &schema_name, const std::string &name,
     object_detected_type type) const {
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   Ndb *ndb = thd_ndb->ndb;
@@ -263,13 +280,11 @@ bool Ndb_metadata_sync::check_blacklist_object_mismatch(
             "will be removed from blacklist",
             name.c_str());
         return false;
-      } else {
-        ndb_log_info(
-            "Mismatch still exists, logfile group '%s' remains "
-            "blacklisted",
-            name.c_str());
-        return true;
       }
+      ndb_log_info(
+          "Mismatch still exists, logfile group '%s' remains blacklisted",
+          name.c_str());
+      return true;
     } break;
     case object_detected_type::TABLESPACE_OBJECT: {
       bool exists_in_NDB;
@@ -303,38 +318,71 @@ bool Ndb_metadata_sync::check_blacklist_object_mismatch(
             "will be removed from blacklist",
             name.c_str());
         return false;
-      } else {
-        ndb_log_info(
-            "Mismatch still exists, tablespace '%s' remains "
-            "blacklisted",
-            name.c_str());
-        return true;
       }
+      ndb_log_info("Mismatch still exists, tablespace '%s' remains blacklisted",
+                   name.c_str());
+      return true;
     } break;
-    case object_detected_type::TABLE_OBJECT: {
-      bool exists_in_NDB;
-      if (!ndb_table_exists(dict, db_name, name, exists_in_NDB)) {
+    case object_detected_type::SCHEMA_OBJECT: {
+      if (!dd_client.mdl_lock_schema(schema_name.c_str())) {
         ndb_log_info(
-            "Failed to determine if table '%s.%s' exists in NDB, "
-            "object remains blacklisted",
-            db_name.c_str(), name.c_str());
-        return true;
-      }
-
-      if (!dd_client.mdl_lock_table(db_name.c_str(), name.c_str())) {
-        ndb_log_info(
-            "Failed to acquire MDL on table '%s.%s', object "
-            "remains blacklisted",
-            db_name.c_str(), name.c_str());
+            "Failed to acquire MDL on schema '%s', object remains blacklisted",
+            schema_name.c_str());
         return true;
       }
       bool exists_in_DD;
-      if (!dd_client.table_exists(db_name.c_str(), name.c_str(),
+      if (!dd_client.schema_exists(schema_name.c_str(), &exists_in_DD)) {
+        ndb_log_info(
+            "Failed to determine if schema '%s' exists in DD, object remains "
+            "blacklisted",
+            schema_name.c_str());
+        return true;
+      }
+
+      bool exists_in_NDB;
+      if (!ndb_database_exists(dict, schema_name, exists_in_NDB)) {
+        ndb_log_info(
+            "Failed to determine if schema '%s' exists in NDB, object remains "
+            "blacklisted",
+            schema_name.c_str());
+        return true;
+      }
+
+      if (exists_in_NDB && !exists_in_DD) {
+        ndb_log_info("Mismatch still exists, schema '%s' remains blacklisted",
+                     schema_name.c_str());
+        return true;
+      }
+      ndb_log_info(
+          "Mismatch doesn't exist anymore, schema '%s' will be removed from "
+          "blacklist",
+          schema_name.c_str());
+      return false;
+    } break;
+    case object_detected_type::TABLE_OBJECT: {
+      bool exists_in_NDB;
+      if (!ndb_table_exists(dict, schema_name, name, exists_in_NDB)) {
+        ndb_log_info(
+            "Failed to determine if table '%s.%s' exists in NDB, "
+            "object remains blacklisted",
+            schema_name.c_str(), name.c_str());
+        return true;
+      }
+
+      if (!dd_client.mdl_lock_table(schema_name.c_str(), name.c_str())) {
+        ndb_log_info(
+            "Failed to acquire MDL on table '%s.%s', object "
+            "remains blacklisted",
+            schema_name.c_str(), name.c_str());
+        return true;
+      }
+      bool exists_in_DD;
+      if (!dd_client.table_exists(schema_name.c_str(), name.c_str(),
                                   exists_in_DD)) {
         ndb_log_info(
             "Failed to determine if table '%s.%s' exists in DD, "
             "object remains blacklisted",
-            db_name.c_str(), name.c_str());
+            schema_name.c_str(), name.c_str());
         return true;
       }
 
@@ -342,15 +390,12 @@ bool Ndb_metadata_sync::check_blacklist_object_mismatch(
         ndb_log_info(
             "Mismatch doesn't exist any more, table '%s.%s' will be removed "
             "from blacklist",
-            db_name.c_str(), name.c_str());
+            schema_name.c_str(), name.c_str());
         return false;
-      } else {
-        ndb_log_info(
-            "Mismatch still exists, table '%s.%s' remains "
-            "blacklisted",
-            db_name.c_str(), name.c_str());
-        return true;
       }
+      ndb_log_info("Mismatch still exists, table '%s.%s' remains blacklisted",
+                   schema_name.c_str(), name.c_str());
+      return true;
     } break;
     default:
       ndb_log_error("Unknown object type found in blacklist");
@@ -387,14 +432,14 @@ void Ndb_metadata_sync::reset_blacklist_state() {
 
 void Ndb_metadata_sync::validate_blacklist(THD *thd) {
   while (true) {
-    std::string db_name, name;
+    std::string schema_name, name;
     object_detected_type type;
-    if (!get_blacklist_object_for_validation(db_name, name, type)) {
+    if (!get_blacklist_object_for_validation(schema_name, name, type)) {
       // No more objects pending validation
       break;
     }
     const bool check_mismatch_result =
-        check_blacklist_object_mismatch(thd, db_name, name, type);
+        check_blacklist_object_mismatch(thd, schema_name, name, type);
     validate_blacklist_object(check_mismatch_result);
   }
   // Reset the states of all blacklisted objects
@@ -563,6 +608,68 @@ bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
   return true;
 }
 
+bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
+                                    bool &temp_error) const {
+  if (DBUG_EVALUATE_IF("ndb_metadata_sync_fail", true, false)) {
+    temp_error = false;
+    return false;
+  }
+  Ndb_dd_client dd_client(thd);
+  // Acquire exclusive MDL on the schema upfront. Note that this isn't strictly
+  // necessary since the Ndb_local_connection is used further down the function.
+  // But the binlog thread shouldn't stall while waiting for the MDL to be
+  // acquired. Thus, there's an attempt to lock the schema with a low
+  // lock_wait_timeout value to ensure that the binlog thread can bail out early
+  // should there be any conflicting locks
+  if (!dd_client.mdl_lock_schema_exclusive(schema_name.c_str(), true, 10)) {
+    ndb_log_info("Failed to acquire MDL on schema '%s'", schema_name.c_str());
+    temp_error = true;
+    // Since it's a temporary error, the THD conditions should be cleared but
+    // not logged
+    clear_thd_conditions(thd);
+    return false;
+  }
+
+  ndb_log_info("Synchronizing schema '%s'", schema_name.c_str());
+  // All errors beyond this point are not temporary errors
+  temp_error = false;
+  // Check if mismatch still exists
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
+  bool exists_in_NDB;
+  if (!ndb_database_exists(dict, schema_name, exists_in_NDB)) {
+    ndb_log_warning("Failed to determine if schema '%s' exists in NDB",
+                    schema_name.c_str());
+    return false;
+  }
+
+  bool exists_in_DD;
+  if (!dd_client.schema_exists(schema_name.c_str(), &exists_in_DD)) {
+    log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
+    ndb_log_warning("Failed to determine if schema '%s' exists in DD",
+                    schema_name.c_str());
+    return false;
+  }
+
+  // There are 3 possible scenarios:
+  // 1. Exists in NDB but not in DD. This is dealt with by creating the schema
+  //    in the DD
+  // 2. Exists in DD but not NDB. This isn't a mismatch we're interested in
+  //    fixing since the schema can contain tables of other storage engines
+  // 3. Mismatch doesn't exist anymore
+  // Scenarios 2 and 3 are handled by simply returning true denoting success
+  if (exists_in_NDB && !exists_in_DD) {
+    Ndb_local_connection local_connection(thd);
+    if (local_connection.create_database(schema_name)) {
+      log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
+      ndb_log_error("Failed to create schema '%s'", schema_name.c_str());
+      return false;
+    }
+    ndb_log_info("Schema '%s' installed in DD", schema_name.c_str());
+  }
+  return true;
+}
+
 class Mutex_guard {
  public:
   Mutex_guard(mysql_mutex_t &mutex) : m_mutex(mutex) {
@@ -576,10 +683,10 @@ class Mutex_guard {
 };
 
 extern mysql_mutex_t ndbcluster_mutex;
-void Ndb_metadata_sync::drop_ndb_share(const char *db_name,
+void Ndb_metadata_sync::drop_ndb_share(const char *schema_name,
                                        const char *table_name) const {
   char key[FN_REFLEN + 1];
-  build_table_filename(key, sizeof(key) - 1, db_name, table_name, "", 0);
+  build_table_filename(key, sizeof(key) - 1, schema_name, table_name, "", 0);
   NDB_SHARE *share =
       NDB_SHARE::acquire_reference_by_key(key,
                                           "table_sync");  // temporary ref
@@ -592,7 +699,7 @@ void Ndb_metadata_sync::drop_ndb_share(const char *db_name,
   }
 }
 
-bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
+bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
                                    const std::string &table_name,
                                    bool &temp_error) {
   if (DBUG_EVALUATE_IF("ndb_metadata_sync_fail", true, false)) {
@@ -600,9 +707,9 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     return false;
   }
   Ndb_dd_client dd_client(thd);
-  if (!dd_client.mdl_locks_acquire_exclusive(db_name.c_str(),
+  if (!dd_client.mdl_locks_acquire_exclusive(schema_name.c_str(),
                                              table_name.c_str(), true, 10)) {
-    ndb_log_info("Failed to acquire MDL on table '%s.%s'", db_name.c_str(),
+    ndb_log_info("Failed to acquire MDL on table '%s.%s'", schema_name.c_str(),
                  table_name.c_str());
     temp_error = true;
     // Since it's a temporary error, the THD conditions should be cleared but
@@ -611,7 +718,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     return false;
   }
 
-  ndb_log_info("Synchronizing table '%s.%s'", db_name.c_str(),
+  ndb_log_info("Synchronizing table '%s.%s'", schema_name.c_str(),
                table_name.c_str());
 
   // Most of the errors detected after this are not temporary
@@ -621,18 +728,18 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   Ndb *ndb = thd_ndb->ndb;
   NdbDictionary::Dictionary *dict = ndb->getDictionary();
   bool exists_in_NDB;
-  if (!ndb_table_exists(dict, db_name, table_name, exists_in_NDB)) {
+  if (!ndb_table_exists(dict, schema_name, table_name, exists_in_NDB)) {
     ndb_log_warning("Failed to determine if table '%s.%s' exists in NDB",
-                    db_name.c_str(), table_name.c_str());
+                    schema_name.c_str(), table_name.c_str());
     return false;
   }
 
   bool exists_in_DD;
-  if (!dd_client.table_exists(db_name.c_str(), table_name.c_str(),
+  if (!dd_client.table_exists(schema_name.c_str(), table_name.c_str(),
                               exists_in_DD)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
     ndb_log_warning("Failed to determine if table '%s.%s' exists in DD",
-                    db_name.c_str(), table_name.c_str());
+                    schema_name.c_str(), table_name.c_str());
     return false;
   }
 
@@ -645,11 +752,11 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
     // Table exists in DD but not in NDB
     // Check if it's a local table
     bool local_table;
-    if (!dd_client.is_local_table(db_name.c_str(), table_name.c_str(),
+    if (!dd_client.is_local_table(schema_name.c_str(), table_name.c_str(),
                                   local_table)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to determine if table '%s.%s' was a local table",
-                    db_name.c_str(), table_name.c_str());
+                    schema_name.c_str(), table_name.c_str());
       return false;
     }
     if (local_table) {
@@ -659,10 +766,10 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
 
     // Remove the table from DD
     Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
-    if (!dd_client.remove_table(db_name.c_str(), table_name.c_str(),
+    if (!dd_client.remove_table(schema_name.c_str(), table_name.c_str(),
                                 &invalidator)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
-      ndb_log_error("Failed to drop table '%s.%s' in DD", db_name.c_str(),
+      ndb_log_error("Failed to drop table '%s.%s' in DD", schema_name.c_str(),
                     table_name.c_str());
       return false;
     }
@@ -672,21 +779,21 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
       ndb_log_error(
           "Failed to invalidate tables referencing table '%s.%s' in "
           "DD",
-          db_name.c_str(), table_name.c_str());
+          schema_name.c_str(), table_name.c_str());
       return false;
     }
 
     // Drop share if it exists
-    drop_ndb_share(db_name.c_str(), table_name.c_str());
-    ndb_tdc_close_cached_table(thd, db_name.c_str(), table_name.c_str());
+    drop_ndb_share(schema_name.c_str(), table_name.c_str());
+    ndb_tdc_close_cached_table(thd, schema_name.c_str(), table_name.c_str());
 
     // Invalidate the table in NdbApi
-    if (ndb->setDatabaseName(db_name.c_str())) {
+    if (ndb->setDatabaseName(schema_name.c_str())) {
       ndb_log_error("Failed to set database name of NDB object");
       return false;
     }
     dd_client.commit();
-    ndb_log_info("Table '%s.%s' dropped from DD", db_name.c_str(),
+    ndb_log_info("Table '%s.%s' dropped from DD", schema_name.c_str(),
                  table_name.c_str());
     Ndb_table_guard ndbtab_guard(dict, table_name.c_str());
     ndbtab_guard.invalidate();
@@ -695,7 +802,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
 
   // Table exists in NDB but not in DD. Correct this by installing the table in
   // the DD
-  if (ndb->setDatabaseName(db_name.c_str())) {
+  if (ndb->setDatabaseName(schema_name.c_str())) {
     ndb_log_error("Failed to set database name of NDB object");
     return false;
   }
@@ -712,41 +819,42 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
       extra_metadata_version, &unpacked_data, &unpacked_len);
   if (get_result != 0) {
     ndb_log_info("Failed to get extra metadata of table '%s.%s'",
-                 db_name.c_str(), table_name.c_str());
+                 schema_name.c_str(), table_name.c_str());
     return false;
   }
 
   if (extra_metadata_version == 1) {
     // Table with "old" metadata found
     if (!dd_client.migrate_table(
-            db_name.c_str(), table_name.c_str(),
+            schema_name.c_str(), table_name.c_str(),
             static_cast<const unsigned char *>(unpacked_data), unpacked_len,
             false, true)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to migrate table '%s.%s' with extra metadata "
           "version 1",
-          db_name.c_str(), table_name.c_str());
+          schema_name.c_str(), table_name.c_str());
       free(unpacked_data);
       return false;
     }
     free(unpacked_data);
     const dd::Table *dd_table;
-    if (!dd_client.get_table(db_name.c_str(), table_name.c_str(), &dd_table)) {
+    if (!dd_client.get_table(schema_name.c_str(), table_name.c_str(),
+                             &dd_table)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to get table '%s.%s' from DD after it was installed",
-          db_name.c_str(), table_name.c_str());
+          schema_name.c_str(), table_name.c_str());
       return false;
     }
-    if (ndbcluster_binlog_setup_table(thd, ndb, db_name.c_str(),
+    if (ndbcluster_binlog_setup_table(thd, ndb, schema_name.c_str(),
                                       table_name.c_str(), dd_table) != 0) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to setup binlogging for table '%s.%s'",
-                    db_name.c_str(), table_name.c_str());
+                    schema_name.c_str(), table_name.c_str());
       return false;
     }
-    ndb_log_info("Table '%s.%s' installed in DD", db_name.c_str(),
+    ndb_log_info("Table '%s.%s' installed in DD", schema_name.c_str(),
                  table_name.c_str());
     return true;
   }
@@ -784,7 +892,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
         ndb_log_error("Tablespace '%s' is currently blacklisted",
                       tablespace_name.c_str());
         ndb_log_error("Failed to install disk data table '%s.%s'",
-                      db_name.c_str(), table_name.c_str());
+                      schema_name.c_str(), table_name.c_str());
         return false;
       } else {
         // There's a possibility (especially when ndb_restore is used) that a
@@ -794,7 +902,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
         ndb_log_info(
             "Disk data table '%s.%s' not synced since tablespace '%s' "
             "hasn't been synced yet",
-            db_name.c_str(), table_name.c_str(), tablespace_name.c_str());
+            schema_name.c_str(), table_name.c_str(), tablespace_name.c_str());
         temp_error = true;
         // Since it's a temporary error, the THD conditions should be cleared
         // but not logged
@@ -805,11 +913,11 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   }
   Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
   if (!dd_client.install_table(
-          db_name.c_str(), table_name.c_str(), sdi, ndbtab->getObjectId(),
+          schema_name.c_str(), table_name.c_str(), sdi, ndbtab->getObjectId(),
           ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
           tablespace_name, false, &invalidator)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
-    ndb_log_error("Failed to install table '%s.%s' in DD", db_name.c_str(),
+    ndb_log_error("Failed to install table '%s.%s' in DD", schema_name.c_str(),
                   table_name.c_str());
     return false;
   }
@@ -817,30 +925,31 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &db_name,
   if (!invalidator.invalidate()) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to invalidate tables referencing table '%s.%s' in DD",
-                  db_name.c_str(), table_name.c_str());
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
   const dd::Table *dd_table;
-  if (!dd_client.get_table(db_name.c_str(), table_name.c_str(), &dd_table)) {
+  if (!dd_client.get_table(schema_name.c_str(), table_name.c_str(),
+                           &dd_table)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to get table '%s.%s' from DD after it was installed",
-                  db_name.c_str(), table_name.c_str());
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
   if (!Ndb_metadata::compare(thd, ndbtab, dd_table, true, dict)) {
     ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
-                  db_name.c_str(), table_name.c_str());
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
-  if (ndbcluster_binlog_setup_table(thd, ndb, db_name.c_str(),
+  if (ndbcluster_binlog_setup_table(thd, ndb, schema_name.c_str(),
                                     table_name.c_str(), dd_table) != 0) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Failed to setup binlogging for table '%s.%s'",
-                  db_name.c_str(), table_name.c_str());
+                  schema_name.c_str(), table_name.c_str());
     return false;
   }
   dd_client.commit();
-  ndb_log_info("Table '%s.%s' installed in DD", db_name.c_str(),
+  ndb_log_info("Table '%s.%s' installed in DD", schema_name.c_str(),
                table_name.c_str());
   return true;
 }

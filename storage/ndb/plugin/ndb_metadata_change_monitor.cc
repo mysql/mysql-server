@@ -93,7 +93,7 @@ int show_ndb_metadata_check(THD *, SHOW_VAR *var, char *) {
 }
 
 bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
-    THD *thd, const Thd_ndb *thd_ndb) {
+    THD *thd, const Thd_ndb *thd_ndb) const {
   // Fetch list of logfile groups from NDB
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> lfg_in_NDB;
@@ -157,7 +157,7 @@ bool Ndb_metadata_change_monitor::detect_logfile_group_changes(
 }
 
 bool Ndb_metadata_change_monitor::detect_tablespace_changes(
-    THD *thd, const Thd_ndb *thd_ndb) {
+    THD *thd, const Thd_ndb *thd_ndb) const {
   // Fetch list of tablespaces from NDB
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> tablespaces_in_NDB;
@@ -218,8 +218,34 @@ bool Ndb_metadata_change_monitor::detect_tablespace_changes(
   return true;
 }
 
-bool Ndb_metadata_change_monitor::detect_changes_in_schema(
-    THD *thd, const Thd_ndb *thd_ndb, const std::string &schema_name) {
+bool Ndb_metadata_change_monitor::detect_schema_changes(
+    const Thd_ndb *thd_ndb, std::vector<std::string> *dd_schema_names) const {
+  // Fetch list of databases used in NDB
+  NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
+  std::unordered_set<std::string> ndb_schema_names;
+  if (!ndb_get_database_names_in_dictionary(dict, &ndb_schema_names)) {
+    log_NDB_error(dict->getNdbError());
+    log_info("Failed to fetch database names from NDB");
+    return false;
+  }
+  // Iterate through the schema names
+  for (const std::string &dd_schema_name : *dd_schema_names) {
+    ndb_schema_names.erase(dd_schema_name);
+  }
+  for (const std::string &ndb_schema_name : ndb_schema_names) {
+    // Schema is used in NDB but does not exist in DD
+    if (ndbcluster_binlog_check_schema_async(ndb_schema_name)) {
+      increment_metadata_detected_count();
+    } else {
+      log_info("Failed to submit schema '%s' for synchronization",
+               ndb_schema_name.c_str());
+    }
+  }
+  return true;
+}
+
+bool Ndb_metadata_change_monitor::detect_table_changes_in_schema(
+    THD *thd, const Thd_ndb *thd_ndb, const std::string &schema_name) const {
   // Fetch list of tables in NDB
   NdbDictionary::Dictionary *dict = thd_ndb->ndb->getDictionary();
   std::unordered_set<std::string> ndb_tables_in_NDB;
@@ -308,8 +334,8 @@ bool Ndb_metadata_change_monitor::detect_changes_in_schema(
   return true;
 }
 
-bool Ndb_metadata_change_monitor::detect_table_changes(THD *thd,
-                                                       const Thd_ndb *thd_ndb) {
+bool Ndb_metadata_change_monitor::detect_schema_and_table_changes(
+    THD *thd, const Thd_ndb *thd_ndb) {
   // Fetch list of schemas in DD
   Ndb_dd_client dd_client(thd);
   std::vector<std::string> schema_names;
@@ -319,14 +345,26 @@ bool Ndb_metadata_change_monitor::detect_table_changes(THD *thd,
     return false;
   }
 
-  for (const auto name : schema_names) {
-    if (is_infoschema_db(name.c_str()) || is_perfschema_db(name.c_str())) {
+  if (!detect_schema_changes(thd_ndb, &schema_names)) {
+    // Problem while trying to detect schema changes. Log and continue detecting
+    // table changes
+    log_info("Failed to detect schema changes");
+  }
+
+  if (is_stop_requested()) {
+    return false;
+  }
+
+  for (const std::string &schema_name : schema_names) {
+    if (is_infoschema_db(schema_name.c_str()) ||
+        is_perfschema_db(schema_name.c_str())) {
       // We do not expect user changes in these schemas so they can be skipped
       continue;
     }
 
-    if (!detect_changes_in_schema(thd, thd_ndb, name)) {
-      log_info("Failed to detect tables changes in schema '%s'", name.c_str());
+    if (!detect_table_changes_in_schema(thd, thd_ndb, schema_name)) {
+      log_info("Failed to detect table changes in schema '%s'",
+               schema_name.c_str());
       if (is_stop_requested()) {
         return false;
       }
@@ -506,7 +544,7 @@ void Ndb_metadata_change_monitor::do_run() {
         return;
       }
 
-      if (!detect_table_changes(thd, thd_ndb)) {
+      if (!detect_schema_and_table_changes(thd, thd_ndb)) {
         log_info("Failed to detect table metadata changes");
       }
       log_info("Table metadata check completed");

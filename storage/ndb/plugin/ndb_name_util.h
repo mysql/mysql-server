@@ -52,4 +52,12 @@ bool ndb_name_is_blob_prefix(const char *name);
 */
 bool ndb_name_is_index_stat(const char *name);
 
+/*
+  Return true if name starts with the prefix used for NDB FK mock tables
+
+  NOTE! Those tables are internal but still returned in the public
+  parts of NdbApi so they may need to be filtered in various places.
+*/
+bool ndb_name_is_fk_mock_prefix(const char *name);
+
 #endif

@@ -974,7 +974,7 @@ class Ndb_binlog_setup {
     /* Fetch list of databases used in NDB */
     std::unordered_set<std::string> databases_in_NDB;
     if (!ndb_get_database_names_in_dictionary(thd_ndb->ndb->getDictionary(),
-                                              databases_in_NDB)) {
+                                              &databases_in_NDB)) {
       ndb_log_error("Failed to fetch database names from NDB");
       return false;
     }
@@ -6774,6 +6774,18 @@ bool ndbcluster_binlog_check_tablespace_async(
   return ndb_binlog_thread.add_tablespace_to_check(tablespace_name);
 }
 
+bool Ndb_binlog_thread::add_schema_to_check(const std::string &schema_name) {
+  return metadata_sync.add_schema(schema_name);
+}
+
+bool ndbcluster_binlog_check_schema_async(const std::string &schema_name) {
+  if (schema_name.empty()) {
+    ndb_log_error("Name of schema to be synchronized not set");
+    return false;
+  }
+  return ndb_binlog_thread.add_schema_to_check(schema_name);
+}
+
 /********************************************************************
   Internal helper functions for differentd events from the stoarage nodes
   used by the ndb injector thread
@@ -7750,9 +7762,9 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
   }
 
   // Synchronize 1 object from the queue
-  std::string db_name, object_name;
+  std::string schema_name, object_name;
   object_detected_type object_type;
-  metadata_sync.get_next_object(db_name, object_name, object_type);
+  metadata_sync.get_next_object(schema_name, object_name, object_type);
   switch (object_type) {
     case object_detected_type::LOGFILE_GROUP_OBJECT: {
       bool temp_error;
@@ -7768,7 +7780,7 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
       } else {
         log_error("Failed to synchronize logfile group '%s'",
                   object_name.c_str());
-        metadata_sync.add_object_to_blacklist(db_name, object_name,
+        metadata_sync.add_object_to_blacklist(schema_name, object_name,
                                               object_type);
         increment_metadata_synced_count();
       }
@@ -7786,24 +7798,39 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
             object_name.c_str());
       } else {
         log_error("Failed to synchronize tablespace '%s'", object_name.c_str());
-        metadata_sync.add_object_to_blacklist(db_name, object_name,
+        metadata_sync.add_object_to_blacklist(schema_name, object_name,
+                                              object_type);
+        increment_metadata_synced_count();
+      }
+    } break;
+    case object_detected_type::SCHEMA_OBJECT: {
+      bool temp_error;
+      if (metadata_sync.sync_schema(thd, schema_name, temp_error)) {
+        log_info("Schema '%s' successfully synchronized", schema_name.c_str());
+        increment_metadata_synced_count();
+      } else if (temp_error) {
+        log_info("Failed to synchronize schema '%s' due to a temporary error",
+                 schema_name.c_str());
+      } else {
+        log_error("Failed to synchronize schema '%s'", schema_name.c_str());
+        metadata_sync.add_object_to_blacklist(schema_name, object_name,
                                               object_type);
         increment_metadata_synced_count();
       }
     } break;
     case object_detected_type::TABLE_OBJECT: {
       bool temp_error;
-      if (metadata_sync.sync_table(thd, db_name, object_name, temp_error)) {
-        log_info("Table '%s.%s' successfully synchronized", db_name.c_str(),
+      if (metadata_sync.sync_table(thd, schema_name, object_name, temp_error)) {
+        log_info("Table '%s.%s' successfully synchronized", schema_name.c_str(),
                  object_name.c_str());
         increment_metadata_synced_count();
       } else if (temp_error) {
         log_info("Failed to synchronize table '%s.%s' due to a temporary error",
-                 db_name.c_str(), object_name.c_str());
+                 schema_name.c_str(), object_name.c_str());
       } else {
-        log_error("Failed to synchronize table '%s.%s'", db_name.c_str(),
+        log_error("Failed to synchronize table '%s.%s'", schema_name.c_str(),
                   object_name.c_str());
-        metadata_sync.add_object_to_blacklist(db_name, object_name,
+        metadata_sync.add_object_to_blacklist(schema_name, object_name,
                                               object_type);
         increment_metadata_synced_count();
       }

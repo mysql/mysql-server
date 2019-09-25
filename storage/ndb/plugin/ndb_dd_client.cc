@@ -110,40 +110,52 @@ bool Ndb_dd_client::mdl_lock_table(const char *schema_name,
   return true;
 }
 
-/**
-  Acquire MDL locks for the Schema.
-
-  @param schema_name          Schema name.
-  @param exclusive_lock       If true, acquire exclusive locks on the Schema
-                              for updating it. If false, acquire the default
-                              intention_exclusive lock.
-
-  @return true        On success.
-  @return false       On failure
-*/
-bool Ndb_dd_client::mdl_lock_schema(const char *schema_name,
-                                    bool exclusive_lock) {
+bool Ndb_dd_client::mdl_lock_schema_exclusive(const char *schema_name,
+                                              bool custom_lock_wait,
+                                              ulong lock_wait_timeout) {
   MDL_request_list mdl_requests;
   MDL_request schema_request;
   MDL_request backup_lock_request;
   MDL_request grl_request;
 
-  // By default acquire MDL_INTENTION_EXCLUSIVE lock on Schema
-  enum_mdl_type schema_lock_type = MDL_INTENTION_EXCLUSIVE;
-
-  if (exclusive_lock) {
-    // exclusive lock has been requested
-    schema_lock_type = MDL_EXCLUSIVE;
-    // Also acquire the backup and global locks
-    MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
-                     MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
-    MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
-                     MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
-    mdl_requests.push_front(&backup_lock_request);
-    mdl_requests.push_front(&grl_request);
+  // If protection against GRL can't be acquired, err out early.
+  if (m_thd->global_read_lock.can_acquire_protection()) {
+    return false;
   }
+
   MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA, schema_name, "",
-                   schema_lock_type, MDL_EXPLICIT);
+                   MDL_EXCLUSIVE, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
+
+  mdl_requests.push_front(&schema_request);
+  mdl_requests.push_front(&backup_lock_request);
+  mdl_requests.push_front(&grl_request);
+
+  if (!custom_lock_wait) {
+    lock_wait_timeout = m_thd->variables.lock_wait_timeout;
+  }
+
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout)) {
+    return false;
+  }
+
+  // Remember tickets of the acquired mdl locks
+  m_acquired_mdl_tickets.push_back(schema_request.ticket);
+  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
+  m_acquired_mdl_tickets.push_back(grl_request.ticket);
+
+  return true;
+}
+
+bool Ndb_dd_client::mdl_lock_schema(const char *schema_name) {
+  MDL_request_list mdl_requests;
+  MDL_request schema_request;
+
+  MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA, schema_name, "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
   mdl_requests.push_front(&schema_request);
 
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
@@ -159,10 +171,6 @@ bool Ndb_dd_client::mdl_lock_schema(const char *schema_name,
 
   // Remember ticket(s) of the acquired mdl lock
   m_acquired_mdl_tickets.push_back(schema_request.ticket);
-  if (exclusive_lock) {
-    m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
-    m_acquired_mdl_tickets.push_back(grl_request.ticket);
-  }
 
   return true;
 }

@@ -84,3 +84,7 @@ bool ndb_name_is_blob_prefix(const char *name) {
 bool ndb_name_is_index_stat(const char *name) {
   return is_prefix(name, "ndb_index_stat");
 }
+
+bool ndb_name_is_fk_mock_prefix(const char *name) {
+  return is_prefix(name, "NDB$FKM");
+}

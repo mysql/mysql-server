@@ -28,6 +28,7 @@
 #include <list>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"  // NdbDictionary::Table
@@ -43,6 +44,7 @@ class Table;
 enum object_detected_type {
   LOGFILE_GROUP_OBJECT = 0,
   TABLESPACE_OBJECT,
+  SCHEMA_OBJECT,
   TABLE_OBJECT
 };
 
@@ -51,15 +53,15 @@ enum object_validation_state { PENDING = 0, IN_PROGRESS, DONE };
 class Ndb_metadata_sync {
   struct Detected_object {
     std::string
-        m_db_name;  // Database name, "" for logfile groups & tablespaces
-    std::string m_name;
+        m_schema_name;   // Schema name, "" for logfile groups & tablespaces
+    std::string m_name;  // Object name, "" for schema objects
     object_detected_type m_type;
     object_validation_state m_validation_state;  // Used for blacklist only
 
-    Detected_object(const std::string &db_name, const std::string &name,
+    Detected_object(std::string schema_name, std::string name,
                     object_detected_type type)
-        : m_db_name{db_name},
-          m_name{name},
+        : m_schema_name{std::move(schema_name)},
+          m_name{std::move(name)},
           m_type{type},
           m_validation_state{object_validation_state::PENDING} {}
   };
@@ -70,14 +72,14 @@ class Ndb_metadata_sync {
   std::vector<Detected_object> m_blacklist;
 
   /*
-    @brief Convert the object type enum value to a C style string. Used mainly
-           for logging
+    @brief Construct a string comprising of the object type and name. This is
+           used in log messages
 
-    @param type  Type of the object
+    @param object  Detected object
 
-    @return string representing type of metadata object
+    @return string comprising of object type and name
   */
-  const char *object_type_str(object_detected_type type) const;
+  std::string object_type_and_name_str(const Detected_object &object) const;
 
   /*
     @brief Check if an object has been detected already and is currently
@@ -102,24 +104,24 @@ class Ndb_metadata_sync {
   /*
     @brief Drop NDB_SHARE
 
-    @param db_name     Name of the database
-    @param table_name  Name of the table
+    @param schema_name  Name of the schema
+    @param table_name   Name of the table
 
     @return void
   */
-  void drop_ndb_share(const char *db_name, const char *table_name) const;
+  void drop_ndb_share(const char *schema_name, const char *table_name) const;
 
   /*
     @brief Get details of an object pending validation from the current
            blacklist of objects
 
-    @param db_name [out]  Name of the database
-    @param name    [out]  Name of the object
-    @param type    [out]  Type of the object
+    @param schema_name [out]  Name of the schema
+    @param name        [out]  Name of the object
+    @param type        [out]  Type of the object
 
     @return true if an object pending validation was found, false if not
   */
-  bool get_blacklist_object_for_validation(std::string &db_name,
+  bool get_blacklist_object_for_validation(std::string &schema_name,
                                            std::string &name,
                                            object_detected_type &type);
 
@@ -127,13 +129,13 @@ class Ndb_metadata_sync {
     @brief Check if a mismatch still exists for the retrieved blacklist object
 
     @param thd      Thread handle
-    @param db_name  Name of the database
-    @param name     Name of the object
-    @param type     Type of the object
+    @param schema_name  Name of the schema
+    @param name         Name of the object
+    @param type         Type of the object
 
     @return true if mismatch still exists, false if not
   */
-  bool check_blacklist_object_mismatch(THD *thd, const std::string &db_name,
+  bool check_blacklist_object_mismatch(THD *thd, const std::string &schema_name,
                                        const std::string &name,
                                        object_detected_type type) const;
 
@@ -182,14 +184,23 @@ class Ndb_metadata_sync {
   bool add_tablespace(const std::string &tablespace_name);
 
   /*
+    @brief Add a schema to the back of the queue of objects to be synchronized
+
+    @param schema_name  Name of the schema
+
+    @return true if the schema is successfully added, false if not
+  */
+  bool add_schema(const std::string &schema_name);
+
+  /*
     @brief Add a table to the back of the queue of objects to be synchronized
 
-    @param db_name     Name of the database
-    @param table_name  Name of the table
+    @param schema_name  Name of the schema
+    @param table_name   Name of the table
 
     @return true if table successfully added, false if not
   */
-  bool add_table(const std::string &db_name, const std::string &table_name);
+  bool add_table(const std::string &schema_name, const std::string &table_name);
 
   /*
     @brief Check if the queue of objects to be synchronized is currently empty
@@ -202,24 +213,24 @@ class Ndb_metadata_sync {
     @brief Retrieve details of the object currently the front of the queue. Note
            that this object is also removed from the queue
 
-    @param db_name [out]  Name of the database
-    @param name    [out]  Name of the object
-    @param type    [out]  Type of the object
+    @param schema_name [out]  Name of the schema
+    @param name        [out]  Name of the object
+    @param type        [out]  Type of the object
     @return void
   */
-  void get_next_object(std::string &db_name, std::string &name,
+  void get_next_object(std::string &schema_name, std::string &name,
                        object_detected_type &type);
 
   /*
     @brief Add an object to the blacklist
 
-    @param db_name  Name of the database
-    @param name     Name of the object
-    @param type     Type of the object
+    @param schema_name  Name of the schema
+    @param name         Name of the object
+    @param type         Type of the object
 
     @return void
   */
-  void add_object_to_blacklist(const std::string &db_name,
+  void add_object_to_blacklist(const std::string &schema_name,
                                const std::string &name,
                                object_detected_type type);
 
@@ -242,7 +253,7 @@ class Ndb_metadata_sync {
     @param temp_error [out]    Denotes if the failure was due to a temporary
                                error
 
-    @return true if the logfile group was synced sucessfully, false if not
+    @return true if the logfile group was synced successfully, false if not
   */
   bool sync_logfile_group(THD *thd, const std::string &logfile_group_name,
                           bool &temp_error) const;
@@ -254,22 +265,34 @@ class Ndb_metadata_sync {
     @param tablespace_name   Name of the tablespace
     @param temp_error [out]  Denotes if the failure was due to a temporary error
 
-    @return true if the tablespace was synced sucessfully, false if not
+    @return true if the tablespace was synced successfully, false if not
   */
   bool sync_tablespace(THD *thd, const std::string &tablespace_name,
                        bool &temp_error) const;
 
   /*
+    @brief Synchronize a schema object between NDB Dictionary and DD
+
+    @param thd               Thread handle
+    @param schema_name       Name of the schema
+    @param temp_error [out]  Denotes if the failure was due to a temporary error
+
+    @return true if the schema was synced successfully, false if not
+  */
+  bool sync_schema(THD *thd, const std::string &schema_name,
+                   bool &temp_error) const;
+
+  /*
     @brief Synchronize a table object between NDB Dictionary and DD
 
     @param thd               Thread handle
-    @param db_name           Name of the database the table belongs to
+    @param schema_name       Name of the schema the table belongs to
     @param table_name        Name of the table
     @param temp_error [out]  Denotes if the failure was due to a temporary error
 
-    @return true if the table was synced sucessfully, false if not
+    @return true if the table was synced successfully, false if not
   */
-  bool sync_table(THD *thd, const std::string &db_name,
+  bool sync_table(THD *thd, const std::string &schema_name,
                   const std::string &table_name, bool &temp_error);
 };
 

@@ -104,8 +104,17 @@ class Ndb_dd_client {
 
   ~Ndb_dd_client();
 
-  // Metadata lock functions
-  bool mdl_lock_schema(const char *schema_name, bool exclusive_lock = false);
+  /**
+    @brief Acquire IX MDL on the schema
+
+    @param schema_name Schema name
+
+    @return true if the MDL was acquired successfully, false if not
+  */
+  bool mdl_lock_schema(const char *schema_name);
+  bool mdl_lock_schema_exclusive(const char *schema_name,
+                                 bool custom_lock_wait = false,
+                                 ulong lock_wait_timeout = 0);
   bool mdl_lock_table(const char *schema_name, const char *table_name);
   bool mdl_locks_acquire_exclusive(const char *schema_name,
                                    const char *table_name,

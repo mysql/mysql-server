@@ -221,7 +221,17 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
  */
 bool ndb_get_database_names_in_dictionary(
     NdbDictionary::Dictionary *dict,
-    std::unordered_set<std::string> &database_names);
+    std::unordered_set<std::string> *database_names);
+
+/**
+ * @brief Checks if a database is being used in NDB Dictionary
+ * @param dict           NDB Dictionary
+ * @param database_name  Name of database being checked
+ * @param exists [out]   True if database exists, false if not
+ * @return true on success, false on failure
+ */
+bool ndb_database_exists(NdbDictionary::Dictionary *dict,
+                         const std::string &database_name, bool &exists);
 
 /**
  * @brief Check if a logfile group exists in NDB Dictionary

@@ -26,6 +26,7 @@
 #define NDB_METADATA_CHANGE_MONITOR_H
 
 #include <string>
+#include <vector>
 
 #include "storage/ndb/plugin/ndb_component.h"
 
@@ -80,7 +81,7 @@ class Ndb_metadata_change_monitor : public Ndb_component {
 
     @return true if changes detected, false if not
   */
-  bool detect_logfile_group_changes(THD *thd, const Thd_ndb *thd_ndb);
+  bool detect_logfile_group_changes(THD *thd, const Thd_ndb *thd_ndb) const;
 
   /*
     @brief Detect any differences between the tablespaces stored in DD and
@@ -91,18 +92,33 @@ class Ndb_metadata_change_monitor : public Ndb_component {
 
     @return true if changes detected, false if not
   */
-  bool detect_tablespace_changes(THD *thd, const Thd_ndb *thd_ndb);
+  bool detect_tablespace_changes(THD *thd, const Thd_ndb *thd_ndb) const;
 
   /*
-    @brief Detect any differences between the tables stored in DD and those in
-           NDB Dictionary
+    @brief Detect schemata which are used in NDB Dictionary but do not exist
+           in DD. Unlike other objects, only this particular scenario is of
+           interest since schemata may contain tables of other storage engines.
+           Thus, the auto sync mechanism shall only create the schema in DD in
+           the above scenario and never remove a schema object from the DD
+
+    @param  thd_ndb          Handle for ndbcluster specific thread data
+    @param  dd_schema_names  Schema names retrieved from the DD
+
+    @return true if changes are successfully detected, false if not
+  */
+  bool detect_schema_changes(const Thd_ndb *thd_ndb,
+                             std::vector<std::string> *dd_schema_names) const;
+
+  /*
+    @brief Detect any differences between the schemata and tables stored in DD
+           and those in NDB Dictionary
 
     @param  thd      Thread handle
     @param  thd_ndb  Handle for ndbcluster specific thread data
 
     @return true if changes detected, false if not
   */
-  bool detect_table_changes(THD *thd, const Thd_ndb *thd_ndb);
+  bool detect_schema_and_table_changes(THD *thd, const Thd_ndb *thd_ndb);
 
   /*
     @brief Detect any differences between the tables belonging to a particular
@@ -114,8 +130,8 @@ class Ndb_metadata_change_monitor : public Ndb_component {
 
     @return true if changes detected, false if not
   */
-  bool detect_changes_in_schema(THD *thd, const Thd_ndb *thd_ndb,
-                                const std::string &schema_name);
+  bool detect_table_changes_in_schema(THD *thd, const Thd_ndb *thd_ndb,
+                                      const std::string &schema_name) const;
 };
 
 /*

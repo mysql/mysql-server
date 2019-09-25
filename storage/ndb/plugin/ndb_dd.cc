@@ -128,8 +128,8 @@ bool ndb_dd_update_schema_version(THD *thd, const char *schema_name,
 
   Ndb_dd_client dd_client(thd);
 
-  if (!dd_client.mdl_lock_schema(schema_name, true)) {
-    DBUG_PRINT("error", ("Failed to acquire exclusive locks on Schema : '%s'",
+  if (!dd_client.mdl_lock_schema_exclusive(schema_name)) {
+    DBUG_PRINT("error", ("Failed to acquire exclusive lock on schema '%s'",
                          schema_name));
     return false;
   }

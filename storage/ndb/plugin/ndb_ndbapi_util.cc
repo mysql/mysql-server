@@ -327,7 +327,7 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
 
 bool ndb_get_database_names_in_dictionary(
     NdbDictionary::Dictionary *dict,
-    std::unordered_set<std::string> &database_names) {
+    std::unordered_set<std::string> *database_names) {
   DBUG_TRACE;
 
   /* Get all the list of tables from NDB and read the database names */
@@ -342,14 +342,40 @@ bool ndb_get_database_names_in_dictionary(
        or if it is a temporary or blob table.*/
     if ((elmt.state != NdbDictionary::Object::StateOnline &&
          elmt.state != NdbDictionary::Object::StateBuilding) ||
-        ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name)) {
+        ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_fk_mock_prefix(elmt.name)) {
       DBUG_PRINT("debug", ("Skipping table %s.%s", elmt.database, elmt.name));
       continue;
     }
     DBUG_PRINT("debug", ("Found %s.%s in NDB", elmt.database, elmt.name));
 
-    database_names.insert(elmt.database);
+    database_names->insert(elmt.database);
   }
+  return true;
+}
+
+bool ndb_database_exists(NdbDictionary::Dictionary *dict,
+                         const std::string &database_name, bool &exists) {
+  // Get list of tables from NDB and read database names
+  NdbDictionary::Dictionary::List list;
+  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+    return false;
+  for (uint i = 0; i < list.count; i++) {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+    // Skip the table if it is not in an expected state or if it is a temporary
+    // or blob table
+    if ((elmt.state != NdbDictionary::Object::StateOnline &&
+         elmt.state != NdbDictionary::Object::StateBuilding) ||
+        ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_fk_mock_prefix(elmt.name)) {
+      continue;
+    }
+    if (database_name == elmt.database) {
+      exists = true;
+      return true;
+    }
+  }
+  exists = false;
   return true;
 }
 
