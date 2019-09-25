@@ -172,4 +172,10 @@ class Ndb_binlog_thread : public Ndb_component {
   void synchronize_detected_object(THD *thd);
 };
 
+/*
+  Called as part of SHOW STATUS or performance_schema queries. Returns
+  information about the number of NDB metadata objects synched
+*/
+int show_ndb_metadata_synced(THD *, SHOW_VAR *var, char *);
+
 #endif

@@ -64,6 +64,7 @@
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_binlog_client.h"
 #include "storage/ndb/plugin/ndb_binlog_extra_row_info.h"
+#include "storage/ndb/plugin/ndb_binlog_thread.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_component.h"
 #include "storage/ndb/plugin/ndb_conflict.h"

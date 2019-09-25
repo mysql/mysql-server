@@ -105,9 +105,3 @@ bool ndbcluster_binlog_check_tablespace_async(
  @return true if the workitem was accepted, false if not
 */
 bool ndbcluster_binlog_check_schema_async(const std::string &schema_name);
-
-/*
-  Called as part of SHOW STATUS or performance_schema queries. Returns
-  information about the number of NDB metadata objects synched
-*/
-int show_ndb_metadata_synced(THD *, SHOW_VAR *var, char *);
