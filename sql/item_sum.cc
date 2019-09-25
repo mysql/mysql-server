@@ -3489,7 +3489,7 @@ Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item) {
   decimals = item->decimals;
   max_length = item->max_length;
   unsigned_flag = item->unsigned_flag;
-  field = item->result_field;
+  field = item->get_result_field();
   maybe_null = true;
   hybrid_type = res_type;
   set_data_type(hybrid_type == DECIMAL_RESULT ? MYSQL_TYPE_NEWDECIMAL
@@ -3546,7 +3546,7 @@ Item_sum_bit_field::Item_sum_bit_field(Item_result res_type, Item_sum_bit *item,
   decimals = item->decimals;
   max_length = item->max_length;
   unsigned_flag = item->unsigned_flag;
-  field = item->result_field;
+  field = item->get_result_field();
   maybe_null = false;
   hybrid_type = res_type;
   DBUG_ASSERT(hybrid_type == INT_RESULT || hybrid_type == STRING_RESULT);
@@ -3667,7 +3667,7 @@ Item_variance_field::Item_variance_field(Item_sum_variance *item) {
   decimals = item->decimals;
   max_length = item->max_length;
   unsigned_flag = item->unsigned_flag;
-  field = item->result_field;
+  field = item->get_result_field();
   maybe_null = true;
   sample = item->sample;
   hybrid_type = item->hybrid_type;

@@ -4906,7 +4906,7 @@ class Copy_field {
     set(to, from, save);
   }
 
-  Copy_field(MEM_ROOT *mem_root, Field *from);
+  Copy_field(MEM_ROOT *mem_root, Item_field *item);
 
   void set(Field *to, Field *from, bool save);  // Field to field
 

@@ -402,7 +402,6 @@ class Item_func : public Item_result_field {
   void signal_divide_by_null();
   void signal_invalid_argument_for_log();
   friend class udf_handler;
-  Field *tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) override;
   Item *get_tmp_table_item(THD *thd) override;
 

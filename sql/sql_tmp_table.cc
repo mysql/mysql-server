@@ -126,7 +126,7 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
     new_field->init(table);
     new_field->orig_table = org_field->table;
     if (item)
-      item->result_field = new_field;
+      item->set_result_field(new_field);
     else
       new_field->field_name = name;
     new_field->flags |= (org_field->flags & NO_DEFAULT_VALUE_FLAG);
@@ -338,14 +338,12 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         result = create_tmp_field_from_item(item, table, NULL, modify_item);
         if (!result) break;
         *from_field = field->field;
-        if (modify_item) field->result_field = result;
       } else if (table_cant_handle_bit_fields &&
                  field->field->type() == MYSQL_TYPE_BIT) {
         *from_field = field->field;
         result =
             create_tmp_field_from_item(item, table, copy_func, modify_item);
         if (!result) break;
-        if (modify_item) field->result_field = result;
       } else {
         result = create_tmp_field_from_field(
             thd, (*from_field = field->field),
@@ -371,8 +369,8 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         Field *sp_result_field = item_func_sp->get_sp_result_field();
 
         if (make_copy_field) {
-          DBUG_ASSERT(item_func_sp->result_field);
-          *from_field = item_func_sp->result_field;
+          DBUG_ASSERT(item_func_sp->get_result_field());
+          *from_field = item_func_sp->get_result_field();
         } else {
           copy_func->push_back(Func_ptr(item));
         }
@@ -1114,7 +1112,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         a tmp table for UNION or derived table materialization.
       */
       if (not_all_columns && type == Item::SUM_FUNC_ITEM)
-        ((Item_sum *)item)->result_field = new_field;
+        down_cast<Item_sum *>(item)->set_result_field(new_field);
       tmp_from_field++;
       reclength += new_field->pack_length();
       if (!(new_field->flags & NOT_NULL_FLAG)) null_count++;

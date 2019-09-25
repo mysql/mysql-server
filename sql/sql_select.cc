@@ -4079,7 +4079,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
                 Item_null_result(item->data_type(), item->result_type());
             if (!null_item) return true;
             item->maybe_null = true;  // Value will be null sometimes
-            null_item->result_field = item->get_tmp_table_field();
+            null_item->set_result_field(item->get_tmp_table_field());
             item = null_item;
             break;
           }

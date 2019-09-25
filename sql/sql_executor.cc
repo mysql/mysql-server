@@ -548,7 +548,7 @@ bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
         */
         if ((item.type() == Item::NULL_RESULT_ITEM) ||
             (has_rollup_result(&item) && item.get_tmp_table_field() != nullptr))
-          item.save_in_result_field(true);
+          item.save_in_field(item.get_result_field(), true);
       }
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
       TABLE *table_arg = qep_tab->table();
@@ -636,8 +636,8 @@ void update_tmptable_sum_func(Item_sum **func_ptr,
 void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr) {
   DBUG_TRACE;
   for (; func_ptr != end_ptr; func_ptr++) {
-    if ((*func_ptr)->result_field != nullptr) {
-      (*func_ptr)->save_in_result_field(true);
+    if ((*func_ptr)->get_result_field() != nullptr) {
+      (*func_ptr)->save_in_field((*func_ptr)->get_result_field(), true);
     }
   }
 }
@@ -726,7 +726,8 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
 
     if (do_copy) {
       if (func.override_result_field() == nullptr) {
-        item->save_in_result_field(/*no_conversions=*/true);
+        item->save_in_field(item->get_result_field(),
+                            /*no_conversions=*/true);
       } else {
         item->save_in_field(func.override_result_field(),
                             /*no_conversions=*/true);
@@ -8254,25 +8255,9 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
         */
         param->grouped_expressions.push_back(item_copy);
       } else {
-        /*
-           set up save buffer and change result_field to point at
-           saved value
-        */
-        Field *field = item->field;
-        item->result_field =
-            field->new_field(thd->mem_root, field->table, true);
-
         DBUG_ASSERT(param->field_count > param->copy_fields.size());
-        param->copy_fields.emplace_back(thd->mem_root, item->result_field);
+        param->copy_fields.emplace_back(thd->mem_root, item);
 
-        /*
-          We have created a new Item_field; its field points into the
-          previous table; its result_field points into a memory area
-          (REF_SLICE_ORDERED_GROUP_BY) which represents the pseudo-tmp-table
-          from where aggregates' values can be read. So does 'field'. A
-          Copy_field manages copying from 'field' to the memory area.
-        */
-        item->field = item->result_field;
         /*
           Even though the field doesn't point into field->table->record[0], we
           must still link it to 'table' through field->table because that's an

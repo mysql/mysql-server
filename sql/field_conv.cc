@@ -591,7 +591,14 @@ void Copy_field::invoke_do_copy2(const Field *from, Field *to) {
   string is the field value.
 */
 
-Copy_field::Copy_field(MEM_ROOT *mem_root, Field *from) : Copy_field() {
+Copy_field::Copy_field(MEM_ROOT *mem_root, Item_field *item) : Copy_field() {
+  /*
+     Set up the record buffer and change result_field to point at
+     the saved value.
+  */
+  Field *from = item->field->new_field(mem_root, item->field->table, true);
+  if (from == nullptr) return;
+
   // Clone the from field as it will be modified and used as to field.
   m_from_field = from->clone(mem_root);
   if (from->maybe_null()) {
@@ -606,6 +613,16 @@ Copy_field::Copy_field(MEM_ROOT *mem_root, Field *from) : Copy_field() {
     m_do_copy = do_field_eq;
   }
   m_to_field = from;
+
+  /*
+    We have created a new Item_field; its field points into the
+    previous table; its result_field points into a memory area
+    (REF_SLICE_ORDERED_GROUP_BY) which represents the pseudo-tmp-table
+    from where aggregates' values can be read. So does 'field'. A
+    Copy_field manages copying from 'field' to the memory area.
+  */
+  item->field = from;
+  item->set_result_field(from);
 }
 
 void Copy_field::set(Field *to, Field *from, bool save) {

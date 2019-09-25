@@ -472,7 +472,7 @@ int AggregateIterator::Read() {
       }
       for (Item &item : m_join->rollup.all_fields[m_current_rollup_position]) {
         if (has_rollup_result(&item) && item.get_result_field() != nullptr) {
-          item.save_in_result_field(true);
+          item.save_in_field(item.get_result_field(), true);
         }
       }
 

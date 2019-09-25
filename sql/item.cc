@@ -2437,7 +2437,6 @@ Item_field::Item_field(Name_resolution_context *context_arg, const char *db_arg,
       table_ref(NULL),
       field(NULL),
       orig_field(NULL),
-      result_field(NULL),
       item_equal(NULL),
       no_const_subst(false),
       have_privileges(0),
@@ -2454,7 +2453,6 @@ Item_field::Item_field(const POS &pos, const char *db_arg,
       table_ref(NULL),
       field(NULL),
       orig_field(NULL),
-      result_field(NULL),
       item_equal(NULL),
       no_const_subst(false),
       have_privileges(0),
@@ -5370,9 +5368,10 @@ void Item_field::cleanup() {
     it will be linked correctly next time by name of field and table alias.
     I.e. we can drop 'field'.
    */
-  table_ref = NULL;
-  field = result_field = 0;
-  item_equal = NULL;
+  table_ref = nullptr;
+  field = nullptr;
+  result_field = nullptr;
+  item_equal = nullptr;
   null_value = false;
 }
 
@@ -7203,7 +7202,6 @@ Item_ref::Item_ref(Name_resolution_context *context_arg, Item **item,
                    const char *table_name_arg, const char *field_name_arg,
                    bool alias_of_expr_arg)
     : Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
-      result_field(0),
       ref(item),
       chop_ref(!ref) {
   m_alias_of_expr = alias_of_expr_arg;

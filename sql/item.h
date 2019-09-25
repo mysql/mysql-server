@@ -1927,8 +1927,6 @@ class Item : public Parse_tree_node {
   virtual bool is_result_field() const { return false; }
   virtual Field *get_result_field() const { return nullptr; }
   virtual bool is_bool_func() const { return false; }
-  virtual void save_in_result_field(
-      bool no_conversions MY_ATTRIBUTE((unused))) {}
   /*
     Set value of aggregate function in case of no rows for grouping were found.
     Also used for subqueries with outer references in SELECT list.
@@ -3362,13 +3360,17 @@ class Item_field : public Item_ident {
   TABLE_LIST *table_ref;
   /// Source field
   Field *field;
+
+ private:
   /**
     Item's original field. Used to compare fields in Item_field::eq() in order
     to get proper result when field is transformed by tmp table.
   */
   const Field *orig_field;
   /// Result field
-  Field *result_field;
+  Field *result_field{nullptr};
+
+ public:
   Item_equal *item_equal;
   bool no_const_subst;
   /*
@@ -3434,6 +3436,7 @@ class Item_field : public Item_ident {
     return MONOTONIC_STRICT_INCREASING;
   }
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
+  void set_result_field(Field *field_arg) override { result_field = field_arg; }
   Field *get_tmp_table_field() override { return result_field; }
   Field *tmp_table_field(TABLE *) override { return result_field; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
@@ -3632,19 +3635,16 @@ class Item_null : public Item_basic_constant {
 class Item_null_result final : public Item_null {
   /** Result type for this NULL value */
   Item_result res_type;
+  Field *result_field{nullptr};
 
  public:
-  Field *result_field;
   Item_null_result(enum_field_types fld_type, Item_result res_type)
-      : Item_null(), res_type(res_type), result_field(NULL) {
+      : Item_null(), res_type(res_type) {
     set_data_type(fld_type);
   }
   void set_result_field(Field *field) override { result_field = field; }
   bool is_result_field() const override { return result_field != nullptr; }
   Field *get_result_field() const override { return result_field; }
-  void save_in_result_field(bool no_conversions) override {
-    save_in_field(result_field, no_conversions);
-  }
   bool check_partition_func_processor(uchar *) override { return true; }
   Item_result result_type() const override { return res_type; }
   bool check_function_as_value_generator(uchar *args) override {
@@ -4560,10 +4560,11 @@ class Item_bin_string final : public Item_hex_string {
   available.
 */
 class Item_result_field : public Item {
+ protected:
+  Field *result_field{nullptr}; /* Save result here */
  public:
-  Field *result_field; /* Save result here */
-  Item_result_field() : result_field(0) {}
-  explicit Item_result_field(const POS &pos) : Item(pos), result_field(0) {}
+  Item_result_field() = default;
+  explicit Item_result_field(const POS &pos) : Item(pos) {}
 
   // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
   Item_result_field(THD *thd, const Item_result_field *item)
@@ -4587,11 +4588,6 @@ class Item_result_field : public Item {
   void set_result_field(Field *field) override { result_field = field; }
   bool is_result_field() const override { return true; }
   Field *get_result_field() const override { return result_field; }
-  void save_in_result_field(bool no_conversions) override {
-    DBUG_TRACE;
-    save_in_field(result_field, no_conversions);
-    return;
-  }
 
   void cleanup() override;
   /*
@@ -4651,7 +4647,10 @@ class Item_ref : public Item_ident {
 
  public:
   enum Ref_Type { REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
-  Field *result_field; /* Save result here */
+
+ private:
+  Field *result_field{nullptr}; /* Save result here */
+ public:
   Item **ref;
 
  private:
@@ -4670,13 +4669,11 @@ class Item_ref : public Item_ident {
   Item_ref(Name_resolution_context *context_arg, const char *db_arg,
            const char *table_name_arg, const char *field_name_arg)
       : Item_ident(context_arg, db_arg, table_name_arg, field_name_arg),
-        result_field(0),
         ref(NULL),
         chop_ref(!ref) {}
   Item_ref(const POS &pos, const char *db_arg, const char *table_name_arg,
            const char *field_name_arg)
       : Item_ident(pos, db_arg, table_name_arg, field_name_arg),
-        result_field(0),
         ref(NULL),
         chop_ref(!ref) {}
 
@@ -4760,9 +4757,6 @@ class Item_ref : public Item_ident {
   void set_result_field(Field *field) override { result_field = field; }
   bool is_result_field() const override { return true; }
   Field *get_result_field() const override { return result_field; }
-  void save_in_result_field(bool no_conversions) override {
-    (*ref)->save_in_field(result_field, no_conversions);
-  }
   Item *real_item() override { return ref ? (*ref)->real_item() : this; }
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
     return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
@@ -4929,8 +4923,9 @@ class Item_view_ref final : public Item_ref {
       // Set the same flag for all the objects that *ref depends on.
       (*ref)->walk(&Item::propagate_set_derived_used,
                    enum_walk::SUBQUERY_POSTFIX, NULL);
-    return result_field ? Item::mark_field_in_map(mark_field, result_field)
-                        : false;
+    return get_result_field()
+               ? Item::mark_field_in_map(mark_field, get_result_field())
+               : false;
   }
   longlong val_int() override;
   double val_real() override;
@@ -5009,9 +5004,6 @@ class Item_outer_ref final : public Item_ref {
         outer_ref(0),
         in_sum_func(0),
         found_in_select_list(true) {}
-  void save_in_result_field(bool) override {
-    outer_ref->save_org_in_field(result_field);
-  }
   bool fix_fields(THD *, Item **) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
