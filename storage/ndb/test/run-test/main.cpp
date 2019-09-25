@@ -45,7 +45,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 5
+#define ATRT_VERSION_NUMBER 6
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -404,6 +404,15 @@ int main(int argc, char **argv) {
       g_logger.info("Aborting the test suite execution!");
       break;
     }
+  }
+
+  /**
+   * Stopping all the processes after all the tests are run
+   */
+  if (!shutdown_processes(g_config, atrt_process::AP_ALL)) {
+    g_logger.critical("Failed to stop all processes");
+    return_code =
+        (return_code == TESTSUITE_SUCCESS) ? ATRT_FAILURE : return_code;
   }
 
   if (g_report_file != 0) {
