@@ -3402,8 +3402,18 @@ String *Item_func_min_max::str_op(String *str) {
       MYSQL_TIME ltime;
       enum_field_types field_type = temporal_item->data_type();
       TIME_from_longlong_packed(&ltime, field_type, result);
-      return (null_value = my_TIME_to_str(&ltime, str, decimals)) ? nullptr
-                                                                  : str;
+      null_value = my_TIME_to_str(&ltime, str, decimals);
+      if (null_value) return nullptr;
+      if (str->needs_conversion(collation.collation)) {
+        uint errors = 0;
+        StringBuffer<STRING_BUFFER_USUAL_SIZE * 2> convert_string(nullptr);
+        bool copy_failed =
+            convert_string.copy(str->ptr(), str->length(), str->charset(),
+                                collation.collation, &errors);
+        if (copy_failed || errors || str->copy(convert_string))
+          return error_str();
+      }
+      return str;
     }
   }
 

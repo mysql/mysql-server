@@ -725,3 +725,13 @@ INSERT INTO t1 VALUES (202, 1);
 SELECT * FROM t1 WHERE (GREATEST(c1, c2) = 42) AND (c2 = 1);
 c1	c2
 DROP TABLE t1;
+#
+# Bug#30326848 ASSERTION FAILED: (SLEN % 4) == 0 IN MY_STRNNCOLLSP_UTF32
+#
+DO NULLIF((GREATEST(FROM_UNIXTIME(1537024679) , _utf32 "*b!" )),
+(FROM_UNIXTIME(1537013301) )
+);
+Warnings:
+Warning	1300	Invalid utf32 character string: '002A62'
+Warning	1292	Incorrect datetime value: '?' for column 'FROM_UNIXTIME(1537024679)' at row 1
+Warning	1292	Incorrect datetime value: '?' for column 'FROM_UNIXTIME(1537024679)' at row 1
