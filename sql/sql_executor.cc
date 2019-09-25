@@ -2796,7 +2796,11 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   }
 
   unique_ptr_destroy_only<RowIterator> iterator;
-  if (const_tables == primary_tables) {
+  if (select_lex->is_table_value_constructor) {
+    best_rowcount = select_lex->row_value_list->size();
+    iterator = NewIterator<TableValueConstructorIterator>(
+        thd, &examined_rows, *select_lex->row_value_list, fields);
+  } else if (const_tables == primary_tables) {
     // Only const tables, so add a fake single row to join in all
     // the const tables (only inner-joined tables are promoted to
     // const tables in the optimizer).
@@ -8812,5 +8816,44 @@ int ZeroRowsAggregatedIterator::Read() {
   if (m_examined_rows != nullptr) {
     ++*m_examined_rows;
   }
+  return 0;
+}
+
+TableValueConstructorIterator::TableValueConstructorIterator(
+    THD *thd, ha_rows *examined_rows, const List<List<Item>> &row_value_list,
+    List<Item> *join_fields)
+    : RowIterator(thd),
+      m_examined_rows(examined_rows),
+      m_row_value_list(row_value_list),
+      m_output_refs(join_fields) {}
+
+bool TableValueConstructorIterator::Init() {
+  m_row_it = m_row_value_list.begin();
+  return false;
+}
+
+int TableValueConstructorIterator::Read() {
+  if (*m_examined_rows == m_row_value_list.size()) return -1;
+
+  // If the TVC has a single row, we don't create Item_values_column reference
+  // objects during resolving. We will instead use the single row directly from
+  // SELECT_LEX::item_list, such that we don't have to change references here.
+  if (m_row_value_list.size() != 1) {
+    List_STL_Iterator<Item> output_refs_it = m_output_refs->begin();
+    for (const Item &value : *m_row_it) {
+      Item_values_column &ref =
+          down_cast<Item_values_column &>(*output_refs_it);
+      ++output_refs_it;
+
+      // Ideally we would not be casting away constness here. However, as the
+      // evaluation of Item objects during execution is not const (i.e. none of
+      // the val methods are const), the reference contained in a
+      // Item_values_column object cannot be const.
+      ref.set_value(const_cast<Item *>(&value));
+    }
+    ++m_row_it;
+  }
+
+  ++*m_examined_rows;
   return 0;
 }

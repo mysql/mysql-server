@@ -38,6 +38,7 @@
 #include "my_inttypes.h"
 #include "sql/mem_root_array.h"
 #include "sql/row_iterator.h"
+#include "sql/sql_list.h"
 
 class Filesort_info;
 class Item;
@@ -515,6 +516,55 @@ class FollowTailIterator final : public TableRowIterator {
 
   // Points into MaterializeIterator's data; set by BeginMaterialization() only.
   ha_rows *m_stored_rows = nullptr;
+};
+
+/**
+  TableValueConstructor is the iterator for the table value constructor case of
+  a query_primary (i.e. queries of the form VALUES row_list; e.g. VALUES ROW(1,
+  10), ROW(2, 20)).
+
+  The iterator is passed the field list of its parent JOIN object, which may
+  contain Item_values_column objects that are created during
+  SELECT_LEX::prepare_values(). This is required so that Read() can replace the
+  currently selected row by simply changing the references of Item_values_column
+  objects to the next row.
+
+  The iterator must output multiple rows without being materialized, and does
+  not scan any tables. The indirection of Item_values_column is required, as the
+  executor outputs what is contained in join->fields (either directly, or
+  indirectly through ConvertItemsToCopy), and is thus responsible for ensuring
+  that join->fields contains the correct next row.
+ */
+class TableValueConstructorIterator final : public RowIterator {
+ public:
+  TableValueConstructorIterator(THD *thd, ha_rows *examined_rows,
+                                const List<List<Item>> &row_value_list,
+                                List<Item> *join_fields);
+
+  bool Init() override;
+  int Read() override;
+
+  std::vector<std::string> DebugString() const override {
+    return {"Rows fetched before execution"};
+  }
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  ha_rows *const m_examined_rows{nullptr};
+
+  /// Contains the row values that are part of a VALUES clause. Read() will
+  /// modify contained Item objects during execution by calls to is_null() and
+  /// the required val function to extract its value.
+  const List<List<Item>> &m_row_value_list;
+  List_STL_Iterator<const List<Item>> m_row_it;
+
+  /// References to the row we currently want to output. When multiple rows must
+  /// be output, this contains Item_values_column objects. In this case, each
+  /// call to Read() will replace its current reference with the next row.
+  List<Item> *const m_output_refs;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

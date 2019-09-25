@@ -2841,23 +2841,27 @@ void SELECT_LEX::print(const THD *thd, String *str,
       case SQLCOM_UPDATE:  // Fall through
       case SQLCOM_UPDATE_MULTI:
         print_update(thd, str, query_type);
-        break;
+        return;
       case SQLCOM_DELETE:  // Fall through
       case SQLCOM_DELETE_MULTI:
         print_delete(thd, str, query_type);
-        break;
+        return;
       case SQLCOM_INSERT:  // Fall through
       case SQLCOM_INSERT_SELECT:
       case SQLCOM_REPLACE:
       case SQLCOM_REPLACE_SELECT:
         print_insert(thd, str, query_type);
-        break;
+        return;
       case SQLCOM_SELECT:  // Fall through
       default:
-        print_select(thd, str, query_type);
+        break;
     }
-  } else
+  }
+  if (is_table_value_constructor) {
+    print_values(thd, str, query_type, *row_value_list, "row");
+  } else {
     print_select(thd, str, query_type);
+  }
 }
 
 void SELECT_LEX::print_select(const THD *thd, String *str,
@@ -2961,6 +2965,9 @@ void SELECT_LEX::print_insert(const THD *thd, String *str,
     USES: 'INSERT INTO table (fields) VALUES values' syntax over
     'INSERT INTO table SET field = value, ...'
   */
+  Sql_cmd_insert_base *sql_cmd_insert =
+      down_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd);
+
   if (parent_lex->sql_command == SQLCOM_REPLACE ||
       parent_lex->sql_command == SQLCOM_REPLACE_SELECT)
     str->append(STRING_WITH_LEN("replace "));
@@ -2982,7 +2989,8 @@ void SELECT_LEX::print_insert(const THD *thd, String *str,
 
   if (parent_lex->sql_command == SQLCOM_INSERT ||
       parent_lex->sql_command == SQLCOM_REPLACE) {
-    print_insert_values(thd, str, query_type);
+    print_values(thd, str, query_type, sql_cmd_insert->insert_many_values,
+                 nullptr);
   } else {
     /*
       Print only QB name hint here since other hints were printed in the
@@ -2991,8 +2999,6 @@ void SELECT_LEX::print_insert(const THD *thd, String *str,
     print_select(thd, str, enum_query_type(query_type | QT_ONLY_QB_NAME));
   }
 
-  Sql_cmd_insert_base *sql_cmd_insert =
-      static_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd);
   if (sql_cmd_insert->update_field_list.elements > 0) {
     str->append(STRING_WITH_LEN(" on duplicate key update "));
     print_update_list(thd, str, query_type, sql_cmd_insert->update_field_list,
@@ -3188,21 +3194,21 @@ void SELECT_LEX::print_insert_fields(const THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_insert_values(const THD *thd, String *str,
-                                     enum_query_type query_type) {
+void SELECT_LEX::print_values(const THD *thd, String *str,
+                              enum_query_type query_type,
+                              List<List<Item>> values, const char *prefix) {
   str->append(STRING_WITH_LEN("values "));
-  List_iterator<List_item> it_row(
-      static_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd)
-          ->insert_many_values);
   bool row_first = true;
-  while (List_item *row = it_row++) {
+  for (List<Item> &row : values) {
     if (row_first)
       row_first = false;
     else
       str->append(',');
 
+    if (prefix != nullptr) str->append(prefix);
+
     str->append('(');
-    List_iterator<Item> it_col(*row);
+    List_iterator<Item> it_col(row);
     bool col_first = true;
     while (Item *item = it_col++) {
       if (col_first)

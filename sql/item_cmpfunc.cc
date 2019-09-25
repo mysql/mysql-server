@@ -5727,7 +5727,7 @@ void Item_is_not_null_test::update_used_tables() {
   set_accum_properties(args[0]);
   used_tables_cache |= args[0]->used_tables();
 
-  if (used_tables_cache == initial_pseudo_tables)
+  if (used_tables_cache == initial_pseudo_tables && args[0]->const_item())
     /* Remember if the value is always NULL or never NULL */
     cached_value = !args[0]->is_null();
 }

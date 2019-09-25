@@ -598,11 +598,10 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg) {
 
     // Set all selected fields to be read:
     // @todo Do not set fields that are not referenced from outer query
-    DBUG_ASSERT(thd_arg->mark_used_columns == MARK_COLUMNS_READ);
     List_iterator<Item> it(sl->all_fields);
     Item *item;
     Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
-    Mark_field mf(thd_arg->mark_used_columns);
+    Mark_field mf(MARK_COLUMNS_READ);
     while ((item = it++)) {
       if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                      (uchar *)thd_arg))

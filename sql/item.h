@@ -728,7 +728,8 @@ class Item : public Parse_tree_node {
     XPATH_NODESET_CMP,
     VIEW_FIXER_ITEM,
     FIELD_BIT_ITEM,
-    NULL_RESULT_ITEM
+    NULL_RESULT_ITEM,
+    VALUES_COLUMN_ITEM
   };
 
   enum cond_result { COND_UNDEF, COND_OK, COND_TRUE, COND_FALSE };
@@ -6122,6 +6123,57 @@ class Item_type_holder final : public Item_aggregate_type {
   String *val_str(String *) override;
   bool get_date(MYSQL_TIME *, my_time_flags_t) override;
   bool get_time(MYSQL_TIME *) override;
+};
+
+/**
+  Reference item that encapsulates both the type and the contained items of a
+  single column of a VALUES ROW query expression.
+
+  During execution, the item that will be output for the current iteration is
+  contained in m_value_ref. The type of the column and the referenced item may
+  differ in cases where a column of a VALUES clause contains different types
+  across different rows, and must therefore do type conversions to their common
+  denominator (e.g. a column containing both 10 and "10", of which the types
+  will be aggregated into VARCHAR).
+
+  See the class comment for TableValueConstructorIterator for info on how
+  Item_values_column is used as an indirection to iterate over the rows of a
+  table value constructor (i.e. VALUES ROW expressions).
+*/
+class Item_values_column final : public Item_aggregate_type {
+  typedef Item_aggregate_type super;
+
+ private:
+  Item *m_value_ref{nullptr};
+  /*
+    Even if a table value constructor contains only constant values, we
+    still need to identify individual rows within it. Set RAND_TABLE_BIT
+    to ensure that all rows are scanned, and that the whole VALUES clause
+    is never substituted with a const value or row.
+  */
+  table_map m_aggregated_used_tables{RAND_TABLE_BIT};
+
+  type_conversion_status save_in_field_inner(Field *field,
+                                             bool no_conversions) override;
+
+ public:
+  Item_values_column(THD *thd, Item *ref);
+
+  bool eq(const Item *item, bool binary_cmp) const override;
+  double val_real() override;
+  longlong val_int() override;
+  my_decimal *val_decimal(my_decimal *) override;
+  bool val_bool() override;
+  String *val_str(String *tmp) override;
+  bool val_json(Json_wrapper *result) override;
+  bool is_null() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+
+  enum Type type() const override { return VALUES_COLUMN_ITEM; }
+  void set_value(Item *new_value) { m_value_ref = new_value; }
+  table_map used_tables() const override { return m_aggregated_used_tables; }
+  void add_used_tables(Item *value);
 };
 
 /// A class that represents a constant JSON value.

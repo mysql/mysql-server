@@ -1966,7 +1966,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
     */
     Item *orig_item = select->item_list.head()->real_item();
 
-    if (select->table_list.elements || select->where_cond()) {
+    if (!select->source_table_is_one_row() || select->where_cond()) {
       bool tmp;
       Item_bool_func *item = func->create(m_injected_left_expr, orig_item);
       /*

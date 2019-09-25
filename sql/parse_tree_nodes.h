@@ -801,6 +801,9 @@ class PT_query_expression_body : public Parse_tree_node {
   */
   virtual bool can_absorb_order_and_limit() const = 0;
   virtual bool has_into_clause() const = 0;
+
+  virtual bool is_table_value_constructor() const = 0;
+  virtual PT_insert_values_list *get_row_value_list() const = 0;
 };
 
 class PT_internal_variable_name : public Parse_tree_node {
@@ -1441,6 +1444,9 @@ class PT_query_primary : public Parse_tree_node {
   virtual bool has_into_clause() const = 0;
   virtual bool is_union() const = 0;
   virtual bool can_absorb_order_and_limit() const = 0;
+
+  virtual bool is_table_value_constructor() const { return false; }
+  virtual PT_insert_values_list *get_row_value_list() const { return nullptr; }
 };
 
 class PT_query_specification : public PT_query_primary {
@@ -1509,6 +1515,40 @@ class PT_query_specification : public PT_query_primary {
   bool can_absorb_order_and_limit() const override { return true; }
 };
 
+class PT_table_value_constructor : public PT_query_primary {
+  typedef PT_query_primary super;
+
+  PT_insert_values_list *const row_value_list;
+
+ public:
+  explicit PT_table_value_constructor(PT_insert_values_list *row_value_list_arg)
+      : row_value_list(row_value_list_arg) {}
+
+  bool contextualize(Parse_context *pc) override;
+
+  bool has_into_clause() const override { return false; }
+
+  bool is_union() const override { return false; }
+
+  bool can_absorb_order_and_limit() const override { return false; }
+
+  bool is_table_value_constructor() const override { return true; }
+
+  PT_insert_values_list *get_row_value_list() const override {
+    return row_value_list;
+  }
+};
+
+class PT_explicit_table : public PT_query_specification {
+  using super = PT_query_specification;
+
+ public:
+  PT_explicit_table(
+      const Query_options &options_arg, PT_item_list *item_list_arg,
+      const Mem_root_array_YY<PT_table_reference *> &from_clause_arg)
+      : super(options_arg, item_list_arg, from_clause_arg, nullptr) {}
+};
+
 class PT_query_expression final : public Parse_tree_node {
  public:
   PT_query_expression(PT_with_clause *with_clause,
@@ -1543,6 +1583,14 @@ class PT_query_expression final : public Parse_tree_node {
 
   bool can_absorb_order_and_limit() const {
     return !m_body->is_union() && m_order == nullptr && m_limit == nullptr;
+  }
+
+  bool is_table_value_constructor() const {
+    return m_body->is_table_value_constructor();
+  }
+
+  PT_insert_values_list *get_row_value_list() const {
+    return m_body->get_row_value_list();
   }
 
  private:
@@ -1608,6 +1656,14 @@ class PT_query_expression_body_primary : public PT_query_expression_body {
     return m_query_primary->can_absorb_order_and_limit();
   }
 
+  bool is_table_value_constructor() const override {
+    return m_query_primary->is_table_value_constructor();
+  }
+
+  PT_insert_values_list *get_row_value_list() const override {
+    return m_query_primary->get_row_value_list();
+  }
+
  private:
   PT_query_primary *m_query_primary;
 };
@@ -1630,6 +1686,9 @@ class PT_union : public PT_query_expression_body {
   }
 
   bool can_absorb_order_and_limit() const override { return false; }
+
+  bool is_table_value_constructor() const override { return false; }
+  PT_insert_values_list *get_row_value_list() const override { return nullptr; }
 
  private:
   PT_query_expression *m_lhs;
@@ -1831,8 +1890,8 @@ class PT_insert final : public Parse_tree_root {
   Table_ident *const table_ident;
   List<String> *const opt_use_partition;
   PT_item_list *const column_list;
-  PT_insert_values_list *const row_value_list;
-  PT_query_expression *const insert_query_expression;
+  PT_insert_values_list *row_value_list;
+  PT_query_expression *insert_query_expression;
   const char *const opt_values_table_alias;
   Create_col_name_list *const opt_values_column_list;
   PT_item_list *const opt_on_duplicate_column_list;

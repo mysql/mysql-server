@@ -811,6 +811,33 @@ Sql_cmd *PT_insert::make_cmd(THD *thd) {
 
   Parse_context pc(thd, lex->current_select());
 
+  // Currently there are two syntaxes (old and new, respectively) for INSERT
+  // .. VALUES statements:
+  //
+  //  - INSERT .. VALUES (), () ..
+  //  - INSERT .. VALUES ROW(), ROW() ..
+  //
+  // The latter is a table value constructor, i.e. it has an subquery
+  // expression, while the former is the standard VALUES syntax. When the
+  // non-standard VALUES() function (primarily used in ON DUPLICATE KEY UPDATE
+  // update expressions) is deprecated in the future, the old syntax can be used
+  // as a table value constructor as well.
+  //
+  // However, until such a change is made, we convert INSERT statements with
+  // table value constructors into PT_insert objects that are equal to the old
+  // syntax, as to enforce consistency by making sure they both follow the same
+  // execution path.
+  //
+  // Note that this removes the constness of both row_value_list and
+  // insert_query_expression, which should both be restored when deprecating
+  // VALUES as mentioned above.
+  if (has_select() && insert_query_expression->is_table_value_constructor()) {
+    row_value_list = insert_query_expression->get_row_value_list();
+    DBUG_ASSERT(row_value_list != nullptr);
+
+    insert_query_expression = nullptr;
+  }
+
   if (is_replace) {
     lex->sql_command = has_select() ? SQLCOM_REPLACE_SELECT : SQLCOM_REPLACE;
     lex->duplicates = DUP_REPLACE;
@@ -1023,6 +1050,21 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
     } else if (opt_hints->contextualize(pc))
       return true;
   }
+  return false;
+}
+
+bool PT_table_value_constructor::contextualize(Parse_context *pc) {
+  if (row_value_list->contextualize(pc)) return true;
+
+  pc->select->is_table_value_constructor = true;
+  pc->select->row_value_list = &row_value_list->get_many_values();
+
+  // Some queries, such as CREATE TABLE with SELECT, require item_list to
+  // contain items to call SELECT_LEX::prepare.
+  for (Item &item : *pc->select->row_value_list->head()) {
+    pc->select->item_list.push_back(&item);
+  }
+
   return false;
 }
 

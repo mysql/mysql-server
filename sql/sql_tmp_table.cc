@@ -434,9 +434,10 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
       }
       break;
     case Item::TYPE_HOLDER:
-      result = ((Item_type_holder *)item)
-                   ->make_field_by_type(table, thd->is_strict_mode());
-      if (!result) break;
+    case Item::VALUES_COLUMN_ITEM:
+      result = down_cast<Item_aggregate_type *>(item)->make_field_by_type(
+          table, thd->is_strict_mode());
+      if (result == nullptr) break;
       result->set_derivation(item->collation.derivation);
       break;
     default:  // Dosen't have to be stored

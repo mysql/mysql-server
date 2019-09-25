@@ -9203,6 +9203,12 @@ ER_CONSTRAINT_NOT_FOUND
 ER_ALTER_CONSTRAINT_ENFORCEMENT_NOT_SUPPORTED
   eng "Altering constraint enforcement is not supported for the constraint '%-.192s'. Enforcement state alter is not supported for the PRIMARY, UNIQUE and FOREIGN KEY type constraints."
 
+ER_TABLE_VALUE_CONSTRUCTOR_MUST_HAVE_COLUMNS
+  eng "Each row of a VALUES clause must have at least one column, unless when used as source in an INSERT statement."
+
+ER_TABLE_VALUE_CONSTRUCTOR_CANNOT_HAVE_DEFAULT
+  eng "A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

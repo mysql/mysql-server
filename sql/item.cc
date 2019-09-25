@@ -9519,6 +9519,111 @@ bool Item_type_holder::get_time(MYSQL_TIME *) {
   return true;
 }
 
+type_conversion_status Item_values_column::save_in_field_inner(
+    Field *to, bool no_conversions) {
+  type_conversion_status res;
+  res = m_value_ref->save_in_field(to, no_conversions);
+  null_value = m_value_ref->null_value;
+  return res;
+}
+
+Item_values_column::Item_values_column(THD *thd, Item *ref) : super(thd, ref) {
+  fixed = true;
+}
+
+/* purecov: begin deadcode */
+
+bool Item_values_column::eq(const Item *item, bool binary_cmp) const {
+  DBUG_ASSERT(false);
+  const Item *it = const_cast<Item *>(item)->real_item();
+  return m_value_ref && m_value_ref->eq(it, binary_cmp);
+}
+
+/* purecov: end */
+
+double Item_values_column::val_real() {
+  DBUG_ASSERT(fixed);
+  double tmp = m_value_ref->val_real();
+  null_value = m_value_ref->null_value;
+  return tmp;
+}
+
+longlong Item_values_column::val_int() {
+  DBUG_ASSERT(fixed);
+  longlong tmp = m_value_ref->val_int();
+  null_value = m_value_ref->null_value;
+  return tmp;
+}
+
+/* purecov: begin deadcode */
+
+my_decimal *Item_values_column::val_decimal(my_decimal *decimal_value) {
+  DBUG_ASSERT(false);
+  DBUG_ASSERT(fixed);
+  my_decimal *val = m_value_ref->val_decimal(decimal_value);
+  null_value = m_value_ref->null_value;
+  return val;
+}
+
+bool Item_values_column::val_bool() {
+  DBUG_ASSERT(false);
+  DBUG_ASSERT(fixed);
+  bool tmp = m_value_ref->val_bool();
+  null_value = m_value_ref->null_value;
+  return tmp;
+}
+
+bool Item_values_column::val_json(Json_wrapper *result) {
+  DBUG_ASSERT(false);
+  DBUG_ASSERT(fixed);
+  bool ok = m_value_ref->val_json(result);
+  null_value = m_value_ref->null_value;
+  return ok;
+}
+
+/* purecov: end */
+
+String *Item_values_column::val_str(String *tmp) {
+  DBUG_ASSERT(fixed);
+  tmp = m_value_ref->val_str(tmp);
+  null_value = m_value_ref->null_value;
+  return tmp;
+}
+
+bool Item_values_column::is_null() {
+  DBUG_ASSERT(fixed);
+  /*
+    Item_values_column is dualistic in nature: It represents both a set
+    of values, and, during evaluation, an individual value in this set.
+    This assert will ensure that we only check nullability of individual
+    values, since a set of values is never NULL. Note that setting
+    RAND_TABLE_BIT in the constructor prevents this function from being called
+    during resolving.
+  */
+  DBUG_ASSERT(m_value_ref != nullptr);
+  bool tmp = m_value_ref->is_null();
+  null_value = m_value_ref->null_value;
+  return tmp;
+}
+
+bool Item_values_column::get_date(MYSQL_TIME *ltime,
+                                  my_time_flags_t fuzzydate) {
+  DBUG_ASSERT(fixed);
+  bool result = m_value_ref->get_date(ltime, fuzzydate);
+  null_value = m_value_ref->null_value;
+  return result;
+}
+
+bool Item_values_column::get_time(MYSQL_TIME *ltime) {
+  DBUG_ASSERT(fixed);
+  DBUG_ASSERT(m_value_ref != nullptr);
+  return m_value_ref->get_time(ltime);
+}
+
+void Item_values_column::add_used_tables(Item *value) {
+  m_aggregated_used_tables |= value->used_tables();
+}
+
 void Item_result_field::cleanup() {
   DBUG_TRACE;
   Item::cleanup();

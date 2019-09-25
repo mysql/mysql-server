@@ -1432,6 +1432,7 @@ void warn_about_deprecated_binary(THD *thd)
         opt_paren_expr_list ident_list_arg ident_list values opt_values row_value fields
         fields_or_vars
         opt_field_or_var_spec
+        row_value_explicit
 
 %type <var_type>
         option_type opt_var_type opt_var_ident_type opt_set_var_ident_type
@@ -1587,7 +1588,7 @@ void warn_about_deprecated_binary(THD *thd)
 %type <join_table> joined_table joined_table_parens
 
 %type <table_reference_list> opt_from_clause from_clause from_tables
-        table_reference_list table_reference_list_parens
+        table_reference_list table_reference_list_parens explicit_table
 
 %type <olap_type> olap_opt
 
@@ -1732,7 +1733,8 @@ void warn_about_deprecated_binary(THD *thd)
         update_list
         opt_insert_update_list
 
-%type <values_list> values_list insert_values
+%type <values_list> values_list insert_values table_value_constructor
+        values_row_list
 
 %type <insert_query_expression> insert_query_expression
 
@@ -9168,6 +9170,19 @@ query_primary:
             // Bison doesn't get polymorphism.
             $$= $1;
           }
+        | table_value_constructor
+          {
+            $$= NEW_PTN PT_table_value_constructor($1);
+          }
+        | explicit_table
+          {
+            auto item_list= NEW_PTN PT_select_item_list;
+            if (item_list == nullptr ||
+                item_list->push_back(
+                  NEW_PTN Item_field(@$, nullptr, nullptr, "*")))
+              MYSQL_YYABORT;
+            $$= NEW_PTN PT_explicit_table({}, item_list, $1);
+          }
         ;
 
 query_specification:
@@ -9239,6 +9254,24 @@ table_reference_list:
           {
             $$= $1;
             if ($$.push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+table_value_constructor:
+          VALUES values_row_list
+          {
+            $$= $2;
+          }
+        ;
+
+explicit_table:
+          TABLE_SYM table_ident
+          {
+            $$.init(YYMEM_ROOT);
+            auto table= NEW_PTN
+                PT_table_factor_table_ident($2, nullptr, NULL_CSTR, nullptr);
+            if ($$.push_back(table))
               MYSQL_YYABORT; // OOM
           }
         ;
@@ -12356,6 +12389,20 @@ values_list:
         ;
 
 
+values_row_list:
+          values_row_list ',' row_value_explicit
+          {
+            if ($$->push_back(&$3->value))
+              MYSQL_YYABORT;
+          }
+        | row_value_explicit
+          {
+            $$= NEW_PTN PT_insert_values_list;
+            if ($$ == nullptr || $$->push_back(&$1->value))
+              MYSQL_YYABORT;
+          }
+        ;
+
 equal:
           EQ
         | SET_VAR
@@ -12368,6 +12415,10 @@ opt_equal:
 
 row_value:
           '(' opt_values ')' { $$= $2; }
+        ;
+
+row_value_explicit:
+          ROW_SYM '(' opt_values ')' { $$= $3; }
         ;
 
 opt_values:

@@ -152,6 +152,11 @@ bool SELECT_LEX::prepare(THD *thd) {
   DBUG_ASSERT(join == NULL);
   DBUG_ASSERT(!thd->is_error());
 
+  // If this query block is a table value constructor, a lot of the preparation
+  // done in SELECT_LEX::prepare becomes irrelevant. Thus we call our own
+  // SELECT_LEX::prepare_values in this case.
+  if (is_table_value_constructor) return prepare_values(thd);
+
   SELECT_LEX_UNIT *const unit = master_unit();
 
   if (top_join_list.elements > 0) propagate_nullability(&top_join_list, false);
@@ -478,6 +483,75 @@ bool SELECT_LEX::prepare(THD *thd) {
   if (m_windows.elements != 0) Window::remove_unused_windows(thd, m_windows);
 
   DBUG_ASSERT(!thd->is_error());
+  return false;
+}
+
+/**
+  Prepare a table value constructor query block for optimization.
+
+  In the case of a table value constructor SELECT_LEX, we return the result of
+  this function from SELECT_LEX::prepare, instead of doing the standard prepare
+  routine.
+
+  For a table value constructor block, most preparation of a standard SELECT_LEX
+  becomes irrelevant (in particular INTO, FROM, WHERE, GROUP, HAVING and
+  WINDOW). We therefore substitute the standard resolving routine with this one,
+  which is simply responsible for resolving the expressions contained in VALUES,
+  as well as the query result.
+
+  @param thd    thread handler
+
+  @returns false if success, true if error
+ */
+
+bool SELECT_LEX::prepare_values(THD *thd) {
+  SELECT_LEX_UNIT *const unit = master_unit();
+
+  if (resolve_table_value_constructor_values(thd)) return true;
+
+  // Setup the HAVING clause, duplicating code from SELECT_LEX::prepare. This is
+  // strictly necessary in the case of PREPARE statements, where
+  // resolve_subquery may rewrite its SELECT_LEX to use m_having_cond.
+  //
+  // For example, a query like `SELECT * FROM t WHERE (a, b) IN (VALUES ROW(1,
+  // 10))` may be rewritten such that the SELECT_LEX within the IN subquery has
+  // a HAVING clause with an Item_cond_and. This must be taken into account
+  // during the second preparation that is done when the prepared statement is
+  // _executed_; we now have to resolve m_having_cond properly.
+  //
+  // Note that this duplicated code should be removed in the future. TODO: for
+  // wl#9384, which refactors DML statement preparation to be done only once.
+  if (m_having_cond) {
+    DBUG_ASSERT(m_having_cond->is_bool_func());
+    thd->where = "having clause";
+    having_fix_field = true;
+    resolve_place = RESOLVE_HAVING;
+    if (!m_having_cond->fixed &&
+        (m_having_cond->fix_fields(thd, &m_having_cond) ||
+         m_having_cond->check_cols(1)))
+      return true; /* purecov: inspected */
+
+    DBUG_ASSERT(!m_having_cond->const_item());
+
+    having_fix_field = false;
+    resolve_place = RESOLVE_NONE;
+  }
+
+  // Again, duplicating checks that are also done in SELECT_LEX::prepare for
+  // resolving subqueries. This should, like the resolving of m_having_clause
+  // above, be refactored such that there is less duplication of code from
+  // SELECT_LEX::prepare.
+  if (unit->item &&                     // This is a subquery
+      this != unit->fake_select_lex &&  // A real query block
+                                        // Not normalizing a view
+      !thd->lex->is_view_context_analysis()) {
+    // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
+    if (resolve_subquery(thd)) return true;
+  }
+
+  if (query_result() && query_result()->prepare(thd, item_list, unit))
+    return true; /* purecov: inspected */
+
   return false;
 }
 
@@ -4589,6 +4663,105 @@ Item **SELECT_LEX::add_hidden_item(Item *item) {
   base_ref_items[el] = item;
   all_fields.push_front(item);
   return &base_ref_items[el];
+}
+
+/**
+  Resolve the rows of a table value constructor and aggregate the type of each
+  column across rows.
+
+  @param thd    thread handler
+
+  @returns false if success, true if error
+*/
+
+bool SELECT_LEX::resolve_table_value_constructor_values(THD *thd) {
+  // Item_values_column objects may be allocated; they should be persistent for
+  // PREPARE statements.
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+  size_t num_rows = row_value_list->size();
+  size_t row_degree = row_value_list->head()->size();
+
+  // All table row value expressions shall be of the same degree. Note that
+  // non-scalar subqueries are not allowed; we can simply count the number of
+  // elements.
+  if (row_degree > MAX_FIELDS) {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    return true;
+  }
+
+  size_t row_index = 0;
+  for (List<Item> &values_row : *row_value_list) {
+    if (values_row.size() != row_degree) {
+      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), row_index + 1);
+      return true;
+    } else if (values_row.size() == 0) {
+      // A table value constructor with empty row objects is a syntax error,
+      // except when used as the source for an INSERT statement.
+      my_error(ER_TABLE_VALUE_CONSTRUCTOR_MUST_HAVE_COLUMNS, MYF(0));
+      return true;
+    }
+
+    size_t item_index = 0;
+    Item *item;
+    List_iterator<Item> it(values_row);
+    while ((item = it++)) {
+      if ((!item->fixed && item->fix_fields(thd, it.ref())) ||
+          (item = *(it.ref()))->check_cols(1))
+        return true; /* purecov: inspected */
+
+      if (item->type() == Item::DEFAULT_VALUE_ITEM) {
+        my_error(ER_TABLE_VALUE_CONSTRUCTOR_CANNOT_HAVE_DEFAULT, MYF(0));
+        return true;
+      }
+
+      if (row_index == 0) {
+        // If single row, we skip setting up indirections.
+        if (num_rows != 1 && first_execution) {
+          Item_values_column *column = new Item_values_column(thd, item);
+          if (column == nullptr) return true;
+          column->add_used_tables(item);
+          item = column;
+        }
+        // Make sure to also replace the reference in item_list. In the case
+        // where fix_fields transforms an item, it.ref() will only update the
+        // reference of values_row.
+        if (first_execution) item_list.replace(item_index, item);
+      } else {
+        Item_values_column *column =
+            down_cast<Item_values_column *>(item_list[item_index]);
+        if (column->join_types(thd, item)) return true;
+        column->add_used_tables(item);
+        column->fixed = true;  // Does not have regular fix_fields()
+      }
+
+      ++item_index;
+    }
+
+    ++row_index;
+  }
+
+  // base_ref_items is used during row_value_in_to_exists_transformer to set up
+  // equality checks when transforming IN subquery predicates.
+  if (setup_base_ref_items(thd)) return true;
+
+  size_t name_len;
+  char buff[NAME_LEN + 1];
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, pointer_cast<uchar *>(buff)))
+    return true; /* purecov: inspected */
+
+  size_t item_index = 0;
+  for (Item &column : item_list) {
+    base_ref_items[item_index] = &column;
+
+    // Name the columns column_0, column_1, ...
+    name_len = snprintf(buff, NAME_LEN, "column_%zu", item_index);
+    column.item_name.copy(buff, name_len);
+
+    ++item_index;
+  }
+
+  return false;
 }
 
 /**
