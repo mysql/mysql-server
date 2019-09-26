@@ -16,7 +16,7 @@ var defaults = {
   innodb_cluster_replicaset_name: "default",
   use_bootstrap_big_data: false,
   replication_group_members: [],
-  innodb_cluster_insances: [],
+  innodb_cluster_instances: [],
   innodb_cluster_hosts: [],
   innodb_cluster_user_hosts: [],
   bootstrap_report_host_pattern: ".*",
@@ -224,7 +224,7 @@ exports.get = function get(stmt_key, options) {
             null,
             null,
             currentValue[1] + ":" + currentValue[2],
-            currentValue[1] + ":" +  currentValue[4]
+            currentValue[1] + ":" + currentValue[4]
           ]
         }),
       }
@@ -250,7 +250,7 @@ exports.get = function get(stmt_key, options) {
             ]
           }
     },
-  router_check_member_state:
+    router_check_member_state:
     {
       stmt: "SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid",
       result: {
@@ -268,242 +268,242 @@ exports.get = function get(stmt_key, options) {
       }
     },
     router_select_members_count:
-        {
-          "stmt": "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members",
-          "result": {
-            "columns": [
-              {
-                "type": "LONGLONG",
-                "name": "num_onlines"
-              },
-              {
-                "type": "LONGLONG",
-                "name": "num_total"
-              }
-            ],
-            "rows": [
-              [
-                3,
-                3
-              ]
-            ]
+    {
+      "stmt": "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members",
+      "result": {
+        "columns": [
+          {
+            "type": "LONGLONG",
+            "name": "num_onlines"
+          },
+          {
+            "type": "LONGLONG",
+            "name": "num_total"
           }
-        },
-      router_select_replication_group_name:
-        {
-          "stmt": "select @@group_replication_group_name",
-          "result": {
-            "columns": [
-              {
-                "type": "STRING",
-                "name": "@@group_replication_group_name"
-              }
-            ],
-            "rows": [
-              [
-                "replication-1"
-              ]
-            ]
+        ],
+        "rows": [
+          [
+            3,
+            3
+          ]
+        ]
+      }
+    },
+    router_select_replication_group_name:
+    {
+      "stmt": "select @@group_replication_group_name",
+      "result": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "@@group_replication_group_name"
           }
-        },
-        router_show_cipher_status:
-        {
-          "stmt": "show status like 'ssl_cipher'",
-          "result": {
-            "columns": [
-              {
-                "type": "STRING",
-                "name": "Variable_name"
-              },
-              {
-                "type": "STRING",
-                "name": "Value"
-              }
-            ],
-            "rows": [
-              [
-                "Ssl_cipher",
-                ""
-              ]
-            ]
+        ],
+        "rows": [
+          [
+            "replication-1"
+          ]
+        ]
+      }
+    },
+    router_show_cipher_status:
+    {
+      "stmt": "show status like 'ssl_cipher'",
+      "result": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "Variable_name"
+          },
+          {
+            "type": "STRING",
+            "name": "Value"
           }
-        },
-        router_select_cluster_instances:
-        {
-          "stmt": "SELECT F.cluster_name, R.replicaset_name, JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) FROM mysql_innodb_cluster_metadata.clusters AS F, mysql_innodb_cluster_metadata.instances AS I, mysql_innodb_cluster_metadata.replicasets AS R WHERE R.replicaset_id = (SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances WHERE mysql_server_uuid = @@server_uuid)AND I.replicaset_id = R.replicaset_id AND R.cluster_id = F.cluster_id",
-          "result": {
-            "columns": [
-              {
-                "type": "LONGLONG",
-                "name": "cluster_name"
-              },
-              {
-                "type": "STRING",
-                "name": "replicaset_name"
-              },
-              {
-                "type": "STRING",
-                "name": "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
-              }
-            ],
-            rows: options["innodb_cluster_insances"].map(function(currentValue) {
-                  return [
-                    options.innodb_cluster_cluster_name,
-                    options.innodb_cluster_replicaset_name,
-                    currentValue[0] + ":" + currentValue[1],
-                  ]
-            })
+        ],
+        "rows": [
+          [
+            "Ssl_cipher",
+            ""
+          ]
+        ]
+      }
+    },
+    router_select_cluster_instances:
+    {
+      "stmt": "SELECT F.cluster_name, R.replicaset_name, JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) FROM mysql_innodb_cluster_metadata.clusters AS F, mysql_innodb_cluster_metadata.instances AS I, mysql_innodb_cluster_metadata.replicasets AS R WHERE R.replicaset_id = (SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances WHERE mysql_server_uuid = @@server_uuid)AND I.replicaset_id = R.replicaset_id AND R.cluster_id = F.cluster_id",
+      "result": {
+        "columns": [
+          {
+            "type": "LONGLONG",
+            "name": "cluster_name"
+          },
+          {
+            "type": "STRING",
+            "name": "replicaset_name"
+          },
+          {
+            "type": "STRING",
+            "name": "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
           }
-        },
-        router_start_transaction:
-        {
-          "stmt": "START TRANSACTION",
-          "ok": {}
-        },
-        router_select_hosts:
-        {
-          stmt_regex: "^SELECT host_id, host_name, ip_address FROM mysql_innodb_cluster_metadata.hosts WHERE host_name = '"
-                      + options.bootstrap_report_host_pattern + "' LIMIT 1",
-          result: {
-            columns: [
-              {
-                "type": "STRING",
-                "name": "host_id"
-              },
-              {
-                "type": "STRING",
-                "name": "host_name"
-              },
-              {
-                "type": "STRING",
-                "name": "ip_address"
-              }
-            ],
-            rows: options["innodb_cluster_hosts"].map(function(currentValue) {
+        ],
+        rows: options["innodb_cluster_instances"].map(function(currentValue) {
               return [
-                 currentValue[0], currentValue[1], currentValue[2]
+                options.innodb_cluster_name,
+                options.innodb_cluster_replicaset_name,
+                currentValue[0] + ":" + currentValue[1],
               ]
-            })
+        })
+      }
+    },
+    router_start_transaction:
+    {
+      "stmt": "START TRANSACTION",
+      "ok": {}
+    },
+    router_select_hosts:
+    {
+      stmt_regex: "^SELECT host_id, host_name, ip_address FROM mysql_innodb_cluster_metadata.hosts WHERE host_name = '"
+                  + options.bootstrap_report_host_pattern + "' LIMIT 1",
+      result: {
+        columns: [
+          {
+            "type": "STRING",
+            "name": "host_id"
+          },
+          {
+            "type": "STRING",
+            "name": "host_name"
+          },
+          {
+            "type": "STRING",
+            "name": "ip_address"
           }
-        },
-        router_select_hosts_join_routers:
-        {
-          stmt_regex: "SELECT h.host_id, h.host_name FROM mysql_innodb_cluster_metadata.routers r JOIN mysql_innodb_cluster_metadata.hosts h    ON r.host_id = h.host_id WHERE r.router_id = .*",
-          result: {
-            columns: [
-              {
-                "type": "STRING",
-                "name": "host_id"
-              },
-              {
-                "type": "STRING",
-                "name": "host_name"
-              }
-            ],
-            rows: options["innodb_cluster_hosts"].map(function(currentValue) {
-              return [
-                 currentValue[0], currentValue[1]
-              ]
-            })
+        ],
+        rows: options["innodb_cluster_hosts"].map(function(currentValue) {
+          return [
+             currentValue[0], currentValue[1], currentValue[2]
+          ]
+        })
+      }
+    },
+    router_select_hosts_join_routers:
+    {
+      stmt_regex: "SELECT h.host_id, h.host_name FROM mysql_innodb_cluster_metadata.routers r JOIN mysql_innodb_cluster_metadata.hosts h    ON r.host_id = h.host_id WHERE r.router_id = .*",
+      result: {
+        columns: [
+          {
+            "type": "STRING",
+            "name": "host_id"
+          },
+          {
+            "type": "STRING",
+            "name": "host_name"
           }
-        },
-        router_insert_into_hosts:
-        {
-            "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.hosts        \\(host_name, location, attributes\\) VALUES \\('"
-                          + options.bootstrap_report_host_pattern + "',.*",
-          "ok": {
-            "last_insert_id": 1
+        ],
+        rows: options["innodb_cluster_hosts"].map(function(currentValue) {
+          return [
+             currentValue[0], currentValue[1]
+          ]
+        })
+      }
+    },
+    router_insert_into_hosts:
+    {
+        "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.hosts        \\(host_name, location, attributes\\) VALUES \\('"
+                      + options.bootstrap_report_host_pattern + "',.*",
+      "ok": {
+        "last_insert_id": 1
+      }
+    },
+    router_insert_into_routers:
+    {
+      "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.routers.*",
+      "ok": {
+        "last_insert_id": 1
+      }
+    },
+
+    // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
+    router_delete_old_accounts:
+    {
+      "stmt_regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
+      "result": {
+        "columns": [
+          {
+            "type": "LONGLONG",
+            "name": "COUNT..."
           }
-        },
-        router_insert_into_routers:
-        {
-          "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.routers.*",
-          "ok": {
-            "last_insert_id": 1
-          }
-        },
+        ],
+        "rows": options["innodb_cluster_user_hosts"],
+      }
+    },
 
-        // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
-        router_delete_old_accounts:
-        {
-          "stmt_regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
-          "result": {
-            "columns": [
-              {
-                "type": "LONGLONG",
-                "name": "COUNT..."
-              }
-            ],
-            "rows": options["innodb_cluster_user_hosts"],
-          }
-        },
+    router_create_user:
+    {
+      "stmt_regex": "^CREATE USER 'mysql_router1_[0-9a-z]{12}'@"
+                    + options.user_host_pattern
+                    + " IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
+      "ok": {}
+    },
 
-        router_create_user:
-        {
-          "stmt_regex": "^CREATE USER 'mysql_router1_[0-9a-z]{12}'@"
-                        + options.user_host_pattern
-                        + " IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
-          "ok": {}
-        },
+    router_grant_on_metadata_db:
+    {
+      "stmt_regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*"
+                    + options.user_host_pattern,
+      "ok": {}
+    },
+    router_grant_on_pfs_db:
+    {
+      "stmt_regex": "^GRANT SELECT ON performance_schema.*"
+                    + options.user_host_pattern,
+      "ok": {}
+    },
 
-        router_grant_on_metadata_db:
-        {
-          "stmt_regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.*"
-                        + options.user_host_pattern,
-          "ok": {}
-        },
-        router_grant_on_pfs_db:
-        {
-          "stmt_regex": "^GRANT SELECT ON performance_schema.*"
-                        + options.user_host_pattern,
-          "ok": {}
-        },
+    router_update_routers_in_metadata:
+    {
+      "stmt_regex": "^UPDATE mysql_innodb_cluster_metadata\\.routers.*",
+      "ok": {}
+    },
 
-        router_update_routers_in_metadata:
-        {
-          "stmt_regex": "^UPDATE mysql_innodb_cluster_metadata\\.routers.*",
-          "ok": {}
-        },
+    router_commit:
+    {
+      stmt: "COMMIT",
+      ok: {}
+    },
 
-        router_commit:
-        {
-          stmt: "COMMIT",
-          ok: {}
-        },
+    router_rollback:
+    {
+      stmt: "ROLLBACK",
+      ok: {}
+    },
 
-        router_rollback:
-        {
-          stmt: "ROLLBACK",
-          ok: {}
-        },
-
-        router_replication_group_members:
-        {
-          stmt: "SELECT member_host, member_port   FROM performance_schema.replication_group_members  /*!80002 ORDER BY member_role */",
-            result: {
-              columns: [
-                {
-                  "type": "STRING",
-                  "name": "member_host"
-                },
-                {
-                  "type": "LONG",
-                  "name": "member_port"
-                }
-              ],
-              rows: options["replication_group_members"].map(function(currentValue) {
-                  return [
-                    currentValue[0], currentValue[1],
-                  ]
+    router_replication_group_members:
+    {
+      stmt: "SELECT member_host, member_port   FROM performance_schema.replication_group_members  /*!80002 ORDER BY member_role */",
+        result: {
+          columns: [
+            {
+              "type": "STRING",
+              "name": "member_host"
+            },
+            {
+              "type": "LONG",
+              "name": "member_port"
             }
-           )
-         }
-        },
-        router_drop_users:
-        {
-            stmt_regex: "^DROP USER mysql_router.*",
-            ok: {}
-        },
+          ],
+          rows: options["replication_group_members"].map(function(currentValue) {
+              return [
+                currentValue[0], currentValue[1],
+              ]
+        }
+       )
+     }
+    },
+    router_drop_users:
+    {
+        stmt_regex: "^DROP USER mysql_router.*",
+        ok: {}
+    },
   };
 
   return statements[stmt_key];
