@@ -523,7 +523,7 @@ class Unique_fifo_queue {
 class Dbug_table_list_dumper {
   FILE *out;
   Unique_fifo_queue<TABLE_LIST> tables_fifo;
-  Unique_fifo_queue<memroot_deque<TABLE_LIST *>> tbl_lists;
+  Unique_fifo_queue<mem_root_deque<TABLE_LIST *>> tbl_lists;
 
  public:
   void dump_one_struct(TABLE_LIST *tbl);
@@ -620,7 +620,7 @@ int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
     dump_one_struct(tbl);
   }
 
-  memroot_deque<TABLE_LIST *> *plist;
+  mem_root_deque<TABLE_LIST *> *plist;
   tbl_lists.push_back(&select_lex->top_join_list);
   while (tbl_lists.pop_first(&plist)) {
     fprintf(out, "\"%p\" [\n", plist);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
 #include "sql/histograms/equi_height_bucket.h"
 #include "sql/histograms/value_map.h"  // Value_map
 #include "sql/json_dom.h"              // Json_*
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
@@ -56,13 +56,13 @@ Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const std::string &db_name,
     : Histogram(mem_root, db_name, tbl_name, col_name,
                 enum_histogram_type::EQUI_HEIGHT, data_type),
       m_buckets(Histogram_comparator(),
-                Memroot_allocator<equi_height::Bucket<T>>(mem_root)) {}
+                Mem_root_allocator<equi_height::Bucket<T>>(mem_root)) {}
 
 template <class T>
 Equi_height<T>::Equi_height(MEM_ROOT *mem_root, const Equi_height<T> &other)
     : Histogram(mem_root, other),
       m_buckets(Histogram_comparator(),
-                Memroot_allocator<equi_height::Bucket<T>>(mem_root)) {
+                Mem_root_allocator<equi_height::Bucket<T>>(mem_root)) {
   for (const auto &bucket : other.m_buckets) m_buckets.emplace(bucket);
 }
 
@@ -71,7 +71,7 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
                                  const Equi_height<String> &other)
     : Histogram(mem_root, other),
       m_buckets(Histogram_comparator(),
-                Memroot_allocator<equi_height::Bucket<String>>(mem_root)) {
+                Mem_root_allocator<equi_height::Bucket<String>>(mem_root)) {
   /*
     Copy bucket contents. We need to make duplicates of String data, since they
     are allocated on a MEM_ROOT that most likely will be freed way too early.
@@ -235,8 +235,8 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
                                   cumulative_frequency, num_distinct_estimate);
 
     /*
-      Since we are using a std::vector with Memroot_allocator, we are forced to
-      wrap the following section in a try-catch. The Memroot_allocator will
+      Since we are using a std::vector with Mem_root_allocator, we are forced to
+      wrap the following section in a try-catch. The Mem_root_allocator will
       throw an exception of class std::bad_alloc when it runs out of memory.
     */
     try {

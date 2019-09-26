@@ -1384,7 +1384,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   }
 
   if (!(view_ref->view_tables =
-            new (thd->mem_root) memroot_deque<TABLE_LIST *>(thd->mem_root))) {
+            new (thd->mem_root) mem_root_deque<TABLE_LIST *>(thd->mem_root))) {
     result = true;
     return true;
   }

@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ struct Histogram_comparator;
 }  // namespace histograms
 struct MEM_ROOT;
 template <class T>
-class Memroot_allocator;
+class Mem_root_allocator;
 
 namespace histograms {
 
@@ -106,7 +106,7 @@ class Equi_height : public Histogram {
 
   /// The buckets for this histogram.
   std::set<equi_height::Bucket<T>, Histogram_comparator,
-           Memroot_allocator<equi_height::Bucket<T>>>
+           Mem_root_allocator<equi_height::Bucket<T>>>
       m_buckets;
 
   /**

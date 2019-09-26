@@ -27,39 +27,39 @@
 #include <initializer_list>
 #include <utility>
 
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 
 /// A utility for having an std::deque which stores its elements on a MEM_ROOT.
 template <class T>
-class memroot_deque : public std::deque<T, Memroot_allocator<T>> {
+class mem_root_deque : public std::deque<T, Mem_root_allocator<T>> {
  private:
-  using super = std::deque<T, Memroot_allocator<T>>;
+  using super = std::deque<T, Mem_root_allocator<T>>;
 
  public:
-  explicit memroot_deque(MEM_ROOT *mem_root)
-      : super(Memroot_allocator<T>(mem_root)) {}
+  explicit mem_root_deque(MEM_ROOT *mem_root)
+      : super(Mem_root_allocator<T>(mem_root)) {}
 
-  memroot_deque(typename super::size_type count, const T &value,
-                MEM_ROOT *mem_root)
-      : super(count, value, Memroot_allocator<T>(mem_root)) {}
+  mem_root_deque(typename super::size_type count, const T &value,
+                 MEM_ROOT *mem_root)
+      : super(count, value, Mem_root_allocator<T>(mem_root)) {}
 
-  memroot_deque(typename super::size_type count, MEM_ROOT *mem_root)
-      : super(count, Memroot_allocator<T>(mem_root)) {}
+  mem_root_deque(typename super::size_type count, MEM_ROOT *mem_root)
+      : super(count, Mem_root_allocator<T>(mem_root)) {}
 
   template <class InputIt>
-  memroot_deque(InputIt first, InputIt last, MEM_ROOT *mem_root)
-      : super(first, last, Memroot_allocator<T>(mem_root)) {}
+  mem_root_deque(InputIt first, InputIt last, MEM_ROOT *mem_root)
+      : super(first, last, Mem_root_allocator<T>(mem_root)) {}
 
-  memroot_deque(const memroot_deque &other) : super(other) {}
-  memroot_deque(const memroot_deque &other, MEM_ROOT *mem_root)
-      : super(other, Memroot_allocator<T>(mem_root)) {}
+  mem_root_deque(const mem_root_deque &other) : super(other) {}
+  mem_root_deque(const mem_root_deque &other, MEM_ROOT *mem_root)
+      : super(other, Mem_root_allocator<T>(mem_root)) {}
 
-  memroot_deque(memroot_deque &&other) : super(std::move(other)) {}
-  memroot_deque(memroot_deque &&other, MEM_ROOT *mem_root)
-      : super(std::move(other), Memroot_allocator<T>(mem_root)) {}
+  mem_root_deque(mem_root_deque &&other) : super(std::move(other)) {}
+  mem_root_deque(mem_root_deque &&other, MEM_ROOT *mem_root)
+      : super(std::move(other), Mem_root_allocator<T>(mem_root)) {}
 
-  memroot_deque(std::initializer_list<T> init, MEM_ROOT *mem_root)
-      : super(std::move(init), Memroot_allocator<T>(mem_root)) {}
+  mem_root_deque(std::initializer_list<T> init, MEM_ROOT *mem_root)
+      : super(std::move(init), Mem_root_allocator<T>(mem_root)) {}
 };
 
 #endif  // MEM_ROOT_DEQUE_H

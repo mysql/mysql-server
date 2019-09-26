@@ -500,7 +500,7 @@ int TC_LOG_MMAP::recover() {
 
   {
     MEM_ROOT mem_root(PSI_INSTRUMENT_ME, tc_log_page_size / 3);
-    memroot_unordered_set<my_xid> xids(&mem_root);
+    mem_root_unordered_set<my_xid> xids(&mem_root);
 
     for (; p < end_p; p++) {
       for (my_xid *x = p->start; x < p->end; x++) {

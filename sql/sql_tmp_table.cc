@@ -60,8 +60,8 @@
 #include "sql/item_func.h"  // Item_func
 #include "sql/item_sum.h"   // Item_sum
 #include "sql/key.h"
-#include "sql/mem_root_array.h"  // Mem_root_array
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
+#include "sql/mem_root_array.h"     // Mem_root_array
 #include "sql/mysqld.h"             // heap_hton
 #include "sql/opt_range.h"          // QUICK_SELECT_I
 #include "sql/opt_trace.h"          // Opt_trace_object

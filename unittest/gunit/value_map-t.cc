@@ -33,7 +33,7 @@
 #include "mysql_time.h"                // MYSQL_TIME
 #include "sql/field.h"                 // my_charset_numeric
 #include "sql/histograms/value_map.h"  // Value_map
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/my_decimal.h"  // my_decimal
 #include "sql/sql_time.h"    // my_time_compare
 #include "sql_string.h"      // String

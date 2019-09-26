@@ -55,7 +55,7 @@ Column::Column(Field *field) : field(field), field_type(field->real_type()) {}
 Table::Table(QEP_TAB *qep_tab)
     : qep_tab(qep_tab), columns(PSI_NOT_INSTRUMENTED) {
   MEM_ROOT tmp_mem_root;
-  memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> saved_read_sets(
+  mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> saved_read_sets(
       &tmp_mem_root);
 
   // When a table contains a virtual column, the base columns that the computed

@@ -106,14 +106,14 @@ struct CACHE_FIELD {
 */
 void filter_virtual_gcol_base_cols(
     const QEP_TAB *qep_tab, MEM_ROOT *mem_root,
-    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
+    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
 
 /**
   Restore table->read_set to the value stored in "saved_bitmaps".
 */
 void restore_virtual_gcol_base_cols(
     const QEP_TAB *qep_tab,
-    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
+    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
 
 /**
   JOIN_CACHE is the base class to support the implementations of both
@@ -147,7 +147,7 @@ class JOIN_CACHE : public QEP_operation {
      In init() there are several uses of TABLE::tmp_set, so one tmp_set isn't
      enough; this one is specific of generated column handling.
   */
-  memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> save_read_set_for_gcol;
+  mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> save_read_set_for_gcol;
 
  protected:
   /// @return the number of bytes used to store an offset value

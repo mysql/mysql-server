@@ -3219,7 +3219,7 @@ retry_share : {
 
         // Create empty list of view_tables.
         table_list->view_tables =
-            new (thd->mem_root) memroot_deque<TABLE_LIST *>(thd->mem_root);
+            new (thd->mem_root) mem_root_deque<TABLE_LIST *>(thd->mem_root);
         if (table_list->view_tables == nullptr) return true;
 
         table_list->view_db.str = table_list->db;
@@ -8571,7 +8571,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     false  OK
 */
 bool setup_natural_join_row_types(THD *thd,
-                                  memroot_deque<TABLE_LIST *> *from_clause,
+                                  mem_root_deque<TABLE_LIST *> *from_clause,
                                   Name_resolution_context *context) {
   DBUG_TRACE;
   thd->where = "from clause";

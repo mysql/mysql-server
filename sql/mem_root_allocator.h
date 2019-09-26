@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MEMROOT_ALLOCATOR_INCLUDED
-#define MEMROOT_ALLOCATOR_INCLUDED
+#ifndef MEM_ROOT_ALLOCATOR_INCLUDED
+#define MEM_ROOT_ALLOCATOR_INCLUDED
 
 #include <limits>
 #include <new>
@@ -31,7 +31,7 @@
 #include "my_dbug.h"
 
 /**
-  Memroot_allocator is a C++ STL memory allocator based on MEM_ROOT.
+  Mem_root_allocator is a C++ STL memory allocator based on MEM_ROOT.
 
   No deallocation is done by this allocator. Calling init_sql_alloc()
   and free_root() on the supplied MEM_ROOT is the responsibility of
@@ -39,7 +39,7 @@
   objects using this allocator has completed. This includes iterators.
 
   Example of use:
-  vector<int, Memroot_allocator<int> > v((Memroot_allocator<int>(&mem_root)));
+  vector<int, Mem_root_allocator<int> > v((Mem_root_allocator<int>(&mem_root)));
 
   @note allocate() throws std::bad_alloc() similarly to the default
   STL memory allocator. This is necessary - STL functions which allocate
@@ -53,7 +53,7 @@
 
   @note C++98 says that STL implementors can assume that allocator objects
   of the same type always compare equal. This will only be the case for
-  two Memroot_allocators that use the same MEM_ROOT. Care should be taken
+  two Mem_root_allocators that use the same MEM_ROOT. Care should be taken
   when this is not the case. Especially:
   - Using list::splice() on two lists with allocators using two different
     MEM_ROOTs causes undefined behavior. Most implementations seem to give
@@ -64,7 +64,7 @@
 */
 
 template <class T>
-class Memroot_allocator {
+class Mem_root_allocator {
   // This cannot be const if we want to be able to swap.
   MEM_ROOT *m_memroot;
 
@@ -82,17 +82,17 @@ class Memroot_allocator {
   pointer address(reference r) const { return &r; }
   const_pointer address(const_reference r) const { return &r; }
 
-  explicit Memroot_allocator(MEM_ROOT *memroot) : m_memroot(memroot) {}
+  explicit Mem_root_allocator(MEM_ROOT *memroot) : m_memroot(memroot) {}
 
-  explicit Memroot_allocator() : m_memroot(nullptr) {}
+  explicit Mem_root_allocator() : m_memroot(nullptr) {}
 
   template <class U>
-  Memroot_allocator(const Memroot_allocator<U> &other)
+  Mem_root_allocator(const Mem_root_allocator<U> &other)
       : m_memroot(other.memroot()) {}
 
   template <class U>
-  Memroot_allocator &operator=(
-      const Memroot_allocator<U> &other MY_ATTRIBUTE((unused))) {
+  Mem_root_allocator &operator=(
+      const Mem_root_allocator<U> &other MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(m_memroot == other.memroot());  // Don't swap memroot.
   }
 
@@ -132,22 +132,22 @@ class Memroot_allocator {
 
   template <class U>
   struct rebind {
-    typedef Memroot_allocator<U> other;
+    typedef Mem_root_allocator<U> other;
   };
 
   MEM_ROOT *memroot() const { return m_memroot; }
 };
 
 template <class T>
-bool operator==(const Memroot_allocator<T> &a1,
-                const Memroot_allocator<T> &a2) {
+bool operator==(const Mem_root_allocator<T> &a1,
+                const Mem_root_allocator<T> &a2) {
   return a1.memroot() == a2.memroot();
 }
 
 template <class T>
-bool operator!=(const Memroot_allocator<T> &a1,
-                const Memroot_allocator<T> &a2) {
+bool operator!=(const Mem_root_allocator<T> &a1,
+                const Mem_root_allocator<T> &a2) {
   return a1.memroot() != a2.memroot();
 }
 
-#endif  // MEMROOT_ALLOCATOR_INCLUDED
+#endif  // MEM_ROOT_ALLOCATOR_INCLUDED

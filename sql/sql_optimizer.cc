@@ -4096,7 +4096,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
 
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
-                       memroot_deque<TABLE_LIST *> *join_list,
+                       mem_root_deque<TABLE_LIST *> *join_list,
                        COND_EQUAL **cond_equal_ref) {
   COND_EQUAL *cond_equal = 0;
 
@@ -4128,7 +4128,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
   if (join_list) {
     for (TABLE_LIST *table : *join_list) {
       if (table->join_cond_optim()) {
-        memroot_deque<TABLE_LIST *> *nested_join_list =
+        mem_root_deque<TABLE_LIST *> *nested_join_list =
             table->nested_join ? &table->nested_join->join_list : NULL;
         Item *join_cond;
         if (build_equal_items(thd, table->join_cond_optim(), &join_cond,
@@ -4636,7 +4636,7 @@ static bool propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
     First unused bit in nested_join_map after the call.
 */
 
-uint build_bitmap_for_nested_joins(memroot_deque<TABLE_LIST *> *join_list,
+uint build_bitmap_for_nested_joins(mem_root_deque<TABLE_LIST *> *join_list,
                                    uint first_unused) {
   DBUG_TRACE;
   for (TABLE_LIST *table : *join_list) {
@@ -6379,7 +6379,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
 
     bool remove = false;
     if (pulled_tables) {
-      memroot_deque<TABLE_LIST *> *upper_join_list =
+      mem_root_deque<TABLE_LIST *> *upper_join_list =
           (sj_nest->embedding != NULL)
               ? &sj_nest->embedding->nested_join->join_list
               : &join->select_lex->top_join_list;
@@ -7615,7 +7615,7 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
                                   TABLE_LIST *nested_join_table,
                                   Key_field **end, uint *and_level,
                                   SARGABLE_PARAM **sargables) {
-  memroot_deque<TABLE_LIST *> &join_list =
+  mem_root_deque<TABLE_LIST *> &join_list =
       nested_join_table->nested_join->join_list;
   auto li = join_list.begin();
   auto li_end = join_list.end();
@@ -9855,7 +9855,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
 */
 
 bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
-                   memroot_deque<TABLE_LIST *> *join_list,
+                   mem_root_deque<TABLE_LIST *> *join_list,
                    Item::cond_result *cond_value) {
   DBUG_TRACE;
   Opt_trace_context *const trace = &thd->opt_trace;

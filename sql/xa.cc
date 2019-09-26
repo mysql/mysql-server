@@ -243,7 +243,7 @@ MEM_ROOT *Recovered_xa_transactions::get_allocated_memroot() {
 struct xarecover_st {
   int len, found_foreign_xids, found_my_xids;
   XA_recover_txn *list;
-  const memroot_unordered_set<my_xid> *commit_list;
+  const mem_root_unordered_set<my_xid> *commit_list;
   bool dry_run;
 };
 
@@ -365,7 +365,7 @@ static bool xarecover_handlerton(THD *, plugin_ref plugin, void *arg) {
   return false;
 }
 
-int ha_recover(const memroot_unordered_set<my_xid> *commit_list) {
+int ha_recover(const mem_root_unordered_set<my_xid> *commit_list) {
   xarecover_st info;
   DBUG_TRACE;
   info.found_foreign_xids = info.found_my_xids = 0;

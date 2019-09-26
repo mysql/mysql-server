@@ -52,8 +52,8 @@
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
+#include "mem_root_allocator.h"
 #include "memory_debugging.h"
-#include "memroot_allocator.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -121,7 +121,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"
-#include "sql/temp_table_param.h"  // Memroot_vector
+#include "sql/temp_table_param.h"  // Mem_root_vector
 #include "sql/thr_malloc.h"
 #include "sql/timing_iterator.h"
 #include "sql/window.h"
@@ -8026,7 +8026,7 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   DBUG_TRACE;
 
   MEM_ROOT mem_root(key_memory_hash_index_key_buffer, 32768);
-  memroot_unordered_set<std::string> hash(&mem_root);
+  mem_root_unordered_set<std::string> hash(&mem_root);
   hash.reserve(file->stats.records);
 
   std::unique_ptr<uchar[]> key_buffer(new uchar[key_length]);
@@ -8216,8 +8216,8 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
   res_selected_fields->empty();
   res_all_fields->empty();
   size_t border = all_fields.size() - num_select_elements;
-  Memroot_vector<Item_copy *> extra_funcs(
-      Memroot_allocator<Item_copy *>(thd->mem_root));
+  Mem_root_vector<Item_copy *> extra_funcs(
+      Mem_root_allocator<Item_copy *>(thd->mem_root));
 
   param->grouped_expressions.clear();
   DBUG_ASSERT(param->copy_fields.empty());

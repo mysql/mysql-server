@@ -302,7 +302,7 @@ class HashJoinRowBuffer {
 
   bool empty() const { return m_hash_map->empty(); }
 
-  using hash_map_type = memroot_unordered_multimap<Key, BufferRow, KeyHasher>;
+  using hash_map_type = mem_root_unordered_multimap<Key, BufferRow, KeyHasher>;
 
   using hash_map_iterator = hash_map_type::const_iterator;
 

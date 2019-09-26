@@ -8796,7 +8796,7 @@ static int binlog_recover(Binlog_file_reader *binlog_file_reader,
 
   {
     MEM_ROOT mem_root(key_memory_binlog_recover_exec, memory_page_size);
-    memroot_unordered_set<my_xid> xids(&mem_root);
+    mem_root_unordered_set<my_xid> xids(&mem_root);
 
     while ((ev = binlog_file_reader->read_event_object())) {
       if (ev->get_type_code() == binary_log::QUERY_EVENT &&

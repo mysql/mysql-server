@@ -30,7 +30,7 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "sql/histograms/histogram.h"
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/sql_cmd.h"            // Sql_cmd
 #include "sql/sql_cmd_ddl_table.h"  // Sql_cmd_ddl_table
 #include "sql/sql_plugin_ref.h"
@@ -91,7 +91,7 @@ class Sql_cmd_analyze_table : public Sql_cmd_ddl_table {
 
  private:
   using columns_set =
-      std::set<String *, Column_name_comparator, Memroot_allocator<String *>>;
+      std::set<String *, Column_name_comparator, Mem_root_allocator<String *>>;
 
   /// Which histogram command (if any) is specified
   Histogram_command m_histogram_command = Histogram_command::NONE;

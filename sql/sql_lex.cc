@@ -2681,7 +2681,7 @@ static void print_table_array(const THD *thd, String *str,
 */
 
 static void print_join(const THD *thd, String *str,
-                       memroot_deque<TABLE_LIST *> *tables,
+                       mem_root_deque<TABLE_LIST *> *tables,
                        enum_query_type query_type) {
   /* List is reversed => we should reverse it before using */
 
@@ -3349,7 +3349,7 @@ bool SELECT_LEX_UNIT::accept(Select_lex_visitor *visitor) {
   return visitor->visit(this);
 }
 
-bool accept_for_join(memroot_deque<TABLE_LIST *> *tables,
+bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
                      Select_lex_visitor *visitor) {
   for (TABLE_LIST *t : *tables) {
     if (accept_table(t, visitor)) return true;
@@ -4314,7 +4314,7 @@ void SELECT_LEX::include_chain_in_global(SELECT_LEX **start) {
    @returns true if OOM
 */
 static bool get_optimizable_join_conditions(
-    THD *thd, memroot_deque<TABLE_LIST *> &join_list) {
+    THD *thd, mem_root_deque<TABLE_LIST *> &join_list) {
   for (TABLE_LIST *table : join_list) {
     NESTED_JOIN *const nested_join = table->nested_join;
     if (nested_join &&
@@ -4517,7 +4517,7 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const {
   JOINs may be nested. Walk nested joins recursively to apply the
   processor.
 */
-static bool walk_join_condition(memroot_deque<TABLE_LIST *> *tables,
+static bool walk_join_condition(mem_root_deque<TABLE_LIST *> *tables,
                                 Item_processor processor, enum_walk walk,
                                 uchar *arg) {
   for (const TABLE_LIST *table : *tables) {

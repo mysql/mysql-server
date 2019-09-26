@@ -1455,7 +1455,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::setup_join_cond(THD *thd, memroot_deque<TABLE_LIST *> *tables,
+bool SELECT_LEX::setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
                                  bool in_update) {
   DBUG_TRACE;
 
@@ -1509,7 +1509,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, memroot_deque<TABLE_LIST *> *tables,
   tables which will be ignored.
 */
 
-void SELECT_LEX::reset_nj_counters(memroot_deque<TABLE_LIST *> *join_list) {
+void SELECT_LEX::reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list) {
   if (join_list == NULL) join_list = &top_join_list;
   DBUG_TRACE;
   for (TABLE_LIST *table : *join_list) {
@@ -1647,7 +1647,7 @@ void SELECT_LEX::reset_nj_counters(memroot_deque<TABLE_LIST *> *join_list) {
   @returns true for error, false for success
 */
 bool SELECT_LEX::simplify_joins(THD *thd,
-                                memroot_deque<TABLE_LIST *> *join_list,
+                                mem_root_deque<TABLE_LIST *> *join_list,
                                 bool top, bool in_sj, Item **cond,
                                 uint *changelog) {
   /*
@@ -1948,7 +1948,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
 
   @return False if successful, True if failure
 */
-bool SELECT_LEX::record_join_nest_info(memroot_deque<TABLE_LIST *> *tables) {
+bool SELECT_LEX::record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables) {
   for (TABLE_LIST *table : *tables) {
     if (table->nested_join == NULL) {
       if (table->join_cond()) outer_join |= table->map();
@@ -2413,7 +2413,7 @@ bool SELECT_LEX::decorrelate_condition(TABLE_LIST *const sj_nest,
   @returns false if success, true if error
 */
 bool SELECT_LEX::decorrelate_join_conds(
-    TABLE_LIST *sj_nest, memroot_deque<TABLE_LIST *> *join_list) {
+    TABLE_LIST *sj_nest, mem_root_deque<TABLE_LIST *> *join_list) {
   for (TABLE_LIST *t : *join_list) {
     if (t->is_inner_table_of_outer_join()) continue;
     if (t->nested_join != nullptr &&
@@ -2529,7 +2529,7 @@ bool SELECT_LEX::decorrelate_join_conds(
 bool SELECT_LEX::convert_subquery_to_semijoin(
     THD *thd, Item_exists_subselect *subq_pred) {
   TABLE_LIST *emb_tbl_nest = NULL;
-  memroot_deque<TABLE_LIST *> *emb_join_list = &top_join_list;
+  mem_root_deque<TABLE_LIST *> *emb_join_list = &top_join_list;
   DBUG_TRACE;
 
   DBUG_ASSERT(subq_pred->substype() == Item_subselect::IN_SUBS ||
@@ -3596,7 +3596,8 @@ bool SELECT_LEX::is_in_select_list(Item *cand) {
   @param tables  List of tables and join nests, start at top_join_list
   @param nullable  true: Set all underlying tables as nullable
 */
-void propagate_nullability(memroot_deque<TABLE_LIST *> *tables, bool nullable) {
+void propagate_nullability(mem_root_deque<TABLE_LIST *> *tables,
+                           bool nullable) {
   for (TABLE_LIST *tr : *tables) {
     if (tr->table && !tr->table->is_nullable() && (nullable || tr->outer_join))
       tr->table->set_nullable();
@@ -3647,7 +3648,7 @@ bool SELECT_LEX::add_ftfunc_list(List<Item_func_match> *ftfuncs) {
    @param  join_list  List of tables and join nests
 */
 void SELECT_LEX::repoint_contexts_of_join_nests(
-    memroot_deque<TABLE_LIST *> join_list) {
+    mem_root_deque<TABLE_LIST *> join_list) {
   for (TABLE_LIST *tbl : join_list) {
     tbl->select_lex = this;
     if (tbl->nested_join)
@@ -4592,7 +4593,7 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
 */
 
 void SELECT_LEX::delete_unused_merged_columns(
-    memroot_deque<TABLE_LIST *> *tables) {
+    mem_root_deque<TABLE_LIST *> *tables) {
   DBUG_TRACE;
 
   for (TABLE_LIST *tl : *tables) {

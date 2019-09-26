@@ -120,8 +120,8 @@ bool Singleton<T>::build_histogram(const Value_map<T> &value_map,
   double cumulative_frequency = 0.0;
 
   /*
-    Since we are using a std::map with Memroot_allocator, we are forced to wrap
-    the following section in a try-catch. The Memroot_allocator will throw an
+    Since we are using a std::map with Mem_root_allocator, we are forced to wrap
+    the following section in a try-catch. The Mem_root_allocator will throw an
     exception of class std::bad_alloc when it runs out of memory.
   */
   try {

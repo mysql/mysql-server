@@ -6180,7 +6180,7 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt) {
       thd->mem_root, "(nest_last_join)", embedding, join_list, this);
   if (ptr == NULL) return NULL;
 
-  memroot_deque<TABLE_LIST *> *const embedded_list =
+  mem_root_deque<TABLE_LIST *> *const embedded_list =
       &ptr->nested_join->join_list;
 
   for (uint i = 0; i < table_cnt; i++) {

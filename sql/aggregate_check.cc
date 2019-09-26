@@ -1081,7 +1081,7 @@ void Group_check::find_fd_in_cond(Item *cond, table_map weak_tables,
    @param  join_list  members of the join nest
 */
 void Group_check::find_fd_in_joined_table(
-    memroot_deque<TABLE_LIST *> *join_list) {
+    mem_root_deque<TABLE_LIST *> *join_list) {
   for (const TABLE_LIST *table : *join_list) {
     if (table->is_sj_or_aj_nest()) {
       /*

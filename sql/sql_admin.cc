@@ -292,7 +292,7 @@ Sql_cmd_analyze_table::Sql_cmd_analyze_table(
     : Sql_cmd_ddl_table(alter_info),
       m_histogram_command(histogram_command),
       m_histogram_fields(Column_name_comparator(),
-                         Memroot_allocator<String>(thd->mem_root)),
+                         Mem_root_allocator<String>(thd->mem_root)),
       m_histogram_buckets(histogram_buckets) {}
 
 bool Sql_cmd_analyze_table::drop_histogram(THD *thd, TABLE_LIST *table,

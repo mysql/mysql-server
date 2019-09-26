@@ -42,8 +42,8 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "mem_root_deque.h"
 #include "memory_debugging.h"
-#include "memroot_deque.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -1198,13 +1198,13 @@ class SELECT_LEX {
   */
   JOIN *join;
   /// join list of the top level
-  memroot_deque<TABLE_LIST *> top_join_list;
+  mem_root_deque<TABLE_LIST *> top_join_list;
   /// list for the currently parsed join
-  memroot_deque<TABLE_LIST *> *join_list;
+  mem_root_deque<TABLE_LIST *> *join_list;
   /// table embedding the above list
   TABLE_LIST *embedding;
   /// List of semi-join nests generated for this query block
-  memroot_deque<TABLE_LIST *> sj_nests;
+  mem_root_deque<TABLE_LIST *> sj_nests;
   /**
     Points to first leaf table of query block. After setup_tables() is done,
     this is a list of base tables and derived tables. After derived tables
@@ -1852,7 +1852,7 @@ class SELECT_LEX {
 
  private:
   // Delete unused columns from merged derived tables
-  void delete_unused_merged_columns(memroot_deque<TABLE_LIST *> *tables);
+  void delete_unused_merged_columns(mem_root_deque<TABLE_LIST *> *tables);
 
   bool m_agg_func_used;
   bool m_json_agg_func_used;
@@ -1870,8 +1870,8 @@ class SELECT_LEX {
       *type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)];
 
   friend class SELECT_LEX_UNIT;
-  bool record_join_nest_info(memroot_deque<TABLE_LIST *> *tables);
-  bool simplify_joins(THD *thd, memroot_deque<TABLE_LIST *> *join_list,
+  bool record_join_nest_info(mem_root_deque<TABLE_LIST *> *tables);
+  bool simplify_joins(THD *thd, mem_root_deque<TABLE_LIST *> *join_list,
                       bool top, bool in_sj, Item **new_conds,
                       uint *changelog = NULL);
   /// Merge derived table into query block
@@ -1885,7 +1885,7 @@ class SELECT_LEX {
                      Item **sj_cond);
   bool decorrelate_condition(TABLE_LIST *sj_nest, TABLE_LIST *join_nest);
   bool decorrelate_join_conds(TABLE_LIST *sj_nest,
-                              memroot_deque<TABLE_LIST *> *join_list);
+                              mem_root_deque<TABLE_LIST *> *join_list);
 
  private:
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
@@ -1914,9 +1914,9 @@ class SELECT_LEX {
   bool setup_group(THD *thd);
   void remove_redundant_subquery_clauses(THD *thd,
                                          int hidden_group_field_count);
-  void repoint_contexts_of_join_nests(memroot_deque<TABLE_LIST *> join_list);
+  void repoint_contexts_of_join_nests(mem_root_deque<TABLE_LIST *> join_list);
   void empty_order_list(SELECT_LEX *sl);
-  bool setup_join_cond(THD *thd, memroot_deque<TABLE_LIST *> *tables,
+  bool setup_join_cond(THD *thd, mem_root_deque<TABLE_LIST *> *tables,
                        bool in_update);
   bool find_common_table_expr(THD *thd, Table_ident *table_id, TABLE_LIST *tl,
                               Parse_context *pc, bool *found);
@@ -1936,7 +1936,7 @@ class SELECT_LEX {
   bool prepare(THD *thd);
   bool prepare_values(THD *thd);
   bool optimize(THD *thd);
-  void reset_nj_counters(memroot_deque<TABLE_LIST *> *join_list = NULL);
+  void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = NULL);
   bool check_only_full_group_by(THD *thd);
 
   /// Merge name resolution context objects of a subquery into its parent
@@ -4047,6 +4047,6 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
 bool walk_item(Item *item, Select_lex_visitor *visitor);
 bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor);
 bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor);
-bool accept_for_join(memroot_deque<TABLE_LIST *> *tables,
+bool accept_for_join(mem_root_deque<TABLE_LIST *> *tables,
                      Select_lex_visitor *visitor);
 #endif /* SQL_LEX_INCLUDED */

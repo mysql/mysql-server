@@ -528,7 +528,7 @@ static void filter_gcol_for_dynamic_range_scan(const QEP_TAB *tab) {
 
 void filter_virtual_gcol_base_cols(
     const QEP_TAB *qep_tab, MEM_ROOT *mem_root,
-    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
+    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
   TABLE *table = qep_tab->table();
   if (table->vfield == nullptr) return;
 
@@ -577,7 +577,7 @@ void filter_virtual_gcol_base_cols(
 
 void restore_virtual_gcol_base_cols(
     const QEP_TAB *qep_tab,
-    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
+    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
   TABLE *table = qep_tab->table();
   if (table->vfield == nullptr) return;
 

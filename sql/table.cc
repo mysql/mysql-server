@@ -4364,10 +4364,9 @@ void TABLE::reset_item_list(List<Item> *item_list) const {
   @returns Pointer to created join nest object, or NULL if error.
 */
 
-TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator, const char *alias,
-                                        TABLE_LIST *embedding,
-                                        memroot_deque<TABLE_LIST *> *belongs_to,
-                                        SELECT_LEX *select) {
+TABLE_LIST *TABLE_LIST::new_nested_join(
+    MEM_ROOT *allocator, const char *alias, TABLE_LIST *embedding,
+    mem_root_deque<TABLE_LIST *> *belongs_to, SELECT_LEX *select) {
   DBUG_ASSERT(belongs_to && select);
 
   TABLE_LIST *const join_nest = new (allocator) TABLE_LIST;

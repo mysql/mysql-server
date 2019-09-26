@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 
 #include "my_inttypes.h"
 #include "sql/malloc_allocator.h"
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/psi_memory_key.h"
 #include "sql/stateless_allocator.h"
 #include "sql/thr_malloc.h"
@@ -50,7 +50,7 @@ namespace stlalloc_unittest {
 /*
   Wrappers to overcome the issue that we need allocators with
   default constructors for TYPED_TEST_CASE, which neither
-  Malloc_allocator nor Memroot_allocator have.
+  Malloc_allocator nor Mem_root_allocator have.
 
   These wrappers need to inherit so that they are allocators themselves.
   Otherwise TypeParam in the tests below will be wrong.
@@ -62,11 +62,11 @@ class Malloc_allocator_wrapper : public Malloc_allocator<T> {
 };
 
 template <typename T>
-class Memroot_allocator_wrapper : public Memroot_allocator<T> {
+class Mem_root_allocator_wrapper : public Mem_root_allocator<T> {
   MEM_ROOT m_mem_root;
 
  public:
-  Memroot_allocator_wrapper() : Memroot_allocator<T>(&m_mem_root) {
+  Mem_root_allocator_wrapper() : Mem_root_allocator<T>(&m_mem_root) {
     init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
     // memory allocation error is expected, don't abort unit test.
     m_mem_root.set_error_handler(nullptr);
@@ -79,12 +79,12 @@ class Memroot_allocator_wrapper : public Memroot_allocator<T> {
 
     Note that this will stop working if MEM_ROOT grows a destructor.
   */
-  Memroot_allocator_wrapper(const Memroot_allocator_wrapper &other)
-      : Memroot_allocator<T>(&m_mem_root) {
+  Mem_root_allocator_wrapper(const Mem_root_allocator_wrapper &other)
+      : Mem_root_allocator<T>(&m_mem_root) {
     memcpy(&m_mem_root, &other.m_mem_root, sizeof(m_mem_root));
   }
 
-  ~Memroot_allocator_wrapper() { free_root(&m_mem_root, MYF(0)); }
+  ~Mem_root_allocator_wrapper() { free_root(&m_mem_root, MYF(0)); }
 };
 
 /*
@@ -191,7 +191,7 @@ class STLAllocTestInt : public ::testing::Test {
 };
 
 typedef ::testing::Types<
-    Malloc_allocator_wrapper<int>, Memroot_allocator_wrapper<int>,
+    Malloc_allocator_wrapper<int>, Mem_root_allocator_wrapper<int>,
     Not_instr_allocator<int>, PSI_42_allocator<int>, Init_aa_allocator<int>>
     AllocatorTypesInt;
 
@@ -265,7 +265,7 @@ template <typename T>
 class STLAllocTestObject : public STLAllocTestInt<T> {};
 
 typedef ::testing::Types<Malloc_allocator_wrapper<Container_object>,
-                         Memroot_allocator_wrapper<Container_object>,
+                         Mem_root_allocator_wrapper<Container_object>,
                          Not_instr_allocator<Container_object>,
                          PSI_42_allocator<Container_object>,
                          Init_aa_allocator<Container_object>>
@@ -303,7 +303,7 @@ template <typename T>
 class STLAllocTestNested : public STLAllocTestInt<T> {};
 
 typedef ::testing::Types<Malloc_allocator_wrapper<Container_container>,
-                         Memroot_allocator_wrapper<Container_container>,
+                         Mem_root_allocator_wrapper<Container_container>,
                          Not_instr_allocator<Container_container>,
                          PSI_42_allocator<Container_container>,
                          Init_aa_allocator<Container_container>>
@@ -397,7 +397,7 @@ template <typename T>
 class STLAllocTestMoveOnly : public STLAllocTestInt<T> {};
 
 typedef ::testing::Types<Malloc_allocator_wrapper<std::unique_ptr<int>>,
-                         Memroot_allocator_wrapper<std::unique_ptr<int>>,
+                         Mem_root_allocator_wrapper<std::unique_ptr<int>>,
                          Not_instr_allocator<std::unique_ptr<int>>,
                          PSI_42_allocator<std::unique_ptr<int>>,
                          Init_aa_allocator<std::unique_ptr<int>>>

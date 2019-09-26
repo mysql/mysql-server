@@ -37,14 +37,14 @@ template <class T>
 class List;
 
 template <class T>
-class memroot_deque;
+class mem_root_deque;
 
 /**
   @file sql/sql_resolver.h
   Name resolution functions.
 */
 
-void propagate_nullability(memroot_deque<TABLE_LIST *> *tables, bool nullable);
+void propagate_nullability(mem_root_deque<TABLE_LIST *> *tables, bool nullable);
 
 bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
                  List<Item> &fields, List<Item> &all_fields, ORDER *order);

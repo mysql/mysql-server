@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_SINGLETON_INCLUDED
 #define HISTOGRAMS_SINGLETON_INCLUDED
 
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@
 #include "mysql_time.h"
 #include "sql/histograms/histogram.h"  // Histogram, Histogram_comparator,
 #include "sql/histograms/value_map_type.h"
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "sql/my_decimal.h"
 #include "sql_string.h"
 
@@ -102,7 +102,7 @@ class Singleton : public Histogram {
   static constexpr const char *singleton_str() { return "singleton"; }
 
   using singleton_buckets_allocator =
-      Memroot_allocator<std::pair<const T, double>>;
+      Mem_root_allocator<std::pair<const T, double>>;
 
   using singleton_buckets_type = std::map<const T, double, Histogram_comparator,
                                           singleton_buckets_allocator>;

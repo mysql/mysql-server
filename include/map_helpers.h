@@ -34,7 +34,7 @@
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "sql/malloc_allocator.h"
-#include "sql/memroot_allocator.h"
+#include "sql/mem_root_allocator.h"
 #include "template_utils.h"
 
 /**
@@ -286,17 +286,17 @@ class collation_unordered_set
 /** std::unordered_set, but allocated on a MEM_ROOT.  */
 template <class Key, class Hash = std::hash<Key>,
           class KeyEqual = std::equal_to<Key>>
-class memroot_unordered_set
-    : public std::unordered_set<Key, Hash, KeyEqual, Memroot_allocator<Key>> {
+class mem_root_unordered_set
+    : public std::unordered_set<Key, Hash, KeyEqual, Mem_root_allocator<Key>> {
  public:
   /*
     In theory, we should be allowed to send in the allocator only, but GCC 4.8
     is missing several unordered_set constructors, so let's give in everything.
   */
-  memroot_unordered_set(MEM_ROOT *mem_root)
-      : std::unordered_set<Key, Hash, KeyEqual, Memroot_allocator<Key>>(
+  mem_root_unordered_set(MEM_ROOT *mem_root)
+      : std::unordered_set<Key, Hash, KeyEqual, Mem_root_allocator<Key>>(
             /*bucket_count=*/10, Hash(), KeyEqual(),
-            Memroot_allocator<Key>(mem_root)) {}
+            Mem_root_allocator<Key>(mem_root)) {}
 };
 
 /**
@@ -304,47 +304,48 @@ class memroot_unordered_set
 */
 template <class Key, class Value, class Hash = std::hash<Key>,
           class KeyEqual = std::equal_to<Key>>
-class memroot_unordered_map
+class mem_root_unordered_map
     : public std::unordered_map<
           Key, Value, Hash, KeyEqual,
-          Memroot_allocator<std::pair<const Key, Value>>> {
+          Mem_root_allocator<std::pair<const Key, Value>>> {
  public:
-  memroot_unordered_map(MEM_ROOT *mem_root)
+  mem_root_unordered_map(MEM_ROOT *mem_root)
       : std::unordered_map<Key, Value, Hash, KeyEqual,
-                           Memroot_allocator<std::pair<const Key, Value>>>(
+                           Mem_root_allocator<std::pair<const Key, Value>>>(
             /*bucket_count=*/10, Hash(), KeyEqual(),
-            Memroot_allocator<std::pair<const Key, Value>>(mem_root)) {}
+            Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
 };
 
 // std::unordered_multimap, but allocated on a MEM_ROOT.
 template <class Key, class Value, class Hash,
           class KeyEqual = std::equal_to<Key>>
-class memroot_unordered_multimap
+class mem_root_unordered_multimap
     : public std::unordered_multimap<
           Key, Value, Hash, KeyEqual,
-          Memroot_allocator<std::pair<const Key, Value>>> {
+          Mem_root_allocator<std::pair<const Key, Value>>> {
  public:
-  memroot_unordered_multimap(MEM_ROOT *mem_root, Hash hash)
-      : std::unordered_multimap<Key, Value, Hash, KeyEqual,
-                                Memroot_allocator<std::pair<const Key, Value>>>(
+  mem_root_unordered_multimap(MEM_ROOT *mem_root, Hash hash)
+      : std::unordered_multimap<
+            Key, Value, Hash, KeyEqual,
+            Mem_root_allocator<std::pair<const Key, Value>>>(
             /*bucket_count=*/10, hash, KeyEqual(),
-            Memroot_allocator<std::pair<const Key, Value>>(mem_root)) {}
+            Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
 };
 
 /**
   std::unordered_map, but collation aware and allocated on a MEM_ROOT.
 */
 template <class Key, class Value>
-class memroot_collation_unordered_map
+class mem_root_collation_unordered_map
     : public std::unordered_map<
           Key, Value, Collation_hasher, Collation_key_equal,
-          Memroot_allocator<std::pair<const Key, Value>>> {
+          Mem_root_allocator<std::pair<const Key, Value>>> {
  public:
-  memroot_collation_unordered_map(const CHARSET_INFO *cs, MEM_ROOT *mem_root)
+  mem_root_collation_unordered_map(const CHARSET_INFO *cs, MEM_ROOT *mem_root)
       : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
-                           Memroot_allocator<std::pair<const Key, Value>>>(
+                           Mem_root_allocator<std::pair<const Key, Value>>>(
             /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
-            Memroot_allocator<std::pair<const Key, Value>>(mem_root)) {}
+            Mem_root_allocator<std::pair<const Key, Value>>(mem_root)) {}
 };
 
 #endif  // MAP_HELPERS_INCLUDED
