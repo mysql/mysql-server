@@ -24,6 +24,9 @@ All DB nodes are being restarted.
 NDB Cluster is being started.
 NDB Cluster is being started.
 
+# verify that the mysqld detected the restart
+include/assert_grep.inc [Detect normal restart in MySQL Server 1]
+include/assert_grep.inc [Detect normal restart in MySQL Server 2]
 select * from t1 order by a;
 a	b
 1	2
@@ -37,5 +40,8 @@ All DB nodes are being restarted.
 NDB Cluster is being started.
 NDB Cluster is being started.
 
+# verify that the mysqld detected the initial restart
+include/assert_grep.inc [Detect initial restart in MySQL Server 1]
+include/assert_grep.inc [Detect initial restart in MySQL Server 2]
 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist

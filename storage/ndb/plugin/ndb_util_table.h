@@ -60,6 +60,9 @@ class Ndb_util_table {
                  bool hidden, bool create_events = true);
   ~Ndb_util_table();
 
+  const class THD *get_thd() const;
+  Ndb *get_ndb() const;
+
   bool check_column_exist(const char *name) const;
 
   bool check_column_varbinary(const char *name) const;
@@ -96,6 +99,26 @@ class Ndb_util_table {
   bool create_primary_ordered_index() const;
 
   /**
+    @brief Code to be executed before upgrading the table.
+
+    @note  The derived class has to override this method if it wants to
+           execute code before upgrading the table.
+
+    @return true on success.
+   */
+  virtual bool pre_upgrade() const { return true; }
+
+  /**
+    @brief Code to be executed after installing the table.
+
+    @note  The derived class has to override this method if it wants to
+           execute code after installing the table.
+
+    @return true on success.
+   */
+  virtual bool post_install() const { return true; }
+
+  /**
      @brief Drop the events related to this table from NDB
      @return true if events was dropped successfully
   */
@@ -114,9 +137,9 @@ class Ndb_util_table {
      @param column_name  Column name
      @param src          String to be packed
      @param dst [out]    Packed string
-     @return true if successful, false if not
   */
-  bool pack_varbinary(const char *column_name, const char *src, char *dst);
+  void pack_varbinary(const char *column_name, const char *src,
+                      char *dst) const;
 
   /**
      @brief Unpack the string
@@ -126,7 +149,17 @@ class Ndb_util_table {
      @param packed_str   String to be unpacked
      @return Unpacked string which is empty on failure
   */
-  std::string unpack_varbinary(const char *column_name, const char *packed_str);
+  std::string unpack_varbinary(const char *column_name,
+                               const char *packed_str) const;
+
+  /**
+     @brief Unpack a non nullable blob column
+     @param ndb_blob_handle     The NDB Blob handle
+     @param blob_value [out]    Extracted string
+     @return true if successful, false if not
+   */
+  static bool unpack_blob_not_null(NdbBlob *ndb_blob_handle,
+                                   std::string *blob_value);
 
  public:
   /**

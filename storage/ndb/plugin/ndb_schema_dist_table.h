@@ -40,6 +40,16 @@ class Ndb_schema_dist_table : public Ndb_util_table {
 
   bool drop_events_in_NDB() const override;
 
+  /**
+    @brief Update the schema UUID in ndb_schema table.
+    @param schema_uuid   The schema UUID string that needs to be written
+                         into the NDB table.
+    @return true on success
+   */
+  bool update_schema_uuid_in_NDB(const std::string &schema_uuid) const;
+
+  static std::string old_ndb_schema_uuid;
+
  public:
   static const std::string DB_NAME;
   static const std::string TABLE_NAME;
@@ -62,6 +72,9 @@ class Ndb_schema_dist_table : public Ndb_util_table {
 
   std::string define_table_dd() const override;
 
+  bool pre_upgrade() const override;
+  bool post_install() const override;
+
   /**
      @brief Return number of bytes possible to store in the "slock" column
 
@@ -74,6 +87,13 @@ class Ndb_schema_dist_table : public Ndb_util_table {
      @return  true if table have the schema_op_id column
    */
   bool have_schema_op_id_column() const;
+
+  /**
+    @brief Retrieve the schema UUID from the ndb_schema table in NDB.
+    @param[out] schema UUID retrieved from the table in NDB
+    @return true on success
+   */
+  bool get_schema_uuid(std::string *schema_uuid) const;
 };
 
 #endif

@@ -26,6 +26,7 @@
 #include "storage/ndb/plugin/ndb_util_table.h"
 
 #include <cstring>
+#include <memory>
 #include <utility>
 
 #include "my_base.h"
@@ -93,6 +94,10 @@ Ndb_util_table::Ndb_util_table(Thd_ndb *thd_ndb, std::string db_name,
       m_create_events(events) {}
 
 Ndb_util_table::~Ndb_util_table() {}
+
+const THD *Ndb_util_table::get_thd() const { return m_thd_ndb->get_thd(); }
+
+Ndb *Ndb_util_table::get_ndb() const { return m_thd_ndb->ndb; }
 
 bool Ndb_util_table::create_or_upgrade(THD *thd, bool upgrade_flag) {
   Util_table_creator creator(thd, m_thd_ndb, *this);
@@ -366,6 +371,8 @@ bool Ndb_util_table::create(bool is_upgrade) {
 
   if (!define_indexes(mysql_version)) return false;
 
+  if (!post_install()) return false;
+
   return true;
 }
 
@@ -373,7 +380,9 @@ bool Ndb_util_table::create(bool is_upgrade) {
 bool Ndb_util_table::upgrade() {
   const NdbDictionary::Table *old_table = get_table();
 
-  // Could copy stuff from old to new table if necessary...
+  // Any additional metadata could be saved before upgrade
+  // and then restored later after install
+  if (!pre_upgrade()) return false;
 
   // Drop the old table
   if (!drop_table_in_NDB(*old_table)) return false;
@@ -398,30 +407,52 @@ std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
   return std::string(value_start, value_length);
 }
 
-bool Ndb_util_table::pack_varbinary(const char *column_name, const char *src,
-                                    char *dst) {
+void Ndb_util_table::pack_varbinary(const char *column_name, const char *src,
+                                    char *dst) const {
   // The table has to be loaded before this function is called
   DBUG_ASSERT(get_table() != nullptr);
-  if (!check_column_varbinary(column_name)) {
-    return false;
-  }
-  ndb_pack_varchar(get_column(column_name), 0, src, std::strlen(src) + 1, dst);
-  return true;
+  // The type of column should be VARBINARY
+  DBUG_ASSERT(check_column_varbinary(column_name));
+  ndb_pack_varchar(get_column(column_name), 0, src, std::strlen(src), dst);
 }
 
 std::string Ndb_util_table::unpack_varbinary(const char *column_name,
-                                             const char *packed_str) {
+                                             const char *packed_str) const {
   // The table has to be loaded before this function is called
   DBUG_ASSERT(get_table() != nullptr);
-  if (!check_column_varbinary(column_name)) {
-    return "";
-  }
+  // The type of column should be VARBINARY
+  DBUG_ASSERT(check_column_varbinary(column_name));
   const char *unpacked_str;
   size_t unpacked_str_length;
   ndb_unpack_varchar(get_column(column_name), 0, &unpacked_str,
                      &unpacked_str_length, packed_str);
 
   return std::string(unpacked_str, unpacked_str_length);
+}
+
+bool Ndb_util_table::unpack_blob_not_null(NdbBlob *ndb_blob_handle,
+                                          std::string *blob_value) {
+  // Read length of blob
+  Uint64 blob_len;
+  if (ndb_blob_handle->getLength(blob_len) != 0) {
+    return false;
+  }
+  if (blob_len == 0) {
+    // The blob column didn't contain anything, return empty string
+    return true;
+  }
+
+  // Read the blob content
+  Uint32 read_len = static_cast<Uint32>(blob_len);
+  std::unique_ptr<char[]> read_buf(new char[read_len]);
+  if (ndb_blob_handle->readData(read_buf.get(), read_len) != 0) {
+    return false;
+  }
+  DBUG_ASSERT(blob_len == read_len);  // Assert that all has been read
+  blob_value->assign(read_buf.get(), read_len);
+
+  DBUG_PRINT("unpack_blob", ("str: '%s'", blob_value->c_str()));
+  return true;
 }
 
 //
