@@ -1,6 +1,7 @@
 #
 # WL#11652 -- Support multiple addresses for the --bind-address command option
 #
+# restart: --bind-address=127.0.0.1,::1
 #
 # Server is started with --bind-address=127.0.0.1,::1
 # Check that server accepts incoming connection both
