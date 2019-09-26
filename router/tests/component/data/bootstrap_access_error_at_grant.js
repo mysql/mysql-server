@@ -1,8 +1,8 @@
 var common_stmts = require("common_statements");
 
 var options = {
-    innodb_cluster_cluster_name: "mycluster",
-    innodb_cluster_insances: [ ["127.0.0.1", 13001], ["127.0.0.1", 13002], ["127.0.0.1", 13003] ]
+    innodb_cluster_name: "mycluster",
+    innodb_cluster_instances: [ ["127.0.0.1", 13001], ["127.0.0.1", 13002], ["127.0.0.1", 13003] ]
 };
 
 var common_responses = common_stmts.prepare_statement_responses([

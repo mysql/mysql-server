@@ -1,8 +1,8 @@
 var common_stmts = require("common_statements");
 
 var options = {
-  innodb_cluster_cluster_name: "mycluster",
-  innodb_cluster_insances: [ ["localhost", 5500], ["localhost", 5510], ["localhost", 5520] ],
+  innodb_cluster_name: "mycluster",
+  innodb_cluster_instances: [ ["localhost", 5500], ["localhost", 5510], ["localhost", 5520] ],
   bootstrap_report_host_pattern: "host.foo.bar",
 };
 
