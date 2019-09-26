@@ -136,7 +136,7 @@ class XRow_encoder_base {
 
     m_encoder->template ensure_buffer_size<20>();
     auto field_begin =
-        m_encoder->template begin_delimited_field<tags::Row::field>();
+        m_encoder->template begin_delimited_field<tags::Row::field, 3>();
     for (size_t i = 0; i < set_vals.size(); ++i) {
       m_encoder->template ensure_buffer_size<10>();
       m_encoder->encode_var_uint64(set_vals[i].length());
