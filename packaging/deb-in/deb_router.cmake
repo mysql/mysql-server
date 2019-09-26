@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,14 +42,5 @@ Description: MySQL Router Metapackage
  routing connections from MySQL Clients to MySQL Servers. MySQL is a
  trademark of Oracle. This is the shared router metapackage, used for
  dependency handling.
-
-Package: mysql-router-${DEB_PRODUCTNAME}-dev
-Architecture: any
-Depends: \${misc:Depends}, \${shlibs:Depends}
-Conflicts: mysql-router-${DEB_NOTPRODUCTNAME}-dev
-Description: MySQL Router development files
- The MySQL(TM) Router software delivers a fast, multi-threaded way of
- routing connections from MySQL Clients to MySQL Servers. MySQL is a
- trademark of Oracle.
 
 ")
