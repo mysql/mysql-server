@@ -363,20 +363,43 @@ bool find_in_file(const std::string &file_path,
 }
 
 std::string get_file_output(const std::string &file_name,
-                            const std::string &file_path) {
-  return get_file_output(file_path + "/" + file_name);
+                            const std::string &file_path,
+                            bool throw_on_error /*=false*/) {
+  return get_file_output(file_path + "/" + file_name, throw_on_error);
 }
 
-std::string get_file_output(const std::string &file_name) {
+std::string get_file_output(const std::string &file_name,
+                            bool throw_on_error /*=false*/) {
   Path file(file_name);
   std::ifstream in_file;
-  in_file.open(file.c_str(), std::ifstream::in);
-  if (!in_file) {
-    return "Could not open file " + file.str() + " for reading.";
+  in_file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+  try {
+    in_file.open(file.c_str(), std::ifstream::in);
+  } catch (const std::exception &e) {
+    const std::string msg =
+        "Could not open file '" + file.str() + "' for reading: ";
+    if (throw_on_error)
+      throw std::runtime_error(msg + e.what());
+    else
+      return "<THIS ERROR COMES FROM TEST FRAMEWORK'S get_file_output(), IT IS "
+             "NOT PART OF PROCESS OUTPUT: " +
+             msg + e.what() + ">";
   }
+  assert(in_file);
 
-  std::string result((std::istreambuf_iterator<char>(in_file)),
-                     std::istreambuf_iterator<char>());
+  std::string result;
+  try {
+    result.assign((std::istreambuf_iterator<char>(in_file)),
+                  std::istreambuf_iterator<char>());
+  } catch (const std::exception &e) {
+    const std::string msg = "Reading file '" + file.str() + "' failed: ";
+    if (throw_on_error)
+      throw std::runtime_error(msg + e.what());
+    else
+      return "<THIS ERROR COMES FROM TEST FRAMEWORK'S get_file_output(), IT IS "
+             "NOT PART OF PROCESS OUTPUT: " +
+             msg + e.what() + ">";
+  }
 
   return result;
 }
