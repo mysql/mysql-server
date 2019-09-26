@@ -2678,7 +2678,7 @@ bool PT_joined_table::contextualize(Parse_context *pc) {
 
   if (m_type & (JTT_LEFT | JTT_RIGHT)) {
     if (m_type & JTT_LEFT)
-      tr2->outer_join |= JOIN_TYPE_LEFT;
+      tr2->outer_join = JOIN_TYPE_LEFT;
     else {
       TABLE_LIST *inner_table = pc->select->convert_right_join();
       if (inner_table == nullptr) return true;

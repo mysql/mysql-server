@@ -5416,7 +5416,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
    option we can safely re-check its value. Skip the check for
    FLUSH TABLES ... WITH READ LOCK and FLUSH TABLES ... FOR EXPORT
    as they are not supposed to be affected by read_only modes.
- */
+   */
   if (need_global_read_lock_protection &&
       !(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
       !(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) &&
@@ -8227,8 +8227,8 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
         fix_fields() is applied to all ON conditions in setup_conds()
         so we don't do it here.
        */
-      add_join_on((table_ref_1->outer_join & JOIN_TYPE_RIGHT ? table_ref_1
-                                                             : table_ref_2),
+      add_join_on(table_ref_1->outer_join == JOIN_TYPE_RIGHT ? table_ref_1
+                                                             : table_ref_2,
                   eq_cond);
 
       nj_col_1->is_common = nj_col_2->is_common = true;
@@ -8449,7 +8449,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
         swapped in the first loop.
       */
       if (same_level_left_neighbor &&
-          cur_table_ref->outer_join & JOIN_TYPE_RIGHT) {
+          cur_table_ref->outer_join == JOIN_TYPE_RIGHT) {
         /* This can happen only for JOIN ... ON. */
         DBUG_ASSERT(table_ref->nested_join->join_list.size() == 2);
         std::swap(same_level_left_neighbor, cur_table_ref);
@@ -8496,7 +8496,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       The two join operands were interchanged in the parser, change the order
       back for 'mark_common_columns'.
     */
-    if (table_ref_2->outer_join & JOIN_TYPE_RIGHT)
+    if (table_ref_2->outer_join == JOIN_TYPE_RIGHT)
       std::swap(table_ref_1, table_ref_2);
     if (mark_common_columns(thd, table_ref_1, table_ref_2, using_fields,
                             &found_using_fields))
@@ -8507,7 +8507,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       one as the coalesced columns. In this way the coalesced columns are the
       same as of an equivalent LEFT JOIN.
     */
-    if (table_ref_1->outer_join & JOIN_TYPE_RIGHT)
+    if (table_ref_1->outer_join == JOIN_TYPE_RIGHT)
       std::swap(table_ref_1, table_ref_2);
     if (store_natural_using_join_columns(thd, table_ref, table_ref_1,
                                          table_ref_2, using_fields,

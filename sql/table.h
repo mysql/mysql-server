@@ -2232,8 +2232,11 @@ struct ST_SCHEMA_TABLE {
   uint i_s_requested_object;  // Not used
 };
 
-#define JOIN_TYPE_LEFT 1
-#define JOIN_TYPE_RIGHT 2
+enum Outer_join_type {
+  JOIN_TYPE_INNER = 0,
+  JOIN_TYPE_LEFT = 1,
+  JOIN_TYPE_RIGHT = 2
+};
 
 /**
   Strategy for how to process a view or derived table (merge or materialization)
@@ -3338,8 +3341,8 @@ struct TABLE_LIST {
   GRANT_INFO grant;
 
  public:
-  uint outer_join{0}; /* Which join type */
-  uint shared{0};     /* Used in multi-upd */
+  Outer_join_type outer_join{JOIN_TYPE_INNER}; /* Which join type */
+  uint shared{0};                              /* Used in multi-upd */
   size_t db_length{0};
   size_t table_name_length{0};
 

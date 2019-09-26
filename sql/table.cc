@@ -4808,7 +4808,7 @@ TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution() {
       already at the front of the list. Otherwise the first operand
       is in the end of the list of join operands.
     */
-    if (!(cur_table_ref->outer_join & JOIN_TYPE_RIGHT)) {
+    if (cur_table_ref->outer_join != JOIN_TYPE_RIGHT) {
       cur_table_ref = cur_nested_join->join_list.back();
     }
     if (cur_table_ref->is_leaf_for_name_resolution()) break;
@@ -4849,7 +4849,7 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution() {
       'join_list' are in reverse order, thus the last operand is in the
       end of the list.
     */
-    if ((cur_table_ref->outer_join & JOIN_TYPE_RIGHT)) {
+    if (cur_table_ref->outer_join == JOIN_TYPE_RIGHT) {
       cur_table_ref = cur_nested_join->join_list.back();
     }
     if (cur_table_ref->is_leaf_for_name_resolution()) break;

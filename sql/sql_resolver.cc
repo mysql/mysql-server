@@ -581,7 +581,7 @@ bool check_right_lateral_join(TABLE_LIST *table_ref, table_map map) {
       table_map cur_table_map =
           table->nested_join ? table->nested_join->used_tables : table->map();
       if (cur_table_map & map) {
-        if (table->outer_join & JOIN_TYPE_RIGHT) {
+        if (table->outer_join == JOIN_TYPE_RIGHT) {
           my_error(ER_TF_FORBIDDEN_JOIN_TYPE, MYF(0), orig_table->alias);
           return true;
         }
@@ -1753,7 +1753,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
       */
       if (table->outer_join) {
         *changelog |= OUTER_JOIN_TO_INNER;
-        table->outer_join = 0;
+        table->outer_join = JOIN_TYPE_INNER;
       }
       if (table->join_cond()) {
         *changelog |= JOIN_COND_TO_WHERE;
@@ -2636,7 +2636,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
         and join condition.
       */
       wrap_nest->outer_join = outer_tbl->outer_join;
-      outer_tbl->outer_join = 0;
+      outer_tbl->outer_join = JOIN_TYPE_INNER;
 
       // There are item-rollback problems in this function: see bug#16926177
       wrap_nest->set_join_cond(outer_tbl->join_cond()->real_item());

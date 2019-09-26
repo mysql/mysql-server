@@ -6254,7 +6254,7 @@ TABLE_LIST *SELECT_LEX::convert_right_join() {
 
   join_list->push_front(tab2);
   join_list->push_front(tab1);
-  tab1->outer_join |= JOIN_TYPE_RIGHT;
+  tab1->outer_join = JOIN_TYPE_RIGHT;
 
   return tab1;
 }
