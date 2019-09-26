@@ -5040,8 +5040,12 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
     switch (error) {
       case OS_FILE_ALREADY_EXISTS:
+#ifndef UNIV_HOTBACKUP
         ib::error(ER_IB_MSG_UNEXPECTED_FILE_EXISTS, path, path);
         return (DB_TABLESPACE_EXISTS);
+#else  /* !UNIV_HOTBACKUP */
+        return (DB_SUCCESS); /* Already existing file not an error here. */
+#endif /* !UNIV_HOTBACKUP */
 
       case OS_FILE_NAME_TOO_LONG:
         ib::error(ER_IB_MSG_TOO_LONG_PATH, path);
@@ -6866,6 +6870,8 @@ static void meb_tablespace_redo_delete(const page_id_t &page_id,
   fil_system->meb_name_process(file_name, page_id.space(), true);
 
   if (meb_replay_file_ops && fil_space_get(page_id.space())) {
+    ib::trace_1() << "Deleting the tablespace : " << abs_file_path
+                  << ", space_id : " << page_id.space();
     dberr_t err =
         fil_delete_tablespace(page_id.space(), BUF_REMOVE_FLUSH_NO_WRITE);
 
