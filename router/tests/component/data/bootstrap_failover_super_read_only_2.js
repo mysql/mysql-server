@@ -5,7 +5,7 @@ var gr_members =
   gr_memberships.members(mysqld.global.gr_members);
 
 var options = {
-    innodb_cluster_cluster_name: mysqld.global.cluster_name,
+    innodb_cluster_name: mysqld.global.cluster_name,
     replication_group_members:  gr_members
 };
 
