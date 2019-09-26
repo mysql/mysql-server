@@ -205,15 +205,23 @@ bool find_in_file(
  *
  * @param file_name name of the file
  * @param file_path path to the file
+ * @param throw_on_error if true, throws std::runtime_error on failure
+ *                       if false, returns error message instead of actual file
+ * contents
  */
 std::string get_file_output(const std::string &file_name,
-                            const std::string &file_path);
+                            const std::string &file_path,
+                            bool throw_on_error = false);
 
 /** @brief returns the content of selected file as a string
  *
  * @param file_name full path and name of the file
+ * @param throw_on_error if true, throws std::runtime_error on failure
+ *                       if false, returns error message instead of actual file
+ * contents
  */
-std::string get_file_output(const std::string &file_name);
+std::string get_file_output(const std::string &file_name,
+                            bool throw_on_error = false);
 
 // need to return void to be able to use ASSERT_ macros
 void connect_client_and_query_port(unsigned router_port, std::string &out_port,
