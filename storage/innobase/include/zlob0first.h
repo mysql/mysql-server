@@ -159,7 +159,7 @@ struct z_first_page_t {
   /** Load the first page using given mini transaction. The first page must
   already be x-latched by the m_mtr.
   @param[in]	mtr   the mini transaction in which first page is to be loaded.
-  @return	the buffer block of first page. */
+  @return the buffer block of first page. */
   buf_block_t *load_x(mtr_t *mtr) const {
     ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
     buf_block_t *tmp = buf_page_get(m_block->page.id, m_index->get_page_size(),
@@ -171,7 +171,6 @@ struct z_first_page_t {
   /** Load the first page of the compressed LOB with x-latch.
   @param[in]   page_id   the page identifier of first page
   @param[in]   page_size the page size information of table.
-  @param[in]   mtr       the mini transaction context.
   @return buffer block of the first page. */
   buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size);
 
