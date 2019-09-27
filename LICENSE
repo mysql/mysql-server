@@ -1,6 +1,6 @@
 Licensing Information User Manual
 
-MySQL 5.7
+MySQL NDB Cluster 7.6.12 (and later)
      __________________________________________________________________
 
 Introduction
@@ -8,18 +8,33 @@ Introduction
    This License Information User Manual contains Oracle's product license
    and other licensing information, including licensing information for
    third-party software which may be included in this distribution of
-   MySQL 5.7.
+   MySQL NDB Cluster 7.6.12 (and later).
 
    Last updated: September 2019
 
 Licensing Information
 
-Product License - MySQL 5.7
+   This is a release of MySQL NDB Cluster 7.6.12 (and later), brought to
+   you by the MySQL team at Oracle. This software is released under
+   version 2 of the GNU General Public License (GPLv2), as set forth
+   below, with the following additional permissions:
 
-   This is a release of MySQL 5.7, the dual-license open-source RDBMS. For
-   the avoidance of doubt, this particular copy of the software is
-   released under version 2 of the GNU General Public License. MySQL 5.7
-   is brought to you by the MySQL team at Oracle.
+   This distribution of MySQL NDB Cluster 7.6.12 (and later) is
+   distributed with certain software (including but not limited to
+   OpenSSL) that is licensed under separate terms, as designated in a
+   particular file or component or in the license documentation. Without
+   limiting your rights under the GPLv2, the authors of MySQL hereby grant
+   you an additional permission to link the program and your derivative
+   works with the separately licensed software that they have included
+   with the program.
+
+   This distribution includes the MySQL C API client library
+   (libmysqlclient) otherwise known as MySQL Connector/C. Without limiting
+   the foregoing grant of rights under the GPLv2 and additional permission
+   as to separately licensed software, this Connector is also subject to
+   the Universal FOSS Exception, version 1.0, a copy of which is
+   reproduced below and can also be found along with its FAQ at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights
    reserved.
@@ -404,27 +419,101 @@ you may consider it more useful to permit linking proprietary
 applications with the library.  If this is what you want to do, use
 the GNU Lesser General Public License instead of this License.
 
-MySQL FOSS License Exception
+The Universal FOSS Exception, Version 1.0
 
-   We want free and open source software applications under certain
-   licenses to be able to use the GPL-licensed MySQL 5.7 despite the fact
-   that not all such FOSS licenses are compatible with version 2 of the
-   GNU General Public License. Therefore there are special exceptions to
-   the terms and conditions of the GPLv2 as applied to these client
-   libraries, which are identified and described in more detail in the
-   FOSS License Exception at
-   http://www.mysql.com/about/legal/licensing/foss-exception/.
-
-   This software is OSI Certified Open Source Software. OSI Certified is a
-   certification mark of the Open Source Initiative.
+   In addition to the rights set forth in the other license(s) included in
+   the distribution for this software, data, and/or documentation
+   (collectively the "Software", and such licenses collectively with this
+   additional permission the "Software License"), the copyright holders
+   wish to facilitate interoperability with other software, data, and/or
+   documentation distributed with complete corresponding source under a
+   license that is OSI-approved and/or categorized by the FSF as free
+   (collectively "Other FOSS"). We therefore hereby grant the following
+   additional permission with respect to the use and distribution of the
+   Software with Other FOSS, and the constants, function signatures, data
+   structures and other invocation methods used to run or interact with
+   each of them (as to each, such software's "Interfaces"):
+    i. The Software's Interfaces may, to the extent permitted by the
+       license of the Other FOSS, be copied into, used and distributed in
+       the Other FOSS in order to enable interoperability, without
+       requiring a change to the license of the Other FOSS other than as
+       to any Interfaces of the Software embedded therein. The Software's
+       Interfaces remain at all times under the Software License,
+       including without limitation as used in the Other FOSS (which upon
+       any such use also then contains a portion of the Software under the
+       Software License).
+   ii. The Other FOSS's Interfaces may, to the extent permitted by the
+       license of the Other FOSS, be copied into, used and distributed in
+       the Software in order to enable interoperability, without requiring
+       that such Interfaces be licensed under the terms of the Software
+       License or otherwise altering their original terms, if this does
+       not require any portion of the Software other than such Interfaces
+       to be licensed under the terms other than the Software License.
+   iii. If only Interfaces and no other code is copied between the
+       Software and the Other FOSS in either direction, the use and/or
+       distribution of the Software with the Other FOSS shall not be
+       deemed to require that the Other FOSS be licensed under the license
+       of the Software, other than as to any Interfaces of the Software
+       copied into the Other FOSS. This includes, by way of example and
+       without limitation, statically or dynamically linking the Software
+       together with Other FOSS after enabling interoperability using the
+       Interfaces of one or both, and distributing the resulting
+       combination under different licenses for the respective portions
+       thereof. For avoidance of doubt, a license which is OSI-approved or
+       categorized by the FSF as free, includes, for the purpose of this
+       permission, such licenses with additional permissions, and any
+       license that has previously been so approved or categorized as
+       free, even if now deprecated or otherwise no longer recognized as
+       approved or free. Nothing in this additional permission grants any
+       right to distribute any portion of the Software on terms other than
+       those of the Software License or grants any additional permission
+       of any kind for use or distribution of the Software in conjunction
+       with software other than Other FOSS.
 
 Licenses for Third-Party Components
 
    The following sections contain licensing information for libraries that
-   we have included with the MySQL 5.7 source and components used to test
-   MySQL 5.7. Commonly used licenses referenced herein can be found in
-   Commonly Used Licenses. We are thankful to all individuals that have
-   created these.
+   we have included with the MySQL NDB Cluster 7.6.12 (and later) source
+   and components used to test MySQL NDB Cluster 7.6.12 (and later).
+   Commonly used licenses referenced herein can be found in Commonly Used
+   Licenses. We are thankful to all individuals that have created these.
+
+ANTLR 3
+
+   The following software may be included in this product:
+ANTLR 3
+
+ANTLR 3 License
+[The BSD License]
+Copyright (c) 2003-2007, Terence Parr
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+* Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+* Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in
+  the documentation and/or other materials provided with the
+  distribution.
+* Neither the name of the author nor the names of its contributors
+  may be used to endorse or promote products derived from this
+  software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
 
 argparse
 
@@ -612,6 +701,155 @@ Cyrus SASL
 * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
 * AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
 * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Dojo Toolkit v1.8.14
+
+   The following software may be included in this product:
+Copyright (c) 2005-2016, The Dojo Foundation
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+
+  * Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+  * Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation and/or
+other materials provided with the distribution.
+
+  * Neither the name of the Dojo Foundation nor the names of its contributors
+may be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+Additional licenses of 4th party included in the package:
+------------------------------------------------------------------
+
+DOJO\cldr:
+UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
+
+Unicode Data Files include all data files under the directories
+http://www.unicode.org/Public/, http://www.unicode.org/reports/,
+and http://www.unicode.org/cldr/data/. Unicode Software includes any source code
+published in the Unicode Standard or under the directories
+http://www.unicode.org/Public/, http://www.unicode.org/reports/, and
+http://www.unicode.org/cldr/data/.
+
+NOTICE TO USER: Carefully read the following legal agreement. BY DOWNLOADING,
+INSTALLING, COPYING OR OTHERWISE USING UNICODE INC.'S DATA FILES ("DATA FILES"),
+AND/OR SOFTWARE ("SOFTWARE"), YOU UNEQUIVOCALLY ACCEPT, AND AGREE TO BE BOUND
+BY, ALL OF THE TERMS AND CONDITIONS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DO
+NOT DOWNLOAD, INSTALL, COPY, DISTRIBUTE OR USE THE DATA FILES OR SOFTWARE.
+
+COPYRIGHT AND PERMISSION NOTICE
+Copyright (c) 1991-2007 Unicode, Inc. All rights reserved. Distributed under
+the Terms of Use in http://www.unicode.org/copyright.html.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of the Unicode data files and any associated documentation (the "Data Files") or
+Unicode software and any associated documentation (the "Software") to deal in
+the Data Files or Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, and/or sell copies of
+the Data Files or Software, and to permit persons to whom the Data Files or
+Software are furnished to do so, provided that (a) the above copyright notice(s)
+and this permission notice appear with all copies of the Data Files or Software,
+(b) both the above copyright notice(s) and this permission notice appear in
+associated documentation, and (c) there is clear notice in each modified Data
+File or in the Software as well as in the documentation associated with the Data
+File(s) or Software that the data or software has been modified.
+
+THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD
+PARTY RIGHTS. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS
+NOTICE BE LIABLE FOR ANY CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL
+DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THE DATA FILES OR
+SOFTWARE.
+
+Except as contained in this notice, the name of a copyright holder shall not be
+used in advertising or otherwise to promote the sale, use or other dealings in
+these Data Files or Software without prior written authorization of the
+copyright holder.
+
+DOJOX\SQL:
+All contents of this directory are Copyright (c) the Dojo Foundation, with the
+following exceptions:
+------------------------------------------------------------------------------
+-
+_crypto.js - internally uses AES algorithm
+* AES algorithm copyright Chris Veness (CLA signed and permission given to use
+code under BSD license)
+Taken from http://www.movable-type.co.uk/scripts/aes.html
+
+MySQL Cluster does not use _crypto.js as part of Dojo.
+
+DOJOX\lang:
+The MIT License.
+
+DOJO\resources:
+License Disclaimer:
+All contents of this directory are Copyright (c) the Dojo Foundation, with the
+following exceptions:
+------------------------------------------------------------------------------
+-
+dojo.css:
+* parts Copyright (c) 2007, Yahoo! Inc. All rights reserved.
+  Distributed under the terms of the BSD License
+
+The Program includes all or portions of the following software which was
+obtained under the terms and conditions of the BSD License.
+
+http://developer.yahoo.com/yui/license.html
+Copyright (c) 2007, Yahoo! Inc.
+ All rights reserved.
+ Redistribution and use of this software in source and binary forms, with or
+without modification, are permitted provided that the following conditions
+are met:
+
+ * Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+
+ * Neither the name of Yahoo! Inc. nor the names of its contributors may be
+used to endorse or promote products derived from this software without
+specific prior written permission of Yahoo! Inc.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+DOJOX\date\zoneinfo:
+"Olson Database", available for download from ftp://elsie.nci.nih.gov/pub/
+These comments were included in each file.
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
+# This data is by no means authoritative; if you think you know better,
+# go ahead and edit the file (and please send any changes to
+# tz@elsie.nci.nih.gov for general use in the future).
 
 dtoa.c
 
@@ -3856,6 +4094,528 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+ncurses
+
+   The following software may be included in this product:
+
+ncurses 5.9
+
+Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, distribute with modifications, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished
+to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name(s) of the above copyright
+holders shall not be used in advertising or otherwise to promote the
+sale, use or other dealings in this Software without prior written
+authorization.
+
+   The following software may be included in this product:
+
+ncurses 6.0
+
+Copyright (c) 1998-2014,2015 Free Software Foundation, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, distribute with modifications, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Except as contained in this notice, the name(s) of the above copyright
+holders shall not be used in advertising or otherwise to promote the
+sale, use or other dealings in this Software without prior written
+authorization.
+
+node-mysql
+
+   The following software may be included in this product:
+Copyright (c) 2012  Felix Geisendörfer (felix@debuggable.com) and contributors
+
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+
+Node.js
+
+   The following software may be included in this product:
+Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+
+====
+
+This license applies to all parts of Node that are not externally
+maintained libraries. The externally maintained libraries used by Node are:
+
+- V8, located at deps/v8. V8's license follows:
+  """
+    This license applies to all parts of V8 that are not externally
+    maintained libraries.  The externally maintained libraries used by V8
+    are:
+
+      - PCRE test suite, located in
+        test/mjsunit/third_party/regexp-pcre.js.  This is based on the
+        test suite from PCRE-7.3, which is copyrighted by the University
+        of Cambridge and Google, Inc.  The copyright notice and license
+        are embedded in regexp-pcre.js.
+
+      - Layout tests, located in test/mjsunit/third_party.  These are
+        based on layout tests from webkit.org which are copyrighted by
+        Apple Computer, Inc. and released under a 3-clause BSD license.
+
+      - Strongtalk assembler, the basis of the files assembler-arm-inl.h,
+        assembler-arm.cc, assembler-arm.h, assembler-ia32-inl.h,
+        assembler-ia32.cc, assembler-ia32.h, assembler-x64-inl.h,
+        assembler-x64.cc, assembler-x64.h, assembler-mips-inl.h,
+        assembler-mips.cc, assembler-mips.h, assembler.cc and assembler.h.
+        This code is copyrighted by Sun Microsystems Inc. and released
+        under a 3-clause BSD license.
+
+      - Valgrind client API header, located at third_party/valgrind/valgrind.h
+        This is release under the BSD license.
+
+    These libraries have their own licenses; we recommend you read them,
+    as their terms may differ from the terms below.
+
+    Copyright 2006-2012, the V8 project authors. All rights reserved.
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+
+        * Neither the name of Google Inc. nor the names of its
+          contributors may be used to endorse or promote products derived
+          from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- libev, located at deps/uv/src/unix/ev. libev's license follows:
+  """
+    All files in libev are Copyright (C)2007,2008,2009 Marc Alexander Lehmann.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+
+
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    Alternatively, the contents of this package may be used under the terms
+    of the GNU General Public License ("GPL") version 2 or any later version,
+    in which case the provisions of the GPL are applicable instead of the
+    above. If you wish to allow the use of your version of this package only
+    under the terms of the GPL and not to allow others to use your version of
+    this file under the BSD license, indicate your decision by deleting the
+    provisions above and replace them with the notice and other provisions
+    required by the GPL in this and the other files of this package. If you do
+    not delete the provisions above, a recipient may use your version of this
+    file under either the BSD or the GPL.
+  """
+
+- libeio, located at deps/uv/src/unix/eio. libeio's license follows:
+  """
+    All files in libeio are Copyright (C)2007,2008 Marc Alexander Lehmann.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+
+
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    Alternatively, the contents of this package may be used under the terms
+    of the GNU General Public License ("GPL") version 2 or any later version,
+    in which case the provisions of the GPL are applicable instead of the
+    above. If you wish to allow the use of your version of this package only
+    under the terms of the GPL and not to allow others to use your version of
+    this file under the BSD license, indicate your decision by deleting the
+    provisions above and replace them with the notice and other provisions
+    required by the GPL in this and the other files of this package. If you do
+    not delete the provisions above, a recipient may use your version of this
+    file under either the BSD or the GPL.
+  """
+
+- WAF build system, located at tools/waf*. WAF's license follows:
+  """
+    Copyright Thomas Nagy, 2005-2011
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met:
+
+
+    1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+
+
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+
+
+    3. The name of the author may not be used to endorse or promote products
+       derived from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR
+    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+    POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- C-Ares, an asynchronous DNS client, located at deps/uv/src/ares. C-Ares licens
+e
+  follows
+  """
+    /* Copyright 1998 by the Massachusetts Institute of Technology.
+     *
+
+     * Permission to use, copy, modify, and distribute this
+
+     * software and its documentation for any purpose and without
+
+     * fee is hereby granted, provided that the above copyright
+
+     * notice appear in all copies and that both that copyright
+
+     * notice and this permission notice appear in supporting
+
+     * documentation, and that the name of M.I.T. not be used in
+
+     * advertising or publicity pertaining to distribution of the
+
+     * software without specific, written prior permission.
+
+     * M.I.T. makes no representations about the suitability of
+
+     * this software for any purpose.  It is provided "as is"
+
+     * without express or implied warranty.
+  """
+
+
+- HTTP Parser, located at deps/http_parser. HTTP Parser's license follows:
+  """
+    http_parser.c is based on src/http/ngx_http_parse.c from NGINX copyright
+    Igor Sysoev.
+
+    Additional changes are licensed under the same terms as NGINX and
+    copyright Joyent, Inc. and other Node contributors. All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to
+    deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+    sell copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+    IN THE SOFTWARE.
+  """
+
+- tools/cpplint.py is a C++ linter. Its license follows:
+  """
+    # Copyright (c) 2009 Google Inc. All rights reserved.
+    #
+    # Redistribution and use in source and binary forms, with or without
+    # modification, are permitted provided that the following conditions are
+    # met:
+    #
+    #    * Redistributions of source code must retain the above copyright
+    # notice, this list of conditions and the following disclaimer.
+    #    * Redistributions in binary form must reproduce the above
+    # copyright notice, this list of conditions and the following disclaimer
+    # in the documentation and/or other materials provided with the
+    # distribution.
+    #    * Neither the name of Google Inc. nor the names of its
+    # contributors may be used to endorse or promote products derived from
+    # this software without specific prior written permission.
+    #
+    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- lib/buffer_ieee754.js. Its license follows:
+  """
+    // Copyright (c) 2008, Fair Oaks Labs, Inc.
+    // All rights reserved.
+    //
+    // Redistribution and use in source and binary forms, with or without
+    // modification, are permitted provided that the following conditions are me
+t:
+    //
+    //  * Redistributions of source code must retain the above copyright notice,
+    //    this list of conditions and the following disclaimer.
+    //
+    //  * Redistributions in binary form must reproduce the above copyright noti
+ce,
+    //    this list of conditions and the following disclaimer in the documentat
+ion
+    //    and/or other materials provided with the distribution.
+    //
+    //  * Neither the name of Fair Oaks Labs, Inc. nor the names of its contribu
+tors
+    //    may be used to endorse or promote products derived from this software
+    //    without specific prior written permission.
+    //
+    // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS I
+S"
+    // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOS
+E
+    // ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+    // LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+    // CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+    // SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+    // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+    // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+    // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF TH
+E
+    // POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- lib/punycode.js is copyright 2011 Mathias Bynens <http://mathiasbynens.be/>
+  and released under the MIT license.
+  """
+
+    * Punycode.js <http://mths.be/punycode>
+
+    * Copyright 2011 Mathias Bynens <http://mathiasbynens.be/>
+
+    * Available under MIT license <http://mths.be/mit>
+  """
+
+- tools/gyp GYP is a meta-build system. GYP's license follows:
+  """
+    Copyright (c) 2009 Google Inc. All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+
+       * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+       * Redistributions in binary form must reproduce the above
+    copyright notice, this list of conditions and the following disclaimer
+    in the documentation and/or other materials provided with the
+    distribution.
+
+       * Neither the name of Google Inc. nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- Zlib at deps/zlib. zlib's license follows
+  """
+    /* zlib.h -- interface of the 'zlib' general purpose compression library
+      version 1.2.4, March 14th, 2010
+
+      Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
+
+      This software is provided 'as-is', without any express or implied
+      warranty.  In no event will the authors be held liable for any damages
+      arising from the use of this software.
+
+      Permission is granted to anyone to use this software for any purpose,
+      including commercial applications, and to alter it and redistribute it
+      freely, subject to the following restrictions:
+
+
+      1. The origin of this software must not be misrepresented; you must not
+         claim that you wrote the original software. If you use this software
+         in a product, an acknowledgment in the product documentation would be
+         appreciated but is not required.
+
+      2. Altered source versions must be plainly marked as such, and must not be
+         misrepresented as being the original software.
+
+      3. This notice may not be removed or altered from any source distribution.
+
+      Jean-loup Gailly
+      Mark Adler
+
+    */
+  """
+
+- tools/doc/node_modules/marked Marked is a Markdown parser. Marked's
+  license follows
+  """
+@     Copyright (c) 2011-2012, Christopher Jeffrey (https://github.com/chjj/)
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to dea
+l
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM
+,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+  """
+
 nt_servc (Windows NT Service class library)
 
    The following software may be included in this product:
@@ -3969,6 +4729,243 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+OpenSSL License
+
+   You are receiving a copy of OpenSSL as part of this product in object
+   code form. The terms of the Oracle license do NOT apply to OpenSSL.
+   OpenSSL is licensed under a double license, of the OpenSSL License and
+   the original SSLeay license, separate from the Oracle product. If you
+   do not wish to install this library, you may remove it, but the Oracle
+   program might not operate properly or at all without it.
+  LICENSE ISSUES
+  ==============
+
+  The OpenSSL toolkit stays under a double license, i.e. both the conditions of
+  the OpenSSL License and the original SSLeay license apply to the toolkit.
+  See below for the actual license texts. Actually both licenses are BSD-style
+  Open Source licenses. In case of any license issues related to OpenSSL
+  please contact openssl-core@openssl.org.
+
+  OpenSSL License
+  ---------------
+
+/* ====================================================================
+
+ * Copyright (c) 1998-2017 The OpenSSL Project.  All rights reserved.
+ *
+
+ * Redistribution and use in source and binary forms, with or without
+
+ * modification, are permitted provided that the following conditions
+
+ * are met:
+ *
+
+ * 1. Redistributions of source code must retain the above copyright
+
+ *    notice, this list of conditions and the following disclaimer.
+ *
+
+ * 2. Redistributions in binary form must reproduce the above copyright
+
+ *    notice, this list of conditions and the following disclaimer in
+
+ *    the documentation and/or other materials provided with the
+
+ *    distribution.
+ *
+
+ * 3. All advertising materials mentioning features or use of this
+
+ *    software must display the following acknowledgment:
+
+ *    "This product includes software developed by the OpenSSL Project
+
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+
+ *    endorse or promote products derived from this software without
+
+ *    prior written permission. For written permission, please contact
+
+ *    openssl-core@openssl.org.
+ *
+
+ * 5. Products derived from this software may not be called "OpenSSL"
+
+ *    nor may "OpenSSL" appear in their names without prior written
+
+ *    permission of the OpenSSL Project.
+ *
+
+ * 6. Redistributions of any form whatsoever must retain the following
+
+ *    acknowledgment:
+
+ *    "This product includes software developed by the OpenSSL Project
+
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ * ====================================================================
+ *
+
+ * This product includes cryptographic software written by Eric Young
+
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
+
+ Original SSLeay License
+ -----------------------
+
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
+
+ * All rights reserved.
+ *
+
+ * This package is an SSL implementation written
+
+ * by Eric Young (eay@cryptsoft.com).
+
+ * The implementation was written so as to conform with Netscapes SSL.
+ *
+
+ * This library is free for commercial and non-commercial use as long as
+
+ * the following conditions are aheared to.  The following conditions
+
+ * apply to all code found in this distribution, be it the RC4, RSA,
+
+ * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
+
+ * included with this distribution is covered by the same copyright terms
+
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
+ *
+
+ * Copyright remains Eric Young's, and as such any Copyright notices in
+
+ * the code are not to be removed.
+
+ * If this package is used in a product, Eric Young should be given attribution
+
+ * as the author of the parts of the library used.
+
+ * This can be in the form of a textual message at program startup or
+
+ * in documentation (online or textual) provided with the package.
+ *
+
+ * Redistribution and use in source and binary forms, with or without
+
+ * modification, are permitted provided that the following conditions
+
+ * are met:
+
+ * 1. Redistributions of source code must retain the copyright
+
+ *    notice, this list of conditions and the following disclaimer.
+
+ * 2. Redistributions in binary form must reproduce the above copyright
+
+ *    notice, this list of conditions and the following disclaimer in the
+
+ *    documentation and/or other materials provided with the distribution.
+
+ * 3. All advertising materials mentioning features or use of this software
+
+ *    must display the following acknowledgement:
+
+ *    "This product includes cryptographic software written by
+
+ *     Eric Young (eay@cryptsoft.com)"
+
+ *    The word 'cryptographic' can be left out if the rouines from the library
+
+ *    being used are not cryptographic related :-).
+
+ * 4. If you include any Windows specific code (or a derivative thereof) from
+
+ *    the apps directory (application code) you must include an acknowledgement:
+
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
+ *
+
+ * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
+
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+
+ * SUCH DAMAGE.
+ *
+
+ * The licence and distribution terms for any publically available version or
+
+ * derivative of this code cannot be changed.  i.e. this code cannot simply be
+
+ * copied and put under another distribution licence
+
+ * [including the GNU Public Licence.]
+ */
+
+Paramiko
+
+   The following software may be included in this product:
+Paramiko
+
+You are receiving a copy of Paramiko in both source and object code. The
+terms of the Oracle license do NOT apply to the Paramiko program; it is
+licensed under the following license, separately from the Oracle
+programs you receive. If you do not wish to install this program, you
+may delete the Paramiko folder and all its contents.
+
+   This component is licensed under GNU Lesser General Public License
+   Version 2.1, February 1999.
+
 Percona Multiple I/O Threads Patch
 
    The following software may be included in this product:
@@ -4033,6 +5030,832 @@ SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE
 FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
+
+pyasn1 v0.2.3
+
+Copyright (c) 2005-2017, Ilya Etingof <etingof@gmail.com>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+
+  * Redistributions of source code must retain the above copyright notice,
+    this list of conditions and the following disclaimer.
+
+
+  * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+Python 2
+
+   The following software may be included in this product:
+Python Programming Language
+
+This is the official license for the Python 2.7 release:
+
+A. HISTORY OF THE SOFTWARE
+Python was created in the early 1990s by Guido van Rossum at Stichting
+Mathematisch Centrum (CWI, see http://www.cwi.nl) in the Netherlands
+as a successor of a language called ABC.  Guido remains Python's
+principal author, although it includes many contributions from others.
+
+In 1995, Guido continued his work on Python at the Corporation for
+National Research Initiatives (CNRI, see http://www.cnri.reston.va.us)
+in Reston, Virginia where he released several versions of the
+software.
+
+In May 2000, Guido and the Python core development team moved to
+BeOpen.com to form the BeOpen PythonLabs team.  In October of the same
+year, the PythonLabs team moved to Digital Creations (now Zope
+Corporation, see http://www.zope.com).  In 2001, the Python Software
+Foundation (PSF, see http://www.python.org/psf/) was formed, a
+non-profit organization created specifically to own Python-related
+Intellectual Property.  Zope Corporation is a sponsoring member of
+the PSF.
+
+All Python releases are Open Source (see http://www.opensource.org for
+the Open Source Definition).  Historically, most, but not all, Python
+releases have also been GPL-compatible; the table below summarizes
+the various releases.
+
+    Release         Derived     Year        Owner       GPL-
+                    from                                compatible? (1)
+
+    0.9.0 thru 1.2              1991-1995   CWI         yes
+    1.3 thru 1.5.2  1.2         1995-1999   CNRI        yes
+    1.6             1.5.2       2000        CNRI        no
+    2.0             1.6         2000        BeOpen.com  no
+    1.6.1           1.6         2001        CNRI        yes (2)
+    2.1             2.0+1.6.1   2001        PSF         no
+    2.0.1           2.0+1.6.1   2001        PSF         yes
+    2.1.1           2.1+2.0.1   2001        PSF         yes
+    2.2             2.1.1       2001        PSF         yes
+    2.1.2           2.1.1       2002        PSF         yes
+    2.1.3           2.1.2       2002        PSF         yes
+    2.2.1           2.2         2002        PSF         yes
+    2.2.2           2.2.1       2002        PSF         yes
+    2.2.3           2.2.2       2003        PSF         yes
+    2.3             2.2.2       2002-2003   PSF         yes
+    2.3.1           2.3         2002-2003   PSF         yes
+    2.3.2           2.3.1       2002-2003   PSF         yes
+    2.3.3           2.3.2       2002-2003   PSF         yes
+    2.3.4           2.3.3       2004        PSF         yes
+    2.3.5           2.3.4       2005        PSF         yes
+    2.4             2.3         2004        PSF         yes
+    2.4.1           2.4         2005        PSF         yes
+    2.4.2           2.4.1       2005        PSF         yes
+    2.4.3           2.4.2       2006        PSF         yes
+    2.5             2.4         2006        PSF         yes
+    2.5.1           2.5         2007        PSF         yes
+    2.5.2           2.5.1       2008        PSF         yes
+    2.5.3           2.5.2       2008        PSF         yes
+    2.6             2.5         2008        PSF         yes
+    2.6.1           2.6         2008        PSF         yes
+    2.6.2           2.6.1       2009        PSF         yes
+    2.6.3           2.6.2       2009        PSF         yes
+    2.6.4           2.6.3       2010        PSF         yes
+    2.7             2.6         2010        PSF         yes
+
+
+Footnotes:
+
+(1) GPL-compatible doesn't mean that we're distributing Python under
+    the GPL.  All Python licenses, unlike the GPL, let you distribute
+    a modified version without making your changes open source.  The
+    GPL-compatible licenses make it possible to combine Python with
+    other software that is released under the GPL; the others don't.
+
+(2) According to Richard Stallman, 1.6.1 is not GPL-compatible,
+    because its license has a choice of law clause.  According to
+    CNRI, however, Stallman's lawyer has told CNRI's lawyer that 1.6.1
+    is "not incompatible" with the GPL.
+
+Thanks to the many outside volunteers who have worked under Guido's
+direction to make these releases possible.
+
+B. TERMS AND CONDITIONS FOR ACCESSING OR OTHERWISE USING PYTHON
+
+PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
+--------------------------------------------
+
+1. This LICENSE AGREEMENT is between the Python Software Foundation
+("PSF"), and the Individual or Organization ("Licensee") accessing and
+otherwise using this software ("Python") in source or binary form and
+its associated documentation.
+
+2. Subject to the terms and conditions of this License Agreement, PSF
+hereby grants Licensee a nonexclusive, royalty-free, world-wide
+license to reproduce, analyze, test, perform and/or display publicly,
+prepare derivative works, distribute, and otherwise use Python
+alone or in any derivative version, provided, however, that PSF's
+License Agreement and PSF's notice of copyright, i.e., "Copyright (c)
+2001, 2002, 2003, 2004, 2005, 2006 Python Software Foundation; All Rights
+Reserved" are retained in Python alone or in any derivative version
+prepared by Licensee.
+
+3. In the event Licensee prepares a derivative work that is based on
+or incorporates Python or any part thereof, and wants to make
+the derivative work available to others as provided herein, then
+Licensee hereby agrees to include in any such work a brief summary of
+the changes made to Python.
+
+4. PSF is making Python available to Licensee on an "AS IS"
+basis.  PSF MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, PSF MAKES NO AND
+DISCLAIMS ANY REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS
+FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF PYTHON WILL NOT
+INFRINGE ANY THIRD PARTY RIGHTS.
+
+5. PSF SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF PYTHON
+FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS AS
+A RESULT OF MODIFYING, DISTRIBUTING, OR OTHERWISE USING PYTHON,
+OR ANY DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
+
+6. This License Agreement will automatically terminate upon a material
+breach of its terms and conditions.
+
+7. Nothing in this License Agreement shall be deemed to create any
+relationship of agency, partnership, or joint venture between PSF and
+Licensee.  This License Agreement does not grant permission to use PSF
+trademarks or trade name in a trademark sense to endorse or promote
+products or services of Licensee, or any third party.
+
+8. By copying, installing or otherwise using Python, Licensee
+agrees to be bound by the terms and conditions of this License
+Agreement.
+
+
+BEOPEN.COM LICENSE AGREEMENT FOR PYTHON 2.0
+-------------------------------------------
+
+BEOPEN PYTHON OPEN SOURCE LICENSE AGREEMENT VERSION 1
+
+1. This LICENSE AGREEMENT is between BeOpen.com ("BeOpen"), having an
+office at 160 Saratoga Avenue, Santa Clara, CA 95051, and the
+Individual or Organization ("Licensee") accessing and otherwise using
+this software in source or binary form and its associated
+documentation ("the Software").
+
+2. Subject to the terms and conditions of this BeOpen Python License
+Agreement, BeOpen hereby grants Licensee a non-exclusive,
+royalty-free, world-wide license to reproduce, analyze, test, perform
+and/or display publicly, prepare derivative works, distribute, and
+otherwise use the Software alone or in any derivative version,
+provided, however, that the BeOpen Python License is retained in the
+Software, alone or in any derivative version prepared by Licensee.
+
+3. BeOpen is making the Software available to Licensee on an "AS IS"
+basis.  BEOPEN MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, BEOPEN MAKES NO AND
+DISCLAIMS ANY REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS
+FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF THE SOFTWARE WILL NOT
+INFRINGE ANY THIRD PARTY RIGHTS.
+
+4. BEOPEN SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF THE
+SOFTWARE FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS
+AS A RESULT OF USING, MODIFYING OR DISTRIBUTING THE SOFTWARE, OR ANY
+DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
+
+5. This License Agreement will automatically terminate upon a material
+breach of its terms and conditions.
+
+6. This License Agreement shall be governed by and interpreted in all
+respects by the law of the State of California, excluding conflict of
+law provisions.  Nothing in this License Agreement shall be deemed to
+create any relationship of agency, partnership, or joint venture
+between BeOpen and Licensee.  This License Agreement does not grant
+permission to use BeOpen trademarks or trade names in a trademark
+sense to endorse or promote products or services of Licensee, or any
+third party.  As an exception, the "BeOpen Python" logos available at
+http://www.pythonlabs.com/logos.html may be used according to the
+permissions granted on that web page.
+
+7. By copying, installing or otherwise using the software, Licensee
+agrees to be bound by the terms and conditions of this License
+Agreement.
+
+
+CNRI LICENSE AGREEMENT FOR PYTHON 1.6.1
+---------------------------------------
+
+1. This LICENSE AGREEMENT is between the Corporation for National
+Research Initiatives, having an office at 1895 Preston White Drive,
+Reston, VA 20191 ("CNRI"), and the Individual or Organization
+("Licensee") accessing and otherwise using Python 1.6.1 software in
+source or binary form and its associated documentation.
+
+2. Subject to the terms and conditions of this License Agreement, CNRI
+hereby grants Licensee a nonexclusive, royalty-free, world-wide
+license to reproduce, analyze, test, perform and/or display publicly,
+prepare derivative works, distribute, and otherwise use Python 1.6.1
+alone or in any derivative version, provided, however, that CNRI's
+License Agreement and CNRI's notice of copyright, i.e., "Copyright (c)
+1995-2001 Corporation for National Research Initiatives; All Rights
+Reserved" are retained in Python 1.6.1 alone or in any derivative
+version prepared by Licensee.  Alternately, in lieu of CNRI's License
+Agreement, Licensee may substitute the following text (omitting the
+quotes): "Python 1.6.1 is made available subject to the terms and
+conditions in CNRI's License Agreement.  This Agreement together with
+Python 1.6.1 may be located on the Internet using the following
+unique, persistent identifier (known as a handle): 1895.22/1013.  This
+Agreement may also be obtained from a proxy server on the Internet
+using the following URL: http://hdl.handle.net/1895.22/1013".
+
+3. In the event Licensee prepares a derivative work that is based on
+or incorporates Python 1.6.1 or any part thereof, and wants to make
+the derivative work available to others as provided herein, then
+Licensee hereby agrees to include in any such work a brief summary of
+the changes made to Python 1.6.1.
+
+4. CNRI is making Python 1.6.1 available to Licensee on an "AS IS"
+basis.  CNRI MAKES NO REPRESENTATIONS OR WARRANTIES, EXPRESS OR
+IMPLIED.  BY WAY OF EXAMPLE, BUT NOT LIMITATION, CNRI MAKES NO AND
+DISCLAIMS ANY REPRESENTATION OR WARRANTY OF MERCHANTABILITY OR FITNESS
+FOR ANY PARTICULAR PURPOSE OR THAT THE USE OF PYTHON 1.6.1 WILL NOT
+INFRINGE ANY THIRD PARTY RIGHTS.
+
+5. CNRI SHALL NOT BE LIABLE TO LICENSEE OR ANY OTHER USERS OF PYTHON
+1.6.1 FOR ANY INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES OR LOSS AS
+A RESULT OF MODIFYING, DISTRIBUTING, OR OTHERWISE USING PYTHON 1.6.1,
+OR ANY DERIVATIVE THEREOF, EVEN IF ADVISED OF THE POSSIBILITY THEREOF.
+
+6. This License Agreement will automatically terminate upon a material
+breach of its terms and conditions.
+
+7. This License Agreement shall be governed by the federal
+intellectual property law of the United States, including without
+limitation the federal copyright law, and, to the extent such
+U.S. federal law does not apply, by the law of the Commonwealth of
+Virginia, excluding Virginia's conflict of law provisions.
+Notwithstanding the foregoing, with regard to derivative works based
+on Python 1.6.1 that incorporate non-separable material that was
+previously distributed under the GNU General Public License (GPL), the
+law of the Commonwealth of Virginia shall govern this License
+Agreement only as to issues arising under or with respect to
+Paragraphs 4, 5, and 7 of this License Agreement.  Nothing in this
+License Agreement shall be deemed to create any relationship of
+agency, partnership, or joint venture between CNRI and Licensee.  This
+License Agreement does not grant permission to use CNRI trademarks or
+trade name in a trademark sense to endorse or promote products or
+services of Licensee, or any third party.
+
+8. By clicking on the "ACCEPT" button where indicated, or by copying,
+installing or otherwise using Python 1.6.1, Licensee agrees to be
+bound by the terms and conditions of this License Agreement.
+
+        ACCEPT
+
+
+CWI LICENSE AGREEMENT FOR PYTHON 0.9.0 THROUGH 1.2
+--------------------------------------------------
+
+Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam,
+The Netherlands.  All rights reserved.
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies and that
+both that copyright notice and this permission notice appear in
+supporting documentation, and that the name of Stichting Mathematisch
+Centrum or CWI not be used in advertising or publicity pertaining to
+distribution of the software without specific, written prior
+permission.
+
+STICHTING MATHEMATISCH CENTRUM DISCLAIMS ALL WARRANTIES WITH REGARD TO
+THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS, IN NO EVENT SHALL STICHTING MATHEMATISCH CENTRUM BE LIABLE
+FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Licenses and Acknowledgements for Incorporated Software
+========================================================
+
+This section is an incomplete, but growing list of licenses and acknowledgements
+for third-party software incorporated in the Python distribution.
+
+Mersenne Twister
+================
+The _random module includes code based on a download from
+  http://www.math.keio.ac.jp/ matumoto/MT2002/emt19937ar.html.
+The following are the verbatim comments from the original code:
+
+A C-program for MT19937, with initialization improved 2002/1/26.
+Coded by Takuji Nishimura and Makoto Matsumoto.
+
+Before using, initialize the state by using init_genrand(seed)
+or init_by_array(init_key, key_length).
+
+Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura,
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+
+ 1. Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+
+ 2. Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the
+    distribution.
+
+
+ 3. The names of its contributors may not be used to endorse or promote
+    products derived from this software without specific prior written
+    permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Any feedback is very welcome.
+http://www.math.keio.ac.jp/matumoto/emt.html
+email: matumoto@math.keio.ac.jp
+
+Sockets
+=======
+The socket module uses the functions, getaddrinfo(), and getnameinfo(), which
+are coded in separate source files from the WIDE Project, http://www.wide.ad.jp/
+.
+
+Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. Neither the name of the project nor the names of its contributors
+   may be used to endorse or promote products derived from this
+   software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Floating point exception control
+================================
+The source for the fpectl module includes the following notice:
+
+  ---------------------------------------------------------------------
+ /                       Copyright (c) 1996.                           \
+|          The Regents of the University of California.                 |
+|                        All rights reserved.                           |
+|                                                                       |
+|   Permission to use, copy, modify, and distribute this software for   |
+|   any purpose without fee is hereby granted, provided that this en-   |
+|   tire notice is included in all copies of any software which is or   |
+|   includes  a  copy  or  modification  of  this software and in all   |
+|   copies of the supporting documentation for such software.           |
+|                                                                       |
+|   This  work was produced at the University of California, Lawrence   |
+|   Livermore National Laboratory under  contract  no.  W-7405-ENG-48   |
+|   between  the  U.S.  Department  of  Energy and The Regents of the   |
+|   University of California for the operation of UC LLNL.              |
+|                                                                       |
+|                              DISCLAIMER                               |
+|                                                                       |
+|   This  software was prepared as an account of work sponsored by an   |
+|   agency of the United States Government. Neither the United States   |
+|   Government  nor the University of California nor any of their em-   |
+|   ployees, makes any warranty, express or implied, or  assumes  any   |
+|   liability  or  responsibility  for the accuracy, completeness, or   |
+|   usefulness of any information,  apparatus,  product,  or  process   |
+|   disclosed,   or  represents  that  its  use  would  not  infringe   |
+|   privately-owned rights. Reference herein to any specific  commer-   |
+|   cial  products,  process,  or  service  by trade name, trademark,   |
+|   manufacturer, or otherwise, does not  necessarily  constitute  or   |
+|   imply  its endorsement, recommendation, or favoring by the United   |
+|   States Government or the University of California. The views  and   |
+|   opinions  of authors expressed herein do not necessarily state or   |
+|   reflect those of the United States Government or  the  University   |
+|   of  California,  and shall not be used for advertising or product   |
+ \  endorsement purposes.                                              /
+  ---------------------------------------------------------------------
+
+MD5 message digest algorithm
+============================
+The source code for the md5 module contains the following notice:
+
+Copyright (C) 1999, 2002 Aladdin Enterprises.  All rights reserved.
+
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would
+   be appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not
+   be misrepresented as being the original software.
+3. This notice may not be removed or altered from any source
+   distribution.
+
+L. Peter Deutsch
+ghost@aladdin.com
+
+Independent implementation of MD5 (RFC 1321).
+
+This code implements the MD5 Algorithm defined in RFC 1321, whose
+text is available at
+      http://www.ietf.org/rfc/rfc1321.txt
+The code is derived from the text of the RFC, including the test suite
+(section A.5) but excluding the rest of Appendix A.  It does not include
+any code or documentation that is identified in the RFC as being
+copyrighted.
+
+The original and principal author of md5.h is L. Peter Deutsch
+<ghost@aladdin.com>.  Other authors are noted in the change history
+that follows (in reverse chronological order):
+
+2002-04-13 lpd Removed support for non-ANSI compilers; removed
+      references to Ghostscript; clarified derivation from RFC 1321;
+      now handles byte order either statically or dynamically.
+1999-11-04 lpd Edited comments slightly for automatic TOC extraction.
+1999-10-18 lpd Fixed typo in header comment (ansi2knr rather than md5);
+      added conditionalization for C++ compilation from Martin
+      Purschke <purschke@bnl.gov>.
+1999-05-03 lpd Original version.
+
+Asynchronous socket services
+============================
+The asynchat and asyncore modules contain the following notice:
+
+Copyright 1996 by Sam Rushing
+
+                        All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software and
+its documentation for any purpose and without fee is hereby
+granted, provided that the above copyright notice appear in all
+copies and that both that copyright notice and this permission
+notice appear in supporting documentation, and that the name of Sam
+Rushing not be used in advertising or publicity pertaining to
+distribution of the software without specific, written prior
+permission.
+
+SAM RUSHING DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE,
+INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN
+NO EVENT SHALL SAM RUSHING BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Cookie management
+=================
+The Cookie module contains the following notice:
+
+Copyright 2000 by Timothy O'Malley <timo@alum.mit.edu>
+
+               All Rights Reserved
+
+Permission to use, copy, modify, and distribute this software
+and its documentation for any purpose and without fee is hereby
+granted, provided that the above copyright notice appear in all
+copies and that both that copyright notice and this permission
+notice appear in supporting documentation, and that the name of
+Timothy O'Malley  not be used in advertising or publicity
+pertaining to distribution of the software without specific, written
+prior permission.
+
+Timothy O'Malley DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
+SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS, IN NO EVENT SHALL Timothy O'Malley BE LIABLE FOR
+ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+Profiling
+=========
+The profile and pstats modules contain the following notice:
+
+Copyright 1994, by InfoSeek Corporation, all rights reserved.
+Written by James Roskind
+
+Permission to use, copy, modify, and distribute this Python software
+and its associated documentation for any purpose (subject to the
+restriction in the following sentence) without fee is hereby granted,
+provided that the above copyright notice appears in all copies, and
+that both that copyright notice and this permission notice appear in
+supporting documentation, and that the name of InfoSeek not be used in
+advertising or publicity pertaining to distribution of the software
+without specific, written prior permission.  This permission is
+explicitly restricted to the copying and modification of the software
+to remain in Python, compiled Python, or other languages (such as C)
+wherein the modified or derived code is exclusively imported into a
+Python module.
+
+INFOSEEK CORPORATION DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
+SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL INFOSEEK CORPORATION BE LIABLE FOR ANY
+SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
+RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Execution tracing
+=================
+The trace module contains the following notice:
+
+portions copyright 2001, Autonomous Zones Industries, Inc., all rights...
+err...  reserved and offered to the public under the terms of the
+Python 2.2 license.
+Author: Zooko O'Whielacronx
+http://zooko.com/
+mailto:zooko@zooko.com
+
+Copyright 2000, Mojam Media, Inc., all rights reserved.
+Author: Skip Montanaro
+
+Copyright 1999, Bioreason, Inc., all rights reserved.
+Author: Andrew Dalke
+
+Copyright 1995-1997, Automatrix, Inc., all rights reserved.
+Author: Skip Montanaro
+
+Copyright 1991-1995, Stichting Mathematisch Centrum, all rights reserved.
+
+Permission to use, copy, modify, and distribute this Python software and
+its associated documentation for any purpose without fee is hereby
+granted, provided that the above copyright notice appears in all copies,
+and that both that copyright notice and this permission notice appear in
+supporting documentation, and that the name of neither Automatrix,
+Bioreason or Mojam Media be used in advertising or publicity pertaining to
+distribution of the software without specific, written prior permission.
+
+UUencode and UUdecode functions
+===============================
+
+The uu module contains the following notice:
+
+Copyright 1994 by Lance Ellinghouse
+Cathedral City, California Republic, United States of America.
+                       All Rights Reserved
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted,
+provided that the above copyright notice appear in all copies and that
+both that copyright notice and this permission notice appear in
+supporting documentation, and that the name of Lance Ellinghouse
+not be used in advertising or publicity pertaining to distribution
+of the software without specific, written prior permission.
+LANCE ELLINGHOUSE DISCLAIMS ALL WARRANTIES WITH REGARD TO
+THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS, IN NO EVENT SHALL LANCE ELLINGHOUSE CENTRUM BE LIABLE
+FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Modified by Jack Jansen, CWI, July 1995:
+- Use binascii module to do the actual line-by-line conversion
+  between ascii and binary. This results in a 1000-fold speedup. The C
+  version is still 5 times faster, though.
+- Arguments more compliant with Python standard
+
+XML Remote Procedure Calls¶
+
+The xmlrpclib module contains the following notice:
+
+    The XML-RPC client interface is
+
+Copyright (c) 1999-2002 by Secret Labs AB
+Copyright (c) 1999-2002 by Fredrik Lundh
+
+By obtaining, using, and/or copying this software and/or its
+associated documentation, you agree that you have read, understood,
+and will comply with the following terms and conditions:
+
+Permission to use, copy, modify, and distribute this software and
+its associated documentation for any purpose and without fee is
+hereby granted, provided that the above copyright notice appears in
+all copies, and that both that copyright notice and this permission
+notice appear in supporting documentation, and that the name of
+Secret Labs AB or the author not be used in advertising or publicity
+pertaining to distribution of the software without specific, written
+prior permission.
+
+SECRET LABS AB AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD
+TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANT-
+ABILITY AND FITNESS.  IN NO EVENT SHALL SECRET LABS AB OR THE AUTHOR
+BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY
+DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
+OF THIS SOFTWARE.
+
+test_epoll
+==========
+The test_epoll contains the following notice:
+
+Copyright (c) 2001-2006 Twisted Matrix Laboratories.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Select kqueue
+=============
+The select and contains the following notice for the kqueue interface:
+
+Copyright (c) 2000 Doug White, 2006 James Knight, 2007 Christian Heimes
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+
+strtod and dtoa
+===============
+The file Python/dtoa.c, which supplies C functions dtoa and strtod for conversio
+n
+of C doubles to and from strings, is derived from the file of the same name by
+David M. Gay, currently available from http://www.netlib.org/fp/. The original
+file, as retrieved on March 16, 2009, contains the following copyright and
+licensing notice:
+
+/****************************************************************
+ *
+
+ * The author of this software is David M. Gay.
+ *
+
+ * Copyright (c) 1991, 2000, 2001 by Lucent Technologies.
+ *
+
+ * Permission to use, copy, modify, and distribute this software for
+
+ * any purpose without fee is hereby granted, provided that this entire
+
+ * notice is included in all copies of any software which is or
+
+ * includes a copy or modification of this software and in all copies
+
+ * of the supporting documentation for such software.
+ *
+
+ * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR
+
+ * IMPLIED WARRANTY.  IN PARTICULAR, NEITHER THE AUTHOR NOR LUCENT
+
+ * MAKES ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE
+
+ * MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR
+
+ * PURPOSE.
+ *
+ ***************************************************************/
+
+Python Cryptography Toolkit (PyCrypto)
+
+   The following software may be included in this product:
+Previously, the copyright and/or licensing status of the Python
+Cryptography Toolkit ("PyCrypto") had been somewhat ambiguous.  The
+original intention of Andrew M. Kuchling and other contributors has
+been to dedicate PyCrypto to the public domain, but that intention was
+not necessarily made clear in the original disclaimer (see
+LEGAL/copy/LICENSE.orig).
+
+Additionally, some files within PyCrypto had specified their own
+licenses that differed from the PyCrypto license itself.  For example,
+the original RIPEMD.c module simply had a copyright statement and
+warranty disclaimer, without clearly specifying any license terms.
+(An updated version on the author's website came with a license that
+contained a GPL-incompatible advertising clause.)
+
+To rectify this situation for PyCrypto 2.1, the following steps have
+been taken:
+
+
+ 1. Obtaining explicit permission from the original contributors to
+    dedicate their contributions to the public domain if they have not
+    already done so.  (See the "LEGAL/copy/stmts" directory for
+    contributors' statements.)
+
+
+ 2. Replacing some modules with clearly-licensed code from other
+    sources (e.g. the DES and DES3 modules were replaced with new ones
+    based on Tom St. Denis's public-domain LibTomCrypt library).
+
+
+ 3. Replacing some modules with code written from scratch (e.g. the
+    RIPEMD and Blowfish modules were re-implemented from their
+    respective algorithm specifications without reference to the old
+    implementations).
+
+
+ 4. Removing some modules altogether without replacing them.
+
+To the best of our knowledge, with the exceptions noted below or
+within the files themselves, the files that constitute PyCrypto are in
+the public domain.  Most are distributed with the following notice:
+
+  The contents of this file are dedicated to the public domain.  To
+  the extent that dedication to the public domain is not available,
+  everyone is granted a worldwide, perpetual, royalty-free,
+  non-exclusive license to exercise all rights associated with the
+  contents of this file for any purpose whatsoever.
+  No rights are reserved.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+Exception:
+
+ - Portions of HMAC.py and setup.py are derived from Python 2.2, and
+   are therefore Copyright (c) 2001, 2002, 2003 Python Software
+   Foundation (All Rights Reserved).  They are licensed by the PSF
+   under the terms of the Python 2.2 license.  (See the file
+   LEGAL/copy/LICENSE.python-2.2 for details.)
+
+EXPORT RESTRICTIONS:
+
+Note that the export or re-export of cryptographic software and/or
+source code may be subject to regulation in your jurisdiction.
 
 RapidJSON v1.1.0
 
@@ -4331,6 +6154,257 @@ copyright holder.
 
 All trademarks and registered trademarks mentioned herein are the property of
 their respective owners.
+
+V8
+
+   The following software may be included in this product. (For the
+   avoidance of doubt, Oracle uses and distributes this component under
+   the terms below and elects not to do so under the GPL even though the
+   GPL is referenced as an option below.)
+This license applies to all parts of V8 that are not externally
+maintained libraries.  The externally maintained libraries used by V8
+are:
+.
+  - PCRE test suite, located in
+    test/mjsunit/third_party/regexp-pcre.js.  This is based on the
+    test suite from PCRE-7.3, which is copyrighted by the University
+    of Cambridge and Google, Inc.  The copyright notice and license
+    are embedded in regexp-pcre.js.
+.
+  - Layout tests, located in test/mjsunit/third_party.  These are
+    based on layout tests from webkit.org which are copyrighted by
+    Apple Computer, Inc. and released under a 3-clause BSD license.
+.
+  - Strongtalk assembler, the basis of the files assembler-arm-inl.h,
+    assembler-arm.cc, assembler-arm.h, assembler-ia32-inl.h,
+    assembler-ia32.cc, assembler-ia32.h, assembler-x64-inl.h,
+    assembler-x64.cc, assembler-x64.h, assembler-mips-inl.h,
+    assembler-mips.cc, assembler-mips.h, assembler.cc and assembler.h.
+    This code is copyrighted by Sun Microsystems Inc. and released
+    under a 3-clause BSD license.
+.
+  - Valgrind client API header, located at third_party/valgrind/valgrind.h
+    This is release under the BSD license.
+.
+These libraries have their own licenses; we recommend you read them,
+as their terms may differ from the terms below.
+.
+Copyright 2006-2012, the V8 project authors. All rights reserved.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+.
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+
+    * Neither the name of Google Inc. nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.
+=======================================================================
+.
+License for  PCRE test suite (regexp-pcre.js):
+// PCRE LICENCE
+// ------------
+//
+// PCRE is a library of functions to support regular expressions whose syntax
+// and semantics are as close as possible to those of the Perl 5 language.
+//
+// Release 7 of PCRE is distributed under the terms of the "BSD" licence, as
+// specified below. The documentation for PCRE, supplied in the "doc"
+// directory, is distributed under the same terms as the software itself.
+//
+// The basic library functions are written in C and are freestanding. Also
+// included in the distribution is a set of C++ wrapper functions.
+//
+// THE BASIC LIBRARY FUNCTIONS
+// ---------------------------
+//
+// Written by:       Philip Hazel
+// Email local part: ph10
+// Email domain:     cam.ac.uk
+//
+// University of Cambridge Computing Service,
+// Cambridge, England.
+//
+// Copyright (c) 1997-2007 University of Cambridge
+// All rights reserved.
+//
+//
+// THE C++ WRAPPER FUNCTIONS
+// -------------------------
+//
+// Contributed by:   Google Inc.
+//
+// Copyright (c) 2007, Google Inc.
+// All rights reserved.
+//
+//
+// THE "BSD" LICENCE
+// -----------------
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+//     * Redistributions of source code must retain the above copyright notice,
+//       this list of conditions and the following disclaimer.
+//
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//
+//     * Neither the name of the University of Cambridge nor the name of Google
+//       Inc. nor the names of their contributors may be used to endorse or
+//       promote products derived from this software without specific prior
+//       written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// POSSIBILITY OF SUCH DAMAGE.
+//
+// End
+.
+=======================================================================
+ License for layout test files (array-isarray.js, array-splice-webkit.js,
+object-keys.js and string-trim.js):
+.
+// Copyright (c) 2006-2009 Apple Computer, Inc. All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+// 1. Redistributions of source code must retain the above copyright
+// notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above
+// copyright notice, this list of conditions and the following
+// disclaimer in the documentation and/or other materials provided
+// with the distribution.
+//
+// 3. Neither the name of the copyright holder(s) nor the names of any
+// contributors may be used to endorse or promote products derived
+// from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+// COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+// HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+// OF THE POSSIBILITY OF SUCH DAMAGE.
+.
+=======================================================================
+
+License for Strongtalk assembler files (LICENSE.strongtalk):
+Copyright (c) 1994-2006 Sun Microsystems Inc.
+All Rights Reserved.
+.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+.
+- Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+.
+- Redistribution in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+.
+- Neither the name of Sun Microsystems or the names of contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
+.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.
+=======================================================================
+
+License for the valgrind header file  (LICENSE.valgrind):
+.
+Notice that the following BSD-style license applies to this one
+file (valgrind.h) only.  The rest of Valgrind is licensed under the
+terms of the GNU General Public License, version 2, unless
+otherwise indicated.  See the COPYING file in the source
+distribution for details.
+.
+----------------------------------------------------------------
+.
+This file is part of Valgrind, a dynamic binary instrumentation
+framework.
+.
+Copyright (C) 2000-2007 Julian Seward.  All rights reserved.
+.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+.
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+.
+2. The origin of this software must not be misrepresented; you must
+   not claim that you wrote the original software.  If you use this
+   software in a product, an acknowledgment in the product
+   documentation would be appreciated but is not required.
+.
+3. Altered source versions must be plainly marked as such, and must
+   not be misrepresented as being the original software.
+.
+4. The name of the author may not be used to endorse or promote
+   products derived from this software without specific prior written
+   permission.
+.
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 xxHash
 
