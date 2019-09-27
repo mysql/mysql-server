@@ -105,6 +105,60 @@ TEST_F(Handler_test, SimpleTableCreate) {
   EXPECT_EQ(handler.delete_table(table_name, nullptr), 0);
 }
 
+#ifndef DBUG_OFF
+TEST_F(
+    Handler_test,
+    TableCreateReturnsRecordFileFullWhenTempTableAllocatorThrowsRecordFileFull) {
+  const char *table_name = "t1";
+
+  Table_helper table_helper(table_name, thd());
+  table_helper.add_field_long("col0", false);
+  table_helper.finalize();
+
+  temptable::Handler handler(hton(), table_helper.table_share());
+  table_helper.set_handler(&handler);
+
+  DBUG_SET("+d,temptable_allocator_record_file_full");
+  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
+            HA_ERR_RECORD_FILE_FULL);
+  DBUG_SET("-d,temptable_allocator_record_file_full");
+}
+
+TEST_F(Handler_test,
+       TableCreateReturnsOutOfMemoryWhenTempTableAllocatorThrowsOutOfMemory) {
+  const char *table_name = "t1";
+
+  Table_helper table_helper(table_name, thd());
+  table_helper.add_field_long("col0", false);
+  table_helper.finalize();
+
+  temptable::Handler handler(hton(), table_helper.table_share());
+  table_helper.set_handler(&handler);
+
+  DBUG_SET("+d,temptable_allocator_oom");
+  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
+            HA_ERR_OUT_OF_MEM);
+  DBUG_SET("-d,temptable_allocator_oom");
+}
+
+TEST_F(Handler_test,
+       TableCreateReturnsOutOfMemoryWhenCatchAllHandlerIsActivated) {
+  const char *table_name = "t1";
+
+  Table_helper table_helper(table_name, thd());
+  table_helper.add_field_long("col0", false);
+  table_helper.finalize();
+
+  temptable::Handler handler(hton(), table_helper.table_share());
+  table_helper.set_handler(&handler);
+
+  DBUG_SET("+d,temptable_create_return_non_result_type_exception");
+  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
+            HA_ERR_OUT_OF_MEM);
+  DBUG_SET("-d,temptable_create_return_non_result_type_exception");
+}
+#endif /* DBUG_OFF */
+
 TEST_F(Handler_test, SimpleTableOpsFixedSize) {
   const char *table_name = "t1";
 

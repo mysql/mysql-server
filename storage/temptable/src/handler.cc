@@ -119,24 +119,24 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
     }
   }
 
-  Result ret = Result::OUT_OF_MEM;
+  Result ret;
 
   try {
-    // clang-format off
-    DBUG_EXECUTE_IF(
-        "temptable_create_return_full",
-        ret = Result::RECORD_FILE_FULL;
-        throw std::bad_alloc();
-    );
-    // clang-format on
+    DBUG_EXECUTE_IF("temptable_create_return_full",
+                    throw Result::RECORD_FILE_FULL;);
+    DBUG_EXECUTE_IF("temptable_create_return_non_result_type_exception",
+                    throw 42;);
 
     const auto insert_result = tls_tables.emplace(
         std::piecewise_construct, std::make_tuple(table_name),
         std::forward_as_tuple(mysql_table, all_columns_are_fixed_size));
 
     ret = insert_result.second ? Result::OK : Result::TABLE_EXIST;
+
+  } catch (Result ex) {
+    ret = ex;
   } catch (...) {
-    /* ret is already set above. */
+    ret = Result::OUT_OF_MEM;
   }
 
   DBUG_PRINT("temptable_api",
