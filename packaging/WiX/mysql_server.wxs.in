@@ -157,12 +157,12 @@
     <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
     </InstallUISequence>
    
-    <Property Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off &amp; for /F &quot;tokens=*&quot; %i in ('sc query ^| FIND &quot;SERVICE_NAME:&quot;') do (set j=%i &amp; set j=!j:~14! &amp; sc qc !j! | FIND &quot;C:\Program Files\MySQL\MySQL Server 8.0\bin\&quot; >NUL &amp; IF errorlevel 0 IF NOT errorlevel 1 (sc stop !j! > NUL &amp; ( for /L %k IN (1,1,20) do (sc query !j! | FIND &quot;STATE&quot; | FIND &quot;STOPPED&quot; >NUL &amp; (IF errorlevel 0 IF errorlevel 1 timeout /t 5 /nobreak >NUL)) )&amp; sc delete !j!  ) ) &quot;"/>
     <CustomAction Id="QtRemoveService" BinaryKey="WixCA" DllEntry="WixQuietExec"
             Execute="deferred" Return="ignore" Impersonate="no"/>
     <InstallExecuteSequence>
       <Custom Action="QtRemoveService" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL") AND (NOT MYSQL_INSTALLER="YES")</Custom>
     </InstallExecuteSequence>
+    <SetProperty Before="QtRemoveService" Sequence="execute" Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off&amp;set &quot;d=[INSTALLDIR]&quot;&amp;FOR /f &quot;skip=1&quot; %s in (&apos;wmic service where ^&apos;pathname like &quot;%!d:\=\\!%&quot;^&apos; get name ^| findstr /r &quot;^.$&quot;&apos;) do ((for /L %k IN (1,1,20) do wmic service where &apos;name=&quot;%s&quot; and started=&quot;true&quot;&apos; call stopservice | FIND /v &quot;No Instance&quot;>NUL&amp;&amp;timeout /t 5 /nobreak>NUL)&amp;sc delete %s>NUL)&quot;"/>
 
     <!-- UI -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
