@@ -686,7 +686,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   // Binlog CREATE/ALTER/CREATE OR REPLACE event.
-  if (mysql_bin_log.is_open()) {
+  if (mysql_bin_log.is_open() &&
+      (thd->variables.option_bits & OPTION_BIN_LOG)) {
     String buff;
     const LEX_CSTRING command[3] = {{STRING_WITH_LEN("CREATE ")},
                                     {STRING_WITH_LEN("ALTER ")},

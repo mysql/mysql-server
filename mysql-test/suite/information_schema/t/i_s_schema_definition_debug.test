@@ -89,7 +89,7 @@
 --echo #    change in part 1 or 2, then we have changes in the SQL DDL
 --echo #    semantics. This should be handled by changing the I_S initialization
 --echo #    procedure to either tweak the view statements before execution
---echo #    by tweaking the generated low level meta data. Either way, the 
+--echo #    by tweaking the generated low level meta data. Either way, the
 --echo #    result of the changes to the server code should be that
 --echo #    this test stops failing.
 --echo ########################################################################
@@ -97,7 +97,7 @@
 --source include/have_debug.inc
 
 # Total number of system views in MySQL server.
-let $expected_system_view_count = 32;
+let $expected_system_view_count = 38;
 
 --echo ########################################################################
 --echo # PART 1
@@ -106,7 +106,7 @@ let $expected_system_view_count = 32;
 let $I_S_view_names = test.I_S_view_names;
 # Create table to hold the I_S view names, they are needed later in this test.
 eval CREATE TABLE $I_S_view_names (name VARCHAR(64) PRIMARY KEY);
---source include/i_s_schema_assert_and_fill_table_names.inc
+--source suite/information_schema/include/i_s_schema_assert_and_fill_table_names.inc
 
 --echo ########################################################################
 --echo # PART 2. Verify the I_S_VERSION and the CREATE VIEW statements of the
@@ -117,7 +117,7 @@ eval CREATE TABLE $I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
    t TEXT NOT NULL,
    row_hash VARCHAR(64) DEFAULT NULL);
---source include/i_s_schema_dump_table_defs_debug.inc
+--source suite/information_schema/include/i_s_schema_dump_table_defs_debug.inc
 
 --echo ########################################################################
 --echo # PART 3. Verify the checksum of the generated meta data associated with
@@ -157,7 +157,7 @@ let $I_S_view_ids = SELECT id FROM mysql.tables
 
 # definitions from views
 eval INSERT INTO I_S_check_table(t)
-  SELECT CONCAT(id, '-', name, '-', type, '-',
+  SELECT CONCAT(name, '-', type, '-',
     IFNULL(collation_id,'NULL'), '-',
     comment, '-', hidden, '-',
     view_check_option, '-',
@@ -175,7 +175,7 @@ eval INSERT INTO I_S_check_table(t)
 # Subset of definitions from columns, not including
 # default_values.
 eval INSERT INTO I_S_check_table(t)
-  SELECT CONCAT(id, '-', table_id, '-', name, '-',
+  SELECT CONCAT(name, '-',
     ordinal_position, '-', type, '-', is_nullable, '-',
     IFNULL(is_zerofill, 'NULL'), '-',
     IFNULL(is_unsigned, 'NULL'), '-',
@@ -241,6 +241,12 @@ INSERT INTO I_S_published_schema
 INSERT INTO I_S_published_schema
   VALUES ('80018', 1,
     'ca7b69e91a233bab7856f491e7dab6caff7f0fd4f56218ece438e95375ff2392');
+INSERT INTO I_S_published_schema
+  VALUES ('80019', 0,
+    'a58799a398f1f9ebd0e278b62e459da00c55e54ec80beadf4cab462518f2ff2d');
+INSERT INTO I_S_published_schema
+  VALUES ('80019', 1,
+    '533df73f91818d8e866b63f335c7733418bcd87d3abfbd98a05b29494eed2e8c');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
                      version, '.'),

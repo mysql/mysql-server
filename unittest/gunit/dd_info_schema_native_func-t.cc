@@ -262,5 +262,23 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   CREATE_ITEM(Item_func_internal_get_dd_column_extra, prepare_null_list(6));
   item->val_str(&str);
   EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_GET_USERNAME()
+  CREATE_ITEM(Item_func_internal_get_username, prepare_null_list(1));
+  EXPECT_EQ(nullptr, item->val_str(&str));
+
+  // INTERNAL_GET_HOSTNAME()
+  CREATE_ITEM(Item_func_internal_get_hostname, prepare_null_list(1));
+  EXPECT_EQ(nullptr, item->val_str(&str));
+
+  // INTERNAL_IS_MANDATORY_ROLE()
+  CREATE_ITEM(Item_func_internal_is_mandatory_role, TWO_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
+
+  // INTERNAL_IS_ENABLED_ROLE()
+  CREATE_ITEM(Item_func_internal_is_enabled_role, TWO_NULL_ARGS);
+  item->val_int();
+  EXPECT_EQ(1, item->null_value);
 }
 }  // namespace dd_info_schema_native_func

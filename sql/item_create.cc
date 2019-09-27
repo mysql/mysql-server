@@ -1704,7 +1704,19 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"CONVERT_INTERVAL_TO_USER_INTERVAL",
      SQL_FN_INTERNAL(Item_func_convert_interval_to_user_interval, 2)},
     {"INTERNAL_GET_DD_COLUMN_EXTRA",
-     SQL_FN_LIST_INTERNAL(Item_func_internal_get_dd_column_extra, 6)}};
+     SQL_FN_LIST_INTERNAL(Item_func_internal_get_dd_column_extra, 6)},
+    {"INTERNAL_GET_USERNAME",
+     SQL_FN_LIST_INTERNAL_V(Item_func_internal_get_username, 0, 1)},
+    {"INTERNAL_GET_HOSTNAME",
+     SQL_FN_LIST_INTERNAL_V(Item_func_internal_get_hostname, 0, 1)},
+    {"INTERNAL_GET_ENABLED_ROLE_JSON",
+     SQL_FN_INTERNAL(Item_func_internal_get_enabled_role_json, 0)},
+    {"INTERNAL_GET_MANDATORY_ROLES_JSON",
+     SQL_FN_INTERNAL(Item_func_internal_get_mandatory_roles_json, 0)},
+    {"INTERNAL_IS_MANDATORY_ROLE",
+     SQL_FN_INTERNAL(Item_func_internal_is_mandatory_role, 2)},
+    {"INTERNAL_IS_ENABLED_ROLE",
+     SQL_FN_INTERNAL(Item_func_internal_is_enabled_role, 2)}};
 
 using Native_functions_hash = std::unordered_map<std::string, Create_func *>;
 static const Native_functions_hash *native_functions_hash;

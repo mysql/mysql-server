@@ -5643,6 +5643,7 @@ static int init_server_components() {
   }
 #endif
 
+  bool recreate_non_dd_based_system_view = dd::upgrade::I_S_upgrade_required();
   if (!is_help_or_validate_option() && !opt_initialize &&
       !dd::upgrade::no_server_upgrade_required()) {
     if (opt_upgrade_mode == UPGRADE_MINIMAL)
@@ -5653,9 +5654,11 @@ static int init_server_components() {
                                           &dd::upgrade::upgrade_system_schemas,
                                           SYSTEM_THREAD_SERVER_UPGRADE)) {
         LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_FAILED);
-        unireg_abort(1);
+        unireg_abort(MYSQLD_ABORT_EXIT);
       }
       delete_optimizer_cost_module();
+      recreate_non_dd_based_system_view = true;
+
       /*
         When upgrade is finished, we need to initialize the plugins that
         had their initialization delayed due to dependencies on the
@@ -5670,6 +5673,23 @@ static int init_server_components() {
       }
     }
   }
+
+  /*
+    Re-create non DD based system views after a) if we upgraded system
+    schemas b) I_S system view version is changed and server system views
+    were recreated. c) If the database was upgraded. We do not update this
+    in upgrade-minimal mode.
+   */
+  if (!is_help_or_validate_option() && !opt_initialize &&
+      opt_upgrade_mode != UPGRADE_MINIMAL &&
+      recreate_non_dd_based_system_view) {
+    if (dd::init(
+            dd::enum_dd_init_type::DD_INITIALIZE_NON_DD_BASED_SYSTEM_VIEWS)) {
+      LogErr(ERROR_LEVEL, ER_SYSTEM_VIEW_INIT_FAILED);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+  }
+
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
   // Initialize the Resource group subsystem.
   if (!is_help_or_validate_option() && !opt_initialize) {
@@ -7375,7 +7395,9 @@ int mysqld_main(int argc, char **argv) {
   Execute the bootstrap thread, if required.
 
   When mysqld is started with --initialize only,
-  the bootstrap thread executes compiled in statements,
+  the bootstrap thread executes
+  - compiled in statements.
+  - create the non-DD based INFORMATION_SCHEMA.
   and the server exits.
 
   When mysqld is started with --init-file only,
@@ -7386,7 +7408,8 @@ int mysqld_main(int argc, char **argv) {
   When mysqld is started with both --initialize and --init-file,
   the bootstrap thread:
   - executes compiled in statements,
-  - then executes SQL statements in the --init-file.
+  - executes SQL statements in the --init-file.
+  - creates the non-DD based INFORMATION_SCHEMA.
   The server then exits.
 
   Compiled in statements are executed in a privileged mode,
@@ -7442,6 +7465,14 @@ static void process_bootstrap() {
     }
 
     if (opt_initialize) {
+      // Create non DD based system views during --initialize.
+      error = dd::init(
+          dd::enum_dd_init_type::DD_INITIALIZE_NON_DD_BASED_SYSTEM_VIEWS);
+      if (error != 0) {
+        LogErr(ERROR_LEVEL, ER_SYSTEM_VIEW_INIT_FAILED);
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
+
       unireg_abort(MYSQLD_SUCCESS_EXIT);
     }
   }

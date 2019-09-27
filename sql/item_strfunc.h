@@ -1621,6 +1621,86 @@ class Item_func_convert_interval_to_user_interval final : public Item_str_func {
   String *val_str(String *) override;
 };
 
+class Item_func_internal_get_username final : public Item_str_func {
+ public:
+  Item_func_internal_get_username(const POS &pos, PT_item_list *list)
+      : Item_str_func(pos, list) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_data_type_string(uint32(USERNAME_LENGTH + 1), system_charset_info);
+    maybe_null = true;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "internal_get_username"; }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_internal_get_hostname final : public Item_str_func {
+ public:
+  Item_func_internal_get_hostname(const POS &pos, PT_item_list *list)
+      : Item_str_func(pos, list) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_data_type_string(uint32(HOSTNAME_LENGTH + 1), system_charset_info);
+    maybe_null = true;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "internal_get_hostname"; }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_internal_get_enabled_role_json final : public Item_str_func {
+ public:
+  explicit Item_func_internal_get_enabled_role_json(const POS &pos)
+      : Item_str_func(pos) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_data_type_string(uint32(MAX_BLOB_WIDTH), system_charset_info);
+    maybe_null = true;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override {
+    return "internal_get_enabled_role_json";
+  }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_internal_get_mandatory_roles_json final : public Item_str_func {
+ public:
+  explicit Item_func_internal_get_mandatory_roles_json(const POS &pos)
+      : Item_str_func(pos) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_data_type_string(uint32(MAX_BLOB_WIDTH), system_charset_info);
+    maybe_null = true;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override {
+    return "internal_get_mandatory_roles_json";
+  }
+
+  String *val_str(String *) override;
+};
+
 class Item_func_internal_get_dd_column_extra final : public Item_str_func {
  public:
   Item_func_internal_get_dd_column_extra(const POS &pos, PT_item_list *list)

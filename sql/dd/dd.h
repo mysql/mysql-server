@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,8 @@ enum class enum_dd_init_type {
   DD_RESTART_OR_UPGRADE,
   DD_POPULATE_UPGRADE,
   DD_DELETE,
-  DD_UPDATE_I_S_METADATA
+  DD_UPDATE_I_S_METADATA,
+  DD_INITIALIZE_NON_DD_BASED_SYSTEM_VIEWS
 };
 
 /**

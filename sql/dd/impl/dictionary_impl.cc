@@ -74,6 +74,9 @@
 #include "sql/transaction.h"                    // trans_commit()
 #include "storage/perfschema/pfs_dd_version.h"  // PFS_DD_VERSION
 
+extern Cost_constant_cache *cost_constant_cache;  // defined in
+                                                  // opt_costconstantcache.cc
+
 ///////////////////////////////////////////////////////////////////////////
 
 namespace dd {
@@ -114,7 +117,11 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
     Upgrade process needs heap engine initialized, hence parameter 'true'
     is passed to the function.
   */
-  init_optimizer_cost_module(true);
+  bool cost_constant_inited = false;
+  if (cost_constant_cache == nullptr) {
+    init_optimizer_cost_module(true);
+    cost_constant_inited = true;
+  }
 
   // Disable table encryption privilege checks for system threads.
   bool saved_table_encryption_privilege_check =
@@ -165,11 +172,18 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
         nullptr, nullptr, &dd::info_schema::update_I_S_metadata,
         SYSTEM_THREAD_DD_INITIALIZE);
 
+  // Creation of non-dd-based INFORMATION_SCHEMA system views.
+  else if (dd_init ==
+           enum_dd_init_type::DD_INITIALIZE_NON_DD_BASED_SYSTEM_VIEWS)
+    result = ::bootstrap::run_bootstrap_thread(
+        nullptr, nullptr, &dd::info_schema::init_non_dd_based_system_view,
+        SYSTEM_THREAD_DD_INITIALIZE);
+
   // Restore the table_encryption_privilege_check.
   opt_table_encryption_privilege_check = saved_table_encryption_privilege_check;
 
   /* Now that the dd is initialized, delete the cost model. */
-  delete_optimizer_cost_module();
+  if (cost_constant_inited) delete_optimizer_cost_module();
 
   return result;
 }

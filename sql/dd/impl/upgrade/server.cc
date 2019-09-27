@@ -877,5 +877,11 @@ bool no_server_upgrade_required() {
            opt_upgrade_mode == UPGRADE_FORCE);
 }
 
+bool I_S_upgrade_required() {
+  return dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() ||
+         dd::bootstrap::DD_bootstrap_ctx::instance().I_S_upgrade_done() ||
+         opt_upgrade_mode == UPGRADE_FORCE;
+}
+
 }  // namespace upgrade
 }  // namespace dd

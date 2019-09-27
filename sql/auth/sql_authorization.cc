@@ -6139,6 +6139,24 @@ void get_default_roles(const Auth_id_ref &acl_user,
 }
 
 /**
+  Copy a list of mandatory role authorization IDs.
+
+  @param [out] mandatory_roles Pointer to the target list to be populated.
+                               The target list is set to empty if no
+                               mandatory role is found.
+*/
+bool lock_and_get_mandatory_roles(std::vector<Role_id> *mandatory_roles) {
+  DBUG_EXECUTE_IF("simulate_acl_cache_lock_failure", { return true; });
+  Acl_cache_lock_guard acl_cache_lock(current_thd,
+                                      Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false)) return true;
+
+  // Retrieve mandatory roles
+  get_mandatory_roles(mandatory_roles);
+  return false;
+}
+
+/**
   Removes all default role policies assigned to user. If the user is used as a
   default role policy, this policy needs to be removed too.
   Removed policies are copied to the vector supplied in the arguments.
@@ -6604,6 +6622,34 @@ bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
 
   ret = check_if_granted_role(user, host, role, role_host);
   return ret;
+}
+
+/**
+  Determine if a role\@role_host authid is a mandatory role.
+
+  @param role                Role name.
+  @param role_host           Host name of role.
+  @param[out] is_mandatory   Pointer to boolean hold status of check.
+
+  @return
+    @retval true if failed to determine. e.g., ACL lock acquire failed.
+    @retval false otherwise.
+*/
+bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
+                       bool *is_mandatory) {
+  // Fetch all mandatory role.
+  std::vector<Role_id> mandatory_roles;
+  if (lock_and_get_mandatory_roles(&mandatory_roles)) return true;
+
+  // Check if role is in mandatory role list.
+  *is_mandatory = false;
+  for (auto &&rid : mandatory_roles) {
+    if (rid == Role_id(role, role_host)) {
+      *is_mandatory = true;
+      break;
+    }
+  }
+  return false;
 }
 
 /**

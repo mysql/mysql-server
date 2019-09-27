@@ -133,12 +133,15 @@ SET(DD_SOURCES
   dd/impl/raw/raw_record_set.cc
   dd/impl/raw/raw_table.cc
 
+  dd/impl/system_views/administrable_role_authorizations.cc
+  dd/impl/system_views/applicable_roles.cc
   dd/impl/system_views/character_sets.cc
   dd/impl/system_views/check_constraints.cc
   dd/impl/system_views/collations.cc
   dd/impl/system_views/collation_charset_applicability.cc
   dd/impl/system_views/columns.cc
   dd/impl/system_views/column_statistics.cc
+  dd/impl/system_views/enabled_roles.cc
   dd/impl/system_views/events.cc
   dd/impl/system_views/files.cc
   dd/impl/system_views/innodb_datafiles.cc
@@ -152,6 +155,9 @@ SET(DD_SOURCES
   dd/impl/system_views/partitions.cc
   dd/impl/system_views/referential_constraints.cc
   dd/impl/system_views/resource_groups.cc
+  dd/impl/system_views/role_column_grants.cc
+  dd/impl/system_views/role_routine_grants.cc
+  dd/impl/system_views/role_table_grants.cc
   dd/impl/system_views/routines.cc
   dd/impl/system_views/schemata.cc
   dd/impl/system_views/statistics.cc

@@ -5030,6 +5030,156 @@ String *Item_func_convert_interval_to_user_interval::val_str(String *str) {
   return nullptr;
 }
 
+/*
+  This function retrives the user name in 'user@host' authentication
+  identifier.
+
+  @param str pointer to String whose output is filled with user name.
+
+  @return returns a pointer to the string with the user name.
+*/
+String *Item_func_internal_get_username::val_str(String *str) {
+  if (arg_count == 1 && args[0]->is_null()) {
+    null_value = true;
+    return nullptr;
+  }
+
+  String username;
+  null_value = false;
+
+  /*
+    If the argument is not supplied, then return the current user name,
+    otherwise retrieve the user name from the given argument.
+  */
+  if (arg_count == 0) {
+    THD *thd = current_thd;
+    str->copy(thd->m_main_security_ctx.priv_user().str,
+              thd->m_main_security_ctx.priv_user().length, system_charset_info);
+  } else {
+    String *username_ptr = args[0]->val_str(&username);
+    auto user_host_pair =
+        get_authid_from_quoted_string(username_ptr->c_ptr_safe());
+
+    str->copy(user_host_pair.first.c_str(), user_host_pair.first.length(),
+              system_charset_info);
+  }
+
+  return str;
+}
+
+/*
+  This function retrives the host name in 'user@host' authentication
+  identifier.
+
+  @param str pointer to String whose output is filled with user name.
+
+  @return returns a pointer to the string with the user name.
+*/
+String *Item_func_internal_get_hostname::val_str(String *str) {
+  if (arg_count == 1 && args[0]->is_null()) {
+    null_value = true;
+    return nullptr;
+  }
+
+  String hostname;
+  null_value = false;
+
+  /*
+    If the argument is not supplied, then return the current user host,
+    otherwise retrieve the host name from the given argument.
+  */
+  if (arg_count == 0) {
+    THD *thd = current_thd;
+    str->copy(thd->m_main_security_ctx.priv_host().str,
+              thd->m_main_security_ctx.priv_host().length, system_charset_info);
+  } else {
+    String *hostname_ptr = args[0]->val_str(&hostname);
+    auto user_host_pair =
+        get_authid_from_quoted_string(hostname_ptr->c_ptr_safe());
+
+    str->copy(user_host_pair.second.c_str(), user_host_pair.second.length(),
+              system_charset_info);
+  }
+
+  return str;
+}
+
+/*
+  Prepare JSON string with role name and host name pair, which are
+  currently active.
+
+  @return returns a pointer to the json string with the user name.
+*/
+String *Item_func_internal_get_enabled_role_json::val_str(String *str) {
+  THD *thd = current_thd;
+  std::ostringstream oss("");
+
+  // Iterate through active roles.
+  if (thd->security_context()->get_active_roles()->size()) {
+    oss << "[";
+    bool first = true;
+    for (auto &ref : *thd->security_context()->get_active_roles()) {
+      if (!first) {
+        oss << ",";
+      } else {
+        first = false;
+      }
+      oss << R"({"ROLE_NAME":")" << ref.first.str << R"(",)";
+      oss << R"("ROLE_HOST":")" << ref.second.str << R"("})";
+    }
+    oss << "]";
+  } else
+    oss << "[]";
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  return str;
+}
+
+/*
+  Prepare JSON string with role name and host name pair, which are
+  set as global mandatory roles for PUBLIC.
+
+  @return returns a pointer to the json string with the user name.
+*/
+String *Item_func_internal_get_mandatory_roles_json::val_str(String *str) {
+  std::ostringstream oss("");
+
+  std::vector<Role_id> mandatory_roles;
+
+  // We contact ACL system, only if it is initialized.
+  if (is_acl_inited() && lock_and_get_mandatory_roles(&mandatory_roles)) {
+    push_warning(current_thd, Sql_condition::SL_WARNING,
+                 ER_FAILED_TO_FETCH_MANDATORY_ROLE_LIST,
+                 ER_THD(current_thd, ER_FAILED_TO_FETCH_MANDATORY_ROLE_LIST));
+    /*
+      mandatory_roles list would be empty when we are here. And we return
+      string '[]' from this function.
+    */
+  }
+
+  // Iterate through mandatory roles.
+  if (mandatory_roles.size()) {
+    oss << "[";
+    bool first = true;
+    for (auto &role : mandatory_roles) {
+      if (!first) {
+        oss << ",";
+      } else {
+        first = false;
+      }
+      oss << R"({"ROLE_NAME":")" << role.user().c_str() << R"(",)";
+      oss << R"("ROLE_HOST":")" << role.host().c_str() << R"("})";
+    }
+    oss << "]";
+  } else
+    oss << "[]";
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  return str;
+}
+
 /**
   @brief
     This function prepares string representing EXTRA column for I_S.COLUMNS.

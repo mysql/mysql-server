@@ -451,6 +451,67 @@ bool update_plugins_I_S_metadata(THD *thd) {
   return dd::end_transaction(thd, error);
 }
 
+/*
+  Create INFORMATION_SCHEMA system views.
+*/
+bool create_system_views(THD *thd, bool is_non_dd_based) {
+  // Force use of utf8 charset.
+  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
+  const CHARSET_INFO *cs = thd->variables.collation_connection;
+  const CHARSET_INFO *m_client_cs, *m_connection_cl;
+  Disable_binlog_guard binlog_guard(thd);
+  Disable_gtid_state_update_guard disabler(thd);
+
+  resolve_charset("utf8", system_charset_info, &m_client_cs);
+  resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
+
+  thd->variables.character_set_client = m_client_cs;
+  thd->variables.collation_connection = m_connection_cl;
+  thd->update_charset();
+
+  dd::System_views::Types sv_type =
+      is_non_dd_based ? dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA
+                      : dd::System_views::Types::INFORMATION_SCHEMA;
+
+  // Iterate over system view definitions.
+  bool error = false;
+  for (dd::System_views::Const_iterator it =
+           dd::System_views::instance()->begin(sv_type);
+       it != dd::System_views::instance()->end();
+       it = dd::System_views::instance()->next(it, sv_type)) {
+    const dd::system_views::System_view_definition *view_def =
+        (*it)->entity()->view_definition();
+
+    // Build the CREATE VIEW DDL statement and execute it.
+    if (view_def == nullptr ||
+        dd::execute_query(thd, view_def->build_ddl_create_view())) {
+      error = true;
+      break;
+    }
+  }
+
+  // Store the target I_S version.
+  if (!error && !is_non_dd_based) {
+    dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
+    if (!opt_initialize)
+      dd::bootstrap::DD_bootstrap_ctx::instance().set_actual_I_S_version(
+          d->get_actual_I_S_version(thd));
+    error = d->set_I_S_version(thd, d->get_target_I_S_version());
+    dd::bootstrap::DD_bootstrap_ctx::instance().set_I_S_upgrade_done();
+  }
+
+  // Restore the original character set.
+  thd->variables.character_set_client = client_cs;
+  thd->variables.collation_connection = cs;
+  thd->update_charset();
+
+  return error;
+}
+
+bool create_non_dd_based_system_views(THD *thd) {
+  return create_system_views(thd, true);
+}
+
 /**
   Does following during server restart.
 
@@ -535,56 +596,39 @@ bool update_server_I_S_metadata(THD *thd) {
   return dd::end_transaction(thd, error);
 }
 
+bool initialize(THD *thd, bool non_dd_based_system_view) {
+  /*
+    Set tx_read_only to false to allow installing system views even
+    if the server is started with --transaction-read-only=true.
+  */
+  thd->variables.transaction_read_only = false;
+  thd->tx_read_only = false;
+
+  Disable_autocommit_guard autocommit_guard(thd);
+
+  dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
+  DBUG_ASSERT(d);
+
+  if (!non_dd_based_system_view) {
+    if (dd::info_schema::create_system_views(thd) ||
+        dd::info_schema::store_server_I_S_metadata(thd))
+      return true;
+  } else {
+    bool error = create_non_dd_based_system_views(thd);
+    return dd::end_transaction(thd, error);
+  }
+
+  LogErr(INFORMATION_LEVEL, ER_CREATED_SYSTEM_WITH_VERSION,
+         (int)d->get_target_dd_version());
+  return false;
+}
+
 }  // namespace
 
 namespace dd {
 namespace info_schema {
 
-/*
-  Create INFORMATION_SCHEMA system views.
-*/
-bool create_system_views(THD *thd) {
-  // Force use of utf8 charset.
-  const CHARSET_INFO *client_cs = thd->variables.character_set_client;
-  const CHARSET_INFO *cs = thd->variables.collation_connection;
-  const CHARSET_INFO *m_client_cs, *m_connection_cl;
-
-  resolve_charset("utf8", system_charset_info, &m_client_cs);
-  resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
-
-  thd->variables.character_set_client = m_client_cs;
-  thd->variables.collation_connection = m_connection_cl;
-  thd->update_charset();
-
-  // Iterate over system view definitions.
-  dd::System_views::Const_iterator it = dd::System_views::instance()->begin();
-
-  bool error = false;
-  for (; it != dd::System_views::instance()->end(); ++it) {
-    const dd::system_views::System_view_definition *view_def =
-        (*it)->entity()->view_definition();
-
-    // Build the CREATE VIEW DDL statement and execute it.
-    if (view_def == nullptr ||
-        dd::execute_query(thd, view_def->build_ddl_create_view())) {
-      error = true;
-      break;
-    }
-  }
-
-  // Store the target I_S version.
-  if (!error) {
-    dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
-    error = d->set_I_S_version(thd, d->get_target_I_S_version());
-  }
-
-  // Restore the original character set.
-  thd->variables.character_set_client = client_cs;
-  thd->variables.collation_connection = cs;
-  thd->update_charset();
-
-  return error;
-}
+bool create_system_views(THD *thd) { return ::create_system_views(thd, false); }
 
 /*
   Store the server I_S table metadata into dictionary, once during MySQL
@@ -664,25 +708,9 @@ bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name) {
   return (false);
 }
 
-bool initialize(THD *thd) {
-  /*
-    Set tx_read_only to false to allow installing system views even
-    if the server is started with --transaction-read-only=true.
-  */
-  thd->variables.transaction_read_only = false;
-  thd->tx_read_only = false;
+bool initialize(THD *thd) { return ::initialize(thd, false); }
 
-  Disable_autocommit_guard autocommit_guard(thd);
-
-  Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
-
-  if (create_system_views(thd) || store_server_I_S_metadata(thd)) return true;
-
-  LogErr(INFORMATION_LEVEL, ER_CREATED_SYSTEM_WITH_VERSION,
-         (int)d->get_target_dd_version());
-  return false;
-}
+bool init_non_dd_based_system_view(THD *thd) { return ::initialize(thd, true); }
 
 /*
   Get create view definition for the given I_S system view.

@@ -1,0 +1,97 @@
+--echo ########################################################################
+--echo # This test scripts covers meta data related aspects of upgrade
+--echo # after 8.0.
+--echo ########################################################################
+
+--source include/have_case_sensitive_file_system.inc
+--source include/not_valgrind.inc
+
+--echo #-----------------------------------------------------------------------
+--echo # WL#10895: INFORMATION_SCHEMA views for Roles
+--echo # Test case to verify that new I_S tables introduced by this WL
+--echo # are present after upgrade.
+--echo #-----------------------------------------------------------------------
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_1.log
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80014.zip $MYSQL_TMP_DIR/data_80014.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_80014.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80014.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data_80014/
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQL_TMP_DIR/data_80014
+
+--echo # Stop / restart DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 10000
+--let $restart_parameters=  restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.APPLICABLE_ROLES;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ADMINISTRABLE_ROLE_AUTHORIZATIONS;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ENABLED_ROLES;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ROLE_TABLE_GRANTS;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
+
+--echo # Stop the server and do cleanup
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_80014.zip
+--force-rmdir $MYSQL_TMP_DIR/data_80014
+--echo # Restart the server with default options.
+--let $restart_parameters= restart:
+--source include/start_mysqld.inc
+
+--echo #
+--echo # WL#10895 Upgrade from 5.7->8.0 should show I_S tables.
+--echo #
+--echo #
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_4.log;
+
+--echo # Copy zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57022.zip $MYSQL_TMP_DIR/data_57022.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_57022.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data_57022.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+let $MYSQLD_DATADIR3 = $MYSQL_TMP_DIR/data_57022;
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Start the DB server to do upgrade.
+--exec echo "restart: --datadir=$MYSQLD_DATADIR3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 3000
+--source include/wait_until_connected_again.inc
+
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.APPLICABLE_ROLES;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ADMINISTRABLE_ROLE_AUTHORIZATIONS;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ENABLED_ROLES;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ROLE_TABLE_GRANTS;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
+SELECT COUNT(*) < 0 FROM INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
+
+--echo # Stop the server
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_57022.zip
+--force-rmdir $MYSQLD_DATADIR3
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc
+

@@ -86,7 +86,7 @@
 #    change in part 1 or 2, then we have changes in the SQL DDL
 #    semantics. This should be handled by changing the I_S initialization
 #    procedure to either tweak the view statements before execution
-#    by tweaking the generated low level meta data. Either way, the 
+#    by tweaking the generated low level meta data. Either way, the
 #    result of the changes to the server code should be that
 #    this test stops failing.
 ########################################################################
@@ -103,8 +103,8 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 32 system views.]
-include/assert.inc [There are 32 I_S system views in total.]
+include/assert.inc [There are 38 system views.]
+include/assert.inc [There are 38 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -129,7 +129,7 @@ SET debug = '+d,skip_dd_table_access_check,fetch_system_view_definition';
 ########################################################################
 # The actual I_S version stored on disk.
 ########################################################################
-IS_VERSION=80018
+IS_VERSION=80019
 ########################################################################
 # List the CREATE VIEW statements for the I_S system views.
 # Mask collations that depend on the lower case table names setting.
@@ -1462,6 +1462,170 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   CAN_ACCESS_TABLE(sch.name, vw.name)
   AND vw.type = 'VIEW'
 ");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.APPLICABLE_ROLES AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  c_parent_user AS USER,
+  c_parent_host AS HOST,
+  c_to_user AS GRANTEE,
+  c_to_host AS GRANTEE_HOST,
+  c_from_user AS ROLE_NAME,
+  c_from_host AS ROLE_HOST,
+  IF(c_with_admin = 'N', 'NO', 'YES') AS IS_GRANTABLE,
+   (SELECT IF(COUNT(*), 'YES', 'NO')    FROM mysql.default_roles    WHERE DEFAULT_ROLE_USER = c_from_user AND          CONVERT(DEFAULT_ROLE_HOST using utf8mb4)= c_from_host AND          USER = c_parent_user AND          CONVERT(HOST using utf8mb4) = c_parent_host)  AS IS_DEFAULT,
+  IF(INTERNAL_IS_MANDATORY_ROLE(c_from_user, c_from_host), 'YES', 'NO')  AS IS_MANDATORY FROM 
+  role_graph WHERE 
+  c_to_user != ''
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.APPLICABLE_ROLES AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  c_parent_user AS USER,
+  c_parent_host AS HOST,
+  c_to_user AS GRANTEE,
+  c_to_host AS GRANTEE_HOST,
+  c_from_user AS ROLE_NAME,
+  c_from_host AS ROLE_HOST,
+  IF(c_with_admin = 'N', 'NO', 'YES') AS IS_GRANTABLE,
+   (SELECT IF(COUNT(*), 'YES', 'NO')    FROM mysql.default_roles    WHERE DEFAULT_ROLE_USER = c_from_user AND          CONVERT(DEFAULT_ROLE_HOST using utf8mb4)= c_from_host AND          USER = c_parent_user AND          CONVERT(HOST using utf8mb4) = c_parent_host)  AS IS_DEFAULT,
+  IF(INTERNAL_IS_MANDATORY_ROLE(c_from_user, c_from_host), 'YES', 'NO')  AS IS_MANDATORY FROM 
+  role_graph WHERE 
+  c_to_user != ''
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ADMINISTRABLE_ROLE_AUTHORIZATIONS AS SELECT 
+* FROM 
+  INFORMATION_SCHEMA.APPLICABLE_ROLES WHERE 
+  IS_GRANTABLE='YES'
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ADMINISTRABLE_ROLE_AUTHORIZATIONS AS SELECT 
+* FROM 
+  INFORMATION_SCHEMA.APPLICABLE_ROLES WHERE 
+  IS_GRANTABLE='YES'
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ENABLED_ROLES AS SELECT 
+  ROLE_NAME AS ROLE_NAME,
+  ROLE_HOST AS ROLE_HOST,
+   (SELECT IF(COUNT(*), 'YES', 'NO')    FROM mysql.default_roles    WHERE DEFAULT_ROLE_USER = ROLE_NAME AND          CONVERT(DEFAULT_ROLE_HOST using utf8mb4) = ROLE_HOST AND          USER = INTERNAL_GET_USERNAME() AND          CONVERT(HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())  AS IS_DEFAULT,
+  IF(INTERNAL_IS_MANDATORY_ROLE(ROLE_NAME, ROLE_HOST), 'YES', 'NO')  AS IS_MANDATORY FROM 
+  JSON_TABLE(INTERNAL_GET_ENABLED_ROLE_JSON(), '$[*]' COLUMNS ( ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',  ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')  ) current_user_enabled_roles
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ENABLED_ROLES AS SELECT 
+  ROLE_NAME AS ROLE_NAME,
+  ROLE_HOST AS ROLE_HOST,
+   (SELECT IF(COUNT(*), 'YES', 'NO')    FROM mysql.default_roles    WHERE DEFAULT_ROLE_USER = ROLE_NAME AND          CONVERT(DEFAULT_ROLE_HOST using utf8mb4) = ROLE_HOST AND          USER = INTERNAL_GET_USERNAME() AND          CONVERT(HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())  AS IS_DEFAULT,
+  IF(INTERNAL_IS_MANDATORY_ROLE(ROLE_NAME, ROLE_HOST), 'YES', 'NO')  AS IS_MANDATORY FROM 
+  JSON_TABLE(INTERNAL_GET_ENABLED_ROLE_JSON(), '$[*]' COLUMNS ( ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',  ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')  ) current_user_enabled_roles
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROLE_TABLE_GRANTS AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  INTERNAL_GET_USERNAME(Grantor) AS GRANTOR,
+  INTERNAL_GET_HOSTNAME(Grantor) AS GRANTOR_HOST,
+  tp.User AS GRANTEE,
+  tp.Host AS GRANTEE_HOST,
+  'def' AS TABLE_CATALOG,
+  Db AS TABLE_SCHEMA,
+  Table_name AS TABLE_NAME,
+  Table_priv AS PRIVILEGE_TYPE,
+  IF(FIND_IN_SET('Grant',Table_priv)>0, 'YES', 'NO') AS IS_GRANTABLE FROM 
+  mysql.tables_priv tp
+   JOIN role_graph rg ON  tp.User = rg.c_from_user AND   CONVERT(tp.Host using utf8mb4) = rg.c_from_host WHERE 
+  Table_priv > 0
+   AND c_to_user != ''
+   AND c_enabled = TRUE
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROLE_TABLE_GRANTS AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  INTERNAL_GET_USERNAME(Grantor) AS GRANTOR,
+  INTERNAL_GET_HOSTNAME(Grantor) AS GRANTOR_HOST,
+  tp.User AS GRANTEE,
+  tp.Host AS GRANTEE_HOST,
+  'def' AS TABLE_CATALOG,
+  Db AS TABLE_SCHEMA,
+  Table_name AS TABLE_NAME,
+  Table_priv AS PRIVILEGE_TYPE,
+  IF(FIND_IN_SET('Grant',Table_priv)>0, 'YES', 'NO') AS IS_GRANTABLE FROM 
+  mysql.tables_priv tp
+   JOIN role_graph rg ON  tp.User = rg.c_from_user AND   CONVERT(tp.Host using utf8mb4) = rg.c_from_host WHERE 
+  Table_priv > 0
+   AND c_to_user != ''
+   AND c_enabled = TRUE
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROLE_COLUMN_GRANTS AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  INTERNAL_GET_USERNAME(Grantor) AS GRANTOR,
+  INTERNAL_GET_HOSTNAME(Grantor) AS GRANTOR_HOST,
+  cp.User AS GRANTEE,
+  cp.Host AS GRANTEE_HOST,
+  'def' AS TABLE_CATALOG,
+  cp.Db AS TABLE_SCHEMA,
+  cp.Table_name AS TABLE_NAME,
+  cp.Column_name AS COLUMN_NAME,
+  cp.Column_priv AS PRIVILEGE_TYPE,
+  IF(FIND_IN_SET('Grant',tp.Table_priv)>0, 'YES', 'NO') AS IS_GRANTABLE FROM 
+  mysql.tables_priv tp 
+   JOIN role_graph rg ON  tp.User = rg.c_from_user AND   CONVERT(tp.Host using utf8mb4) = rg.c_from_host
+   JOIN mysql.columns_priv cp ON CONVERT(tp.Host using utf8mb4) = cp.Host AND cp.Db=tp.Db AND cp.User=tp.User AND cp.Table_name=tp.Table_name WHERE 
+  cp.Column_priv > 0
+   AND c_to_user != ''
+   AND c_enabled = TRUE
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROLE_COLUMN_GRANTS AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  INTERNAL_GET_USERNAME(Grantor) AS GRANTOR,
+  INTERNAL_GET_HOSTNAME(Grantor) AS GRANTOR_HOST,
+  cp.User AS GRANTEE,
+  cp.Host AS GRANTEE_HOST,
+  'def' AS TABLE_CATALOG,
+  cp.Db AS TABLE_SCHEMA,
+  cp.Table_name AS TABLE_NAME,
+  cp.Column_name AS COLUMN_NAME,
+  cp.Column_priv AS PRIVILEGE_TYPE,
+  IF(FIND_IN_SET('Grant',tp.Table_priv)>0, 'YES', 'NO') AS IS_GRANTABLE FROM 
+  mysql.tables_priv tp 
+   JOIN role_graph rg ON  tp.User = rg.c_from_user AND   CONVERT(tp.Host using utf8mb4) = rg.c_from_host
+   JOIN mysql.columns_priv cp ON CONVERT(tp.Host using utf8mb4) = cp.Host AND cp.Db=tp.Db AND cp.User=tp.User AND cp.Table_name=tp.Table_name WHERE 
+  cp.Column_priv > 0
+   AND c_to_user != ''
+   AND c_enabled = TRUE
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROLE_ROUTINE_GRANTS AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  INTERNAL_GET_USERNAME(Grantor) AS GRANTOR,
+  INTERNAL_GET_HOSTNAME(Grantor) AS GRANTOR_HOST,
+  pp.User AS GRANTEE,
+  pp.Host AS GRANTEE_HOST,
+  'def' AS SPECIFIC_CATALOG,
+  Db AS SPECIFIC_SCHEMA,
+  Routine_name AS SPECIFIC_NAME,
+  'def' AS ROUTINE_CATALOG,
+  Db AS ROUTINE_SCHEMA,
+  Routine_name AS ROUTINE_NAME,
+  Proc_priv AS PRIVILEGE_TYPE,
+  IF(FIND_IN_SET('Grant',Proc_priv)>0, 'YES', 'NO') AS IS_GRANTABLE FROM 
+  mysql.procs_priv pp
+   JOIN role_graph rg ON  pp.User = rg.c_from_user AND   CONVERT(pp.Host using utf8mb4) = rg.c_from_host WHERE 
+  pp.Proc_priv > 0
+   AND c_to_user != ''
+   AND c_enabled = TRUE
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.ROLE_ROUTINE_GRANTS AS WITH RECURSIVE role_graph (c_parent_user, c_parent_host,                                 c_from_user, c_from_host,                                 c_to_user, c_to_host, role_path,                                 c_with_admin, c_enabled) AS   ((SELECT       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),       CAST('' as CHAR(64) CHARSET utf8mb4),       CAST('' as CHAR(255) CHARSET utf8mb4),       CAST(SHA2(CONCAT(QUOTE(INTERNAL_GET_USERNAME()),'@',                        QUOTE(INTERNAL_GET_HOSTNAME())), 256)            AS CHAR(17000) CHARSET utf8mb4),       CAST('N' as CHAR(1) CHARSET utf8mb4),       FALSE     UNION       SELECT         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         ROLE_NAME, ROLE_HOST,         INTERNAL_GET_USERNAME(), INTERNAL_GET_HOSTNAME(),         CAST(SHA2(CONCAT(QUOTE(ROLE_NAME),'@',                   CONVERT(QUOTE(ROLE_HOST) using utf8mb4)), 256)              AS CHAR(17000) CHARSET utf8mb4),         CAST('N' as CHAR(1) CHARSET utf8mb4),         FALSE       FROM JSON_TABLE(INTERNAL_GET_MANDATORY_ROLES_JSON(),            '$[*]' COLUMNS (            ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME',             ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST')             ) mandatory_roles       WHERE CONCAT(QUOTE(ROLE_NAME),'@',                    CONVERT(QUOTE(ROLE_HOST) using utf8mb4)) NOT IN             (SELECT CONCAT(QUOTE(FROM_USER),'@',                        CONVERT(QUOTE(FROM_HOST) using utf8mb4))              FROM mysql.role_edges              WHERE TO_USER = INTERNAL_GET_USERNAME() AND              CONVERT(TO_HOST using utf8mb4) = INTERNAL_GET_HOSTNAME())   )   UNION     SELECT c_parent_user, c_parent_host,       FROM_USER, FROM_HOST, TO_USER, TO_HOST,       IF(LOCATE(SHA2(CONCAT(QUOTE(FROM_USER),'@',                      CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256),                 role_path) = 0,          CONCAT(role_path,'->', SHA2(CONCAT(QUOTE(FROM_USER),'@',           CONVERT(QUOTE(FROM_HOST) using utf8mb4)), 256)), NULL),       WITH_ADMIN_OPTION,       IF(c_enabled OR        INTERNAL_IS_ENABLED_ROLE(FROM_USER, FROM_HOST), TRUE, FALSE)     FROM mysql.role_edges, role_graph     WHERE TO_USER = c_from_user AND           CONVERT(TO_HOST using utf8mb4)= c_from_host AND           role_path IS NOT NULL)
+ SELECT DISTINCT 
+  INTERNAL_GET_USERNAME(Grantor) AS GRANTOR,
+  INTERNAL_GET_HOSTNAME(Grantor) AS GRANTOR_HOST,
+  pp.User AS GRANTEE,
+  pp.Host AS GRANTEE_HOST,
+  'def' AS SPECIFIC_CATALOG,
+  Db AS SPECIFIC_SCHEMA,
+  Routine_name AS SPECIFIC_NAME,
+  'def' AS ROUTINE_CATALOG,
+  Db AS ROUTINE_SCHEMA,
+  Routine_name AS ROUTINE_NAME,
+  Proc_priv AS PRIVILEGE_TYPE,
+  IF(FIND_IN_SET('Grant',Proc_priv)>0, 'YES', 'NO') AS IS_GRANTABLE FROM 
+  mysql.procs_priv pp
+   JOIN role_graph rg ON  pp.User = rg.c_from_user AND   CONVERT(pp.Host using utf8mb4) = rg.c_from_host WHERE 
+  pp.Proc_priv > 0
+   AND c_to_user != ''
+   AND c_enabled = TRUE
+");
 SET debug = '-d,skip_dd_table_access_check';
 SET debug = '-d,fetch_system_view_definition';
 ########################################################################
@@ -1473,5 +1637,5 @@ include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to I_S version 80018.
+The schema checksum corresponds to I_S version 80019.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]

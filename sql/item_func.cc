@@ -9234,3 +9234,96 @@ longlong Item_func_get_dd_index_sub_part_length::val_int() {
 
   return 0;
 }
+
+/**
+  @brief
+   Internal function used by INFORMATION_SCHEMA implementation to check
+   if a role is a mandatory role.
+
+  Syntax:
+    int INTERNAL_IS_MANDATORY_ROLE(role_user, role_host);
+
+  @returns,
+    1 - If the role is mandatory.
+    0 - If not.
+*/
+
+longlong Item_func_internal_is_mandatory_role::val_int() {
+  DBUG_TRACE;
+
+  // Read schema_name
+  String role_name;
+  String *role_name_ptr = args[0]->val_str(&role_name);
+  String role_host;
+  String *role_host_ptr = args[1]->val_str(&role_host);
+  if (role_name_ptr == nullptr || role_host_ptr == nullptr) {
+    null_value = true;
+    return 0;
+  }
+
+  // Create Auth_id for ID being searched.
+  LEX_CSTRING lex_user;
+  lex_user.str = role_name_ptr->c_ptr_safe();
+  lex_user.length = role_name_ptr->length();
+
+  LEX_CSTRING lex_host;
+  lex_host.str = role_host_ptr->c_ptr_safe();
+  lex_host.length = role_host_ptr->length();
+
+  bool is_mandatory{false};
+  if (is_mandatory_role(lex_user, lex_host, &is_mandatory)) {
+    push_warning_printf(
+        current_thd, Sql_condition::SL_WARNING,
+        ER_FAILED_TO_DETERMINE_IF_ROLE_IS_MANDATORY,
+        ER_THD(current_thd, ER_FAILED_TO_DETERMINE_IF_ROLE_IS_MANDATORY),
+        lex_user.str, lex_host.str);
+  }
+
+  return is_mandatory;
+}
+
+/**
+  @brief
+   Internal function used by INFORMATION_SCHEMA implementation to check
+   if a role enabled.
+
+  Syntax:
+    int INTERNAL_IS_ENABLED_ROLE(role_user, role_host);
+
+  @returns,
+    1 - If the role is enabled.
+    0 - If not.
+*/
+
+longlong Item_func_internal_is_enabled_role::val_int() {
+  DBUG_TRACE;
+  THD *thd = current_thd;
+
+  // Read schema_name
+  String role_name;
+  String *role_name_ptr = args[0]->val_str(&role_name);
+  String role_host;
+  String *role_host_ptr = args[1]->val_str(&role_host);
+  if (role_name_ptr == nullptr || role_host_ptr == nullptr) {
+    null_value = true;
+    return 0;
+  }
+
+  if (thd->m_main_security_ctx.get_active_roles()->size() == 0) return 0;
+
+  // Create Auth_id for ID being searched.
+  LEX_CSTRING lex_user;
+  lex_user.str = role_name_ptr->c_ptr_safe();
+  lex_user.length = role_name_ptr->length();
+
+  LEX_CSTRING lex_host;
+  lex_host.str = role_host_ptr->c_ptr_safe();
+  lex_host.length = role_host_ptr->length();
+
+  // Match the ID and return true if found.
+  for (auto &rid : *thd->m_main_security_ctx.get_active_roles()) {
+    if (rid == std::make_pair(lex_user, lex_host)) return 1;
+  }
+
+  return 0;
+}

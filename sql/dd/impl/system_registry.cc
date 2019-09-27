@@ -22,12 +22,15 @@
 
 #include "sql/dd/impl/system_registry.h"
 
+#include "sql/dd/impl/system_views/administrable_role_authorizations.h"
+#include "sql/dd/impl/system_views/applicable_roles.h"   // Applicable_roles
 #include "sql/dd/impl/system_views/character_sets.h"     // Character_sets
 #include "sql/dd/impl/system_views/check_constraints.h"  // Check_constraints
 #include "sql/dd/impl/system_views/collation_charset_applicability.h"  // Collati...
 #include "sql/dd/impl/system_views/collations.h"           // Collations
 #include "sql/dd/impl/system_views/column_statistics.h"    // Column_statistics
 #include "sql/dd/impl/system_views/columns.h"              // Columns
+#include "sql/dd/impl/system_views/enabled_roles.h"        // Enabled_roles
 #include "sql/dd/impl/system_views/events.h"               // Events
 #include "sql/dd/impl/system_views/files.h"                // Files
 #include "sql/dd/impl/system_views/innodb_datafiles.h"     // Innodb_datafiles
@@ -41,6 +44,9 @@
 #include "sql/dd/impl/system_views/partitions.h"        // Partitions
 #include "sql/dd/impl/system_views/referential_constraints.h"  // Referential_con...
 #include "sql/dd/impl/system_views/resource_groups.h"      // Resource_groups
+#include "sql/dd/impl/system_views/role_column_grants.h"   // Role_column_grant
+#include "sql/dd/impl/system_views/role_routine_grants.h"  // Role_routine_gran
+#include "sql/dd/impl/system_views/role_table_grants.h"    // Role_table_grants
 #include "sql/dd/impl/system_views/routines.h"             // Routines
 #include "sql/dd/impl/system_views/schemata.h"             // Schemata
 #include "sql/dd/impl/system_views/st_geometry_columns.h"  // st_geometry_columns
@@ -234,7 +240,13 @@ void System_tables::add_remaining_dd_tables() {
 void System_views::init() {
   // Register system views with the server.
   dd::System_views::Types is = dd::System_views::Types::INFORMATION_SCHEMA;
+  dd::System_views::Types non_dd_based_is =
+      dd::System_views::Types::NON_DD_BASED_INFORMATION_SCHEMA;
 
+  register_view<dd::system_views::Enabled_roles>(non_dd_based_is);
+  register_view<dd::system_views::Applicable_roles>(non_dd_based_is);
+  register_view<dd::system_views::Administrable_role_authorizations>(
+      non_dd_based_is);
   register_view<dd::system_views::Character_sets>(is);
   register_view<dd::system_views::Check_constraints>(is);
   register_view<dd::system_views::Collations>(is);
@@ -254,6 +266,9 @@ void System_views::init() {
   register_view<dd::system_views::Partitions>(is);
   register_view<dd::system_views::Referential_constraints>(is);
   register_view<dd::system_views::Resource_groups>(is);
+  register_view<dd::system_views::Role_column_grants>(non_dd_based_is);
+  register_view<dd::system_views::Role_routine_grants>(non_dd_based_is);
+  register_view<dd::system_views::Role_table_grants>(non_dd_based_is);
   register_view<dd::system_views::Routines>(is);
   register_view<dd::system_views::Schemata>(is);
   register_view<dd::system_views::Show_statistics>(is);

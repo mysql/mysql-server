@@ -694,6 +694,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
                       const char *wildstr, size_t wildstr_len);
 bool hostname_requires_resolving(const char *hostname);
 bool acl_init(bool dont_read_acl_tables);
+bool is_acl_inited();
 void acl_free(bool end = false);
 bool check_engine_type_for_acl_table(THD *thd, bool mdl_locked);
 bool grant_init(bool skip_grant_tables);
@@ -802,11 +803,15 @@ bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
                               const LEX_CSTRING &role_host);
 Auth_id_ref create_authid_from(const LEX_USER *user);
 std::string create_authid_str_from(const LEX_USER *user);
+std::pair<std::string, std::string> get_authid_from_quoted_string(
+    std::string str);
 void append_identifier(String *packet, const char *name, size_t length);
 bool is_role_id(LEX_USER *authid);
 void shutdown_acl_cache();
 bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                      LEX_CSTRING role_host);
+bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
+                       bool *is_mandatory);
 bool check_show_access(THD *thd, TABLE_LIST *table);
 bool check_global_access(THD *thd, ulong want_access);
 
@@ -1039,4 +1044,5 @@ void generate_random_password(std::string *password, uint32_t);
 typedef std::list<std::vector<std::string>> Userhostpassword_list;
 bool send_password_result_set(THD *thd,
                               const Userhostpassword_list &generated_passwords);
+bool lock_and_get_mandatory_roles(std::vector<Role_id> *mandatory_roles);
 #endif /* AUTH_COMMON_INCLUDED */

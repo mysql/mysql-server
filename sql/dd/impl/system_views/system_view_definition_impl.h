@@ -96,13 +96,18 @@ class System_view_select_definition_impl : public System_view_definition_impl {
 
     // Store the field definition expression.
     Stringstream_type ss;
-    if (add_quotes) {
-      DBUG_ASSERT(field_definition.find('\'') == String_type::npos);
-      ss << '\'' << field_definition << '\'';
-    } else
-      ss << field_definition;
+    if (field_name == "*") {
+      ss << " * ";
+    } else {
+      if (add_quotes) {
+        DBUG_ASSERT(field_definition.find('\'') == String_type::npos);
+        ss << '\'' << field_definition << '\'';
+      } else
+        ss << field_definition;
 
-    ss << " AS " << field_name;
+      ss << " AS " << field_name;
+    }
+
     m_field_definitions[field_number] = ss.str();
   }
 
@@ -133,6 +138,30 @@ class System_view_select_definition_impl : public System_view_definition_impl {
   }
 
   /**
+    Add CTE expression before SELECT.
+
+    @param cte  String representing the CTE expression.
+
+    @return void.
+  */
+  virtual void add_cte_expression(const String_type &cte) {
+    m_cte_expression = cte;
+  }
+
+  /**
+    Indicates that we should add DISTINCT clause to SELECT.
+
+    @return void.
+  */
+  virtual void add_distinct() { m_is_distinct = true; }
+
+  /**
+    Indicates selection of all field (SELECT '*').
+
+    @return void.
+  */
+  virtual void add_star() { m_add_star = true; }
+  /**
     Get the field ordinal position number for the given field name.
 
     @param field_name  Column name for which the field number is returned.
@@ -152,13 +181,21 @@ class System_view_select_definition_impl : public System_view_definition_impl {
   String_type build_select_query() const {
     Stringstream_type ss;
 
-    ss << "SELECT \n";
-    // Output view column definitions
-    for (Field_definitions::const_iterator field = m_field_definitions.begin();
-         field != m_field_definitions.end(); ++field) {
-      if (field != m_field_definitions.begin()) ss << ",\n";
-      ss << "  " << field->second;
-    }
+    if (!m_cte_expression.empty()) ss << m_cte_expression << "\n ";
+
+    // Make SELECT [DISTINCT]
+    ss << "SELECT " << (m_is_distinct ? "DISTINCT \n" : "\n");
+
+    if (!m_add_star) {
+      // Output view column definitions
+      for (Field_definitions::const_iterator field =
+               m_field_definitions.begin();
+           field != m_field_definitions.end(); ++field) {
+        if (field != m_field_definitions.begin()) ss << ",\n";
+        ss << "  " << field->second;
+      }
+    } else
+      ss << "*";
 
     // Output FROM clauses
     for (From_clauses::const_iterator from = m_from_clauses.begin();
@@ -206,6 +243,9 @@ class System_view_select_definition_impl : public System_view_definition_impl {
   Field_definitions m_field_definitions;
   From_clauses m_from_clauses;
   Where_clauses m_where_clauses;
+  dd::String_type m_cte_expression;
+  bool m_is_distinct{false};
+  bool m_add_star{false};
 };
 
 class System_view_union_definition_impl : public System_view_definition_impl {

@@ -25,11 +25,12 @@
 
 #include <set>
 
-#include "my_dbug.h"            // DBUG_ASSERT
-#include "my_inttypes.h"        // uint
-#include "mysql_version.h"      // MYSQL_VERSION_ID
-#include "sql/dd/dd_version.h"  // DD_VERSION
-#include "sql/mysqld.h"         // opt_initialize
+#include "my_dbug.h"                      // DBUG_ASSERT
+#include "my_inttypes.h"                  // uint
+#include "mysql_version.h"                // MYSQL_VERSION_ID
+#include "sql/dd/dd_version.h"            // DD_VERSION
+#include "sql/dd/info_schema/metadata.h"  // IS_DD_VERSION
+#include "sql/mysqld.h"                   // opt_initialize
 
 class THD;
 
@@ -93,6 +94,9 @@ class DD_bootstrap_ctx {
   uint m_upgraded_server_version = 0;
   Stage m_stage = Stage::NOT_STARTED;
 
+  uint m_did_I_S_upgrade_from = 0;
+  uint m_actual_I_S_version = 0;
+
  public:
   DD_bootstrap_ctx() {}
 
@@ -111,7 +115,13 @@ class DD_bootstrap_ctx {
     m_actual_dd_version = actual_dd_version;
   }
 
+  void set_actual_I_S_version(uint actual_I_S_version) {
+    m_actual_I_S_version = actual_I_S_version;
+  }
+
   uint get_actual_dd_version() const { return m_actual_dd_version; }
+
+  uint get_actual_I_S_version() const { return m_actual_I_S_version; }
 
   void set_dd_upgrade_done() {
     DBUG_ASSERT(m_did_dd_upgrade_from == 0);
@@ -120,6 +130,13 @@ class DD_bootstrap_ctx {
   }
 
   bool dd_upgrade_done() const { return m_did_dd_upgrade_from != 0; }
+
+  void set_I_S_upgrade_done() {
+    DBUG_ASSERT(m_did_I_S_upgrade_from == 0);
+    m_did_I_S_upgrade_from = m_actual_I_S_version;
+  }
+
+  bool I_S_upgrade_done() const { return m_did_I_S_upgrade_from != 0; }
 
   bool actual_dd_version_is(uint compare_actual_dd_version) const {
     return (m_actual_dd_version == compare_actual_dd_version);

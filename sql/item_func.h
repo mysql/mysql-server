@@ -3826,6 +3826,44 @@ class Item_func_version final : public Item_static_string_func {
   bool itemize(Parse_context *pc, Item **res) override;
 };
 
+/**
+  Internal function used by INFORMATION_SCHEMA implementation to check
+  if a role is a mandatory role.
+*/
+
+class Item_func_internal_is_mandatory_role : public Item_int_func {
+ public:
+  Item_func_internal_is_mandatory_role(const POS &pos, Item *a, Item *b)
+      : Item_int_func(pos, a, b) {}
+  longlong val_int() override;
+  const char *func_name() const override {
+    return "internal_is_mandatory_role";
+  }
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    maybe_null = true;
+    return false;
+  }
+};
+
+/**
+  Internal function used by INFORMATION_SCHEMA implementation to check
+  if a role is enabled.
+*/
+
+class Item_func_internal_is_enabled_role : public Item_int_func {
+ public:
+  Item_func_internal_is_enabled_role(const POS &pos, Item *a, Item *b)
+      : Item_int_func(pos, a, b) {}
+  longlong val_int() override;
+  const char *func_name() const override { return "internal_is_enabled_role"; }
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    maybe_null = true;
+    return false;
+  }
+};
+
 Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
                      LEX_STRING component);
 extern bool check_reserved_words(const char *name);

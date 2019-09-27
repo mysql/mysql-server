@@ -1535,7 +1535,7 @@ bool sync_meta_data(THD *thd) {
                                                        "UPGRADE_TARGET_SCHEMA");
 
   if (actual_schema_exists || target_schema_exists)
-    return end_transaction(thd, false);
+    return dd::end_transaction(thd, false);
 
   return false;
 }

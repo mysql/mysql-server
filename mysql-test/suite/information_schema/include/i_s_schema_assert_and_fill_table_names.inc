@@ -59,7 +59,13 @@ eval INSERT INTO $I_S_view_names (name) VALUES
   ('TRIGGERS'),
   ('VIEW_ROUTINE_USAGE'),
   ('VIEW_TABLE_USAGE'),
-  ('VIEWS');
+  ('VIEWS'),
+  ('APPLICABLE_ROLES'),
+  ('ADMINISTRABLE_ROLE_AUTHORIZATIONS'),
+  ('ENABLED_ROLES'),
+  ('ROLE_TABLE_GRANTS'),
+  ('ROLE_COLUMN_GRANTS'),
+  ('ROLE_ROUTINE_GRANTS');
 --enable_result_log
 --enable_query_log
 

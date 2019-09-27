@@ -3532,3 +3532,5 @@ bool is_partial_revoke_exists(THD *thd) {
   }
   return partial_revoke;
 }
+
+bool is_acl_inited() { return acl_cache_initialized; }

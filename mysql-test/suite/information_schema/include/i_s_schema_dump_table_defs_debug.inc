@@ -221,5 +221,35 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
+let $WHERE_COND = AND TABLE_NAME='APPLICABLE_ROLES';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='ADMINISTRABLE_ROLE_AUTHORIZATIONS';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='ENABLED_ROLES';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='ROLE_TABLE_GRANTS';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='ROLE_COLUMN_GRANTS';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
+let $WHERE_COND = AND TABLE_NAME='ROLE_ROUTINE_GRANTS';
+let $str = `$SELECT_CMD $WHERE_COND`;
+echo $str;
+eval INSERT INTO I_S_check_table(t) VALUES ("$str");
+
 SET debug = '-d,skip_dd_table_access_check';
 SET debug = '-d,fetch_system_view_definition';

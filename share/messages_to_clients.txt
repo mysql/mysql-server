@@ -9247,6 +9247,12 @@ ER_CLIENT_REQ_ROW_PRIV_CHECKS_USER_NOT_NULL
 ER_CLIENT_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' can't be set to `%.64s`@`%.255s` unless REQUIRE_ROW_FORMAT is also set to %d."
 
+ER_FAILED_TO_DETERMINE_IF_ROLE_IS_MANDATORY
+  eng "Failed to acquire lock on user management service, unable to determine if role `%s`@`%s` is mandatory"
+
+ER_FAILED_TO_FETCH_MANDATORY_ROLE_LIST
+  eng "Failed to acquire lock on user management service, unable to fetch mandatory role list"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

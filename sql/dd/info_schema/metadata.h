@@ -101,8 +101,8 @@ namespace info_schema {
   Changes from version 80015.
 
   - WL#929 - CHECK CONSTRAINTS
-    New INFORMATION_SCHMEA table CHECK_CONSTRAINTS is introduced and
-    INFORMATION_SCHMEA.TABLE_CONSTRAINTS is modified to include check
+    New INFORMATION_SCHEMA table CHECK_CONSTRAINTS is introduced and
+    INFORMATION_SCHEMA.TABLE_CONSTRAINTS is modified to include check
     constraints defined on the table.
 
   - WL#12261 Control (enforce and disable) table encryption
@@ -124,7 +124,7 @@ namespace info_schema {
     Modifies the INFORMATION_SCHEMA.TABLES dynamic column definitions to
     return NULL, if it finds a view.
 
-  80018: Current
+  80018: Published in 8.0.18
   ------------------------------------
   Changes from version 80017:
 
@@ -143,11 +143,24 @@ namespace info_schema {
                   STATS FOR PARTITIONED TABLES
     This bug changes definition of I_S.STATISTICS.
 
-  80019: Next IS version number after the previous is public.
+  80019: Current
+  ------------------------------------
+  Changes from version 80018:
+
+  - WL#10895 INFORMATION_SCHEMA views for Roles.
+    Adds new system view definitions for roles.
+       INFORMATION_SCHEMA.APPLICABLE_ROLES;
+       INFORMATION_SCHEMA.ADMINISTRABLE_ROLE_AUTHORIZATIONS;
+       INFORMATION_SCHEMA.ENABLED_ROLES;
+       INFORMATION_SCHEMA.ROLE_TABLE_GRANTS;
+       INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
+       INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
+
+  80020: Next IS version number after the previous is public.
   ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80018;
+static const uint IS_DD_VERSION = 80019;
 
 /**
   Initialize INFORMATION_SCHEMA system views.
@@ -157,6 +170,15 @@ static const uint IS_DD_VERSION = 80018;
   @return       Upon failure, return true, otherwise false.
 */
 bool initialize(THD *thd);
+
+/**
+  Initialize non DD based INFORMATION_SCHEMA system views.
+
+  @param thd    Thread context.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool init_non_dd_based_system_view(THD *thd);
 
 /**
   Create INFORMATION_SCHEMA system views.

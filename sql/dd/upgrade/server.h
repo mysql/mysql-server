@@ -72,6 +72,9 @@ namespace upgrade {
 bool upgrade_system_schemas(THD *thd);
 
 bool no_server_upgrade_required();
+
+bool I_S_upgrade_required();
+
 }  // namespace upgrade
 
 }  // namespace dd
