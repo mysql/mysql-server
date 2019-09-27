@@ -1870,7 +1870,8 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
   return false;
 }
 
-static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
+static bool read_client_connect_attrs(THD *thd, char **ptr,
+                                      size_t *max_bytes_available,
                                       MPVIO_EXT *mpvio MY_ATTRIBUTE((unused))) {
   size_t length, length_length;
   char *ptr_save;
@@ -1903,8 +1904,14 @@ static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
            auth_info->host_or_ip, auth_info->authenticated_as,
            mpvio->can_authenticate() ? "yes" : "no");
 #endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  // assign the connection attributes in the current thread
+  thd->m_connection_attributes = std::vector<char>(length);
+  std::copy(*ptr, *ptr + length, thd->m_connection_attributes.begin());
+
   *max_bytes_available -= length;
   *ptr = *ptr + length;
+
   return false;
 }
 
@@ -2204,8 +2211,8 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   size_t bytes_remaining_in_packet = end - ptr;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet, mpvio))
-    return packet_error;
+      read_client_connect_attrs(thd, &ptr, &bytes_remaining_in_packet, mpvio))
+    return true;
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /*
@@ -2687,7 +2694,7 @@ skip_to_ssl:
   }
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
+      read_client_connect_attrs(thd, &end, &bytes_remaining_in_packet, mpvio))
     return packet_error;
 
   NET_SERVER *ext = static_cast<NET_SERVER *>(protocol->get_net()->extension);
@@ -4341,9 +4348,9 @@ typedef std::string Sql_string_t;
 static bool resize_no_exception(Sql_string_t &content, size_t size) {
   try {
     content.resize(size);
-  } catch (const std::length_error &le) {
+  } catch (const std::length_error &) {
     return false;
-  } catch (std::bad_alloc &ba) {
+  } catch (std::bad_alloc &) {
     return false;
   }
   return true;

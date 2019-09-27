@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <components/mysql_server/mysql_connection_attributes_iterator_imp.h>
 #include <components/mysql_server/mysql_page_track.h>
 #include <components/mysql_server/udf_metadata_imp.h>
 #include <example_services.h>
@@ -361,6 +362,30 @@ DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_get,
   return true;
 }
 
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::init,
+    (MYSQL_THD thd MY_ATTRIBUTE((unused)),
+     my_h_connection_attributes_iterator *iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::deinit,
+    (my_h_connection_attributes_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::get,
+    (MYSQL_THD thd MY_ATTRIBUTE((unused)),
+     my_h_connection_attributes_iterator *iterator MY_ATTRIBUTE((unused)),
+     const char **name MY_ATTRIBUTE((unused)),
+     size_t *name_length MY_ATTRIBUTE((unused)),
+     const char **value MY_ATTRIBUTE((unused)),
+     size_t *value_length MY_ATTRIBUTE((unused)),
+     const char **client_charset MY_ATTRIBUTE((unused)))) {
+  return true;
+}
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component
   unit tests. */

@@ -309,7 +309,8 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/mysql_current_thread_reader_imp.cc
   server_component/keyring_iterator_service_imp.cc
   server_component/udf_metadata_imp.cc
-  )
+  server_component/mysql_connection_attributes_iterator_imp.cc
+)
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc

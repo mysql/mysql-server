@@ -1746,6 +1746,8 @@ static bool component_infrastructure_init() {
   return false;
 }
 
+extern void mysql_connection_attributes_iterator_imp_init(void);
+
 /**
   This function is used to initialize the mysql_server component services.
   Most of the init functions are dummy functions, to solve the linker issues.
@@ -1770,6 +1772,7 @@ static void server_component_init() {
   mysql_current_thread_reader_imp_init();
   mysql_keyring_iterator_service_init();
   mysql_comp_udf_extension_init();
+  mysql_connection_attributes_iterator_imp_init();
 }
 
 /**

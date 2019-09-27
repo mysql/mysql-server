@@ -37,6 +37,7 @@
 #include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <components/mysql_server/mysql_connection_attributes_iterator_imp.h>
 #include <components/mysql_server/udf_metadata_imp.h>
 #include <keyring_iterator_service_imp.h>
 #include <mysql/components/services/backup_lock_service.h>
@@ -363,6 +364,31 @@ DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_set,
 
 DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_get,
                    (UDF_INIT *, const char *, void **)) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::init,
+    (MYSQL_THD thd MY_ATTRIBUTE((unused)),
+     my_h_connection_attributes_iterator *iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::deinit,
+    (my_h_connection_attributes_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(
+    mysql_connection_attributes_iterator_imp::get,
+    (MYSQL_THD thd MY_ATTRIBUTE((unused)),
+     my_h_connection_attributes_iterator *iterator MY_ATTRIBUTE((unused)),
+     const char **name MY_ATTRIBUTE((unused)),
+     size_t *name_length MY_ATTRIBUTE((unused)),
+     const char **value MY_ATTRIBUTE((unused)),
+     size_t *value_length MY_ATTRIBUTE((unused)),
+     const char **client_charset MY_ATTRIBUTE((unused)))) {
   return true;
 }
 

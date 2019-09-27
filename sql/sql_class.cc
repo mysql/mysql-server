@@ -375,6 +375,7 @@ THD::THD(bool enable_plugins)
       rli_slave(NULL),
       initial_status_var(NULL),
       status_var_aggregated(false),
+      m_connection_attributes(),
       m_current_query_cost(0),
       m_current_query_partial_plans(0),
       m_main_security_ctx(this),

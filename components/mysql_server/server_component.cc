@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 #include "mysql_backup_lock.h"
 #include "mysql_clone_protocol.h"
+#include "mysql_connection_attributes_iterator_imp.h"
 #include "mysql_current_thread_reader_imp.h"
 #include "mysql_ongoing_transaction_query.h"
 #include "mysql_runtime_error_imp.h"
@@ -255,6 +256,11 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_register)
 mysql_component_sys_variable_imp::register_variable,
     mysql_component_sys_variable_imp::get_variable END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_connection_attributes_iterator)
+mysql_connection_attributes_iterator_imp::init,
+    mysql_connection_attributes_iterator_imp::deinit,
+    mysql_connection_attributes_iterator_imp::get END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, component_sys_variable_unregister)
 mysql_component_sys_variable_imp::unregister_variable,
     END_SERVICE_IMPLEMENTATION();
@@ -380,6 +386,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_current_thread_reader),
     PROVIDES_SERVICE(mysql_server, mysql_keyring_iterator),
     PROVIDES_SERVICE(mysql_server, mysql_admin_session),
+    PROVIDES_SERVICE(mysql_server, mysql_connection_attributes_iterator),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

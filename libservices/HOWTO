@@ -1,4 +1,9 @@
-Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+NOTE: Document is deprecated
+Use Component Services instead
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 How to create a new service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

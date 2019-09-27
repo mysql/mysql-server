@@ -947,6 +947,11 @@ class THD : public MDL_context_owner,
   bool status_var_aggregated;
 
   /**
+    Session's connection attributes for the connected client
+  */
+  std::vector<char> m_connection_attributes;
+
+  /**
     Current query cost.
     @sa system_status_var::last_query_cost
   */
