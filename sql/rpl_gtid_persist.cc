@@ -174,19 +174,13 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table, bool error,
   DBUG_TRACE;
 
   bool err;
-  err = this->close_table(thd, table, &m_backup, 0 != error, need_commit);
 
   /*
-    If err is true this means that there was some problem during
-    FLUSH LOGS commit phase.
+    This fails on errors committing the info, or when
+    slave_preserve_commit_order is enabled and a previous transaction
+    has failed.  In both cases, the error is reported already.
   */
-  if (err) {
-    my_printf_error(ER_ERROR_DURING_FLUSH_LOGS,
-                    ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS), MYF(ME_FATALERROR),
-                    err);
-    LogErr(ERROR_LEVEL, ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE, err);
-    return err;
-  }
+  err = this->close_table(thd, table, &m_backup, 0 != error, need_commit);
 
   /*
     If Gtid is inserted through Attachable_trx_rw its has been done
@@ -364,7 +358,7 @@ int Gtid_table_persistor::save(THD *thd, const Gtid *gtid) {
   error = write_row(table, buf, gtid->gno, gtid->gno);
 
 end:
-  table_access_ctx.deinit(thd, table, 0 != error, false);
+  if (table_access_ctx.deinit(thd, table, 0 != error, false)) error = -1;
 
   /* Do not protect m_atomic_count for improving transactions' concurrency */
   if (error == 0 && gtid_executed_compression_period != 0) {

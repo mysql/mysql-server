@@ -122,7 +122,8 @@
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_rli.h"  // rli_slave etc
+#include "sql/rpl_rli.h"                         // rli_slave etc
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_alter.h"
@@ -3525,6 +3526,37 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   if (!drop_ctx.drop_database) {
     for (handlerton *hton : *post_ddl_htons) hton->post_ddl(thd);
+  }
+
+  /*
+    Make DROP TABLE IF EXISTS command for non existing table explicitly wait
+    for its turn to commit.
+
+    This exception is required because we skip saving GTID information into the
+    table mysql.gitd_executed and @@GLOBAL.GTID_EXECUTED in commit_owned_gtids()
+    when slave-preserve-commit-order is set.
+
+    If GTID is saved in commit_owned_gtids(), it would make thread executing
+    DROP TABLE IF EXISTS wait for its turn to commit, but GTID is not
+    externalized in order.
+
+    But if we skip saving GTID in commit_owned_gtids() and add GTID to
+    mysql.gitd_executed table and @@GLOBAL.GTID_EXECUTED on its turn
+    i.e. externalized GTID in order, we will not save GTID in
+    commit_owned_gtids() and as nothing to commit (ha_info=(nil))
+    didn't called Commit_order_manager::wait() in ha_commit_low().
+
+    Therefore for DROP TABLE IF EXISTS, when
+    - commit order is enabled, and,
+    - it is issued with non exisiting table
+      (i.e. drop_ctx.has_any_nonexistent_tables())
+    we wait for its turn here explicitly and then finish by saving its GTID.
+  */
+  if (has_commit_order_manager(thd) && drop_ctx.if_exists &&
+      drop_ctx.has_any_nonexistent_tables()) {
+    bool error = false;
+    if (Commit_order_manager::wait(thd)) error = true;
+    Commit_order_manager::wait_and_finish(thd, error);
   }
 
   return false;
@@ -8791,6 +8823,9 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
 
   if (thd->is_plugin_fake_ddl()) no_ha_table = true;
 
+  /* Prevent intermediate commits to invoke commit order */
+  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
+
   return create_table_impl(
       thd, *schema, db, table_name, table_name, path, create_info, alter_info,
       false, select_field_count, find_parent_keys, no_ha_table, false, is_trans,
@@ -12849,6 +12884,10 @@ static bool mysql_inplace_alter_table(
       */
       Disable_gtid_state_update_guard disabler(thd);
 
+      /* Prevent intermediate commits to invoke commit order */
+      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
+          thd);
+
       if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) goto cleanup2;
     }
   }
@@ -16189,6 +16228,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   {
     Disable_binlog_guard binlog_guard(thd);
+    /* Prevent intermediate commits to invoke commit order */
+    Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
     error = create_table_impl(
         thd, *new_schema, alter_ctx.new_db, alter_ctx.tmp_name,
         alter_ctx.table_name, alter_ctx.get_tmp_path(), create_info, alter_info,
@@ -16782,6 +16823,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     alter_table_manage_keys(thd, table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
     DBUG_ASSERT(!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
+    /* Prevent intermediate commits to invoke commit order */
+    Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
+
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
   }
@@ -16888,6 +16933,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_new_table_cleanup;
 
     Disable_gtid_state_update_guard disabler(thd);
+
+    /* Prevent intermediate commits to invoke commit order */
+    Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
@@ -17134,6 +17182,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       if (thd->dd_client()->update(backup_table) ||
           thd->dd_client()->update(new_dd_table))
         goto err_with_mdl;
+
+      /* Prevent intermediate commits to invoke commit order */
+      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
+          thd);
 
       Disable_gtid_state_update_guard disabler(thd);
       if (!atomic_replace && (trans_commit_stmt(thd) || trans_commit(thd)))
@@ -17411,6 +17463,9 @@ err_with_mdl:
 
 bool mysql_trans_prepare_alter_copy_data(THD *thd) {
   DBUG_TRACE;
+  /* Prevent intermediate commits to invoke commit order */
+  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
+
   /*
     Turn off recovery logging since rollback of an alter table is to
     delete the new table so there is no need to log the changes to it.
@@ -17430,6 +17485,8 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd) {
 bool mysql_trans_commit_alter_copy_data(THD *thd) {
   bool error = false;
   DBUG_TRACE;
+  /* Prevent intermediate commits to invoke commit order */
+  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
   /*
     Ensure that ha_commit_trans() which is implicitly called by
     ha_enable_transaction() doesn't update GTID and slave info states.
@@ -17740,6 +17797,10 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy) {
 
   DBUG_TRACE;
   DBUG_ASSERT(!table_list->next_global);
+
+  /* Prevent intermediate commits to invoke commit order */
+  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
+
   /* Set lock type which is appropriate for ALTER TABLE. */
   table_list->set_lock({TL_READ_NO_INSERT, THR_DEFAULT});
   /* Same applies to MDL request. */

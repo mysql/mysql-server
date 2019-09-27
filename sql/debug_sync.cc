@@ -1984,4 +1984,17 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
   return rc;
 }
 
+void conditional_sync_point(std::string name) {
+  DBUG_EXECUTE_IF(("syncpoint_" + name).c_str(), {
+    std::string act =
+        "now SIGNAL reached_" + name + " WAIT_FOR continue_" + name;
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, act.c_str(), act.length()));
+  });
+}
+
+void conditional_sync_point_for_timestamp(std::string name) {
+  conditional_sync_point(name + "_" +
+                         std::to_string(current_thd->start_time.tv_sec));
+}
+
 #endif /* defined(ENABLED_DEBUG_SYNC) */

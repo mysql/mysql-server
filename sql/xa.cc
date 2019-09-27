@@ -61,7 +61,8 @@
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"
 #include "sql/rpl_gtid.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/sql_class.h"                       // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
@@ -600,6 +601,18 @@ bool Sql_cmd_xa_commit::process_external_xa_commit(THD *thd,
   */
   bool res = xs->xa_trans_rolled_back();
 
+  /*
+    Metadata locks taken during XA COMMIT should be released when
+    there is error in commit order execution, so we take a savepoint
+    and rollback to it in case of error. The error during commit order
+    execution can be temporary like commit order deadlock (check header
+    comment for check_and_report_deadlock()) and can be recovered after
+    retrying unlike other commit errors. And to do so we need to restore
+    status of metadata locks i.e. rollback to savepoint, before the retry
+    attempt to ensure order for applier threads.
+  */
+  MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();
+
   DEBUG_SYNC(thd, "external_xa_commit_before_acquire_xa_lock");
   /*
     Acquire XID_STATE::m_xa_lock to prevent concurrent running of two
@@ -633,8 +646,9 @@ bool Sql_cmd_xa_commit::process_external_xa_commit(THD *thd,
   DEBUG_SYNC(thd, "external_xa_commit_after_acquire_commit_lock");
 
   /* Do not execute gtid wrapper whenever 'res' is true (rm error) */
+  bool gtid_error = false;
   bool need_clear_owned_gtid = false;
-  bool gtid_error = commit_owned_gtids(thd, true, &need_clear_owned_gtid);
+  std::tie(gtid_error, need_clear_owned_gtid) = commit_owned_gtids(thd, true);
   if (gtid_error) my_error(ER_XA_RBROLLBACK, MYF(0));
   res = res || gtid_error;
 
@@ -648,7 +662,39 @@ bool Sql_cmd_xa_commit::process_external_xa_commit(THD *thd,
   else
     xid_state->unset_binlogged();
 
+  /*
+    Ensure externalization order for applier threads.
+
+    Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
+          no-op for threads other than replication applier threads.
+  */
+  if (Commit_order_manager::wait(thd)) {
+    /*
+      In case of error, wait_and_finish() checks if transaction can be
+      retried and if it can be retried then only it remove itself from
+      waiting (Commit Order Queue) and allow next applier thread to be
+      ordered.
+    */
+    Commit_order_manager::wait_and_finish(thd, true);
+
+    need_clear_owned_gtid = true;
+    gtid_error = true;
+    gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
+    thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+    return true;
+  }
+
   res = ha_commit_or_rollback_by_xid(thd, external_xid, !res) || res;
+
+  /*
+    After ensuring externalization order for applier thread, remove it
+    from waiting (Commit Order Queue) and allow next applier thread to
+    be ordered.
+
+    Note: the calls to Commit_order_manager::wait_and_finish() will be
+          no-op for threads other than replication applier threads.
+  */
+  Commit_order_manager::wait_and_finish(thd, res);
 
   xid_state->unset_binlogged();
 
@@ -711,7 +757,7 @@ bool Sql_cmd_xa_commit::process_internal_xa_commit(THD *thd,
       return true;
     }
 
-    gtid_error = commit_owned_gtids(thd, true, &need_clear_owned_gtid);
+    std::tie(gtid_error, need_clear_owned_gtid) = commit_owned_gtids(thd, true);
     if (gtid_error) {
       res = true;
       /*
@@ -841,6 +887,13 @@ bool Sql_cmd_xa_rollback::process_external_xa_rollback(THD *thd,
   DBUG_ASSERT(xs->get_xid()->eq(external_xid));
 
   /*
+    Metadata locks taken during XA ROLLBACK should be released when
+    there is error in commit order execution, so we take a savepoint
+    and rollback to it in case of error.
+  */
+  MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();
+
+  /*
     Acquire XID_STATE::m_xa_lock to prevent concurrent running of two
     XA COMMIT/XA ROLLBACK statements. Without acquiring this lock an attempt
     to run two XA COMMIT/XA ROLLBACK statement for the same xid value may lead
@@ -869,8 +922,9 @@ bool Sql_cmd_xa_rollback::process_external_xa_rollback(THD *thd,
     return true;
   }
 
+  bool gtid_error = false;
   bool need_clear_owned_gtid = false;
-  bool gtid_error = commit_owned_gtids(thd, true, &need_clear_owned_gtid);
+  std::tie(gtid_error, need_clear_owned_gtid) = commit_owned_gtids(thd, true);
   if (gtid_error) my_error(ER_XA_RBROLLBACK, MYF(0));
   bool res = xs->xa_trans_rolled_back();
 
@@ -879,8 +933,39 @@ bool Sql_cmd_xa_rollback::process_external_xa_rollback(THD *thd,
   else
     xid_state->unset_binlogged();
 
+  /*
+    Ensure externalization order for applier threads.
+
+    Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
+          no-op for threads other than replication applier threads.
+  */
+  if (Commit_order_manager::wait(thd)) {
+    /*
+      In case of error, wait_and_finish() checks if transaction can be
+      retried and if it can be retried then only it remove itself from
+      waiting (Commit Order Queue) and allow next applier thread to be
+      ordered.
+    */
+    Commit_order_manager::wait_and_finish(thd, true);
+
+    need_clear_owned_gtid = true;
+    gtid_error = true;
+    gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
+    thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+    return true;
+  }
+
   res = ha_commit_or_rollback_by_xid(thd, external_xid, false) || res;
 
+  /*
+    After ensuring externalization order for applier thread, remove it
+    from waiting (Commit Order Queue) and allow next applier thread to
+    be ordered.
+
+    Note: the calls to Commit_order_manager::wait_and_finish() will be
+          no-op for threads other than replication applier threads.
+  */
+  Commit_order_manager::wait_and_finish(thd, res);
   xid_state->unset_binlogged();
 
   MDL_context_backup_manager::instance().delete_backup(
@@ -933,8 +1018,9 @@ bool Sql_cmd_xa_rollback::process_internal_xa_rollback(THD *thd,
     return true;
   }
 
+  bool gtid_error = false;
   bool need_clear_owned_gtid = false;
-  bool gtid_error = commit_owned_gtids(thd, true, &need_clear_owned_gtid);
+  std::tie(gtid_error, need_clear_owned_gtid) = commit_owned_gtids(thd, true);
   bool res = xa_trans_force_rollback(thd) || gtid_error;
   gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
   // todo: report a bug in that the raised rm_error in this branch
@@ -1105,10 +1191,10 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd) {
                      MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout) ||
-        ha_prepare(thd)) {
+        ha_xa_prepare(thd)) {
       /*
-        Rollback the transaction if lock failed. For ha_prepare() failure
-        scenarios, transaction is already rolled back by ha_prepare().
+        Rollback the transaction if lock failed. For ha_xa_prepare() failure
+        scenarios, transaction is already rolled back by ha_xa_prepare().
       */
       if (!mdl_request.ticket) ha_rollback_trans(thd, true);
 
@@ -1117,7 +1203,7 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd) {
 #endif
 
       /*
-        Reset rm_error in case ha_prepare() returned error,
+        Reset rm_error in case ha_xa_prepare() returned error,
         so thd->transaction.xid structure gets reset
         by THD::transaction::cleanup().
       */

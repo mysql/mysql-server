@@ -99,6 +99,20 @@ class Rpl_info_table : public Rpl_info_handler {
   enum_return_check do_check_info();
   enum_return_check do_check_info(uint instance);
   void do_end_info();
+
+  /**
+    Flushes and syncs in-memory information into a stable storage.
+
+    @param[in]  force  If enabled ignore syncing after flushing options such as
+                       relay-log-info-sync and master-info-sync and always sync
+
+    @return
+      @retval 0       Success
+      @retval nonzero Failure  This can happen if there is an error writing the
+                               table, or if slave_preserve_commit_order is
+                               enabled and a previous transaction has failed. In
+                               both cases, the error has been reported already.
+  */
   int do_flush_info(const bool force);
   int do_remove_info();
   int do_clean_info();

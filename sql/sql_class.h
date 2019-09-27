@@ -1425,6 +1425,36 @@ class THD : public MDL_context_owner,
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
+  /**
+    Determine if binlogging is currently disabled for this session.
+
+    There are two ways that binlogging can be disabled:
+
+     1. The binary log file is closed (globally). This can happen for
+        two reasons: either --skip-log-bin was used on the command line,
+        or a binlog write error happened when binlog_error_action=IGNORE_ERROR.
+
+     2. The binary log is disabled on session level. This can happen for
+        two reasons: either the user has set @@session.sql_log_bin = 0,
+        or the server code has internally disabled the binary log (by
+        either setting thd->variables.option_bits &= ~OPTION_BIN_LOG or
+        creating a Disable_binlog_guard object).
+
+    Even if this function returns true and the binary log is disabled,
+    it is possible that the statement will be written to the binary log,
+    in the cases where the server has merely temporarily disabled binary
+    logging.
+
+    And even if this function returns false and the binary log is
+    enabled, it is possible that the statement will not be written to
+    the binary log, e.g. in case it is a no-op, it fails, it gets rolled
+    back, or some other session closes the binary log due to a write
+    error when using binlog_error_action=IGNORE_ERROR.
+
+    @retval true The binary log is currently disabled for the statement.
+
+    @retval false The binary log is currently enabled for the statement.
+  */
   bool is_current_stmt_binlog_disabled() const;
 
   /**
@@ -3413,6 +3443,20 @@ class THD : public MDL_context_owner,
     flag.
   */
   bool is_commit_in_middle_of_statement;
+
+  /*
+    The ANALYZE/OPTIMIZE/REPAIR TABLE calls ha_commit_low for each table, and
+    after completion write the binlog, and let mysql_execute_command write the
+    binlog. We need to order the transaction only when writing the binlog.
+    Therefore, we order the transaction only when
+    is_intermediate_commit_without_binlog is not set
+    i.e. is_intermediate_commit_without_binlog == false. The
+    is_intermediate_commit_without_binlog variable is set before executing
+    ANALYZE/OPTIMIZE/REPAIR TABLE intermediate commit, and reset after its
+    completed.
+  */
+  bool is_intermediate_commit_without_binlog;
+
   /*
     True while the transaction is executing, if one of
     is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.

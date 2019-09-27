@@ -6033,6 +6033,8 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
   int error = 0;
   bool skipped_commit_pos = true;
 
+  DBUG_TRACE;
+
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
   Slave_committed_queue *coordinator_gaq = w->c_rli->gaq;

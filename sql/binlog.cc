@@ -182,11 +182,6 @@ static int binlog_recover(Binlog_file_reader *binlog_file_reader,
                           my_off_t *valid_pos);
 static void binlog_prepare_row_images(const THD *thd, TABLE *table);
 
-static inline bool has_commit_order_manager(THD *thd) {
-  return is_mts_worker(thd) &&
-         thd->rli_slave->get_commit_order_manager() != nullptr;
-}
-
 bool normalize_binlog_name(char *to, const char *from, bool is_relay_log) {
   DBUG_TRACE;
   bool error = false;
@@ -1628,8 +1623,57 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
       if (gtid_state->save(thd) != 0) {
         gtid_state->update_on_rollback(thd);
         return 1;
-      } else
+      } else if (!has_commit_order_manager(thd)) {
+        /*
+          The gtid_state->save implicitly performs the commit, in the following
+          stack:
+            Gtid_state::save ->
+            Gtid_table_persistor::save ->
+            Gtid_table_access_context::deinit ->
+            System_table_access::close_table ->
+            ha_commit_trans ->
+            Relay_log_info::pre_commit ->
+            Slave_worker::commit_positions(THD*) ->
+            Slave_worker::commit_positions(THD*,Log_event*,...) ->
+            Slave_worker::flush_info ->
+            Rpl_info_handler::flush_info ->
+            Rpl_info_table::do_flush_info ->
+            Rpl_info_table_access::close_table ->
+            System_table_access::close_table ->
+            ha_commit_trans ->
+            MYSQL_BIN_LOG::commit ->
+            ha_commit_low
+
+          If slave-preserve-commit-order is disabled, it does not call
+          update_on_commit from this stack. The reason is as follows:
+
+          In the normal case of MYSQL_BIN_LOG::commit, where the transaction is
+          going to be written to the binary log, it invokes
+          MYSQL_BIN_LOG::ordered_commit, which updates the GTID state (the call
+          gtid_state->update_commit_group(first) in process_commit_stage_queue).
+          However, when MYSQL_BIN_LOG::commit is invoked from this stack, it is
+          because the transaction is not going to be written to the binary log,
+          and then MYSQL_BIN_LOG::commit has a special case that calls
+          ha_commit_low directly, skipping ordered_commit. Therefore, the GTID
+          state is not updated in this stack.
+
+          On the other hand, if slave-preserve-commit-order is enabled, the
+          logic that orders commit carries out a subset of the binlog group
+          commit from within ha_commit_low, and this includes updating the GTID
+          state. In particular, there is the following call stack under
+          ha_commit_low:
+
+            ha_commit_low ->
+            Commit_order_manager::wait_and_finish ->
+            Commit_order_manager::finish ->
+            Commit_order_manager::flush_engine_and_signal_threads ->
+            Gtid_state::update_commit_group
+
+          Therefore, it is necessary to call update_on_commit only in case we
+          are not using slave-preserve-commit-order here.
+        */
         gtid_state->update_on_commit(thd);
+      }
     } else {
       /*
         If statement is supposed to be written to binlog, we write it
@@ -3192,7 +3236,7 @@ bool mysql_show_binlog_events(THD *thd) {
   return show_binlog_events(thd, &mysql_bin_log);
 }
 
-MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
+MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period, bool relay_log)
     : name(nullptr),
       write_error(false),
       inited(false),
@@ -3202,7 +3246,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
       file_id(1),
       sync_period_ptr(sync_period),
       sync_counter(0),
-      is_relay_log(false),
+      is_relay_log(relay_log),
       checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
       relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
       previous_gtid_set_relaylog(nullptr),
@@ -3234,7 +3278,9 @@ void MYSQL_BIN_LOG::cleanup() {
     mysql_mutex_destroy(&LOCK_xids);
     mysql_cond_destroy(&update_cond);
     mysql_cond_destroy(&m_prep_xids_cond);
-    stage_manager.deinit();
+    if (!is_relay_log) {
+      Commit_stage_manager::get_instance().deinit();
+    }
   }
 
   delete m_binlog_file;
@@ -3254,8 +3300,11 @@ void MYSQL_BIN_LOG::init_pthread_objects() {
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond);
   mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
-  stage_manager.init(m_key_LOCK_flush_queue, m_key_LOCK_sync_queue,
-                     m_key_LOCK_commit_queue, m_key_LOCK_done, m_key_COND_done);
+  if (!is_relay_log) {
+    Commit_stage_manager::get_instance().init(
+        m_key_LOCK_flush_queue, m_key_LOCK_sync_queue, m_key_LOCK_commit_queue,
+        m_key_LOCK_done, m_key_COND_done);
+  }
 }
 
 /**
@@ -7939,20 +7988,82 @@ std::pair<int, my_off_t> MYSQL_BIN_LOG::flush_thread_caches(THD *thd) {
   return std::make_pair(error, bytes);
 }
 
-/**
-  Execute the flush stage.
+void MYSQL_BIN_LOG::init_thd_variables(THD *thd, bool all, bool skip_commit) {
+  /*
+    These values are used while committing a transaction, so clear
+    everything.
 
-  @param[out] total_bytes_var Pointer to variable that will be set to total
-  number of bytes flushed, or NULL.
+    Notes:
 
-  @param[out] rotate_var Pointer to variable that will be set to true if
-  binlog rotation should be performed after releasing locks. If rotate
-  is not necessary, the variable will not be touched.
+    - It would be good if we could keep transaction coordinator
+      log-specific data out of the THD structure, but that is not the
+      case right now.
 
-  @param[out] out_queue_var  Pointer to the sessions queue in flush stage.
+    - Everything in the transaction structure is reset when calling
+      ha_commit_low since that calls Transaction_ctx::cleanup.
+  */
+  thd->tx_commit_pending = true;
+  thd->commit_error = THD::CE_NONE;
+  thd->next_to_commit = nullptr;
+  thd->durability_property = HA_IGNORE_DURABILITY;
+  thd->get_transaction()->m_flags.real_commit = all;
+  thd->get_transaction()->m_flags.xid_written = false;
+  thd->get_transaction()->m_flags.commit_low = !skip_commit;
+  thd->get_transaction()->m_flags.run_hooks = !skip_commit;
+#ifndef DBUG_OFF
+  /*
+     The group commit Leader may have to wait for follower whose transaction
+     is not ready to be preempted. Initially the status is pessimistic.
+     Preemption guarding logics is necessary only when !DBUG_OFF is set.
+     It won't be required for the dbug-off case as long as the follower won't
+     execute any thread-specific write access code in this method, which is
+     the case as of current.
+  */
+  thd->get_transaction()->m_flags.ready_preempt = 0;
+#endif
+}
 
-  @return Error code on error, zero on success
- */
+THD *MYSQL_BIN_LOG::fetch_and_process_flush_stage_queue(
+    const bool check_and_skip_flush_logs) {
+  /*
+    Fetch the entire flush queue and empty it, so that the next batch
+    has a leader. We must do this before invoking ha_flush_logs(...)
+    for guaranteeing to flush prepared records of transactions before
+    flushing them to binary log, which is required by crash recovery.
+  */
+  Commit_stage_manager::get_instance().lock_queue(
+      Commit_stage_manager::BINLOG_FLUSH_STAGE);
+
+  THD *first_seen =
+      Commit_stage_manager::get_instance().fetch_queue_skip_acquire_lock(
+          Commit_stage_manager::BINLOG_FLUSH_STAGE);
+  DBUG_ASSERT(first_seen != NULL);
+
+  THD *commit_order_thd =
+      Commit_stage_manager::get_instance().fetch_queue_skip_acquire_lock(
+          Commit_stage_manager::COMMIT_ORDER_FLUSH_STAGE);
+
+  Commit_stage_manager::get_instance().unlock_queue(
+      Commit_stage_manager::BINLOG_FLUSH_STAGE);
+
+  if (!check_and_skip_flush_logs ||
+      (check_and_skip_flush_logs && commit_order_thd != nullptr)) {
+    /*
+      We flush prepared records of transactions to the log of storage
+      engine (for example, InnoDB redo log) in a group right before
+      flushing them to binary log.
+    */
+    ha_flush_logs(true);
+  }
+
+  /*
+    The transactions are flushed to the disk and so threads
+    executing slave preserve commit order can be unblocked.
+  */
+  Commit_stage_manager::get_instance()
+      .process_final_stage_for_ordered_commit_group(commit_order_thd);
+  return first_seen;
+}
 
 int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
                                              bool *rotate_var,
@@ -7967,20 +8078,7 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   int flush_error = 1;
   mysql_mutex_assert_owner(&LOCK_log);
 
-  /*
-    Fetch the entire flush queue and empty it, so that the next batch
-    has a leader. We must do this before invoking ha_flush_logs(...)
-    for guaranteeing to flush prepared records of transactions before
-    flushing them to binary log, which is required by crash recovery.
-  */
-  THD *first_seen = stage_manager.fetch_queue_for(Stage_manager::FLUSH_STAGE);
-  DBUG_ASSERT(first_seen != nullptr);
-  /*
-    We flush prepared records of transactions to the log of storage
-    engine (for example, InnoDB redo log) in a group right before
-    flushing them to binary log.
-  */
-  ha_flush_logs(true);
+  THD *first_seen = fetch_and_process_flush_stage_queue();
   DBUG_EXECUTE_IF("crash_after_flush_engine_log", DBUG_SUICIDE(););
   assign_automatic_gtids_to_flush_group(first_seen);
   /* Flush thread caches to binary log. */
@@ -8044,7 +8142,7 @@ void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
       engines.
     */
 #ifndef DBUG_OFF
-    stage_manager.clear_preempt_status(head);
+    Commit_stage_manager::get_instance().clear_preempt_status(head);
 #endif
     if (head->get_transaction()->sequence_number != SEQ_UNINIT) {
       mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
@@ -8128,70 +8226,25 @@ static const char *g_stage_name[] = {
 };
 #endif
 
-/**
-  Enter a stage of the ordered commit procedure.
-
-  Entering is stage is done by:
-
-  - Atomically enqueueing a queue of processes (which is just one for
-    the first phase).
-
-  - If the queue was empty, the thread is the leader for that stage
-    and it should process the entire queue for that stage.
-
-  - If the queue was not empty, the thread is a follower and can go
-    waiting for the commit to finish.
-
-  The function will lock the stage mutex if it was designated the
-  leader for the phase.
-
-  @param thd    Session structure
-  @param stage  The stage to enter
-  @param queue  Queue of threads to enqueue for the stage
-  @param leave_mutex  Mutex that will be released when changing stage
-  @param enter_mutex  Mutex that will be taken when changing stage
-
-  @retval true  The thread should "bail out" and go waiting for the
-                commit to finish
-  @retval false The thread is the leader for the stage and should do
-                the processing.
-*/
-
 bool MYSQL_BIN_LOG::change_stage(THD *thd MY_ATTRIBUTE((unused)),
-                                 Stage_manager::StageID stage, THD *queue,
-                                 mysql_mutex_t *leave_mutex,
+                                 Commit_stage_manager::StageID stage,
+                                 THD *queue, mysql_mutex_t *leave_mutex,
                                  mysql_mutex_t *enter_mutex) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("thd: 0x%llx, stage: %s, queue: 0x%llx", (ulonglong)thd,
                        g_stage_name[stage], (ulonglong)queue));
-  DBUG_ASSERT(0 <= stage && stage < Stage_manager::STAGE_COUNTER);
+  DBUG_ASSERT(0 <= stage && stage < Commit_stage_manager::STAGE_COUNTER);
   DBUG_ASSERT(enter_mutex);
   DBUG_ASSERT(queue);
   /*
     enroll_for will release the leave_mutex once the sessions are
     queued.
   */
-  if (!stage_manager.enroll_for(stage, queue, leave_mutex)) {
+  if (!Commit_stage_manager::get_instance().enroll_for(
+          stage, queue, leave_mutex, enter_mutex)) {
     DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
     return true;
   }
-
-#ifndef DBUG_OFF
-  if (stage == Stage_manager::SYNC_STAGE)
-    DEBUG_SYNC(thd, "bgc_between_flush_and_sync");
-#endif
-
-  /*
-    We do not lock the enter_mutex if it is LOCK_log when rotating binlog
-    caused by logging incident log event, since it is already locked.
-  */
-  bool need_lock_enter_mutex =
-      !(is_rotating_caused_by_incident && enter_mutex == &LOCK_log);
-
-  if (need_lock_enter_mutex)
-    mysql_mutex_lock(enter_mutex);
-  else
-    mysql_mutex_assert_owner(enter_mutex);
 
   return false;
 }
@@ -8252,7 +8305,7 @@ std::pair<bool, bool> MYSQL_BIN_LOG::sync_binlog_file(bool force) {
 
    It is typically used in this manner:
    @code
-   if (enter_stage(thd, Thread_queue::FLUSH_STAGE, thd, &LOCK_log))
+   if (enter_stage(thd, Thread_queue::BINLOG_FLUSH_STAGE, thd, &LOCK_log))
      return finish_commit(thd);
    @endcode
 
@@ -8419,56 +8472,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");
   }
 }
-/**
-  Flush and commit the transaction.
 
-  This will execute an ordered flush and commit of all outstanding
-  transactions and is the main function for the binary log group
-  commit logic. The function performs the ordered commit in two
-  phases.
-
-  The first phase flushes the caches to the binary log and under
-  LOCK_log and marks all threads that were flushed as not pending.
-
-  The second phase executes under LOCK_commit and commits all
-  transactions in order.
-
-  The procedure is:
-
-  1. Queue ourselves for flushing.
-  2. Grab the log lock, which might result is blocking if the mutex is
-     already held by another thread.
-  3. If we were not committed while waiting for the lock
-     1. Fetch the queue
-     2. For each thread in the queue:
-        a. Attach to it
-        b. Flush the caches, saving any error code
-     3. Flush and sync (depending on the value of sync_binlog).
-     4. Signal that the binary log was updated
-  4. Release the log lock
-  5. Grab the commit lock
-     1. For each thread in the queue:
-        a. If there were no error when flushing and the transaction shall be
-  committed:
-           - Commit the transaction, saving the result of executing the commit.
-  6. Release the commit lock
-  7. Call purge, if any of the committed thread requested a purge.
-  8. Return with the saved error code
-
-  @todo The use of @c skip_commit is a hack that we use since the @c
-  TC_LOG Interface does not contain functions to handle
-  savepoints. Once the binary log is eliminated as a handlerton and
-  the @c TC_LOG interface is extended with savepoint handling, this
-  parameter can be removed.
-
-  @param thd Session to commit transaction for
-  @param all   This is @c true if this is a real transaction commit, and
-               @c false otherwise.
-  @param skip_commit
-               This is @c true if the call to @c ha_commit_low should
-               be skipped (it is handled by the caller somehow) and @c
-               false otherwise (the normal case).
- */
 int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
   DBUG_TRACE;
   int flush_error = 0, sync_error = 0;
@@ -8476,44 +8480,28 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
   bool do_rotate = false;
 
   DBUG_EXECUTE_IF("crash_commit_before_log", DBUG_SUICIDE(););
-  /*
-    These values are used while flushing a transaction, so clear
-    everything.
-
-    Notes:
-
-    - It would be good if we could keep transaction coordinator
-      log-specific data out of the THD structure, but that is not the
-      case right now.
-
-    - Everything in the transaction structure is reset when calling
-      ha_commit_low since that calls Transaction_ctx::cleanup.
-  */
-  thd->tx_commit_pending = true;
-  thd->commit_error = THD::CE_NONE;
-  thd->next_to_commit = nullptr;
-  thd->durability_property = HA_IGNORE_DURABILITY;
-  thd->get_transaction()->m_flags.real_commit = all;
-  thd->get_transaction()->m_flags.xid_written = false;
-  thd->get_transaction()->m_flags.commit_low = !skip_commit;
-  thd->get_transaction()->m_flags.run_hooks = !skip_commit;
-#ifndef DBUG_OFF
-  /*
-     The group commit Leader may have to wait for follower whose transaction
-     is not ready to be preempted. Initially the status is pessimistic.
-     Preemption guarding logics is necessary only when !DBUG_OFF is set.
-     It won't be required for the dbug-off case as long as the follower won't
-     execute any thread-specific write access code in this method, which is
-     the case as of current.
-  */
-  thd->get_transaction()->m_flags.ready_preempt = false;
-#endif
-
+  init_thd_variables(thd, all, skip_commit);
   DBUG_PRINT("enter", ("commit_pending: %s, commit_error: %d, thread_id: %u",
                        YESNO(thd->tx_commit_pending), thd->commit_error,
                        thd->thread_id()));
 
   DEBUG_SYNC(thd, "bgc_before_flush_stage");
+
+  /*
+    Stage #0: ensure slave threads commit order as they appear in the slave's
+              relay log for transactions flushing to binary log.
+
+    This will make thread wait until its turn to commit.
+    Commit_order_manager maintains it own queue and its own order for the
+    commit. So Stage#0 doesn't maintain separate StageID.
+  */
+  if (Commit_order_manager::wait_for_its_turn_before_flush_stage(thd) ||
+      ending_trans(thd, all) ||
+      Commit_order_manager::get_rollback_status(thd)) {
+    if (Commit_order_manager::wait(thd)) {
+      return thd->commit_error;
+    }
+  }
 
   /*
     Stage #1: flushing transactions to binary log
@@ -8524,19 +8512,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     appointed itself leader for the flush phase.
   */
 
-  if (has_commit_order_manager(thd)) {
-    Slave_worker *worker = dynamic_cast<Slave_worker *>(thd->rli_slave);
-    Commit_order_manager *mngr = worker->get_commit_order_manager();
-
-    if (mngr->wait_for_its_turn(worker, all)) {
-      thd->commit_error = THD::CE_COMMIT_ERROR;
-      return thd->commit_error;
-    }
-
-    if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, nullptr, &LOCK_log))
-      return finish_commit(thd);
-  } else if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, nullptr,
-                          &LOCK_log)) {
+  if (change_stage(thd, Commit_stage_manager::BINLOG_FLUSH_STAGE, thd, NULL,
+                   &LOCK_log)) {
     DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d", thd->thread_id(),
                           thd->commit_error));
     return finish_commit(thd);
@@ -8547,7 +8524,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
   my_off_t flush_end_pos = 0;
   bool update_binlog_end_pos_after_sync;
   if (unlikely(!is_open())) {
-    final_queue = stage_manager.fetch_queue_for(Stage_manager::FLUSH_STAGE);
+    final_queue = fetch_and_process_flush_stage_queue(true);
     leave_mutex_before_commit_stage = &LOCK_log;
     /*
       binary log is closed, flush stage and sync stage should be
@@ -8600,7 +8577,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     Stage #2: Syncing binary log file to disk
   */
 
-  if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log,
+  if (change_stage(thd, Commit_stage_manager::SYNC_STAGE, wait_queue, &LOCK_log,
                    &LOCK_sync)) {
     DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d", thd->thread_id(),
                           thd->commit_error));
@@ -8616,11 +8593,12 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     for every group just like how it is done when sync_binlog= 1.
   */
   if (!flush_error && (sync_counter + 1 >= get_sync_period()))
-    stage_manager.wait_count_or_timeout(
+    Commit_stage_manager::get_instance().wait_count_or_timeout(
         opt_binlog_group_commit_sync_no_delay_count,
-        opt_binlog_group_commit_sync_delay, Stage_manager::SYNC_STAGE);
+        opt_binlog_group_commit_sync_delay, Commit_stage_manager::SYNC_STAGE);
 
-  final_queue = stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
+  final_queue = Commit_stage_manager::get_instance().fetch_queue_acquire_lock(
+      Commit_stage_manager::SYNC_STAGE);
 
   if (flush_error == 0 && total_bytes > 0) {
     DEBUG_SYNC(thd, "before_sync_binlog_file");
@@ -8664,14 +8642,15 @@ commit_stage:
   /* Clone needs binlog commit order. */
   if ((opt_binlog_order_commits || Clone_handler::need_commit_order()) &&
       (sync_error == 0 || binlog_error_action != ABORT_SERVER)) {
-    if (change_stage(thd, Stage_manager::COMMIT_STAGE, final_queue,
+    if (change_stage(thd, Commit_stage_manager::COMMIT_STAGE, final_queue,
                      leave_mutex_before_commit_stage, &LOCK_commit)) {
       DBUG_PRINT("return", ("Thread ID: %u, commit_error: %d", thd->thread_id(),
                             thd->commit_error));
       return finish_commit(thd);
     }
     THD *commit_queue =
-        stage_manager.fetch_queue_for(Stage_manager::COMMIT_STAGE);
+        Commit_stage_manager::get_instance().fetch_queue_acquire_lock(
+            Commit_stage_manager::COMMIT_STAGE);
     DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
                     DEBUG_SYNC(thd, "before_process_commit_stage_queue"););
 
@@ -8716,7 +8695,7 @@ commit_stage:
 
   DEBUG_SYNC(thd, "before_signal_done");
   /* Commit done so signal all waiting threads */
-  stage_manager.signal_done(final_queue);
+  Commit_stage_manager::get_instance().signal_done(final_queue);
   DBUG_EXECUTE_IF("block_leader_after_delete", {
     const char action[] = "now SIGNAL leader_proceed";
     DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));

@@ -33,6 +33,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/query_options.h"
+#include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
+#include "sql/sql_alter.h"
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
@@ -107,6 +109,38 @@ class Disable_gtid_state_update_guard {
   THD *m_thd;
   bool m_save_is_operating_substatement_implicitly;
   bool m_save_skip_gtid_rollback;
+};
+
+/**
+  RAII class for temporarily turning ON is_intermediate_commit_without_binlog
+  variable.
+  Currently being used for ANALYZE/OPTIMIZE/REPAIR TABLE statements to
+  disable invocation of commit order for intermediate commits.
+*/
+
+class Intermediate_commit_without_binlog_guard {
+ public:
+  Intermediate_commit_without_binlog_guard(THD *thd, bool status = true)
+      : m_thd(thd),
+        m_skip_intermediate_commit_without_binlog_guard(
+            m_thd->is_intermediate_commit_without_binlog) {
+    DBUG_TRACE;
+    if (has_commit_order_manager(thd)) {
+      thd->is_intermediate_commit_without_binlog = status;
+    }
+  }
+
+  ~Intermediate_commit_without_binlog_guard() {
+    DBUG_TRACE;
+    if (has_commit_order_manager(m_thd)) {
+      m_thd->is_intermediate_commit_without_binlog =
+          m_skip_intermediate_commit_without_binlog_guard;
+    }
+  }
+
+ private:
+  THD *const m_thd;
+  bool m_skip_intermediate_commit_without_binlog_guard;
 };
 
 /**

@@ -847,6 +847,7 @@ SET(BINLOG_SOURCE
   binlog_ostream.cc
   binlog_reader.cc
   log_event.cc
+  rpl_commit_stage_manager.cc
   rpl_filter.cc
   rpl_gtid_execution.cc
   rpl_gtid_misc.cc

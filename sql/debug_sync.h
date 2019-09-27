@@ -1,7 +1,7 @@
 #ifndef DEBUG_SYNC_INCLUDED
 #define DEBUG_SYNC_INCLUDED
 
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,8 @@ extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
 extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);
 extern bool debug_sync_update(THD *thd, char *val_str);
 extern uchar *debug_sync_value_ptr(THD *thd);
+extern void conditional_sync_point_for_timestamp(std::string name);
+extern void conditional_sync_point(std::string name);
 
 /**
   This macro simplifies when a DBUG_EXECUTE_IF will generate a given
@@ -75,12 +77,55 @@ extern uchar *debug_sync_value_ptr(THD *thd);
     DBUG_ASSERT(!debug_sync_set_action(T, STRING_WITH_LEN(act))); \
   };)
 
+/**
+  Set a sync point that is activated by setting
+  @@debug='d,syncpoint_NAME', and which will emit the signal
+  "reached_NAME" and wait for the signal "continue_NAME"
+
+  @param[in] NAME The name of the debug symbol. This should indicate
+    the logical point in time in the code flow where it
+    appears. Usually it should have the form "before_EVENT" or
+    "after_EVENT", where EVENT identifies something that the code
+    does. EVENT might for instance be the name of a function in the
+    source code.  The sync point might be reused by multiple tests, so
+    the name should relate to what the server does and not the test
+    scenario.
+  */
+#define CONDITIONAL_SYNC_POINT(NAME) conditional_sync_point(NAME)
+
+/**
+   Set a sync point that is activated by setting
+   @@debug='d,syncpoint_NAME_TIMESTAMP', where NAME is given as an
+   argument and TIMESTAMP must match the value of @@session.timestamp
+   for the thread.  When activated, the sync point will emit the
+   signal "reached_NAME_TIMESTAMP", and wait for the signal
+   "continue_NAME_TIMESTAMP".
+
+   @param[in] NAME The name of the debug symbol. This should indicate
+   the logical point in time in the code flow where it
+   appears. Usually it should have the form "before_EVENT" or
+   "after_EVENT", where EVENT identifies something that the code
+   does. EVENT might for instance be the name of a function in the
+   source code.  The sync point might be reused by multiple tests, so
+   the name should relate to what the server does and not the test
+   scenario.
+
+   @param[in] TIMESTAMP The timestamp. Only threads where the session
+   variable @@session.timestamp is set to TIMESTAMP will be
+   affected. TIMESTAMP will be appended to the debug symbol, to the
+   signals that the sync point emits and waits for.
+*/
+#define CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(NAME) \
+  conditional_sync_point_for_timestamp(NAME)
+
 #else /* defined(ENABLED_DEBUG_SYNC) */
 
 #define DEBUG_SYNC(_thd_, _sync_point_name_) /* disabled DEBUG_SYNC */
 #define DBUG_SIGNAL_WAIT_FOR(T, A, B, C) \
   do {                                   \
   } while (0)
+#define CONDITIONAL_SYNC_POINT(NAME)
+#define CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP(NAME)
 
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 

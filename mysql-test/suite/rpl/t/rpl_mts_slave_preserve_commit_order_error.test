@@ -61,7 +61,7 @@ let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --source include/wait_condition.inc
 
 UNLOCK TABLES;
---let $slave_sql_errno=1062
+--let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --source include/wait_for_slave_sql_error.inc
 
 --let $assert_text='Rows have been inserted to table t_w1'

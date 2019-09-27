@@ -6735,9 +6735,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     else
       rli->current_mts_submode = new Mts_submode_database();
 
-    if (opt_slave_preserve_commit_order &&
-        rli->opt_slave_parallel_workers > 0 && opt_bin_log &&
-        opt_log_slave_updates)
+    if (opt_slave_preserve_commit_order && !rli->is_parallel_exec())
       commit_order_mngr =
           new Commit_order_manager(rli->opt_slave_parallel_workers);
 
@@ -10062,13 +10060,6 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli) {
     if (channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME) {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
                "when slave_parallel_type is DATABASE");
-      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
-    }
-
-    if ((!opt_bin_log || !opt_log_slave_updates) &&
-        channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK) {
-      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
-               "unless both log_bin and log_slave_updates are enabled");
       return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
     }
   }

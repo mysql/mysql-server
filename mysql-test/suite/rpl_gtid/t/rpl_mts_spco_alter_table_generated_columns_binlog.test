@@ -1,0 +1,97 @@
+# ==== Purpose ====
+#
+# Verifies that ALTER TABLE GENERATED COLUMNS is maintaining commit order.
+#
+# ==== Implementation ====
+#
+# 1. We start replica (server2) with slave_preserve_commit_order enabled
+#    and running with 8 applier workers.
+#
+# 2. On slave, we add the same first insert statement which will be applied on
+#    master in step 3, but we do not commit it, to take a lock on row and block
+#    slave sql thread when transaction are applied on master in step 3.
+#
+# 3. The master generates some transactions which can be applied in parallel,
+#    by setting same commit parents for all the inserts.
+#
+# 4. On slave, we verify that all the other inserts are also blocked and waiting
+#    for first insert to commit i.e. applier threads are in stage 'Waiting for
+#    preceding transaction to commit' and their is no data in the table. We also
+#    save value of @@GLOBAL.GTID_EXECUTED.
+#
+# 5. On slave, we rollback the first insert executed in step 2. We again save
+#    value of @@GLOBAL.GTID_EXECUTED before rollback.
+#
+# 6. On slave, we verify no additional transaction is added after first
+#    insert was blocked i.e. ALTER TABLE GENERATED COLUMNS is not
+#    bypassing commit order. We verify this by checking value of
+#    @@GLOBAL.GTID_EXECUTED saved in step 4 and step5 is same.
+#
+# 7. Cleanup.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+--source include/gtid_utils.inc
+
+
+--source include/rpl_connection_master.inc
+--let $mts_slave_parallel_workers= 8
+--let $mts_num_preceding_trans= 6
+
+--let $mts_spco_save_gtid_executed = 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+
+--let $mts_spco_start_statement = CREATE TABLE t1(a INT PRIMARY KEY); CREATE TABLE t2(a INT PRIMARY KEY)
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t2 ADD COLUMN (b INT GENERATED ALWAYS AS (a+1) STORED, INDEX(b)); BEGIN; INSERT INTO t1 VALUES (4); COMMIT
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_save_gtid_executed= 1
+--let $mts_spco_rollback_statement = ROLLBACK
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo # On slave, verify no additional transaction is added after first
+--echo # insert was blocked i.e. ALTER TABLE GENERATED COLUMNS is not
+--echo # bypassing commit order.
+--echo
+
+--let $is_gtid_equal=`SELECT GTID_IS_EQUAL('$gtid_executed_internal_val1', '$gtid_executed_internal_val2') != 0`
+
+--let $assert_cond= $is_gtid_equal = 1
+--let $assert_text= No additional transaction is added on slave after first insert was blocked
+--source include/assert.inc
+
+
+--echo
+--echo # Cleanup
+--echo
+
+--source include/rpl_connection_master.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+SET GLOBAL slave_parallel_type= @save_slave_parallel_type;
+SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
+SET GLOBAL slave_preserve_commit_order= @save_slave_preserve_commit_order;
+--source include/start_slave.inc
+
+--source include/gtid_utils_end.inc
+--source include/rpl_end.inc

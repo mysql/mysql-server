@@ -143,7 +143,14 @@ bool System_table_access::close_table(THD *thd, TABLE *table,
     thd->restore_backup_open_tables_state(backup);
   }
 
-  DBUG_EXECUTE_IF("simulate_flush_commit_error", { res = true; });
+  DBUG_EXECUTE_IF("simulate_flush_commit_error", {
+    my_printf_error(ER_ERROR_DURING_FLUSH_LOGS,
+                    ER_THD(thd, ER_ERROR_DURING_FLUSH_LOGS), MYF(ME_FATALERROR),
+                    true);
+    LogErr(ERROR_LEVEL, ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE, true);
+    return true;
+  });
+
   return res;
 }
 

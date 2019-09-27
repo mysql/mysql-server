@@ -78,8 +78,9 @@ LOCK TABLE t1 WRITE;
 --source include/rpl_connection_slave.inc
 UNLOCK TABLES;
 
-# Workers encounter duplicate error and abort coordinator
---let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+# Workers encounter duplicate error(ER_DUP_ENTRY), rollback signalled
+# (ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR) and abort coordinator
+--let $slave_sql_errno=1062,3030
 --source include/wait_for_slave_sql_to_stop.inc
 
 SET GLOBAL slave_parallel_workers = @save_slave_parallel_workers;

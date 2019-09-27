@@ -1,0 +1,346 @@
+# Aim of the testcase is to check if different operations on tables
+# respect slave-preserve-commit-order.
+#
+# Commands tested are:
+# 1) ANALYZE TABLE
+# 2) REPAIR TABLE
+# 3) OPTIMIZE TABLE
+# 4) RENAME TABLE
+# 5) DROP TABLE and DROP TABLE IF EXISTS
+# 6) CREATE DATABASE and CREATE DATABASE IF NOT EXISTS
+# 7) DROP DATABASE and DROP DATABASE IF EXISTS
+# 8) CREATE TABLESPACE
+# 9) ALTER TABLESPACE
+# 10) DROP TABLESPACE
+# 11) CREATE INDEX
+# 12) DROP INDEX
+#
+# This test uses extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+# to check the ordering of commits.
+
+--let $rpl_skip_start_slave = 1
+--let $use_gtids= 1
+--let $rpl_gtid_utils = 1
+--source include/master-slave.inc
+
+# Start slave with 8 worker threads
+--let $mts_slave_parallel_workers= 8
+--let $mts_spco_save_gtid_executed = 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+
+# Set Up
+
+--source include/rpl_connection_slave.inc
+
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+CALL mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
+
+SET @save_slave_parallel_workers= @@global.slave_parallel_workers;
+SET @save_slave_parallel_type= @@global.slave_parallel_type;
+SET @save_slave_preserve_commit_order= @@global.slave_preserve_commit_order;
+SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
+--eval SET GLOBAL slave_parallel_workers= $mts_slave_parallel_workers
+SET GLOBAL slave_preserve_commit_order= ON;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master1.inc
+
+SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
+SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+
+--echo
+--echo # Check for ANALYZE TABLE
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t2 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; ANALYZE TABLE t1;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t2 has 0 rows
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+
+--let $mts_spco_end_statement = truncate table t1; truncate table t2;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+
+--echo
+--echo # Check for REPAIR TABLE
+
+--let $mts_num_preceding_trans= 5
+--let $mts_add_debug_point =
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= CREATE TABLE t3(a INT PRIMARY KEY)Engine=MyISAM; INSERT INTO t3 VALUES(1),(2),(3);
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t2 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; SET TIMESTAMP = 100; REPAIR TABLE t3;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t2 has 2 rows
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+
+--let $mts_spco_end_statement = truncate table t1; truncate table t2; DROP TABLE t3;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+
+--echo
+--echo # Check for OPTIMIZE TABLE
+
+--let $mts_num_preceding_trans= 5
+--let $mts_add_debug_point =
+
+--let $mts_spco_start_statement = CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t4 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t4 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t4 VALUES (1); COMMIT; BEGIN; INSERT INTO t4 VALUES (2); COMMIT; OPTIMIZE TABLE t3;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t4 VALUES (3); COMMIT; BEGIN; INSERT INTO t4 VALUES (4); COMMIT; BEGIN; INSERT INTO t4 VALUES (5); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t4 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t4, COUNT, 1]" = "0"
+
+--let $mts_spco_rollback_statement = ROLLBACK;
+
+--let $mts_spco_end_statement = DROP TABLE t3; DROP TABLE t4;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+# Refresh master connection to reset TIMESTAMP value
+--disconnect master
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+
+--echo
+--echo # Check for RENAME TABLE
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10);
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t2 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; RENAME TABLE t1 to t10;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t2 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify table t1 exists
+--let $mts_spco_assert_cond2 = "[SHOW TABLES, Tables_in_test, 1]" = "t1"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+
+--let $mts_spco_end_statement = truncate table t2; DROP TABLE t10; CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # Check for CREATE DATABASE and CREATE DATABASE IF NOT EXISTS
+
+--let $mts_num_preceding_trans= 6
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10);
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE DATABASE db1; CREATE DATABASE IF NOT EXISTS db2;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t2 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify DATABASE db1 does not exist
+--let $mts_spco_assert_cond2 = "[SHOW DATABASES LIKE \'db1\']" = ""
+
+--let $mts_spco_assert_text3 = Verify DATABASE db2 does not exist
+--let $mts_spco_assert_cond3 = "[SHOW DATABASES LIKE \'db2\']" = ""
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = truncate table t1; truncate table t2; DROP DATABASE db1; DROP DATABASE db2;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # Check for CREATE TABLESPACE
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10);
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify TABLESPACE does not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts1\', COUNT,1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = truncate table t1; truncate table t2; DROP TABLESPACE ts1;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # Check for ALTER TABLESPACE
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB; CREATE TABLE t11 (a INT, b INT) ENGINE = InnoDB TABLESPACE=ts1;
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLESPACE ts1 RENAME TO ts11;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify TABLESPACE ts1 exists
+--let $mts_spco_assert_cond2 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts1\', COUNT,1]" = "1"
+
+--let $mts_spco_assert_text3 = Verify TABLESPACE ts11 does not exists
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts11\', COUNT,1]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = truncate table t1; truncate table t2; DROP TABLE t11;  DROP TABLESPACE ts11;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # Check for DROP TABLESPACE
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TABLESPACE ts1;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify TABLESPACE exists
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM information_schema.files WHERE TABLESPACE_NAME LIKE \'ts1\', COUNT,1]" = "1"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = truncate table t1; truncate table t2;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # Check for CREATE INDEX
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1);
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE INDEX idx1 ON t3 ((col1 + col2));
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify INDEX does not exist
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = \'test\' AND INDEX_NAME LIKE \'idx1\';]" = "0"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = truncate table t1; truncate table t2; DROP INDEX idx1 ON t3; DROP TABLE t3;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # Check for DROP INDEX
+
+--let $mts_num_preceding_trans= 5
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_check_gtid_executed_before_rollback = 0
+--let $mts_spco_start_statement= INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1); CREATE INDEX idx1 ON t3 ((col1 + col2));
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP INDEX idx1 ON t3;
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+
+--let $mts_spco_assert_text1 = Verify table t1 has one value
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "1"
+
+--let $mts_spco_assert_text2 = Verify table t2 is empty
+--let $mts_spco_assert_cond2 = "[SELECT count(*) COUNT FROM t2, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text3 = Verify INDEX exists
+--let $mts_spco_assert_cond3 = "[SELECT COUNT(*) COUNT FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = \'test\' AND INDEX_NAME LIKE \'idx1\';]" = "1"
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK;
+--let $mts_spco_end_statement = truncate table t1; truncate table t2; DROP TABLE t1,t2,t3;
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+--echo
+--echo # Cleanup
+--echo
+
+--source include/rpl_connection_master1.inc
+SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+
+SET GLOBAL slave_parallel_type=@save_slave_parallel_type;
+SET GLOBAL slave_parallel_workers=@save_slave_parallel_workers;
+SET GLOBAL slave_preserve_commit_order=@save_slave_preserve_commit_order;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

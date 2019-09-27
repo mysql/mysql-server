@@ -104,10 +104,11 @@
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"            // RUN_HOOK
-#include "sql/rpl_rli.h"                // is_atomic_ddl_commit_on_slave
-#include "sql/rpl_write_set_handler.h"  // add_pke
-#include "sql/sdi_utils.h"              // import_serialized_meta_data
+#include "sql/rpl_handler.h"  // RUN_HOOK
+#include "sql/rpl_rli.h"      // is_atomic_ddl_commit_on_slave
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_write_set_handler.h"           // add_pke
+#include "sql/sdi_utils.h"                       // import_serialized_meta_data
 #include "sql/session_tracker.h"
 #include "sql/sql_base.h"  // free_io_cache
 #include "sql/sql_bitmap.h"
@@ -1359,20 +1360,35 @@ static int prepare_one_ht(THD *thd, handlerton *ht) {
   @retval
     1   error, transaction was rolled back
 */
-int ha_prepare(THD *thd) {
+int ha_xa_prepare(THD *thd) {
   int error = 0;
   Transaction_ctx *trn_ctx = thd->get_transaction();
   DBUG_TRACE;
 
   if (trn_ctx->is_active(Transaction_ctx::SESSION)) {
     const Ha_trx_info *ha_info = trn_ctx->ha_trx_info(Transaction_ctx::SESSION);
-    bool gtid_error = false, need_clear_owned_gtid = false;
-
-    if ((gtid_error = commit_owned_gtids(thd, true, &need_clear_owned_gtid))) {
+    bool gtid_error = false;
+    bool need_clear_owned_gtid = false;
+    std::tie(gtid_error, need_clear_owned_gtid) = commit_owned_gtids(thd, true);
+    if (gtid_error) {
       DBUG_ASSERT(need_clear_owned_gtid);
 
       ha_rollback_trans(thd, true);
       error = 1;
+      goto err;
+    }
+
+    /*
+      Ensure externalization order for applier threads.
+
+      Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
+            no-op for threads other than replication applier threads.
+    */
+    if (Commit_order_manager::wait(thd)) {
+      thd->commit_error = THD::CE_NONE;
+      ha_rollback_trans(thd, true);
+      error = 1;
+      gtid_error = true;
       goto err;
     }
 
@@ -1405,6 +1421,15 @@ int ha_prepare(THD *thd) {
                                   XID_STATE::XA_IDLE));
 
   err:
+    /*
+      After ensuring externalization order for applier thread, remove it
+      from waiting (Commit Order Queue) and allow next applier thread to
+      be ordered.
+
+      Note: the calls to Commit_order_manager::wait_and_finish() will be
+            no-op for threads other than replication applier threads.
+    */
+    Commit_order_manager::wait_and_finish(thd, error);
     gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
   }
 
@@ -1473,32 +1498,55 @@ static uint ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
   @param thd  Thread context.
   @param all  The execution scope, true for the transaction one, false
               for the statement one.
-  @param[out] need_clear_owned_gtid_ptr
-              A pointer to bool variable to return the computed decision
-              value.
-  @return zero as no error indication, non-zero otherwise
+
+  @return   std::pair containing: Error and Owned GTID release status
+   Error
+            @retval  0    Ok
+            @retval !0    Error
+
+   Owned GTID release status
+            @retval  true   remove the GTID owned by thread from owned GTIDs
+            @retval  false  removal of the GTID owned by thread from owned GTIDs
+                            is not required
 */
 
-int commit_owned_gtids(THD *thd, bool all, bool *need_clear_owned_gtid_ptr) {
+std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
   DBUG_TRACE;
   int error = 0;
+  bool need_clear_owned_gtid = false;
 
+  /*
+    If the binary log is disabled for this thread (either by
+    log_bin=0 or sql_log_bin=0 or by log_slave_updates=0 for a
+    slave thread), then the statement will not be written to
+    the binary log. In this case, we should save its GTID into
+    mysql.gtid_executed table and @@GLOBAL.GTID_EXECUTED as it
+    did when binlog is enabled.
+
+    We also skip saving GTID into mysql.gtid_executed table and
+    @@GLOBAL.GTID_EXECUTED when slave-preserve-commit-order is enabled and
+    thd->is_intermediate_commit_without_binlog is disabled. We skip as GTID will
+    be saved in Commit_order_manager::flush_engine_and_signal_threads (invoked
+    from Commit_order_manager::wait_and_finish). In particular, there is the
+    following call stack under ha_commit_low which save GTID in case its skipped
+    here:
+
+      ha_commit_low ->
+      Commit_order_manager::wait_and_finish ->
+      Commit_order_manager::finish ->
+      Commit_order_manager::flush_engine_and_signal_threads ->
+      Gtid_state::update_commit_group
+  */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
-      (all || !thd->in_multi_stmt_transaction_mode()) &&
-      !thd->is_operating_gtid_table_implicitly &&
-      !thd->is_operating_substatement_implicitly) {
-    /*
-      If the binary log is disabled for this thread (either by
-      log_bin=0 or sql_log_bin=0 or by log_slave_updates=0 for a
-      slave thread), then the statement will not be written to
-      the binary log. In this case, we should save its GTID into
-      mysql.gtid_executed table and @@GLOBAL.GTID_EXECUTED as it
-      did when binlog is enabled.
-    */
-    if (thd->owned_gtid.sidno > 0 ||
-        thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS) {
-      *need_clear_owned_gtid_ptr = true;
+      ending_trans(thd, all) && !thd->is_operating_gtid_table_implicitly &&
+      !thd->is_operating_substatement_implicitly &&
+      !thd->is_intermediate_commit_without_binlog) {
+    if (!has_commit_order_manager(thd) &&
+        (thd->owned_gtid.sidno > 0 ||
+         thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)) {
+      need_clear_owned_gtid = true;
     }
+
     /*
       If GTID is not persisted by SE, write it to
       mysql.gtid_executed table.
@@ -1506,11 +1554,9 @@ int commit_owned_gtids(THD *thd, bool all, bool *need_clear_owned_gtid_ptr) {
     if (thd->owned_gtid.sidno > 0 && !thd->se_persists_gtid()) {
       error = gtid_state->save(thd);
     }
-  } else {
-    *need_clear_owned_gtid_ptr = false;
   }
 
-  return error;
+  return std::make_pair(error, need_clear_owned_gtid);
 }
 
 /**
@@ -1539,14 +1585,14 @@ int commit_owned_gtids(THD *thd, bool all, bool *need_clear_owned_gtid_ptr) {
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
   int error = 0;
   THD_STAGE_INFO(thd, stage_waiting_for_handler_commit);
-  bool need_clear_owned_gtid = false;
   bool run_slave_post_commit = false;
+  bool need_clear_owned_gtid = false;
   /*
     Save transaction owned gtid into table before transaction prepare
     if binlog is disabled, or binlog is enabled and log_slave_updates
     is disabled with slave SQL thread or slave worker thread.
   */
-  error = commit_owned_gtids(thd, all, &need_clear_owned_gtid);
+  std::tie(error, need_clear_owned_gtid) = commit_owned_gtids(thd, all);
 
   /*
     'all' means that this is either an explicit commit issued by
@@ -1748,6 +1794,10 @@ end:
       gtid_state->update_on_rollback(thd);
     else
       gtid_state->update_on_commit(thd);
+  } else {
+    if (has_commit_order_manager(thd) && error) {
+      gtid_state->update_on_rollback(thd);
+    }
   }
   if (run_slave_post_commit) {
     DBUG_EXECUTE_IF("slave_crash_after_commit", DBUG_SUICIDE(););
@@ -1821,6 +1871,58 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       restore_backup_ha_data = true;
     }
 
+    bool is_applier_wait_enabled = false;
+
+    /*
+      Preserve externalization and persistence order for applier threads.
+
+      The conditions should be understood as follows:
+
+      - When the binlog is enabled, this will be done from
+        MYSQL_BIN_LOG::ordered_commit and should not be done here.
+        Therefore, we have the condition
+        thd->is_current_stmt_binlog_disabled().
+
+      - This function is usually called once per statement, with
+        all=false.  We should not preserve the commit order when this
+        function is called in that context.  Therefore, we have the
+        condition ending_trans(thd, all).
+
+      - Statements such as ANALYZE/OPTIMIZE/REPAIR TABLE will call
+        ha_commit_low multiple times with all=true from within
+        mysql_admin_table, mysql_recreate_table, and
+        handle_histogram_command. After returing to
+        mysql_execute_command, it will call ha_commit_low a final
+        time.  It is only in this final call that we should preserve
+        the commit order. Therefore, we set the flag
+        thd->is_intermediate_commit_without_binlog while executing
+        mysql_admin_table, mysql_recreate_table, and
+        handle_histogram_command, clear it when returning from those
+        functions, and check the flag here in ha_commit_low().
+
+      - In all the above cases, we should make the current transaction
+        fail early in case a previous transaction has rolled back.
+        Therefore, we also invoke the commit order manager in case
+        get_rollback_status returns true.
+
+      Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
+            no-op for threads other than replication applier threads.
+    */
+    if ((!thd->is_intermediate_commit_without_binlog &&
+         thd->is_current_stmt_binlog_disabled() && ending_trans(thd, all)) ||
+        Commit_order_manager::get_rollback_status(thd)) {
+      if (Commit_order_manager::wait(thd)) {
+        error = 1;
+        /*
+          Remove applier thread from waiting in Commit Order Queue and
+          allow next applier thread to be ordered.
+        */
+        Commit_order_manager::wait_and_finish(thd, error);
+        goto err;
+      }
+      is_applier_wait_enabled = true;
+    }
+
     for (; ha_info; ha_info = ha_info_next) {
       int err;
       handlerton *ht = ha_info->ht();
@@ -1837,7 +1939,21 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
     trn_ctx->reset_scope(trx_scope);
+
+    /*
+      After ensuring externalization order for applier thread, remove it
+      from waiting (Commit Order Queue) and allow next applier thread to
+      be ordered.
+
+      Note: the calls to Commit_order_manager::wait_and_finish() will be
+            no-op for threads other than replication applier threads.
+    */
+    if (is_applier_wait_enabled) {
+      Commit_order_manager::wait_and_finish(thd, error);
+    }
   }
+
+err:
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (all) trn_ctx->cleanup();
   /*
@@ -1905,7 +2021,7 @@ int ha_rollback_low(THD *thd, bool all) {
     transaction hasn't been started in any transactional storage engine.
 
     It is possible to have a call of ha_rollback_low() while handling
-    failure from ha_prepare() and an error in Daignostics_area still
+    failure from ha_xa_prepare() and an error in Daignostics_area still
     wasn't set. Therefore it is required to check that an error in
     Diagnostics_area is set before calling the method XID_STATE::set_error().
 
@@ -1913,10 +2029,10 @@ int ha_rollback_low(THD *thd, bool all) {
       DBUG_ASSERT(m_status == DA_ERROR)
     in the method Diagnostics_area::mysql_errno().
 
-    In case ha_prepare is failed and an error wasn't set in Diagnostics_area
+    In case ha_xa_prepare is failed and an error wasn't set in Diagnostics_area
     the error ER_XA_RBROLLBACK is set in the Diagnostics_area from
     the method Sql_cmd_xa_prepare::trans_xa_prepare() when non-zero result code
-    returned by ha_prepare() is handled.
+    returned by ha_xa_prepare() is handled.
   */
   if (all && thd->transaction_rollback_request && thd->is_error())
     trn_ctx->xid_state()->set_error(thd);

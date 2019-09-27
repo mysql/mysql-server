@@ -1,0 +1,603 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+CALL mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
+SET @save_slave_parallel_workers= @@global.slave_parallel_workers;
+SET @save_slave_parallel_type= @@global.slave_parallel_type;
+SET @save_slave_preserve_commit_order= @@global.slave_preserve_commit_order;
+SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
+SET GLOBAL slave_parallel_workers= 8;
+SET GLOBAL slave_preserve_commit_order= ON;
+include/start_slave.inc
+[connection master1]
+SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
+SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
+CREATE TABLE t_part (i INTEGER) PARTITION BY RANGE(i)
+PARTITIONS 2 SUBPARTITION BY KEY(i) (
+PARTITION p0 VALUES LESS THAN(100) (
+SUBPARTITION sp00,
+SUBPARTITION sp01),
+PARTITION p1 VALUES LESS THAN(200) (
+SUBPARTITION sp10,
+SUBPARTITION sp11));
+INSERT INTO t_part VALUES(1);
+INSERT INTO t_part VALUES(101);
+INSERT INTO t_part VALUES(199);
+CREATE TABLE t_hash (a int, PRIMARY KEY (a)) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
+INSERT INTO t_hash VALUES(1);
+INSERT INTO t_hash VALUES(101);
+INSERT INTO t_hash VALUES(50);
+CREATE TABLE t_part1 (i INTEGER) PARTITION BY RANGE(i)(
+PARTITION p0 VALUES LESS THAN(100),
+PARTITION p1 VALUES LESS THAN(200),
+PARTITION p2 VALUES LESS THAN(300));
+
+# Check for ALTER TABLE TRUNCATE PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part TRUNCATE PARTITION p0, p1;;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE DISCARD TABLESPACE
+[connection master]
+FLUSH TABLES t_hash FOR EXPORT;
+# Copying the .cfg and .ibd files as backup
+UNLOCK TABLES;
+[connection slave]
+FLUSH TABLES t_hash FOR EXPORT;
+# Copying the .cfg and .ibd files as backup
+UNLOCK TABLES;
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_hash DISCARD TABLESPACE;;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE IMPORT TABLESPACE
+[connection master]
+# Moving the .cfg and .ibd files back from backup on master
+[connection slave]
+# Moving the .cfg and .ibd files back from backup on slave
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_hash IMPORT TABLESPACE;;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't_hash'
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE COALESCE PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_hash COALESCE PARTITION 1;;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 has one value]
+include/assert.inc [Verify table t2 is empty]
+include/assert.inc [Verify both partitions exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for ALTER TABLE ANALYZE PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part ANALYZE PARTITION p0;;
+Table	Op	Msg_type	Msg_text
+test.t_part	analyze	status	OK
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE OPTIMIZE PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part OPTIMIZE PARTITION p0, p1;;
+Table	Op	Msg_type	Msg_text
+test.t_part	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t_part	optimize	status	OK
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE REPAIR PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part REPAIR PARTITION p0, p1;;
+Table	Op	Msg_type	Msg_text
+test.t_part	repair	status	OK
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2; truncate table t_part;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE REMOVE PARTITIONING
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t_nopart1 LIKE t_part;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;  ALTER TABLE t_nopart1 REMOVE PARTITIONING;;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+include/assert.inc [Verify all partitions exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2; DROP TABLE t_nopart1;;
+include/sync_slave_sql_with_master.inc
+
+# Check for ALTER TABLE EXCHANGE PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; INSERT INTO t_part VALUES(1),(2),(101),(102),(199); CREATE TABLE t_nopart1 LIKE t_part; ALTER TABLE t_nopart1 REMOVE PARTITIONING;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part EXCHANGE PARTITION sp00 WITH TABLE t_nopart1;;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2; DROP TABLE t_nopart1;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE REBUILD PARTITON
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t_nopart2 LIKE t_part; ALTER TABLE t_nopart2 REMOVE PARTITIONING; INSERT INTO t_nopart2 VALUES(1000); INSERT INTO t_nopart2 VALUES(1); ALTER TABLE t_part EXCHANGE PARTITION sp01 WITH TABLE t_nopart2 WITHOUT VALIDATION;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part REBUILD PARTITION p0;;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+include/rpl_connect.inc [creating master]
+
+# Check for ALTER TABLE REORGANIZE PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT;ALTER TABLE t_part1 REORGANIZE PARTITION p1,p2 INTO (PARTITION p3 VALUES LESS THAN (300));;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+include/assert.inc [Verify Partition p3 doesnot exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for ALTER TABLE ADD PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part ADD PARTITION (PARTITION p3 VALUES LESS THAN (300));;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+include/assert.inc [Verify Partition p3 doesnot exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+drop table t1; drop table t2;;
+include/sync_slave_sql_with_master.inc
+
+# Check for ALTER TABLE DROP PARTITION
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_part DROP PARTITION p3;;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+include/assert.inc [Verify Partition p3 exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;;
+DROP TABLE t1,t2,t_hash,t_part,t_part1,t_nopart2;;
+include/sync_slave_sql_with_master.inc
+
+# Cleanup
+
+[connection master1]
+SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL slave_parallel_type=@save_slave_parallel_type;
+SET GLOBAL slave_parallel_workers=@save_slave_parallel_workers;
+SET GLOBAL slave_preserve_commit_order=@save_slave_preserve_commit_order;
+include/start_slave.inc
+include/rpl_end.inc

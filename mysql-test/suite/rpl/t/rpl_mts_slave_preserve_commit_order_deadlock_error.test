@@ -160,7 +160,7 @@ COMMIT;
 --echo #      to fail with 'ER_DUP_ENTRY' error (after the worker2
 --echo #      detected the 'commit order deadlock').
 --echo #
---let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
+--let $slave_sql_errno=1062,3030 # ER_DUP_ENTRY, ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 --source include/wait_for_slave_sql_error.inc
 
 --echo #

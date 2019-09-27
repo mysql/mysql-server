@@ -3531,6 +3531,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       */
       const bool force_server_crash_dbug = false;
       DBUG_EXECUTE_IF("crash_now", DBUG_ASSERT(force_server_crash_dbug););
+      DBUG_EXECUTE_IF("crash_now_safe", DBUG_SUICIDE(););
 #endif
 
       break;

@@ -1,0 +1,401 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression("Slave SQL.*:.* Could not execute Write_rows event on table.*");
+CALL mtr.add_suppression("Slave SQL.*:.*Duplicate entry '3' for key.*");
+CALL mtr.add_suppression("Slave SQL.*:.*Slave worker has stopped after at least one previous worker encountered an error when slave-preserve-commit-order was enabled.*");
+CALL mtr.add_suppression("Slave SQL .*Deadlock found when trying to get lock; try restarting transaction.*");
+# Check EEREE
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+DELETE FROM t1 WHERE a = 4;
+DELETE FROM t1 WHERE a = 5;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Check EEREW
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (4);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+DELETE FROM t1 WHERE a = 4;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Check EERWE
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (5);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+DELETE FROM t1 WHERE a = 5;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Check EERWW
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Check EWREE
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+DELETE FROM t1 WHERE a = 4;
+DELETE FROM t1 WHERE a = 5;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Check EWREW
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (4);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+DELETE FROM t1 WHERE a = 4;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Check EWRWE
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (5);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+DELETE FROM t1 WHERE a = 5;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Check EWRWW
+[connection master]
+CREATE TABLE t1(a INT PRIMARY KEY);
+include/sync_slave_sql_with_master.inc
+# Execute transactions on slave
+[connection slave]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+# Block transaction that needs to rollback
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (3);
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+[connection slave]
+# Commit transaction to make 3rd worker thread rollback
+[connection slave1]
+COMMIT;
+# Wait until slave worker has failed due to duplicate entry
+include/wait_for_slave_param.inc [Last_Errno]
+# Release other worker threads
+[connection slave]
+ROLLBACK;
+# Wait for all worker threads to exit
+include/wait_for_slave_param.inc [Slave_SQL_Running]
+include/assert.inc [Verify table t1 has 3 values]
+# Delete conflicting transactions on slave
+[connection slave]
+BEGIN;
+DELETE FROM t1 WHERE a = 3;
+COMMIT;
+# Start slave sql thread
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Verify table t1 has 5 rows]
+[connection master]
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

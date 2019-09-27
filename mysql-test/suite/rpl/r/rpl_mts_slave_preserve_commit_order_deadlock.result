@@ -17,6 +17,7 @@ SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
 SET GLOBAL slave_parallel_workers = 3;
 SET GLOBAL slave_preserve_commit_order = ON;
 SET GLOBAL innodb_lock_wait_timeout = 1000;
+[connection slave]
 #
 # Case 1: Verify slave can find the deadlock when DELETE is waiting
 # for its turn to commit

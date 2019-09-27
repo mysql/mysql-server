@@ -41,7 +41,7 @@ SET GLOBAL debug = @save_debug;
 include/save_master_pos.inc
 [connection slave]
 UNLOCK TABLES;
-include/wait_for_slave_sql_error.inc [errno=1062]
+include/wait_for_slave_sql_error.inc [errno=1062,3030 # ER_DUP_ENTRY, ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR]
 include/assert.inc ['Rows have been inserted to table t_w1']
 include/assert.inc ['No rows have been inserted to table t_w2']
 include/assert.inc ['No rows have been inserted to table t_w3']

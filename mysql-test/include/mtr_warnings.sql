@@ -265,6 +265,11 @@ INSERT INTO global_suppressions VALUES
  */
  ("The SSL library function CRYPTO_set_mem_functions failed"),
 
+ /*
+   binlog-less slave (WL#7846)
+ */
+ ("The transaction owned GTID is already in the gtid_executed table"),
+
  ("THE_LAST_SUPPRESSION");
 
 

@@ -438,6 +438,7 @@ THD::THD(bool enable_plugins)
 #endif
       skip_gtid_rollback(false),
       is_commit_in_middle_of_statement(false),
+      is_intermediate_commit_without_binlog(false),
       has_gtid_consistency_violation(false),
       main_da(false),
       m_parser_da(false),
@@ -2631,13 +2632,6 @@ bool THD::rpl_unflag_detached_engine_ha_data() const {
   return rli ? rli->unflag_detached_engine_ha_data() : false;
 }
 
-/**
-  Determine if binlogging is disabled for this session
-  @retval 0 if the current statement binlogging is disabled
-  (could be because of binlog closed/binlog option
-  is set to false).
-  @retval 1 if the current statement will be binlogged
-*/
 bool THD::is_current_stmt_binlog_disabled() const {
   return (!(variables.option_bits & OPTION_BIN_LOG) ||
           !mysql_bin_log.is_open());

@@ -73,8 +73,9 @@
 #include "sql/protocol_classic.h"
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
-#include "sql/sp.h"           // Sroutine_hash_entry
-#include "sql/sp_rcontext.h"  // sp_rcontext
+#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/sp.h"                              // Sroutine_hash_entry
+#include "sql/sp_rcontext.h"                     // sp_rcontext
 #include "sql/sql_alter.h"
 #include "sql/sql_alter_instance.h"  // Alter_instance
 #include "sql/sql_backup_lock.h"     // acquire_shared_backup_lock
@@ -544,6 +545,7 @@ static bool mysql_admin_table(
     being updated.
   */
   Disable_autocommit_guard autocommit_guard(thd);
+
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   TABLE_LIST *table;
@@ -823,8 +825,13 @@ static bool mysql_admin_table(
       length = snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                         table_name);
       protocol->store_string(buff, length, system_charset_info);
-      trans_commit_stmt(thd, ignore_grl_on_analyze);
-      trans_commit(thd, ignore_grl_on_analyze);
+      {
+        /* Prevent intermediate commits to invoke commit order */
+        Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
+            thd);
+        trans_commit_stmt(thd, ignore_grl_on_analyze);
+        trans_commit(thd, ignore_grl_on_analyze);
+      }
       /* Make sure this table instance is not reused after the operation. */
       if (table->table) table->table->m_needs_reopen = true;
       close_thread_tables(thd);
@@ -1067,14 +1074,19 @@ static bool mysql_admin_table(
 
         /* Store the original value of alter_info->flags */
         save_flags = alter_info->flags;
-        /*
-          This is currently used only by InnoDB. ha_innobase::optimize() answers
-          "try with alter", so here we close the table, do an ALTER TABLE,
-          reopen the table and do ha_innobase::analyze() on it.
-          We have to end the row, so analyze could return more rows.
-        */
-        trans_commit_stmt(thd, ignore_grl_on_analyze);
-        trans_commit(thd, ignore_grl_on_analyze);
+        {
+          /* Prevent intermediate commits to invoke commit order */
+          Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
+              thd);
+          /*
+            This is currently used only by InnoDB. ha_innobase::optimize()
+            answers "try with alter", so here we close the table, do an ALTER
+            TABLE, reopen the table and do ha_innobase::analyze() on it. We have
+            to end the row, so analyze could return more rows.
+          */
+          trans_commit_stmt(thd, ignore_grl_on_analyze);
+          trans_commit(thd, ignore_grl_on_analyze);
+        }
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
@@ -1120,8 +1132,13 @@ static bool mysql_admin_table(
         */
         if (thd->get_stmt_da()->is_ok())
           thd->get_stmt_da()->reset_diagnostics_area();
-        trans_commit_stmt(thd, ignore_grl_on_analyze);
-        trans_commit(thd, ignore_grl_on_analyze);
+        {
+          /* Prevent intermediate commits to invoke commit order */
+          Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
+              thd);
+          trans_commit_stmt(thd, ignore_grl_on_analyze);
+          trans_commit(thd, ignore_grl_on_analyze);
+        }
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
         /* Clear references to TABLE and MDL_ticket after releasing them. */
@@ -1293,6 +1310,20 @@ static bool mysql_admin_table(
 
       if (trans_rollback_stmt(thd) || trans_rollback_implicit(thd)) goto err;
     } else {
+      bool interm_commit_status = true;
+      /*
+        Allow intermediate commits to invoke commit order for OPTIMIZE TABLE
+        and ALTER ADMIN PARTITION commands.
+      */
+      if (strcmp(operator_name, "optimize") == 0 ||
+          strcmp(operator_name, "analyze") == 0 ||
+          strcmp(operator_name, "repair") == 0) {
+        interm_commit_status = false;
+      }
+
+      /* Prevent intermediate commits to invoke commit order */
+      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
+          thd, interm_commit_status);
       if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
           trans_commit_implicit(thd, ignore_grl_on_analyze))
         goto err;
@@ -1427,6 +1458,9 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
       res = false;
     } else {
       Disable_autocommit_guard autocommit_guard(thd);
+      /* Prevent intermediate commits to invoke commit order */
+      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
+          thd);
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       switch (get_histogram_command()) {
         case Histogram_command::UPDATE_HISTOGRAM:

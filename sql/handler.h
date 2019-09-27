@@ -6728,7 +6728,9 @@ int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock = false);
 int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);
-int ha_prepare(THD *thd);
+
+/* interface to handlerton function to prepare XA transaction */
+int ha_xa_prepare(THD *thd);
 
 /**
   recover() step of xa.
@@ -6824,7 +6826,7 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
 
-int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
+std::pair<int, bool> commit_owned_gtids(THD *thd, bool all);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
 
 /** Generate a string representation of an `ha_rkey_function` enum value.

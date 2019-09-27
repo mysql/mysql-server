@@ -45,6 +45,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
+#include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"            // TC_LOG
 #include "sql/transaction_info.h"  // Transaction_ctx
@@ -263,9 +264,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int new_file_impl(bool need_lock,
                     Format_description_log_event *extra_description_event);
 
-  /** Manage the stages in ordered_commit. */
-  Stage_manager stage_manager;
-
   bool open(PSI_file_key log_file_key, const char *log_name,
             const char *new_name, uint32 new_index_number);
   bool init_and_set_log_file_name(const char *log_name, const char *new_name,
@@ -317,7 +315,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   binary_log::enum_binlog_checksum_alg relay_log_checksum_alg;
 
-  MYSQL_BIN_LOG(uint *sync_period);
+  MYSQL_BIN_LOG(uint *sync_period, bool relay_log = false);
   ~MYSQL_BIN_LOG();
 
   void set_psi_keys(
@@ -461,16 +459,169 @@ class MYSQL_BIN_LOG : public TC_LOG {
   Gtid_set *previous_gtid_set_relaylog;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
-  bool change_stage(THD *thd, Stage_manager::StageID stage, THD *queue,
-                    mysql_mutex_t *leave, mysql_mutex_t *enter);
+
+  /**
+    Enter a stage of the ordered commit procedure.
+
+    Entering is stage is done by:
+
+    - Atomically entering a queue of THD objects (which is just one for
+      the first phase).
+
+    - If the queue was empty, the thread is the leader for that stage
+      and it should process the entire queue for that stage.
+
+    - If the queue was not empty, the thread is a follower and can go
+      waiting for the commit to finish.
+
+    The function will lock the stage mutex if the calling thread was designated
+    leader for the phase.
+
+    @param[in] thd    Session structure
+    @param[in] stage  The stage to enter
+    @param[in] queue  Thread queue for the stage
+    @param[in] leave_mutex  Mutex that will be released when changing stage
+    @param[in] enter_mutex  Mutex that will be taken when changing stage
+
+    @retval true  In case this thread did not become leader, the function
+                  returns true *after* the leader has completed the commit
+                  on its behalf, so the thread should continue doing the
+                  thread-local processing after the commit
+                  (i.e. call finish_commit).
+
+    @retval false The thread is the leader for the stage and should do
+                  the processing.
+  */
+  bool change_stage(THD *thd, Commit_stage_manager::StageID stage, THD *queue,
+                    mysql_mutex_t *leave_mutex, mysql_mutex_t *enter_mutex);
   std::pair<int, my_off_t> flush_thread_caches(THD *thd);
   int flush_cache_to_file(my_off_t *flush_end_pos);
   int finish_commit(THD *thd);
   std::pair<bool, bool> sync_binlog_file(bool force);
   void process_commit_stage_queue(THD *thd, THD *queue);
   void process_after_commit_stage_queue(THD *thd, THD *first);
+
+  /**
+    Set thread variables used while flushing a transaction.
+
+    @param[in] thd  thread whose variables need to be set
+    @param[in] all   This is @c true if this is a real transaction commit, and
+                 @c false otherwise.
+    @param[in] skip_commit
+                 This is @c true if the call to @c ha_commit_low should
+                 be skipped (it is handled by the caller somehow) and @c
+                 false otherwise (the normal case).
+  */
+  void init_thd_variables(THD *thd, bool all, bool skip_commit);
+
+  /**
+    Fetch and empty BINLOG_FLUSH_STAGE and COMMIT_ORDER_FLUSH_STAGE flush queues
+    and flush transactions to the disk, and unblock threads executing slave
+    preserve commit order.
+
+    @param[in] check_and_skip_flush_logs
+                 if false then flush prepared records of transactions to the log
+                 of storage engine.
+                 if true then flush prepared records of transactions to the log
+                 of storage engine only if COMMIT_ORDER_FLUSH_STAGE queue is
+                 non-empty.
+
+    @return Pointer to the first session of the BINLOG_FLUSH_STAGE stage queue.
+  */
+  THD *fetch_and_process_flush_stage_queue(
+      const bool check_and_skip_flush_logs = false);
+
+  /**
+    Execute the flush stage.
+
+    @param[out] total_bytes_var Pointer to variable that will be set to total
+                                number of bytes flushed, or NULL.
+
+    @param[out] rotate_var Pointer to variable that will be set to true if
+                           binlog rotation should be performed after releasing
+                           locks. If rotate is not necessary, the variable will
+                           not be touched.
+
+    @param[out] out_queue_var  Pointer to the sessions queue in flush stage.
+
+    @return Error code on error, zero on success
+  */
   int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
                                 THD **out_queue_var);
+
+  /**
+    Flush and commit the transaction.
+
+    This will execute an ordered flush and commit of all outstanding
+    transactions and is the main function for the binary log group
+    commit logic. The function performs the ordered commit in four stages.
+
+    Pre-condition: transactions should have called ha_prepare_low, using
+                   HA_IGNORE_DURABILITY, before entering here.
+
+    Stage#0 implements slave-preserve-commit-order for applier threads that
+    write the binary log. i.e. it forces threads to enter the queue in the
+    correct commit order.
+
+    The stage#1 flushes the caches to the binary log and under
+    LOCK_log and marks all threads that were flushed as not pending.
+
+    The stage#2 syncs the binary log for all transactions in the group.
+
+    The stage#3 executes under LOCK_commit and commits all transactions in
+    order.
+
+    There are three queues of THD objects: one for each stage.
+    The Commit_order_manager maintains it own queue and its own order for the
+    commit. So Stage#0 doesn't maintain separate StageID.
+
+    When a transaction enters a stage, it adds itself to a queue. If the queue
+    was empty so that this becomes the first transaction in the queue, the
+    thread is the *leader* of the queue. Otherwise it is a *follower*. The
+    leader will do all work for all threads in the queue, and the followers
+    will wait until the last stage is finished.
+
+    Stage 0 (SLAVE COMMIT ORDER):
+    1. If slave-preserve-commit-order and is slave applier worker thread, then
+       waits until its turn to commit i.e. till it is on the top of the queue.
+    2. When it reaches top of the queue, it signals next worker in the commit
+       order queue to awake.
+
+    Stage 1 (FLUSH):
+    1. Sync the engines (ha_flush_logs), since they prepared using non-durable
+       settings (HA_IGNORE_DURABILITY).
+    2. Generate GTIDs for all transactions in the queue.
+    3. Write the session caches for all transactions in the queue to the binary
+       log.
+    4. Increment the counter of prepared XIDs.
+
+    Stage 2 (SYNC):
+    1. If it is time to sync, based on the sync_binlog option, sync the binlog.
+    2. If sync_binlog==1, signal dump threads that they can read up to the
+       position after the last transaction in the queue
+
+    Stage 3 (COMMIT):
+    This is performed by each thread separately, if binlog_order_commits=0.
+    Otherwise by the leader does it for all threads.
+    1. Call the after_sync hook.
+    2. update the max_committed counter in the dependency_tracker
+    3. call ha_commit_low
+    4. Call the after_commit hook
+    5. Update gtids
+    6. Decrement the counter of prepared transactions
+
+    If the binary log needs to be rotated, it is done after this. During
+    rotation, it takes a lock that prevents new commit groups from executing the
+    flush stage, and waits until the counter of prepared transactions becomes 0,
+    before it creates the new file.
+
+    @param[in] thd Session to commit transaction for
+    @param[in] all This is @c true if this is a real transaction commit, and
+                   @c false otherwise.
+    @param[in] skip_commit
+                   This is @c true if the call to @c ha_commit_low should
+                   be skipped and @c false otherwise (the normal case).
+  */
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
   void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log);
   bool do_write_cache(Binlog_cache_storage *cache,
@@ -659,6 +810,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline char *get_log_fname() { return log_file_name; }
   const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
+  inline mysql_mutex_t *get_commit_lock() { return &LOCK_commit; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }
 

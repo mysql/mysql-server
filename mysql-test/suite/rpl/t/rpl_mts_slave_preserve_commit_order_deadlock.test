@@ -46,6 +46,7 @@ SET GLOBAL slave_preserve_commit_order = ON;
 # Set it a long time to guarantee it doens't report an timeout error
 SET GLOBAL innodb_lock_wait_timeout = 1000;
 
+--source include/rpl_connection_slave.inc
 
 --echo #
 --echo # Case 1: Verify slave can find the deadlock when DELETE is waiting

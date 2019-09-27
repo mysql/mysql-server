@@ -121,7 +121,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #endif
                param_id, param_channel),
       replicate_same_server_id(::replicate_same_server_id),
-      relay_log(&sync_relaylog_period),
+      relay_log(&sync_relaylog_period, true),
       is_relay_log_recovery(is_slave_recovery),
       save_temporary_tables(nullptr),
       mi(nullptr),
@@ -1577,7 +1577,6 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     /* name of the index file if opt_relaylog_index_name is set*/
     const char *log_index_name;
 
-    relay_log.is_relay_log = true;
     ln_without_channel_name =
         relay_log.generate_name(opt_relay_logname, "-relay-bin", buf);
 
