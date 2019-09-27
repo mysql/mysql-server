@@ -26,50 +26,103 @@ max-time: 600
 type: bench  # Always record result
 
 cmd: testDowngrade
-args: -n Upgrade_NR1 T1
+args: -n Downgrade_NR1 T1
 max-time: 600
 
 cmd: testDowngrade
-args: -n Upgrade_NR2 T1
+args: -n Downgrade_NR2 T1
 max-time: 600
 
 cmd: testDowngrade
-args: -n Upgrade_NR3 T1
+args: -n Downgrade_NR3 T1
 max-time: 600
 
 cmd: testDowngrade
-args: -n Upgrade_FS T1
+args: -n Downgrade_FS T1
 max-time: 600
 
 cmd: testDowngrade
-args: -n Upgrade_Traffic T1
+args: -n Downgrade_Traffic T1
 max-time: 1200
 
 cmd: testDowngrade
-args: -n Upgrade_Traffic_FS T1
+args: -n Downgrade_Traffic_FS T1
 max-time: 1200
 
 cmd: testDowngrade
-args: -n Bug14702377 T1
+args: -n Downgrade_Bug14702377 T1
 max-time: 600
 
 cmd: testDowngrade
-args: -n Upgrade_Api_Only T1
+args: -n Downgrade_Api_Only T1
 max-time: 1200
 
 cmd: testDowngrade
-args: -n Upgrade_Api_Before_NR1 T2
+args: -n Downgrade_Api_Before_NR1 T2
 max-time: 1200
 
 cmd: testDowngrade
-args: -n Upgrade_Api_NDBD_MGMD T1
+args: -n Downgrade_Api_NDBD_MGMD T1
 max-time: 1200
 
 cmd: testDowngrade
-args: -n Upgrade_Mixed_MGMD_API_NDBD T2
+args: -n Downgrade_Mixed_MGMD_API_NDBD T2
 max-time: 1200
 
 cmd: testDowngrade
-args: -n Upgrade_SR_ManyTablesMaxFrag T1
+args: -n Downgrade_SR_ManyTablesMaxFrag T1
 max-time: 6000
 
+#
+# Downgrade tests tagged with "WithMGMDStart"
+#
+cmd: testDowngrade
+args: -n Downgrade_NR1_WithMGMDStart T1
+max-time: 600
+
+cmd: testDowngrade
+args: -n Downgrade_Api_Before_NR1_WithMGMDStart T2
+max-time: 1200
+
+#
+# Downgrade tests tagged with "WithMGMDInitialStart"
+#
+cmd: testDowngrade
+args: -n Downgrade_NR2_WithMGMDInitialStart T1
+max-time: 600
+
+cmd: testDowngrade
+args: -n Downgrade_NR3_WithMGMDInitialStart T1
+max-time: 600
+
+cmd: testDowngrade
+args: -n Downgrade_FS_WithMGMDInitialStart T1
+max-time: 600
+
+cmd: testDowngrade
+args: -n Downgrade_Traffic_WithMGMDInitialStart T1
+max-time: 1200
+
+cmd: testDowngrade
+args: -n Downgrade_Traffic_FS_WithMGMDInitialStart T1
+max-time: 1200
+
+cmd: testDowngrade
+args: -n Downgrade_Bug14702377_WithMGMDInitialStart T1
+max-time: 600
+
+cmd: testDowngrade
+args: -n Downgrade_Api_Only_WithMGMDInitialStart T1
+max-time: 1200
+
+cmd: testDowngrade
+args: -n Downgrade_Api_NDBD_MGMD_WithMGMDInitialStart T1
+max-time: 1200
+
+cmd: testDowngrade
+args: -n Downgrade_Mixed_MGMD_API_NDBD_WithMGMDInitialStart T2
+max-time: 1200
+
+cmd: testDowngrade
+args: -n Downgrade_SR_ManyTablesMaxFrag_WithMGMDInitialStart T1
+max-time: 6000
