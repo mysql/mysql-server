@@ -131,18 +131,30 @@ MACRO (MYSQL_CHECK_SSL)
       IF(WIN32 AND NOT OPENSSL_ROOT_DIR)
         # We want to be able to support 32bit client-only builds
         # FindOpenSSL.cmake will look for 32bit before 64bit ...
+        # Note that several packages may come with ssl headers,
+        # e.g. Strawberry Perl, so ignore some system paths below.
         FILE(TO_CMAKE_PATH "$ENV{PROGRAMFILES}" _programfiles)
         IF(SIZEOF_VOIDP EQUAL 8)
           FIND_PATH(OPENSSL_WIN32
             NAMES "include/openssl/ssl.h"
-            PATHS "${_programfiles}/OpenSSL-Win32" "C:/OpenSSL-Win32/")
+            PATHS "${_programfiles}/OpenSSL-Win32" "C:/OpenSSL-Win32/"
+            NO_SYSTEM_ENVIRONMENT_PATH
+            NO_CMAKE_SYSTEM_PATH
+            )
           FIND_PATH(OPENSSL_WIN64
             NAMES  "include/openssl/ssl.h"
-            PATHS "${_programfiles}/OpenSSL-Win64" "C:/OpenSSL-Win64/")
+            PATHS "${_programfiles}/OpenSSL-Win64" "C:/OpenSSL-Win64/"
+            NO_SYSTEM_ENVIRONMENT_PATH
+            NO_CMAKE_SYSTEM_PATH
+            )
           MESSAGE(STATUS "OPENSSL_WIN32 ${OPENSSL_WIN32}")
           MESSAGE(STATUS "OPENSSL_WIN64 ${OPENSSL_WIN64}")
-          IF(OPENSSL_WIN32 AND OPENSSL_WIN64)
-            MESSAGE(STATUS "Found both 32bit and 64bit")
+          IF(OPENSSL_WIN64)
+            IF(OPENSSL_WIN32)
+              MESSAGE(STATUS "Found both 32bit and 64bit")
+            ELSE()
+              MESSAGE(STATUS "Found 64bit")
+            ENDIF()
             SET(OPENSSL_ROOT_DIR ${OPENSSL_WIN64})
             MESSAGE(STATUS "OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR}")
           ENDIF()
