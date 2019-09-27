@@ -437,6 +437,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
+    CFG_NODE_DEDICATED,
+    "Dedicated",
+    DB_TOKEN,
+    "The node id for this node will only be handed out to connections that "
+    "explicitly request it. Data nodes that request 'any' nodeid will not be "
+    "able to use this one. Can be used when HostName is not enough to "
+    "distinguish different processes, and one runs several data nodes on same "
+    "host. There is typically no need to use this option since ven if one run "
+    "several data nodes on same host it is enough to always use --ndb-nodeid "
+    "option when starting data nodes even without this option. "
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_NODE_SYSTEM,
     "System",
     DB_TOKEN,
@@ -2625,6 +2643,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
+    CFG_NODE_DEDICATED,
+    "Dedicated",
+    API_TOKEN,
+    "The node id for this node will only be handed out to connections that "
+    "explicitly request it. Api client that request 'any' nodeid will not be "
+    "able to use this one. Can be used when HostName is not enough to "
+    "distinguish different processes, and one runs a server process like "
+    "mysqld on same host as some other ndb client programs and want to avoid "
+    "the client program steal a node id dedicated to mysqld while the mysqld "
+    "is not connected.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_NODE_SYSTEM,
     "System",
     API_TOKEN,
@@ -2924,6 +2960,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     "",
     0, 0 },
+
+  {
+    CFG_NODE_DEDICATED,
+    "Dedicated",
+    MGM_TOKEN,
+    "The node id for this node will only be handed out to connections that "
+    "explicitly request it. Management servers that request 'any' nodeid will "
+    "not be able to use this one. Can be used when HostName is not enough to "
+    "distinguish different processes, and one runs several management "
+    "servers on same host, which should typically only be the case in test "
+    "clusters.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
 
   {
     CFG_NODE_DATADIR,

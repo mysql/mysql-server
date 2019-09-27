@@ -4033,6 +4033,13 @@ MgmtSrvr::find_node_type(NodeId node_id,
       }
       exact_match = true;
     }
+    unsigned dedicated_node = 0;
+    iter.get(CFG_NODE_DEDICATED, &dedicated_node);
+    if (dedicated_node && id != node_id)
+    {
+      // id is only handed out if explicitly requested.
+      continue;
+    }
     /*
       Insert this node in the nodes list sorted with the
       exact matches ahead of the open nodes

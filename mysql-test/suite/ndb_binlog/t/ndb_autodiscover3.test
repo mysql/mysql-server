@@ -16,11 +16,6 @@ call mtr.add_suppression("cluster disconnect An incident event has been written"
 connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 
-# Workaround for Bug#27644
-# ndb: connecting api node/mysqld may "steal" node_id from running mysqld
-# - let ndb_waiter use a fixed node id so "steal" cannot happen
---let connect_str = "nodeid=255;$NDB_CONNECTSTRING"
-
 #
 # Transaction ongoing while cluster is restarted
 #
@@ -31,7 +26,7 @@ begin;
 insert into t1 values (1);
 
 --exec $NDB_MGM --no-defaults -e "all restart" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
 
 # Wait for mysqld to reconnect and exit from readonly mode
 --connection con1
@@ -64,7 +59,7 @@ select * from t2 order by a limit 3;
 --source include/ndb_backup_id.inc
 --enable_query_log
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
 # now make a backup with explicit id to restore the backup id after initial start
 --inc $the_backup_id
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
@@ -98,7 +93,7 @@ reset master;
 --source include/ndb_backup_id.inc
 --enable_query_log
 --exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER --no-defaults -c $connect_str >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
 # now make a backup with explicit id to restore the backup id after initial start
 --inc $the_backup_id
 --exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
