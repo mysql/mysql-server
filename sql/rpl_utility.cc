@@ -65,6 +65,7 @@ struct TYPELIB;
 #include "sql/rpl_slave.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
+#include "sql/sql_lex.h"  // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
@@ -1223,4 +1224,33 @@ THD_instance_guard::~THD_instance_guard() {
 }
 
 THD_instance_guard::operator THD *() { return this->m_target; }
+
+bool evaluate_command_row_only_restrictions(THD *thd) {
+  LEX *const lex = thd->lex;
+
+  switch (lex->sql_command) {
+    case SQLCOM_UPDATE:
+    case SQLCOM_INSERT:
+    case SQLCOM_INSERT_SELECT:
+    case SQLCOM_DELETE:
+    case SQLCOM_LOAD:
+    case SQLCOM_REPLACE:
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_UPDATE_MULTI: {
+      return true;
+    }
+    case SQLCOM_CREATE_TABLE: {
+      return (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
+    }
+    case SQLCOM_DROP_TABLE: {
+      return (lex->drop_temporary);
+    }
+    default:
+      break;
+  }
+
+  return false;
+}
+
 #endif  // MYSQL_SERVER

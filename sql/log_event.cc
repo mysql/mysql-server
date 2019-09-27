@@ -4190,7 +4190,8 @@ void Query_log_event::print_query_header(
   *end++ = '\n';
   DBUG_ASSERT(end < buff + sizeof(buff));
   my_b_write(file, (uchar *)buff, (uint)(end - buff));
-  if ((!print_event_info->thread_id_printed ||
+  if (!print_event_info->require_row_format &&
+      (!print_event_info->thread_id_printed ||
        ((common_header->flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
         thread_id != print_event_info->thread_id))) {
     // If --short-form, print deterministic value instead of pseudo_thread_id.
@@ -4534,21 +4535,24 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
   {
     Applier_security_context_guard security_context{rli, thd};
-    if (!security_context.skip_priv_checks() &&
-        !security_context.has_access({SUPER_ACL}) &&
-        !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
-        !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
-      rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
-                  ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
-                  "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
-      thd->is_slave_error = true;
-      goto end;
+    if (!thd->variables.require_row_format) {
+      if (!security_context.skip_priv_checks() &&
+          !security_context.has_access({SUPER_ACL}) &&
+          !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
+          !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
+        rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
+                    ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
+                    "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+        thd->is_slave_error = true;
+        goto end;
+      }
+      thd->variables.pseudo_thread_id = thread_id;  // for temp tables
     }
+
     thd->set_time(&(common_header->when));
     thd->set_query(query_arg, q_len_arg);
     thd->set_query_for_display(query_arg, q_len_arg);
     thd->set_query_id(next_query_id());
-    thd->variables.pseudo_thread_id = thread_id;  // for temp tables
     attach_temp_tables_worker(thd, rli);
     DBUG_PRINT("query", ("%s", thd->query().str));
 
@@ -5397,7 +5401,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli) {
 
   /* If this event comes from ourself, there is no cleaning task to perform. */
   if (server_id != (uint32)::server_id) {
-    if (created) {
+    if (created && !thd->variables.require_row_format) {
       ret = close_temporary_tables(thd);
       cleanup_load_tmpdir();
     } else {
@@ -13659,4 +13663,56 @@ size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
   }
   *buffer++ = quote_char;
   return ++written;
+}
+
+std::pair<bool, binary_log::Log_event_basic_info> extract_log_event_basic_info(
+    Log_event *log_event) {
+  DBUG_TRACE;
+
+  binary_log::Log_event_basic_info event_info;
+  event_info.query_length = 0;
+  event_info.event_type = log_event->get_type_code();
+
+  if (binary_log::QUERY_EVENT == event_info.event_type) {
+    Query_log_event *qlog_event = static_cast<Query_log_event *>(log_event);
+    event_info.query = qlog_event->query;
+    if (event_info.query != nullptr)
+      event_info.query_length = strlen(event_info.query);
+    if (event_info.query_length == 0) {
+      DBUG_ASSERT(event_info.query == nullptr); /* purecov: inspected */
+      return std::make_pair(true, event_info);  /* purecov: inspected */
+    }
+  }
+  event_info.ignorable_event = log_event->is_ignorable_event();
+  return std::make_pair(false, event_info);
+}
+
+std::pair<bool, binary_log::Log_event_basic_info> extract_log_event_basic_info(
+    const char *buf, size_t length,
+    const binary_log::Format_description_event *fd_event) {
+  DBUG_TRACE;
+
+  binary_log::Log_event_basic_info event_info;
+  event_info.query_length = 0;
+
+  uint header_size = fd_event->common_header_len;
+  const char *query = nullptr;
+
+  /* Error if the event content is smaller than header size for the format */
+  if (length < header_size) return std::make_pair(true, event_info);
+
+  event_info.event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
+
+  if (binary_log::QUERY_EVENT == event_info.event_type) {
+    event_info.query_length =
+        Query_log_event::get_query(buf, length, fd_event, &query);
+    if (event_info.query_length == 0) {
+      DBUG_ASSERT(query == nullptr);           /* purecov: inspected */
+      return std::make_pair(true, event_info); /* purecov: inspected */
+    }
+    event_info.query = query;
+  }
+  event_info.ignorable_event =
+      uint2korr(buf + FLAGS_OFFSET) & LOG_EVENT_IGNORABLE_F;
+  return std::make_pair(false, event_info);
 }

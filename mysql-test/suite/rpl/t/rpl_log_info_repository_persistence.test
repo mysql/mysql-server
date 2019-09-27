@@ -402,7 +402,7 @@ STOP SLAVE;
 # NULL value is accepted
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
 # and NON-NULL value is accepted
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, REQUIRE_ROW_FORMAT=1, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 FLUSH RELAY LOGS;
 START SLAVE;
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
@@ -477,6 +477,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = host_name_has_@
 --let $slave_server_num = 2
+--let $rpl_server_restart_parameters = --skip_slave_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --let $priv_checks_username = replication_applier
 --let $priv_checks_hostname = l@calhost
@@ -499,6 +500,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = anonymous_user
 --let $slave_server_num = 2
+--let $rpl_server_restart_parameters = --skip_slave_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --source $MYSQL_TMP_DIR/assert_default_channel_invalid_config_with_file_repo.inc
 #      c. SLAVE START will result in failure due to invalid config.
@@ -507,7 +509,7 @@ START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, REQUIRE_ROW_FORMAT=1, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
 --echo # TC.E.F6. privilege_checks_user is a non existent user.
@@ -520,6 +522,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=
 #         ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --let $sub_testcase = nonexist_user
 --let $slave_server_num = 2
+--let $rpl_server_restart_parameters = --skip_slave_start
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 --let $priv_checks_username = replication_applier_nonexist
 --let $priv_checks_hostname = localhost
@@ -577,7 +580,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 #      repo. "ch1" has not PRIVILEGE_CHECKS_USER, "ch2" has
 #      'replication_applier'@'localhost' as PRIVILEGE_CHECK_USER.
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, REQUIRE_ROW_FORMAT=1, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
 FLUSH RELAY LOGS FOR CHANNEL "ch1";
 FLUSH RELAY LOGS FOR CHANNEL "ch2";
 #   2. verify that there are three channel entries in both pfs and

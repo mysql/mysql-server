@@ -604,4 +604,18 @@ class THD_instance_guard {
 std::string replace_all_in_str(std::string from, std::string find,
                                std::string replace);
 
+#ifdef MYSQL_SERVER
+
+/**
+  This method shall evaluate if a command being executed goes against any of
+  the restrictions of server variable session.require_row_format.
+
+  @param thd The thread associated to the command
+  @return true if it violates any restrictions
+          false otherwise
+ */
+bool evaluate_command_row_only_restrictions(THD *thd);
+
+#endif  // MYSQL_SERVER
+
 #endif /* RPL_UTILITY_H */

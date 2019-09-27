@@ -3709,9 +3709,14 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
 #endif
 
     data_len = uint4korr(ev->temp_buf + EVENT_LEN_OFFSET);
-    if (trx_parser->feed_event(ev->temp_buf, data_len,
-                               relaylog_file_reader.format_description_event(),
-                               false)) {
+
+    bool info_error{false};
+    binary_log::Log_event_basic_info log_event_info;
+    std::tie(info_error, log_event_info) = extract_log_event_basic_info(
+        ev->temp_buf, data_len,
+        relaylog_file_reader.format_description_event());
+
+    if (info_error || trx_parser->feed_event(log_event_info, false)) {
       /*
         The transaction boundary parser found an error while parsing a
         sequence of events from the relaylog. As we don't know if the

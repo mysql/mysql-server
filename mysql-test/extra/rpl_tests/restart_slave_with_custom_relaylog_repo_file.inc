@@ -10,6 +10,8 @@
 #  $slave_server_num
 #    The number of the slave server for which operations in this script
 #    are to be performed.
+#  $rpl_server_restart_parameters
+#    The parameters passed to the server on start
 #  $sub_testcase
 #    The test case name for which file repo is to be prepared.
 
@@ -77,6 +79,37 @@ localhost
 EOF
 END_OF_PROCEDURE
 
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_no_priv_user.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+10
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+
+
+EOF
+END_OF_PROCEDURE
+
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_with_priv_user.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+10
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+replication_applier
+localhost
+EOF
+END_OF_PROCEDURE
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $filename = `SELECT @@relay_log_info_file`
@@ -98,11 +131,20 @@ if ($sub_testcase == anonymous_user) {
 if ($sub_testcase == nonexist_user) {
   --source $MYSQL_TMP_DIR/create_file_repo_with_nonexist_PCU.inc
 }
---let $rpl_server_parameters=--skip_slave_start
+if ($sub_testcase == no_flag_no_priv_user) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_no_priv_user.inc
+}
+if ($sub_testcase == no_flag_with_priv_user) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_with_priv_user.inc
+}
+
+--let $rpl_server_parameters= $rpl_server_restart_parameters
 
 --let $explicit_default_counter = 15000
 --source include/rpl_start_server.inc
 
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_no_priv_user.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_flag_with_priv_user.inc
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_PCU.inc
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_PCU_has_@.inc
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_anon_PCU.inc

@@ -27,7 +27,7 @@ include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PR
 include/stop_slave.inc
 CREATE USER 'u1'@'localhost';;
 GRANT CREATE,INSERT,DROP,REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
+CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost', REQUIRE_ROW_FORMAT = 1;
 include/start_slave.inc
 include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER = 'u1'@'localhost']
 [connection master]

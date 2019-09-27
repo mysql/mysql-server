@@ -1,0 +1,1 @@
+--log-error=$MYSQLTEST_VARDIR/tmp/rpl_slave_require_row_format_basics_sql.2.err

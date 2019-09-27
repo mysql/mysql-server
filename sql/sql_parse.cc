@@ -2886,6 +2886,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
       return 0;
   }
 
+  if (thd->variables.require_row_format) {
+    if (evaluate_command_row_only_restrictions(thd)) {
+      my_error(ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT, MYF(0));
+      return -1;
+    }
+  }
+
   /*
     End a active transaction so that this command will have it's
     own transaction and will also sync the binary log. If a DDL is

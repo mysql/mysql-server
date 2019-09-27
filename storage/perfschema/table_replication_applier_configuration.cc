@@ -57,6 +57,8 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     "  DESIRED_DELAY INTEGER not null,\n"
     "  PRIVILEGE_CHECKS_USER TEXT CHARACTER SET utf8 COLLATE utf8_bin null"
     "    COMMENT 'User name for the security context of the applier.',\n"
+    "  REQUIRE_ROW_FORMAT ENUM('YES', 'NO') not null COMMENT "
+    "    'Indicates whether the channel shall only accept row based events.',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -220,6 +222,9 @@ int table_replication_applier_configuration::make_row(Master_info *mi) {
 
   m_row.privilege_checks_user.assign(oss.str());
 
+  m_row.requires_row_format =
+      mi->rli->is_row_format_required() ? PS_RPL_YES : PS_RPL_NO;
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -251,6 +256,9 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
                            &my_charset_utf8mb4_bin);
           else
             f->set_null();
+          break;
+        case 3: /** require_row_format */
+          set_field_enum(f, m_row.requires_row_format);
           break;
         default:
           DBUG_ASSERT(false);

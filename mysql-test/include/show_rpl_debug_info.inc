@@ -137,6 +137,10 @@ while ($_rpl_server)
   query_vertical
   SELECT * FROM performance_schema.replication_applier_status_by_coordinator;
   --echo
+  --echo **** replication_applier_configuration on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_applier_configuration;
+  --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical
   SHOW MASTER STATUS;

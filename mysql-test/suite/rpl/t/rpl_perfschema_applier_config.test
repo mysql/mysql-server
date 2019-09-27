@@ -104,4 +104,14 @@ let $assert_text= Value for Privilege_Checks_User is initialized to NULL;
 let $assert_cond= "NULL" = "$ps_value";
 source include/assert.inc;
 
+--echo
+--echo # Verify that `require_row_format` is initialized to `NO`.
+--echo
+
+let $ps_value= query_get_value(select Require_Row_Format from performance_schema.replication_applier_configuration, Require_Row_Format, 1);
+let $assert_text= Value for Require_Row_Format is initialized to NO;
+let $assert_cond= "NO" = "$ps_value";
+source include/assert.inc;
+
+
 source include/rpl_end.inc;

@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #      doesn't have REPLICATION_APPLIER privilege.
 # -------------------------------------------------------------------
 [connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 CREATE USER 'u1'@'localhost';
@@ -22,6 +23,7 @@ GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 # -------------------------------------------------------------------
 CALL mtr.add_suppression(".CREATE command denied to user.");
 RESET SLAVE ALL;
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MY_MASTER_PORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=MY_MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.

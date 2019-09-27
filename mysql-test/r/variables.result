@@ -2027,6 +2027,7 @@ Warning	1231	'pseudo_slave_mode' change was ineffective.
 SET SESSION pseudo_thread_id = @@session.pseudo_thread_id;
 SET SESSION rand_seed1 = @@session.rand_seed1;
 SET SESSION rand_seed2 = @@session.rand_seed2;
+SET SESSION require_row_format = @@session.require_row_format;
 SET SESSION resultset_metadata = @@session.resultset_metadata;
 SET SESSION show_create_table_skip_secondary_engine = @@session.show_create_table_skip_secondary_engine;
 SET SESSION sql_log_bin = @@session.sql_log_bin;

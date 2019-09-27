@@ -367,6 +367,11 @@ struct LEX_MASTER_INFO {
     a user.
    */
   const char *privilege_checks_username, *privilege_checks_hostname;
+  /**
+    Flag indicating if row format should be enforced for this channel event
+    stream.
+   */
+  int require_row_format;
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();

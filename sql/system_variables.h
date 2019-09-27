@@ -398,6 +398,11 @@ struct System_variables {
     @sa Sys_var_generated_random_password_length
   */
   uint32_t generated_random_password_length;
+
+  /**
+    @sa Sys_var_require_row_format
+  */
+  bool require_row_format;
 };
 
 /**

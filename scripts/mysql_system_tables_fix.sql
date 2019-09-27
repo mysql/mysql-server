@@ -843,8 +843,11 @@ ALTER TABLE slave_master_info
 
 # Columns added to keep information about the replication applier thread
 # privilege context user
-ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
-                                 ADD Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.';
+ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.' AFTER Channel_name,
+                                 ADD Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.' AFTER Privilege_checks_username;
+
+# Columns added to keep information about REQUIRE_ROW_FORMAT replication field
+ALTER TABLE slave_relay_log_info ADD Require_row_format BOOLEAN DEFAULT 0 COMMENT 'Indicates whether the channel shall only accept row based events.' AFTER Privilege_checks_hostname;
 
 #
 # Drop legacy NDB distributed privileges function & procedures

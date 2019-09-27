@@ -90,6 +90,7 @@ SELECT * FROM performance_schema.replication_applier_configuration WHERE channel
 CHANNEL_NAME	group_replication_applier
 DESIRED_DELAY	0
 PRIVILEGE_CHECKS_USER	NULL
+REQUIRE_ROW_FORMAT	YES
 
 SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier
@@ -289,6 +290,7 @@ SELECT * FROM performance_schema.replication_applier_configuration WHERE channel
 CHANNEL_NAME	group_replication_applier
 DESIRED_DELAY	0
 PRIVILEGE_CHECKS_USER	NULL
+REQUIRE_ROW_FORMAT	YES
 
 SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
 CHANNEL_NAME	group_replication_applier

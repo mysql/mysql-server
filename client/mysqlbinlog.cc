@@ -48,6 +48,7 @@
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
 #include "compression.h"
+#include "libbinlogevents/include/trx_boundary_parser.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_default.h"
@@ -376,6 +377,7 @@ enum Exit_status {
 static char *opt_include_gtids_str = nullptr, *opt_exclude_gtids_str = nullptr;
 static bool opt_skip_gtids = false;
 static bool filter_based_on_gtids = false;
+static bool opt_require_row_format = false;
 
 /* It is set to true when BEGIN is found, and false when the transaction ends.
  */
@@ -1600,7 +1602,14 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+    {"require-row-format", 0,
+     "Fail when printing an event that was not logged using row format or\n"
+     "other forbidden events like Load instructions or the creation/deletion\n"
+     "of temporary tables.",
+     &opt_require_row_format, &opt_require_row_format, 0, GET_BOOL, NO_ARG, 0,
+     0, 0, 0, 0, 0},
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+};
 
 /**
   Auxiliary function used by error() and warning().
@@ -1950,6 +1959,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
   print_event_info.base64_output_mode = opt_base64_output_mode;
   print_event_info.skip_gtids = opt_skip_gtids;
   print_event_info.print_table_metadata = opt_print_table_metadata;
+  print_event_info.require_row_format = opt_require_row_format;
 
   // Dump all logs.
   my_off_t save_stop_position = stop_position;
@@ -2195,6 +2205,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     return ERROR_STOP;
   }
 
+  Transaction_boundary_parser transaction_parser(
+      Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER);
+  transaction_parser.reset();
+
   for (;;) {
     if (mysql_binlog_fetch(mysql, &rpl))  // Error packet
     {
@@ -2322,6 +2336,27 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           }
         }
         glob_description_event = dynamic_cast<Format_description_event &>(*ev);
+      }
+
+      if (opt_require_row_format) {
+        bool info_error{false};
+        binary_log::Log_event_basic_info log_event_info;
+        std::tie(info_error, log_event_info) = extract_log_event_basic_info(
+            (const char *)event_buf, event_len, &glob_description_event);
+
+        if (!info_error) {
+          transaction_parser.feed_event(log_event_info, false);
+          if (transaction_parser.check_row_logging_constraints(
+                  log_event_info)) {
+            error(
+                "Event being written violates the --require-row-format "
+                "parameter constraints.");
+            return ERROR_STOP;
+          }
+        } else {
+          error("Unexpected event being evaluated under --require-row-format.");
+          return ERROR_STOP;
+        }
       }
 
       if (raw_mode) {
@@ -2516,10 +2551,14 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     return ERROR_STOP;
   }
 
+  Transaction_boundary_parser transaction_parser(
+      Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER);
+  transaction_parser.reset();
+
   if (fdle != nullptr) {
     retval = process_event(print_event_info, fdle,
                            mysqlbinlog_file_reader.event_start_pos(), logname);
-    if (retval != OK_CONTINUE) goto end;
+    if (retval != OK_CONTINUE) return retval;
   }
 
   if (strcmp(logname, "-") == 0)
@@ -2539,26 +2578,44 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
            LOG_EVENT_BINLOG_IN_USE_F) ||
           mysqlbinlog_file_reader.get_error_type() ==
               Binlog_read_error::READ_EOF)
-        goto end;
+        return retval;
 
       error(
           "Could not read entry at offset %s: "
           "Error in log format or read error 1.",
           llstr(old_off, llbuff));
       error("%s", mysqlbinlog_file_reader.get_error_str());
-      goto err;
+      return ERROR_STOP;
     }
+
+    if (opt_require_row_format) {
+      bool info_error{false};
+      binary_log::Log_event_basic_info log_event_info;
+      std::tie(info_error, log_event_info) = extract_log_event_basic_info(ev);
+
+      if (!info_error) {
+        transaction_parser.feed_event(log_event_info, false);
+        if (transaction_parser.check_row_logging_constraints(log_event_info)) {
+          error(
+              "Event being written violates the --require-row-format "
+              "parameter constraints.");
+          delete ev;
+          return ERROR_STOP;
+        }
+      } else {
+        error("Unexpected event being evaluated under --require-row-format.");
+        delete ev;
+        return ERROR_STOP;
+      }
+    }
+
     if ((retval = process_event(print_event_info, ev, old_off, logname)) !=
         OK_CONTINUE)
-      goto end;
+      return retval;
   }
 
   /* NOTREACHED */
 
-err:
-  retval = ERROR_STOP;
-
-end:
   return retval;
 }
 
@@ -2775,6 +2832,10 @@ int main(int argc, char **argv) {
   if (idempotent_mode)
     fprintf(result_file,
             "/*!50700 SET @@SESSION.RBR_EXEC_MODE=IDEMPOTENT*/;\n\n");
+
+  if (opt_require_row_format) {
+    fprintf(result_file, "/*!80019 SET @@SESSION.REQUIRE_ROW_FORMAT=1*/;\n\n");
+  }
 
   retval = dump_multiple_logs(argc, argv);
 

@@ -9235,6 +9235,18 @@ ER_TABLE_VALUE_CONSTRUCTOR_MUST_HAVE_COLUMNS
 ER_TABLE_VALUE_CONSTRUCTOR_CANNOT_HAVE_DEFAULT
   eng "A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement."
 
+ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
+  eng "The query does not comply with variable require_row_format restrictions."
+
+ER_REQUIRE_ROW_FORMAT_INVALID_VALUE
+  eng "The requested value %s is invalid for REQUIRE_ROW_FORMAT, must be either 0 or 1."
+
+ER_CLIENT_REQ_ROW_PRIV_CHECKS_USER_NOT_NULL
+  eng "REQUIRE_ROW_FORMAT for replication channel '%.192s' can't be set to %d unless PRIVILEGE_CHECKS_USER is also set to %s."
+
+ER_CLIENT_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET
+  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' can't be set to `%.64s`@`%.255s` unless REQUIRE_ROW_FORMAT is also set to %d."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

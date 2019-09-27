@@ -1,0 +1,152 @@
+# ==== Purpose ====
+#
+# This file contains test cases to validate the behavior of system
+# variable 'requires_row_format' with various permission levels
+#
+# ==== Requirements ====
+#
+# For the session require_row_format variable
+# 1) No privileges are needed to enable it
+# 2) The user needs SESSION_ADMIN or higher in order to disable it.
+#
+# ==== Implementation ====
+#
+# 0. Create a user and a connection with it
+# 1. Test the use by a regular user
+# 2. Test the use by a user with SESSION_VARIABLES_ADMIN privilege.
+# 3. Test the use by a user with SYSTEM_VARIABLES_ADMIN privilege.
+# 4. Test the use by a user with SUPER privilege.
+# 5. Test changing the variable to invalid values
+# 6. Cleanup
+#
+#  ==== Related Worklog ====
+#
+#  WL #12968 : Configure replication applier to require row-based replication
+
+--echo #
+--echo # 0. Create a user and a connection with it
+
+CREATE USER u1@localhost;
+
+GRANT ALL ON db1.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+--echo #
+--echo # 1. Test the use by a unprivileged user
+
+--let $assert_text= By default the value is set to OFF
+--let $assert_cond= "[SELECT @@SESSION.REQUIRE_ROW_FORMAT]" = 0
+--source include/assert.inc
+
+# Check different types of access
+
+--error ER_LOCAL_VARIABLE
+SET GLOBAL require_row_format=true;
+
+--error ER_LOCAL_VARIABLE
+SET PERSIST require_row_format=true;
+
+--error ER_LOCAL_VARIABLE
+SET PERSIST_ONLY require_row_format=true;
+
+# Check priv errors
+
+# No error as it is already false
+SET SESSION require_row_format=false;
+
+# No privileges are needed to set to true
+SET SESSION require_row_format=true;
+
+# Privileges are needed to set it false
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION require_row_format=false;
+
+# Privileges are needed to set it false
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION require_row_format=DEFAULT;
+
+--echo #
+--echo # 2. Test the use by a user with SESSION_VARIABLES_ADMIN privilege.
+
+connection default;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+# No error as it has the necessary privs
+SET SESSION require_row_format=false;
+
+# No privileges are needed to set to true
+SET SESSION require_row_format=true;
+
+SET SESSION require_row_format=DEFAULT;
+
+--echo #
+--echo # 3. Test the use by a user with SYSTEM_VARIABLES_ADMIN privilege.
+
+connection default;
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con1;
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+# No privileges are needed to set to true
+SET SESSION require_row_format=true;
+
+# No error as it has the necessary privs
+SET SESSION require_row_format=false;
+
+# No privileges are needed to set to true
+SET SESSION require_row_format=true;
+
+--echo #
+--echo # 4. Test the use by a user with SUPER privilege.
+
+connection default;
+disconnect con1;
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM u1@localhost;
+GRANT SUPER ON *.* TO u1@localhost;
+connect (con1, localhost, u1);
+SELECT CURRENT_USER();
+SHOW GRANTS FOR CURRENT_USER();
+
+SET SESSION require_row_format=true;
+SELECT @@SESSION.require_row_format = true;
+
+SET SESSION require_row_format=false;
+SELECT @@SESSION.require_row_format = false;
+
+SET SESSION require_row_format=true;
+SELECT @@SESSION.require_row_format = true;
+
+--echo #
+--echo # 5. Test errors when changing the variable to invalid values
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION require_row_format = -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION require_row_format = 100000000000;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION require_row_format = 10000.01;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION require_row_format = 'test';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION require_row_format = '';
+
+--echo #
+--echo # 6. Cleanup
+
+connection default;
+disconnect con1;
+
+DROP USER u1@localhost;
+
+SET SESSION require_row_format=default;

@@ -1,0 +1,251 @@
+# ==== Purpose ====
+#
+# This test evaluates the behavior of mysqlbinlog when using the
+# --require_row_format.
+# This test evaluates mysqlbinlog when using a local file and with a
+# connection to a remote server.
+#
+# ==== Requirements ====
+#
+# When using --require_row_format mysqlbinlog shall error out when
+#
+# T1. It faces a DML transaction not logged with row based logging
+# T2. It encounters a LOAD DATA, INTVAR, RAND or USER_VAR event
+# T3. It encounters a CREATE/DROP TEMPORARY TABLE statement
+#
+# ==== Implementation ====
+#
+#  0. Add suppressions for the test.
+#     Create a test include.
+#  1. Log a DML transaction using statement based logging (T1)
+#  1.1 Check mysqlbinlog errors out
+#  2. Log a transaction with a LOAD DATA event (T2)
+#  2.1 Check mysqlbinlog errors out
+#  3. Log a transaction with a USER_VAR event (T2)
+#  3.1 Check mysqlbinlog errors out
+#  4. Log a transaction with a RAND event (T2)
+#  4.1 Check mysqlbinlog errors out
+#  5. Log a transaction with a INTVAR event (T2)
+#  5.1 Check mysqlbinlog errors out
+#  6. Log a transaction with a CREATE TEMPORARY TABLE query (T3)
+#  6.1 Check mysqlbinlog errors out
+#  7. Log a transaction with a DROP TEMPORARY TABLE query (T3)
+#  7.1 Check mysqlbinlog errors out
+#  8. Cleanup
+#
+#  ==== Related Worklog ====
+#
+#  WL #12968 : Configure replication applier to require row-based replication
+
+--source include/have_binlog_format_statement.inc
+
+--echo #
+--echo # 0. Add suppressions for the test.
+--echo #    Create a test include.
+
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+
+--write_file $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc END_OF_PROCEDURE
+
+  --let $mysqlbinlog_allow_error=1
+  --let $mysqlbinlog_parameters= --require_row_format $MYSQLD_DATADIR/$binlog_file
+  --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out 2>&1
+  --source include/mysqlbinlog.inc
+
+  --let $assert_text = There was an error when executing mysqlbinlog
+  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --let $assert_select = Event being written violates the --require-row-format parameter constraints
+  --let $assert_count = 1
+  --source include/assert_grep.inc
+
+  --let $assert_text = $assert_text_event_not_present_mysqlbinlog
+  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --let $assert_select = $assert_select_event_present_mysqlbinlog
+  --let $assert_count = 0
+  --source include/assert_grep.inc
+
+  --let $mysqlbinlog_allow_error=1
+  --let $mysqlbinlog_parameters= -R --host=127.0.0.1 -P $MASTER_MYPORT -u root --require_row_format $binlog_file
+  --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out 2>&1
+  --source include/mysqlbinlog.inc
+
+  --let $assert_text = There was an error when executing mysqlbinlog remotely
+  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out
+  --let $assert_select = Event being written violates the --require-row-format parameter constraints
+  --let $assert_count = 1
+  --source include/assert_grep.inc
+
+  --let $assert_text = $assert_text_event_not_present_mysqlbinlog
+  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out
+  --let $assert_select = $assert_select_event_present_mysqlbinlog
+  --let $assert_count = 0
+  --source include/assert_grep.inc
+
+  --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_remote.out
+
+  --let $mysqlbinlog_allow_error=0
+  --let $mysqlbinlog_parameters= $MYSQLD_DATADIR/$binlog_file
+  --let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out 2>&1
+  --source include/mysqlbinlog.inc
+
+  --let $assert_text = $assert_text_event_present_mysqlbinlog
+  --let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+  --let $assert_select = $assert_select_event_present_mysqlbinlog
+  --let $assert_count = 1
+  --source include/assert_grep.inc
+
+  RESET MASTER;
+
+  --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+
+END_OF_PROCEDURE
+
+--echo #
+--echo # 1. Log a DML transaction using statement based logging (T1)
+
+CREATE TABLE t1 (c01 BIT);
+
+INSERT INTO t1 VALUES (0);
+
+DROP TABLE t1;
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+FLUSH LOGS;
+
+--echo #
+--echo # 1.1 Check mysqlbinlog errors out (T1)
+
+--let $assert_text_event_not_present_mysqlbinlog= The INSERT query is not written with --require_row_format
+--let $assert_text_event_present_mysqlbinlog= The INSERT query is written without --require_row_format
+--let $assert_select_event_present_mysqlbinlog= INSERT INTO t1
+--source $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+
+--echo #
+--echo # 2. Log a transaction with a LOAD DATA event (T2)
+
+CREATE TABLE tload (c1 TEXT);
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE tload;
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+DROP TABLE tload;
+
+FLUSH LOGS;
+
+--echo #
+--echo # 2.1 Check mysqlbinlog errors out (T2)
+
+--let $assert_text_event_not_present_mysqlbinlog= The LOAD DATA event is not written with --require_row_format
+--let $assert_text_event_present_mysqlbinlog= The LOAD DATA event is written without --require_row_format
+--let $assert_select_event_present_mysqlbinlog= LOAD DATA LOCAL
+--source $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+
+--echo #
+--echo # 3. Log a transaction with a USER_VAR event (T2)
+
+CREATE TABLE t1(i INT) ENGINE=InnoDB;
+
+--eval SET @v= 10
+--eval INSERT INTO t1 VALUES (@v)
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+FLUSH LOGS;
+
+--echo #
+--echo # 3.1 Check mysqlbinlog errors out (T2)
+
+--let $assert_text_event_not_present_mysqlbinlog= The USER_VAR event is not written with --require_row_format
+--let $assert_text_event_present_mysqlbinlog= The USER_VAR event is written without --require_row_format
+--let $assert_select_event_present_mysqlbinlog= User_var
+--source $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+
+--echo #
+--echo # 4. Log a transaction with a RAND event (T2)
+
+INSERT INTO t1 VALUES (Rand());
+
+DROP TABLE t1;
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+FLUSH LOGS;
+
+--echo #
+--echo # 4.1 Check mysqlbinlog errors out (T2)
+
+--let $assert_text_event_not_present_mysqlbinlog= The RAND event is not written with --require_row_format
+--let $assert_text_event_present_mysqlbinlog= The RAND event is written without --require_row_format
+--let $assert_select_event_present_mysqlbinlog= SET @@RAND_
+--source $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+--echo #
+--echo # 5. Log a transaction with a INTVAR event (T2)
+
+CREATE TABLE t2 (j INT PRIMARY KEY AUTO_INCREMENT);
+
+INSERT INTO t2 VALUES();
+
+DROP TABLE t2;
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+FLUSH LOGS;
+
+--echo #
+--echo # 5.1 Check mysqlbinlog errors out (T2)
+
+--let $assert_text_event_not_present_mysqlbinlog= The INTVAR event is not written with --require_row_format
+--let $assert_text_event_present_mysqlbinlog= The INTVAR event is written without --require_row_format
+--let $assert_select_event_present_mysqlbinlog= Intvar
+--source $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+--echo #
+--echo # 6. Log a transaction with a CREATE TEMPORARY TABLE query (T3)
+
+CREATE TEMPORARY TABLE t1 (k INT PRIMARY KEY);
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+FLUSH LOGS;
+
+--echo #
+--echo # 6.1 Check mysqlbinlog errors out (T3)
+
+--let $assert_text_event_not_present_mysqlbinlog= The CREATE TEMPORARY TABLE is not written with --require_row_format
+--let $assert_text_event_present_mysqlbinlog= The CREATE TEMPORARY TABLE is written without --require_row_format
+--let $assert_select_event_present_mysqlbinlog= CREATE TEMPORARY TABLE
+--source $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+
+--echo #
+--echo # 7. Log a transaction with a DROP TEMPORARY TABLE query (T3)
+
+DROP TEMPORARY TABLE t1;
+
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+FLUSH LOGS;
+
+--echo #
+--echo # 7.1 Check mysqlbinlog errors out (T3)
+
+--let $assert_text_event_not_present_mysqlbinlog= The DROP TEMPORARY TABLE is not written with --require_row_format
+--let $assert_text_event_present_mysqlbinlog= The DROP TEMPORARY TABLE is written without --require_row_format
+--let $assert_select_event_present_mysqlbinlog= DROP TEMPORARY TABLE
+--source $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+--echo #
+--echo # 8. Cleanup
+
+--remove_file $MYSQL_TMP_DIR/check_mysqlbinlog_row_format_error.inc
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ SQL_LOAD_MB*

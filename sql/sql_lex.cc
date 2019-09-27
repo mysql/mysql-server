@@ -4683,6 +4683,7 @@ void LEX_MASTER_INFO::initialize() {
   zstd_compression_level = 0;
   privilege_checks_none = false;
   privilege_checks_username = privilege_checks_hostname = NULL;
+  require_row_format = -1;
 }
 
 void LEX_MASTER_INFO::set_unspecified() {

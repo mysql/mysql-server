@@ -97,7 +97,8 @@ const char *info_rli_fields[] = {"number_of_lines",
                                  "id",
                                  "channel_name",
                                  "privilege_checks_user",
-                                 "privilege_checks_hostname"};
+                                 "privilege_checks_hostname",
+                                 "require_row_format"};
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -127,6 +128,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       mi(nullptr),
       error_on_rli_init_info(false),
       gtid_timestamps_warning_logged(false),
+      transaction_parser(
+          Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER),
       group_relay_log_pos(0),
       event_relay_log_number(0),
       event_relay_log_pos(0),
@@ -138,6 +141,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       m_privilege_checks_username{""},
       m_privilege_checks_hostname{""},
       m_privilege_checks_user_corrupted{false},
+      m_require_row_format(false),
       is_group_master_log_pos_invalid(false),
       log_space_total(0),
       ignore_log_space_limit(false),
@@ -1892,6 +1896,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   ulong temp_group_master_log_pos = 0;
   int temp_sql_delay = 0;
   int temp_internal_id = internal_id;
+  int temp_require_row_format = 0;
 
   DBUG_TRACE;
 
@@ -2001,6 +2006,15 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
       hostname = temp_privilege_checks_hostname;
   }
 
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT) {
+    if (!!from->get_info(&temp_require_row_format, 0)) return true;
+  } else {
+    if (username != nullptr ||
+        channel_map.is_group_replication_channel_name(channel))
+      temp_require_row_format = 1;
+  }
+  m_require_row_format = temp_require_row_format;
+
   group_relay_log_pos = temp_group_relay_log_pos;
   group_master_log_pos = temp_group_master_log_pos;
   sql_delay = (int32)temp_sql_delay;
@@ -2028,6 +2042,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
                                  hostname);
     return true;
   }
+
   return false;
 }
 
@@ -2081,6 +2096,10 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
 #endif
         if (to->set_info(nullptr))
       return true;
+  }
+
+  if (to->set_info((int)m_require_row_format)) {
+    return true; /* purecov: inspected */
   }
   return false;
 }
@@ -2658,6 +2677,10 @@ bool operator!(Relay_log_info::enum_priv_checks_status status) {
   return status == Relay_log_info::enum_priv_checks_status::SUCCESS;
 }
 
+bool operator!(Relay_log_info::enum_require_row_status status) {
+  return status == Relay_log_info::enum_require_row_status::SUCCESS;
+}
+
 std::string Relay_log_info::get_privilege_checks_username() const {
   return this->m_privilege_checks_username;
 }
@@ -2692,11 +2715,12 @@ void Relay_log_info::set_privilege_checks_user_corrupted(bool is_corrupted) {
 Relay_log_info::enum_priv_checks_status
 Relay_log_info::set_privilege_checks_user(
     char const *param_privilege_checks_username,
-    char const *param_privilege_checks_hostname) {
+    char const *param_privilege_checks_hostname,
+    LEX_MASTER_INFO const *lex_mi) {
   DBUG_TRACE;
 
   enum_priv_checks_status error = this->check_privilege_checks_user(
-      param_privilege_checks_username, param_privilege_checks_hostname);
+      param_privilege_checks_username, param_privilege_checks_hostname, lex_mi);
   if (!!error) return error;
 
   if (param_privilege_checks_username == nullptr) {
@@ -2738,7 +2762,8 @@ Relay_log_info::check_privilege_checks_user() {
 Relay_log_info::enum_priv_checks_status
 Relay_log_info::check_privilege_checks_user(
     char const *param_privilege_checks_username,
-    char const *param_privilege_checks_hostname) {
+    char const *param_privilege_checks_hostname,
+    LEX_MASTER_INFO const *lex_mi) {
   DBUG_TRACE;
 
   if (param_privilege_checks_username == nullptr) {
@@ -2767,6 +2792,10 @@ Relay_log_info::check_privilege_checks_user(
   enum_priv_checks_status error = this->check_applier_acl_user(
       param_privilege_checks_username, param_privilege_checks_hostname);
   if (!!error) return error;
+
+  if (!this->m_require_row_format &&
+      (lex_mi == nullptr || lex_mi->require_row_format != 1))
+    return enum_priv_checks_status::REQUIRE_ROW_FORMAT_NOT_SET;
 
   return enum_priv_checks_status::SUCCESS;
 }
@@ -2934,6 +2963,19 @@ void Relay_log_info::report_privilege_check_error(
       }
       break;
     }
+    case enum_priv_checks_status::REQUIRE_ROW_FORMAT_NOT_SET: {
+      if (to_client)
+        my_error(ER_CLIENT_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET, MYF(0),
+                 channel_name, user_name, host_name, 1);
+      else {
+        THD_instance_guard thd{current_thd != nullptr ? current_thd
+                                                      : this->info_thd};
+        this->report(level, ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET,
+                     ER_THD(thd, ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET),
+                     channel_name, user_name, host_name, 1);
+      }
+      break;
+    }
   }
 }
 
@@ -2977,6 +3019,58 @@ Relay_log_info::enum_priv_checks_status
 Relay_log_info::initialize_applier_security_context() {
   DBUG_TRACE;
   return this->initialize_security_context(this->info_thd);
+}
+
+bool Relay_log_info::is_row_format_required() const {
+  return this->m_require_row_format;
+}
+
+Relay_log_info::enum_require_row_status Relay_log_info::set_require_row_format(
+    bool require_row, LEX_MASTER_INFO const *lex_mi) {
+  DBUG_TRACE;
+
+  Relay_log_info::enum_require_row_status status{
+      this->check_require_row_format(require_row, lex_mi)};
+
+  if (!status) this->m_require_row_format = require_row;
+
+  return status;
+}
+
+Relay_log_info::enum_require_row_status
+Relay_log_info::check_require_row_format(bool require_row,
+                                         LEX_MASTER_INFO const *lex_mi) {
+  DBUG_TRACE;
+
+  if (!require_row && !this->is_privilege_checks_user_null() &&
+      (lex_mi == nullptr || !lex_mi->privilege_checks_none))
+    return enum_require_row_status::PRIV_CHECKS_USER_NOT_NULL;
+
+  return enum_require_row_status::SUCCESS;
+}
+
+void Relay_log_info::report_require_row_error(
+    enum loglevel, enum_require_row_status status_code, bool to_client,
+    char const *channel_name_arg, int require_row) const {
+  DBUG_TRACE;
+
+  char const *channel_name{channel_name_arg != nullptr ? channel_name_arg
+                                                       : get_channel()};
+
+  switch (status_code) {
+    /* purecov: begin inspected */
+    case enum_require_row_status::SUCCESS: {
+      DBUG_ASSERT(false);
+      break;
+    }
+    /* purecov: end */
+    case enum_require_row_status::PRIV_CHECKS_USER_NOT_NULL: {
+      if (to_client)
+        my_error(ER_CLIENT_REQ_ROW_PRIV_CHECKS_USER_NOT_NULL, MYF(0),
+                 channel_name, require_row, "NULL");
+      break;
+    }
+  }
 }
 
 MDL_lock_guard::MDL_lock_guard(THD *target) : m_target{target} { DBUG_TRACE; }

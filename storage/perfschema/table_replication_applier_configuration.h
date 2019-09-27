@@ -43,6 +43,11 @@ class Plugin_table;
 struct TABLE;
 struct THR_LOCK;
 
+#ifndef ENUM_RPL_YES_NO
+#define ENUM_RPL_YES_NO
+enum enum_rpl_yes_no { PS_RPL_YES = 1, PS_RPL_NO };
+#endif
+
 /**
   @addtogroup performance_schema_tables
   @{
@@ -55,6 +60,7 @@ struct st_row_applier_config {
   time_t desired_delay;
   bool desired_delay_is_set;
   std::string privilege_checks_user{""};
+  enum_rpl_yes_no requires_row_format;
 };
 
 class PFS_index_rpl_applier_config : public PFS_engine_index {

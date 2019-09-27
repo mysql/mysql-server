@@ -1250,6 +1250,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> MASTER_ZSTD_COMPRESSION_LEVEL_SYM  /* MYSQL */
 %token<lexer.keyword> PRIVILEGE_CHECKS_USER_SYM     /* MYSQL */
 %token<lexer.keyword> MASTER_TLS_CIPHERSUITES_SYM   /* MYSQL */
+%token<lexer.keyword> REQUIRE_ROW_FORMAT_SYM        /* MYSQL */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -2660,6 +2661,16 @@ master_def:
               LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
         | PRIVILEGE_CHECKS_USER_SYM EQ privilege_check_def
+        | REQUIRE_ROW_FORMAT_SYM EQ ulong_num
+          {
+            if ($3 != 0 && $3 != 1) {
+              const char* wrong_value = YYTHD->strmake(@3.raw.start, @3.raw.length());
+              my_error(ER_REQUIRE_ROW_FORMAT_INVALID_VALUE, MYF(0), wrong_value);
+            }
+            else {
+              Lex->mi.require_row_format = $3;
+            }
+          }
         | master_file_def
         ;
 
@@ -14553,6 +14564,7 @@ ident_keywords_unambiguous:
         | REPLICATE_REWRITE_DB
         | REPLICATE_WILD_DO_TABLE
         | REPLICATE_WILD_IGNORE_TABLE
+        | REQUIRE_ROW_FORMAT_SYM
         | RESOURCES
         | RESPECT_SYM
         | RESTORE_SYM

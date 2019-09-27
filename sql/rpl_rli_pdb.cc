@@ -312,6 +312,12 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
   Slave_job_item empty = Slave_job_item();
 
   c_rli = rli;
+#ifndef DBUG_OFF
+  enum_require_row_status require_row_error =
+#endif
+      this->set_require_row_format(rli->is_row_format_required());
+  DBUG_ASSERT(!require_row_error);
+
   set_commit_order_manager(c_rli->get_commit_order_manager());
 
   if (rli_init_info(false) ||

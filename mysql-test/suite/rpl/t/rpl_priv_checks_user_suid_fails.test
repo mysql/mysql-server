@@ -28,6 +28,7 @@
 # BUG#30032129 ADD TEST THAT ERRORS IF APPLIER USER TRIES TO `SUID` TO A SYSTEM
 #              USER ACCOUNT
 #
+--source include/have_binlog_format_row.inc
 
 --let $applier_user = 'u1'@'localhost'
 --let $system_user = 'u2'@'localhost'

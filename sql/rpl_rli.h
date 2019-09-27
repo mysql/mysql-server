@@ -64,7 +64,8 @@
 #include "sql/rpl_info.h"         // Rpl_info
 #include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
 #include "sql/rpl_slave_until_options.h"
-#include "sql/rpl_tblmap.h"   // table_mapping
+#include "sql/rpl_tblmap.h"  // table_mapping
+#include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"  // Deferred_log_events
 #include "sql/sql_class.h"    // THD
 #include "sql/system_variables.h"
@@ -200,7 +201,19 @@ class Relay_log_info : public Rpl_info {
       Provided user doesn't have `FILE` privileges during the execution of a
       `LOAD DATA`event.
      */
-    LOAD_DATA_EVENT_NOT_ALLOWED
+    LOAD_DATA_EVENT_NOT_ALLOWED,
+    /**
+      Trying to set `privilege_checks_user` when `require_row_format` is not set
+      to 1
+     */
+    REQUIRE_ROW_FORMAT_NOT_SET
+  };
+
+  enum class enum_require_row_status : int {
+    /** Function ended successfully */
+    SUCCESS = 0,
+    /** Value for `privilege_checks_user` is not empty */
+    PRIV_CHECKS_USER_NOT_NULL
   };
 
   /*
@@ -446,12 +459,15 @@ class Relay_log_info : public Rpl_info {
 
     @param param_privilege_checks_username the username part of the user.
     @param param_privilege_checks_hostname the hostname part of the user.
+    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
+                  TO` statement, for cross-option validation, if needed.
 
     @return a status code describing the state of the data initialization.
    */
   enum_priv_checks_status set_privilege_checks_user(
       char const *param_privilege_checks_username,
-      char const *param_privilege_checks_hostname);
+      char const *param_privilege_checks_hostname,
+      LEX_MASTER_INFO const *lex_mi = nullptr);
 
   /**
     Checks the validity and integrity of the data related to
@@ -472,12 +488,15 @@ class Relay_log_info : public Rpl_info {
 
     @param param_privilege_checks_username the username part of the user.
     @param param_privilege_checks_hostname the hostname part of the user.
+    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
+                  TO` statement, for cross-option validation, if needed.
 
     @return a status code describing the state of the data initialization.
    */
   enum_priv_checks_status check_privilege_checks_user(
       char const *param_privilege_checks_username,
-      char const *param_privilege_checks_hostname);
+      char const *param_privilege_checks_hostname,
+      LEX_MASTER_INFO const *lex_mi = nullptr);
   /**
     Checks the existence of user provided as part of the `PRIVILEGE_CHECKS_USER`
     option.
@@ -541,6 +560,70 @@ class Relay_log_info : public Rpl_info {
     @return a status code describing the state of the data initialization.
    */
   enum_priv_checks_status initialize_applier_security_context();
+
+  /**
+    Returns whether the slave is running in row mode only.
+
+    @return true if row_format_required is active, false otherwise.
+   */
+  bool is_row_format_required() const;
+
+  /**
+    Sets the flag that tells whether or not the slave is running in row mode
+    only.
+
+    @param require_row the flag value.
+    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
+                  TO` statement, for cross-option validation, if needed.
+
+     @return a status code describing the state of the data initialization.
+   */
+  enum_require_row_status set_require_row_format(
+      bool require_row, LEX_MASTER_INFO const *lex_mi = nullptr);
+
+  /**
+    Checks if the new value for the flag that tells whether or not the slave is
+    running in row mode only is consistent with current state.
+
+    @param require_row the flag value.
+    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
+                  TO` statement, for cross-option validation, if needed.
+
+     @return a status code describing the state of the data initialization.
+   */
+  enum_require_row_status check_require_row_format(
+      bool require_row, LEX_MASTER_INFO const *lex_mi = nullptr);
+
+  /**
+    Outputs the error message associated with the `require_row_format` flag
+    status error `error_code`.
+
+    The output stream to which is outputted is decided based on `to_client`
+    which, if set to `true` will output the message to the client session and if
+    `false` will output to the server log.
+
+    @param level the message urgency level, e.g., `ERROR_LEVEL`,
+                 `WARNING_LEVEL`, etc.
+    @param status_code the status code to output the associated error message
+                       for.
+    @param to_client a flag indicating if the message should be sent to the
+                     client session or to the server log.
+    @param channel_name_arg name of the channel for which the error is being
+                            reported.
+    @param require_row the flag value for which the error is being reported.
+   */
+  void report_require_row_error(enum loglevel level,
+                                enum_require_row_status status_code,
+                                bool to_client, char const *channel_name_arg,
+                                int require_row) const;
+
+  /*
+    This will be used to verify transactions boundaries of events being applied
+
+    Its output is used to detect when events were not logged using row based
+    logging.
+  */
+  Replication_transaction_boundary_parser transaction_parser;
 
   /*
     Let's call a group (of events) :
@@ -650,6 +733,15 @@ class Relay_log_info : public Rpl_info {
     repository by hand.
    */
   bool m_privilege_checks_user_corrupted;
+
+  /**
+   Tells if the slave is only accepting events logged with row based logging.
+   It also blocks
+     Operations with temporary table creation/deletion
+     Operations with LOAD DATA
+     Events: INTVAR_EVENT, RAND_EVENT, USER_VAR_EVENT
+  */
+  bool m_require_row_format;
 
  public:
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
@@ -1695,11 +1787,16 @@ class Relay_log_info : public Rpl_info {
   static const int PRIV_CHECKS_HOSTNAME_LENGTH = 255;
 
   /*
+    Represents line number in relay_log.info to save REQUIRE_ROW_FORMAT
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT = 11;
+
+  /*
     Total lines in relay_log.info.
     This has to be updated every time a member is added or removed.
   */
   static const int MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE =
-      LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_HOSTNAME;
+      LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT;
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
@@ -1890,6 +1987,16 @@ class Relay_log_info : public Rpl_info {
   @return true if the status is `SUCCESS` and false otherwise.
  */
 bool operator!(Relay_log_info::enum_priv_checks_status status);
+
+/**
+  Negation operator for `enum_require_row_status`, to facilitate validation
+  against `SUCCESS`. To test for error status, use the `!!` idiom.
+
+  @param status the status code to check against `SUCCESS`
+
+  @return true if the status is `SUCCESS` and false otherwise.
+ */
+bool operator!(Relay_log_info::enum_require_row_status status);
 
 bool mysql_show_relaylog_events(THD *thd);
 

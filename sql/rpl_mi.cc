@@ -187,6 +187,8 @@ Master_info::Master_info(
       retry_count(master_retry_count),
       mi_description_event(nullptr),
       auto_position(false),
+      transaction_parser(
+          Transaction_boundary_parser::TRX_BOUNDARY_PARSER_RECEIVER),
       reset(false) {
   host[0] = 0;
   user[0] = 0;

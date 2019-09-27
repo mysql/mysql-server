@@ -574,8 +574,10 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
     It will also be used to verify transactions boundaries on the relay log
     while collecting the Retrieved_Gtid_Set to make sure of only adding GTIDs
     of fully retrieved transactions.
+    Its output is also used to detect when events were not logged using row
+    based logging.
   */
-  Transaction_boundary_parser transaction_parser;
+  Replication_transaction_boundary_parser transaction_parser;
 
  private:
   /*

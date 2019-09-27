@@ -18,6 +18,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
+  `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
@@ -35,6 +36,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
+  `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SET @@global.relay_log_info_repository="TABLE";
@@ -61,7 +63,7 @@ include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_sql_error.inc [errno=1805]
-Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 11, found 10. The table is probably corrupted'
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 12, found 11. The table is probably corrupted'
 include/stop_slave_io.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
@@ -75,14 +77,14 @@ include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 INSERT INTO t_innodb VALUES (1), (2), (3);
 include/wait_for_slave_sql_error.inc [errno=1805]
-Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 11, found 10. The table is probably corrupted'
+Last_SQL_Error = 'Column count of mysql.slave_relay_log_info is wrong. Expected 12, found 11. The table is probably corrupted'
 include/stop_slave_io.inc
 START SLAVE SQL_THREAD;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 11, found 10. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 12, found 11. The table is probably corrupted
 RESET SLAVE ALL;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 11, found 10. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 12, found 11. The table is probably corrupted
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
-ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 11, found 10. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 12, found 11. The table is probably corrupted
 ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED NOT NULL AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET SLAVE ALL;
@@ -192,6 +194,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
+  `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 # Search for occurrences of slave_master_info in the output from mysqldump

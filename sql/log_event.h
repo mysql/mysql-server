@@ -450,6 +450,7 @@ struct PRINT_EVENT_INFO {
   enum_base64_output_mode base64_output_mode;
   // True if the --skip-gtids flag was specified.
   bool skip_gtids;
+
   /*
     This is set whenever a Format_description_event is printed.
     Later, when an event is printed in base64, this flag is tested: if
@@ -488,6 +489,14 @@ struct PRINT_EVENT_INFO {
   bool skipped_event_in_transaction;
 
   bool print_table_metadata;
+
+  /**
+   True if --require_row_format is passed.
+   If true
+    It prints at start SET @@session.require_row_format = 1
+    It omits the SET @@session.pseudo_thread_id printed on Query events
+  */
+  bool require_row_format;
 };
 #endif
 
@@ -4330,6 +4339,29 @@ size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
 */
 template <typename T>
 bool net_field_length_checked(const uchar **packet, size_t *max_length, T *out);
+
+/**
+   Extract basic info about an event:  type, query, is it ignorable
+
+   @param log_event the event to extract info from
+   @return a pair first param is true if an error occurred, false otherwise
+                  second param is the event info
+ */
+std::pair<bool, binary_log::Log_event_basic_info> extract_log_event_basic_info(
+    Log_event *log_event);
+
+/**
+   Extract basic info about an event:  type, query, is it ignorable
+
+   @param buf      The event info buffer
+   @param length   The length of the buffer
+   @param fd_event The Format description event associated
+   @return a pair first param is true if an error occurred, false otherwise
+                  second param is the event info
+ */
+std::pair<bool, binary_log::Log_event_basic_info> extract_log_event_basic_info(
+    const char *buf, size_t length,
+    const binary_log::Format_description_event *fd_event);
 
 /**
   @} (end of group Replication)

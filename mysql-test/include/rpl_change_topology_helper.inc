@@ -15,6 +15,7 @@
 # [--let $rpl_privilege_checks_user= 1:'user'@'host',2:NULL]
 # [--let $rpl_privilege_checks_user_dont_create_user= 0]
 # [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
+# [--let $rpl_require_row_format= *:0,1:0,2:1]
 # --let $rpl_source_file= rpl_change_topology_helper.inc
 # --source include/rpl_for_each_connection.inc
 #
@@ -166,6 +167,27 @@ if (!$_rpl_change_topology_helper_skip)
       SET @@sql_log_bin = 1;
     }
   }
+
+  # Get REQUIRE_ROW_FORMAT for current `$rpl_slave`
+  --let $_rpl_change_topology_helper_require_row_index= `SELECT LOCATE('$rpl_slave:', "$rpl_require_row_format")`
+  --let $_rpl_change_topology_helper_require_row = 0
+  if ($_rpl_change_topology_helper_privilege_checks != NULL)
+  {
+    --let $_rpl_change_topology_helper_require_row = 1
+  }
+  if ($_rpl_change_topology_helper_privilege_checks == NULL)
+  {
+    if ($_rpl_change_topology_helper_require_row_index)
+    {
+      --let $_rpl_change_topology_helper_require_row= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_row_format", $_rpl_change_topology_helper_require_row_index), ',', 1), ':', -1)`
+    }
+    # Get PRIVILEGE_CHECKS_USER for all slaves
+    if (`SELECT $_rpl_change_topology_helper_require_row_index = 0 AND "$_rpl_change_topology_require_row_all" != ""`)
+    {
+      --let $_rpl_change_topology_helper_require_row= $_rpl_change_topology_require_row_all
+    }
+  }
+  --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position REQUIRE_ROW_FORMAT = $_rpl_change_topology_helper_require_row,
 
   --replace_regex /[0-9]{4}/####/
     if (!$rpl_multi_source)

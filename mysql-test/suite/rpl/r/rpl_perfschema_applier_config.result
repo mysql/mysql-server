@@ -38,4 +38,8 @@ include/assert.inc [Value returned by SSS and PS table for Desired_Delay should 
 # Verify that `privilege_checks_user` is initialized to `NULL`.
 
 include/assert.inc [Value for Privilege_Checks_User is initialized to NULL]
+
+# Verify that `require_row_format` is initialized to `NO`.
+
+include/assert.inc [Value for Require_Row_Format is initialized to NO]
 include/rpl_end.inc

@@ -353,6 +353,16 @@ enum Log_event_type {
 };
 
 /**
+  Struct to pass basic information about a event: type, query, is it ignorable
+*/
+struct Log_event_basic_info {
+  Log_event_type event_type{UNKNOWN_EVENT};
+  const char *query{nullptr};
+  size_t query_length{0};
+  bool ignorable_event{false};
+};
+
+/**
  The length of the array server_version, which is used to store the version
  of MySQL server.
  We could have used SERVER_VERSION_LENGTH, but this introduces an

@@ -20,6 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+
 SET(REPLICATION_SOURCES
   binary_log_funcs.cpp
   binlog_event.cpp
@@ -28,6 +29,7 @@ SET(REPLICATION_SOURCES
   load_data_events.cpp
   rows_event.cpp
   statement_events.cpp
+  trx_boundary_parser.cpp
   uuid.cpp
   )
 

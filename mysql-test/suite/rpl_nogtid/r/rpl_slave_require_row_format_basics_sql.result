@@ -1,0 +1,229 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 0. Add suppressions for the test.
+#    Create a test include.
+#    Create tables for the test
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Slave SQL for channel '': The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found*");
+[connection master]
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (c1 TEXT);
+CREATE TABLE t3 (j INT PRIMARY KEY AUTO_INCREMENT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+#
+# 1. Log a DML transaction using statement based logging (TC1)
+[connection master]
+INSERT INTO t1 VALUES (0);
+#
+# 1.1 Check the slave SQL thread fails
+[connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13508]
+Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+STOP SLAVE;
+include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
+include/assert.inc [Nothing was inserted on the table]
+# No issues when REQUIRE_ROW_FORMAT = 0
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Reset for next step
+include/stop_slave.inc
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+#
+# 2. Log a transaction with a LOAD DATA event (TC2)
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
+#
+# 2.1 Check the slave SQL thread fails
+[connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13508]
+Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+STOP SLAVE;
+include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
+include/assert.inc [Nothing was insert on the table]
+# No issues when REQUIRE_ROW_FORMAT = 0
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Reset for next step
+include/stop_slave.inc
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+#
+# 3. Log a transaction with a USER_VAR event (TC2)
+SET @v= 10;
+INSERT INTO t1 VALUES (@v);
+#
+# 3.1 Check the slave SQL thread fails
+[connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13508]
+Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+STOP SLAVE;
+include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
+include/assert.inc [Nothing was insert on the table]
+# No issues when REQUIRE_ROW_FORMAT = 0
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Reset for next step
+include/stop_slave.inc
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+#
+# 4. Log a transaction with a RAND event (TC2)
+INSERT INTO t1 VALUES (Rand());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+#
+# 4.1 Check the slave SQL thread fails
+[connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13508]
+Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+STOP SLAVE;
+include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
+include/assert.inc [Nothing was insert on the table]
+# No issues when REQUIRE_ROW_FORMAT = 0
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Reset for next step
+include/stop_slave.inc
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+#
+# 5. Log a transaction with a INTVAR event (TC2)
+INSERT INTO t3 VALUES();
+#
+# 5.1 Check the slave SQL thread fails
+[connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13508]
+Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+STOP SLAVE;
+include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
+include/assert.inc [Nothing was insert on the table]
+# No issues when REQUIRE_ROW_FORMAT = 0
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Reset for next step
+include/stop_slave.inc
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+#
+# 6. Log a transaction with a CREATE TEMPORARY TABLE query (TC3)
+CREATE TEMPORARY TABLE temp1 (k INT PRIMARY KEY);
+#
+# 6.1 Check the slave SQL thread fails
+[connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13508]
+Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+STOP SLAVE;
+include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
+include/assert.inc [No temporary table was created]
+# No issues when REQUIRE_ROW_FORMAT = 0
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Reset for next step
+include/stop_slave.inc
+Warnings:
+Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+#
+# 7. Log a transaction with a DROP TEMPORARY TABLE query (TC3)
+DROP TEMPORARY TABLE temp1;
+#
+# 7.1 Check the slave SQL thread fails
+[connection slave]
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+include/start_slave_io.inc
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=13508]
+Last_SQL_Error = 'The application of relay events failed for channel '' as an invalid event according to REQUIRE_ROW_FORMAT was found.'
+STOP SLAVE;
+include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
+include/assert.inc [There is still a temporary table]
+# No issues when REQUIRE_ROW_FORMAT = 0
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+# Reset for next step
+include/stop_slave.inc
+RESET SLAVE;
+[connection master]
+RESET MASTER;
+#
+# 8. Cleanup
+[connection slave]
+include/start_slave.inc
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

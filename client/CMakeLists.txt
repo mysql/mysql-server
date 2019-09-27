@@ -102,6 +102,7 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
   ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/src/trx_boundary_parser.cpp
 
   DEPENDENCIES GenError
   LINK_LIBRARIES mysqlclient client_base binlogevents_static

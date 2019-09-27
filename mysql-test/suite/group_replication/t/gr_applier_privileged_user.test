@@ -8,18 +8,20 @@
 #
 # 1) Create a new database and a table on the group.
 # 2) Stop the applier for `server1`.
-# 3) Create a new user, grant it `REPLICATION_APPLIER` privileges and set it as
+# 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
+# 4) Create a new user, grant it `REPLICATION_APPLIER` privileges and set it as
 #    the `PRIVILEGE_CHECKS_USER` user.
-# 4) Execute an `INSERT` statement on `server2`.
-# 5) Start `server1` and expect an error as the user doesn't have INSERT
+# 5) Execute an `INSERT` statement on `server2`.
+# 6) Start `server1` and expect an error as the user doesn't have INSERT
 #    privilege.
-# 4) Stop slave and grant INSERT privilege.
-# 5) Start server1
-# 6) Ensure that table was properly replicated
+# 7) Stop slave and grant INSERT privilege.
+# 8) Start server1
+# 9) Ensure that table was properly replicated
 #
 # ==== References ====
 #
 # WL#12966: Replication with Restricted Privileges
+# WL#12968: Configure replication applier to require row-based replication
 #
 
 --source include/have_group_replication_plugin.inc
@@ -48,7 +50,19 @@ SET @@sql_log_bin = 1;
 --source include/gr_stop_applier_sql_thread.inc
 
 --echo
---echo # 3) Create a new user, grant it `REPLICATION_APPLIER` privileges and set
+--echo # 3) Verify that `REQUIRE_ROW_FORMAT` is set for the GR channels.
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Require_row_format = "YES" AND Channel_name = "group_replication_applier"`
+--let $assert_text = Require_row_format column in performance_schema.replication_applier_configuration is set to YES for GR applier channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Require_row_format = "YES" AND Channel_name = "group_replication_recovery"`
+--let $assert_text = Require_row_format column in performance_schema.replication_applier_configuration is set to YES for GR recovery channel
+--let $assert_cond = 1 = $count
+--source include/assert.inc
+
+--echo
+--echo # 4) Create a new user, grant it `REPLICATION_APPLIER` privileges and set
 --echo #    it as the `PRIVILEGE_CHECKS_USER` user.
 SET @@sql_log_bin = 0;
 --let $applier_user = 'u1'@'localhost'
@@ -63,13 +77,13 @@ SET @@sql_log_bin = 1;
 --source include/assert.inc
 
 --echo
---echo # 4) Execute an `INSERT` statement on `server2`.
+--echo # 5) Execute an `INSERT` statement on `server2`.
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
 INSERT INTO db1.t1 VALUES (1), (2);
 
 --echo
---echo # 5) Start `server1` and expect an error as the user doesn't have INSERT
+--echo # 6) Start `server1` and expect an error as the user doesn't have INSERT
 --echo #    privilege.
 --let $rpl_connection_name = server1
 --source include/rpl_connection.inc
@@ -79,18 +93,18 @@ INSERT INTO db1.t1 VALUES (1), (2);
 --source include/gr_wait_for_member_state.inc
 
 --echo
---echo # 4) Stop slave and grant INSERT privilege.
+--echo # 6) Stop slave and grant INSERT privilege.
 --source include/stop_group_replication.inc
 SET @@sql_log_bin = 0;
 --eval GRANT INSERT ON *.* TO $applier_user
 SET @@sql_log_bin = 1;
 
 --echo
---echo # 5) Start server1
+--echo # 8) Start server1
 --source include/start_group_replication.inc
 
 --echo
---echo # 6) Ensure that table was properly replicated
+--echo # 9) Ensure that table was properly replicated
 --source include/rpl_sync.inc
 --let $count = `SELECT COUNT(*) FROM db1.t1`
 --let $assert_text = Table properly replicated in server1

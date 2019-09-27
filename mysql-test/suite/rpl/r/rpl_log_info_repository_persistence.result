@@ -22,7 +22,7 @@ FLUSH PRIVILEGES;
 #
 STOP SLAVE;
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, REQUIRE_ROW_FORMAT=1, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 FLUSH RELAY LOGS;
 START SLAVE;
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
@@ -56,8 +56,8 @@ ERROR HY000: String 'repli_priv_checks_user_more_than_32' is too long for user n
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --debug=d,simulate_priv_check_username_above_limit]
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER
-	0	<INVALID>
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT
+	0	<INVALID>	YES
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_username_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "";
@@ -72,8 +72,8 @@ ERROR HY000: String 'replication_privilege_checks_hostname_more_than_255_replica
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --debug=d,simulate_priv_check_hostname_above_limit]
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER
-	0	<INVALID>
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT
+	0	<INVALID>	YES
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_hostname_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "";
@@ -94,8 +94,8 @@ Matching lines are:
 l@calhost
 Occurrences of 'l@calhost' in the input file: 1
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER
-	0	<INVALID>
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT
+	0	<INVALID>	YES
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
@@ -109,13 +109,13 @@ ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel '' was set to ``@`loc
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER
-	0	<INVALID>
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT
+	0	<INVALID>	NO
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 RESET SLAVE FOR CHANNEL "";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, REQUIRE_ROW_FORMAT=1, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 #
 # TC.E.F6. privilege_checks_user is a non existent user.
 #
@@ -130,8 +130,8 @@ Matching lines are:
 localhost
 Occurrences of 'localhost' in the input file: 1
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER
-	0	<INVALID>
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT
+	0	<INVALID>	YES
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
@@ -151,7 +151,7 @@ include/assert.inc [Check that priv_chks_hostname for channel "" is correct]
 # TC.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
 #
 CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, REQUIRE_ROW_FORMAT=1, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
 FLUSH RELAY LOGS FOR CHANNEL "ch1";
 FLUSH RELAY LOGS FOR CHANNEL "ch2";
 include/assert.inc [Check that mysql.slave_relay_log_info has 3 entries for 3 channels]

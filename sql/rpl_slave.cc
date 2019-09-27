@@ -4730,6 +4730,34 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
   }
 
   if (ev) {
+    if (rli->is_row_format_required()) {
+      bool info_error{false};
+      binary_log::Log_event_basic_info log_event_info;
+      std::tie(info_error, log_event_info) = extract_log_event_basic_info(ev);
+
+      if (info_error ||
+          rli->transaction_parser.feed_event(log_event_info, true)) {
+        /* purecov: begin inspected */
+        LogErr(WARNING_LEVEL,
+               ER_RPL_SLAVE_SQL_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE);
+        /* purecov: end */
+      }
+
+      if (info_error || rli->transaction_parser.check_row_logging_constraints(
+                            log_event_info)) {
+        rli->report(
+            ERROR_LEVEL,
+            ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT,
+            ER_THD(thd,
+                   ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT),
+            rli->mi->get_channel());
+        rli->abort_slave = 1;
+        mysql_mutex_unlock(&rli->data_lock);
+        delete ev;
+        return 1;
+      }
+    }
+
     enum enum_slave_apply_event_and_update_pos_retval exec_res;
 
     ptr_ev = &ev;
@@ -5768,6 +5796,8 @@ static void *handle_slave_worker(void *arg) {
   /* Set applier thread InnoDB priority */
   set_thd_tx_priority(thd, rli->get_thd_tx_priority());
 
+  thd->variables.require_row_format = rli->is_row_format_required();
+
   thd_manager->add_thd(thd);
   thd_added = true;
 
@@ -6784,6 +6814,8 @@ extern "C" void *handle_slave_sql(void *arg) {
         rli);  // (re)set sql_thd in use for saved temp tables
     /* Set applier thread InnoDB priority */
     set_thd_tx_priority(thd, rli->get_thd_tx_priority());
+    thd->variables.require_row_format = rli->is_row_format_required();
+    rli->transaction_parser.reset();
 
     thd_manager->add_thd(thd);
     thd_added = true;
@@ -7216,6 +7248,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   Gtid gtid = {0, 0};
   ulonglong immediate_commit_timestamp = 0;
   ulonglong original_commit_timestamp = 0;
+  bool info_error{false};
+  binary_log::Log_event_basic_info log_event_info;
   Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
   DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
@@ -7329,8 +7363,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     It will also be used to avoid rotating the relay log in the middle of
     a transaction.
   */
-  if (mi->transaction_parser.feed_event(buf, event_len,
-                                        mi->get_mi_description_event(), true)) {
+  std::tie(info_error, log_event_info) = extract_log_event_basic_info(
+      buf, event_len, mi->get_mi_description_event());
+  if (info_error || mi->transaction_parser.feed_event(log_event_info, true)) {
     /*
       The transaction parser detected a problem while changing state and threw
       a warning message. We are taking care of avoiding transaction boundary
@@ -7350,6 +7385,18 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     LogErr(WARNING_LEVEL,
            ER_RPL_SLAVE_IO_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE,
            mi->get_master_log_name(), mi->get_master_log_pos());
+  }
+
+  if (rli->is_row_format_required()) {
+    if (info_error ||
+        mi->transaction_parser.check_row_logging_constraints(log_event_info)) {
+      mi->report(ERROR_LEVEL,
+                 ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT,
+                 ER_THD(current_thd,
+                        ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT),
+                 mi->get_channel());
+      goto err;
+    }
   }
 
   switch (event_type) {
@@ -8999,7 +9046,8 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO *lex_mi) {
       lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
       lex_mi->public_key_path ||
       lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->zstd_compression_level || lex_mi->compression_algorithm)
+      lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
+      lex_mi->require_row_format != -1)
     have_receive_option = true;
 
   return have_receive_option;
@@ -9074,7 +9122,7 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO *lex_mi,
   /* Check if *at least one* execute option is given on change master command*/
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->privilege_checks_username != nullptr ||
-      lex_mi->privilege_checks_none)
+      lex_mi->privilege_checks_none || lex_mi->require_row_format != -1)
     have_execute_option = true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
@@ -9313,11 +9361,23 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
         mi->rli->set_privilege_checks_user(
             lex_mi->privilege_checks_username,
             lex_mi->privilege_checks_none ? nullptr
-                                          : lex_mi->privilege_checks_hostname)};
+                                          : lex_mi->privilege_checks_hostname,
+            lex_mi)};
     if (!!error) {
       mi->rli->report_privilege_check_error(
           ERROR_LEVEL, error, true /* to client*/, mi->rli->get_channel(),
           lex_mi->privilege_checks_username, lex_mi->privilege_checks_hostname);
+      return true;
+    }
+  }
+
+  if (lex_mi->require_row_format != -1) {  // Is included in CHM statement
+    Relay_log_info::enum_require_row_status error{
+        mi->rli->set_require_row_format(lex_mi->require_row_format, lex_mi)};
+    if (!!error) {
+      mi->rli->report_require_row_error(ERROR_LEVEL, error, true /* to client*/,
+                                        mi->rli->get_channel(),
+                                        lex_mi->require_row_format);
       return true;
     }
   }
@@ -9522,6 +9582,17 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     need_relay_log_purge = false;
   }
 
+  /*
+    With both threads running, we dont allow changing either receive or execute
+    options.
+   */
+  if (have_receive_option && have_execute_option && (thread_mask & SLAVE_IO) &&
+      (thread_mask & SLAVE_SQL)) {
+    error = ER_SLAVE_CHANNEL_MUST_STOP;
+    my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
+    goto err;
+  }
+
   /* With receiver thread running, we dont allow changing receive options. */
   if (have_receive_option && (thread_mask & SLAVE_IO)) {
     error = ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP;
@@ -9566,6 +9637,19 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     error = ER_MASTER_INFO;
     my_error(ER_MASTER_INFO, MYF(0));
     goto err;
+  }
+
+  if (channel_map.is_group_replication_channel_name(lex_mi->channel)) {
+    Relay_log_info::enum_require_row_status require_row_error{
+        mi->rli->set_require_row_format(true)};
+    if (!!require_row_error) {
+      /* purecov: begin inspected */
+      mi->rli->report_require_row_error(ERROR_LEVEL, require_row_error,
+                                        true /* to client*/,
+                                        mi->rli->get_channel(), 1);
+      goto err;
+      /* purecov: end */
+    }
   }
 
   if (have_execute_option && (error = change_execute_options(lex_mi, mi)))
@@ -9878,7 +9962,8 @@ static bool is_invalid_change_master_for_group_replication_recovery(
       lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->public_key_path ||
       lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->zstd_compression_level || lex_mi->compression_algorithm)
+      lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
+      lex_mi->require_row_format != -1)
     have_extra_option_received = true;
 
   return have_extra_option_received;
@@ -9921,7 +10006,8 @@ static bool is_invalid_change_master_for_group_replication_applier(
       lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->public_key_path ||
       lex_mi->get_public_key != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
-      lex_mi->zstd_compression_level || lex_mi->compression_algorithm)
+      lex_mi->zstd_compression_level || lex_mi->compression_algorithm ||
+      lex_mi->require_row_format != -1)
     have_extra_option_received = true;
 
   return have_extra_option_received;

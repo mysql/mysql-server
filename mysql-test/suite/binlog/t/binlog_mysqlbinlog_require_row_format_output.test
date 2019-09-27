@@ -1,0 +1,88 @@
+# ==== Purpose ====
+#
+# This test evaluates the output of mysqlbinlog with --require_row_format
+#
+# ==== Requirements ====
+#
+# When using --require_row_format mysqlbinlog shall
+#
+# T1. SET @@session.require_row_format = 1 is printed on the start
+# T2. SET @@session.pseudo_thread_id is omitted for query events
+#
+# ==== Implementation ====
+#
+#  1. Add some data to be present in the binlog and flush it.
+#  2. Execute mysqlbinlog without --require_row_format
+#      @@SESSION.REQUIRE_ROW_FORMAT is not set
+#      @@session.pseudo_thread_id is set
+#  3. Execute mysqlbinlog with --require_row_format
+#      @@SESSION.REQUIRE_ROW_FORMAT is set
+#      @@session.pseudo_thread_id is not set
+#  4. Cleanup
+#
+#  ==== Related Worklog ====
+#
+#  WL #12968 : Configure replication applier to require row-based replication
+
+-- source include/have_binlog_format_row.inc
+
+--echo #
+--echo # 1. Add some data to be present in the binlog and flush it.
+
+CREATE TABLE t1 (c01 BIT);
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 VALUES (1);
+
+DROP TABLE t1;
+
+FLUSH LOGS;
+
+--echo #
+--echo # 2. Execute mysqlbinlog without --require_row_format
+--echo #    @@SESSION.REQUIRE_ROW_FORMAT is not set
+--echo #    @@session.pseudo_thread_id is set
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $mysqlbinlog_parameters= $MYSQLD_DATADIR/binlog.000001
+--let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+--source include/mysqlbinlog.inc
+
+--let $assert_text = There is no session.require_row_format being set
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+--let $assert_select = @@SESSION.REQUIRE_ROW_FORMAT
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--let $assert_text = There are occurrences of session.pseudo_thread_id being set
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+--let $assert_select = @@session.pseudo_thread_id
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # 3. Execute mysqlbinlog with --require_row_format
+--echo #    @@SESSION.REQUIRE_ROW_FORMAT is set
+--echo #    @@session.pseudo_thread_id is not set
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--let $mysqlbinlog_parameters= --require_row_format $MYSQLD_DATADIR/binlog.000001
+--let $mysqlbinlog_pipe= > $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+--source include/mysqlbinlog.inc
+
+--let $assert_text = Session.require_row_format is being set
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+--let $assert_select = @@SESSION.REQUIRE_ROW_FORMAT
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = There are no occurrences of session.pseudo_thread_id being set
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+--let $assert_select = @@session.pseudo_thread_id
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--echo #
+--echo # 4. Cleanup
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.out
+

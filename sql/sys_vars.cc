@@ -6761,3 +6761,41 @@ static Sys_var_charptr Sys_protocol_compression_algorithms(
     DEFAULT(const_cast<char *>(PROTOCOL_COMPRESSION_DEFAULT_VALUE)),
     NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_set_protocol_compression_algorithms), ON_UPDATE(0));
+
+static bool check_set_require_row_format(sys_var *, THD *thd, set_var *var) {
+  /*
+   Should own SUPER or SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN
+   when the value is changing to NO, no privileges are needed to set to YES
+  */
+  longlong previous_val = thd->variables.require_row_format;
+  longlong val = (longlong)var->save_result.ulonglong_value;
+  DBUG_ASSERT(!var->is_global_persist());
+
+  // if it was true and we are changing it
+  if (previous_val && val != previous_val) {
+    if (thd->security_context()->check_access(SUPER_ACL) ||
+        thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+            .first ||
+        thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+            .first)
+      return false;
+
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+    return true;
+  }
+  return false;
+}
+
+/**
+   Session only flag to limit the application of queries to row based events
+   and DDLs with the exception of temporary table creation/deletion
+*/
+static Sys_var_bool Sys_var_require_row_format(
+    "require_row_format",
+    "Limit the application of queries to row based events "
+    "and DDLs with the exception of temporary table creation/deletion.",
+    SESSION_ONLY(require_row_format), NO_CMD_LINE, DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_set_require_row_format));

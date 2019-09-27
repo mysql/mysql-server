@@ -10593,6 +10593,18 @@ ER_IB_LOB_ROLLBACK_INDEX_LEN
 ER_CANT_PROCESS_EXPRESSION_FOR_GENERATED_COLUMN_TO_DD
   eng "Error in processing (possibly deprecated) expression or function '%.128s' for generated column %.64s.%.64s.%.64s"
 
+ER_RPL_SLAVE_QUEUE_EVENT_FAILED_INVALID_NON_ROW_FORMAT
+  eng "The queue event failed for channel '%s' as an invalid event according to REQUIRE_ROW_FORMAT was found."
+
+ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT
+  eng "The application of relay events failed for channel '%s' as an invalid event according to REQUIRE_ROW_FORMAT was found."
+
+ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET
+  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' can't be set to `%.64s`@`%.255s` unless REQUIRE_ROW_FORMAT is also set to %d."
+
+ER_RPL_SLAVE_SQL_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE
+  eng "An unexpected event sequence was detected by the SQL thread while applying an event."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
