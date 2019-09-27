@@ -2356,6 +2356,17 @@ void Item_in_optimizer::replace_argument(THD *thd, Item **, Item *newp) {
   fix_left(thd, NULL);
 }
 
+void Item_in_optimizer::update_used_tables() {
+  Item_func::update_used_tables();
+
+  // See explanation for this logic in Item_in_optimizer::fix_fields
+  Item_in_subselect *sub = (Item_in_subselect *)args[1];
+  if (sub->abort_on_null && sub->value_transform == BOOL_IS_TRUE) {
+  } else {
+    not_null_tables_cache &= ~args[0]->not_null_tables();
+  }
+}
+
 longlong Item_func_eq::val_int() {
   DBUG_ASSERT(fixed == 1);
   int value = cmp.compare();
@@ -2618,6 +2629,11 @@ bool Item_func_interval::resolve_type(THD *) {
   return false;
 }
 
+void Item_func_interval::update_used_tables() {
+  Item_func::update_used_tables();
+  not_null_tables_cache = row->not_null_tables();
+}
+
 /**
   Appends function name and arguments list to the String str.
 
@@ -2745,31 +2761,15 @@ longlong Item_func_interval::val_int() {
 
 bool Item_func_between::fix_fields(THD *thd, Item **ref) {
   if (Item_func_opt_neg::fix_fields(thd, ref)) return true;
-
   thd->lex->current_select()->between_count++;
-
-  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
-  if (pred_level && !negated) return false;
-
-  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
-  not_null_tables_cache =
-      (args[0]->not_null_tables() |
-       (args[1]->not_null_tables() & args[2]->not_null_tables()));
-
+  update_not_null_tables();
   return false;
 }
 
 void Item_func_between::fix_after_pullout(SELECT_LEX *parent_select,
                                           SELECT_LEX *removed_select) {
   Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
-
-  // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
-  if (pred_level && !negated) return;
-
-  // not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
-  not_null_tables_cache =
-      args[0]->not_null_tables() |
-      (args[1]->not_null_tables() & args[2]->not_null_tables());
+  update_not_null_tables();
 }
 
 bool Item_func_between::resolve_type(THD *thd) {
@@ -2882,6 +2882,11 @@ bool Item_func_between::resolve_type(THD *thd) {
   }
 
   return false;
+}
+
+void Item_func_between::update_used_tables() {
+  Item_func::update_used_tables();
+  update_not_null_tables();
 }
 
 float Item_func_between::get_filtering_effect(THD *thd,
@@ -3189,19 +3194,19 @@ bool Item_func_if::fix_fields(THD *thd, Item **ref) {
   args[0]->apply_is_true();
 
   if (Item_func::fix_fields(thd, ref)) return true;
-
-  not_null_tables_cache =
-      (args[1]->not_null_tables() & args[2]->not_null_tables());
-
+  update_not_null_tables();
   return false;
 }
 
 void Item_func_if::fix_after_pullout(SELECT_LEX *parent_select,
                                      SELECT_LEX *removed_select) {
   Item_func::fix_after_pullout(parent_select, removed_select);
+  update_not_null_tables();
+}
 
-  not_null_tables_cache =
-      (args[1]->not_null_tables() & args[2]->not_null_tables());
+void Item_func_if::update_used_tables() {
+  Item_func::update_used_tables();
+  update_not_null_tables();
 }
 
 bool Item_func_if::resolve_type(THD *) {
@@ -4587,33 +4592,14 @@ bool Item_func_in::list_contains_null() {
 
 bool Item_func_in::fix_fields(THD *thd, Item **ref) {
   if (Item_func_opt_neg::fix_fields(thd, ref)) return true;
-
-  // not_null_tables_cache == union(T1(e),union(T1(ei)))
-  if (pred_level && negated) return false;
-
-  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
-  not_null_tables_cache = ~(table_map)0;
-  Item **arg_end = args + arg_count;
-  for (Item **arg = args + 1; arg != arg_end; arg++)
-    not_null_tables_cache &= (*arg)->not_null_tables();
-  not_null_tables_cache |= (*args)->not_null_tables();
-
+  update_not_null_tables();
   return false;
 }
 
 void Item_func_in::fix_after_pullout(SELECT_LEX *parent_select,
                                      SELECT_LEX *removed_select) {
   Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
-
-  // not_null_tables_cache == union(T1(e),union(T1(ei)))
-  if (ignore_unknown() && negated) return;
-
-  // not_null_tables_cache = union(T1(e),intersection(T1(ei)))
-  not_null_tables_cache = ~(table_map)0;
-  Item **arg_end = args + arg_count;
-  for (Item **arg = args + 1; arg != arg_end; arg++)
-    not_null_tables_cache &= (*arg)->not_null_tables();
-  not_null_tables_cache |= (*args)->not_null_tables();
+  update_not_null_tables();
 }
 
 bool Item_func_in::resolve_type(THD *thd) {
@@ -4880,6 +4866,11 @@ bool Item_func_in::resolve_type(THD *thd) {
   Opt_trace_object(&thd->opt_trace)
       .add("IN_uses_bisection", bisection_possible);
   return false;
+}
+
+void Item_func_in::update_used_tables() {
+  Item_func::update_used_tables();
+  update_not_null_tables();
 }
 
 void Item_func_in::print(const THD *thd, String *str,
@@ -5413,10 +5404,19 @@ void Item_cond::update_used_tables() {
   used_tables_cache = 0;
   m_accum_properties = 0;
 
+  if (functype() == COND_AND_FUNC && ignore_unknown())
+    not_null_tables_cache = 0;
+  else
+    not_null_tables_cache = ~(table_map)0;
+
   while ((item = li++)) {
     item->update_used_tables();
     used_tables_cache |= item->used_tables();
     add_accum_properties(item);
+    if (functype() == COND_AND_FUNC && ignore_unknown())
+      not_null_tables_cache |= item->not_null_tables();
+    else
+      not_null_tables_cache &= item->not_null_tables();
   }
 }
 
@@ -5562,6 +5562,10 @@ void Item_func_isnull::update_used_tables() {
     // If const, remember if value is always NULL or never NULL
     if (const_item()) cached_value = (longlong)args[0]->is_null();
   }
+
+  not_null_tables_cache = 0;
+  if (null_on_null && !const_item())
+    not_null_tables_cache |= args[0]->not_null_tables();
 }
 
 float Item_func_isnull::get_filtering_effect(THD *thd,
@@ -5731,6 +5735,9 @@ void Item_is_not_null_test::update_used_tables() {
   if (used_tables_cache == initial_pseudo_tables && args[0]->const_item())
     /* Remember if the value is always NULL or never NULL */
     cached_value = !args[0]->is_null();
+
+  not_null_tables_cache = 0;
+  if (null_on_null) not_null_tables_cache |= args[0]->not_null_tables();
 }
 
 float Item_func_isnotnull::get_filtering_effect(
@@ -5990,6 +5997,7 @@ void Item_func_like::update_used_tables() {
   escape_item->update_used_tables();
   used_tables_cache |= escape_item->used_tables();
   add_accum_properties(escape_item);
+  if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
 }
 
 bool Item_func_xor::itemize(Parse_context *pc, Item **res) {

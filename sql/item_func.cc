@@ -456,6 +456,7 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 
 void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
+  not_null_tables_cache = 0;
 
   /*
     Rollup property not always derivable from arguments, so don't reset that,
@@ -469,6 +470,7 @@ void Item_func::update_used_tables() {
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
     used_tables_cache |= args[i]->used_tables();
+    if (null_on_null) not_null_tables_cache |= args[i]->not_null_tables();
     add_accum_properties(args[i]);
   }
 }

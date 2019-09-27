@@ -2272,6 +2272,7 @@ void Item_func_make_set::update_used_tables() {
   Item_func::update_used_tables();
   item->update_used_tables();
   used_tables_cache |= item->used_tables();
+  not_null_tables_cache |= item->not_null_tables();
   add_accum_properties(item);
 }
 

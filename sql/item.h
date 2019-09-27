@@ -1883,6 +1883,11 @@ class Item : public Parse_tree_node {
   void print_for_order(const THD *thd, String *str, enum_query_type query_type,
                        bool used_alias) const;
 
+  /**
+    Updates used tables, not null tables information and accumulates
+    properties up the item tree, cf. used_tables_cache, not_null_tables_cache
+    and m_accum_properties.
+  */
   virtual void update_used_tables() {}
 
   virtual void split_sum_func(THD *, Ref_item_array, List<Item> &) {}

@@ -488,6 +488,7 @@ class Item_in_optimizer final : public Item_bool_func {
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg) override;
   void replace_argument(THD *thd, Item **oldpp, Item *newp) override;
+  void update_used_tables() override;
 };
 
 /// Abstract factory interface for creating comparison predicates.
@@ -1201,6 +1202,17 @@ class Item_func_between final : public Item_func_opt_neg {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+  void update_used_tables() override;
+
+  void update_not_null_tables() {
+    // not_null_tables_cache == union(T1(e),T1(e1),T1(e2))
+    if (pred_level && !negated) return;
+
+    /// not_null_tables_cache == union(T1(e), intersection(T1(e1),T1(e2)))
+    not_null_tables_cache =
+        args[0]->not_null_tables() |
+        (args[1]->not_null_tables() & args[2]->not_null_tables());
+  }
 };
 
 class Item_func_strcmp final : public Item_bool_func2 {
@@ -1251,6 +1263,7 @@ class Item_func_interval final : public Item_int_func {
   uint decimal_precision() const override { return 2; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  void update_used_tables() override;
 
  private:
   // Runs in CTOR init list, cannot access *this as Item_func_interval
@@ -1351,6 +1364,13 @@ class Item_func_if final : public Item_func {
   uint decimal_precision() const override;
   const char *func_name() const override { return "if"; }
   enum Functype functype() const override { return IF_FUNC; }
+  void update_used_tables() override;
+
+  ///< T1(IF(e,e1,e2)) = intersection(T1(e1),T1(e2))
+  void update_not_null_tables() {
+    not_null_tables_cache =
+        (args[1]->not_null_tables() & args[2]->not_null_tables());
+  }
 };
 
 class Item_func_nullif final : public Item_bool_func2 {
@@ -1915,6 +1935,7 @@ class Item_func_in final : public Item_func_opt_neg {
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
   bool resolve_type(THD *) override;
+  void update_used_tables() override;
   uint decimal_precision() const override { return 1; }
 
   /**
@@ -1954,6 +1975,19 @@ class Item_func_in final : public Item_func_opt_neg {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+  void update_not_null_tables() {
+    // not_null_tables_cache == union(T1(e),union(T1(ei)))
+    if (pred_level && negated) return;
+
+    not_null_tables_cache = ~(table_map)0;
+
+    ///< not_null_tables_cache = union(T1(e),intersection(T1(ei)))
+    Item **arg_end = args + arg_count;
+    for (Item **arg = args + 1; arg != arg_end; arg++)
+      not_null_tables_cache &= (*arg)->not_null_tables();
+    not_null_tables_cache |= args[0]->not_null_tables();
+  }
 
  private:
   /**
@@ -2177,6 +2211,7 @@ class Item_func_like final : public Item_bool_func2 {
   bool resolve_type(THD *) override;
   void cleanup() override;
   bool cast_incompatible_args(uchar *) override { return false; }
+  void update_used_tables() override;
   /**
     @retval true non default escape char specified
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
@@ -2195,8 +2230,6 @@ class Item_func_like final : public Item_bool_func2 {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-
-  void update_used_tables() override;
 
  private:
   /**

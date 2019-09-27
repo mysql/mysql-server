@@ -2004,6 +2004,9 @@ class Item_udf_func : public Item_func {
     if ((used_tables_cache & ~PSEUDO_TABLE_BITS) &&
         !(used_tables_cache & RAND_TABLE_BIT))
       Item_func::update_used_tables();
+
+    not_null_tables_cache = 0;
+    DBUG_ASSERT(!null_on_null);  // no need to update not_null_tables_cache
   }
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
@@ -3152,7 +3155,10 @@ class Item_func_get_user_var : public Item_var_func,
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *str) override;
   bool resolve_type(THD *) override;
-  void update_used_tables() override {}  // Keep existing used tables
+  void update_used_tables() override {  // Keep existing used tables
+    DBUG_ASSERT(arg_count == 0);
+    not_null_tables_cache = 0;
+  }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   enum Item_result result_type() const override;
@@ -3366,7 +3372,6 @@ class Item_func_match final : public Item_real_func {
   Item *key_item() const override { return against; }
   enum Functype functype() const override { return FT_FUNC; }
   const char *func_name() const override { return "match"; }
-  void update_used_tables() override {}
   bool fix_fields(THD *thd, Item **ref) override;
   bool eq(const Item *, bool binary_cmp) const override;
   /* The following should be safe, even if we compare doubles */
