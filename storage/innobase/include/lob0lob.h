@@ -1503,16 +1503,6 @@ byte *btr_copy_externally_stored_field_func(
 #endif /* UNIV_DEBUG */
     mem_heap_t *heap);
 
-/** Flags the data tuple fields that are marked as extern storage in the
-update vector.  We use this function to remember which fields we must
-mark as extern storage in a record inserted for an update.
-@param[in,out]	tuple	data tuple
-@param[in]	update	update vector
-@param[in]	heap	memory heap
-@return number of flagged external columns */
-ulint btr_push_update_extern_fields(dtuple_t *tuple, const upd_t *update,
-                                    mem_heap_t *heap);
-
 /** Gets the externally stored size of a record, in units of a database page.
 @param[in]	rec	record
 @param[in]	offsets	array returned by rec_get_offsets()

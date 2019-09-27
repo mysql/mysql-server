@@ -1065,6 +1065,7 @@ ulint rec_get_converted_size(
 
   data_size = dtuple_get_data_size(dtuple, 0);
 
+  ut_ad(n_ext == dtuple->get_n_ext());
   extra_size = rec_get_converted_extra_size(data_size,
                                             dtuple_get_n_fields(dtuple), n_ext);
 
