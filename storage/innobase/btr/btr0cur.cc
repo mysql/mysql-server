@@ -3924,7 +3924,9 @@ dberr_t btr_cur_pessimistic_update(
 
   ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
   ut_ad(rec_offs_validate(rec, index, *offsets));
-  n_ext += lob::btr_push_update_extern_fields(new_entry, update, entry_heap);
+
+  /* Get number of externally stored columns in updated record */
+  n_ext = new_entry->get_n_ext();
 
   if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry, n_ext),
                              page_is_comp(page), dict_index_get_n_fields(index),

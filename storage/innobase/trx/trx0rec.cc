@@ -2593,11 +2593,13 @@ bool trx_undo_prev_version_build(
     fields. Store the info: */
 
     entry = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
-    n_ext += lob::btr_push_update_extern_fields(entry, update, heap);
     /* The page containing the clustered index record
     corresponding to entry is latched in mtr.  Thus the
     following call is safe. */
     row_upd_index_replace_new_col_vals(entry, index, update, heap);
+
+    /* Get number of externally stored columns in updated record */
+    n_ext = entry->get_n_ext();
 
     buf = static_cast<byte *>(
         mem_heap_alloc(heap, rec_get_converted_size(index, entry, n_ext)));

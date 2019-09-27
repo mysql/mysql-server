@@ -792,6 +792,18 @@ struct dtuple_t {
 
     return (compare(rec, index, offsets, &matched_fields));
   }
+
+  /** Get number of externally stored fields.
+  @retval number of externally stored fields. */
+  inline ulint get_n_ext() const {
+    ulint n_ext = 0;
+    for (ulint i = 0; i < n_fields; ++i) {
+      if (dfield_is_ext(&fields[i])) {
+        n_ext++;
+      }
+    }
+    return (n_ext);
+  }
 };
 
 /** A slot for a field in a big rec vector */
