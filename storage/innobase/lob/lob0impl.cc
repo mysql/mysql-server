@@ -132,6 +132,17 @@ void z_frag_entry_t::update(const z_frag_page_t &frag_page) {
   set_big_free_len(frag_page.get_big_free_len());
 }
 
+void z_frag_entry_t::free_frag_page(mtr_t *mtr, dict_index_t *index) {
+  page_no_t page_no = get_page_no();
+  if (page_no != FIL_NULL) {
+    page_id_t page_id = page_id_t(index->space_id(), page_no);
+    page_size_t page_size = index->get_page_size();
+    buf_block_t *block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
+    btr_page_free_low(index, block, ULINT_UNDEFINED, mtr);
+    set_page_no(FIL_NULL);
+  }
+}
+
 /** Insert a single zlib stream.
 @param[in]	index	the index to which the LOB belongs.
 @param[in]	first	the first page of the compressed LOB.
@@ -539,12 +550,8 @@ dberr_t z_print_info(const dict_index_t *index, const lob::ref_t &ref,
   return (DB_SUCCESS);
 }
 
-/** Allocate the fragment page.
-@param[in]	hint	hint page number for allocation.
-@param[in]	bulk	true if bulk operation (OPCODE_INSERT_BULK)
-                        false otherwise.
-@return the allocated buffer block. */
-buf_block_t *z_frag_page_t::alloc(page_no_t hint, bool bulk) {
+buf_block_t *z_frag_page_t::alloc(z_first_page_t &first, page_no_t hint,
+                                  bool bulk) {
   /* The m_block member could point to valid block.  Overwriting it is
   good enough. */
 
@@ -560,7 +567,26 @@ buf_block_t *z_frag_page_t::alloc(page_no_t hint, bool bulk) {
   /* Set page type to FIL_PAGE_TYPE_ZLOB_FRAG. */
   set_page_type();
   set_version_0();
-  set_page_next(FIL_NULL);
+
+  /* All allocated fragment pages are linked via the next page of the first page
+   * of LOB. */
+  page_no_t frag_page_no = first.get_frag_page_no();
+
+  if (frag_page_no == 0) {
+    /* If the frag_page_no is equal to 0, it means that this LOB was created
+     * before storing the fragment page list in the FIL_PAGE_PREV of the first
+     * page.  So don't change that. */
+  } else {
+    if (frag_page_no != FIL_NULL) {
+      /* Load the first fragment page and updates its prev page. */
+      z_frag_page_t tmp(m_mtr, m_index);
+      tmp.load_x(frag_page_no);
+      tmp.set_page_prev(get_page_no());
+    }
+    set_page_next(frag_page_no);
+    set_page_prev(FIL_NULL);
+    first.set_frag_page_no(get_page_no());
+  }
 
   set_frag_entry_null();
 
@@ -739,10 +765,45 @@ z_frag_entry_t z_frag_page_t::get_frag_entry_s() {
   return (entry);
 }
 
-void z_frag_page_t::dealloc(z_first_page_t &first, mtr_t *alloc_mtr) {
+void z_frag_page_t::dealloc_with_entry(z_first_page_t &first,
+                                       mtr_t *alloc_mtr) {
   ut_ad(get_n_frags() == 0);
   z_frag_entry_t entry = get_frag_entry_x();
   entry.purge(first.frag_list(), first.free_frag_list());
+
+  page_no_t top_frag_page = first.get_frag_page_no();
+
+  if (top_frag_page == 0) {
+    /* If the first page contains 0 in FIL_PAGE_PREV, then this LOB does not use
+     * FIL_PAGE_PREV to point to the doubly-linked list of fragment pages.  In
+     * this case, don't touch FIL_PAGE_PREV. */
+  } else {
+    page_no_t next_frag_page = get_next_page_no();
+    page_no_t prev_frag_page = get_prev_page_no();
+
+    if (top_frag_page == get_page_no()) {
+      /* The fragment page pointed to by first LOB page is being deallocated. */
+      ut_ad(prev_frag_page == FIL_NULL);
+      first.set_frag_page_no(alloc_mtr, next_frag_page);
+    } else {
+      ut_ad(prev_frag_page != FIL_NULL);
+    }
+
+    /* The fragment pages are doubly linked via FIL_PAGE_NEXT and
+     * FIL_PAGE_PREV. Update the links before deallocating a fragment page. */
+    if (next_frag_page != FIL_NULL) {
+      z_frag_page_t zfp_next(alloc_mtr, m_index);
+      zfp_next.load_x(next_frag_page);
+      zfp_next.set_page_prev(prev_frag_page);
+    }
+
+    if (prev_frag_page != FIL_NULL) {
+      z_frag_page_t zfp_prev(alloc_mtr, m_index);
+      zfp_prev.load_x(prev_frag_page);
+      zfp_prev.set_page_next(next_frag_page);
+    }
+  }
+
   btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, alloc_mtr);
   m_block = nullptr;
 }

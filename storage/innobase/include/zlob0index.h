@@ -381,6 +381,18 @@ struct z_index_entry_t {
     return (mach_read_from_4(m_node + OFFSET_Z_PAGE_NO));
   }
 
+  /** Set the page number pointed to by this index entry to FIL_NULL.
+   @param[in]   mtr    The mini transaction used for this modification. */
+  void set_z_page_no_null(mtr_t *mtr) {
+    mlog_write_ulint(m_node + OFFSET_Z_PAGE_NO, FIL_NULL, MLOG_4BYTES, mtr);
+  }
+
+  /** Free the data pages pointed to by this index entry.
+  @param[in]   mtr   the mini transaction used to free the pages. */
+  void free_data_pages(mtr_t *mtr);
+
+  /** Set the page number pointed to by this index entry to given value.
+   @param[in]   page_no    Page number to be put in index entry. */
   void set_z_page_no(page_no_t page_no) {
     ut_ad(m_mtr != nullptr);
     mlog_write_ulint(m_node + OFFSET_Z_PAGE_NO, page_no, MLOG_4BYTES, m_mtr);

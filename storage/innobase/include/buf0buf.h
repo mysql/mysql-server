@@ -1489,6 +1489,12 @@ struct buf_block_t {
     return (mach_read_from_4(frame + FIL_PAGE_NEXT));
   }
 
+  /** Get the prev page number of the current buffer block.
+  @return prev page number of the current buffer block. */
+  page_no_t get_prev_page_no() const {
+    return (mach_read_from_4(frame + FIL_PAGE_PREV));
+  }
+
   /** Get the page type of the current buffer block.
   @return page type of the current buffer block. */
   page_type_t get_page_type() const {

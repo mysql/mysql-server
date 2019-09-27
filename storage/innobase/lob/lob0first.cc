@@ -453,4 +453,10 @@ void first_page_t::dealloc() {
   m_block = nullptr;
 }
 
+void first_page_t::destroy() {
+  free_all_data_pages();
+  free_all_index_pages();
+  dealloc();
+}
+
 }  // namespace lob

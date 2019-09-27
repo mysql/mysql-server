@@ -189,9 +189,26 @@ struct z_first_page_t {
   /** Deallocate the first page of a compressed LOB. */
   void dealloc();
 
-  void set_next_page_null() {
-    ut_ad(m_mtr != nullptr);
-    mlog_write_ulint(frame() + FIL_PAGE_NEXT, FIL_NULL, MLOG_4BYTES, m_mtr);
+  /** Set the FIL_PAGE_NEXT to FIL_NULL. */
+  void set_next_page_null() { set_next_page_no(FIL_NULL, m_mtr); }
+
+  /** Set the FIL_PAGE_PREV to FIL_NULL. */
+  void set_prev_page_null() { set_prev_page_no(FIL_NULL, m_mtr); }
+
+  /** Set the FIL_PAGE_NEXT to the given value.
+  @param[in]    page_no   the page number to set in FIL_PAGE_NEXT.
+  @param[in]    mtr       mini trx to be used for this modification. */
+  void set_next_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(mtr != nullptr);
+    mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, mtr);
+  }
+
+  /** Set the FIL_PAGE_PREV to the given value.
+  @param[in]    page_no   the page number to set in FIL_PAGE_PREV.
+  @param[in]    mtr       mini trx to be used for this modification. */
+  void set_prev_page_no(page_no_t page_no, mtr_t *mtr) {
+    ut_ad(mtr != nullptr);
+    mlog_write_ulint(frame() + FIL_PAGE_PREV, page_no, MLOG_4BYTES, mtr);
   }
 
   /** Write the space identifier to the page header, without generating
@@ -209,6 +226,7 @@ struct z_first_page_t {
     set_version_0();
     set_data_len(0);
     set_next_page_null();
+    set_prev_page_null();
     set_trx_id(0);
     flst_base_node_t *flst = free_list();
     flst_init(flst, m_mtr);
@@ -230,9 +248,7 @@ struct z_first_page_t {
   }
 
   /** Get the page number. */
-  page_no_t get_page_no() const {
-    return static_cast<page_no_t>(mach_read_from_4(frame() + FIL_PAGE_OFFSET));
-  }
+  page_no_t get_page_no() const { return (m_block->page.id.page_no()); }
 
   /** Get the page id of the first page of compressed LOB.
   @return page id of the first page of compressed LOB. */
@@ -265,6 +281,45 @@ struct z_first_page_t {
     return (mach_read_from_4(frame() + OFFSET_INDEX_PAGE_NO));
   }
 
+  /** All the fragment pages are doubly linked with each other, and
+  the first page contains the link to one fragment page in FIL_PAGE_PREV. Get
+  that frag page number.
+  @return the frag page number. */
+  page_no_t get_frag_page_no() const { return (m_block->get_prev_page_no()); }
+
+  /** All the fragment pages are doubly linked with each other, and
+  the first page contains the link to one fragment page in FIL_PAGE_PREV. Get
+  that frag page number.
+  @param[in]   mtr   mini transaction to use for this read operation.
+  @return the frag page number. */
+  page_no_t get_frag_page_no(mtr_t *mtr) const {
+    return (mtr_read_ulint(frame() + FIL_PAGE_PREV, MLOG_4BYTES, mtr));
+  }
+
+#ifdef UNIV_DEBUG
+  /** Verify that the page number pointed to by FIL_PAGE_PREV of the first page
+  of LOB is indeed a fragment page.  It uses its own mtr internally.
+  @return true if it is a fragment page, false otherwise. */
+  bool verify_frag_page_no();
+#endif /* UNIV_DEBUG */
+
+  /** All the fragment pages are doubly linked with each other, and
+  the first page contains the link to one fragment page in FIL_PAGE_PREV.
+  @param[in]  mtr      mini transaction for this modification.
+  @param[in]  page_no  the page number of a fragment page. */
+  void set_frag_page_no(mtr_t *mtr, page_no_t page_no) {
+    ut_ad(verify_frag_page_no());
+    set_prev_page_no(page_no, mtr);
+  }
+
+  /** All the fragment pages are doubly linked with each other, and
+  the first page contains the link to one fragment page in FIL_PAGE_PREV.
+  @param[in]  page_no  the page number of a fragment page. */
+  void set_frag_page_no(page_no_t page_no) {
+    ut_ad(verify_frag_page_no());
+    set_prev_page_no(page_no, m_mtr);
+  }
+
   /** All the frag node pages are singled linked with each other, and
   the first page contains the link to one frag node page.
   @param[in]  page_no  the page number of an frag node page. */
@@ -281,6 +336,22 @@ struct z_first_page_t {
 
   /** Free all the index pages. */
   void free_all_index_pages();
+
+  /** Free all the fragment pages. */
+  void free_all_frag_pages();
+
+ private:
+  /** Free all the fragment pages when the next page of the first LOB page IS
+   * NOT USED to link the fragment pages. */
+  void free_all_frag_pages_old();
+
+  /** Free all the fragment pages when the next page of the first LOB page IS
+   * USED to link the fragment pages. */
+  void free_all_frag_pages_new();
+
+ public:
+  /** Free all the data pages. */
+  void free_all_data_pages();
 
   /** All the frag node pages are singled linked with each other, and the
   first page contains the link to one frag node page. Get that frag node
@@ -492,6 +563,9 @@ struct z_first_page_t {
   @param[in]	index		the clustered index containing LOB.
   @param[in]	first_page_no	first page number of LOB. */
   static void destroy(dict_index_t *index, page_no_t first_page_no);
+
+  /** Free all the pages of the zlob. */
+  void destroy();
 
 #ifdef UNIV_DEBUG
   bool validate();

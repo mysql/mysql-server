@@ -1242,6 +1242,10 @@ struct dict_index_t {
   /** Get the page size of the tablespace to which this index belongs.
   @return the page size. */
   page_size_t get_page_size() const;
+
+  /** Get the space id of the tablespace to which this index belongs.
+  @return the space id. */
+  space_id_t space_id() const { return space; }
 };
 
 /** The status of online index creation */

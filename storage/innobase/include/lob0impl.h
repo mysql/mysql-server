@@ -701,6 +701,11 @@ struct z_frag_entry_t {
     mlog_write_ulint(m_node + OFFSET_PAGE_NO, page_no, MLOG_4BYTES, m_mtr);
   }
 
+  /** Free the fragment page pointed to by this entry.
+   @param[in]   mtr     mini transaction to be used for this operation.
+   @param[in]   index   The index to which this LOB belongs. */
+  void free_frag_page(mtr_t *mtr, dict_index_t *index);
+
   /** Get the frag page number. */
   ulint get_n_frags() const {
     return (mach_read_from_2(m_node + OFFSET_N_FRAGS));
@@ -906,6 +911,12 @@ struct z_data_page_t {
                           false otherwise.
   @return the allocated buffer block. */
   buf_block_t *alloc(page_no_t hint, bool bulk);
+
+  /** Free this data page holding the zlob data. */
+  void dealloc() {
+    btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
+    m_block = nullptr;
+  }
 
   /** Set the correct page type. */
   void set_page_type() {
@@ -1532,15 +1543,47 @@ struct z_frag_page_t {
     mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, m_mtr);
   }
 
+  /** Set the prev page. */
+  void set_page_prev(page_no_t page_no) { set_page_prev(page_no, m_mtr); }
+
+  /** Set the prev page. */
+  void set_page_prev(page_no_t page_no, mtr_t *mtr) {
+    mlog_write_ulint(frame() + FIL_PAGE_PREV, page_no, MLOG_4BYTES, mtr);
+  }
+
+  /** Get the next page number.
+  @return next page number. */
+  page_no_t get_next_page_no() const { return (m_block->get_next_page_no()); }
+
+  /** Get the prev page number (FIL_PAGE_PREV).
+  @param[in]  mtr  the mini transaction latch context.
+  @return prev page number. */
+  page_no_t get_prev_page_no(mtr_t *mtr) const {
+    return (mtr_read_ulint(frame() + FIL_PAGE_PREV, MLOG_4BYTES, mtr));
+  }
+
+  /** Get the prev page number.
+  @return prev page number. */
+  page_no_t get_prev_page_no() const { return (get_prev_page_no(m_mtr)); }
+
   /** Allocate the fragment page.
+  @param[in]	first	first page of this LOB.
   @param[in]	hint	hint page number for allocation.
   @param[in]	bulk	true if bulk operation (OPCODE_INSERT_BULK)
                           false otherwise.
   @return the allocated buffer block. */
-  buf_block_t *alloc(page_no_t hint, bool bulk);
+  buf_block_t *alloc(z_first_page_t &first, page_no_t hint, bool bulk);
 
-  /** Free the fragment page along with its entry. */
-  void dealloc(z_first_page_t &first, mtr_t *alloc_mtr);
+  /** Free the fragment page along with its entry.
+  @param[in]   first   first page of LOB.
+  @param[in]   alloc_mtr  mini trx to perform this modification. */
+  void dealloc_with_entry(z_first_page_t &first, mtr_t *alloc_mtr);
+
+  /** Free the fragment page. */
+  void dealloc() {
+    btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
+    m_block = nullptr;
+  }
 
   buf_block_t *load_x(page_no_t page_no) {
     page_id_t page_id(dict_index_get_space(m_index), page_no);
