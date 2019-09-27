@@ -457,11 +457,15 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
 
   ulint nth_chunk = 0;
 
+  ut_o(const) ulint chunk_size = Z_CHUNK_SIZE;
+
+  DBUG_EXECUTE_IF("zlob_reduce_chunk_size", chunk_size = 20000;);
+
   while (remain > 0) {
     ut_ad(first.get_page_type() == FIL_PAGE_TYPE_ZLOB_FIRST);
 
     z_index_entry_t entry(mtr, index);
-    ulint size = (remain >= Z_CHUNK_SIZE) ? Z_CHUNK_SIZE : remain;
+    ulint size = (remain >= chunk_size) ? chunk_size : remain;
 
     err = z_insert_chunk(index, first, trx, ref, ptr, size, &entry, mtr,
                          ctx->is_bulk());

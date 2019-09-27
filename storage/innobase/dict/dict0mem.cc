@@ -786,3 +786,7 @@ std::ostream &operator<<(std::ostream &out, const dict_foreign_set &fk_set) {
   out << "]" << std::endl;
   return (out);
 }
+
+page_size_t dict_index_t::get_page_size() const {
+  return (dict_table_page_size(table));
+}

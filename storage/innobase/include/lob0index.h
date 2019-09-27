@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -435,6 +435,7 @@ struct index_entry_t {
 
   byte *get_node() const { return (m_node); }
 
+ private:
   byte *m_node;
   mtr_t *m_mtr;
   const dict_index_t *m_index;

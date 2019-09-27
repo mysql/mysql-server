@@ -279,28 +279,42 @@ flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
 }
 
 void first_page_t::free_all_data_pages() {
-  index_entry_t cur_entry(m_mtr, m_index);
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+  index_entry_t cur_entry(&local_mtr, m_index);
   flst_base_node_t *flst = index_list();
-  fil_addr_t node_loc = flst_get_first(flst, m_mtr);
+  fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
   while (!fil_addr_is_null(node_loc)) {
-    flst_node_t *node = addr2ptr_x(node_loc);
+    flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
     cur_entry.reset(node);
 
     page_no_t page_no = cur_entry.get_page_no();
 
-    if (page_no != get_page_no()) {
-      data_page_t data_page(m_mtr, m_index);
+    if (page_no != get_page_no() && page_no != FIL_NULL) {
+      data_page_t data_page(&local_mtr, m_index);
       data_page.load_x(page_no);
       data_page.dealloc();
+      cur_entry.set_page_no(FIL_NULL);
     }
 
     node_loc = cur_entry.get_next();
     cur_entry.reset(nullptr);
+
+    restart_mtr(&local_mtr);
   }
+
+  mtr_commit(&local_mtr);
 }
 
 void first_page_t::free_all_index_pages() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+
   space_id_t space_id = dict_index_get_space(m_index);
   page_size_t page_size(dict_table_page_size(m_index->table));
 
@@ -311,13 +325,17 @@ void first_page_t::free_all_index_pages() {
       break;
     }
 
-    node_page_t index_page(m_mtr, m_index);
+    node_page_t index_page(&local_mtr, m_index);
     page_id_t page_id(space_id, page_no);
     index_page.load_x(page_id, page_size);
     page_no_t next_page = index_page.get_next_page();
-    set_next_page(next_page);
+    set_next_page(next_page, &local_mtr);
     index_page.dealloc();
+
+    restart_mtr(&local_mtr);
   }
+
+  mtr_commit(&local_mtr);
 }
 
 /** Load the first page of LOB with x-latch.
@@ -325,8 +343,8 @@ void first_page_t::free_all_index_pages() {
 @param[in]   page_size  the page size information.
 @return the buffer block of the first page. */
 buf_block_t *first_page_t::load_x(const page_id_t &page_id,
-                                  const page_size_t &page_size) {
-  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
+                                  const page_size_t &page_size, mtr_t *mtr) {
+  m_block = buf_page_get(page_id, page_size, RW_X_LATCH, mtr);
 
   ut_ad(m_block != nullptr);
 #ifdef UNIV_DEBUG

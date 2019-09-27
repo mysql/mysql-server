@@ -155,8 +155,30 @@ struct first_page_t : public basic_page_t {
   /** Load the first page of LOB with x-latch.
   @param[in]   page_id    the page identifier of the first page.
   @param[in]   page_size  the page size information.
+  @param[in]   mtr        the mini transaction context for latch.
   @return the buffer block of the first page. */
-  buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size);
+  buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size,
+                      mtr_t *mtr);
+
+  /** Load the first page of LOB with x-latch in the given mtr context.
+  The first page must already be x-latched by the m_mtr.
+  @param[in]   mtr        the mini transaction context for latch.
+  @return the buffer block of the first page. */
+  buf_block_t *load_x(mtr_t *mtr) const {
+    ut_ad(mtr_memo_contains(m_mtr, m_block, MTR_MEMO_PAGE_X_FIX));
+    buf_block_t *tmp = buf_page_get(m_block->page.id, m_index->get_page_size(),
+                                    RW_X_LATCH, mtr);
+    ut_ad(tmp == m_block);
+    return (tmp);
+  }
+
+  /** Load the first page of LOB with x-latch.
+  @param[in]   page_id    the page identifier of the first page.
+  @param[in]   page_size  the page size information.
+  @return the buffer block of the first page. */
+  buf_block_t *load_x(const page_id_t &page_id, const page_size_t &page_size) {
+    return (load_x(page_id, page_size, m_mtr));
+  }
 
   /** Get the buffer block of the LOB first page.
   @return the buffer block. */
@@ -165,11 +187,20 @@ struct first_page_t : public basic_page_t {
   /** Load the file list node from the given location.  An x-latch is taken
   on the page containing the file list node.
   @param[in]	addr	the location of file list node.
+  @param[in]	mtr     the mini transaction context to be used.
   @return		the file list node.*/
-  flst_node_t *addr2ptr_x(fil_addr_t &addr) const {
+  flst_node_t *addr2ptr_x(fil_addr_t &addr, mtr_t *mtr) const {
     space_id_t space = dict_index_get_space(m_index);
     const page_size_t page_size = dict_table_page_size(m_index->table);
-    return (fut_get_ptr(space, page_size, addr, RW_X_LATCH, m_mtr));
+    return (fut_get_ptr(space, page_size, addr, RW_X_LATCH, mtr));
+  }
+
+  /** Load the file list node from the given location.  An x-latch is taken
+  on the page containing the file list node.
+  @param[in]	addr	the location of file list node.
+  @return		the file list node.*/
+  flst_node_t *addr2ptr_x(fil_addr_t &addr) const {
+    return (addr2ptr_x(addr, m_mtr));
   }
 
   /** Load the file list node from the given location, assuming that it
@@ -438,6 +469,18 @@ struct first_page_t : public basic_page_t {
     page_type_t page_type = first.get_page_type();
     mtr_commit(&local_mtr);
     return (page_type);
+  }
+
+ public:
+  /** Restart the given mtr. The first page must already be x-latched by
+  the m_mtr.
+  @param[in]   mtr   the mini transaction context which is to be restarted. */
+  void restart_mtr(mtr_t *mtr) {
+    ut_ad(mtr != m_mtr);
+    mtr_commit(mtr);
+    mtr_start(mtr);
+    mtr->set_log_mode(m_mtr->get_log_mode());
+    load_x(mtr);
   }
 };
 

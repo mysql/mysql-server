@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -68,14 +68,24 @@ struct basic_page_t {
     return (m_block->page.id);
   }
 
-  void set_next_page(page_no_t page_no) {
-    mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, m_mtr);
+  /** Set the FIL_PAGE_NEXT to the given page number, using the given mini
+  transaction context.
+  @param[in]    page_no   The page number to set.
+  @param[in]    mtr       The mini transaction context. */
+  void set_next_page(page_no_t page_no, mtr_t *mtr) {
+    mlog_write_ulint(frame() + FIL_PAGE_NEXT, page_no, MLOG_4BYTES, mtr);
   }
 
+  /** Set the FIL_PAGE_NEXT to the given page number.
+  @param[in]    page_no   The page number to set. */
+  void set_next_page(page_no_t page_no) { set_next_page(page_no, m_mtr); }
+
+  /** Set the FIL_PAGE_NEXT to FIL_NULL.
+  @param[in]    page_no   The page number to set. */
   void set_next_page_null() {
     ut_ad(m_mtr != nullptr);
 
-    mlog_write_ulint(frame() + FIL_PAGE_NEXT, FIL_NULL, MLOG_4BYTES, m_mtr);
+    set_next_page(FIL_NULL);
   }
 
   page_no_t get_next_page() {
@@ -107,6 +117,8 @@ struct basic_page_t {
 
     m_block = block;
   }
+
+  void set_mtr(mtr_t *mtr) { m_mtr = mtr; }
 
  protected:
   buf_block_t *m_block;
