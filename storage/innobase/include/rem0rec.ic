@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1663,6 +1663,7 @@ rec_get_converted_size(
 
 	data_size = dtuple_get_data_size(dtuple, 0);
 
+	ut_ad(n_ext == dtuple->get_n_ext());
 	extra_size = rec_get_converted_extra_size(
 		data_size, dtuple_get_n_fields(dtuple), n_ext);
 
