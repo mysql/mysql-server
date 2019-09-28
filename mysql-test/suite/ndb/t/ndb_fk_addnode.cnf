@@ -31,6 +31,36 @@ log-error-verbosity=3
 # Enable load data local functionality
 local-infile=true
 
+[cluster_config.mysqld.1.1]
+NodeId=6
+Dedicated=1
+
+[cluster_config.mysqld.2.1]
+NodeId=7
+Dedicated=1
+
+[cluster_config.ndbapi.1.1]
+NodeId=8
+Dedicated=1
+
+[cluster_config.ndbapi.2.1]
+NodeId=9
+Dedicated=1
+
+[cluster_config.ndbapi.3.1]
+NodeId=10
+Dedicated=1
+
+[cluster_config.ndbapi.4.1]
+NodeId=11
+Dedicated=1
+
+[mysqld.1.1]
+ndb-cluster-connection-pool-nodeids=6,8,10
+
+[mysqld.2.1]
+ndb-cluster-connection-pool-nodeids=7,9,11
+
 [cluster_config.ndbd.3.1]
 Nodegroup=65536
 

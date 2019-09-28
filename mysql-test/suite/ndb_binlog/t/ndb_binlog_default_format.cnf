@@ -27,6 +27,36 @@ ndb-log-bin=1
 # Will be "auto upgraded" to MIXED
 binlog-format=STATEMENT
 
+[cluster_config.mysqld.1.1]
+NodeId=49
+Dedicated=1
+
+[cluster_config.mysqld.2.1]
+NodeId=16
+Dedicated=1
+
+[cluster_config.ndbapi.1.1]
+NodeId=32
+Dedicated=1
+
+[cluster_config.ndbapi.2.1]
+NodeId=48
+Dedicated=1
+
+[cluster_config.ndbapi.3.1]
+NodeId=63
+Dedicated=1
+
+[cluster_config.ndbapi.4.1]
+NodeId=127
+Dedicated=1
+
+[mysqld.1.1]
+ndb-cluster-connection-pool-nodeids=49,32,63
+
+[mysqld.2.1]
+ndb-cluster-connection-pool-nodeids=16,48,127
+
 [ENV]
 NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
 MASTER_MYPORT=                 @mysqld.1.1.port

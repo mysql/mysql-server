@@ -41,10 +41,48 @@ ndb-extra-logging=99
 log-error-verbosity=3
 binlog-format=row
 
+[cluster_config.mysqld.1.cluster1]
+NodeId=49
+Dedicated=1
+
+[cluster_config.ndbapi.1.cluster1]
+NodeId=16
+Dedicated=1
+
+[cluster_config.ndbapi.2.cluster1]
+NodeId=32
+Dedicated=1
+
+[cluster_config.mysqld.1.cluster2]
+NodeId=49
+Dedicated=1
+
+[cluster_config.ndbapi.1.cluster2]
+NodeId=16
+Dedicated=1
+
+[cluster_config.ndbapi.2.cluster2]
+NodeId=32
+Dedicated=1
+
+[cluster_config.mysqld.1.cluster3]
+NodeId=49
+Dedicated=1
+
+[cluster_config.ndbapi.1.cluster3]
+NodeId=16
+Dedicated=1
+
+[cluster_config.ndbapi.2.cluster3]
+NodeId=32
+Dedicated=1
+
 [mysqld.1.cluster1]
+ndb-cluster-connection-pool-nodeids=49,16,32
 server_id= 1
 
 [mysqld.1.cluster2]
+ndb-cluster-connection-pool-nodeids=49,16,32
 server_id= 2
 log-bin=                      cluster2-bin
 relay-log=                    cluster2-relay-bin
@@ -58,6 +96,7 @@ ndb-log-apply-status
 slave-load-tmpdir=            ../../../tmp
 
 [mysqld.1.cluster3]
+ndb-cluster-connection-pool-nodeids=49,16,32
 server_id= 3
 log-bin=                      cluster3-bin
 relay-log=                    cluster3-relay-bin

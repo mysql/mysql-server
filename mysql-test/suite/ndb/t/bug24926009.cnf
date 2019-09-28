@@ -15,9 +15,11 @@ ndb-cluster-connection-pool-nodeids=49
 [mysqld.2.1]
 ndb-cluster-connection-pool-nodeids=16
 
+# Note: uses NodeId from [cluster_config.ndbapi.1.1]
 [mysqld.3.1]
 ndb-cluster-connection-pool-nodeids=32
 
+# Note: uses NodeId from [cluster_config.ndbapi.2.1]
 [mysqld.4.1]
 ndb-cluster-connection-pool-nodeids=48
 

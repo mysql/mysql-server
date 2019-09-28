@@ -20,8 +20,15 @@ ndb_mgmd=
 mysqld=
 ndbapi=
 
+[cluster_config.mysqld.1.1]
+NodeId=49
+Dedicated=1
+
 [mysqld]
 ndbcluster
+
+[mysqld.1.1]
+ndb-nodeid=49
 
 [cluster_config.ndbd.2.1]
 MaxNoOfConcurrentOperations=1000

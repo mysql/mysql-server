@@ -20,6 +20,36 @@ ndb-extra-logging=99
 # are filtered away
 log-error-verbosity=3
 
+[cluster_config.mysqld.1.1]
+NodeId=8
+Dedicated=1
+
+[cluster_config.mysqld.2.1]
+NodeId=9
+Dedicated=1
+
+[cluster_config.ndbapi.1.1]
+NodeId=10
+Dedicated=1
+
+[cluster_config.ndbapi.2.1]
+NodeId=11
+Dedicated=1
+
+[cluster_config.ndbapi.3.1]
+NodeId=12
+Dedicated=1
+
+[cluster_config.ndbapi.4.1]
+NodeId=13
+Dedicated=1
+
+[mysqld.1.1]
+ndb-cluster-connection-pool-nodeids=8,10,12
+
+[mysqld.2.1]
+ndb-cluster-connection-pool-nodeids=9,11,13
+
 [cluster_config.ndbd.5.1]
 Nodegroup=65536
 

@@ -35,6 +35,25 @@ net_write_timeout      =1160
 #Table_lock_wait_timeout=1150
 #wait_timeout =  28800
 
+[cluster_config.mysqld.2.1]
+NodeId=16
+Dedicated=1
+
+[cluster_config.ndbapi.1.1]
+NodeId=32
+Dedicated=1
+
+[cluster_config.ndbapi.2.1]
+NodeId=48
+Dedicated=1
+
+[mysqld.1.1]
+skip-ndb-nodeid
+ndb-cluster-connection-pool-nodeids=49,32
+
+[mysqld.2.1]
+ndb-cluster-connection-pool-nodeids=16,48
+
 [cluster_config.ndbd.3.1]
 Nodegroup=65536
 
