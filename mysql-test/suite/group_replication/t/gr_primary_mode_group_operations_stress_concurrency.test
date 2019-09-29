@@ -50,6 +50,9 @@
 --source include/rpl_connection.inc
 
 # We don't quite know what is the state of the group at the end, so just ensure server 1 is the new primary
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch:%" OR event_name LIKE "%Primary Switch:%" OR event_name LIKE "%Multi-primary Switch:%"
+--source include/wait_condition.inc
+
 --disable_query_log
 --disable_result_log
 --eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
