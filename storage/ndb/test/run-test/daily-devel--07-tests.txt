@@ -157,3 +157,7 @@ cmd: testDict
 args: -n CreateManyDataFiles T1
 max-time: 360
 
+cmd: testBackup
+args: -n CheckBackupCompletedPrintout T1
+max-time: 360
+
