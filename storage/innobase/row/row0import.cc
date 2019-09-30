@@ -1249,6 +1249,15 @@ dberr_t row_import::match_schema(THD *thd,
               " and the meta-data file has %s",
               (const char *)dict_tf_to_row_format_string(m_table->flags),
               (const char *)dict_tf_to_row_format_string(m_flags));
+    } else if (DICT_TF_HAS_DATA_DIR(m_flags) !=
+               DICT_TF_HAS_DATA_DIR(m_table->flags)) {
+      /* If the meta-data flag is set for data_dir, but table flag is not set
+      for data_dir or vice versa then return error. */
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table data_dir flag don't match, server table has data_dir "
+              "flag = %lu and the meta-data file has data_dir flag = %lu",
+              (ulint)DICT_TF_HAS_DATA_DIR(m_table->flags),
+              (ulint)DICT_TF_HAS_DATA_DIR(m_flags));
     } else {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
               "Table flags don't match");
@@ -3569,6 +3578,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   rw_lock_s_lock_func(dict_operation_lock, 0, __FILE__, __LINE__);
 
   row_import cfg;
+  ulint space_flags = 0;
 
   /* Read CFP file */
   if (dd_is_table_in_encrypted_tablespace(table)) {
@@ -3655,6 +3665,21 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
       if (err == DB_SUCCESS) {
         err = cfg.set_root_by_heuristic();
       }
+    }
+
+    space_flags = fetchIndexRootPages.get_space_flags();
+
+    /* If the fsp flag is set for data_dir, but table flag is not set
+    for data_dir or vice versa then return error. */
+    if (err == DB_SUCCESS && FSP_FLAGS_HAS_DATA_DIR(space_flags) !=
+                                 DICT_TF_HAS_DATA_DIR(table->flags)) {
+      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table data_dir flag don't match, server table has data_dir"
+              " flag = %lu and .ibd file has data_dir flag = %lu",
+              (ulint)DICT_TF_HAS_DATA_DIR(table->flags),
+              (ulint)FSP_FLAGS_HAS_DATA_DIR(space_flags));
+      err = DB_ERROR;
+      return (row_import_error(prebuilt, trx, err));
     }
   } else {
     rw_lock_s_unlock_gen(dict_operation_lock, 0);
