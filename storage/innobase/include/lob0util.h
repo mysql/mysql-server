@@ -80,8 +80,7 @@ struct basic_page_t {
   @param[in]    page_no   The page number to set. */
   void set_next_page(page_no_t page_no) { set_next_page(page_no, m_mtr); }
 
-  /** Set the FIL_PAGE_NEXT to FIL_NULL.
-  @param[in]    page_no   The page number to set. */
+  /** Set the FIL_PAGE_NEXT to FIL_NULL. */
   void set_next_page_null() {
     ut_ad(m_mtr != nullptr);
 

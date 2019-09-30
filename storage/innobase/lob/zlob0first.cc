@@ -410,10 +410,6 @@ void z_first_page_t::dealloc() {
   m_block = nullptr;
 }
 
-/** Load the first page of the compressed LOB with x-latch.
-@param[in]   page_id   the page identifier of first page
-@param[in]   page_size the page size information of table.
-@return buffer block of the first page. */
 buf_block_t *z_first_page_t::load_x(const page_id_t &page_id,
                                     const page_size_t &page_size) {
   m_block = buf_page_get(page_id, page_size, RW_X_LATCH, m_mtr);
