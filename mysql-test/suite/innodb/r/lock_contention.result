@@ -288,9 +288,9 @@ SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = '
 CLUST_INDEX_SIZE
 30
 SET DEBUG_SYNC = 'RESET';
-INSERT INTO t1 (a00) VALUES ('cva');
+INSERT INTO t1 (a00) VALUES ('coa');
 SET DEBUG_SYNC = 'before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
-INSERT INTO t1 (a00) VALUES ('cvb');
+INSERT INTO t1 (a00) VALUES ('cob');
 SET DEBUG_SYNC = 'now WAIT_FOR reached';
 SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait1';
 SELECT a00,a01 FROM t1 WHERE a00 = 'aa';

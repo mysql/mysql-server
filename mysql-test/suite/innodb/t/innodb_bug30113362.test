@@ -1,0 +1,207 @@
+#
+# Test for Bug#30113362 : BTR_CUR_WILL_MODIFY_TREE() IS INSUFFICIENT FOR HIGHER TREE LEVEL
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_16k.inc
+
+--disable_query_log
+SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+SET @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+SET @old_innodb_stats_persistent = @@innodb_stats_persistent;
+SET @old_innodb_flush_log_at_trx_commit = @@innodb_flush_log_at_trx_commit;
+--enable_query_log
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+SET GLOBAL innodb_adaptive_hash_index = false;
+SET GLOBAL innodb_stats_persistent = false;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+CREATE TABLE t1 (
+  a00 CHAR(255) NOT NULL DEFAULT 'a',
+  a01 CHAR(255) NOT NULL DEFAULT 'a',
+  a02 CHAR(255) NOT NULL DEFAULT 'a',
+  b INT NOT NULL DEFAULT 0,
+  CONSTRAINT pkey PRIMARY KEY(a00, a01, a02)
+) charset latin1 ENGINE = InnoDB COMMENT='MERGE_THRESHOLD=45';
+
+#
+# Prepare primary key index tree to be used for this test.
+#
+
+SET GLOBAL innodb_limit_optimistic_insert_debug = 3;
+
+DROP PROCEDURE IF EXISTS data_load_t1;
+delimiter |;
+CREATE PROCEDURE data_load_t1()
+BEGIN
+  DECLARE c1 INT DEFAULT 97;
+  DECLARE c2 INT DEFAULT 97;
+  DECLARE c3 INT DEFAULT 97;
+
+  WHILE c1 < 102 DO
+    WHILE c2 < 123 DO
+      WHILE c3 < 123 DO
+        INSERT INTO t1 (a00) VALUES (CHAR(c1,c2,c3));
+        SET c3 = c3 + 1;
+      END WHILE;
+      SET c3 = 97;
+      SET c2 = c2 + 1;
+    END WHILE;
+    SET c2 = 97;
+    SET c1 = c1 + 1;
+  END WHILE;
+END |
+delimiter ;|
+call data_load_t1();
+DROP PROCEDURE data_load_t1;
+
+# all node pages are sparse (max 3 node_ptrs)
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+# causes "domino falling" merges to upper level
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;
+DELETE FROM t1 WHERE a00 = 'cnm';
+--source suite/innodb/include/force_purge.inc
+
+# at this moment, in the tree,
+# ...
+# level 4: ...(ast,avw,ayz)(bcc,bff,bii,bll,boo,brr,buu,bxx,cba,ced,cqp,cts)(cwv,czy,ddb)...
+# ...
+
+--echo # Test start
+
+# (1) Similar case to the first reported corefile at bug#30113362
+#     - Deleting 'bii' causes "domino falling" merges and the node_ptr becomes left_most of level 4.
+#       So, the operation needs upper level pages' X-latch, though doesn't cause merge more.
+SET DEBUG_SYNC = 'RESET';
+
+SET GLOBAL innodb_purge_stop_now = ON;
+SET GLOBAL DEBUG = "+d,pessimistic_row_purge_clust";
+DELETE FROM t1 WHERE a00 = 'bii';
+SET GLOBAL innodb_purge_run_now = ON;
+SET DEBUG_SYNC = "now WAIT_FOR pessimistic_row_purge_clust_pause";
+
+--connection con1
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait1';
+# Blocked
+--send
+SELECT a00 FROM t1 WHERE a00 = 'bcc';
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait1';
+# bug#30113362 caused deadlock
+# signal purge thread to go
+SET GLOBAL DEBUG = "-d,pessimistic_row_purge_clust";
+SET DEBUG_SYNC = "now SIGNAL pessimistic_row_purge_clust_continue";
+
+--connection con1
+--reap
+
+--connection default
+
+--source suite/innodb/include/force_purge.inc
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+# (2) Confirm blocking domain caused by DELETE modify_tree for tall index tree
+SET DEBUG_SYNC = 'RESET';
+
+# at this moment, in the tree,
+# ...
+# level 4: ...(ajk,amn,apq)(ast,avw,ayz,bll,boo,brr,buu,bxx,cba,ced,cqp,cts)(cwv,czy,ddb)(dge,djh,dmk)(dpn,dsq,dvt)(dyw,ebz,efc)...
+# ...
+
+# makes >17 records in level4 [(2^(4-1))*2 + 1]. (causes never left_most records)
+DELETE FROM t1 WHERE a00 = 'dpn';
+--source suite/innodb/include/force_purge.inc
+# at this moment, in the tree,
+# (* before "]" and after "[" records are treated as left_most possible records)
+# ...
+# level 4: ...(ajk,amn,apq)(ast,avw,ayz,bll,boo,brr,buu,bxx],cba,ced,[cqp,cts,cwv,czy,ddb,dge,dsq,dvt)(dyw,ebz,efc)...
+# level 3: ...(cba,ccb,cdc)(ced,cfe,cgf,chg],cih,cji,[ckj,clk,con,cpo)(cqp,crq,csr)...
+# level 2: ...(ckj,cks,clb)(clk,clt],cmc,cml,cmu,cnd,[cnv,coe)(con,cow,cpf)...
+# level 1: ...(cmu,cmx,cna)(cnd],cng,cnj,cnp,[cns)(cnv,cny,cob)...
+# level 0: ...(cnd,cne,cnf)(cng,cnh,cni)(cnj,cnk,cnl,cnn,cno)(cnp,cnq,cnr)...
+
+# deletes just 'ced' node_ptr only from level 4. doesn't cause merge and never left_most.
+# adjusts MERGE_THRESHOLD to do so.
+ALTER TABLE t1 COMMENT='MERGE_THRESHOLD=35';
+SET GLOBAL innodb_purge_stop_now = ON;
+SET GLOBAL DEBUG = "+d,pessimistic_row_purge_clust";
+DELETE FROM t1 WHERE a00 = 'cnd';
+SET GLOBAL innodb_purge_run_now = ON;
+SET DEBUG_SYNC = "now WAIT_FOR pessimistic_row_purge_clust_pause";
+
+# The expectation should be...
+# level 0: (#cnd#,cne,cnf): causes merge
+# level 1: (#cnd#],cng,cnj,cnp,[cns): left_most
+# level 2: (clk,clt],cmc,cml,cmu,#cnd#,[cnv,coe): causes merge
+# level 3: (ced,cfe,cgf,chg],cih,cji,[ckj,#clk#,con,cpo): left_most possible (not cause merge)
+# level 4: (ast,avw,ayz,bll,boo,brr,buu,bxx],cba,#ced#,[cqp,cts,cwv,czy,ddb,dge,dsq,dvt): no merge, not left_most possible
+# So, the top X-latch page is at level4. (ast~dvt)
+
+# blocking domain based on whether its ancestor is latched or not.
+# (*[]: ancestor is X-latched)
+# level 0: ...(asq,asr,ass) [(ast,asu,asv)...(dyt,dyu,dyv)] (dyw,dyx,dyy)...
+
+# Not blocked searches
+SELECT a00 FROM t1 WHERE a00 = 'ass';
+SELECT a00 FROM t1 WHERE a00 = 'dyx';
+
+--connection con1
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait1';
+# Blocked
+--send
+SELECT a00 FROM t1 WHERE a00 = 'ast';
+
+--connection con2
+SET DEBUG_SYNC = 'rw_s_lock_waiting SIGNAL lockwait2';
+# Blocked
+--send
+SELECT a00 FROM t1 WHERE a00 = 'dyw';
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait1';
+SET DEBUG_SYNC = 'now WAIT_FOR lockwait2';
+# signal purge thread to go
+SET GLOBAL DEBUG = "-d,pessimistic_row_purge_clust";
+SET DEBUG_SYNC = "now SIGNAL pessimistic_row_purge_clust_continue";
+
+--connection con1
+--reap
+
+--connection con2
+--reap
+
+--connection default
+ANALYZE TABLE t1;
+SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = 'test/t1';
+
+
+# Cleanup
+SET DEBUG_SYNC = 'RESET';
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+DROP TABLE t1;
+
+--disable_query_log
+SET GLOBAL innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+SET GLOBAL innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+SET GLOBAL innodb_stats_persistent = @old_innodb_stats_persistent;
+SET GLOBAL innodb_flush_log_at_trx_commit = @old_innodb_flush_log_at_trx_commit;
+--enable_query_log
+
+# Wait till all disconnects are completed.
+--source include/wait_until_count_sessions.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -445,6 +445,18 @@ bool page_rec_is_last(const rec_t *rec,   /*!< in: record */
   ut_ad(page_get_n_recs(page) > 0);
 
   return (page_rec_get_next_const(rec) == page_get_supremum_rec(page));
+}
+
+UNIV_INLINE
+bool page_rec_distance_is_at_most(const rec_t *left_rec, const rec_t *right_rec,
+                                  ulint val) {
+  for (ulint i = 0; i <= val; i++) {
+    if (left_rec == right_rec) {
+      return (true);
+    }
+    left_rec = page_rec_get_next_const(left_rec);
+  }
+  return (false);
 }
 
 /** true if the record is the second last user record on a page.
