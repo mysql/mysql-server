@@ -1125,3 +1125,57 @@ id	users
 5	NULL
 6	NULL
 DROP TABLE table_city, table_user, table_city_user;
+#
+# Bug#30267889 ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED | TEMPTABLE::HANDLER::POSITION
+#
+CREATE TABLE b (c INTEGER, KEY idx_b (c));
+CREATE TABLE c (c INTEGER, KEY idx_c (c));
+CREATE TABLE d (c INTEGER, KEY idx_d (c));
+INSERT INTO b VALUES (1), (2);
+INSERT INTO c VALUES (1), (2);
+INSERT INTO d VALUES (1), (2);
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(b, c_inner, c_inner_inner, d, c) */ d.c
+FROM d JOIN c
+WHERE d.c IN (
+SELECT
+b.c
+FROM
+b LEFT JOIN c AS c_inner ON c_inner.c = b.c
+WHERE
+EXISTS ( SELECT c FROM c AS c_inner_inner )
+) ORDER BY d.c;
+EXPLAIN
+-> Sort: <temporary>.c
+    -> Stream results
+        -> Inner hash join
+            -> Index scan on c using idx_c  (cost=0.45 rows=2)
+            -> Hash
+                -> Nested loop inner join
+                    -> Filter: (`<subquery2>`.c is not null)
+                        -> Table scan on <subquery2>
+                            -> Materialize with deduplication
+                                -> Filter: (b.c is not null)  (cost=1.80 rows=4)
+                                    -> Inner hash join  (cost=1.80 rows=4)
+                                        -> Index scan on c_inner_inner using idx_c  (cost=0.23 rows=2)
+                                        -> Hash
+                                            -> Nested loop left join  (cost=1.15 rows=2)
+                                                -> Index scan on b using idx_b  (cost=0.45 rows=2)
+                                                -> Index lookup on c_inner using idx_c (c=b.c)  (cost=0.30 rows=1)
+                    -> Index lookup on d using idx_d (c=`<subquery2>`.c)  (cost=0.60 rows=1)
+
+SELECT /*+ JOIN_ORDER(b, c_inner, c_inner_inner, d, c) */ d.c
+FROM d JOIN c
+WHERE d.c IN (
+SELECT
+b.c
+FROM
+b LEFT JOIN c AS c_inner ON c_inner.c = b.c
+WHERE
+EXISTS ( SELECT c FROM c AS c_inner_inner )
+) ORDER BY d.c;
+c
+1
+1
+2
+2
+DROP TABLE b, c, d;
