@@ -178,7 +178,8 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
   main_argv_ptr(& argv_ref),
   mycnf_default_groups(default_groups ? default_groups : load_default_groups),
   options(long_options),
-  short_usage_fn(g_ndb_opt_short_usage)
+  short_usage_fn(g_ndb_opt_short_usage),
+  long_usage_extra_fn(empty_long_usage_extra_func)
 {
   my_load_defaults(MYSQL_CONFIG_NAME,  mycnf_default_groups,
                    main_argc_ptr, main_argv_ptr,  &opts_mem_root, NULL);
@@ -200,7 +201,7 @@ void Ndb_opts::set_usage_funcs(void (*short_fn)(void),
                                void (*long_fn)(void))
 {
   short_usage_fn = short_fn;
-  long_usage_extra_fn = long_fn ? long_fn : empty_long_usage_extra_func;
+  if(long_fn) long_usage_extra_fn = long_fn;
 }
 
 void Ndb_opts::usage() const
