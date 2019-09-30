@@ -30,7 +30,7 @@ Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8117
 Next CMVMI 9000
-Next BACKUP 10050
+Next BACKUP 10051
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13054
@@ -638,6 +638,9 @@ Backup Stuff:
 10047: Delay start of scan for LCPs
 10048: Ensure that LCP runs with exactly 1 part
 10049: Abort backup with LogBufferFull when STOP_BACKUP_REQ breaks to sync path before trigger deletion
+10050: Change #records and #bytes backed up to a value > 2^32 to test
+       NDB_LE_BackupCompleted prints the 64-bit value out correctly
+       without truncating it to 32 bit values.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 

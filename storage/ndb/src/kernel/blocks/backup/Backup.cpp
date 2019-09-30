@@ -5786,6 +5786,15 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
 		 BackupCompleteRep::SignalLength, JBB);
     }
 
+    if (ERROR_INSERTED(10042))
+    {
+      // Change backup statistics to reflect values > 32 bit
+      ptr.p->noOfRecords = INT_MAX64;
+      ptr.p->noOfBytes = INT_MAX64;
+      ptr.p->noOfLogRecords = INT_MAX64;
+      ptr.p->noOfLogBytes = INT_MAX64;
+    }
+
     signal->theData[0] = NDB_LE_BackupCompleted;
     signal->theData[1] = ptr.p->clientRef;
     signal->theData[2] = ptr.p->backupId;
@@ -9570,6 +9579,7 @@ Backup::fragmentCompleted(Signal* signal,
 #endif
       c_tup->stop_lcp_scan(tabPtr.p->tableId, fragPtr.p->fragmentId);
     }
+
     /* Save errCode for later checks */
     ptr.p->m_save_error_code = errCode;
     ptr.p->slaveState.setState(STOPPING);
