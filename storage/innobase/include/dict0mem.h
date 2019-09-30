@@ -73,6 +73,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <iterator>
 #include <memory> /* std::unique_ptr */
 #include <set>
+#include <string>
 #include <vector>
 
 /* Forward declaration. */
@@ -1532,6 +1533,11 @@ struct dict_table_t {
   inline void unlock();
 
 #ifndef UNIV_HOTBACKUP
+  /** Get schema and table name in system character set.
+  @param[out]	schema	schema name
+  @param[out]	table	table name */
+  void get_table_name(std::string &schema, std::string &table);
+
   /** Mutex of the table for concurrency access. */
   ib_mutex_t *mutex;
 

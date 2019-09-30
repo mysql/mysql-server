@@ -19,7 +19,7 @@ SELECT * FROM t1 ORDER BY c1;
 
 perl;
 require 'include/innodb-util.inc';
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 EOF
 
 UNLOCK TABLES;
@@ -32,8 +32,8 @@ ALTER TABLE t1 DISCARD PARTITION p0,p2 TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p2");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION p0, p2 TABLESPACE;
@@ -43,8 +43,8 @@ ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p1");
-ib_restore_tablespaces("test", "t1#P#p1");
+ib_discard_tablespaces("test", "t1#p#p1");
+ib_restore_tablespaces("test", "t1#p#p1");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
@@ -55,8 +55,8 @@ ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
@@ -78,8 +78,8 @@ ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p1");
-ib_restore_tablespaces("test", "t1#P#p1");
+ib_discard_tablespaces("test", "t1#p#p1");
+ib_restore_tablespaces("test", "t1#p#p1");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
@@ -103,8 +103,8 @@ SELECT * FROM t1 ORDER BY c1;
 perl;
 require 'include/innodb-util.inc';
 ib_backup_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 EOF
 
 UNLOCK TABLES;
@@ -121,8 +121,8 @@ ALTER TABLE t1 DISCARD PARTITION p0sp1,p1sp0 TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p0#SP#p0sp1", "t1#P#p1#SP#p1sp0");
-ib_restore_tablespaces("test", "t1#P#p0#SP#p0sp1", "t1#P#p1#SP#p1sp0");
+ib_discard_tablespaces("test", "t1#p#p0#sp#p0sp1", "t1#p#p1#sp#p1sp0");
+ib_restore_tablespaces("test", "t1#p#p0#sp#p0sp1", "t1#p#p1#sp#p1sp0");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION p0sp1, p1sp0 TABLESPACE;
@@ -133,11 +133,11 @@ ALTER TABLE t1 DISCARD PARTITION p1, p0sp2 TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
-"t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 ib_restore_tablespaces("test",
-"t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION p0sp2, p1 TABLESPACE;
@@ -149,11 +149,11 @@ ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 ib_restore_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION p1sp2 TABLESPACE;
@@ -167,8 +167,8 @@ ALTER TABLE t1 DISCARD PARTITION p1sp2 TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp2");
-ib_restore_tablespaces("test", "t1#P#p1#SP#p1sp2");
+ib_discard_tablespaces("test", "t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp2");
+ib_restore_tablespaces("test", "t1#p#p1#sp#p1sp2");
 EOF
 
 --replace_regex  /#p#/#P#/  /#sp#/#SP#/
@@ -177,20 +177,20 @@ ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 ib_restore_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 EOF
 
 --echo # Removing p0sp2's .ibd file
---remove_file $MYSQLD_DATADIR/test/t1#P#p0#SP#p0sp2.ibd
+--remove_file $MYSQLD_DATADIR/test/t1#p#p0#sp#p0sp2.ibd
 --error ER_INTERNAL_ERROR
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
-ib_restore_tablespaces("test", "t1#P#p0#SP#p0sp2");
+ib_restore_tablespaces("test", "t1#p#p0#sp#p0sp2");
 EOF
 --replace_regex  /#p#/#P#/  /#sp#/#SP#/
 --error ER_TABLESPACE_EXISTS
@@ -201,11 +201,11 @@ ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 ib_restore_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 EOF
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
@@ -234,8 +234,8 @@ SUBPARTITION BY HASH (c1) SUBPARTITIONS 3
 ALTER TABLE t1 DISCARD PARTITION p0sp0 TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test","t1#P#p0#SP#p0sp0");
-ib_restore_tablespaces("test","t1#P#p0#SP#p0sp0");
+ib_discard_tablespaces("test","t1#p#p0#sp#p0sp0");
+ib_restore_tablespaces("test","t1#p#p0#sp#p0sp0");
 EOF
 ALTER TABLE t1 IMPORT PARTITION p0sp0 TABLESPACE;
 SELECT * FROM t1 PARTITION (p0sp0) ORDER BY c1;
@@ -246,9 +246,9 @@ ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 ib_restore_tablespaces("test",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 EOF
 ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
 SELECT * FROM t1 PARTITION (p1) ORDER BY c1;
@@ -265,11 +265,11 @@ ALTER TABLE t1 DISCARD PARTITION p0sp2 TABLESPACE;
 perl;
 require 'include/innodb-util.inc';
 ib_discard_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 ib_restore_tablespaces("test",
-"t1#P#p0#SP#p0sp0", "t1#P#p0#SP#p0sp1", "t1#P#p0#SP#p0sp2",
-"t1#P#p1#SP#p1sp0", "t1#P#p1#SP#p1sp1", "t1#P#p1#SP#p1sp2");
+"t1#p#p0#sp#p0sp0", "t1#p#p0#sp#p0sp1", "t1#p#p0#sp#p0sp2",
+"t1#p#p1#sp#p1sp0", "t1#p#p1#sp#p1sp1", "t1#p#p1#sp#p1sp2");
 EOF
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
@@ -315,7 +315,7 @@ SELECT * FROM t1;
 
 perl;
 require 'include/innodb-util.inc';
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 EOF
 
 UNLOCK TABLES;
@@ -327,8 +327,8 @@ ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 
 perl;
 require 'include/innodb-util.inc';
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 EOF
 
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;

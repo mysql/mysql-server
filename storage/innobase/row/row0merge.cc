@@ -3441,7 +3441,7 @@ char *row_make_new_pathname(dict_table_t *table, /*!< in: table to be renamed */
   ut_ad(dict_table_is_file_per_table(table));
 
   auto old_path = fil_space_get_first_path(table->space);
-  auto new_path = Fil_path::make_new_ibd(old_path, new_name);
+  auto new_path = Fil_path::make_new_path(old_path, new_name, IBD);
 
   return (mem_strdup(new_path.c_str()));
 }

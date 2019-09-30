@@ -112,18 +112,6 @@ class ha_innobase : public handler {
   int open(const char *name, int, uint open_flags,
            const dd::Table *table_def) override;
 
-  /** Opens dictionary table object using table name. For partition, we need to
-  try alternative lower/upper case names to support moving data files across
-  platforms.
-  @param[in]	table_name	name of the table/partition
-  @param[in]	norm_name	normalized name of the table/partition
-  @param[in]	is_partition	if this is a partition of a table
-  @param[in]	ignore_err	error to ignore for loading dictionary object
-  @return dictionary table object or NULL if not found */
-  static dict_table_t *open_dict_table(const char *table_name,
-                                       const char *norm_name, bool is_partition,
-                                       dict_err_ignore_t ignore_err);
-
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
 
   int close(void) override;
@@ -925,11 +913,11 @@ class create_table_info_t {
   both the database name and the table name always to lower case if
   "set_lower_case" is set to true.
   @param[in,out]	norm_name	Buffer to return the normalized name in.
-  @param[in]	name		Table name string.
-  @param[in]	set_lower_case	True if we want to set name to lower
-                                  case. */
-  static void normalize_table_name_low(char *norm_name, const char *name,
-                                       ibool set_lower_case);
+  @param[in]		name		Table name string.
+  @param[in]		set_lower_case	if true, set name to lower case.
+  @return true if successful. */
+  static bool normalize_table_name_low(char *norm_name, const char *name,
+                                       bool set_lower_case);
 
  private:
   /** Parses the table name into normal name and either temp path or

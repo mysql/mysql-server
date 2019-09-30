@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -423,37 +423,22 @@ void Innodb_data_lock_inspector::destroy_data_lock_wait_iterator(
   delete it;
 }
 
-/** Convert an identifier.
-Convert identifiers stored in innodb to the proper
-character set, and allocate memory for them in the
-performance schema container.
-@param[in] container		The container to fill
-@param[in] str			The identifier string
-@param[in] length		The identifier string length
-@param[out] converted_length	The length of the converted string
-@returns A string in UTF8, allocated in the performance schema container.
+/** Allocate identifier in performance schema container.
+@param[in]	container	The container to fill
+@param[in]	id_str		The identifier string
+@param[out]	id_length	The identifier string length
+@returns string allocated in the performance schema container.
 */
-const char *convert_identifier(PSI_server_data_lock_container *container,
-                               const char *str, size_t length,
-                               size_t *converted_length) {
-  if (str == NULL) {
-    *converted_length = 0;
-    return NULL;
+const char *alloc_identifier(PSI_server_data_lock_container *container,
+                             std::string &id_str, size_t *id_length) {
+  *id_length = id_str.length();
+  const char *id_name = nullptr;
+
+  if (*id_length > 0) {
+    id_name = container->cache_data(id_str.c_str(), *id_length);
   }
 
-  const char *result_string;
-  size_t result_length;
-  char buffer[FN_REFLEN];
-  uint err_cs = 0;
-
-  result_length = my_convert(buffer, sizeof(buffer), system_charset_info, str,
-                             length, &my_charset_filename, &err_cs);
-
-  ut_ad(err_cs == 0);
-
-  result_string = container->cache_data(buffer, result_length);
-  *converted_length = result_length;
-  return result_string;
+  return (id_name);
 }
 
 /** Parse a table path string.
@@ -481,27 +466,28 @@ void parse_table_path(PSI_server_data_lock_container *container,
                       size_t *partition_name_length,
                       const char **subpartition_name,
                       size_t *subpartition_name_length) {
-  const char *p1;
-  size_t s1;
-  const char *p2;
-  size_t s2;
-  const char *p3;
-  size_t s3;
-  const char *p4;
-  size_t s4;
+  std::string dict_table(table_path);
 
-  parse_filename(table_path, table_path_length, &p1, &s1, &p2, &s2, &p3, &s3,
-                 &p4, &s4);
+  /* Get schema and table name in system cs. */
+  std::string schema;
+  std::string table;
+  std::string partition;
+  bool is_tmp;
+  dict_name::get_table(dict_table, true, schema, table, partition, is_tmp);
 
-  *table_schema = convert_identifier(container, p1, s1, table_schema_length);
+  std::string part;
+  std::string sub_part;
+  if (!partition.empty()) {
+    ut_ad(dict_name::is_partition(dict_table));
+    /* Get schema partition and sub-partition name in system cs. */
+    dict_name::get_partition(partition, true, part, sub_part);
+  }
 
-  *table_name = convert_identifier(container, p2, s2, table_name_length);
-
-  *partition_name =
-      convert_identifier(container, p3, s3, partition_name_length);
-
+  *table_schema = alloc_identifier(container, schema, table_schema_length);
+  *table_name = alloc_identifier(container, table, table_name_length);
+  *partition_name = alloc_identifier(container, part, partition_name_length);
   *subpartition_name =
-      convert_identifier(container, p4, s4, subpartition_name_length);
+      alloc_identifier(container, sub_part, subpartition_name_length);
 }
 
 /** Print a table lock id.

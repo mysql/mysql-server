@@ -58,10 +58,10 @@ PARTITION p1
 # Verifying .ibd files
 ---- MYSQLD_DATADIR/test
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
-t1#P#p0.ibd
-t1#P#p1.ibd
-t2#P#p0.ibd
-t2#P#p1.ibd
+t1#p#p0.ibd
+t1#p#p1.ibd
+t2#p#p0.ibd
+t2#p#p1.ibd
 # The ibd tablespaces should not be directly under the DATA DIRECTORY
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 test

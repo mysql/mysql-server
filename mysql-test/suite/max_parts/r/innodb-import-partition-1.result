@@ -13,15 +13,15 @@ select count(*) from t1;
 count(*)
 0
 ALTER TABLE t1 DISCARD PARTITION p0,p1,p2,p3,p4,p5,p6,p7,p8 TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
-restore: t1#P#p3 .ibd and .cfg files
-restore: t1#P#p4 .ibd and .cfg files
-restore: t1#P#p5 .ibd and .cfg files
-restore: t1#P#p6 .ibd and .cfg files
-restore: t1#P#p7 .ibd and .cfg files
-restore: t1#P#p8 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
+restore: t1#p#p3 .ibd and .cfg files
+restore: t1#p#p4 .ibd and .cfg files
+restore: t1#p#p5 .ibd and .cfg files
+restore: t1#p#p6 .ibd and .cfg files
+restore: t1#p#p7 .ibd and .cfg files
+restore: t1#p#p8 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p0,p1,p2,p3,p4,p5,p6,p7,p8 TABLESPACE;
 SELECT * FROM t1 PARTITION (p0,p1,p2,p3,p4,p5,p6,p7,p8) ORDER BY i;
 i
@@ -56,8 +56,8 @@ i
 7
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
-Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p9.
-Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p10.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#p#p9.
+Warning	1812	InnoDB: Tablespace is missing for table test/t1#p#p10.
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 SELECT * FROM t1 PARTITION (p0,p1,p2,p3,p4,p5,p6,p7,p8) ORDER BY i;
 i

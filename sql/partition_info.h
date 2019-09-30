@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -506,8 +506,7 @@ class partition_info {
   bool set_up_charset_field_preps();
   bool check_partition_field_length();
   void set_show_version_string(String *packet);
-  partition_element *get_part_elem(const char *partition_name, char *file_name,
-                                   uint32 *part_id);
+  partition_element *get_part_elem(const char *partition_name, uint32 *part_id);
   void report_part_expr_error(bool use_subpart_expr);
   bool set_used_partition(List<Item> &fields, List<Item> &values,
                           COPY_INFO &info, bool copy_default_values,

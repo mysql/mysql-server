@@ -274,10 +274,6 @@ class Partition_handler {
   /**
     Exchange partition.
 
-    @param[in]      part_table_path   Path to partition in partitioned table
-                                      to be exchanged.
-    @param[in]      swap_table_path   Path to non-partitioned table to be
-                                      exchanged with partition.
     @param[in]      part_id           Id of partition to be exchanged.
     @param[in,out]  part_table_def    dd::Table object for partitioned table.
     @param[in,out]  swap_table_def    dd::Table object for non-partitioned
@@ -293,9 +289,8 @@ class Partition_handler {
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  int exchange_partition(const char *part_table_path,
-                         const char *swap_table_path, uint part_id,
-                         dd::Table *part_table_def, dd::Table *swap_table_def);
+  int exchange_partition(uint part_id, dd::Table *part_table_def,
+                         dd::Table *swap_table_def);
 
   /**
     Alter flags.
@@ -340,8 +335,6 @@ class Partition_handler {
     @sa Partition_handler::exchange_partition().
   */
   virtual int exchange_partition_low(
-      const char *part_table_path MY_ATTRIBUTE((unused)),
-      const char *swap_table_path MY_ATTRIBUTE((unused)),
       uint part_id MY_ATTRIBUTE((unused)),
       dd::Table *part_table_def MY_ATTRIBUTE((unused)),
       dd::Table *swap_table_def MY_ATTRIBUTE((unused))) {

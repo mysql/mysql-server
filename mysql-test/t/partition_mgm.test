@@ -9,7 +9,7 @@ CREATE TABLE t1
 (a INT)
 PARTITION BY KEY(a) PARTITIONS 3;
 ALTER TABLE t1 REPAIR PARTITION p2,p3,p1;
-ALTER TABLE t1 ORDER BY a; 
+ALTER TABLE t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo #
@@ -66,16 +66,16 @@ alter table t1 reorganize partition p0 into
 (partition p0 values less than (10) (subpartition sp00,
 subpartition sp01, subpartition sp02));
 drop table t1;
- 
+
 CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30))
 PARTITION BY HASH(YEAR(f_date)) PARTITIONS 2;
 SHOW CREATE TABLE t1;
 let $MYSQLD_DATADIR= `select @@datadir`;
--- file_exists $MYSQLD_DATADIR/test/t1#P#p0.ibd
--- file_exists $MYSQLD_DATADIR/test/t1#P#p1.ibd
+-- file_exists $MYSQLD_DATADIR/test/t1#p#p0.ibd
+-- file_exists $MYSQLD_DATADIR/test/t1#p#p1.ibd
 ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
--- file_exists $MYSQLD_DATADIR/test/t1#P#p0.ibd
+-- file_exists $MYSQLD_DATADIR/test/t1#p#p0.ibd
 drop table t1;
 #
 # Bug 20767: REORGANIZE partition crashes

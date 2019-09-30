@@ -1660,19 +1660,18 @@ dberr_t fts_drop_tables(trx_t *trx, dict_table_t *table,
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     fts_lock_common_tables(THD *thd, fts_table_t *fts_table) {
   for (ulint i = 0; fts_common_tables[i] != NULL; ++i) {
-    MDL_ticket *exclusiv_mdl = nullptr;
-    char db_n[NAME_LEN + 1];
-    char table_n[NAME_LEN + 1];
-    char table_name[MAX_FULL_NAME_LEN];
-
     fts_table->suffix = fts_common_tables[i];
 
+    char table_name[MAX_FULL_NAME_LEN];
     fts_get_table_name(fts_table, table_name);
 
-    dd_parse_tbl_name(table_name, db_n, table_n, nullptr, nullptr, nullptr);
+    std::string db_n;
+    std::string table_n;
+    dict_name::get_table(table_name, db_n, table_n);
 
-    if (dd::acquire_exclusive_table_mdl(thd, db_n, table_n, false,
-                                        &exclusiv_mdl)) {
+    MDL_ticket *exclusiv_mdl = nullptr;
+    if (dd::acquire_exclusive_table_mdl(thd, db_n.c_str(), table_n.c_str(),
+                                        false, &exclusiv_mdl)) {
       return (DB_ERROR);
     }
   }
@@ -1691,19 +1690,18 @@ dberr_t fts_lock_index_tables(THD *thd, dict_index_t *index) {
   FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
   for (i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
-    char table_name[MAX_FULL_NAME_LEN];
-    MDL_ticket *exclusiv_mdl = nullptr;
-    char db_n[NAME_LEN + 1];
-    char table_n[NAME_LEN + 1];
-
     fts_table.suffix = fts_get_suffix(i);
 
+    char table_name[MAX_FULL_NAME_LEN];
     fts_get_table_name(&fts_table, table_name);
 
-    dd_parse_tbl_name(table_name, db_n, table_n, nullptr, nullptr, nullptr);
+    std::string db_n;
+    std::string table_n;
+    dict_name::get_table(table_name, db_n, table_n);
 
-    if (dd::acquire_exclusive_table_mdl(thd, db_n, table_n, false,
-                                        &exclusiv_mdl)) {
+    MDL_ticket *exclusiv_mdl = nullptr;
+    if (dd::acquire_exclusive_table_mdl(thd, db_n.c_str(), table_n.c_str(),
+                                        false, &exclusiv_mdl)) {
       return (DB_ERROR);
     }
   }

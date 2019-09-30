@@ -3453,6 +3453,14 @@ void srv_shutdown() {
     ib::warn(ER_IB_MSG_1154, ulonglong{srv_conc_get_active_threads()});
   }
 
+  /* Need to revert partition file names if minor upgrade fails. */
+  uint data_version = MYSQL_VERSION_ID;
+
+  if (!fsp_header_dict_get_server_version(&data_version) &&
+      data_version != MYSQL_VERSION_ID) {
+    srv_downgrade_partition_files = true;
+  }
+
   ib::info(ER_IB_MSG_1247);
 
   ut_a(!srv_is_being_started);
@@ -3586,30 +3594,14 @@ void srv_shutdown() {
   srv_start_state = SRV_START_STATE_NONE;
 }
 
-/** Get the encryption-data filename from the table name for a
-single-table tablespace.
-@param[in]	table		table object
-@param[out]	filename	filename
-@param[in]	max_len		filename max length
-@param[in]	convert		convert table_name to lower case*/
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
-                                      ulint max_len, bool convert) {
+                                      ulint max_len) {
   /* Make sure the data_dir_path is set. */
   dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
   std::string path = dict_table_get_datadir(table);
-  char table_name[OS_FILE_MAX_PATH];
 
-  char *name;
-  if (convert) {
-    strcpy(table_name, table->name.m_name);
-    innobase_casedn_str(table_name);
-    name = table_name;
-  } else {
-    name = table->name.m_name;
-  }
-
-  auto filepath = Fil_path::make(path, name, CFP, true);
+  auto filepath = Fil_path::make(path, table->name.m_name, CFP, true);
 
   size_t len = strlen(filepath);
   ut_a(max_len >= len);

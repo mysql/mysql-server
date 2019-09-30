@@ -836,11 +836,7 @@ char *partition_info::find_duplicate_field() {
   @brief Get part_elem and part_id from partition name
 
   @param partition_name Name of partition to search for.
-  @param [out] file_name Partition file name (part after table name,
-                        @code
-                        #P#<part>[#SP#<subpart>]
-                        @endcode
-                        ), skipped if NULL.
+
   @param [out] part_id   Id of found partition or NOT_A_PARTITION_ID.
 
   @retval Pointer to part_elem of [sub]partition, if not found NULL
@@ -851,7 +847,6 @@ char *partition_info::find_duplicate_field() {
   the partition, but part_id will be NOT_A_PARTITION_ID and file_name not set.
 */
 partition_element *partition_info::get_part_elem(const char *partition_name,
-                                                 char *file_name,
                                                  uint32 *part_id) {
   List_iterator<partition_element> part_it(partitions);
   uint i = 0;
@@ -867,9 +862,6 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
         partition_element *sub_part_elem = sub_part_it++;
         if (!my_strcasecmp(system_charset_info, sub_part_elem->partition_name,
                            partition_name)) {
-          if (file_name)
-            create_subpartition_name(file_name, "", part_elem->partition_name,
-                                     partition_name);
           *part_id = j + (i * num_subparts);
           return sub_part_elem;
         }
@@ -881,7 +873,6 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
         return part_elem;
     } else if (!my_strcasecmp(system_charset_info, part_elem->partition_name,
                               partition_name)) {
-      if (file_name) create_partition_name(file_name, "", partition_name, true);
       *part_id = i;
       return part_elem;
     }

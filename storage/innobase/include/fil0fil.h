@@ -706,6 +706,23 @@ class Fil_path {
             path.compare(path.size() - len, len, suffix) == 0);
   }
 
+  /** Check if the file has the the specified suffix and truncate
+  @param[in]		sfx	suffix to look for
+  @param[in,out]	path	Filename to check
+  @return true if the suffix is found and truncated. */
+  static bool truncate_suffix(ib_file_suffix sfx, std::string &path) {
+    const auto suffix = dot_ext[sfx];
+    size_t len = strlen(suffix);
+
+    if (path.size() < len ||
+        path.compare(path.size() - len, len, suffix) != 0) {
+      return (false);
+    }
+
+    path.resize(path.size() - len);
+    return (true);
+  }
+
   /** Check if a character is a path separator ('\' or '/')
   @param[in]	c		Character to check
   @return true if it is a separator */
@@ -765,12 +782,22 @@ class Fil_path {
   /** Create an IBD path name after replacing the basename in an old path
   with a new basename.  The old_path is a full path name including the
   extension.  The tablename is in the normal form "schema/tablename".
-  @param[in]	path_in			Pathname
-  @param[in]	name_in			Contains new base name
+  @param[in]	path_in		Pathname
+  @param[in]	name_in		Contains new base name
+  @param[in]	extn		File extension
   @return new full pathname */
-  static std::string make_new_ibd(const std::string &path_in,
-                                  const std::string &name_in)
+  static std::string make_new_path(const std::string &path_in,
+                                   const std::string &name_in,
+                                   ib_file_suffix extn)
       MY_ATTRIBUTE((warn_unused_result));
+
+  /** Parse file-per-table file name and build Innodb dictionary table name.
+  @param[in]	file_path	File name with complete path
+  @param[in]	extn		File extension
+  @param[out]	dict_name	Innodb dictionary table name
+  @return true, if successful. */
+  static bool parse_file_path(const std::string &file_path, ib_file_suffix extn,
+                              std::string &dict_name);
 
   /** This function reduces a null-terminated full remote path name
   into the path that is sent by MySQL for DATA DIRECTORY clause.
@@ -1818,6 +1845,28 @@ void fil_tablespace_open_init_for_recovery(bool recovery);
 bool fil_tablespace_lookup_for_recovery(space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Compare and update space name and dd path for partitioned table. Uniformly
+converts partition separators and names to lower case.
+@param[in]	space_id	tablespace ID
+@param[in]	fsp_flags	tablespace flags
+@param[in]	update_space	update space name
+@param[in,out]	space_name	tablespace name
+@param[in,out]	dd_path		file name with complete path
+@return true, if names are updated. */
+bool fil_update_partition_name(space_id_t space_id, uint32_t fsp_flags,
+                               bool update_space, std::string &space_name,
+                               std::string &dd_path);
+
+/** Add tablespace to the set of tablespaces to be updated in DD.
+@param[in]	dd_object_id	Server DD tablespace ID
+@param[in]	space_id	Innodb tablespace ID
+@param[in]	space_name	New tablespace name
+@param[in]	old_path	Old Path in the data dictionary
+@param[in]	new_path	New path to be update in dictionary */
+void fil_add_moved_space(dd::Object_id dd_object_id, space_id_t space_id,
+                         const char *space_name, const std::string &old_path,
+                         const std::string &new_path);
+
 /** Lookup the tablespace ID and return the path to the file. The filename
 is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
@@ -1906,4 +1955,10 @@ and old name are same, no update done.
 @param[in]	name		new name for tablespace */
 void fil_space_update_name(fil_space_t *space, const char *name);
 
+/** Adjust file name for import for partition files in different letter case.
+@param[in]	table	Innodb dict table
+@param[in]	path	file path to open
+@param[in]	extn	file extension */
+void fil_adjust_name_import(dict_table_t *table, const char *path,
+                            ib_file_suffix extn);
 #endif /* fil0fil_h */

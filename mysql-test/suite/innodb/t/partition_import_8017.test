@@ -1,0 +1,9 @@
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+
+if ($have_debug)
+{
+  --skip Test is release mode version for partition_import_8017_debug
+}
+
+--let $OLD_VERSION = 8017
+--source suite/innodb/include/partition_import.inc

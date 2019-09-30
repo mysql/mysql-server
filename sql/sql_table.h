@@ -493,13 +493,6 @@ bool mysql_prepare_create_table(
 size_t explain_filename(THD *thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 
-void parse_filename(const char *filename, size_t filename_length,
-                    const char **schema_name, size_t *schema_name_length,
-                    const char **table_name, size_t *table_name_length,
-                    const char **partition_name, size_t *partition_name_length,
-                    const char **subpartition_name,
-                    size_t *subpartition_name_length);
-
 extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 
 /**

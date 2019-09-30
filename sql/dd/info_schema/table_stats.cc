@@ -751,7 +751,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
       DBUG_ASSERT(part_info);
 
       uint part_id;
-      if (part_info->get_part_elem(partition_name, nullptr, &part_id) &&
+      if (part_info->get_part_elem(partition_name, &part_id) &&
           part_id != NOT_A_PARTITION_ID) {
         part_handler->get_dynamic_partition_info(&ha_stat, &check_sum, part_id);
         table_list->table->file->stats = ha_stat;

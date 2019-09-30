@@ -72,21 +72,7 @@ because that is the way the server functions are defined. */
 static constexpr char handler_name[] = "InnoDB";
 
 static const char innobase_hton_name[] = "InnoDB";
-#endif /* !UNIV_HOTBACKUP */
 
-/** Postfix for a table name which is being altered. Since during
-ALTER TABLE ... PARTITION, new partitions have to be created before
-dropping existing partitions, so a postfix is appended to the name
-to prevent name conflicts. This is also used for EXCHANGE PARTITION */
-static constexpr char TMP_POSTFIX[] = "#tmp";
-static constexpr size_t TMP_POSTFIX_LEN = sizeof(TMP_POSTFIX) - 1;
-
-/** Max space name length */
-static constexpr size_t MAX_SPACE_NAME_LEN =
-    (4 * NAME_LEN) + PART_SEPARATOR_LEN + SUB_PART_SEPARATOR_LEN +
-    TMP_POSTFIX_LEN;
-
-#ifndef UNIV_HOTBACKUP
 /** Maximum hardcoded data dictionary tables. */
 #define DICT_MAX_DD_TABLES 1024
 
@@ -939,19 +925,15 @@ void dd_open_fk_tables(dict_names_t &fk_list, bool dict_locked, THD *thd);
 /** Update the tablespace name and file name for rename
 operation.
 @param[in]	dd_space_id	dd tablespace id
+@param[in]	is_system_cs	true, if space name is in system characters set.
+                                While renaming during bootstrap we have it
+                                in system cs. Othwerwise, in file system cs.
 @param[in]	new_space_name	dd_tablespace name
 @param[in]	new_path	new data file path
 @retval DB_SUCCESS on success. */
-dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
+dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
                              const char *new_space_name, const char *new_path);
 #endif /* !UNIV_HOTBACKUP */
-
-/** Parse the tablespace name from filename charset to table name charset
-@param[in]      file_name      tablespace name
-@param[in,out]	tablespace_name	tablespace name which is in table name
-                                charset. */
-void dd_filename_to_spacename(const char *file_name,
-                              std::string *tablespace_name);
 
 #ifndef UNIV_HOTBACKUP
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
@@ -1000,22 +982,6 @@ bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 @return reference to private handler */
 MY_ATTRIBUTE((warn_unused_result))
 innodb_session_t *&thd_to_innodb_session(THD *thd);
-
-/** Parse a table file name into table name and database name.
-Note the table name may have trailing TMP_POSTFIX for temporary table name.
-@param[in]	tbl_name	table name including database and table name
-@param[in,out]	dd_db_name	database name buffer to be filled
-@param[in,out]	dd_tbl_name	table name buffer to be filled
-@param[in,out]	dd_part_name	partition name to be filled if not nullptr
-@param[in,out]	dd_sub_name	sub-partition name to be filled it not nullptr
-@param[in,out]	is_temp		true if it is a temporary table name which
-                                ends with TMP_POSTFIX.
-@return	true if table name is parsed properly, false if the table name
-is invalid */
-UNIV_INLINE
-bool dd_parse_tbl_name(const char *tbl_name, char *dd_db_name,
-                       char *dd_tbl_name, char *dd_part_name, char *dd_sub_name,
-                       bool *is_temp);
 
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table

@@ -190,6 +190,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0file.h"
 
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -2134,15 +2135,6 @@ const char *innobase_basename(const char *path_name) {
   return ((name) ? name : "null");
 }
 
-/** Get the current setting of the lower_case_file_system global parameter from
-mysqld.cc. We do a dirty read because this global is set at startup using a
-test that writes upper and lower case file names. After that it never changes.
-@return true if the file system is case insensitive, else false. */
-bool is_file_system_case_insensitive(void) {
-  /* lower_case_file_names is true if the file system is case insensitive. */
-  return (lower_case_file_system);
-}
-
 #ifndef UNIV_HOTBACKUP
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -3240,18 +3232,17 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       }
     }
 
-    /* If IBD tablespaces exist in mem correctly, we can continue. */
+    /* Check if IBD tablespaces exist in mem correctly. This call also adjusts
+    the tablespace name for undo and general tablespace. We still need to check
+    if the data files are moved. */
     if (fil_space_exists_in_mem(space_id, space_name, false, true, heap, 0)) {
-      if (fsp_is_undo_tablespace(space_id)) {
-        /* Undo tablespaces are always opened first.  But in case they have
-        been moved and he DD needs to be updated, we fall thru to the location
+      if (fsp_is_undo_tablespace(space_id) &&
+          !apply_dd_undo_state(space_id, dd_tablespace)) {
+        /* Undo tablespaces are always opened first. But in case they have
+        been moved and the DD needs to be updated, we fall thru to the location
         check below. First though, update the DD tablespace state. */
-        if (!apply_dd_undo_state(space_id, dd_tablespace)) {
-          ib::warn(ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE, prefix.c_str(),
-                   space_name);
-        }
-      } else {
-        continue;
+        ib::warn(ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE, prefix.c_str(),
+                 space_name);
       }
     }
 
@@ -3272,6 +3263,33 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
     state = fil_tablespace_path_equals(dd_tablespace->id(), space_id,
                                        space_name, dd_path, &new_path);
+
+    if (state == Fil_state::MATCHES) {
+      new_path.assign(dd_path);
+    }
+
+    std::string space_str(space_name);
+
+    std::string old_space;
+    bool file_name_changed = false;
+    bool file_path_changed = (state == Fil_state::MOVED);
+
+    if (state == Fil_state::MATCHES || state == Fil_state::MOVED) {
+      /* We need to update space name and table name for partitioned tables
+      if letter case is different. */
+      if (fil_update_partition_name(space_id, flags, true, space_str,
+                                    new_path)) {
+        file_name_changed = true;
+        state = Fil_state::MOVED;
+      }
+
+      /* Update DD if tablespace name is corrected. */
+      if (space_str.compare(space_name) != 0) {
+        old_space.assign(space_name);
+        space_name = space_str.c_str();
+        state = Fil_state::MOVED;
+      }
+    }
 
     switch (state) {
       case Fil_state::MATCHES:
@@ -3296,7 +3314,8 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         continue;
 
       case Fil_state::MOVED:
-
+        fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
+                            new_path);
         ++*moved_count;
 
         if (*moved_count > MOVED_FILES_PRINT_THRESHOLD) {
@@ -3305,21 +3324,30 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
           break;
         }
 
-        ib::info(ER_IB_MSG_528)
-            << prefix << "DD ID: " << dd_tablespace->id() << " - "
-            << "Tablespace " << space_id << ","
-            << " name '" << space_name << "',"
-            << " file '" << dd_path << "'"
-            << " has been moved to"
-            << " '" << new_path << "'";
+        if (!old_space.empty()) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CORRECTED, prefix.c_str(),
+                   static_cast<unsigned long long>(dd_tablespace->id()),
+                   static_cast<unsigned int>(space_id), old_space.c_str(),
+                   space_name);
+        }
+
+        if (file_path_changed) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CHANGED_PATH, prefix.c_str(),
+                   static_cast<unsigned long long>(dd_tablespace->id()),
+                   static_cast<unsigned int>(space_id), space_name,
+                   dd_path.c_str(), new_path.c_str());
+
+        } else if (file_name_changed) {
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_CHANGED_NAME, prefix.c_str(),
+                   static_cast<unsigned long long>(dd_tablespace->id()),
+                   static_cast<unsigned int>(space_id), space_name,
+                   dd_path.c_str(), new_path.c_str());
+        }
 
         filename = new_path.c_str();
 
         if (*moved_count == MOVED_FILES_PRINT_THRESHOLD) {
-          ib::info(ER_IB_MSG_529) << prefix << "Too many files have"
-                                  << " have been moved, disabling"
-                                  << " logging of detailed"
-                                  << " messages";
+          ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
         }
 
       case Fil_state::RENAMED:
@@ -3327,8 +3355,9 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     }
 
     /* Undo spaces are already open, but if this is an IBD space,
-    it is not yet open at this point. */
-    if (fsp_is_undo_tablespace(space_id)) {
+    check if it is not open yet. */
+    auto existing_space = fil_space_get(space_id);
+    if (fsp_is_undo_tablespace(space_id) || existing_space != nullptr) {
       continue;
     }
 
@@ -3503,17 +3532,15 @@ static void innobase_dict_cache_reset_tables_and_tablespaces() {
   in LRU list */
   while (table) {
     /* Make sure table->is_dd_table is set */
-    char db_buf[NAME_LEN + 1] = {'\0'};
-    char tbl_buf[NAME_LEN + 1];
-
     dict_table_t *next_table = UT_LIST_GET_NEXT(table_LRU, table);
 
-    dd_parse_tbl_name(table->name.m_name, db_buf, tbl_buf, nullptr, nullptr,
-                      nullptr);
+    std::string db_str;
+    std::string tbl_str;
+    dict_name::get_table(table->name.m_name, db_str, tbl_str);
 
     /* TODO: Remove follow if we have better way to identify
     DD "system table" */
-    if (strcmp(db_buf, "mysql") == 0 || table->is_dd_table ||
+    if (db_str.compare("mysql") == 0 || table->is_dd_table ||
         table->is_corrupted() ||
         DICT_TF2_FLAG_IS_SET(table, DICT_TF2_RESURRECT_PREPARED)) {
       table = next_table;
@@ -5884,17 +5911,9 @@ uint ha_innobase::max_supported_key_length() const {
 
 bool ha_innobase::primary_key_is_clustered() const { return (true); }
 
-/** Normalizes a table name string.
-A normalized name consists of the database name catenated to '/'
-and table name. For example: test/mytable.
-On Windows, normalization puts both the database name and the
-table name always to lower case if "set_lower_case" is set to TRUE.
-@param[out]	norm_name	Normalized name, null-terminated.
-@param[in]	name		Name to normalize.
-@param[in]	set_lower_case	True if we also should fold to lower case. */
-void create_table_info_t::normalize_table_name_low(char *norm_name,
+bool create_table_info_t::normalize_table_name_low(char *norm_name,
                                                    const char *name,
-                                                   ibool set_lower_case) {
+                                                   bool set_lower_case) {
   const char *name_ptr;
   ulint name_len;
   const char *db_ptr;
@@ -5932,7 +5951,13 @@ void create_table_info_t::normalize_table_name_low(char *norm_name,
   db_ptr = ptr + 1;
 
   norm_len = db_len + name_len + sizeof "/";
-  ut_a(norm_len < FN_REFLEN - 1);
+
+  if (norm_len >= FN_REFLEN - 1) {
+    /* purecov: begin assert */
+    ut_ad(false);
+    return (false);
+    /* purecov: end */
+  }
 
   memcpy(norm_name, db_ptr, db_len);
 
@@ -5944,6 +5969,7 @@ void create_table_info_t::normalize_table_name_low(char *norm_name,
   if (set_lower_case) {
     innobase_casedn_str(norm_name);
   }
+  return (true);
 }
 
 #ifdef UNIV_DEBUG
@@ -6624,7 +6650,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   dict_table_t *ib_table;
   char norm_name[FN_REFLEN];
   THD *thd;
-  char *is_part = NULL;
   bool cached = false;
 
   DBUG_TRACE;
@@ -6632,7 +6657,12 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   thd = ha_thd();
 
-  normalize_table_name(norm_name, name);
+  if (!normalize_table_name(norm_name, name)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
 
   m_user_thd = NULL;
 
@@ -6643,10 +6673,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   /* Will be allocated if it is needed in ::update_row() */
   m_upd_buf = NULL;
   m_upd_buf_size = 0;
-
-  /* We look for pattern #P# to see if the table is partitioned
-  MySQL table. */
-  is_part = strstr(norm_name, PART_SEPARATOR);
 
   /* Get pointer to a table object in InnoDB dictionary cache.
   For intrinsic table, get it from session private data */
@@ -6742,12 +6768,12 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   if (ib_table != NULL) {
     /* Make sure table->is_dd_table is set */
-    char db_buf[NAME_LEN + 1];
-    char tbl_buf[NAME_LEN + 1];
-    dd_parse_tbl_name(ib_table->name.m_name, db_buf, tbl_buf, nullptr, nullptr,
-                      nullptr);
+    std::string db_str;
+    std::string tbl_str;
+    dict_name::get_table(ib_table->name.m_name, db_str, tbl_str);
+
     ib_table->is_dd_table =
-        dd::get_dictionary()->is_dd_table_name(db_buf, tbl_buf);
+        dd::get_dictionary()->is_dd_table_name(db_str.c_str(), tbl_str.c_str());
   }
 
   if (ib_table != NULL &&
@@ -6770,7 +6796,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     ib_table->first_index()->type |= DICT_CORRUPT;
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = NULL;
-    is_part = NULL;
   }
 
   /* For encrypted table, check if the encryption info in data
@@ -6782,7 +6807,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = NULL;
-    is_part = NULL;
 
     free_share(m_share);
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
@@ -6791,10 +6815,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   }
 
   if (NULL == ib_table) {
-    if (is_part) {
-      log_errlog(ERROR_LEVEL, ER_INNODB_CANT_OPEN_TABLE, norm_name);
-    }
-
     ib::warn(ER_IB_MSG_557)
         << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
 
@@ -7087,70 +7107,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   }
 
   return 0;
-}
-
-/** Opens dictionary table object using table name. For partition, we need to
-try alternative lower/upper case names to support moving data files across
-platforms.
-@param[in]	table_name	name of the table/partition
-@param[in]	norm_name	normalized name of the table/partition
-@param[in]	is_partition	if this is a partition of a table
-@param[in]	ignore_err	error to ignore for loading dictionary object
-@return dictionary table object or NULL if not found */
-dict_table_t *ha_innobase::open_dict_table(const char *table_name,
-                                           const char *norm_name,
-                                           bool is_partition,
-                                           dict_err_ignore_t ignore_err) {
-  DBUG_TRACE;
-  dict_table_t *ib_table =
-      dict_table_open_on_name(norm_name, FALSE, TRUE, ignore_err);
-
-  if (NULL == ib_table && is_partition) {
-    /* MySQL partition engine hard codes the file name
-    separator as "#P#". The text case is fixed even if
-    lower_case_table_names is set to 1 or 2. This is true
-    for sub-partition names as well. InnoDB always
-    normalises file names to lower case on Windows, this
-    can potentially cause problems when copying/moving
-    tables between platforms.
-
-    1) If boot against an installation from Windows
-    platform, then its partition table name could
-    be in lower case in system tables. So we will
-    need to check lower case name when load table.
-
-    2) If we boot an installation from other case
-    sensitive platform in Windows, we might need to
-    check the existence of table name without lower
-    case in the system table. */
-    if (innobase_get_lower_case_table_names() == 1) {
-      char par_case_name[FN_REFLEN];
-
-#ifndef _WIN32
-      /* Check for the table using lower
-      case name, including the partition
-      separator "P" */
-      strcpy(par_case_name, norm_name);
-      innobase_casedn_str(par_case_name);
-#else
-      /* On Windows platfrom, check
-      whether there exists table name in
-      system table whose name is
-      not being normalized to lower case */
-      create_table_info_t::normalize_table_name_low(par_case_name, table_name,
-                                                    FALSE);
-#endif
-      ib_table =
-          dict_table_open_on_name(par_case_name, FALSE, TRUE, ignore_err);
-    }
-
-    if (ib_table != NULL) {
-      log_errlog(WARNING_LEVEL, ER_INNODB_PARTITION_TABLE_LOWERCASED,
-                 norm_name);
-    }
-  }
-
-  return ib_table;
 }
 
 handler *ha_innobase::clone(const char *name,   /*!< in: table name */
@@ -12128,14 +12084,6 @@ ibool innobase_fts_load_stopword(
                             THDVAR(thd, ft_enable_stopword), FALSE));
 }
 
-/** Maximum length of a table name from InnoDB point of view, including
-partitions and subpartitions, in number of characters.
-The naming is: "table_name#P#partition_name#SP#subpartition_name",
-where each of the names can be up to NAME_CHAR_LEN (64) characters.
-So the maximum is 64 + strlen(#P#) + 64 + strlen(\#SP#) + 64 = 199. */
-
-#define NAME_CHAR_LEN_PARTITIONS_STR "199"
-
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
 Create strings representing the required DDSE tables, i.e.,
@@ -12183,15 +12131,36 @@ static bool innobase_ddse_dict_init(
   def->add_index(0, "index_pk", "PRIMARY KEY (table_id)");
   /* Options and tablespace are set at the SQL layer. */
 
+  /* Changing these values would change the specification of innodb statistics
+  tables. */
+  static constexpr size_t DB_NAME_FIELD_SIZE = 64;
+  static constexpr size_t TABLE_NAME_FIELD_SIZE = 199;
+
+  static_assert(DB_NAME_FIELD_SIZE == dict_name::MAX_DB_CHAR_LEN,
+                "dict_name::MAX_DB_CHAR_LEN mismatch with db column");
+
+  static_assert(TABLE_NAME_FIELD_SIZE == dict_name::MAX_TABLE_CHAR_LEN,
+                "dict_name::MAX_TABLE_CHAR_LEN mismatch with table column");
+
+  /* Set length for database name field. */
+  std::ostringstream db_name_field;
+  db_name_field << "database_name VARCHAR(" << DB_NAME_FIELD_SIZE
+                << ") NOT NULL";
+  std::string db_field = db_name_field.str();
+
+  /* Set length for table name field. */
+  std::ostringstream table_name_field;
+  table_name_field << "table_name VARCHAR(" << TABLE_NAME_FIELD_SIZE
+                   << ") NOT NULL";
+  std::string table_field = table_name_field.str();
+
   dd::Object_table *innodb_table_stats =
       dd::Object_table::create_object_table();
   innodb_table_stats->set_hidden(false);
   def = innodb_table_stats->target_table_definition();
   def->set_table_name("innodb_table_stats");
-  def->add_field(0, "database_name", "database_name VARCHAR(64) NOT NULL");
-  def->add_field(1, "table_name",
-                 "table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
-                 ") NOT NULL");
+  def->add_field(0, "database_name", db_field.c_str());
+  def->add_field(1, "table_name", table_field.c_str());
   def->add_field(2, "last_update",
                  "last_update TIMESTAMP NOT NULL \n"
                  "  DEFAULT CURRENT_TIMESTAMP \n"
@@ -12209,10 +12178,8 @@ static bool innobase_ddse_dict_init(
   innodb_index_stats->set_hidden(false);
   def = innodb_index_stats->target_table_definition();
   def->set_table_name("innodb_index_stats");
-  def->add_field(0, "database_name", "database_name VARCHAR(64) NOT NULL");
-  def->add_field(1, "table_name",
-                 "table_name VARCHAR(" NAME_CHAR_LEN_PARTITIONS_STR
-                 ") NOT NULL");
+  def->add_field(0, "database_name", db_field.c_str());
+  def->add_field(1, "table_name", table_field.c_str());
   def->add_field(2, "index_name", "index_name VARCHAR(64) NOT NULL");
   def->add_field(3, "last_update",
                  "last_update TIMESTAMP NOT NULL"
@@ -12293,7 +12260,13 @@ int create_table_info_t::parse_table_name(const char *name) {
   }
 #endif /* _WIN32 */
 
-  normalize_table_name(m_table_name, name);
+  if (!normalize_table_name(m_table_name, name)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
+
   m_remote_path[0] = '\0';
   m_tablespace[0] = '\0';
 
@@ -12835,7 +12808,12 @@ int create_table_info_t::prepare_create_table(const char *name) {
   ut_ad(m_thd != NULL);
   ut_ad(m_form->s->row_type == m_create_info->row_type);
 
-  normalize_table_name(m_table_name, name);
+  if (!normalize_table_name(m_table_name, name)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
 
   set_tablespace_type(false);
 
@@ -13430,7 +13408,12 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
 
   /* Strangely, MySQL passes the table name without the '.frm'
   extension, in contrast to ::create */
-  normalize_table_name(norm_name, name);
+  if (!normalize_table_name(norm_name, name)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
 
   innodb_session_t *&priv = thd_to_innodb_session(thd);
   dict_table_t *handler = priv->lookup_table_handler(norm_name);
@@ -13541,8 +13524,13 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
 
   ut_ad(!srv_read_only_mode);
 
-  normalize_table_name(norm_to, to);
-  normalize_table_name(norm_from, from);
+  if (!normalize_table_name(norm_to, to) ||
+      !normalize_table_name(norm_from, from)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
 
   ut_ad(strcmp(norm_from, norm_to) != 0);
 
@@ -13602,7 +13590,7 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
 
     auto dd_space_id = dd_first_index(to_table)->tablespace_id();
 
-    error = dd_tablespace_rename(dd_space_id, norm_to, new_path);
+    error = dd_tablespace_rename(dd_space_id, false, norm_to, new_path);
 
     if (new_path != nullptr) {
       ut_free(new_path);
@@ -13842,7 +13830,7 @@ int innobase_truncate<Table>::rename_tablespace() {
   char *old_path = fil_space_get_first_path(m_table->space);
 
   if (DICT_TF_HAS_DATA_DIR(m_table->flags)) {
-    new_path = Fil_path::make_new_ibd(old_path, temp_name);
+    new_path = Fil_path::make_new_path(old_path, temp_name, IBD);
   } else {
     char *ptr = Fil_path::make_ibd_from_table_name(temp_name);
     new_path.assign(ptr);
@@ -14438,7 +14426,12 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
   bool has_autoinc = false;
   int error = 0;
 
-  normalize_table_name(norm_name, name);
+  if (!normalize_table_name(norm_name, name)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
 
   innobase_truncate<dd::Table> truncator(thd, norm_name, form, table_def,
                                          false);
@@ -16674,9 +16667,13 @@ static bool innobase_get_table_statistics(
   bool truncated;
   build_table_filename(buf, sizeof(buf), db_name, table_name, NULL, 0,
                        &truncated);
-  ut_ad(!truncated);
 
-  normalize_table_name(norm_name, buf);
+  if (truncated || !normalize_table_name(norm_name, buf)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (HA_ERR_TOO_LONG_PATH);
+    /* purecov: end */
+  }
 
   MDL_ticket *mdl = nullptr;
   THD *thd = current_thd;
@@ -16752,9 +16749,13 @@ static bool innobase_get_index_column_cardinality(
   bool truncated;
   build_table_filename(buf, sizeof(buf), db_name, table_name, NULL, 0,
                        &truncated);
-  ut_ad(!truncated);
 
-  normalize_table_name(norm_name, buf);
+  if (truncated || !normalize_table_name(norm_name, buf)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (true);
+    /* purecov: end */
+  }
 
   MDL_ticket *mdl = nullptr;
   THD *thd = current_thd;
@@ -22223,15 +22224,6 @@ innobase_index_cond(ha_innobase *h) /*!< in/out: pointer to ha_innobase */
 /** Get the computed value by supplying the base column values.
 @param[in,out]	table	table whose virtual column template to be built */
 void innobase_init_vc_templ(dict_table_t *table) {
-  THD *thd = current_thd;
-  char dbname[MAX_DATABASE_NAME_LEN + 1];
-  char tbname[MAX_TABLE_NAME_LEN + 1];
-  char *name = table->name.m_name;
-  ulint dbnamelen = dict_get_db_name_len(name);
-  ulint tbnamelen = strlen(name) - dbnamelen - 1;
-  char t_dbname[MAX_DATABASE_NAME_LEN + 1];
-  char t_tbname[MAX_TABLE_NAME_LEN + 1];
-
   mutex_enter(&dict_sys->mutex);
 
   if (table->vc_templ != NULL) {
@@ -22240,38 +22232,24 @@ void innobase_init_vc_templ(dict_table_t *table) {
     return;
   }
 
-  strncpy(dbname, name, dbnamelen);
-  dbname[dbnamelen] = 0;
-  strncpy(tbname, name + dbnamelen + 1, tbnamelen);
-  tbname[tbnamelen] = 0;
-
-  /* For partition table, remove the partition name and use the
-  "main" table name to build the template */
-#ifdef _WIN32
-  char *is_part = strstr(tbname, "#p#");
-#else
-  char *is_part = strstr(tbname, "#P#");
-#endif /* _WIN32 */
-
-  if (is_part != NULL) {
-    *is_part = '\0';
-    tbnamelen = is_part - tbname;
-  }
-
   table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
   table->vc_templ->vtempl = NULL;
 
-  dbnamelen =
-      filename_to_tablename(dbname, t_dbname, MAX_DATABASE_NAME_LEN + 1);
-  tbnamelen = filename_to_tablename(tbname, t_tbname, MAX_TABLE_NAME_LEN + 1);
+  std::string schema_name;
+  std::string table_name;
+
+  table->get_table_name(schema_name, table_name);
+
+  THD *thd = current_thd;
 
 #ifdef UNIV_DEBUG
   bool ret =
 #endif /* UNIV_DEBUG */
-      handler::my_prepare_gcolumn_template(thd, t_dbname, t_tbname,
-                                           &innobase_build_v_templ_callback,
-                                           static_cast<void *>(table));
+      handler::my_prepare_gcolumn_template(
+          thd, schema_name.c_str(), table_name.c_str(),
+          &innobase_build_v_templ_callback, static_cast<void *>(table));
   ut_ad(!ret);
+
   mutex_exit(&dict_sys->mutex);
 }
 
@@ -22279,45 +22257,14 @@ void innobase_init_vc_templ(dict_table_t *table) {
 @param[in,out]	table	table whose virtual column template
 dbname and tbname to be renamed. */
 void innobase_rename_vc_templ(dict_table_t *table) {
-  char dbname[MAX_DATABASE_NAME_LEN + 1];
-  char tbname[MAX_DATABASE_NAME_LEN + 1];
-  char *name = table->name.m_name;
-  ulint dbnamelen = dict_get_db_name_len(name);
-  ulint tbnamelen = strlen(name) - dbnamelen - 1;
-  char t_dbname[MAX_DATABASE_NAME_LEN + 1];
-  char t_tbname[MAX_TABLE_NAME_LEN + 1];
+  std::string schema_name;
+  std::string table_name;
 
-  strncpy(dbname, name, dbnamelen);
-  dbname[dbnamelen] = 0;
-  strncpy(tbname, name + dbnamelen + 1, tbnamelen);
-  tbname[tbnamelen] = 0;
+  /* Get table and schema name in system character set. */
+  table->get_table_name(schema_name, table_name);
 
-  /* For partition table, remove the partition name and use the
-  "main" table name to build the template */
-#ifdef _WIN32
-  char *is_part = strstr(tbname, "#p#");
-#else
-  char *is_part = strstr(tbname, "#P#");
-#endif /* _WIN32 */
-
-  if (is_part != NULL) {
-    *is_part = '\0';
-    tbnamelen = is_part - tbname;
-  } else {
-    /* This comes from ALTER TABLE ... PARTITION operations,
-    as a intermediate table. Also keep the 'main' table name. */
-    char *tmp = strstr(tbname, TMP_POSTFIX);
-    if (tmp != nullptr) {
-      *tmp = '\0';
-      tbnamelen = tmp - tbname;
-    }
-  }
-  dbnamelen =
-      filename_to_tablename(dbname, t_dbname, MAX_DATABASE_NAME_LEN + 1);
-  tbnamelen = filename_to_tablename(tbname, t_tbname, MAX_TABLE_NAME_LEN + 1);
-
-  table->vc_templ->db_name = t_dbname;
-  table->vc_templ->tb_name = t_tbname;
+  table->vc_templ->db_name.assign(schema_name);
+  table->vc_templ->tb_name.assign(table_name);
 }
 
 /** Get the updated parent field value from the update vector for the

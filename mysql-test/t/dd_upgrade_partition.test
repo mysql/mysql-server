@@ -109,7 +109,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t1#P#p1.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t1#p#p1.json
---exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#P#p1.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#p#p1.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1#p#p1.json $JSON_FILE_PATH
@@ -117,7 +117,7 @@ if ($MTR_RECORD == 0) {
 
 --echo # Check SDI from t1#P#p0.ibd
 --let JSON_FILE_PATH = $DEST_DIR/t1#p#p0.json
---exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#P#p0.ibd -d $JSON_FILE_PATH 2>&1
+--exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#p#p0.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1#p#p0.json $JSON_FILE_PATH

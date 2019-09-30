@@ -164,34 +164,12 @@ class Ha_innopart_share : public Partition_share {
     return (m_tot_parts);
   }
 
-  /* Static helper functions. */
-  /** Fold to lower case if windows or lower_case_table_names == 1.
-  @param[in,out]	s	String to fold.*/
-  static void partition_name_casedn_str(char *s);
-
-  /** Translate and append partition name.
-  @param[out]	to	String to write in filesystem charset
-  @param[in]	from	Name in system charset
-  @param[in]	sep	Separator
-  @param[in]	len	Max length of to buffer
-  @return	length of written string. */
-  static size_t append_sep_and_name(char *to, const char *from, const char *sep,
-                                    size_t len);
-
   /** Set up the virtual column template for partition table, and points
   all m_table_parts[]->vc_templ to it.
   @param[in]	table		MySQL TABLE object
   @param[in]	ib_table	InnoDB dict_table_t
   @param[in]	name		Table name (db/table_name) */
   void set_v_templ(TABLE *table, dict_table_t *ib_table, const char *name);
-
-  /** Create the postfix of a partitioned table name
-  @param[in,out]	partition_name	Buffer to write the postfix
-  @param[in]	size		Size of the buffer
-  @param[in]	dd_part		Partition
-  @return	the length of written postfix. */
-  static size_t create_partition_postfix(char *partition_name, size_t size,
-                                         const dd::Partition *dd_part);
 
  private:
   /** Disable default constructor. */
@@ -1032,10 +1010,6 @@ class ha_innopart : public ha_innobase,
 
   /** Exchange partition.
   Low-level primitive which implementation is provided here.
-  @param[in]	part_table_path	data file path of the
-                                  partitioned table
-  @param[in]	swap_table_path	data file path of the to be
-                                  swapped table
   @param[in]	part_id		The id of the partition to
                                   be exchanged
   @param[in,out]	part_table	partitioned table to be
@@ -1043,9 +1017,7 @@ class ha_innopart : public ha_innobase,
   @param[in,out]	swap_table	table to be exchanged
   @return	error number
   @retval	0	on success */
-  int exchange_partition_low(const char *part_table_path,
-                             const char *swap_table_path, uint part_id,
-                             dd::Table *part_table,
+  int exchange_partition_low(uint part_id, dd::Table *part_table,
                              dd::Table *swap_table) override;
 
   /** Access methods to protected areas in handler to avoid adding
