@@ -195,20 +195,14 @@ ENDIF()
 ADD_INSTALL_RPATH_FOR_OPENSSL(harness-library)
 SET_PATH_TO_SSL(harness-library ${CMAKE_BINARY_DIR}/library_output_directory)
 
-# don't install headers until a) a final destination is found and b) API is stable
-# SET(HARNESS_NAME "harness" CACHE STRING "Name of Harness")
-# SET(HARNESS_INSTALL_INCLUDE_PREFIX "include/mysql")
-# FILE(GLOB harness_headers include/*.h)
-# INSTALL(FILES ${harness_headers}
-#   DESTINATION ${HARNESS_INSTALL_INCLUDE_PREFIX}/${HARNESS_NAME})
 IF(NOT WIN32)
-  INSTALL(TARGETS harness-archive harness-library
-    LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
-    ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  INSTALL(TARGETS harness-library
+    LIBRARY
+    DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+    NAMELINK_SKIP
     )
 ELSE()
   INSTALL(TARGETS harness-library
     RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
     COMPONENT Router)
 ENDIF()
-
