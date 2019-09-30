@@ -560,7 +560,7 @@ bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
       return true;
   }
 
-  adjust_time_zone_displacement(thd->time_zone(), l_time);
+  if (!ret_val) adjust_time_zone_displacement(thd->time_zone(), l_time);
 
   return ret_val;
 }
