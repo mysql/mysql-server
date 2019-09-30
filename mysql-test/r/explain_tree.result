@@ -764,38 +764,3 @@ EXPLAIN ANALYZE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c2 JOIN t3 ON t2.c2 > t3.
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE on this query'
 set optimizer_switch='block_nested_loop=off';
 DROP TABLE t1, t2, t3;
-CREATE TABLE t1 (
-b INTEGER,
-UNIQUE KEY ix1 (b)
-);
-INSERT INTO t1 VALUES (5),(7);
-CREATE TABLE t2 (
-a INTEGER NOT NULL,
-b INTEGER DEFAULT NULL,
-KEY ix1 (b)
-);
-INSERT INTO t2 VALUES (40, 1), (45, 12), (11, 23), (10, 7);
-ANALYZE TABLE t1, t2;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-EXPLAIN SELECT * FROM t1 AS table1
-WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t2 USING (b) WHERE t2.a = t2.a AND t2.b <= 7 );
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	ix1	ix1	5	NULL	2	25.00	Using index condition; Using where; Using MRR; FirstMatch
-1	SIMPLE	table1	NULL	index	NULL	ix1	5	NULL	2	100.00	Using index
-1	SIMPLE	t1	NULL	eq_ref	ix1	ix1	5	test.t2.b	1	100.00	Using index; FirstMatch(table1)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`table1`.`b` AS `b` from `test`.`t1` `table1` semi join (`test`.`t1` join `test`.`t2`) where ((`test`.`t1`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`b` <= 7))
-EXPLAIN FORMAT=tree SELECT * FROM t1 AS table1
-WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t2 USING (b) WHERE t2.a = t2.a AND t2.b <= 7 );
-EXPLAIN
--> Remove duplicate table1 rows using temporary table (weedout)
-    -> Nested loop inner join  (cost=1.55 rows=1)
-        -> Nested loop inner join  (cost=1.32 rows=1)
-            -> Filter: (t2.a = t2.a)  (cost=1.10 rows=0)
-                -> Index range scan on t2 using ix1, with index condition: ((t2.b <= 7) and (t2.b is not null))  (cost=1.10 rows=2)
-            -> Index scan on table1 using ix1  (cost=0.65 rows=2)
-        -> Single-row index lookup on t1 using ix1 (b=t2.b)  (cost=0.11 rows=1)
-
-DROP TABLE t1, t2;

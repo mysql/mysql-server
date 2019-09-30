@@ -4146,6 +4146,17 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
     Intertwined tables: ot - FM(it11 - it21 - it12 - it22)
     Grouped tables: ot - FM(it11 - it12) - FM(it21 - it22)
   */
+
+  if (pos->first_firstmatch_table != MAX_TABLES) {
+    const TABLE_LIST *first_emb_sj_nest =
+        join->positions[pos->first_firstmatch_table].table->emb_sj_nest;
+    if (emb_sj_nest != first_emb_sj_nest) {
+      // Can't handle interleaving between tables from the
+      // semi-join that FirstMatch is handling and any other tables.
+      pos->first_firstmatch_table = MAX_TABLES;
+    }
+  }
+
   if (emb_sj_nest && emb_sj_nest->nested_join->sj_enabled_strategies &
                          OPTIMIZER_SWITCH_FIRSTMATCH) {
     const table_map outer_corr_tables = emb_sj_nest->nested_join->sj_depends_on;
@@ -4224,7 +4235,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
   */
   {
     if (pos->first_loosescan_table != MAX_TABLES) {
-      TABLE_LIST *const first_emb_sj_nest =
+      const TABLE_LIST *first_emb_sj_nest =
           join->positions[pos->first_loosescan_table].table->emb_sj_nest;
       if (first_emb_sj_nest->sj_inner_tables & remaining_tables_incl) {
         // Stage 2: Accept remaining tables from the semi-join nest:

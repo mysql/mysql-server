@@ -576,9 +576,6 @@ class QEP_TAB : public QEP_shared_owner {
     QEP_TAB, and match_tab points to the last QEP_TAB handled by the strategy.
     match_tab->found_match should be checked to see if the current value group
     had a match.
-    If doing a FirstMatch, check this QEP_TAB to see if there is a match.
-    Unless the FirstMatch performs a "split jump", this is equal to the
-    current QEP_TAB.
   */
   plan_idx match_tab;
 
