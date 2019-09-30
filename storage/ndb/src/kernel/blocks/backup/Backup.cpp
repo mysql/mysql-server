@@ -3887,6 +3887,14 @@ Backup::stopBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
       sendSignal(ptr.p->clientRef, GSN_BACKUP_COMPLETE_REP, signal,
 		 BackupCompleteRep::SignalLength, JBB);
     }
+    if (ERROR_INSERTED(10042))
+    {
+      // Change backup statistics to reflect values > 32 bit
+      ptr.p->noOfRecords = INT_MAX64;
+      ptr.p->noOfBytes = INT_MAX64;
+      ptr.p->noOfLogRecords = INT_MAX64;
+      ptr.p->noOfLogBytes = INT_MAX64;
+    }
 
     signal->theData[0] = NDB_LE_BackupCompleted;
     signal->theData[1] = ptr.p->clientRef;
