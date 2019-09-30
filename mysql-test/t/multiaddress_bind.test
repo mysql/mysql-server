@@ -4,6 +4,14 @@
 
 --source include/check_ipv6.inc
 
+## Setting --bind-address=127.0.0.1,::1 need to be done here, inside
+## the test after the check for IPv6.  If it is done in -master.opt,
+## MTR will attempt to start the server with an IPv6 address, and the
+## server start will fail on machines without IPv6.
+
+--let $restart_parameters=restart: --bind-address=127.0.0.1,::1
+--source include/restart_mysqld.inc
+
 --let $MYSQLD_LOG= $MYSQL_TMP_DIR/server.log
 --let $MYSQLD_DATADIR= `SELECT @@datadir`
 --let DEFARGS= --no-defaults --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --secure-file-priv="" --socket=$MYSQLD_SOCKET --skip-ssl --skip-mysqlx
