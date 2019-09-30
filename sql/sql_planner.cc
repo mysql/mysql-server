@@ -4223,17 +4223,37 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
     Notice that any other semi-joined tables must be outside this table range.
   */
   {
-    /*
-      LooseScan strategy can't handle interleaving between tables from the
-      semi-join that LooseScan is handling and any other tables.
-    */
     if (pos->first_loosescan_table != MAX_TABLES) {
       TABLE_LIST *const first_emb_sj_nest =
           join->positions[pos->first_loosescan_table].table->emb_sj_nest;
       if (first_emb_sj_nest->sj_inner_tables & remaining_tables_incl) {
         // Stage 2: Accept remaining tables from the semi-join nest:
-        if (emb_sj_nest != first_emb_sj_nest)
+        if (emb_sj_nest != first_emb_sj_nest) {
+          /*
+            LooseScan strategy can't handle interleaving between tables from
+            the semi-join that LooseScan is handling and any other tables.
+          */
           pos->first_loosescan_table = MAX_TABLES;
+        } else {
+          /*
+            NestedLoopSemiJoinWithDuplicateRemovalIterator takes a
+            single-table iterator as left argument, and inner-joins
+            it with the set of other SJ-inner tables. E.g. it doesn't work for
+            A SEMI JOIN (B LEFT JOIN C) with B as LooseScan table. So:
+            - if we're now at the second SJ-inner table (1) , and
+            - this table belongs to a join nest which is outer-joined to
+            the first SJ-inner table (2), or is directly outer-joined to the
+            first SJ-inner table (3),
+            - then both tables are not inner-joined together and LooseScan is
+            impossible.
+          */
+          if (idx == pos->first_loosescan_table + 1 &&  // (1)
+              ((pos->table->table_ref->outer_join_nest() !=
+                join->positions[pos->first_loosescan_table]
+                    .table->table_ref->outer_join_nest())  // (2)
+               || pos->table->table_ref->outer_join))      // (3)
+            pos->first_loosescan_table = MAX_TABLES;
+        }
       } else {
         // Stage 3: Accept outer dependent and non-dependent tables:
         DBUG_ASSERT(emb_sj_nest != first_emb_sj_nest);

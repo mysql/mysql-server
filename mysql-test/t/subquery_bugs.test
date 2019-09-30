@@ -892,3 +892,34 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE table_city, table_user, table_city_user;
+
+--echo #
+--echo # Bug#30267889 ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED | TEMPTABLE::HANDLER::POSITION
+--echo #
+
+ CREATE TABLE b (c INTEGER, KEY idx_b (c));
+CREATE TABLE c (c INTEGER, KEY idx_c (c));
+CREATE TABLE d (c INTEGER, KEY idx_d (c));
+
+INSERT INTO b VALUES (1), (2);
+INSERT INTO c VALUES (1), (2);
+INSERT INTO d VALUES (1), (2);
+
+let $query =
+SELECT /*+ JOIN_ORDER(b, c_inner, c_inner_inner, d, c) */ d.c
+FROM d JOIN c
+WHERE d.c IN (
+  SELECT
+    b.c
+  FROM
+    b LEFT JOIN c AS c_inner ON c_inner.c = b.c
+  WHERE
+    EXISTS ( SELECT c FROM c AS c_inner_inner )
+) ORDER BY d.c;
+
+# Shouldn't use Semijoin LooseScan, as the iterator for this strategy
+# cannot handle when the LooseScan driving table (b) is not
+# inner-joined with the next table in nest (c).
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE b, c, d;

@@ -12360,10 +12360,11 @@ ON iir2.col_varchar_nokey = iir1.col_varchar_key))
 ORDER BY r1.col_date_key;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	r1	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; Using filesort
-2	DEPENDENT SUBQUERY	iir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; LooseScan; Full scan on NULL key
-2	DEPENDENT SUBQUERY	iir1	NULL	ref	col_varchar_key	col_varchar_key	7	test.iir2.col_varchar_nokey	1	100.00	Using index; FirstMatch(iir2)
+2	DEPENDENT SUBQUERY	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
 2	DEPENDENT SUBQUERY	ir1	NULL	index	col_varchar_key	col_varchar_key	12	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	ir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
+3	MATERIALIZED	iir2	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Full scan on NULL key
+3	MATERIALIZED	iir1	NULL	ref	col_varchar_key	col_varchar_key	7	test.iir2.col_varchar_nokey	1	100.00	Using index
 SELECT r1.col_date_key
 FROM t2 AS r1
 WHERE r1.col_int_key NOT IN
@@ -12538,10 +12539,10 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	col_int_key	col_int_key	5	NULL	7	85.71	Using index; Using temporary; Using filesort; LooseScan
+1	SIMPLE	t1	NULL	index	col_int_key	col_int_key	5	NULL	7	100.00	Using index; Using temporary; Using filesort; Start temporary
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
-1	SIMPLE	t3	NULL	ref	col_int_key	col_int_key	5	test.t2.col_int	1	25.00	Using where; FirstMatch(t1)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	col_int_key	NULL	NULL	NULL	4	25.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`col_int_key` AS `col_int_key` from `test`.`t4` semi join (`test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t3`.`col_int_key` = `test`.`t2`.`col_int`)))) where ((`test`.`t4`.`col_int_key` = `test`.`t1`.`col_int_key`) and (`test`.`t3`.`col_int` is null)) order by `test`.`t4`.`col_int_key`
 explain format=tree SELECT *
@@ -12556,17 +12557,17 @@ ORDER BY col_int_key
 EXPLAIN
 -> Sort: <temporary>.col_int_key
     -> Stream results
-        -> Inner hash join (t4.col_int_key = t1.col_int_key)
-            -> Table scan on t4  (cost=0.35 rows=6)
-            -> Hash
-                -> Remove duplicates from input sorted on col_int_key
-                    -> Filter: (t3.col_int is null)
-                        -> Nested loop left join
-                            -> Index scan on t1 using col_int_key  (cost=0.85 rows=7)
-                            -> Limit: 1 row(s)
-                                -> Nested loop inner join  (cost=2.16 rows=1)
-                                    -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.26 rows=1)
-                                    -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)  (cost=0.05 rows=1)
+        -> Remove duplicate t4 rows using temporary table (weedout)  (cost=7.85 rows=7)
+            -> Inner hash join (t4.col_int_key = t1.col_int_key)  (cost=7.85 rows=7)
+                -> Table scan on t4  (cost=0.35 rows=6)
+                -> Hash
+                    -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)
+                        -> Nested loop left join  (cost=3.40 rows=7)
+                            -> Index scan on t1 using col_int_key  (cost=0.95 rows=7)
+                            -> Nested loop inner join  (cost=1.21 rows=1)
+                                -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.26 rows=1)
+                                -> Filter: (t3.col_int_key = t2.col_int)  (cost=0.09 rows=1)
+                                    -> Table scan on t3  (cost=0.09 rows=4)
 
 SELECT *
 FROM t4
