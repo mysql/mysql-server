@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -155,15 +155,65 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
   __atomic_thread_fence(__ATOMIC_ACQUIRE);
 #endif
 
+  if (val < 0xF8) {
+    ut_ad(val == 0xF0);
+
+    /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
+    if (end_ptr >= *ptr + 5) {
+      val = mach_read_from_4(*ptr + 1);
+      ut_ad(val > 0xFFFFFFF);
+      *ptr += 5;
+      return (static_cast<ib_uint32_t>(val));
+    }
+
+    *ptr = NULL;
+    return (0);
+  }
+
+#ifdef DEPLOY_FENCE
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+  if (val < 0xFC) {
+    /* 111110nn nnnnnnnn (10 bits) (extended) */
+    if (end_ptr >= *ptr + 2) {
+      val = (mach_read_from_2(*ptr) & 0x3FF) | 0xFFFFFC00;
+      *ptr += 2;
+      return (static_cast<ib_uint32_t>(val));
+    }
+    *ptr = NULL;
+    return (0);
+  }
+
+#ifdef DEPLOY_FENCE
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
+  if (val < 0xFE) {
+    /* 1111110n nnnnnnnn nnnnnnnn (17 bits) (extended) */
+    if (end_ptr >= *ptr + 3) {
+      val = (mach_read_from_3(*ptr) & 0x1FFFF) | 0xFFFE0000;
+      ut_ad(val < 0xFFFFFC00);
+      *ptr += 3;
+      return (static_cast<ib_uint32_t>(val));
+    }
+    *ptr = NULL;
+    return (0);
+  }
+
+#ifdef DEPLOY_FENCE
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+#endif
+
 #undef DEPLOY_FENCE
 
-  ut_ad(val == 0xF0);
+  ut_ad(val == 0xFE);
 
-  /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
-  if (end_ptr >= *ptr + 5) {
-    val = mach_read_from_4(*ptr + 1);
-    ut_ad(val > 0xFFFFFFF);
-    *ptr += 5;
+  /* 11111110 nnnnnnnn nnnnnnnn nnnnnnnn (24 bits) (extended) */
+  if (end_ptr >= *ptr + 4) {
+    val = mach_read_from_3(*ptr + 1) | 0xFF000000;
+    ut_ad(val < 0xFFFE0000);
+    *ptr += 4;
     return (static_cast<ib_uint32_t>(val));
   }
 

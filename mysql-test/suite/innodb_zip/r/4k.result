@@ -306,8 +306,6 @@ COMMIT;
 CREATE INDEX t1c ON t1 (c(767));
 UPDATE t1 SET c=@e;
 CREATE INDEX t1d ON t1 (d(767));
-UPDATE t1 SET d=@e;
-ERROR HY000: Undo log record is too big.
 CREATE INDEX t1e ON t1 (e(767));
 SHOW CREATE TABLE t1;
 Table	Create Table

@@ -1037,13 +1037,23 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
       return (DB_ERROR);
 
+    case LOG_HEADER_FORMAT_8_0_3:
+      /* v3 has compatibility with v4. Upgrades LOG_HEADER_FORMAT */
+      log.format = LOG_HEADER_FORMAT_8_0_19;
+      mach_write_to_4(buf + LOG_HEADER_FORMAT, log.format);
+      log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
+      ut_a(fil_redo_io(IORequestLogWrite, page_id_t{log.files_space_id, 0},
+                       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE,
+                       buf) == DB_SUCCESS);
+      break;
+
     case LOG_HEADER_FORMAT_5_7_9:
     case LOG_HEADER_FORMAT_8_0_1:
 
       ib::info(ER_IB_MSG_704, ulong{log.format});
 
     case LOG_HEADER_FORMAT_CURRENT:
-      /* The checkpoint page format is identical upto v3. */
+      /* The checkpoint page format is identical upto v4. */
       break;
 
     default:
@@ -3782,6 +3792,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
     case LOG_HEADER_FORMAT_5_7_9:
     case LOG_HEADER_FORMAT_8_0_1:
+    case LOG_HEADER_FORMAT_8_0_3:
 
       ib::info(ER_IB_MSG_732, ulong{log.format});
 

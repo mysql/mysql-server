@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -179,6 +179,18 @@ ulint mach_write_compressed(byte *b, ulint n) {
     /* 1110nnnn nnnnnnnn nnnnnnnn nnnnnnnn (28 bits) */
     mach_write_to_4(b, n | 0xE0000000);
     return (4);
+  } else if (n >= 0xFFFFFC00) {
+    /* 111110nn nnnnnnnn (10 bits) (extended) */
+    mach_write_to_2(b, (n & 0x3FF) | 0xF800);
+    return (2);
+  } else if (n >= 0xFFFE0000) {
+    /* 1111110n nnnnnnnn nnnnnnnn (17 bits) (extended) */
+    mach_write_to_3(b, (n & 0x1FFFF) | 0xFC0000);
+    return (3);
+  } else if (n >= 0xFF000000) {
+    /* 11111110 nnnnnnnn nnnnnnnn nnnnnnnn (24 bits) (extended) */
+    mach_write_to_4(b, (n & 0xFFFFFF) | 0xFE000000);
+    return (4);
   } else {
     /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
     mach_write_to_1(b, 0xF0);
@@ -203,6 +215,15 @@ ulint mach_get_compressed_size(ulint n) {
     return (3);
   } else if (n < 0x10000000) {
     /* 1110nnnn nnnnnnnn nnnnnnnn nnnnnnnn (28 bits) */
+    return (4);
+  } else if (n >= 0xFFFFFC00) {
+    /* 111110nn nnnnnnnn (10 bits) (extended) */
+    return (2);
+  } else if (n >= 0xFFFE0000) {
+    /* 1111110n nnnnnnnn nnnnnnnn (17 bits) (extended) */
+    return (3);
+  } else if (n >= 0xFF000000) {
+    /* 11111110 nnnnnnnn nnnnnnnn nnnnnnnn (24 bits) (extended) */
     return (4);
   } else {
     /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
@@ -235,11 +256,24 @@ ulint mach_read_compressed(const byte *b) {
     /* 1110nnnn nnnnnnnn nnnnnnnn nnnnnnnn (28 bits) */
     val = mach_read_from_4(b) & 0xFFFFFFF;
     ut_ad(val > 0x1FFFFF);
-  } else {
+  } else if (val < 0xF8) {
     /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
     ut_ad(val == 0xF0);
     val = mach_read_from_4(b + 1);
+    /* this can treat not-extended format also. */
     ut_ad(val > 0xFFFFFFF);
+  } else if (val < 0xFC) {
+    /* 111110nn nnnnnnnn (10 bits) (extended) */
+    val = (mach_read_from_2(b) & 0x3FF) | 0xFFFFFC00;
+  } else if (val < 0xFE) {
+    /* 1111110n nnnnnnnn nnnnnnnn (17 bits) (extended) */
+    val = (mach_read_from_3(b) & 0x1FFFF) | 0xFFFE0000;
+    ut_ad(val < 0xFFFFFC00);
+  } else {
+    /* 11111110 nnnnnnnn nnnnnnnn nnnnnnnn (24 bits) (extended) */
+    ut_ad(val == 0xFE);
+    val = mach_read_from_3(b + 1) | 0xFF000000;
+    ut_ad(val < 0xFFFE0000);
   }
 
   return (val);
@@ -271,12 +305,28 @@ ib_uint32_t mach_read_next_compressed(const byte **b) {
     val = mach_read_from_4(*b) & 0xFFFFFFF;
     ut_ad(val > 0x1FFFFF);
     *b += 4;
-  } else {
+  } else if (val < 0xF8) {
     /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
     ut_ad(val == 0xF0);
     val = mach_read_from_4(*b + 1);
+    /* this can treat not-extended format also. */
     ut_ad(val > 0xFFFFFFF);
     *b += 5;
+  } else if (val < 0xFC) {
+    /* 111110nn nnnnnnnn (10 bits) (extended) */
+    val = (mach_read_from_2(*b) & 0x3FF) | 0xFFFFFC00;
+    *b += 2;
+  } else if (val < 0xFE) {
+    /* 1111110n nnnnnnnn nnnnnnnn (17 bits) (extended) */
+    val = (mach_read_from_3(*b) & 0x1FFFF) | 0xFFFE0000;
+    ut_ad(val < 0xFFFFFC00);
+    *b += 3;
+  } else {
+    /* 11111110 nnnnnnnn nnnnnnnn nnnnnnnn (24 bits) (extended) */
+    ut_ad(val == 0xFE);
+    val = mach_read_from_3(*b + 1) | 0xFF000000;
+    ut_ad(val < 0xFFFE0000);
+    *b += 4;
   }
 
   return (static_cast<ib_uint32_t>(val));
@@ -457,13 +507,30 @@ ib_uint64_t mach_read_next_much_compressed(const byte **b) {
     val = mach_read_from_4(*b) & 0xFFFFFFF;
     ut_ad(val > 0x1FFFFF);
     *b += 4;
-  } else if (val == 0xF0) {
+  } else if (val < 0xF8) {
     /* 11110000 nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn (32 bits) */
+    ut_ad(val == 0xF0);
     val = mach_read_from_4(*b + 1);
+    /* this can treat not-extended format also. */
     ut_ad(val > 0xFFFFFFF);
     *b += 5;
+  } else if (val < 0xFC) {
+    /* 111110nn nnnnnnnn (10 bits) (extended) */
+    val = (mach_read_from_2(*b) & 0x3FF) | 0xFFFFFC00;
+    *b += 2;
+  } else if (val < 0xFE) {
+    /* 1111110n nnnnnnnn nnnnnnnn (17 bits) (extended) */
+    val = (mach_read_from_3(*b) & 0x1FFFF) | 0xFFFE0000;
+    ut_ad(val < 0xFFFFFC00);
+    *b += 3;
+  } else if (val == 0xFE) {
+    /* 11111110 nnnnnnnn nnnnnnnn nnnnnnnn (24 bits) (extended) */
+    ut_ad(val == 0xFE);
+    val = mach_read_from_3(*b + 1) | 0xFF000000;
+    ut_ad(val < 0xFFFE0000);
+    *b += 4;
   } else {
-    /* 11111111 followed by up to 64 bits */
+    /* 11111111 followed by up to 80 bits */
     ut_ad(val == 0xFF);
     ++*b;
     val = mach_read_next_compressed(b);
