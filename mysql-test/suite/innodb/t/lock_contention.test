@@ -371,23 +371,23 @@ SELECT CLUST_INDEX_SIZE FROM information_schema.INNODB_TABLESTATS WHERE NAME = '
 
 
 
-# (2) Insert records to leaf page (cv..) and cause modify_page
-#     - root page is X latched, because node_ptr for 'cv'
-#       is 2nd record for (co,cv,dc,dj,dq,dx,ee)
+# (2) Insert records to leaf page (co..) and cause modify_page
+#     - root page is X latched, because node_ptr for 'co'
+#       is 1st record for (co,cv,dc,dj,dq,dx,ee)
 #
 # * ordinary pessimitic insert might be done by pessistic update
 #   and we should consider possibility node_ptr to be deleted.
 
 SET DEBUG_SYNC = 'RESET';
 
-# Filling leaf page (cv..)
-INSERT INTO t1 (a00) VALUES ('cva');
+# Filling leaf page (co..)
+INSERT INTO t1 (a00) VALUES ('coa');
 
 --connection con1
 SET DEBUG_SYNC = 'before_insert_pessimitic_row_ins_clust SIGNAL reached WAIT_FOR continue';
 # Cause modify_tree
 --send
-INSERT INTO t1 (a00) VALUES ('cvb');
+INSERT INTO t1 (a00) VALUES ('cob');
 
 --connection con2
 SET DEBUG_SYNC = 'now WAIT_FOR reached';

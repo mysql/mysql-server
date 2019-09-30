@@ -490,41 +490,60 @@ static bool btr_cur_will_modify_tree(dict_index_t *index, const page_t *page,
   if (lock_intention <= BTR_INTENTION_BOTH) {
     ulint margin;
 
-    /* check delete will cause. (BTR_INTENTION_BOTH
-    or BTR_INTENTION_DELETE) */
-    /* first, 2nd, 2nd-last and last records are 4 records */
-    if (page_get_n_recs(page) < 5) {
-      return (true);
-    }
-
-    /* is first, 2nd or last record */
-    if (page_rec_is_first(rec, page) ||
-        (mach_read_from_4(page + FIL_PAGE_NEXT) != FIL_NULL &&
-         (page_rec_is_last(rec, page) || page_rec_is_second_last(rec, page))) ||
-        (mach_read_from_4(page + FIL_PAGE_PREV) != FIL_NULL &&
-         page_rec_is_second(rec, page))) {
-      return (true);
-    }
-
     if (lock_intention == BTR_INTENTION_BOTH) {
+      ulint level = btr_page_get_level(page, mtr);
+
+      /* This value is the worst expectation for the node_ptr records to be
+      deleted from this page. It is used to expect whether the cursor position
+      can be the left_most record in this page or not. */
+      ulint max_nodes_deleted = 0;
+
+      /* By modifying tree operations from the under of this level,
+      logically (2 ^ (level - 1)) opportunities to deleting records in maximum
+      even unreally rare case. */
+      if (level > 7) {
+        /* TODO: adjust this practical limit, if needed. */
+        max_nodes_deleted = 64;
+      } else if (level > 0) {
+        max_nodes_deleted = (ulint)1 << (level - 1);
+      }
+
+      /* check delete will cause. (BTR_INTENTION_BOTH
+      or BTR_INTENTION_DELETE) */
+      if (page_get_n_recs(page) <= max_nodes_deleted * 2 ||
+          page_rec_is_first(rec, page)) {
+        /* The cursor record can be the left_most record in this page. */
+        return (true);
+      }
+
+      if (fil_page_get_prev(page) != FIL_NULL &&
+          page_rec_distance_is_at_most(page_get_infimum_rec(page), rec,
+                                       max_nodes_deleted)) {
+        return (true);
+      }
+
+      if (fil_page_get_next(page) != FIL_NULL &&
+          page_rec_distance_is_at_most(rec, page_get_supremum_rec(page),
+                                       max_nodes_deleted)) {
+        return (true);
+      }
+
       /* Delete at leftmost record in a page causes delete
       & insert at its parent page. After that, the delete
       might cause btr_compress() and delete record at its
-      parent page. Thus we should consider max 2 deletes. */
+      parent page. Thus we should consider max deletes. */
 
-      margin = rec_size * 2;
+      margin = rec_size * max_nodes_deleted;
     } else {
       ut_ad(lock_intention == BTR_INTENTION_DELETE);
 
       margin = rec_size;
     }
-    /* NOTE: call mach_read_from_4() directly to avoid assertion
-    failure. It is safe because we already have SX latch of the
-    index tree */
+    /* Safe because we already have SX latch of the index tree */
     if (page_get_data_size(page) <
             margin + BTR_CUR_PAGE_COMPRESS_LIMIT(index) ||
-        (mach_read_from_4(page + FIL_PAGE_NEXT) == FIL_NULL &&
-         mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL)) {
+        (fil_page_get_next(page) == FIL_NULL &&
+         fil_page_get_prev(page) == FIL_NULL)) {
       return (true);
     }
   }
