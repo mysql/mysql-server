@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <functional>
+#include <random>
 #include <vector>
 
 #include "my_inttypes.h"
@@ -63,7 +64,9 @@ void generate_test_data(Key_use *keys, TABLE_LIST *tables, int n) {
                        0        // uint       sj_pred_no
     );
   }
-  std::random_shuffle(&keys[0], &keys[n]);
+  std::random_device rng;
+  std::mt19937 urng(rng());
+  std::shuffle(&keys[0], &keys[n], urng);
 }
 
 constexpr int num_elements = 200;

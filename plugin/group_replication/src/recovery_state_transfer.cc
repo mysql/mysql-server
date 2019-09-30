@@ -355,7 +355,9 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
   }
 
   if (suitable_donors.size() > 1) {
-    std::random_shuffle(suitable_donors.begin(), suitable_donors.end());
+    std::random_device rng;
+    std::mt19937 urng(rng());
+    std::shuffle(suitable_donors.begin(), suitable_donors.end(), urng);
   }
 
   // no need for errors if no donors exist, we thrown it in the connection

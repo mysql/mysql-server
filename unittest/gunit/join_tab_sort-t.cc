@@ -22,6 +22,7 @@
 
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <random>
 #include <vector>
 
 #include "my_inttypes.h"
@@ -36,11 +37,15 @@ using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
 
 class JTSortTest : public ::testing::Test {
+ public:
+  JTSortTest() : urng(std::random_device().operator()()) {}
+
  protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
   Server_initializer initializer;
+  std::mt19937 urng;
 };
 
 class MOCK_JOIN_TAB : public JOIN_TAB {
@@ -93,13 +98,13 @@ TEST_F(JTSortTest, SortFoundRecordsTest) {
     arr[i] = new (*THR_MALLOC) MOCK_JOIN_TAB(i, 0);
 
   // MERGE SORT
-  std::random_shuffle(arr, arr + 50);
+  std::shuffle(arr, arr + 50, urng);
   merge_sort(arr, arr + num_tables, Join_tab_compare_default());
   for (int i = 1; i < num_tables; i++)
     EXPECT_TRUE(arr[i]->found_records > arr[i - 1]->found_records);
 
   // INSERT SORT
-  std::random_shuffle(arr, arr + 50);
+  std::shuffle(arr, arr + 50, urng);
   insert_sort(arr, arr + num_tables, Join_tab_compare_default());
   for (int i = 1; i < num_tables; i++)
     EXPECT_TRUE(arr[i]->found_records > arr[i - 1]->found_records);
@@ -123,7 +128,7 @@ TEST_F(JTSortTest, SortDependsTest) {
   }
 
   // MERGE SORT
-  std::random_shuffle(arr, arr + num_tables);
+  std::shuffle(arr, arr + num_tables, urng);
   merge_sort(arr, arr + num_tables, Join_tab_compare_default());
   for (int i = 1; i < num_tables; i++)
     EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records)
@@ -131,7 +136,7 @@ TEST_F(JTSortTest, SortDependsTest) {
         << "i-1: " << *(arr[i - 1]);
 
   // INSERT SORT
-  std::random_shuffle(arr, arr + num_tables);
+  std::shuffle(arr, arr + num_tables, urng);
   insert_sort(arr, arr + num_tables, Join_tab_compare_default());
   for (int i = 1; i < num_tables; i++)
     EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
@@ -156,13 +161,13 @@ TEST_F(JTSortTest, SortKeyDependsTest) {
   }
 
   // MERGE SORT
-  std::random_shuffle(arr, arr + num_tables);
+  std::shuffle(arr, arr + num_tables, urng);
   merge_sort(arr, arr + num_tables, Join_tab_compare_default());
   for (int i = 1; i < num_tables; i++)
     EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
 
   // INSERT SORT
-  std::random_shuffle(arr, arr + num_tables);
+  std::shuffle(arr, arr + num_tables, urng);
   insert_sort(arr, arr + num_tables, Join_tab_compare_default());
   for (int i = 1; i < num_tables; i++)
     EXPECT_TRUE(arr[i]->found_records < arr[i - 1]->found_records);
@@ -198,12 +203,12 @@ TEST_F(JTSortTest, SortIntTest) {
   EXPECT_TRUE(arr_ptr.size() == ints_to_sort);
 
   // MERGE SORT
-  std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
+  std::shuffle(&arr_ptr.front(), &arr_ptr.back() + 1, urng);
   merge_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
   for (uint i = 0; i < arr_ptr.size(); i++) EXPECT_TRUE(*arr_ptr[i] == (int)i);
 
   // INSERT SORT
-  std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
+  std::shuffle(&arr_ptr.front(), &arr_ptr.back() + 1, urng);
   insert_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
   for (uint i = 0; i < arr_ptr.size(); i++) EXPECT_TRUE(*arr_ptr[i] == (int)i);
 }
@@ -232,13 +237,13 @@ TEST_F(JTSortTest, SortInt2Test) {
   EXPECT_TRUE(arr_ptr.size() == ints_to_sort);
 
   // MERGE SORT
-  std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
+  std::shuffle(&arr_ptr.front(), &arr_ptr.back() + 1, urng);
   merge_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
   for (uint i = 1; i < arr_ptr.size(); i++)
     EXPECT_TRUE(*arr_ptr[i - 1] < *arr_ptr[i]);
 
   // INSERT SORT
-  std::random_shuffle(&arr_ptr.front(), &arr_ptr.back() + 1);
+  std::shuffle(&arr_ptr.front(), &arr_ptr.back() + 1, urng);
   insert_sort(&arr_ptr.front(), &arr_ptr.back() + 1, Int_compare_ptr());
   for (uint i = 1; i < arr_ptr.size(); i++)
     EXPECT_TRUE(*arr_ptr[i - 1] < *arr_ptr[i]);

@@ -225,11 +225,6 @@ extern "C" {
 #define HAVE_OPENSSL11 1
 #endif  // OPENSSL_VERSION_NUMBER
 
-/* apple deprecated openssl in MacOSX Lion */
-#ifdef __APPLE__
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
 #define HEADER_DES_LOCL_H dummy_something
 
 #include <openssl/err.h>
