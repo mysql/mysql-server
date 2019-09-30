@@ -1086,7 +1086,13 @@ dict_table_t *dict_table_open_on_name(
   ut_ad(table_name);
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  table = dict_table_check_if_in_cache_low(table_name);
+  std::string table_str(table_name);
+  /* Check and convert 5.7 table name. We always keep 8.0 format name in cache
+  during upgrade. */
+  if (dict_name::is_partition(table_name)) {
+    dict_name::rebuild(table_str);
+  }
+  table = dict_table_check_if_in_cache_low(table_str.c_str());
 
   if (table == NULL) {
     table = dict_load_table(table_name, true, ignore_err);
@@ -1560,7 +1566,7 @@ dberr_t dict_table_rename_in_cache(
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
       std::string new_ibd;
 
-      new_ibd = Fil_path::make_new_ibd(old_path, new_name);
+      new_ibd = Fil_path::make_new_path(old_path, new_name, IBD);
 
       new_path = mem_strdup(new_ibd.c_str());
 
@@ -1588,8 +1594,8 @@ dberr_t dict_table_rename_in_cache(
 
     clone_mark_abort(true);
 
-    std::string new_tablespace_name;
-    dd_filename_to_spacename(new_name, &new_tablespace_name);
+    std::string new_tablespace_name(new_name);
+    dict_name::convert_to_space(new_tablespace_name);
 
     dberr_t err = fil_rename_tablespace(table->space, old_path,
                                         new_tablespace_name.c_str(), new_path);
@@ -1988,8 +1994,7 @@ void dict_partitioned_table_remove_from_cache(const char *name) {
       }
 
       if ((strncmp(name, prev_table->name.m_name, name_len) == 0) &&
-          strncmp(prev_table->name.m_name + name_len, PART_SEPARATOR,
-                  PART_SEPARATOR_LEN) == 0) {
+          dict_table_is_partition(prev_table)) {
         btr_drop_ahi_for_table(prev_table);
         dict_table_remove_from_cache(prev_table);
       }

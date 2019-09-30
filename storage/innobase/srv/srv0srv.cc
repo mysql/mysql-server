@@ -107,6 +107,9 @@ bool srv_downgrade_logs = false;
 bool srv_upgrade_old_undo_found = false;
 #endif /* INNODB_DD_TABLE */
 
+/* Revert to old partition file name if upgrade fails. */
+bool srv_downgrade_partition_files = false;
+
 /* The following is the maximum allowed duration of a lock wait. */
 ulong srv_fatal_semaphore_wait_threshold = 600;
 

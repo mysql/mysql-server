@@ -1435,8 +1435,5 @@ which belongs to the partition.
 @return true if the dict_table_t is a partition else false. */
 UNIV_INLINE
 bool dict_table_is_partition(const dict_table_t *table) {
-  /* Check both P and p on all platforms in case it was moved to/from
-  WIN. */
-  return (strstr(table->name.m_name, "#p#") ||
-          strstr(table->name.m_name, "#P#"));
+  return (dict_name::is_partition(table->name.m_name));
 }

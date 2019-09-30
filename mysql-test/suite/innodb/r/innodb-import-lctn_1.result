@@ -1,11 +1,12 @@
 #
 # Bug #29627690	NOT ABLE TO IMPORT PARTITIONED TABLESPACE OLDER THAN 8.0.14
-#
-select @lower_case_table_names;
-@lower_case_table_names
-NULL
+# After wl#13352, we no longer try to induce 8.0.14 behaviour by debug
+# variable. innodb.partition_upgrade* tests checks import from 8.0.14.
+# Keeping this test to run on current version.
+select @@lower_case_table_names;
+@@lower_case_table_names
+1
 # Test 1: With Hash partitions
-SET SESSION debug="+d,induce_lowercase_part_names";
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY HASH (c1) PARTITIONS 3;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
@@ -18,7 +19,6 @@ c1
 5
 6
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 backup: t1#p#p0
 backup: t1#p#p1
 backup: t1#p#p2
@@ -41,7 +41,6 @@ c1
 6
 DROP TABLE t1;
 # Test 2 With range partitions/subpartitions with mixed cases partiton names
-SET SESSION debug="+d,induce_lowercase_part_names";
 create table t1 (f1 int ,f2 int) partition by range (f1)
 subpartition by key (f2)
 (
@@ -64,7 +63,6 @@ f1	f2
 40	78
 90	10
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 backup: t1#p#abcdef#sp#sub_abcdef0
 backup: t1#p#abcdef#sp#sub_abcdef1
 backup: t1#p#abc#sp#sub_abc0
@@ -104,7 +102,6 @@ f1	f2
 DROP TABLE t1;
 # Test 3 : With encryption
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
-SET SESSION debug="+d,induce_lowercase_part_names";
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
 PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
@@ -117,7 +114,6 @@ c1
 5
 6
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 backup: t1#p#abc
 UNLOCK TABLES;
 DROP TABLE t1;
@@ -138,7 +134,6 @@ DROP TABLE t1;
 # Restarting server without keyring to restore server state
 # restart: 
 Test 4 : Missing cfg file
-SET SESSION debug="+d,induce_lowercase_part_names";
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY RANGE (c1) ( PARTITION ABCD VALUES LESS THAN (10));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(8);
@@ -151,7 +146,6 @@ c1
 5
 8
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
@@ -160,7 +154,7 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 restore: t1#p#abcd .ibd file
 ALTER TABLE t1 IMPORT TABLESPACE;
 Warnings:
-Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t1#P#ABCD.cfg', will attempt to import without schema verification
+Warning	1810	InnoDB: IO Read error: (2, No such file or directory) Error opening './test/t1#p#abcd.cfg', will attempt to import without schema verification
 SELECT * FROM t1 ORDER BY c1;
 c1
 1

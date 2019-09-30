@@ -378,21 +378,6 @@ database name and table name. In addition, 14 bytes is added for:
 only (NONE | ZLIB | LZ4). */
 #define MAX_COMPRESSION_LEN 4
 
-/** The maximum length in bytes that a database name can occupy when stored in
-UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
-mysql_com.h if you are to use this macro. */
-#define MAX_DB_UTF8_LEN (NAME_LEN + 1)
-
-/** The maximum length in bytes that a table name can occupy when stored in
-UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
-mysql_com.h if you are to use this macro. NAME_LEN is multiplied by 3 because
-when partitioning is used a table name from InnoDB point of view could be
-table_name#P#partition_name#SP#subpartition_name where each of the 3 names can
-be up to NAME_LEN. So the maximum is:
-NAME_LEN + strlen(#P#) + NAME_LEN + strlen(#SP#) + NAME_LEN + strlen(\0).
-This macro only applies to table name, without any database name prefixed. */
-#define MAX_TABLE_UTF8_LEN (NAME_LEN * 3 + sizeof("#P##SP#"))
-
 /*
                         UNIVERSAL TYPE DEFINITIONS
                         ==========================
@@ -721,17 +706,6 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type {
 print an informative message. Type should be return type of ut_time_monotonic().
 */
 static constexpr ib_time_monotonic_t PRINT_INTERVAL_SECS = 10;
-
-constexpr size_t PART_SEPARATOR_LEN = 3;
-constexpr size_t SUB_PART_SEPARATOR_LEN = 4;
-
-#ifdef _WIN32
-constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#p#";
-constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#sp#";
-#else
-constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#P#";
-constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#SP#";
-#endif /* _WIN32 */
 
 #if defined(UNIV_LIBRARY) && !defined(UNIV_NO_ERR_MSGS)
 

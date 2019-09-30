@@ -151,11 +151,6 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
 bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                partition_element *part_elem);
 
-void create_partition_name(char *out, const char *in1, const char *in2,
-                           bool translate);
-void create_subpartition_name(char *out, const char *in1, const char *in2,
-                              const char *in3);
-
 enum enum_partition_keywords {
   PKW_HASH = 0,
   PKW_RANGE,

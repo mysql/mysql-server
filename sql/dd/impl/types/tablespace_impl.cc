@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/types/tablespace_impl.h"
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
 
 #include <algorithm>
 #include <atomic>
@@ -171,7 +172,10 @@ bool Tablespace_impl::restore_attributes(const Raw_record &r) {
 bool Tablespace_impl::store_attributes(Raw_record *r) {
 #ifndef DBUG_OFF
   if (my_strcasecmp(system_charset_info, "InnoDB", m_engine.c_str()) == 0) {
-    DBUG_ASSERT(m_options.exists("encryption"));
+    /* Innodb can request for space rename during upgrade when options are not
+    upgraded yet. */
+    DBUG_ASSERT(m_options.exists("encryption") ||
+                bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade());
   } else {
     DBUG_ASSERT(!m_options.exists("encryption"));
   }

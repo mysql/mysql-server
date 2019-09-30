@@ -155,8 +155,8 @@ ALTER TABLE employees DISCARD PARTITION p0 TABLESPACE;
 FLUSH TABLES employees FOR EXPORT;
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
---copy_file $SERVER1_MYSQLD_DATADIR/test/employees#P#p0.cfg $SERVER2_MYSQLD_DATADIR/test/employees#P#p0.cfg
---copy_file $SERVER1_MYSQLD_DATADIR/test/employees#P#p0.ibd $SERVER2_MYSQLD_DATADIR/test/employees#P#p0.ibd
+--copy_file $SERVER1_MYSQLD_DATADIR/test/employees#p#p0.cfg $SERVER2_MYSQLD_DATADIR/test/employees#p#p0.cfg
+--copy_file $SERVER1_MYSQLD_DATADIR/test/employees#p#p0.ibd $SERVER2_MYSQLD_DATADIR/test/employees#p#p0.ibd
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc

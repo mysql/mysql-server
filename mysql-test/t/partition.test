@@ -2527,8 +2527,8 @@ subpartition by hash (a)
  (SUBPARTITION subpart00, SUBPARTITION subpart01));
 
 --echo # Checking if file exists before alter
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p0#SP#subpart00.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p0#SP#subpart01.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#p#p0#sp#subpart00.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#p#p0#sp#subpart01.ibd
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
@@ -2538,10 +2538,10 @@ eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
  (SUBPARTITION subpart20, SUBPARTITION subpart21));
 
 --echo # Checking if file exists after alter
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p1#SP#subpart10.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p1#SP#subpart11.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p2#SP#subpart20.ibd
---file_exists $MYSQLTEST_VARDIR/tmp/test/t1#P#p2#SP#subpart21.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#p#p1#sp#subpart10.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#p#p1#sp#subpart11.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#p#p2#sp#subpart20.ibd
+--file_exists $MYSQLTEST_VARDIR/tmp/test/t1#p#p2#sp#subpart21.ibd
 
 drop table t1;
 
@@ -2652,10 +2652,10 @@ PARTITION p3 DATA DIRECTORY = '$MYSQLTEST_VARDIR/p3Data'
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 --echo # Checking that InnoDB data files are in test db and data dir
---file_exists $MYSQLTEST_VARDIR/p0Data/test/example#P#p0.ibd
---file_exists $MYSQLTEST_VARDIR/p1Data/test/example#P#p1.ibd
---file_exists $MYSQLTEST_VARDIR/p2Data/test/example#P#p2.ibd
---file_exists $MYSQLTEST_VARDIR/p3Data/test/example#P#p3.ibd
+--file_exists $MYSQLTEST_VARDIR/p0Data/test/example#p#p0.ibd
+--file_exists $MYSQLTEST_VARDIR/p1Data/test/example#p#p1.ibd
+--file_exists $MYSQLTEST_VARDIR/p2Data/test/example#p#p2.ibd
+--file_exists $MYSQLTEST_VARDIR/p3Data/test/example#p#p3.ibd
 DROP TABLE example;
 --rmdir $MYSQLTEST_VARDIR/p0Data/test
 --rmdir $MYSQLTEST_VARDIR/p0Data

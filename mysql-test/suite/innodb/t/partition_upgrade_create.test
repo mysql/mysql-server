@@ -1,0 +1,219 @@
+# WL 13352: Create partitioned tables for upgrade and zip file
+# Generates $MYSQLTEST_VARDIR/std_data/upgrade/data_wl13352_$OLD_VERSION.zip.new
+#                                              extn_wl13352_$OLD_VERSION.zip.new
+# This zip file needs to be updated to the version to upgrade to
+# mysql-test/std_data/upgrade/data_wl13352_$OLD_VERSION.zip
+#                             extn_wl13352_$OLD_VERSION.zip
+# Works for version 5.7.27, 8.0.13, 8.0.15, 8.0.17, 8.0.19
+#
+# To run it in 5.7 version copy following files in 5.7
+# 1. mysql-test/suite/innodb/t/partition_upgrade_create.test
+#      - Search and comment out all #--force-rmdir
+# 2. mysql-test/suite/innodb/include/partition_upgrade_check.inc
+#      - Search and comment out all #--copy_files_wildcard
+#      - Change information_schema.innodb_tables, innodb_tablespaces to
+#        innodb_sys_tables, innodb_sys_tablespaces
+# 3. mysql-test/suite/innodb/t/partition_upgrade_create-master.opt
+#      - Remove --initialize=--lower_case_table_names=1
+# 4. mysql-test/suite/innodb/r/partition_upgrade_create.result
+#      - Note the difference in result
+# To run it in other versions (8.0.*) copy the same files. Only
+# result file would need to change.
+
+--echo # Test to create schema for Upgrade in old version
+--source include/linux.inc
+--source include/have_case_sensitive_file_system.inc
+
+# If you set $NO_EXPORT, $NO_EXT_PATH, $IS_FIXED_PATH, the same
+# needs to be set in partition_import.inc and partition_upgrade.inc
+# for running upgrade and import.
+
+# To disable exporting tablespace
+# --let $NO_EXPORT = 1
+
+# To disable external file path
+# --let $NO_EXT_PATH = 1
+
+# To Enable fixed path for external files
+# --let $IS_FIXED_PATH = 1
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--let $EXTERNAL_DIR_NAME= mysql_wl13352_data
+
+# For manual upgrade testing with absolute path to match across setup
+if ($IS_FIXED_PATH)
+{
+  --let $EXTERNAL_DIRECTORY = /tmp/$EXTERNAL_DIR_NAME/
+}
+
+if (!$IS_FIXED_PATH)
+{
+  --let $EXTERNAL_DIRECTORY = $MYSQL_TMP_DIR/tmp/$EXTERNAL_DIR_NAME/
+}
+
+# Add entries for more versions if needed
+select case when @@version like "5.7.27%" then '5727'
+            when @@version like "8.0.13%" then '8013'
+            when @@version like "8.0.15%" then '8015'
+            when @@version like "8.0.17%" then '8017'
+            when @@version like "8.0.19%" then '8019'
+            else 'none' end as VERSION into @current_server_version;
+
+--let $OLD_VERSION= `select @current_server_version`
+--let $VERSION_STR= `select @@version`
+--let $IS_57= `select case when @@version like "5.7%" then 1 else 0 end`
+
+if ($OLD_VERSION == 'none')
+{
+  --skip Test doesn't support version $VERSION_STR
+}
+
+# By default skip external directory for 5.7
+if ($IS_57)
+{
+  --let $NO_EXPORT = 1
+  --let $NO_EXT_PATH = 1
+}
+
+--echo # Starting server with keyring plugin
+--let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring  $KEYRING_PLUGIN_OPT
+
+if (!$NO_EXT_PATH)
+{
+  if (!$IS_57)
+  {
+    # Cleanup external directory
+    --error 0, 1
+    --force-rmdir $EXTERNAL_DIRECTORY
+
+    --let $restart_parameters = restart: --innodb_directories=$EXTERNAL_DIRECTORY --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring  $KEYRING_PLUGIN_OPT
+  }
+
+  if ($IS_57)
+  {
+  # Cleanup external directory
+  --error 0, 1
+  --rmdir $EXTERNAL_DIRECTORY/test
+
+  --error 0, 1
+  --rmdir $EXTERNAL_DIRECTORY
+  }
+}
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so $EXTERNAL_DIRECTORY /tmp/mysql_wl13352_data/
+--source include/restart_mysqld.inc
+
+--echo
+--echo # A. Create tables for upgrade and fill data
+
+--let $check_option = CREATE
+--source suite/innodb/include/partition_upgrade_check.inc
+
+if (!$NO_EXPORT)
+{
+  --let $EXPORT_DIRECTORY = $MYSQL_TMP_DIR/data_export
+  --mkdir $EXPORT_DIRECTORY
+
+  --echo
+  --echo # Export table partitions
+  --let $check_option = EXPORT
+  --source suite/innodb/include/partition_upgrade_check.inc
+}
+
+--echo
+--echo # Check table metadata and data
+--let $check_option = CHECK
+--source suite/innodb/include/partition_upgrade_check.inc
+
+--echo
+--echo # Stop DB server which was created by MTR default
+--source include/shutdown_mysqld.inc
+
+if ($IS_57)
+{
+  --mkdir $MYSQLTEST_VARDIR/std_data/upgrade
+}
+
+--echo # Copy and zip old version data directory.
+--exec ln -s $MYSQLD_DATADIR data_upgrade
+--exec zip -qr $MYSQL_TMP_DIR/data_upgrade.zip data_upgrade
+--file_exists $MYSQL_TMP_DIR/data_upgrade.zip
+--move_file $MYSQL_TMP_DIR/data_upgrade.zip  $MYSQLTEST_VARDIR/std_data/upgrade/data_wl13352_$OLD_VERSION.zip.new
+--remove_file data_upgrade
+
+if (!$NO_EXPORT)
+{
+  --echo # Copy and zip old version exported partitions.
+  --exec ln -s $EXPORT_DIRECTORY data_export
+  --exec zip -qr $MYSQL_TMP_DIR/data_export.zip data_export
+  --file_exists $MYSQL_TMP_DIR/data_export.zip
+  --move_file $MYSQL_TMP_DIR/data_export.zip  $MYSQLTEST_VARDIR/std_data/upgrade/export_wl13352_$OLD_VERSION.zip.new
+  --remove_file data_export
+}
+
+if (!$NO_EXT_PATH) {
+  --echo # Copy and zip old version external directory.
+
+  if ($IS_FIXED_PATH)
+  {
+    --exec zip -qr $MYSQL_TMP_DIR/data_external.zip $EXTERNAL_DIRECTORY
+    --file_exists $MYSQL_TMP_DIR/data_external.zip
+    --move_file $MYSQL_TMP_DIR/data_external.zip  $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_VERSION.zip.new
+  }
+
+  if (!$IS_FIXED_PATH)
+  {
+    --exec ln -s $MYSQL_TMP_DIR/tmp tmp
+    --exec zip -qr $MYSQL_TMP_DIR/data_external.zip tmp/$EXTERNAL_DIR_NAME
+    --file_exists $MYSQL_TMP_DIR/data_external.zip
+    --move_file $MYSQL_TMP_DIR/data_external.zip  $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_VERSION.zip.new
+    --remove_file tmp
+  }
+}
+
+--echo # Cleanup: Restart with default options.
+let $restart_parameters =;
+--source include/start_mysqld.inc
+--echo
+--echo # Drop all tables created for upgrade
+--let $check_option = DROP
+--source suite/innodb/include/partition_upgrade_check.inc
+
+if (!$NO_EXPORT)
+{
+  if ($IS_57)
+  {
+    --rmdir $EXPORT_DIRECTORY
+  }
+
+  if (!$IS_57)
+  {
+    --force-rmdir $EXPORT_DIRECTORY
+  }
+}
+
+if (!$NO_EXT_PATH)
+{
+  if ($IS_57)
+  {
+    --rmdir $EXTERNAL_DIRECTORY/test
+    --rmdir $EXTERNAL_DIRECTORY
+
+    if (!$IS_ABSOLUTE_PATH)
+    {
+      --rmdir $MYSQL_TMP_DIR/tmp
+    }
+  }
+
+  if (!$IS_57)
+  {
+    --force-rmdir $EXTERNAL_DIRECTORY
+
+    if (!$IS_FIXED_PATH)
+    {
+      --force-rmdir $MYSQL_TMP_DIR/tmp
+    }
+  }
+}
+
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring

@@ -727,10 +727,10 @@ FLUSH TABLES t1 FOR EXPORT;
 --replace_result #p# #P#
 --list_files $MYSQLD_DATADIR/test/ t1*
 --echo # Copying the .cfg and .ibd files as backup
---copy_file $MYSQLD_DATADIR/test/t1#P#p0.cfg $MYSQLD_DATADIR/test/backup_t1#P#p0.cfg
---copy_file $MYSQLD_DATADIR/test/t1#P#p0.ibd $MYSQLD_DATADIR/test/backup_t1#P#p0.ibd
---copy_file $MYSQLD_DATADIR/test/t1#P#p1.cfg $MYSQLD_DATADIR/test/backup_t1#P#p1.cfg
---copy_file $MYSQLD_DATADIR/test/t1#P#p1.ibd $MYSQLD_DATADIR/test/backup_t1#P#p1.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p0.cfg $MYSQLD_DATADIR/test/backup_t1#p#p0.cfg
+--copy_file $MYSQLD_DATADIR/test/t1#p#p0.ibd $MYSQLD_DATADIR/test/backup_t1#p#p0.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#p#p1.cfg $MYSQLD_DATADIR/test/backup_t1#p#p1.cfg
+--copy_file $MYSQLD_DATADIR/test/t1#p#p1.ibd $MYSQLD_DATADIR/test/backup_t1#p#p1.ibd
 UNLOCK TABLES;
 --echo # List of files after UNLOCK (no .cfg files).
 --replace_result #p# #P#
@@ -740,10 +740,10 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --replace_result #p# #P#
 --list_files $MYSQLD_DATADIR/test/ t1*
 --echo # Moving the .cfg and .ibd files back from backup
---move_file $MYSQLD_DATADIR/test/backup_t1#P#p0.cfg $MYSQLD_DATADIR/test/t1#P#p0.cfg
---move_file $MYSQLD_DATADIR/test/backup_t1#P#p0.ibd $MYSQLD_DATADIR/test/t1#P#p0.ibd
---move_file $MYSQLD_DATADIR/test/backup_t1#P#p1.cfg $MYSQLD_DATADIR/test/t1#P#p1.cfg
---move_file $MYSQLD_DATADIR/test/backup_t1#P#p1.ibd $MYSQLD_DATADIR/test/t1#P#p1.ibd
+--move_file $MYSQLD_DATADIR/test/backup_t1#p#p0.cfg $MYSQLD_DATADIR/test/t1#p#p0.cfg
+--move_file $MYSQLD_DATADIR/test/backup_t1#p#p0.ibd $MYSQLD_DATADIR/test/t1#p#p0.ibd
+--move_file $MYSQLD_DATADIR/test/backup_t1#p#p1.cfg $MYSQLD_DATADIR/test/t1#p#p1.cfg
+--move_file $MYSQLD_DATADIR/test/backup_t1#p#p1.ibd $MYSQLD_DATADIR/test/t1#p#p1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 --echo # List of files after IMPORT (.cfg files still there).
 --replace_result #p# #P#

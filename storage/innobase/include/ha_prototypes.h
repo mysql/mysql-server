@@ -212,11 +212,6 @@ ulint innobase_get_table_cache_size(void);
  @return value of lower_case_table_names */
 ulint innobase_get_lower_case_table_names(void);
 
-/** Get the current setting of the lower_case_file_system global parameter from
-mysqld.cc. We do a dirty read because it is set at startup and never changes.
-@return true if the file system is case insensitive. False if not. */
-bool is_file_system_case_insensitive(void);
-
 /** Compare two character strings case insensitively according to their
 charset.
 @param[in]  cs  character set

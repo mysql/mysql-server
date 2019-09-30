@@ -55,6 +55,8 @@ The tablespace memory cache */
 #include "my_inttypes.h"
 #include "os0file.h"
 #include "page0zip.h"
+#include "sql/mysqld.h"  // lower_case_file_system
+#include "srv0srv.h"
 #include "srv0start.h"
 
 #ifndef UNIV_HOTBACKUP
@@ -94,6 +96,9 @@ constexpr const char *Fil_path::SEPARATOR;
 constexpr const char *Fil_path::DOT_SLASH;
 constexpr const char *Fil_path::DOT_DOT_SLASH;
 constexpr const char *Fil_path::SLASH_DOT_DOT_SLASH;
+
+dberr_t dict_stats_rename_table(const char *old_name, const char *new_name,
+                                char *errstr, size_t errstr_sz);
 
 /** Used for collecting the data in boot_tablespaces() */
 namespace dd_fil {
@@ -1205,6 +1210,21 @@ class Fil_system {
     return (m_dirs.erase(space_id));
   }
 
+  /** Add file to old file list. The list is used during 5.7 upgrade failure
+  to revert back the modified file names. We modify partitioned file names
+  to lower case.
+  @param[in]	file_path	old file name with path */
+  void add_old_file(const std::string &file_path) {
+    m_old_paths.push_back(file_path);
+  }
+
+  /** Rename partition files during upgrade.
+  @param[in]	revert	if true, revert to old names */
+  void rename_partition_files(bool revert);
+
+  /** Clear all accumulated old files. */
+  void clear_old_files() { m_old_paths.clear(); }
+
   /** Get the top level directory where this filename was found.
   @param[in]	path		Path to look for.
   @return the top level directory under which this file was found. */
@@ -1575,6 +1595,9 @@ class Fil_system {
   /** Tablespace directories scanned at startup */
   Tablespace_dirs m_dirs;
 
+  /** Old file paths during 5.7 upgrade. */
+  std::vector<std::string> m_old_paths;
+
   // Disable copying
   Fil_system(Fil_system &&) = delete;
   Fil_system(const Fil_system &) = delete;
@@ -1608,6 +1631,26 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
                                  const std::string &old_name,
                                  const std::string &new_name)
     MY_ATTRIBUTE((warn_unused_result));
+
+#ifndef UNIV_HOTBACKUP
+/** Rename partition file.
+@param[in]	old_path	old file path
+@param[in]	extn		file extension suffix
+@param[in]	revert		if true, rename from new to old file
+@param[in]	import		if called during import */
+static void fil_rename_partition_file(const std::string &old_path,
+                                      ib_file_suffix extn, bool revert,
+                                      bool import);
+#endif /* !UNIV_HOTBACKUP */
+
+/** Get modified name for partition file. During upgrade we change all
+partition files to have lower case separator and partition name.
+@param[in]	old_path	old file name and path
+@param[in]	extn		file extension suffix
+@param[out]	new_path	modified new name for partitioned file
+@return true, iff name needs modification. */
+static bool fil_get_partition_file(const std::string &old_path,
+                                   ib_file_suffix extn, std::string &new_path);
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -3477,6 +3520,15 @@ void Fil_system::close_all_files() {
 
     shard->mutex_release();
   }
+
+#ifndef UNIV_HOTBACKUP
+  /* Revert to old names if downgrading after upgrade failure. */
+  if (srv_downgrade_partition_files) {
+    rename_partition_files(true);
+  }
+
+  clear_old_files();
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Closes all open files. There must not be any pending i/o's or not flushed
@@ -3852,7 +3904,7 @@ std::string Fil_path::get_real_path(const std::string &path, bool force) {
     abspath[path.length()] = 0;
   }
 
-  if (is_file_system_case_insensitive()) {
+  if (lower_case_file_system) {
     my_casedn_str(&my_charset_filename, abspath);
   }
 
@@ -4541,17 +4593,43 @@ char *Fil_path::make(const std::string &path_in, const std::string &name_in,
   return (mem_strdup(filepath.c_str()));
 }
 
-/** Create an IBD path name after replacing the basename in an old path
-with a new basename.  The old_path is a full path name including the
-extension.  The tablename is in the normal form "schema/tablename".
+bool Fil_path::parse_file_path(const std::string &file_path,
+                               ib_file_suffix extn, std::string &dict_name) {
+  dict_name.assign(file_path);
+  if (!Fil_path::truncate_suffix(extn, dict_name)) {
+    dict_name.clear();
+    return (false);
+  }
 
-@param[in]	path_in			Pathname
-@param[in]	name_in			Contains new base name
-@return own: new full pathname */
-std::string Fil_path::make_new_ibd(const std::string &path_in,
-                                   const std::string &name_in) {
-  ut_a(Fil_path::has_suffix(IBD, path_in));
-  ut_a(!Fil_path::has_suffix(IBD, name_in));
+  /* Extract table name */
+  auto table_pos = dict_name.find_last_of(SEPARATOR);
+  if (table_pos == std::string::npos) {
+    dict_name.clear();
+    return (false);
+  }
+  std::string table_name = dict_name.substr(table_pos + 1);
+  dict_name.resize(table_pos);
+
+  /* Extract schema name */
+  auto schema_pos = dict_name.find_last_of(SEPARATOR);
+  if (schema_pos == std::string::npos) {
+    dict_name.clear();
+    return (false);
+  }
+  std::string schema_name = dict_name.substr(schema_pos + 1);
+
+  /* Build dictionary table name schema/table form. */
+  dict_name.assign(schema_name);
+  dict_name.push_back(DB_SEPARATOR);
+  dict_name.append(table_name);
+  return (true);
+}
+
+std::string Fil_path::make_new_path(const std::string &path_in,
+                                    const std::string &name_in,
+                                    ib_file_suffix extn) {
+  ut_a(Fil_path::has_suffix(extn, path_in));
+  ut_a(!Fil_path::has_suffix(extn, name_in));
 
   std::string path(path_in);
 
@@ -4567,7 +4645,7 @@ std::string Fil_path::make_new_ibd(const std::string &path_in,
 
   path.resize(pos + 1);
 
-  path.append(name_in + ".ibd");
+  path.append(name_in + dot_ext[extn]);
 
   normalize(path);
 
@@ -5723,15 +5801,12 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
     return (FIL_LOAD_OK);
   }
 #endif /* UNIV_HOTBACKUP */
-  std::string tablespace_name;
+  std::string tablespace_name(df.name());
 
-#ifndef UNIV_HOTBACKUP
-  dd_filename_to_spacename(df.name(), &tablespace_name);
-#else
   /* During the apply-log operation, MEB already has translated the
-  file name, so file name to space name conversin is not required. */
-
-  tablespace_name = df.name();
+  file name, so file name to space name conversion is not required. */
+#ifndef UNIV_HOTBACKUP
+  dict_name::convert_to_space(tablespace_name);
 #endif /* !UNIV_HOTBACKUP */
 
   fil_system->mutex_acquire_all();
@@ -8260,6 +8335,90 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
   return (DB_SUCCESS);
 }
 
+void fil_adjust_name_import(dict_table_t *table, const char *path,
+                            ib_file_suffix extn) {
+  os_file_type_t type;
+  bool exists = false;
+
+  /* Try to open with current name first. */
+  auto ret = os_file_status(path, &exists, &type);
+
+  if (ret && exists) {
+    return;
+  }
+
+  /* On failure we need to check if file exists in different letter case
+  for partitioned table. */
+#ifdef _WIN32
+  /* Safe check. Never needed on Windows. */
+  return;
+#endif /* WIN32 */
+
+  /* Needed only for case sensitive file system. */
+  if (lower_case_file_system) {
+    return;
+  }
+
+  /* Only needed for partition file. */
+  if (!dict_name::is_partition(table->name.m_name)) {
+    return;
+  }
+
+  /* Get Import directory path. */
+  std::string import_dir(path);
+  Fil_path::normalize(import_dir);
+
+  auto pos = import_dir.find_last_of(Fil_path::SEPARATOR);
+  if (pos == std::string::npos) {
+    import_dir.assign(Fil_path::DOT_SLASH);
+
+  } else {
+    import_dir.resize(pos + 1);
+    ut_ad(Fil_path::is_separator(import_dir.back()));
+  }
+
+  /* Walk through all files under the directory and match the import file
+  after adjusting case. This is a safe check to allow files exported from
+  earlier versions where the case for partition name and separator could
+  be different. */
+  bool found_path = false;
+  std::string saved_path;
+
+  Dir_Walker::walk(import_dir, false, [&](const std::string &file_path) {
+    /* Skip entry if already found. */
+    if (found_path) {
+      return;
+    }
+    /* Check only for partition files. */
+    if (!dict_name::is_partition(file_path)) {
+      return;
+    }
+
+    /* Extract table name from path. */
+    std::string table_name;
+    if (!Fil_path::parse_file_path(file_path, extn, table_name)) {
+      /* Not a valid file-per-table path */
+      return;
+    }
+
+    /* Check if the file name would match after correcting the case. */
+    dict_name::rebuild(table_name);
+    if (table_name.compare(table->name.m_name) != 0) {
+      return;
+    }
+
+    saved_path.assign(file_path);
+    found_path = true;
+  });
+
+  /* Check and rename the import file name. */
+  if (found_path) {
+    fil_rename_partition_file(saved_path, extn, false, true);
+  }
+
+  return;
+}
+
 /** Iterate over all the pages in the tablespace.
 @param[in,out]	table		the table definiton in the server
 @param[in]	n_io_buffers	number of blocks to read and write together
@@ -8287,6 +8446,9 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   if (filepath == nullptr) {
     return (DB_OUT_OF_MEMORY);
   }
+
+  /* Adjust filename for partition file if in different letter case. */
+  fil_adjust_name_import(table, filepath, IBD);
 
   file = os_file_create_simple_no_error_handling(
       innodb_data_file_key, filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE,
@@ -9214,6 +9376,52 @@ static void fil_tablespace_encryption_init(const fil_space_t *space) {
   }
 }
 
+/** Modify table name in Innodb persistent stat tables, if needed. Required
+when partitioned table file names from old versions are modified to change
+the letter case.
+@param[in]	old_path	path to old file
+@param[in]	new_path	path to new file */
+static void fil_adjust_partition_stat(const std::string &old_path,
+                                      const std::string &new_path) {
+  char errstr[FN_REFLEN];
+  std::string path;
+
+  /* Skip if not IBD file extension. */
+  if (!Fil_path::has_suffix(IBD, old_path) ||
+      !Fil_path::has_suffix(IBD, new_path)) {
+    return;
+  }
+
+  /* Check if partitioned table. */
+  if (!dict_name::is_partition(old_path) ||
+      !dict_name::is_partition(new_path)) {
+    return;
+  }
+
+  std::string old_name;
+  path.assign(old_path);
+  if (!Fil_path::parse_file_path(path, IBD, old_name)) {
+    return;
+  }
+  ut_ad(!old_name.empty());
+
+  std::string new_name;
+  path.assign(new_path);
+  if (!Fil_path::parse_file_path(path, IBD, new_name)) {
+    return;
+  }
+  ut_ad(!new_name.empty());
+
+  /* Required for case insensitive file system where file path letter case
+  doesn't matter. We need to keep the name in stat table consistent. */
+  dict_name::rebuild(new_name);
+
+  if (old_name.compare(new_name) != 0) {
+    dict_stats_rename_table(old_name.c_str(), new_name.c_str(), errstr,
+                            sizeof(errstr));
+  }
+}
+
 /** Update the DD if any files were moved to a new location.
 Free the Tablespace_files instance.
 @param[in]	read_only_mode	true if InnoDB is started in read only mode.
@@ -9255,7 +9463,9 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
     auto new_path = std::get<dd_fil::NEW_PATH>(tablespace);
     auto object_id = std::get<dd_fil::OBJECT_ID>(tablespace);
 
-    err = dd_tablespace_rename(object_id, space_name.c_str(), new_path.c_str());
+    /* We already have the space name in system cs. */
+    err = dd_tablespace_rename(object_id, true, space_name.c_str(),
+                               new_path.c_str());
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_345) << "Unable to update tablespace ID"
@@ -9265,6 +9475,9 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
 
       ++failed;
     }
+
+    /* Update persistent stat table if table name is modified. */
+    fil_adjust_partition_stat(old_path, new_path);
 
     ++count;
 
@@ -9418,143 +9631,6 @@ bool fil_tablespace_open_for_recovery(space_id_t space_id) {
   return (fil_system->open_for_recovery(space_id));
 }
 
-/** Convert space_name to filesystem charset by extracting it from the
-path. If space_name is not a substring of path, return the original
-space_name.
-This function is called only while moving the location of IBD files from
-one directory to other and subsequently starting the server using
---innodb-directories. While starting, the server looks for IBD files in
-these directories and marks them as moved and updates the data dictionary
-with the new location. However, in this case, the space name passed is in
-the tablespace charset which in certain cases is parsed incorrectly. For
-example, if the tablename or dbname contains "/", then it is considered as
-a directory separator, resulting in an incorrectly formed tablespace name.
-The path is always in the filesystem charset and hence, it can be used to
-recreate the space name.
-@param[in]	new_space_name          Tablespace name in system charset
-@param[in]	new_path                File path
-@param[out]	tablespace_name         Tablespace name in filesystem charset */
-static void convert_space_name_to_filesystem_charset(
-    const char *new_space_name, const std::string &new_path,
-    std::string *tablespace_name) {
-  ut_ad(!new_path.empty());
-
-  std::string path{new_path};
-  std::string name{new_space_name};
-  std::string filename, subdir, part, sub;
-
-  if (Fil_path::is_undo_tablespace_name(path)) {
-    tablespace_name->append(name);
-    return;
-  }
-
-  /* The tablespace name could be of the form dbname/filename#P#part#SP#subpart.
-  Parse the path to find out these different components and recreate the space
-  name in the tablespace charset for comparing with the new_space_name which
-  is also in the tablespace charset. */
-
-  auto pos = path.find_last_of(Fil_path::SEPARATOR);
-
-  /* Extract the subdir and filename from the path. */
-  subdir = path.substr(0, pos);
-  filename = path.substr(pos + 1, path.length());
-
-  pos = subdir.find_last_of(Fil_path::SEPARATOR);
-
-  if (pos != std::string::npos) {
-    subdir = subdir.substr(pos + 1);
-  }
-
-  /* Remove the trailing extension (if any), from the filename. */
-  pos = filename.find_last_of(".");
-  if (pos != std::string::npos) {
-    filename.resize(pos);
-  }
-
-  /* Find the partition and sub partition, if available in the file name */
-  pos = filename.find("#");
-  if (pos != std::string::npos) {
-    /* Find the partition and remove it from the filename. */
-    part = filename.substr(pos + 1, filename.length());
-
-    /* Strip the filename to remove the partition information. */
-    filename.resize(pos);
-  }
-
-  /* Recreate the space name in the tablespace charset from the path using
-  the subdir, filename, part and subpart. */
-  std::string temp_space;
-  char db_buf[MAX_DATABASE_NAME_LEN + 1];
-  char tbl_buf[MAX_TABLE_NAME_LEN + 1];
-
-  /* This call sets stay_quiet to true because the subdir might be "." which
-  would cause an unnecessary warning. */
-  auto len = filename_to_tablename(subdir.c_str(), db_buf,
-                                   (MAX_DATABASE_NAME_LEN + 1), true);
-  db_buf[len] = '\0';
-
-  len = filename_to_tablename(filename.c_str(), tbl_buf,
-                              (MAX_TABLE_NAME_LEN + 1));
-  tbl_buf[len] = '\0';
-
-  temp_space.append(db_buf);
-  temp_space.append("/");
-  temp_space.append(tbl_buf);
-
-  if (!part.empty()) {
-    /* Extract all the partition and subpartition information */
-
-    std::string temp_part = part;
-
-    pos = temp_part.find("#");
-
-    /* Parse the partition and subpartition information until no
-    more partition separators are found */
-    while (pos != std::string::npos) {
-      temp_space.append("#");
-
-      /* Extract the subpart and convert it to the tablespace charset */
-      sub = temp_part.substr(0, pos);
-
-      char sub_buf[MAX_TABLE_NAME_LEN + 1];
-      len =
-          filename_to_tablename(sub.c_str(), sub_buf, (MAX_TABLE_NAME_LEN + 1));
-      sub_buf[len] = '\0';
-
-      temp_space.append(sub_buf);
-
-      temp_part = temp_part.substr(pos + 1, temp_part.length());
-
-      pos = temp_part.find("#");
-    }
-
-    /* Append the last remaining partition information */
-    temp_space.append("#");
-
-    char tmp_buf[MAX_TABLE_NAME_LEN + 1];
-    len = filename_to_tablename(temp_part.c_str(), tmp_buf,
-                                (MAX_TABLE_NAME_LEN + 1));
-    tmp_buf[len] = '\0';
-    temp_space.append(tmp_buf);
-  }
-
-  /* Compare the recreated space name in the tablespace charset with the space
-  name being moved. If they are same, then return the space name in the
-  filesystem charset. If they are different, then return the original space
-  name. */
-  if (temp_space.compare(name) == 0) {
-    tablespace_name->append(subdir);
-    tablespace_name->append("/");
-    tablespace_name->append(filename);
-    if (!part.empty()) {
-      tablespace_name->append("#");
-      tablespace_name->append(part);
-    }
-  } else {
-    tablespace_name->append(name);
-  }
-}
-
 /** Lookup the tablespace ID and return the path to the file. The filename
 is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
@@ -9586,12 +9662,6 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
       Fil_state state = ((old_path.compare(*new_path) == 0) ? Fil_state::MATCHES
                                                             : Fil_state::MOVED);
       undo::spaces->s_unlock();
-
-      if (state == Fil_state::MOVED) {
-        fil_system->moved(dd_object_id, space_id, space_name, old_path,
-                          *new_path);
-      }
-
       return (state);
     }
     undo::spaces->s_unlock();
@@ -9676,20 +9746,87 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
 
   if (old_dir.compare(new_dir) != 0) {
     *new_path = result.first + result.second->front();
-
-    // Convert space_name to filesystem charset
-    std::string tablespace_name;
-    convert_space_name_to_filesystem_charset(space_name, *new_path,
-                                             &tablespace_name);
-    fil_system->moved(dd_object_id, space_id, tablespace_name.c_str(), old_path,
-                      *new_path);
-
     return (Fil_state::MOVED);
   }
 
   *new_path = old_path;
-
   return (Fil_state::MATCHES);
+}
+
+void fil_add_moved_space(dd::Object_id dd_object_id, space_id_t space_id,
+                         const char *space_name, const std::string &old_path,
+                         const std::string &new_path) {
+  /* Keep space_name in system cs. We handle it while modifying DD. */
+  fil_system->moved(dd_object_id, space_id, space_name, old_path, new_path);
+}
+
+bool fil_update_partition_name(space_id_t space_id, uint32_t fsp_flags,
+                               bool update_space, std::string &space_name,
+                               std::string &dd_path) {
+#ifdef _WIN32
+  /* Safe check. Never needed on Windows for path. */
+  if (!update_space) {
+    return (false);
+  }
+#endif /* WIN32 */
+
+  /* Never needed in case insensitive file system for path. */
+  if (!update_space && lower_case_file_system) {
+    return (false);
+  }
+
+  /* Only needed for file per table. */
+  if (update_space && !fsp_is_file_per_table(space_id, fsp_flags)) {
+    return (false);
+  }
+
+  /* Extract dictionary name schema_name/table_name from dd path. */
+  std::string table_name;
+
+  if (!Fil_path::parse_file_path(dd_path, IBD, table_name)) {
+    /* Not a valid file-per-table IBD path */
+    return (false);
+  }
+  ut_ad(!table_name.empty());
+
+  /* Only needed for partition file. */
+  if (!dict_name::is_partition(table_name)) {
+    return (false);
+  }
+
+  /* Rebuild dictionary name to convert partition names to lower case. */
+  dict_name::rebuild(table_name);
+
+  if (update_space) {
+    /* Rebuild space name if required. */
+    dict_name::rebuild_space(table_name, space_name);
+  }
+
+  /* No need to update file name for lower case file system. */
+  if (lower_case_file_system) {
+    return (false);
+  }
+
+  /* Rebuild path and compare. */
+  std::string table_path = Fil_path::make_new_path(dd_path, table_name, IBD);
+  ut_ad(!table_path.empty());
+
+  if (dd_path.compare(table_path) != 0) {
+    /* Validate that the file exists. */
+    os_file_type_t type;
+    bool exists = false;
+    bool ret = os_file_status(table_path.c_str(), &exists, &type);
+
+    if (ret && exists) {
+      dd_path.assign(table_path);
+      return (true);
+
+    } else {
+      ib::warn(ER_IB_WARN_OPEN_PARTITION_FILE, table_path.c_str());
+    }
+  }
+
+  return (false);
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -9858,7 +9995,12 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
     return (ptr);
   }
 
-  auto abs_name = Fil_path::get_real_path(name);
+  /* Update filename with correct partition case, if needed. */
+  std::string name_str(name);
+  std::string space_name;
+  fil_update_partition_name(page_id.space(), 0, false, space_name, name_str);
+
+  auto abs_name = Fil_path::get_real_path(name_str);
 
   /* Duplicates should have been sorted out before we get here. */
   ut_a(result.second->size() == 1);
@@ -9976,7 +10118,12 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
 #else  /* !UNIV_HOTBACKUP */
 
-  auto abs_to_name = Fil_path::get_real_path(to_name);
+  /* Update filename with correct partition case, if needed. */
+  std::string to_name_str(to_name);
+  std::string space_name;
+  fil_update_partition_name(page_id.space(), 0, false, space_name, to_name_str);
+
+  auto abs_to_name = Fil_path::get_real_path(to_name_str);
 
   if (from_len == to_len && strncmp(to_name, from_name, to_len) == 0) {
     ib::error(ER_IB_MSG_360)
@@ -10082,7 +10229,12 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
 
   ut_a(result.second->size() == 1);
 
-  auto abs_name = Fil_path::get_real_path(name);
+  /* Update filename with correct partition case, if needed. */
+  std::string name_str(name);
+  std::string space_name;
+  fil_update_partition_name(page_id.space(), 0, false, space_name, name_str);
+
+  auto abs_name = Fil_path::get_real_path(name_str);
 
   ut_ad(!Fil_path::is_separator(abs_name.back()));
 
@@ -10586,6 +10738,26 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
   return (space_id);
 }
 
+void Fil_system::rename_partition_files(bool revert) {
+  /* If revert, then we are downgrading after upgrade failure from 5.7 */
+  ut_ad(!revert || srv_downgrade_partition_files);
+
+  if (m_old_paths.empty()) {
+    return;
+  }
+
+#ifndef UNIV_HOTBACKUP
+  ut_ad(!lower_case_file_system);
+
+  for (auto &old_path : m_old_paths) {
+    ut_ad(Fil_path::has_suffix(IBD, old_path));
+    ut_ad(dict_name::is_partition(old_path));
+
+    fil_rename_partition_file(old_path, IBD, revert, false);
+  }
+#endif /* !UNIV_HOTBACKUP */
+}
+
 /** Check for duplicate tablespace IDs.
 @param[in]	start		Slice start
 @param[in]	end		Slice end
@@ -10691,6 +10863,124 @@ void Tablespace_dirs::print_duplicates(const Space_id_set &duplicates) {
   }
 }
 
+static bool fil_get_partition_file(const std::string &old_path,
+                                   ib_file_suffix extn, std::string &new_path) {
+#ifdef _WIN32
+  /* Safe check. Never needed on Windows. */
+  return (false);
+#endif /* WIN32 */
+
+#ifndef UNIV_HOTBACKUP
+  /* Needed only for case sensitive file system. */
+  if (lower_case_file_system) {
+    return (false);
+  }
+
+  /* Skip if not right file extension. */
+  if (!Fil_path::has_suffix(extn, old_path)) {
+    return (false);
+  }
+
+  /* Check if partitioned table. */
+  if (!dict_name::is_partition(old_path)) {
+    return (false);
+  }
+
+  std::string table_name;
+  /* Get Innodb dictionary name from file path. */
+  if (!Fil_path::parse_file_path(old_path, extn, table_name)) {
+    ut_ad(false);
+    return (false);
+  }
+  ut_ad(!table_name.empty());
+
+  /* Rebuild partition table name with lower case. */
+  std::string save_name(table_name);
+  dict_name::rebuild(table_name);
+
+  if (save_name.compare(table_name) == 0) {
+    return (false);
+  }
+
+  /* Build new partition file name. */
+  new_path = Fil_path::make_new_path(old_path, table_name, extn);
+  ut_ad(!new_path.empty());
+#endif /* !UNIV_HOTBACKUP */
+
+  return (true);
+}
+
+#ifndef UNIV_HOTBACKUP
+static void fil_rename_partition_file(const std::string &old_path,
+                                      ib_file_suffix extn, bool revert,
+                                      bool import) {
+  std::string new_path;
+
+  if (!fil_get_partition_file(old_path, extn, new_path)) {
+    ut_ad(false);
+    return;
+  }
+
+  ut_ad(!new_path.empty());
+
+  os_file_type_t type;
+  bool exists = false;
+
+  bool status = os_file_status(old_path.c_str(), &exists, &type);
+  bool old_exists = (status && exists);
+
+  status = os_file_status(new_path.c_str(), &exists, &type);
+  bool new_exists = (status && exists);
+
+  static bool print_upgrade = true;
+  static bool print_downgrade = true;
+  bool ret = false;
+
+  if (revert) {
+    /* Check if rename is required. */
+    if (!new_exists || old_exists) {
+      return;
+    }
+    ret = os_file_rename(innodb_data_file_key, new_path.c_str(),
+                         old_path.c_str());
+    ut_ad(ret);
+
+    if (ret && print_downgrade) {
+      ib::info(ER_IB_MSG_DOWNGRADE_PARTITION_FILE, new_path.c_str(),
+               old_path.c_str());
+      print_downgrade = false;
+    }
+    return;
+  }
+
+  /* Check if rename is required. */
+  if (new_exists || !old_exists) {
+    return;
+  }
+
+  ret =
+      os_file_rename(innodb_data_file_key, old_path.c_str(), new_path.c_str());
+
+  if (!ret) {
+    /* File rename failed. */
+    ut_ad(false);
+    return;
+  }
+
+  if (import) {
+    ib::info(ER_IB_MSG_UPGRADE_PARTITION_FILE_IMPORT, old_path.c_str(),
+             new_path.c_str());
+    return;
+  }
+
+  if (print_upgrade) {
+    ib::info(ER_IB_MSG_UPGRADE_PARTITION_FILE, old_path.c_str(),
+             new_path.c_str());
+    print_upgrade = false;
+  }
+}
+#endif /* !UNIV_HOTBACKUP */
+
 void Tablespace_dirs::set_scan_dir(const std::string &in_directory,
                                    bool is_undo_dir) {
   std::string directory(in_directory);
@@ -10739,10 +11029,20 @@ dberr_t Tablespace_dirs::scan() {
       ut_a(path.length() > real_path_dir.length());
       ut_a(Fil_path::get_file_type(path) != OS_FILE_TYPE_DIR);
 
-      /* Make the filename relative to the directory that
-      was scanned. */
+      /* Check if need to alter partition file names to lower case. */
+      std::string new_path;
 
-      std::string file = path.substr(real_path_dir.length(), path.length());
+      if (fil_get_partition_file(path, IBD, new_path)) {
+        /* Note all old file names to be renamed. */
+        ut_ad(!new_path.empty());
+        fil_system->add_old_file(path);
+
+      } else {
+        new_path.assign(path);
+      }
+
+      /* Make the filename relative to the directory that was scanned. */
+      std::string file = new_path.substr(real_path_dir.length());
 
       if (file.size() <= 4) {
         return;
@@ -10769,6 +11069,9 @@ dberr_t Tablespace_dirs::scan() {
 
     ++count;
   }
+
+  /* Rename all old partition files. */
+  fil_system->rename_partition_files(false);
 
   if (print_msg) {
     ib::info(ER_IB_MSG_381) << "Found " << ibd_files.size() << " '.ibd' and "

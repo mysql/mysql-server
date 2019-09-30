@@ -1140,8 +1140,8 @@ static int i_s_cmp_per_index_fill_low(
       if (dict_index_is_sdi(index)) {
         continue;
       }
-      char db_utf8[MAX_DB_UTF8_LEN];
-      char table_utf8[MAX_TABLE_UTF8_LEN];
+      char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+      char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
       dict_fs2utf8(index->table_name, db_utf8, sizeof(db_utf8), table_utf8,
                    sizeof(table_utf8));
@@ -3418,8 +3418,8 @@ static void innodb_temp_table_populate_cache(const dict_table_t *table,
                                              temp_table_info_t *cache) {
   cache->m_table_id = table->id;
 
-  char db_utf8[MAX_DB_UTF8_LEN];
-  char table_utf8[MAX_TABLE_UTF8_LEN];
+  char db_utf8[dict_name::MAX_DB_UTF8_LEN];
+  char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
   dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8), table_utf8,
                sizeof(table_utf8));

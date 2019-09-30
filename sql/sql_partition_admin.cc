@@ -309,12 +309,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   TABLE_LIST *swap_table_list;
   partition_element *part_elem;
   String *partition_name;
-  char temp_name[FN_REFLEN + 1];
-  char part_file_name[FN_REFLEN + 1];
-  char swap_file_name[FN_REFLEN + 1];
-  char temp_file_name[FN_REFLEN + 1];
   uint swap_part_id;
-  size_t part_file_name_len;
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   uint table_counter;
   DBUG_TRACE;
@@ -363,22 +358,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
 
   THD_STAGE_INFO(thd, stage_verifying_table);
 
-  /* Will append the partition name later in part_info->get_part_elem() */
-  part_file_name_len =
-      build_table_filename(part_file_name, sizeof(part_file_name),
-                           table_list->db, table_list->table_name, "", 0);
-  build_table_filename(swap_file_name, sizeof(swap_file_name),
-                       swap_table_list->db, swap_table_list->table_name, "", 0);
-  /* create a unique temp name #sqlx-nnnn_nnnn, x for eXchange */
-  snprintf(temp_name, sizeof(temp_name), "%sx-%lx_%x", tmp_file_prefix,
-           current_pid, thd->thread_id());
-  if (lower_case_table_names) my_casedn_str(files_charset_info, temp_name);
-  build_table_filename(temp_file_name, sizeof(temp_file_name),
-                       table_list->next_local->db, temp_name, "", FN_IS_TMP);
-
   if (!(part_elem = part_table->part_info->get_part_elem(
-            partition_name->c_ptr(), part_file_name + part_file_name_len,
-            &swap_part_id))) {
+            partition_name->c_ptr(), &swap_part_id))) {
     my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name->c_ptr(),
              part_table->alias);
     return true;
@@ -455,9 +436,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
 
   DEBUG_SYNC(thd, "swap_partition_before_exchange");
 
-  int ha_error = part_handler->exchange_partition(
-      part_file_name, swap_file_name, swap_part_id, part_table_def,
-      swap_table_def);
+  int ha_error = part_handler->exchange_partition(swap_part_id, part_table_def,
+                                                  swap_table_def);
 
   if (ha_error) {
     handlerton *hton = part_table->file->ht;

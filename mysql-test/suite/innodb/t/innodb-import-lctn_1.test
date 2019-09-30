@@ -6,18 +6,18 @@ let MYSQLD_DATADIR =`SELECT @@datadir`;
 
 --echo #
 --echo # Bug #29627690	NOT ABLE TO IMPORT PARTITIONED TABLESPACE OLDER THAN 8.0.14
---echo #
+--echo # After wl#13352, we no longer try to induce 8.0.14 behaviour by debug
+--echo # variable. innodb.partition_upgrade* tests checks import from 8.0.14.
+--echo # Keeping this test to run on current version.
 
-select @lower_case_table_names;
+select @@lower_case_table_names;
 
 --echo # Test 1: With Hash partitions
-SET SESSION debug="+d,induce_lowercase_part_names";
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY HASH (c1) PARTITIONS 3;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
 SELECT c1 FROM t1 ORDER BY c1;
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 perl;
 require 'include/innodb-util.inc';
 ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
@@ -42,7 +42,6 @@ DROP TABLE t1;
 
 --echo # Test 2 With range partitions/subpartitions with mixed cases partiton names
 
-SET SESSION debug="+d,induce_lowercase_part_names";
 create table t1 (f1 int ,f2 int) partition by range (f1)
 subpartition by key (f2)
 (
@@ -61,7 +60,6 @@ subpartition SUB_DEF1
 insert into t1 values (90,10) ,(40,78) ,(5,76);
 SELECT * from t1 order by f1;
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 
 perl;
 require 'include/innodb-util.inc';
@@ -108,13 +106,11 @@ let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PL
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
 
-SET SESSION debug="+d,induce_lowercase_part_names";
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
 PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
 SELECT c1 FROM t1 ORDER BY c1;
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 
 perl;
 require 'include/innodb-util.inc';
@@ -144,13 +140,11 @@ let $restart_parameters = restart: ;
 
 --echo Test 4 : Missing cfg file
 
-SET SESSION debug="+d,induce_lowercase_part_names";
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY RANGE (c1) ( PARTITION ABCD VALUES LESS THAN (10));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(8);
 SELECT c1 FROM t1 ORDER BY c1;
 FLUSH TABLES t1 FOR EXPORT;
-SET debug="-d,induce_lowercase_part_names";
 
 perl;
 require 'include/innodb-util.inc';

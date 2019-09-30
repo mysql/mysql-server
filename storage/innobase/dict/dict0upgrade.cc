@@ -114,15 +114,13 @@ static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
     /* Set catalog name */
     fk_obj->set_referenced_table_catalog_name("def");
 
-    /* Set refernced table schema name */
-    char db_buf[MAX_FULL_NAME_LEN + 1];
-    char tbl_buf[MAX_FULL_NAME_LEN + 1];
+    /* Set referenced table schema name */
+    std::string db_str;
+    std::string tbl_str;
+    dict_name::get_table(foreign->referenced_table_name, db_str, tbl_str);
 
-    dd_parse_tbl_name(foreign->referenced_table_name, db_buf, tbl_buf, nullptr,
-                      nullptr, nullptr);
-
-    fk_obj->set_referenced_table_schema_name(db_buf);
-    fk_obj->set_referenced_table_name(tbl_buf);
+    fk_obj->set_referenced_table_schema_name(db_str.c_str());
+    fk_obj->set_referenced_table_name(tbl_str.c_str());
 
     /* Set referencing columns */
     for (uint32_t i = 0; i < foreign->n_fields; i++) {
@@ -176,34 +174,35 @@ dd::Tablespace object returned.
 @return dd::Tablespace object or nullptr */
 static dd::Tablespace *dd_upgrade_get_tablespace(
     THD *thd, dd::cache::Dictionary_client *dd_client, dict_table_t *ib_table) {
-  char name[MAX_FULL_NAME_LEN + 1];
+  std::string tablespace_name;
 
   dd::Tablespace *ts_obj = nullptr;
   ut_ad(ib_table->space != SPACE_UNKNOWN);
   ut_ad(ib_table->space != SYSTEM_TABLE_SPACE);
 
   if (dict_table_is_file_per_table(ib_table)) {
-    std::string tablespace_name;
-    dd_filename_to_spacename(ib_table->name.m_name, &tablespace_name);
-    strncpy(name, tablespace_name.c_str(), MAX_FULL_NAME_LEN);
+    tablespace_name.assign(ib_table->name.m_name);
+    dict_name::convert_to_space(tablespace_name);
+
   } else {
     ut_ad(DICT_TF_HAS_SHARED_SPACE(ib_table->flags));
     if (ib_table->tablespace == NULL) return (ts_obj);
-    strncpy(name, ib_table->tablespace(), MAX_FULL_NAME_LEN);
+    tablespace_name.assign(ib_table->tablespace());
   }
+  ut_ad(tablespace_name.length() < MAX_FULL_NAME_LEN);
 
   DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_238)
                                     << "The derived tablespace name is: "
-                                    << name;);
+                                    << tablespace_name;);
 
   /* MDL on tablespace name */
-  if (dd_tablespace_get_mdl(name)) {
+  if (dd_tablespace_get_mdl(tablespace_name.c_str())) {
     ut_a(false);
   }
 
   /* For file per table tablespaces and general tablespaces, we will get
   the tablespace object and then get space_id. */
-  if (dd_client->acquire_for_modification(name, &ts_obj)) {
+  if (dd_client->acquire_for_modification(tablespace_name.c_str(), &ts_obj)) {
     ut_a(false);
   }
 
@@ -669,14 +668,6 @@ static void dd_upgrade_process_index(Index dd_index, dict_index_t *index,
 @return false on success, true on error */
 static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                                   dd::Table *dd_table, TABLE *srv_table) {
-  char partition_name[FN_REFLEN];
-  size_t table_name_len;
-  char *partition_name_start;
-
-  strcpy(partition_name, norm_name);
-  table_name_len = strlen(norm_name);
-  partition_name_start = partition_name + table_name_len;
-
   /* Check for auto inc */
   const char *auto_inc_index_name = NULL;
   const char *auto_inc_col_name = NULL;
@@ -687,20 +678,21 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
   uint64_t max_auto_inc = 0;
 
   for (dd::Partition *part_obj : *dd_table->leaf_partitions()) {
-    size_t len = Ha_innopart_share::create_partition_postfix(
-        partition_name_start, FN_REFLEN - table_name_len, part_obj);
+    /* Build the partition name. */
+    std::string part_str;
+    dict_name::build_57_partition(part_obj, part_str);
 
-    if (table_name_len + len >= FN_REFLEN) {
-      ut_ad(0);
-    }
+    /* Build the partitioned table name. */
+    std::string table_name;
+    dict_name::build_table("", norm_name, part_str, false, false, table_name);
 
     dict_table_t *part_table = dict_table_open_on_name(
-        partition_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+        table_name.c_str(), FALSE, TRUE, DICT_ERR_IGNORE_NONE);
     dict_table_close(part_table, false, false);
 
     DBUG_EXECUTE_IF("dd_upgrade",
                     ib::info(ER_IB_MSG_254)
-                        << "Part table name from server: " << partition_name
+                        << "Part table name from server: " << table_name.c_str()
                         << " from InnoDB: " << part_table->name.m_name;);
 
     if (DICT_TF_HAS_SHARED_SPACE(part_table->flags)) {
@@ -850,6 +842,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                       dd::Table *dd_table, TABLE *srv_table) {
   char norm_name[FN_REFLEN];
   dict_table_t *ib_table = NULL;
+
   /* 2 * NAME_CHAR_LEN is for dbname and tablename, 5 assumes max bytes
   for charset, + 2 is for path separator and +1 is for NULL. */
   char buf[2 * NAME_CHAR_LEN * 5 + 2 + 1];
@@ -857,9 +850,13 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
 
   build_table_filename(buf, sizeof(buf), db_name, table_name, NULL, 0,
                        &truncated);
-  ut_ad(!truncated);
 
-  normalize_table_name(norm_name, buf);
+  if (truncated || !normalize_table_name(norm_name, buf)) {
+    /* purecov: begin inspected */
+    ut_ad(false);
+    return (true);
+    /* purecov: end */
+  }
 
   bool is_part = dd_table->leaf_partitions()->size() != 0;
 
@@ -1140,13 +1137,13 @@ int dd_upgrade_tablespace(THD *thd) {
 
       std::string file_per_name;
       if (is_file_per_table) {
-        std::string orig_tablespace_name(tablespace_name);
+        new_tablespace_name.assign(tablespace_name);
         if ((tablespace_name.compare("mysql/innodb_table_stats") == 0) ||
             (tablespace_name.find("mysql/innodb_index_stats") == 0)) {
-          orig_tablespace_name.append("_backup57");
+          new_tablespace_name.append("_backup57");
         }
-        dd_filename_to_spacename(orig_tablespace_name.c_str(),
-                                 &new_tablespace_name);
+
+        dict_name::convert_to_space(new_tablespace_name);
         upgrade_space.name = new_tablespace_name.c_str();
       } else {
         upgrade_space.name = name;
@@ -1158,6 +1155,8 @@ int dd_upgrade_tablespace(THD *thd) {
 
       std::string orig_name(filename);
       ut_free(filename);
+      filename = nullptr;
+
       /* To migrate statistics from 57 satistics tables, we rename the
       5.7 statistics tables/tablespaces so that it doesn't conflict
       with statistics table names in 8.0 */
@@ -1166,9 +1165,12 @@ int dd_upgrade_tablespace(THD *thd) {
         orig_name.erase(orig_name.end() - 4, orig_name.end());
         orig_name.append("_backup57.ibd");
       } else if (is_file_per_table) {
+        /* Convert 5.7 name to 8.0 for partitioned table path. */
+        fil_update_partition_name(space, flags, true, new_tablespace_name,
+                                  orig_name);
+
         /* Validate whether the tablespace file exists before making
         the entry in dd::tablespaces*/
-
         mutex_enter(&dict_sys->mutex);
         fil_space_t *fil_space = fil_space_get(space);
         mutex_exit(&dict_sys->mutex);
@@ -1187,7 +1189,6 @@ int dd_upgrade_tablespace(THD *thd) {
         }
       }
 
-      ut_ad(filename != NULL);
       upgrade_space.path = orig_name.c_str();
 
       if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
@@ -1230,7 +1231,9 @@ int dd_upgrade_tablespace(THD *thd) {
     upgrade_space.id = space->id;
     upgrade_space.flags = space->flags;
     dd_space->set_engine(innobase_hton_name);
-    dd_filename_to_spacename(tablespace_name.c_str(), &new_tablespace_name);
+
+    new_tablespace_name.assign(tablespace_name);
+    dict_name::convert_to_space(new_tablespace_name);
     upgrade_space.name = new_tablespace_name.c_str();
 
     Datafile df;
@@ -1466,6 +1469,7 @@ int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
 
   if (failed_upgrade) {
     srv_downgrade_logs = true;
+    srv_downgrade_partition_files = true;
   } else {
     /* Delete the old undo tablespaces and the references to them
     in the TRX_SYS page. */

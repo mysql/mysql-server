@@ -6126,64 +6126,6 @@ static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR *part_iter) {
   return res;
 }
 
-/*
-  Create partition names
-
-  SYNOPSIS
-    create_partition_name()
-    out:out                   Created partition name string
-    in1                       First part
-    in2                       Second part
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-    This method is used to calculate the partition name, service routine to
-    the del_ren_cre_table method.
-*/
-
-void create_partition_name(char *out, const char *in1, const char *in2,
-                           bool translate) {
-  char transl_part_name[FN_REFLEN];
-  const char *transl_part;
-
-  if (translate) {
-    tablename_to_filename(in2, transl_part_name, FN_REFLEN);
-    transl_part = transl_part_name;
-  } else
-    transl_part = in2;
-  strxmov(out, in1, "#P#", transl_part, NullS);
-}
-
-/*
-  Create subpartition name
-
-  SYNOPSIS
-    create_subpartition_name()
-    out:out                   Created partition name string
-    in1                       First part
-    in2                       Second part
-    in3                       Third part
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-  This method is used to calculate the subpartition name, service routine to
-  the del_ren_cre_table method.
-*/
-
-void create_subpartition_name(char *out, const char *in1, const char *in2,
-                              const char *in3) {
-  char transl_part_name[FN_REFLEN], transl_subpart_name[FN_REFLEN];
-
-  tablename_to_filename(in2, transl_part_name, FN_REFLEN);
-  tablename_to_filename(in3, transl_subpart_name, FN_REFLEN);
-  strxmov(out, in1, "#P#", transl_part_name, "#SP#", transl_subpart_name,
-          NullS);
-}
-
 uint get_partition_field_store_length(Field *field) {
   uint store_length;
 

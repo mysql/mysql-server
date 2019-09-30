@@ -23,17 +23,17 @@ c1
 1
 123
 331
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY HASH(c1) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -97,12 +97,12 @@ SELECT * FROM t1;
 col1	col2	col3	col4	col5	col6	col7	col8	col9	col10	col11	col12	col13	col14	col15	col16	col17	col18	col19	col20	col21	col22	col23
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	3	NULL	NULL	NULL	NULL	NULL
 	1	-128	32767	-8388608	2147483647	-9223372036854775808	92233719808.000	-92233720368.222	aaa	aaaaaaaaaa	b	bbbbb	ccccc	dddddddddddddddddddddddddddddddddddddddd	dddddddddddddddddddddddddddddddddddddddd	dddddddddddddddddddddddddddddddddddddddd	1	1000-01-01	3001-01-01 00:00:00	1990-01-01 00:00:01	01:59:59	1901
-backup: t1#P#First_partition#SP#First_partitionsp0
-backup: t1#P#First_partition#SP#First_partitionsp1
-backup: t1#P#First_partition#SP#First_partitionsp2
-backup: t1#P#Last_partition#SP#Last_partitionsp0
-backup: t1#P#Last_partition#SP#Last_partitionsp1
-backup: t1#P#Last_partition#SP#Last_partitionsp2
+backup: t1#p#first_partition#sp#first_partitionsp0
+backup: t1#p#first_partition#sp#first_partitionsp1
+backup: t1#p#first_partition#sp#first_partitionsp2
+backup: t1#p#last_partition#sp#last_partitionsp0
+backup: t1#p#last_partition#sp#last_partitionsp1
+backup: t1#p#last_partition#sp#last_partitionsp2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -139,12 +139,12 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#First_partition#SP#First_partitionsp0 .ibd and .cfg files
-restore: t1#P#First_partition#SP#First_partitionsp1 .ibd and .cfg files
-restore: t1#P#First_partition#SP#First_partitionsp2 .ibd and .cfg files
-restore: t1#P#Last_partition#SP#Last_partitionsp0 .ibd and .cfg files
-restore: t1#P#Last_partition#SP#Last_partitionsp1 .ibd and .cfg files
-restore: t1#P#Last_partition#SP#Last_partitionsp2 .ibd and .cfg files
+restore: t1#p#first_partition#sp#first_partitionsp0 .ibd and .cfg files
+restore: t1#p#first_partition#sp#first_partitionsp1 .ibd and .cfg files
+restore: t1#p#first_partition#sp#first_partitionsp2 .ibd and .cfg files
+restore: t1#p#last_partition#sp#last_partitionsp0 .ibd and .cfg files
+restore: t1#p#last_partition#sp#last_partitionsp1 .ibd and .cfg files
+restore: t1#p#last_partition#sp#last_partitionsp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -181,9 +181,9 @@ FROM t1;
 col_1_varbinary = REPEAT("a", 4000)	col_2_varchar = REPEAT("o", 4000)	col_3_text = REPEAT("a", 4000)	col_4_blob = REPEAT("o", 4000)	col_5_text = REPEAT("a", 4000)	col_6_varchar = REPEAT("a", 4000)	col_7_binary = REPEAT("a", 255)
 1	1	1	1	1	1	1
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -197,9 +197,9 @@ col_7_binary BINARY (255)
 ) ROW_FORMAT=DYNAMIC ENGINE = InnoDB
 PARTITION BY KEY (col_7_binary) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT  col_1_varbinary = REPEAT("a", 4000),
 col_2_varchar = REPEAT("o", 4000),
@@ -231,9 +231,9 @@ col_1_int	col_2_varchar
 5	a5
 6	a6
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -242,9 +242,9 @@ col_2_varchar VARCHAR (20),
 PRIMARY KEY (col_1_int)) ENGINE = InnoDB
 PARTITION BY HASH (col_1_int) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1 ORDER BY col_1_int;
 col_1_int	col_2_varchar
@@ -310,9 +310,9 @@ col_1_int	col_2_varchar
 5	a5
 6	a6
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -321,9 +321,9 @@ PRIMARY KEY (col_2_varchar)) ENGINE = InnoDB
 PARTITION BY KEY (col_2_varchar) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SET AUTOCOMMIT = 0;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 INSERT INTO t1 VALUES (7,'a7'),(8,'a8');
 COMMIT;
@@ -356,17 +356,17 @@ i
 200
 300
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (i int) ENGINE = InnoDB
 PARTITION BY HASH (i) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1 ORDER BY i;
 i
@@ -398,9 +398,9 @@ i
 200
 300
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 # try if we can flush again
 FLUSH TABLES t1 FOR EXPORT;
@@ -410,26 +410,26 @@ DROP TABLE t1;
 CREATE TABLE t1 (i bigint) ENGINE = InnoDB
 PARTITION BY HASH (i) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 # error as mismatch in column data type
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Column i precise type mismatch.)
 # explicitly delete ibd file before creating table with correct schema
-unlink: t1#P#p0.ibd
-unlink: t1#P#p0.cfg
-unlink: t1#P#p1.ibd
-unlink: t1#P#p1.cfg
-unlink: t1#P#p2.ibd
-unlink: t1#P#p2.cfg
+unlink: t1#p#p0.ibd
+unlink: t1#p#p0.cfg
+unlink: t1#p#p1.ibd
+unlink: t1#p#p1.cfg
+unlink: t1#p#p2.ibd
+unlink: t1#p#p2.cfg
 DROP TABLE t1;
 CREATE TABLE t1 (i int) ENGINE = InnoDB
 PARTITION BY HASH (i) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 # Import should succeed
 ALTER TABLE t1 IMPORT TABLESPACE;
 # Try to import twice
@@ -456,9 +456,9 @@ CREATE TABLE t1 (i int) ENGINE = InnoDB
 PARTITION BY HASH (i) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
 # do not delete ibd file and try to import
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 DROP TABLE t1;
 SET AUTOCOMMIT = 1;
@@ -476,17 +476,17 @@ c1
 331
 ROLLBACK;
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY HASH(c1) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -536,9 +536,9 @@ FROM t1;
 col_1 = REPEAT("col1_00001",10)	col_2 = REPEAT("col2_00001",10)	col_3 = REPEAT("col3_00001",10)	col_4 = REPEAT("col4_00001",10)	col_5 = REPEAT("col5_00001",10)	col_6 = REPEAT("col6_00001",10)	col_7 = REPEAT("col7_00001",10)	col_8 = REPEAT("col8_00001",10)	col_9 = REPEAT("col9_00001",10)	col_10 = REPEAT("col10_00001",10)	col_11 = REPEAT("col11_00001",10)	col_12 = REPEAT("col12_00001",10)	col_13 = REPEAT("col13_00001",10)	col_14 = REPEAT("col14_00001",10)	col_15
 1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (col_1 CHAR (255),
@@ -557,9 +557,9 @@ col_7 (50),col_8 (50),col_9 (50),
 col_10 (50),col_11 (50),col_12 (50),
 col_13(50));
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT
 col_1 = REPEAT("col1_00001",10),
@@ -633,9 +633,9 @@ FROM t1;
 col_1 = REPEAT("col1_00001",10)	col_2 = REPEAT("col2_00001",10)	col_3 = REPEAT("col3_00001",10)	col_4 = REPEAT("col4_00001",10)	col_5 = REPEAT("col5_00001",10)	col_6 = REPEAT("col6_00001",10)	col_7 = REPEAT("col7_00001",10)	col_8 = REPEAT("col8_00001",10)	col_9 = REPEAT("col9_00001",10)	col_10 = REPEAT("col10_00001",10)	col_11 = REPEAT("col11_00001",10)	col_12 = REPEAT("col12_00001",10)	col_13 = REPEAT("col13_00001",10)	col_14 = REPEAT("col14_00001",10)	col_15
 1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (col_1 CHAR (255),
@@ -662,9 +662,9 @@ CREATE INDEX idx12 ON t1(col_12(255));
 CREATE INDEX idx13 ON t1(col_13(255));
 CREATE INDEX idx14 ON t1(col_14(255));
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT
 col_1 = REPEAT("col1_00001",10),
@@ -811,9 +811,9 @@ col1	col2	col3	col4	col5	col6	col7	col8	col9	col10	col11	col12	col13	col14	col15
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	3	NULL	NULL	NULL	NULL	NULL
 	1	-128	32767	-8388608	2147483647	-9223372036854775808	92233719808.000	-92233720368.222	aaa	aaaaaaaaaa	b	bbbbb	ccccc	dddddddddddddddddddddddddddddddddddddddd	dddddddddddddddddddddddddddddddddddddddd	dddddddddddddddddddddddddddddddddddddddd	1	1000-01-01	3001-01-01 00:00:00	1990-01-01 00:00:01	01:59:59	1901
 FLUSH TABLES t1 FOR EXPORT;
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 # trigger is also dropped when table is dropped
 DROP TABLE t1;
@@ -838,9 +838,9 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 SELECT * FROM t1;
 col1	col2	col3	col4	col5	col6	col7	col8	col9	col10	col11	col12	col13	col14	col15	col16	col17	col18	col19	col20	col21	col22	col23
@@ -913,17 +913,17 @@ c1	c2
 333	500
 334	500
 335	500
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT, c2 INT) ENGINE = InnoDB
 PARTITION BY HASH(c1) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -968,17 +968,17 @@ c1	c2
 333	500
 334	500
 335	500
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT, c2 INT) ENGINE = InnoDB
 PARTITION BY HASH(c1) PARTITIONS 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 # remove the .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Clustered index validation failed. Because the .cfg file is missing, table definition of the IBD file could be different. Or the data file itself is already corrupted.)
@@ -1007,17 +1007,17 @@ c1
 4
 5
 6
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY HASH (c1) PARTITIONS 3;
 INSERT INTO t1 VALUES (31), (32), (33);
 ALTER TABLE t1 DISCARD PARTITION p0,p2 TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p0, p2 TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -1027,7 +1027,7 @@ c1
 6
 31
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
-restore: t1#P#p1 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -1050,9 +1050,9 @@ c1
 32
 33
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
 SELECT * FROM t1 PARTITION (p1) ORDER BY c1;
 c1
@@ -1079,7 +1079,7 @@ ERROR HY000: Unknown partition 'pNonExisting' in table 't1'
 ALTER TABLE t1 IMPORT PARTITION pNonExisting TABLESPACE;
 ERROR HY000: Unknown partition 'pNonExisting' in table 't1'
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
-restore: t1#P#p1 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -1129,12 +1129,12 @@ c1
 104
 105
 106
-backup: t1#P#p0#SP#p0sp0
-backup: t1#P#p0#SP#p0sp1
-backup: t1#P#p0#SP#p0sp2
-backup: t1#P#p1#SP#p1sp0
-backup: t1#P#p1#SP#p1sp1
-backup: t1#P#p1#SP#p1sp2
+backup: t1#p#p0#sp#p0sp0
+backup: t1#p#p0#sp#p0sp1
+backup: t1#p#p0#sp#p0sp2
+backup: t1#p#p1#sp#p1sp0
+backup: t1#p#p1#sp#p1sp1
+backup: t1#p#p1#sp#p1sp2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
@@ -1145,8 +1145,8 @@ PARTITION p1 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (31), (32), (33);
 INSERT INTO t1 VALUES (131), (132), (133);
 ALTER TABLE t1 DISCARD PARTITION p0sp1,p1sp0 TABLESPACE;
-restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp0 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p0sp1, p1sp0 TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -1159,10 +1159,10 @@ c1
 131
 133
 ALTER TABLE t1 DISCARD PARTITION p1, p0sp2 TABLESPACE;
-restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp2 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp0 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p0sp2, p1 TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -1195,12 +1195,12 @@ c1
 105
 106
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
-restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
-restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
-restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp0 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp1 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp2 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp0 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p1sp2 TABLESPACE;
 SELECT * FROM t1 PARTITION (p1sp2) ORDER BY c1;
 c1
@@ -1219,7 +1219,7 @@ Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 SELECT * FROM t1 ORDER BY c1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE t1 DISCARD PARTITION p1sp2 TABLESPACE;
-restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
 Warnings:
 Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p0#SP#p0sp0.
@@ -1228,15 +1228,15 @@ Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p0#SP#p0sp2.
 Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp0.
 Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp1.
 Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp2.
-restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
-restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp0 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp0 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp2 .ibd and .cfg files
 # Removing p0sp2's .ibd file
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 ERROR HY000: Internal error: Cannot reset LSNs in table `test`.`t1` /* Partition `p0`, Subpartition `p0sp2` */ : Tablespace not found
-restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 ERROR HY000: Tablespace 'test/t1#P#p0#SP#p0sp0' exists.
 ALTER TABLE t1 IMPORT PARTITION p0sp2 TABLESPACE;
@@ -1245,12 +1245,12 @@ Warnings:
 Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp0.
 Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp1.
 Warning	1812	InnoDB: Tablespace is missing for table test/t1#P#p1#SP#p1sp2.
-restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
-restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
-restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp0 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp1 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp2 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp0 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -1282,7 +1282,7 @@ SUBPARTITION BY HASH (c1) SUBPARTITIONS 3
 (PARTITION p0 VALUES LESS THAN (100),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
 ALTER TABLE t1 DISCARD PARTITION p0sp0 TABLESPACE;
-restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp0 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p0sp0 TABLESPACE;
 SELECT * FROM t1 PARTITION (p0sp0) ORDER BY c1;
 c1
@@ -1298,9 +1298,9 @@ c1
 3
 6
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
-restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp0 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION p1 TABLESPACE;
 SELECT * FROM t1 PARTITION (p1) ORDER BY c1;
 c1
@@ -1345,12 +1345,12 @@ ALTER TABLE t1 DISCARD PARTITION p0sp0 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p1 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p0sp1 TABLESPACE;
 ALTER TABLE t1 DISCARD PARTITION p0sp2 TABLESPACE;
-restore: t1#P#p0#SP#p0sp0 .ibd and .cfg files
-restore: t1#P#p0#SP#p0sp1 .ibd and .cfg files
-restore: t1#P#p0#SP#p0sp2 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp0 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp1 .ibd and .cfg files
-restore: t1#P#p1#SP#p1sp2 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp0 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp1 .ibd and .cfg files
+restore: t1#p#p0#sp#p0sp2 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp0 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp1 .ibd and .cfg files
+restore: t1#p#p1#sp#p1sp2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 SELECT * FROM t1 ORDER BY c1;
 c1
@@ -1420,16 +1420,16 @@ a	b	c	d
 21	21	100	200
 27	27	100	200
 4	4	100	200
-backup: t1#P#p0
-backup: t1#P#p1
-backup: t1#P#p2
+backup: t1#p#p0
+backup: t1#p#p1
+backup: t1#p#p2
 UNLOCK TABLES;
 DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c INT, d INT) PARTITION BY HASH (a) PARTITIONS 3;
 ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
-restore: t1#P#p0 .ibd and .cfg files
-restore: t1#P#p1 .ibd and .cfg files
-restore: t1#P#p2 .ibd and .cfg files
+restore: t1#p#p0 .ibd and .cfg files
+restore: t1#p#p1 .ibd and .cfg files
+restore: t1#p#p2 .ibd and .cfg files
 ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text

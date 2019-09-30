@@ -484,51 +484,6 @@ bool do_server_upgrade_checks(THD *thd) {
   Upgrade_error_counter error_count;
 
   /*
-    If we upgrade from server version 8.0.14, 8.0.15 or 8.0.16, then we
-    must reject upgrade if all of the below hold:
-    - We are running with l_c_t_n == 1.
-    - We are running on a case sensitive file system.
-    - We have partitioned tables in our system.
-    - The user does not submit 'upgrade=FORCE' on the command line.
-  */
-  if (dd::bootstrap::DD_bootstrap_ctx::instance().upgraded_server_version_is(
-          bootstrap::SERVER_VERSION_80014) ||
-      dd::bootstrap::DD_bootstrap_ctx::instance().upgraded_server_version_is(
-          bootstrap::SERVER_VERSION_80015) ||
-      dd::bootstrap::DD_bootstrap_ctx::instance().upgraded_server_version_is(
-          bootstrap::SERVER_VERSION_80016)) {
-    if (lower_case_table_names == 1 && lower_case_file_system == 0 &&
-        opt_upgrade_mode != UPGRADE_FORCE) {
-      /*
-        We could do SELECT COUNT(*), but then we would need to analyze the
-        result set. With the query below, we can determine whether there
-        are partitioned tables just by comparing the end markers of the
-        result set iterator.
-      */
-      dd::String_type query = "SELECT id FROM mysql.table_partitions";
-      LEX_STRING str;
-      lex_string_strmake(thd->mem_root, &str, query.c_str(), query.size());
-      Ed_connection con(thd);
-      if (con.execute_direct(str)) {
-        LogErr(ERROR_LEVEL, ER_DD_INITIALIZE_SQL_ERROR, query.c_str(),
-               con.get_last_errno(), con.get_last_error());
-        return dd::end_transaction(thd, true);
-      }
-      List<Ed_row> &rows = *con.get_result_sets();
-      /*
-        If rows are found, then there are partitioned tables, and we reject
-        upgrade.
-      */
-      if (rows.begin() != rows.end()) {
-        LogErr(ERROR_LEVEL, ER_UPGRADE_WITH_PARTITIONED_TABLES_REJECTED,
-               dd::bootstrap::DD_bootstrap_ctx::instance()
-                   .get_upgraded_server_version());
-        return dd::end_transaction(thd, true);
-      }
-    }
-  }
-
-  /*
     For any server upgrade, we will analyze events, routines, views and
     triggers and reject upgrade if we find invalid syntax that would not
     have been accepted in a CREATE statement.

@@ -153,23 +153,17 @@ COUNT(*)
 # This is the test case for case sensitive file systems. A corresponding test case
 # for case insensitive file systems can be found in dd_upgrade_ci.test.
 #
+# The issue is now fixed and Upgrade should be successful from 8.0.14-16 -> 8.0.18
 # Test with lctn=1 and no partitioned tables. Upgrade should succeed.
 # Set different path for --datadir and check that it exists.
 # Upgrade the server.
 # restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
 # Stop the server and do cleanup.
-# Test with lctn=1 and partitioned tables. Upgrade should be rejected unless submitting --upgrade=FORCE.
+# Test with lctn=1 and partitioned tables. Upgrade should not be rejected
 # Set different path for --datadir and check that it exists.
-# Upgrading the server should be rejected.
-Pattern "with partitioned tables and lower_case_table_names == 1" found
-# Retry upgrading the server.
-# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1 --upgrade=force
-# Table rebuild will fail.
-ALTER TABLE test.t ENGINE = InnoDB;
-ERROR HY000: Got error 44 - 'InnoDB error' from storage engine
-# After RENAME, table rebuild will succeed.
-RENAME TABLE test.t TO test.t_new;
-RENAME TABLE test.t_new TO test.t;
+# Try upgrading the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
+# Table rebuild should succeed.
 ALTER TABLE test.t ENGINE = InnoDB;
 SHOW CREATE TABLE test.t;
 Table	Create Table

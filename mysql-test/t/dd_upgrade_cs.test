@@ -252,6 +252,7 @@ SELECT COUNT(*) FROM mysql.global_grants
 --echo # This is the test case for case sensitive file systems. A corresponding test case
 --echo # for case insensitive file systems can be found in dd_upgrade_ci.test.
 --echo #
+--echo # The issue is now fixed and Upgrade should be successful from 8.0.14-16 -> 8.0.18
 
 --echo # Test with lctn=1 and no partitioned tables. Upgrade should succeed.
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_5.log
@@ -276,7 +277,7 @@ SELECT COUNT(*) FROM mysql.global_grants
 --force-rmdir $MYSQLD_DATADIR
 
 
---echo # Test with lctn=1 and partitioned tables. Upgrade should be rejected unless submitting --upgrade=FORCE.
+--echo # Test with lctn=1 and partitioned tables. Upgrade should not be rejected
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_6.log
 --let $name_base = data_80016_lctn1_lin_part
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
@@ -287,28 +288,13 @@ SELECT COUNT(*) FROM mysql.global_grants
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # Upgrading the server should be rejected.
---replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
---error 1
---exec $MYSQLD --no-defaults --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=1
-
---let SEARCH_FILE = $MYSQLD_LOG
---let SEARCH_PATTERN = with partitioned tables and lower_case_table_names == 1
---source include/search_pattern.inc
-
---echo # Retry upgrading the server.
+--echo # Try upgrading the server.
 --let $wait_counter= 3000
---let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=1 --upgrade=force
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=1
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
 --source include/start_mysqld.inc
 
---echo # Table rebuild will fail.
---error ER_GET_ERRNO
-ALTER TABLE test.t ENGINE = InnoDB;
-
---echo # After RENAME, table rebuild will succeed.
-RENAME TABLE test.t TO test.t_new;
-RENAME TABLE test.t_new TO test.t;
+--echo # Table rebuild should succeed.
 ALTER TABLE test.t ENGINE = InnoDB;
 SHOW CREATE TABLE test.t;
 

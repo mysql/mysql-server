@@ -2699,7 +2699,7 @@ ER_INNODB_CANT_FIND_INDEX_IN_INNODB_DD
 ER_INNODB_INDEX_COLUMN_INFO_UNLIKE_MYSQLS
   eng "Found index %s whose column info does not match that of MySQL."
 
-ER_INNODB_CANT_OPEN_TABLE
+OBSOLETE_ER_INNODB_CANT_OPEN_TABLE
   eng "Failed to open table %s."
 
 ER_INNODB_CANT_BUILD_INDEX_XLATION_TABLE_FOR
@@ -2714,7 +2714,7 @@ ER_INNODB_PK_ONLY_IN_MYSQL
 ER_INNODB_CLUSTERED_INDEX_PRIVATE
   eng "Table %s key_used_on_scan is %lu even though there is no primary key inside InnoDB."
 
-ER_INNODB_PARTITION_TABLE_LOWERCASED
+OBSOLETE_ER_INNODB_PARTITION_TABLE_LOWERCASED
   eng "Partition table %s opened after converting to lower case. The table may have been moved from a case-insensitive file system. Please recreate the table in the current file system."
 
 ER_ERRMSG_REPLACEMENT_DODGY
@@ -7115,10 +7115,10 @@ ER_IB_MSG_526
 ER_IB_MSG_527
   eng "%s"
 
-ER_IB_MSG_528
+OBSOLETE_ER_IB_MSG_528
   eng "%s"
 
-ER_IB_MSG_529
+OBSOLETE_ER_IB_MSG_529
   eng "%s"
 
 ER_IB_MSG_530
@@ -10524,7 +10524,7 @@ ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
 ER_LOG_CANNOT_WRITE_EXTENDED
   eng "Failed to write to %s: %s (%s)"
 
-ER_UPGRADE_WITH_PARTITIONED_TABLES_REJECTED
+OBSOLETE_ER_UPGRADE_WITH_PARTITIONED_TABLES_REJECTED
   eng "Upgrading from server version %d with partitioned tables and lower_case_table_names == 1 on a case sensitive file system may cause issues, and is therefore prohibited. To upgrade anyway, restart the new server version with the command line option 'upgrade=FORCE'. When upgrade is completed, please execute 'RENAME TABLE <part_table_name> TO <new_table_name>; RENAME TABLE <new_table_name> TO <part_table_name>;' for each of the partitioned tables. Please see the documentation for further information."
 
 ER_KEYRING_AWS_INCORRECT_PROXY
@@ -10604,6 +10604,30 @@ ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET
 
 ER_RPL_SLAVE_SQL_THREAD_DETECTED_UNEXPECTED_EVENT_SEQUENCE
   eng "An unexpected event sequence was detected by the SQL thread while applying an event."
+
+ER_IB_MSG_UPGRADE_PARTITION_FILE
+  eng "Updating partition file name '%s' to '%s' and all other partition files during upgrade"
+
+ER_IB_MSG_DOWNGRADE_PARTITION_FILE
+  eng "Updating partition file name '%s' to '%s' and all other partition files during downgrade"
+
+ER_IB_MSG_UPGRADE_PARTITION_FILE_IMPORT
+  eng "Updating partition file name '%s' to '%s' for import"
+
+ER_IB_WARN_OPEN_PARTITION_FILE
+  eng "Unable to open partition file with new name '%s'. Please check if innodb_directories is set to include all external file paths"
+
+ER_IB_MSG_FIL_STATE_MOVED_CORRECTED
+  eng "%s DD ID: %llu - Partition tablespace %u, name '%s' is corrected to '%s'"
+
+ER_IB_MSG_FIL_STATE_MOVED_CHANGED_PATH
+  eng "%s DD ID: %llu - Tablespace %u, name '%s', '%s' is moved to '%s'"
+
+ER_IB_MSG_FIL_STATE_MOVED_CHANGED_NAME
+  eng "%s DD ID: %llu - Partition tablespace %u, name '%s', '%s' is updated to '%s'"
+
+ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY
+  eng "%s Too many files have been moved, disabling logging of detailed messages"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

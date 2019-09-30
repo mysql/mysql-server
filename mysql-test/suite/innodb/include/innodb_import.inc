@@ -38,7 +38,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -56,8 +56,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -128,12 +128,12 @@ require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_backup_tablespaces("test",
-"t1#P#First_partition#SP#First_partitionsp0",
-"t1#P#First_partition#SP#First_partitionsp1",
-"t1#P#First_partition#SP#First_partitionsp2",
-"t1#P#Last_partition#SP#Last_partitionsp0",
-"t1#P#Last_partition#SP#Last_partitionsp1",
-"t1#P#Last_partition#SP#Last_partitionsp2");
+"t1#p#first_partition#sp#first_partitionsp0",
+"t1#p#first_partition#sp#first_partitionsp1",
+"t1#p#first_partition#sp#first_partitionsp2",
+"t1#p#last_partition#sp#last_partitionsp0",
+"t1#p#last_partition#sp#last_partitionsp1",
+"t1#p#last_partition#sp#last_partitionsp2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -183,19 +183,19 @@ require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
 ib_discard_tablespaces("test",
-"t1#P#First_partition#SP#First_partitionsp0",
-"t1#P#First_partition#SP#First_partitionsp1",
-"t1#P#First_partition#SP#First_partitionsp2",
-"t1#P#Last_partition#SP#Last_partitionsp0",
-"t1#P#Last_partition#SP#Last_partitionsp1",
-"t1#P#Last_partition#SP#Last_partitionsp2");
+"t1#p#first_partition#sp#first_partitionsp0",
+"t1#p#first_partition#sp#first_partitionsp1",
+"t1#p#first_partition#sp#first_partitionsp2",
+"t1#p#last_partition#sp#last_partitionsp0",
+"t1#p#last_partition#sp#last_partitionsp1",
+"t1#p#last_partition#sp#last_partitionsp2");
 ib_restore_tablespaces("test",
-"t1#P#First_partition#SP#First_partitionsp0",
-"t1#P#First_partition#SP#First_partitionsp1",
-"t1#P#First_partition#SP#First_partitionsp2",
-"t1#P#Last_partition#SP#Last_partitionsp0",
-"t1#P#Last_partition#SP#Last_partitionsp1",
-"t1#P#Last_partition#SP#Last_partitionsp2");
+"t1#p#first_partition#sp#first_partitionsp0",
+"t1#p#first_partition#sp#first_partitionsp1",
+"t1#p#first_partition#sp#first_partitionsp2",
+"t1#p#last_partition#sp#last_partitionsp0",
+"t1#p#last_partition#sp#last_partitionsp1",
+"t1#p#last_partition#sp#last_partitionsp2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -242,7 +242,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -269,8 +269,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -309,7 +309,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -331,8 +331,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -456,7 +456,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -476,8 +476,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -512,7 +512,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -530,8 +530,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -560,7 +560,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -583,8 +583,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -600,9 +600,9 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_unlink_tablespace("test", "t1#P#p0");
-ib_unlink_tablespace("test", "t1#P#p1");
-ib_unlink_tablespace("test", "t1#P#p2");
+ib_unlink_tablespace("test", "t1#p#p0");
+ib_unlink_tablespace("test", "t1#p#p1");
+ib_unlink_tablespace("test", "t1#p#p2");
 } else {
 ib_unlink_tablespace("test", "t1");
 }
@@ -618,8 +618,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -647,7 +647,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_restore_tablespaces("test", "t1");
 }
@@ -671,7 +671,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -689,8 +689,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -754,7 +754,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -787,8 +787,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -877,7 +877,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -919,8 +919,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -1070,7 +1070,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -1110,8 +1110,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -1163,7 +1163,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -1181,8 +1181,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
@@ -1217,7 +1217,7 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_backup_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_backup_tablespaces("test", "t1");
 }
@@ -1235,8 +1235,8 @@ perl;
 require 'include/innodb-util.inc';
 if ($ENV{'PARTITIONS'})
 {
-ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
-ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2");
+ib_discard_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
 } else {
 ib_discard_tablespaces("test", "t1");
 ib_restore_tablespaces("test", "t1");
