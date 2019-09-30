@@ -2204,6 +2204,9 @@ private:
       Uint32 m_elapsed_ms; //MilliSec since last GCP_SAVEed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
       bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
+#ifdef ERROR_INSERT
+      bool test_set_max_lag; // Testing
+#endif
     } m_gcp_save;
 
     struct
@@ -2212,6 +2215,9 @@ private:
       Uint32 m_elapsed_ms; //MilliSec since last GCP_COMMITed
       Uint32 m_max_lag_ms; //Max allowed lag(ms) before 'crashSystem'
       bool m_need_max_lag_recalc; // Whether max lag need to be recalculated
+#ifdef ERROR_INSERT
+      bool test_set_max_lag; // Testing
+#endif
     } m_micro_gcp;
 
     NDB_TICKS m_last_check; //Time GCP monitor last checked

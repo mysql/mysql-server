@@ -24453,6 +24453,20 @@ void Dbdih::setGCPStopTimeouts(Signal *signal,
     m_gcp_monitor.m_micro_gcp.m_max_lag_ms = 0;
   }
 
+#ifdef ERROR_INSERT
+  // If a test has already set gcp save max lag, don't overwrite it
+  if (m_gcp_monitor.m_gcp_save.test_set_max_lag)
+  {
+    m_gcp_monitor.m_gcp_save.m_max_lag_ms = old_GCP_save_max_lag;
+  }
+
+  // If a test has already set gcp commit max lag, don't overwrite it
+  if (m_gcp_monitor.m_micro_gcp.test_set_max_lag)
+  {
+    m_gcp_monitor.m_micro_gcp.m_max_lag_ms = old_micro_GCP_max_lag;
+  }
+#endif
+
   // If timeouts have changed, log it for micro_gcp
   if (old_micro_GCP_max_lag != m_gcp_monitor.m_micro_gcp.m_max_lag_ms)
   {
@@ -26779,6 +26793,8 @@ Dbdih::startGcpMonitor(Signal* signal)
 
 #ifdef ERROR_INSERT
   m_gcp_monitor.m_savedMaxCommitLag = 0;
+  m_gcp_monitor.m_gcp_save.test_set_max_lag = false;
+  m_gcp_monitor.m_micro_gcp.test_set_max_lag = false;
 #endif
 
   signal->theData[0] = DihContinueB::ZCHECK_GCP_STOP;
@@ -27758,6 +27774,10 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
                           m_gcp_monitor.m_micro_gcp.m_max_lag_ms,
                           signal->theData[2]);
       m_gcp_monitor.m_micro_gcp.m_max_lag_ms = signal->theData[2];
+
+#ifdef ERROR_INSERT
+      m_gcp_monitor.m_micro_gcp.test_set_max_lag = true;
+#endif
     }
     else
     {
@@ -27765,6 +27785,10 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
                           m_gcp_monitor.m_gcp_save.m_max_lag_ms,
                           signal->theData[2]);
       m_gcp_monitor.m_gcp_save.m_max_lag_ms = signal->theData[2];
+
+#ifdef ERROR_INSERT
+      m_gcp_monitor.m_gcp_save.test_set_max_lag = true;
+#endif
     }
     sendINFO_GCP_STOP_TIMER(signal);
   }

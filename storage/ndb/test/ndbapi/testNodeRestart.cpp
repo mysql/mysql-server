@@ -10155,11 +10155,14 @@ TESTCASE("PostponeRecalculateGCPCommitLag",
          "check that a slow TC takeover does not result in "
          "another GCP failure in a shorter period")
 {
-  TC_PROPERTY("NumConfigVars", Uint32(2));
+  TC_PROPERTY("NumConfigVars", Uint32(3));
   TC_PROPERTY("ConfigVarId1", Uint32(CFG_DB_MICRO_GCP_TIMEOUT));
   TC_PROPERTY("ConfigValue1", Uint32(1000));
   TC_PROPERTY("ConfigVarId2", Uint32(CFG_DB_HEARTBEAT_INTERVAL));
   TC_PROPERTY("ConfigValue2", Uint32(5000));
+  TC_PROPERTY("ConfigVarId3", Uint32(CFG_DB_LCP_SCAN_WATCHDOG_LIMIT));
+  // 10000 sec - long enough not to expire before GCP max lags expire
+  TC_PROPERTY("ConfigValue3", Uint32(10000));
 
   INITIALIZER(runChangeDataNodeConfig);
   INITIALIZER(runLoadTable);
