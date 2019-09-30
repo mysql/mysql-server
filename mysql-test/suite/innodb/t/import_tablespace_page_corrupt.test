@@ -7,7 +7,7 @@
 
 CREATE TABLE t1(f1 INT PRIMARY KEY AUTO_INCREMENT, f2 INT, f3 CHAR, f4 TEXT)
 ENGINE=InnoDB;
---let $inserts= 1000
+--let $inserts= 2000
 --disable_query_log
 while ($inserts)
 {
