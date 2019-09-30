@@ -767,7 +767,11 @@ COMMIT;
 -- provided that there isn't a user who already has the privilige TABLE_ENCRYPTION_ADMIN.
 SET @hadTableEncryptionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'TABLE_ENCRYPTION_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'TABLE_ENCRYPTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
-FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0;
+FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0 AND user != 'mysql.session';
+-- The TABLE_ENCRYPTION_ADMIN privilege was previously granted to 'mysql.session'
+-- during upgrade. However, this user should not have this privilege, so we need
+-- to explicitly revoke it.
+DELETE FROM global_grants WHERE user = 'mysql.session' AND host = 'localhost' AND priv = 'TABLE_ENCRYPTION_ADMIN';
 COMMIT;
 
 # Activate the new, possible modified privilege tables

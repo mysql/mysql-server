@@ -90,6 +90,38 @@ schema_object_overview	VIEW
 schema_redundant_indexes	VIEW
 schema_unused_indexes	VIEW
 x$schema_flattened_keys	VIEW
+#
+# Bug#29596053  USER 'MYSQL.SESSION' GETS TBL_ENCR_ADM DURING UPGRADE,
+# BUT NOT DURING INITIALIZE
+#
+# Make sure mysql.session user do not have TABLE_ENCRYPTION_ADMIN privilege.
+SELECT COUNT(*) FROM mysql.global_grants
+WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COUNT(*)
+0
+# We should also verify that the privilege is removed when
+# upgrading from a previous release where the mysql.session
+# was granted this privilege.  We simulate this by explicitly
+# granting the privilege, and then restarting the server with
+# '--upgrade=force'.
+GRANT TABLE_ENCRYPTION_ADMIN ON  *.* to 'mysql.session'@localhost;
+# Verify that the privilege has been granted.
+SELECT COUNT(*) FROM mysql.global_grants
+WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COUNT(*)
+1
+# restart: --datadir=MYSQLD_DATADIR2 --log-error=MYSQLD_LOG --upgrade=force
+# Now, after upgrade, the privilege should be gone.
+SELECT COUNT(*) FROM mysql.global_grants
+WHERE user = 'mysql.session'
+        AND host = 'localhost'
+        AND priv = 'TABLE_ENCRYPTION_ADMIN';
+COUNT(*)
+0
 # Stop the server and do cleanup.
 # Remove copied files
 # Restart the server with default options.
