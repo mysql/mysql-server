@@ -693,7 +693,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
     }
   }
 
-  if (str[0] == '+' || str[0] == '-') {
+  if (str != end && (str[0] == '+' || str[0] == '-')) {
     if (time_zone_displacement_to_seconds(str, end - str, &displacement)) {
       status->warnings = MYSQL_TIME_WARN_TRUNCATED;
       l_time->time_type = MYSQL_TIMESTAMP_NONE;
