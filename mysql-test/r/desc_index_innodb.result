@@ -1330,8 +1330,8 @@ AND ( gp1 . col_varchar_key <> 'y' )
 ORDER BY gp1 . col_varchar_key LIMIT 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gp1	NULL	range	col_varchar_key,col_varchar_key_2,col_varchar_key_3	col_varchar_key_3	82	NULL	3	33.33	Using index condition; Using where
-1	SIMPLE	c1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(gp1)
 1	SIMPLE	gp2	NULL	ref	col_varchar_key	col_varchar_key	42	test.gp1.col_varchar_key	1	100.00	Using where
+1	SIMPLE	c1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 1	SIMPLE	p1	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 1	SIMPLE	p2	NULL	index	NULL	col_varchar_key	46	NULL	5	100.00	Using where; Using index
 1	SIMPLE	c2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; FirstMatch(gp2)

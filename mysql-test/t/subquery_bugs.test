@@ -493,9 +493,8 @@ DROP TABLE t1;
 --echo #
 
 #
-# Another case where the optimizer sets up a partially overlapping semijoin
-# and outer join. (If the plan changes to one without weedout as a result of
-# optimizer changes, most likely this test should just be deleted.)
+# This plan used to set up a partially overlapping semijoin and outer join;
+# verify that it no longer does, and no weedout is created.
 #
 
 CREATE TABLE t1 (

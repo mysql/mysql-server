@@ -1225,15 +1225,14 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
     @par FirstMatch strategy
 
     @code
-      (ot|nt)*  [ it ((it|nt)* it) ]  (nt)*
-      +------+  +==================+  +---+
-        (1)             (2)          (3)
+      (ot|nt)*  [ it (it)* ]  (nt)*
+      +------+  +==========+  +---+
+        (1)          (2)        (3)
 
     @endcode
     -# Prefix of outer correlated and non-correlated tables
 
-    -# The handled range, which may contain only inner and non-correlated
-       tables.
+    -# The handled range, which may contain only inner tables.
 
     -# The suffix of outer non-correlated tables.
 
@@ -1493,11 +1492,6 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
         /*
           Setup a "jump" from the last table in the range of inner tables
           to the last outer table before the inner tables.
-          If there are outer tables inbetween the inner tables, we have to
-          setup a "split jump": Jump from the last inner table to the last
-          outer table within the range, then from the last inner table
-          before the outer table(s), jump to the last outer table before
-          this range of inner tables, etc.
         */
         plan_idx jump_to = tab->idx() - 1;
         DBUG_ASSERT(tab_in_sj_nest);  // First table must be inner
@@ -1508,6 +1502,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
               Let last non-correlated table be jump target for
               subsequent inner tables.
             */
+            DBUG_ASSERT(false);  // no "split jump" should exist.
             jump_to = tab_in_range->idx();
           } else {
             /*
