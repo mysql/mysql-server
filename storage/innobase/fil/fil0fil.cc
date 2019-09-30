@@ -126,6 +126,39 @@ using Moved = std::tuple<dd::Object_id, space_id_t, std::string, std::string,
 using Tablespaces = std::vector<Moved>;
 }  // namespace dd_fil
 
+size_t fil_get_scan_threads(size_t num_files) {
+  /* Number of additional threads required to scan all the files.
+  n_threads == 0 means that the main thread itself will do all the
+  work instead of spawning any additional threads. */
+  size_t n_threads = num_files / FIL_SCAN_MAX_TABLESPACES_PER_THREAD;
+
+  /* Return if no additional threads are needed. */
+  if (n_threads == 0) {
+    return 0;
+  }
+
+  /* Number of concurrent threads supported by the host machine. */
+  size_t max_threads =
+      FIL_SCAN_THREADS_PER_CORE * std::thread::hardware_concurrency();
+
+  /* If the number of concurrent threads supported by the host
+  machine could not be calculated, assume the supported threads
+  to be FIL_SCAN_MAX_THREADS. */
+  max_threads = max_threads == 0 ? FIL_SCAN_MAX_THREADS : max_threads;
+
+  /* Restrict the number of threads to the lower of number of threads
+  supported by the host machine or FIL_SCAN_MAX_THREADS. */
+  if (n_threads > max_threads) {
+    n_threads = max_threads;
+  }
+
+  if (n_threads > FIL_SCAN_MAX_THREADS) {
+    n_threads = FIL_SCAN_MAX_THREADS;
+  }
+
+  return n_threads;
+}
+
 /* uint16_t is the index into Tablespace_dirs::m_dirs */
 using Scanned_files = std::vector<std::pair<uint16_t, std::string>>;
 
@@ -292,8 +325,8 @@ enum fil_operation_t {
 /** The null file address */
 fil_addr_t fil_addr_null = {FIL_NULL, 0};
 
-/** Maximum number of threads to use for scanning data files. */
-static const size_t MAX_SCAN_THREADS = 8;
+/** Maximum number of pages to read to determine the space ID. */
+static const size_t MAX_PAGES_TO_READ = 1;
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum number of shards supported. */
@@ -318,9 +351,6 @@ static const size_t REDO_SHARD = 0;
 /** The UNDO logs have their own shards (4). */
 static const size_t UNDO_SHARDS_START = 0;
 #endif /* !UNIV_HOTBACKUP */
-
-/** Maximum pages to check for valid space ID during start up. */
-static const size_t MAX_PAGES_TO_CHECK = 3;
 
 /** Sentinel for empty open slot. */
 static const size_t EMPTY_OPEN_SLOT = std::numeric_limits<size_t>::max();
@@ -1435,9 +1465,7 @@ class Fil_system {
   dberr_t scan() { return (m_dirs.scan()); }
 
   /** Get the tablespace ID from an .ibd and/or an undo tablespace.
-  If the ID is == 0 on the first page then check for at least
-  MAX_PAGES_TO_CHECK  pages with the same tablespace ID. Do a Light
-  weight check before trying with DataFile::find_space_id().
+  If the ID is == 0 on the first page then try with Datafile::find_space_id().
   @param[in]	filename	File name to check
   @return s_invalid_space_id if not found, otherwise the space ID */
   static space_id_t get_tablespace_id(const std::string &filename)
@@ -10618,16 +10646,14 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
 }
 
 /** Get the tablespace ID from an .ibd and/or an undo tablespace. If the ID
-is == 0 on the first page then check for at least MAX_PAGES_TO_CHECK  pages
-with the same tablespace ID. Do a Light weight check before trying with
+is == 0 on the first page then try finding the ID with
 Datafile::find_space_id().
 @param[in]	filename	File name to check
 @return s_invalid_space_id if not found, otherwise the space ID */
 space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
-  char buf[sizeof(space_id_t)];
-  std::ifstream ifs(filename, std::ios::binary);
+  FILE *fp = fopen(filename.c_str(), "rb");
 
-  if (!ifs) {
+  if (fp == nullptr) {
     ib::warn(ER_IB_MSG_372) << "Unable to open '" << filename << "'";
     return (dict_sys_t::s_invalid_space_id);
   }
@@ -10635,63 +10661,51 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
   std::vector<space_id_t> space_ids;
   auto page_size = srv_page_size;
 
-  space_ids.reserve(MAX_PAGES_TO_CHECK);
+  space_ids.reserve(MAX_PAGES_TO_READ);
 
-  for (page_no_t page_no = 0; page_no < MAX_PAGES_TO_CHECK; ++page_no) {
-    off_t off;
+  const auto n_bytes = page_size * MAX_PAGES_TO_READ;
 
-    off = page_no * page_size + FIL_PAGE_SPACE_ID;
+  std::unique_ptr<byte[]> buf(new byte[n_bytes]);
+
+  if (!buf) {
+    return dict_sys_t::s_invalid_space_id;
+  }
+
+  auto bytes_read = fread(buf.get(), page_size, MAX_PAGES_TO_READ, fp);
+
+#ifdef POSIX_FADV_DONTNEED
+  posix_fadvise(fileno(fp), 0, bytes_read, POSIX_FADV_DONTNEED);
+#endif /* POSIX_FADV_DONTNEED */
+
+  for (page_no_t i = 0; i < MAX_PAGES_TO_READ; ++i) {
+    const auto off = i * page_size + FIL_PAGE_SPACE_ID;
 
     if (off == FIL_PAGE_SPACE_ID) {
-      /* Figure out the page size of the tablespace. If it's
-      a compressed tablespace. */
-      ifs.seekg(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS, ifs.beg);
+      /* Find out the page size of the tablespace from the first page.
+      In case of compressed pages, the subsequent pages can be of different
+      sizes. If MAX_PAGES_TO_READ is changed to a different value, then the
+      page size of subsequent pages is needed to find out the offset for
+      space ID. */
 
-      if ((ifs.rdstate() & std::ifstream::eofbit) != 0 ||
-          (ifs.rdstate() & std::ifstream::failbit) != 0 ||
-          (ifs.rdstate() & std::ifstream::badbit) != 0) {
-        return (dict_sys_t::s_invalid_space_id);
-      }
+      auto space_flags_offset = FSP_HEADER_OFFSET + FSP_SPACE_FLAGS;
 
-      ifs.read(buf, sizeof(buf));
+      ut_a(space_flags_offset + 4 < n_bytes);
 
-      if (!ifs.good() || (size_t)ifs.gcount() < sizeof(buf)) {
-        return (dict_sys_t::s_invalid_space_id);
-      }
+      const auto flags = mach_read_from_4(buf.get() + space_flags_offset);
 
-      uint32_t flags;
-
-      flags = mach_read_from_4(reinterpret_cast<byte *>(buf));
-
-      const page_size_t space_page_size(flags);
+      page_size_t space_page_size(flags);
 
       page_size = space_page_size.physical();
     }
 
-    ifs.seekg(off, ifs.beg);
+    space_ids.push_back(mach_read_from_4(buf.get() + off));
 
-    if ((ifs.rdstate() & std::ifstream::eofbit) != 0 ||
-        (ifs.rdstate() & std::ifstream::failbit) != 0 ||
-        (ifs.rdstate() & std::ifstream::badbit) != 0) {
-      /* Trucated files can be a single page */
+    if ((i + 1) * page_size >= bytes_read) {
       break;
     }
-
-    ifs.read(buf, sizeof(buf));
-
-    if (!ifs.good() || (size_t)ifs.gcount() < sizeof(buf)) {
-      /* Trucated files can be a single page */
-      break;
-    }
-
-    space_id_t space_id;
-
-    space_id = mach_read_from_4(reinterpret_cast<byte *>(buf));
-
-    space_ids.push_back(space_id);
   }
 
-  ifs.close();
+  fclose(fp);
 
   space_id_t space_id;
 
@@ -11083,15 +11097,13 @@ dberr_t Tablespace_dirs::scan() {
   Space_id_set unique;
   Space_id_set duplicates;
 
-  size_t n_threads = (ibd_files.size() / 50000);
+  /* Get the number of additional threads needed to scan the files. */
+  size_t n_threads = fil_get_scan_threads(ibd_files.size());
 
   if (n_threads > 0) {
-    if (n_threads > MAX_SCAN_THREADS) {
-      n_threads = MAX_SCAN_THREADS;
-    }
-
-    ib::info(ER_IB_MSG_382) << "Using " << (n_threads + 1) << " threads to"
-                            << " scan the tablespace files";
+    ib::info(ER_IB_MSG_382)
+        << "Using " << (n_threads + 1) << " threads to"
+        << " scan " << ibd_files.size() << " tablespace files";
   }
 
   std::mutex m;
