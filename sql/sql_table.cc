@@ -2184,6 +2184,7 @@ static bool rm_table_check_fks(THD *thd, Drop_tables_ctx *drop_ctx) {
 
   // Earlier we assert that only SEs supporting atomic DDL support FKs.
   for (TABLE_LIST *table : drop_ctx->base_atomic_tables) {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Table *table_def = nullptr;
     if (thd->dd_client()->acquire(table->db, table->table_name, &table_def))
       return true;
