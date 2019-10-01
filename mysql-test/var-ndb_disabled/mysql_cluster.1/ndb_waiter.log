@@ -1,0 +1,3 @@
+Connecting to mgmsrv at localhost:13000
+Unable to connect with connect string: nodeid=0,localhost:13000
+Retrying every 5 seconds. Attempts left: 11safe_process[23218]: Child process: 23220, killed by signal: 9
