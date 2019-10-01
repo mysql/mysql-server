@@ -446,7 +446,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "distinguish different processes, and one runs several data nodes on same "
     "host. There is typically no need to use this option since ven if one run "
     "several data nodes on same host it is enough to always use --ndb-nodeid "
-    "option when starting data nodes even without this option. "
+    "option when starting data nodes even without this option. ",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
