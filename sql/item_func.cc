@@ -1593,7 +1593,7 @@ longlong Item_typecast_unsigned::val_int() {
   if (args[0]->cast_to_int_type() == DECIMAL_RESULT) {
     my_decimal tmp, *dec = args[0]->val_decimal(&tmp);
     if (!(null_value = args[0]->null_value))
-      my_decimal2int(E_DEC_FATAL_ERROR, dec, true, &value);
+      my_decimal2int(E_DEC_FATAL_ERROR, dec, !dec->sign(), &value);
     else
       value = 0;
     return value;
