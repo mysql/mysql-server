@@ -102,7 +102,7 @@ source suite/ndb/include/ndb_exec.inc;
 
 ## Create nodegroup for "new" nodes 3,4
 --echo Creating nodegroup
---exec $NDB_MGM -e "create nodegroup 3,4" > /dev/null
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 3,4"
 
 alter table t1 algorithm=inplace, reorganize partition;
 
@@ -238,11 +238,11 @@ source suite/ndb/include/ndb_exec.inc;
 
 ## Create nodegroup for "new" nodes 5,6
 --echo Creating nodegroup
---exec $NDB_MGM -e "create nodegroup 5,6" > /dev/null
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 5,6"
 
 ## Create nodegroup for "new" nodes 7,8
 --echo Creating nodegroup
---exec $NDB_MGM -e "create nodegroup 7,8" > /dev/null
+--exec $NDB_MGM --verbose=0 -e "create nodegroup 7,8"
 
 alter table t1 algorithm=inplace, reorganize partition;
 
@@ -263,3 +263,9 @@ and mpf.fixed_elem_count <> tfs.fixed_elem_count
 order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
 
 drop table t1;
+
+# Drop nodegroups to return cluster to initial state
+--echo Dropping nodegroups
+--exec $NDB_MGM --verbose=0 -e "drop nodegroup 3"
+--exec $NDB_MGM --verbose=0 -e "drop nodegroup 2"
+--exec $NDB_MGM --verbose=0 -e "drop nodegroup 1"
