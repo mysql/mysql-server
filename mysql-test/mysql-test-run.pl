@@ -3437,7 +3437,7 @@ sub ndbd_start {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $ndbd->after('cluster_config.ndbd'));
   mtr_add_arg($args, "--nodaemon");
 
   # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
