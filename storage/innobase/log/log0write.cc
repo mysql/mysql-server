@@ -737,6 +737,49 @@ static void log_flush_low(log_t &log);
 
 /* @{ */
 
+/** Computes index of a slot (in array of "wait events"), which should
+be used when waiting until redo reached provided lsn.
+@param[in]  lsn         lsn up to which waiting takes place
+@param[in]  events_n    size of the array (number of slots)
+@return  index of the slot (integer in range 0 .. events_n-1) */
+static inline size_t log_compute_wait_event_slot(lsn_t lsn, size_t events_n) {
+  /* We subtract one from lsn, because it is better to assign right boundary
+  of a log block to the slot representing the given block. If write or flush
+  happens within block, all threads interested in some lsn in that block should
+  be notified.
+
+  Suppose lsn % 512 == 0 (this is the only case for which subtracting 1 makes
+  any difference here). All threads waiting for some lsn in (lsn-1)/512 must
+  be notified anyway (previous lsn was smaller so the block wasn't closed yet).
+  On the other hand, it is useless to notify threads waiting for lsn values
+  within lsn / 512, because these are larger lsn values, except threads which
+  are waiting exactly at this lsn. That's why this group of threads it's better
+  to move to the slot corresponding to (lsn-1)/512 and then we could avoid
+  waking up those in lsn/512. Note that this scenario (lsn % 512 == 0) happens
+  often because our strategy is to prefer writes of full log blocks only,
+  leaving the incomplete last block for next write (unless there are no full
+  blocks). */
+  return (((lsn - 1) / OS_FILE_LOG_BLOCK_SIZE) & (events_n - 1));
+}
+
+/** Computes index of a slot (in array of "wait events"), which should
+be used when waiting in log.write_events (for redo written up to lsn).
+@param[in]  log  redo log
+@param[in]  lsn  lsn up to which waiting (for log.write_lsn)
+@return  index of the slot (integer in range 0 .. log.write_events_size-1) */
+static inline size_t log_compute_write_event_slot(const log_t &log, lsn_t lsn) {
+  return (log_compute_wait_event_slot(lsn, log.write_events_size));
+}
+
+/** Computes index of a slot (in array of "wait events"), which should
+be used when waiting in log.flush_events (for redo flushed up to lsn).
+@param[in]  log  redo log
+@param[in]  lsn  lsn up to which waiting (for log.flushed_to_disk_lsn)
+@return  index of the slot (integer in range 0 .. log.flush_events_size-1) */
+static inline size_t log_compute_flush_event_slot(const log_t &log, lsn_t lsn) {
+  return (log_compute_wait_event_slot(lsn, log.flush_events_size));
+}
+
 /** Computes maximum number of spin rounds which should be used when waiting
 in user thread (for written or flushed redo) or 0 if busy waiting should not
 be used at all.
@@ -799,8 +842,7 @@ static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn) {
     return (false);
   };
 
-  size_t slot =
-      (lsn - 1) / OS_FILE_LOG_BLOCK_SIZE & (log.write_events_size - 1);
+  const size_t slot = log_compute_write_event_slot(log, lsn);
 
   const auto wait_stats =
       os_event_wait_for(log.write_events[slot], max_spins,
@@ -847,8 +889,7 @@ static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn) {
     return (false);
   };
 
-  size_t slot =
-      (lsn - 1) / OS_FILE_LOG_BLOCK_SIZE & (log.flush_events_size - 1);
+  const size_t slot = log_compute_flush_event_slot(log, lsn);
 
   const auto wait_stats =
       os_event_wait_for(log.flush_events[slot], max_spins,
@@ -1450,10 +1491,6 @@ static inline void write_blocks(log_t &log, byte *write_buf, size_t write_size,
   ut_a(err == DB_SUCCESS);
 }
 
-static inline size_t compute_write_event_slot(const log_t &log, lsn_t lsn) {
-  return ((lsn / OS_FILE_LOG_BLOCK_SIZE) & (log.write_events_size - 1));
-}
-
 static inline void notify_about_advanced_write_lsn(log_t &log,
                                                    lsn_t old_write_lsn,
                                                    lsn_t new_write_lsn) {
@@ -1461,9 +1498,9 @@ static inline void notify_about_advanced_write_lsn(log_t &log,
     os_event_set(log.flusher_event);
   }
 
-  const auto first_slot = compute_write_event_slot(log, old_write_lsn);
+  const auto first_slot = log_compute_write_event_slot(log, old_write_lsn + 1);
 
-  const auto last_slot = compute_write_event_slot(log, new_write_lsn);
+  const auto last_slot = log_compute_write_event_slot(log, new_write_lsn);
 
   if (first_slot == last_slot) {
     LOG_SYNC_POINT("log_write_before_users_notify");
@@ -2147,11 +2184,9 @@ static void log_flush_low(log_t &log) {
 
   DBUG_PRINT("ib_log", ("Flushed to disk up to " LSN_PF, flush_up_to_lsn));
 
-  const auto first_slot =
-      last_flush_lsn / OS_FILE_LOG_BLOCK_SIZE & (log.flush_events_size - 1);
+  const auto first_slot = log_compute_flush_event_slot(log, last_flush_lsn + 1);
 
-  const auto last_slot = (flush_up_to_lsn - 1) / OS_FILE_LOG_BLOCK_SIZE &
-                         (log.flush_events_size - 1);
+  const auto last_slot = log_compute_flush_event_slot(log, flush_up_to_lsn);
 
   if (first_slot == last_slot) {
     LOG_SYNC_POINT("log_flush_before_users_notify");
@@ -2360,8 +2395,7 @@ void log_write_notifier(log_t *log_ptr) {
         ut_uint64_align_up(write_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
     while (lsn <= notified_up_to_lsn) {
-      const auto slot =
-          (lsn - 1) / OS_FILE_LOG_BLOCK_SIZE & (log.write_events_size - 1);
+      const auto slot = log_compute_write_event_slot(log, lsn);
 
       lsn += OS_FILE_LOG_BLOCK_SIZE;
 
@@ -2460,8 +2494,7 @@ void log_flush_notifier(log_t *log_ptr) {
         ut_uint64_align_up(flush_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
     while (lsn <= notified_up_to_lsn) {
-      const auto slot =
-          (lsn - 1) / OS_FILE_LOG_BLOCK_SIZE & (log.flush_events_size - 1);
+      const auto slot = log_compute_flush_event_slot(log, lsn);
 
       lsn += OS_FILE_LOG_BLOCK_SIZE;
 
