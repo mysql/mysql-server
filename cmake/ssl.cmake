@@ -494,6 +494,10 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
         COMMAND ${CMAKE_COMMAND} -E create_symlink
           "../lib/${OPENSSL_VERSION}" "${OPENSSL_VERSION}"
         WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
+
+        BYPRODUCTS
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/${CRYPTO_VERSION}"
+        "${CMAKE_BINARY_DIR}/plugin_output_directory/${OPENSSL_VERSION}"
         )
       # Create symlinks for plugins built with Xcode
       IF(NOT BUILD_IS_SINGLE_CONFIG)
@@ -504,6 +508,10 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
           "../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}" "${OPENSSL_VERSION}"
           WORKING_DIRECTORY
           "${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}"
+
+          BYPRODUCTS
+          "${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
+          "${CMAKE_BINARY_DIR}/plugin_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
         )
       ENDIF()
 
