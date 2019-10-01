@@ -345,36 +345,6 @@ ENDIF()
 
 # Install layout for router, follows the same pattern as above.
 #
-# Supported layouts here are STANDALONE, RPM, DEB, SVR4, TARGZ
-
-# Variables ROUTER_INSTALL_${X}DIR, where
-#  X = BIN, LIB and DOC is using
-# inheritance from correspondig server variable.
-# While, when
-#  X = CONFIG, DATA, LOG and RUNTIME
-# default value is set by install layouts below.
-# finally, when
-#  X = plugin
-# ROUTER_INSTALL_LIBDIR/mysqlrouter is used by default.
-
-# Relative to CMAKE_INSTALL_PREFIX or absolute
-IF("${ROUTER_INSTALL_BINDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_BINDIR "${INSTALL_BINDIR}")
-ENDIF()
-
-# If router libdir not set, use MySQL libdir (for libharness and libmysqlrouter)
-IF("${ROUTER_INSTALL_LIBDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_LIBDIR "${INSTALL_LIBDIR}")
-ENDIF()
-
-# If router plugindir not set, use $router_install_libdir[/mysqlrouter]
-IF("${ROUTER_INSTALL_PLUGINDIR}" STREQUAL "")
-  IF(WIN32)
-    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}")
-  ELSE()
-    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
-  ENDIF()
-ENDIF()
 
 IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")
   SET(ROUTER_INSTALL_DOCDIR "${INSTALL_DOCDIR}")
@@ -389,8 +359,7 @@ SET(ROUTER_INSTALL_LAYOUT "${DEFAULT_ROUTER_INSTALL_LAYOUT}"
   STRING
   "Installation directory layout. Options are: STANDALONE RPM DEB SVR4 TARGZ")
 
-# If are _pure_ STANDALONE we can write into data/ as it is all ours
-# if we are shared STANDALONE with the the server, we shouldn't write
+# If we are shared STANDALONE with the the server, we shouldn't write
 # into the server's data/ as that would create a "schemadir" in
 # mysql-servers sense
 #
@@ -400,6 +369,34 @@ SET(ROUTER_INSTALL_CONFIGDIR_STANDALONE  ".")
 SET(ROUTER_INSTALL_DATADIR_STANDALONE    "var/lib/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_STANDALONE     ".")
 SET(ROUTER_INSTALL_RUNTIMEDIR_STANDALONE "run")
+
+SET(ROUTER_INSTALL_BINDIR_STANDALONE      "bin")
+IF(LINUX)
+  SET(ROUTER_INSTALL_LIBDIR_STANDALONE    "lib/mysqlrouter/private")
+ELSE()
+  SET(ROUTER_INSTALL_LIBDIR_STANDALONE    "lib")
+ENDIF()
+IF(WIN32)
+  SET(ROUTER_INSTALL_PLUGINDIR_STANDALONE "lib")
+ELSE()
+  SET(ROUTER_INSTALL_PLUGINDIR_STANDALONE "lib/mysqlrouter")
+ENDIF()
+
+#
+# TARGZ layout
+#
+FOREACH(var
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    )
+  SET(ROUTER_INSTALL_${var}DIR_TARGZ ${ROUTER_INSTALL_${var}DIR_STANDALONE})
+ENDFOREACH()
+
 #
 # RPM layout
 #
@@ -411,6 +408,16 @@ IF (LINUX_FEDORA)
 ELSE()
   SET(ROUTER_INSTALL_RUNTIMEDIR_RPM "/var/run/mysqlrouter")
 ENDIF()
+
+SET(ROUTER_INSTALL_BINDIR_RPM     "bin")
+IF(CMAKE_SYSTEM_PROCESSOR IN_LIST KNOWN_64BIT_ARCHITECTURES)
+  SET(ROUTER_INSTALL_LIBDIR_RPM     "lib64/mysqlrouter/private")
+  SET(ROUTER_INSTALL_PLUGINDIR_RPM  "lib64/mysqlrouter")
+ELSE()
+  SET(ROUTER_INSTALL_LIBDIR_RPM     "lib/mysqlrouter/private")
+  SET(ROUTER_INSTALL_PLUGINDIR_RPM  "lib/mysqlrouter")
+ENDIF()
+
 #
 # DEB layout
 #
@@ -418,6 +425,25 @@ SET(ROUTER_INSTALL_CONFIGDIR_DEB  "/etc/mysqlrouter")
 SET(ROUTER_INSTALL_DATADIR_DEB    "/var/run/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_DEB     "/var/log/mysqlrouter")
 SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/var/run/mysqlrouter")
+
+SET(ROUTER_INSTALL_BINDIR_DEB     "bin")
+SET(ROUTER_INSTALL_LIBDIR_DEB     "lib/mysqlrouter/private")
+SET(ROUTER_INSTALL_PLUGINDIR_DEB  "lib/mysqlrouter/plugin")
+
+#
+# SVR4 layout
+#
+FOREACH(var
+    CONFIG
+    DATA
+    LOG
+    RUNTIME
+    BIN
+    LIB
+    PLUGIN
+    )
+  SET(ROUTER_INSTALL_${var}DIR_SVR4 ${ROUTER_INSTALL_${var}DIR_STANDALONE})
+ENDFOREACH()
 
 # Set ROUTER_INSTALL_FOODIR variables for chosen layout for example,
 # ROUTER_INSTALL_CONFIGDIR will be defined as
@@ -428,6 +454,9 @@ FOREACH(directory
     DATA
     LOG
     RUNTIME
+    BIN
+    LIB
+    PLUGIN
     )
   SET(ROUTER_INSTALL_${directory}DIR
     ${ROUTER_INSTALL_${directory}DIR_${ROUTER_INSTALL_LAYOUT}}

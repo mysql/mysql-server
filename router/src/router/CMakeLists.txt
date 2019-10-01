@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,16 +34,8 @@ IF(ROUTER_INSTALL_DOCDIR)
 ENDIF()
 
 
-# don't install headers until a) a final destination is found and b) API is stable
-#
-# FILE(GLOB router_headers include/mysqlrouter/*.h)
-# INSTALL(FILES ${router_headers}
-#   DESTINATION "include/mysql/${HARNESS_NAME}")
-
 # Install logging, runtime, config and data folders
-IF(INSTALL_LAYOUT STREQUAL "DEFAULT" OR INSTALL_LAYOUT STREQUAL "STANDALONE")
-  # if we are part of the mysql-server tree, LOGDIR, CONFIGDIR, ... won't be set
-  # provide reasonable defaults
+IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
   FOREACH(_dirvar LOGDIR RUNTIMEDIR CONFIGDIR DATADIR)
     SET(_dir ${ROUTER_INSTALL_${_dirvar}})
     IF(NOT _dir)
@@ -53,9 +45,9 @@ IF(INSTALL_LAYOUT STREQUAL "DEFAULT" OR INSTALL_LAYOUT STREQUAL "STANDALONE")
     # create a empty directory in the install folder
     INSTALL(DIRECTORY DESTINATION "${_dir}"
       DIRECTORY_PERMISSIONS
-        OWNER_WRITE OWNER_READ OWNER_EXECUTE
-        GROUP_WRITE GROUP_READ GROUP_EXECUTE
-        WORLD_READ WORLD_EXECUTE
+      OWNER_WRITE OWNER_READ OWNER_EXECUTE
+      GROUP_WRITE GROUP_READ GROUP_EXECUTE
+      WORLD_READ WORLD_EXECUTE
       COMPONENT Router
       )
   ENDFOREACH()

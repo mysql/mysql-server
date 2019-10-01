@@ -24,9 +24,6 @@ usr/bin/mysqlrouter
 usr/bin/mysqlrouter_keyring
 usr/bin/mysqlrouter_plugin_info
 usr/bin/mysqlrouter_passwd
-usr/lib/*/libmysqlharness.so.1
-usr/lib/*/libmysqlrouter.so.1
-usr/lib/*/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/plugin/http_auth_backend.so
 usr/lib/mysqlrouter/plugin/http_auth_realm.so
 usr/lib/mysqlrouter/plugin/http_server.so
@@ -39,7 +36,10 @@ usr/lib/mysqlrouter/plugin/rest_router.so
 usr/lib/mysqlrouter/plugin/rest_routing.so
 usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 # private shared libraries
-usr/lib/mysqlrouter/plugin/libprotobuf-lite.so.3.6.1
+usr/lib/mysqlrouter/private/libprotobuf-lite.so.3.6.1
+usr/lib/mysqlrouter/private/libmysqlharness.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 
 usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
 usr/share/man/man1/mysqlrouter.1

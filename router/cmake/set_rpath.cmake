@@ -30,7 +30,11 @@ SET(CMAKE_INSTALL_RPATH)
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE"
     OR INSTALL_LAYOUT STREQUAL "SVR4")
   # rpath for lib/mysqlrouter/ plugins that want to find lib/
-  SET(RPATH_PLUGIN_TO_LIB "${RPATH_ORIGIN}/../")
+  IF(LINUX)
+    SET(RPATH_PLUGIN_TO_LIB "${RPATH_ORIGIN}/private")
+  ELSE()
+    SET(RPATH_PLUGIN_TO_LIB "${RPATH_ORIGIN}/../")
+  ENDIF()
   SET(RPATH_PLUGIN_TO_PLUGIN "${RPATH_ORIGIN}/")
   # rpath for lib/ libraries that want to find other libs in lib/
   SET(RPATH_LIBRARY_TO_LIB "${RPATH_ORIGIN}/")
