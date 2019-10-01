@@ -17,21 +17,27 @@ DefaultOperationRedoProblemAction=queue
 
 [cluster_config.mysqld.1.1]
 NodeId=14
+Dedicated=1
 
 [cluster_config.mysqld.2.1]
 NodeId=16
+Dedicated=1
 
 [cluster_config.mysqld.3.1]
 NodeId=18
+Dedicated=1
 
 [cluster_config.mysqld.4.1]
 NodeId=20
+Dedicated=1
 
 [cluster_config.ndbapi.1.1]
 NodeId=17
+Dedicated=1
 
 [cluster_config.ndbapi.2.1]
 NodeId=21
+Dedicated=1
 
 [mysqld]
 ndbcluster

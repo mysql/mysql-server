@@ -36,7 +36,12 @@ server-id= 3
 log-bin = sec-master-1
 skip-slave-start
 
+[cluster_config.mysqld.2.slave]
+NodeId=16
+Dedicated=1
+
 [mysqld.2.slave]
+ndb-cluster-connection-pool-nodeids=16,48,127
 server-id= 4
 log-bin = sec-master-2
 skip-slave-start

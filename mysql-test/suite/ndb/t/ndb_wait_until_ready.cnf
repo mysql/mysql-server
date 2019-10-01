@@ -18,9 +18,11 @@ Nodegroup=65536
 
 [cluster_config.mysqld.1.1]
 NodeId=6
+Dedicated=1
 
 [cluster_config.mysqld.2.1]
 NodeId=7
+Dedicated=1
 
 [mysqld.1.1]
 ndb-nodeid=6

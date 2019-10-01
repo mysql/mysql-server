@@ -7,8 +7,22 @@ mysqld=,
 [mysqld]
 ndb-cluster-connection-pool=1
 
+[mysqld.1.1]
+ndb-cluster-connection-pool-nodeids=49
+
+[mysqld.2.1]
+ndb-cluster-connection-pool-nodeids=16
+
+[mysqld.1.slave]
+ndb-cluster-connection-pool-nodeids=49
+
+[cluster_config.mysqld.2.slave]
+NodeId=16
+Dedicated=1
+
 # Note binlog on this slave, but not logging slave updates
 [mysqld.2.slave]
+ndb-cluster-connection-pool-nodeids=16
 ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 disable-log-bin
 ndb-log-bin=1

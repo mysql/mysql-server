@@ -30,7 +30,12 @@ ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
 log-slave-updates
 skip-slave-start
 
+[cluster_config.mysqld.2.slave]
+NodeId=16
+Dedicated=1
+
 [mysqld.2.slave]
+ndb-cluster-connection-pool-nodeids=16,48,127
 server-id= 4
 log-bin
 ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
