@@ -549,9 +549,9 @@ int initialize_plugin_and_join(
     gr_channel.set_channel_name("group_replication_recovery");
     gr_channel.purge_logs(false);
     gr_channel.initialize_channel(const_cast<char *>("<NULL>"), 0, NULL, NULL,
-                                  NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                                  NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false,
-                                  NULL, false, NULL, 0, NULL, NULL);
+                                  false, NULL, NULL, NULL, NULL, NULL, NULL,
+                                  NULL, false, DEFAULT_THREAD_PRIORITY, 1,
+                                  false, NULL, false, NULL, 0, NULL, NULL);
   }
 
   Sql_service_command_interface *sql_command_interface =
