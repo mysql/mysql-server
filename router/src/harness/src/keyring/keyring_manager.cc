@@ -183,8 +183,8 @@ void flush_keyring() {
   g_keyring->save(g_keyring_file_path, g_keyring_key);
 }
 
-Keyring *get_keyring() { return g_keyring.get(); }
+Keyring *get_keyring() noexcept { return g_keyring.get(); }
 
-void reset_keyring() { g_keyring.reset(); }
+void reset_keyring() noexcept { g_keyring.reset(); }
 
 }  // namespace mysql_harness

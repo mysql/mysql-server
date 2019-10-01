@@ -1,22 +1,10 @@
 var common_stmts = require("common_statements");
 
-if(mysqld.global.host_pattern_id === undefined){
-    mysqld.global.host_pattern_id = 0;
-}
-// we expect create and grant statements for users with those host patterns in that particular
-//order
-var host_patterns = ["'%'", "'host1'", "'host3%'"];
-
 ({
   stmts: function (stmt) {
     var res;
 
-    var options = {
-      innodb_cluster_name: "mycluster",
-      innodb_cluster_instances: [ ["localhost", 5500], ["localhost", 5510], ["localhost", 5520] ],
-      //  /2 because there are 2 grant on PFS statements and we increment host_pattern_id on each
-      user_host_pattern: host_patterns[Math.trunc(mysqld.global.host_pattern_id/2)],
-    };
+    var options = {};
 
     var common_responses = common_stmts.prepare_statement_responses([
       "router_select_schema_version",
@@ -37,8 +25,7 @@ var host_patterns = ["'%'", "'host1'", "'host3%'"];
       "router_select_hosts",
       "router_insert_into_hosts",
       "router_insert_into_routers",
-      "router_delete_old_accounts",
-      "router_create_user",
+      "router_create_user_if_not_exists",
       "router_grant_on_metadata_db",
       "router_update_routers_in_metadata",
     ], options);
@@ -47,6 +34,14 @@ var host_patterns = ["'%'", "'host1'", "'host3%'"];
       "router_grant_on_pfs_db",
     ], options);
 
+    var cu_regex = "CREATE USER IF NOT EXISTS "
+                 + "'mysql_router1_.*'@'.*' IDENTIFIED WITH mysql_native_password AS '.*',"
+                 + "'mysql_router1_.*'@'.*' IDENTIFIED WITH mysql_native_password AS '.*',"
+                 + "'mysql_router1_.*'@'.*' IDENTIFIED WITH mysql_native_password AS '.*'";
+
+    if (stmt.match(cu_regex)) {
+      return {"ok": {}};
+    }
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
     }
@@ -54,7 +49,6 @@ var host_patterns = ["'%'", "'host1'", "'host3%'"];
       return res;
     }
     else if ((res = common_stmts.handle_regex_stmt(stmt, router_grant_on_pfs_db)) !== undefined) {
-      mysqld.global.host_pattern_id++;
       return res;
     }
     else {

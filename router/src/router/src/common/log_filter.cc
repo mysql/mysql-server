@@ -25,10 +25,6 @@
 #include "mysqlrouter/log_filter.h"
 #include <stdexcept>
 
-#ifdef _WIN32
-#define USE_STD_REGEX
-#endif
-
 #include <algorithm>
 #include <iterator>
 #include <sstream>
@@ -37,128 +33,40 @@ namespace mysqlrouter {
 
 const char LogFilter::kFillCharacter = '*';
 
-namespace {
-#ifdef USE_STD_REGEX
-size_t get_result_size(size_t original_size, const std::smatch &matches,
-                       const std::vector<size_t> &group_index_vector) {
-  size_t hash_groups_size = 0;
-  for (size_t group_index : group_index_vector) {
-    hash_groups_size += matches[group_index].length();
-  }
-  return original_size - hash_groups_size +
-         group_index_vector.size() * LogFilter::kFillSize;
-}
-#else
-size_t get_result_size(size_t original_size, regmatch_t *matches,
-                       const std::vector<size_t> &group_index_vector) {
-  size_t replaced_text_size = 0;
-  for (size_t group_index : group_index_vector) {
-    replaced_text_size +=
-        (matches[group_index].rm_eo - matches[group_index].rm_so);
-  }
-
-  return original_size - replaced_text_size +
-         group_index_vector.size() * LogFilter::kFillSize;
-}
-#endif
-}  // namespace
-
-std::string LogFilter::filter(const std::string &statement) const {
-#ifdef USE_STD_REGEX
+std::string LogFilter::filter(std::string statement) const {
   for (const auto &each : patterns_) {
-    std::smatch matches;
-    if (std::regex_search(statement, matches, each.first)) {
-      const std::vector<size_t> &group_index_vector = each.second;
-      std::string result;
-      result.reserve(
-          get_result_size(statement.size(), matches, group_index_vector));
-      auto statement_iterator = statement.begin();
-      for (size_t group_index : group_index_vector) {
-        if (matches[group_index].matched) {
-          std::copy(statement_iterator, matches[group_index].first,
-                    std::back_inserter(result));
-          std::fill_n(std::back_inserter(result), LogFilter::kFillSize,
-                      LogFilter::kFillCharacter);
-          statement_iterator = matches[group_index].second;
-        } else {
-          // This should never happen
-          throw std::logic_error("regex group is NOT matched");
-        }
-      }
-      std::copy(statement_iterator, statement.end(),
-                std::back_inserter(result));
-      return result;
-    }
+    statement = std::regex_replace(statement, each.first, each.second);
   }
-#else
-  for (const auto &each : patterns_) {
-    int r_err;
-    constexpr size_t kMaxExpectedGroups = 5;
-    regmatch_t matches[kMaxExpectedGroups];
-    r_err = regexec(&each.first, statement.c_str(),
-                    sizeof(matches) / sizeof(matches[0]), matches, 0);
-    if (r_err == 0) {
-      const std::vector<size_t> &group_index_vector = each.second;
-      std::string result;
-      result.reserve(
-          get_result_size(statement.size(), matches, group_index_vector));
-      auto statement_iterator = statement.begin();
-      for (size_t group_index : group_index_vector) {
-        std::copy(statement_iterator,
-                  statement.begin() + matches[group_index].rm_so,
-                  std::back_inserter(result));
-        std::fill_n(std::back_inserter(result), LogFilter::kFillSize,
-                    LogFilter::kFillCharacter);
-        statement_iterator = statement.begin() + matches[group_index].rm_eo;
-      }
-      std::copy(statement_iterator, statement.end(),
-                std::back_inserter(result));
-      return result;
-    }
-  }
-#endif
   return statement;
 }
 
-void LogFilter::add_pattern(const std::string &pattern, size_t group_index) {
-  add_pattern(pattern, std::vector<size_t>(1, group_index));
-}
-
 void LogFilter::add_pattern(const std::string &pattern,
-                            const std::vector<size_t> &group_indices) {
-#ifdef USE_STD_REGEX
-  patterns_.push_back(std::make_pair(std::regex(pattern), group_indices));
-#else
-  regex_t compiled_pattern;
-  int r_err;
-  char r_errbuf[256];
-
-  r_err = regcomp(&compiled_pattern, pattern.c_str(), REG_EXTENDED);
-
-  if (r_err) {
-    regerror(r_err, NULL, r_errbuf, sizeof(r_errbuf));
-    throw std::runtime_error("Failed to compile pattern" +
-                             std::string(r_errbuf));
-  }
-  patterns_.push_back(
-      std::make_pair(std::move(compiled_pattern), group_indices));
-#endif
-}
-
-LogFilter::~LogFilter() {
-#ifndef USE_STD_REGEX
-  for (auto &each : patterns_) {
-    regfree(&(each.first));
-  }
-#endif
+                            const std::string &replacement) {
+  patterns_.push_back(std::make_pair(
+      std::regex(pattern, std::regex_constants::icase), replacement));
 }
 
 void SQLLogFilter::add_default_sql_patterns() {
-  add_pattern(
-      "^CREATE USER '([[:graph:]]+)' IDENTIFIED WITH mysql_native_password AS "
-      "([[:graph:]]*)",
-      2);
-  add_pattern("^CREATE USER '([[:graph:]]+)' IDENTIFIED BY ([[:graph:]]*)", 2);
+  // Add pattern for replacing passwords in 'CREATE USER [IF NOT EXISTS] ...'.
+  // Works for both mysql_native_password and plaintext authentication methods.
+  //
+  // Below example showcases mysql_native_password method; lines are wrapped
+  // for easier viewing (in real life they're a single line).
+  //
+  // clang-format off
+  // before:
+  //   CREATE USER IF NOT EXISTS
+  //     'some_user'@'h1' IDENTIFIED WITH mysql_native_password AS '*FF1D4A27A543DD464A5FFA210278E604979F781B',
+  //     'some_user'@'h2' IDENTIFIED WITH mysql_native_password AS '*FF1D4A27A543DD464A5FFA210278E604979F781B',
+  //     'some_user'@'h3' IDENTIFIED WITH mysql_native_password AS '*FF1D4A27A543DD464A5FFA210278E604979F781B'
+  // after:
+  //   CREATE USER IF NOT EXISTS
+  //     'some_user'@'h1' IDENTIFIED WITH mysql_native_password AS ***,
+  //     'some_user'@'h2' IDENTIFIED WITH mysql_native_password AS ***,
+  //     'some_user'@'h3' IDENTIFIED WITH mysql_native_password AS ***
+  // clang-format on
+  add_pattern("(IDENTIFIED\\s+(WITH\\s+[a-z_]+\\s+)?(BY|AS))\\s+'[^']*'",
+              "$1 ***");
 }
 
 }  // namespace mysqlrouter

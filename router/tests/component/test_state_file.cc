@@ -146,7 +146,8 @@ class StateFileTest : public RouterComponentTest {
   void check_state_file(const std::string &state_file,
                         const std::string &expected_gr_name,
                         const std::vector<std::string> expected_gr_nodes) {
-    const std::string state_file_content = get_file_output(state_file);
+    const std::string state_file_content =
+        get_file_output(state_file, true /*throw on error*/);
     JsonDocument json_doc;
     json_doc.Parse(state_file_content.c_str());
     constexpr const char *kExpectedVersion = "1.0.0";

@@ -34,6 +34,7 @@
 
 #include <mysql.h>
 
+#include "harness_assert.h"
 #include "mysqlrouter/mysql_client_thread_token.h"
 #define MYSQL_ROUTER_LOG_DOMAIN "sql"
 #include "mysql/harness/logging/logging.h"
@@ -68,6 +69,9 @@ using namespace mysqlrouter;
 /*static*/ const char MySQLSession::kSslModeVerifyCa[] = "VERIFY_CA";
 /*static*/ const char MySQLSession::kSslModeVerifyIdentity[] =
     "VERIFY_IDENTITY";
+
+/*static*/ const std::function<void(unsigned, MYSQL_FIELD *)>
+    MySQLSession::null_field_validator = [](unsigned, MYSQL_FIELD *) {};
 
 #ifdef MOCK_RECORDER
 #ifdef MOCK_RECORDER_JSON
@@ -310,8 +314,9 @@ class GoogleMockRecorder {
     outf_ << "  m.expect_query_one(\"" << q << "\");\n";
   }
 
-  void execute_done(uint64_t last_insert_id, uint64_t /* warning_count */) {
-    outf_ << "  m.then_ok(" << last_insert_id << ");\n";
+  void execute_done(uint64_t last_insert_id, uint64_t warning_count) {
+    outf_ << "  m.then_ok(" << last_insert_id << ", " << warning_count
+          << ");\n";
   }
 
   void result_error(const char *error, unsigned int code,
@@ -566,6 +571,10 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                       "' on connection failed: " + mysql_error(connection_);
     throw Error(msg.c_str(), mysql_errno(connection_));
   }
+
+  // archive options for future connection templating
+  conn_params_.ssl_opts = {ssl_mode, tls_version, ssl_cipher, ca,
+                           capath,   crl,         crlpath};
 }
 
 void MySQLSession::set_ssl_cert(const std::string &cert,
@@ -577,6 +586,9 @@ void MySQLSession::set_ssl_cert(const std::string &cert,
                     .c_str(),
                 mysql_errno(connection_));
   }
+
+  // archive options for future connection templating
+  conn_params_.ssl_cert = {cert, key};
 }
 
 void MySQLSession::connect(const std::string &host, unsigned int port,
@@ -620,6 +632,37 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
   }
   connected_ = true;
   connection_address_ = tmp_conn_addr;
+
+  // archive options for future connection templating
+  conn_params_.conn_opts = {
+      host,        port,           username,        password,
+      unix_socket, default_schema, connect_timeout, read_timeout};
+}
+
+void MySQLSession::connect_and_set_opts(
+    const ConnectionParameters &conn_params) {
+  // should only be used on fresh objects
+  // assert(!connected_);
+
+  // below methods can throw:
+  //   MySQLSession::Error (std::runtime_error)
+  //   std::invalid_argument (std::logic_error)
+
+  set_ssl_options(conn_params.ssl_opts.ssl_mode,
+                  conn_params.ssl_opts.tls_version,
+                  conn_params.ssl_opts.ssl_cipher, conn_params.ssl_opts.ca,
+                  conn_params.ssl_opts.capath, conn_params.ssl_opts.crl,
+                  conn_params.ssl_opts.crlpath);
+
+  if (!conn_params.ssl_cert.cert.empty() || !conn_params.ssl_cert.key.empty())
+    set_ssl_cert(conn_params.ssl_cert.cert, conn_params.ssl_cert.key);
+
+  connect(conn_params.conn_opts.host, conn_params.conn_opts.port,
+          conn_params.conn_opts.username, conn_params.conn_opts.password,
+          conn_params.conn_opts.unix_socket,
+          conn_params.conn_opts.default_schema,
+          conn_params.conn_opts.connect_timeout,
+          conn_params.conn_opts.read_timeout);
 }
 
 void MySQLSession::disconnect() {
@@ -643,12 +686,13 @@ void MySQLSession::execute(const std::string &q) {
     MOCK_REC_EXECUTE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
-      ss << "Error executing MySQL query";
-      ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
-         << ")";
+      ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+      ss << "\": " << mysql_error(connection_) << " ("
+         << mysql_errno(connection_) << ")";
       MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_),
                      mysql_sqlstate(connection_), *this);
-      throw Error(ss.str().c_str(), mysql_errno(connection_));
+      throw Error(ss.str().c_str(), mysql_errno(connection_),
+                  mysql_error(connection_));
     }
     MYSQL_RES *res = mysql_store_result(connection_);
     MOCK_REC_OK(mysql_insert_id(connection_), mysql_warning_count(connection_));
@@ -666,7 +710,9 @@ void MySQLSession::execute(const std::string &q) {
  */
 // throws MySQLSession::Error, std::logic_error, whatever processor() throws,
 // ...?
-void MySQLSession::query(const std::string &q, const RowProcessor &processor) {
+void MySQLSession::query(
+    const std::string &q, const RowProcessor &processor,
+    const FieldValidator &validator /*=null_field_validator*/) {
   log_debug("Executing query: %s", log_filter_.filter(q).c_str());
   std::shared_ptr<void> exit_guard(
       nullptr, [](void *) { log_debug("Done executing query"); });
@@ -674,17 +720,23 @@ void MySQLSession::query(const std::string &q, const RowProcessor &processor) {
     MOCK_REC_QUERY(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
-      ss << "Error executing MySQL query";
-      ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
-         << ")";
+      ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+      ss << "\": " << mysql_error(connection_) << " ("
+         << mysql_errno(connection_) << ")";
       MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_),
                      mysql_sqlstate(connection_), *this);
-      throw Error(ss.str().c_str(), mysql_errno(connection_));
+      throw Error(ss.str().c_str(), mysql_errno(connection_),
+                  mysql_error(connection_));
     }
     MYSQL_RES *res = mysql_store_result(connection_);
     if (res) {
+      // get column info and give it to field validator,
+      // which should throw if it doesn't like the columns
       unsigned int nfields = mysql_num_fields(res);
-      MOCK_REC_BEGIN(nfields, mysql_fetch_fields(res));
+      MYSQL_FIELD *fields = mysql_fetch_fields(res);
+      MOCK_REC_BEGIN(nfields, fields);
+      validator(nfields, fields);
+
       std::vector<const char *> outrow;
       outrow.resize(nfields);
       MYSQL_ROW row;
@@ -708,7 +760,8 @@ void MySQLSession::query(const std::string &q, const RowProcessor &processor) {
       ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
       MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_),
                      mysql_sqlstate(connection_), *this);
-      throw Error(ss.str().c_str(), mysql_errno(connection_));
+      throw Error(ss.str().c_str(), mysql_errno(connection_),
+                  mysql_error(connection_));
     }
   } else
     throw std::logic_error("Not connected");
@@ -726,24 +779,31 @@ class RealResultRow : public MySQLSession::ResultRow {
 };
 
 std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
-    const std::string &q) {
+    const std::string &q,
+    const FieldValidator &validator /*= null_field_validator*/) {
   if (connection_) {
     MOCK_REC_QUERY_ONE(q);
     if (mysql_real_query(connection_, q.data(), q.length()) != 0) {
       std::stringstream ss;
-      ss << "Error executing MySQL query";
-      ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
-         << ")";
+      ss << "Error executing MySQL query \"" << log_filter_.filter(q);
+      ss << "\": " << mysql_error(connection_) << " ("
+         << mysql_errno(connection_) << ")";
       MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_),
                      mysql_sqlstate(connection_), *this);
-      throw Error(ss.str().c_str(), mysql_errno(connection_));
+      throw Error(ss.str().c_str(), mysql_errno(connection_),
+                  mysql_error(connection_));
     }
     MYSQL_RES *res = mysql_store_result(connection_);
     if (res) {
+      // get column info and give it to field validator,
+      // which should throw if it doesn't like the columns
+      unsigned int nfields = mysql_num_fields(res);
+      MYSQL_FIELD *fields = mysql_fetch_fields(res);
+      MOCK_REC_BEGIN(nfields, fields);
+      validator(nfields, fields);
+
       std::vector<const char *> outrow;
       MYSQL_ROW row;
-      unsigned int nfields = mysql_num_fields(res);
-      MOCK_REC_BEGIN(nfields, mysql_fetch_fields(res));
       if ((row = mysql_fetch_row(res))) {
         MOCK_REC_ROW(row, *this);
         outrow.resize(nfields);
@@ -763,7 +823,8 @@ std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
       ss << mysql_error(connection_) << " (" << mysql_errno(connection_) << ")";
       MOCK_REC_ERROR(mysql_error(connection_), mysql_errno(connection_),
                      mysql_sqlstate(connection_), *this);
-      throw Error(ss.str().c_str(), mysql_errno(connection_));
+      throw Error(ss.str().c_str(), mysql_errno(connection_),
+                  mysql_error(connection_));
     }
   }
   throw Error("Not connected", 0);  // TODO: query() returns std::logic_error()
@@ -772,6 +833,10 @@ std::unique_ptr<MySQLSession::ResultRow> MySQLSession::query_one(
 
 uint64_t MySQLSession::last_insert_id() noexcept {
   return mysql_insert_id(connection_);
+}
+
+unsigned MySQLSession::warning_count() noexcept {
+  return mysql_warning_count(connection_);
 }
 
 std::string MySQLSession::quote(const std::string &s, char qchar) noexcept {

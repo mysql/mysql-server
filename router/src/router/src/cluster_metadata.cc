@@ -25,6 +25,7 @@
 #include "cluster_metadata.h"
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysqld_error.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/utils_sqlstring.h"
@@ -170,9 +171,9 @@ static bool check_metadata_is_supported(
  * ensure MySQL Server we are connected to valid for InnoDB Cluster operators
  *
  * @throws std::runtime_error
- * @throws MySQLSession::Error
- * @throws std::out_of_range
  * @throws std::logic_error
+ * @throws MySQLSession::Error(std::runtime_error)
+ * @throws std::out_of_range(std::logic_error)
  *
  * checks that the server
  *
@@ -239,10 +240,10 @@ void mysqlrouter::require_innodb_metadata_is_ok(MySQLSession *mysql) {
 /**
  * ensure MySQL Server we are connected to has Group Replication ready
  *
- * @throws MySQLSession::Error
  * @throws std::runtime_error
- * @throws std::out_of_range
  * @throws std::logic_error
+ * @throws MySQLSession::Error(std::runtime_error)
+ * @throws std::out_of_range(std::logic_error)
  *
  * check that the server we're bootstrapping from
  *
@@ -283,7 +284,7 @@ std::string mysqlrouter::get_group_replication_id(MySQLSession *mysql) {
   throw std::logic_error("No result returned for metadata query");
 }
 
-void MySQLInnoDBClusterMetadata::check_router_id(
+void MySQLInnoDBClusterMetadata::verify_router_id_is_ours(
     uint32_t router_id, const std::string &hostname_override) {
   // query metadata for this router_id
   sqlstring query(
@@ -293,6 +294,17 @@ void MySQLInnoDBClusterMetadata::check_router_id(
       "    ON r.host_id = h.host_id"
       " WHERE r.router_id = ?");
   query << router_id << sqlstring::end;
+
+  // example response if host_id related to given router_id exists
+  // clang-format off
+  //  +---------+---------------------------+
+  //  | host_id | host_name                 |
+  //  +---------+---------------------------+
+  //  |       2 | my-router-box.example.com |
+  //  +---------+---------------------------+
+  // clang-format on
+
+  // throws MySQLSession::Error(std::runtime_error)
   std::unique_ptr<MySQLSession::ResultRow> row(mysql_->query_one(query));
   if (!row) {
     // log_warning("router_id %u not in metadata", router_id);
@@ -307,6 +319,7 @@ void MySQLInnoDBClusterMetadata::check_router_id(
                              : hostname_override;
 
   if ((*row)[1] && strcasecmp((*row)[1], hostname.c_str()) == 0) {
+    // host_name matches our router_id, check passed
     return;
   }
   // log_warning("router_id %u maps to an instance at hostname %s, while this
@@ -382,7 +395,10 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
       //        hostname.c_str(), host_id);
     }
   }
+
   // now insert the router and get the router id
+  // NOTE: we INSERT without checking if it can be done.  If it's in the table
+  //       already, INSERT will throw
   query = sqlstring(
       "INSERT INTO mysql_innodb_cluster_metadata.routers"
       "        (host_id, router_name)"
@@ -391,9 +407,11 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
   // router_id);
   query << host_id << router_name << sqlstring::end;
   try {
+    // insert and return the router_id we just created
     mysql_->execute(query);
+    return static_cast<uint32_t>(mysql_->last_insert_id());
   } catch (const MySQLSession::Error &e) {
-    if (e.code() == 1062 && overwrite) {
+    if (e.code() == ER_DUP_ENTRY && overwrite) {
       // log_warning("Replacing instance %s (host_id %i) of router",
       //            router_name.c_str(), host_id);
       query = sqlstring(
@@ -407,5 +425,4 @@ uint32_t MySQLInnoDBClusterMetadata::register_router(
     }
     throw;
   }
-  return static_cast<uint32_t>(mysql_->last_insert_id());
 }

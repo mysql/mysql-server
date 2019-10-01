@@ -46,6 +46,7 @@ class MySQLSession {
   static const int kDefaultReadTimeout = 30;
   typedef std::vector<const char *> Row;
   typedef std::function<bool(const Row &)> RowProcessor;
+  typedef std::function<void(unsigned, MYSQL_FIELD *)> FieldValidator;
 
   // text representations of SSL modes
   static const char kSslModeDisabled[];
@@ -53,6 +54,35 @@ class MySQLSession {
   static const char kSslModeRequired[];
   static const char kSslModeVerifyCa[];
   static const char kSslModeVerifyIdentity[];
+
+  // this struct contains all parameters which would be needed if you wanted to
+  // create a new connection with same parameters (server address, options,
+  // etc)
+  struct ConnectionParameters {
+    struct SslOptions {
+      mysql_ssl_mode ssl_mode;
+      std::string tls_version;
+      std::string ssl_cipher;
+      std::string ca;
+      std::string capath;
+      std::string crl;
+      std::string crlpath;
+    } ssl_opts;
+    struct SslCert {
+      std::string cert;
+      std::string key;
+    } ssl_cert;
+    struct ConnOptions {
+      std::string host;
+      unsigned int port;
+      std::string username;
+      std::string password;
+      std::string unix_socket;
+      std::string default_schema;
+      int connect_timeout;
+      int read_timeout;
+    } conn_opts;
+  };
 
   class Transaction {
    public:
@@ -86,16 +116,24 @@ class MySQLSession {
 
   class Error : public std::runtime_error {
    public:
-    Error(const char *error, unsigned int code__)
-        : std::runtime_error(error), code_(code__) {}
+    // NOTE Not all calls to constructors provide the 3rd argument.  To save
+    //      time, only the code where it was needed atm was upgraded from 2 to
+    //      3 args; upgrade elsewhere if needed
 
-    Error(const std::string &error, unsigned int code__)
-        : std::runtime_error(error), code_(code__) {}
+    Error(const char *error, unsigned int code,
+          const std::string message = "<not set>")
+        : std::runtime_error(error), code_(code), message_(message) {}
+
+    Error(const std::string &error, unsigned int code,
+          const std::string &message = "<not set>")
+        : std::runtime_error(error), code_(code), message_(message) {}
 
     unsigned int code() const { return code_; }
+    std::string message() const { return message_; }
 
    private:
-    unsigned int code_;
+    const unsigned int code_;
+    const std::string message_;
   };
 
   class ResultRow {
@@ -116,12 +154,15 @@ class MySQLSession {
       std::string ssl_mode);  // throws std::logic_error
   static const char *ssl_mode_to_string(mysql_ssl_mode ssl_mode) noexcept;
 
+  // throws Error, std::invalid_argument
   virtual void set_ssl_options(mysql_ssl_mode ssl_mode,
                                const std::string &tls_version,
                                const std::string &ssl_cipher,
                                const std::string &ca, const std::string &capath,
                                const std::string &crl,
-                               const std::string &crlpath);  // throws Error
+                               const std::string &crlpath);
+
+  // throws Error
   virtual void set_ssl_cert(const std::string &cert, const std::string &key);
 
   virtual void connect(const std::string &host, unsigned int port,
@@ -132,15 +173,43 @@ class MySQLSession {
                        int read_timeout = kDefaultReadTimeout);  // throws Error
   virtual void disconnect();
 
+  /**
+   * This is an alternative way to initialise a new connection.  It calls
+   * connect() and several other methods under the hood.  Along with its
+   * counterpart `get_connection_parameters()`, it's useful for spawning
+   * new connections using an existing connection as a template.
+   *
+   * @param conn_params Connection parameters
+   *
+   * @see get_connection_parameters()
+   */
+  virtual void connect_and_set_opts(const ConnectionParameters &conn_params);
+
+  /**
+   * Returns connection parameters which could be used as a template for
+   * spawning new connections.
+   *
+   * @see connect_and_set_opts()
+   *
+   * @returns parameters used to create current connection
+   */
+  virtual ConnectionParameters get_connection_parameters() {
+    return conn_params_;
+  }
+
   virtual void execute(
       const std::string &query);  // throws Error, std::logic_error
   virtual void query(
+      const std::string &query, const RowProcessor &processor,
+      const FieldValidator &validator =
+          null_field_validator);  // throws Error, std::logic_error
+  virtual std::unique_ptr<MySQLSession::ResultRow> query_one(
       const std::string &query,
-      const RowProcessor &processor);  // throws Error, std::logic_error
-  virtual std::unique_ptr<ResultRow> query_one(
-      const std::string &query);  // throws Error
+      const FieldValidator &validator = null_field_validator);  // throws Error
 
   virtual uint64_t last_insert_id() noexcept;
+
+  virtual unsigned warning_count() noexcept;
 
   virtual std::string quote(const std::string &s, char qchar = '\'') noexcept;
 
@@ -150,7 +219,13 @@ class MySQLSession {
   virtual const char *last_error();
   virtual unsigned int last_errno();
 
+ protected:
+  static const std::function<void(unsigned, MYSQL_FIELD *)>
+      null_field_validator;
+
  private:
+  ConnectionParameters conn_params_;
+
   MYSQL *connection_;
   bool connected_;
   std::string connection_address_;

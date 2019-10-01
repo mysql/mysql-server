@@ -1,21 +1,18 @@
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
-
 var gr_members =
   gr_memberships.members(mysqld.global.gr_members);
 
 var options = {
-    innodb_cluster_name: mysqld.global.cluster_name,
-    replication_group_members:  gr_members,
-    innodb_cluster_instances: [ ["127.0.0.1", 13001], ["127.0.0.1", 13002], ["127.0.0.1", 13003] ]
+  innodb_cluster_name: mysqld.global.cluster_name,
+  replication_group_members:  gr_members,
+  innodb_cluster_instances: [ ["127.0.0.1", 13001], ["127.0.0.1", 13002], ["127.0.0.1", 13003] ],
+  innodb_cluster_hosts: [ [ 8, "dont.query.dns", null ]],
 };
 
 var common_responses = common_stmts.prepare_statement_responses([
   "router_select_schema_version",
-  "router_select_group_membership_with_primary_mode",
-  "router_select_group_replication_primary_member",
-  "router_select_metadata",
   "router_count_clusters_and_replicasets",
   "router_check_member_state",
   "router_select_members_count",
@@ -23,21 +20,17 @@ var common_responses = common_stmts.prepare_statement_responses([
   "router_show_cipher_status",
   "router_select_cluster_instances",
   "router_start_transaction",
-  "router_commit",
-  "router_replication_group_members",
 ], options);
+
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex([
   "router_select_hosts",
   "router_insert_into_hosts",
-  "router_create_user_if_not_exists",
-  "router_grant_on_metadata_db",
-  "router_grant_on_pfs_db",
-  "router_update_routers_in_metadata",
+  "router_insert_into_routers",
 ], options);
 
-var router_insert_into_routers =
-  common_stmts.get("router_insert_into_routers", options);
+var create_user_if_not_exists =
+  common_stmts.get("router_create_user_if_not_exists", options);
 
 ({
   stmts: function (stmt) {
@@ -47,12 +40,19 @@ var router_insert_into_routers =
     else if ((res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !== undefined) {
       return res;
     }
-    else if (stmt.match(router_insert_into_routers.stmt_regex)) {
+    else if (stmt.match(create_user_if_not_exists.stmt_regex)) {
       return {
-        error: {
-          code: 1290,
-          sql_state: "HY001",
-          message: "The MySQL server is running with the --super-read-only option so it cannot execute this statement"
+        ok: {
+          warning_count: 1  // induce "SHOW WARNINGS"
+        }
+      }
+    }
+    else if (stmt == "SHOW WARNINGS") {
+      return {
+        error: { // here we trigger failure (no failover should happen)
+            code: 1290, // doesn't make sense for RO command, but see comment in the test that uses it (in test_bootstrap.cc)
+            message: "The MySQL server is running with the --super-read-only option so it cannot execute this statement",
+            sql_state: "HY000"
         }
       }
     }

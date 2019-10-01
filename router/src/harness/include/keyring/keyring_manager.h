@@ -71,12 +71,12 @@ HARNESS_EXPORT void flush_keyring();
 /**
  * Gets a previously initialized singleton instance of the keyring
  */
-HARNESS_EXPORT Keyring *get_keyring();
+HARNESS_EXPORT Keyring *get_keyring() noexcept;
 
 /**
  * Clears the keyring singleton.
  */
-HARNESS_EXPORT void reset_keyring();
+HARNESS_EXPORT void reset_keyring() noexcept;
 }  // namespace mysql_harness
 
 #endif

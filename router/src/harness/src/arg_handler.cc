@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ void CmdArgHandler::process(const vector<string> &arguments) {
   rest_arguments_.clear();
 
   vector<std::pair<CmdOption::ActionFunc, string>> schedule;
-  vector<CmdOption::AtEndActionFunc> at_end_schedule;
+  vector<std::pair<CmdOption::AtEndActionFunc, string>> at_end_schedule;
 
   const auto args_end = arguments.end();
   for (auto part = arguments.begin(); part < args_end; ++part) {
@@ -194,18 +194,18 @@ void CmdArgHandler::process(const vector<string> &arguments) {
     // Execute actions after
     if (option.action != nullptr) {
       schedule.emplace_back(option.action, value);
-      at_end_schedule.push_back(option.at_end_action);
+      at_end_schedule.emplace_back(option.at_end_action, value);
     }
   }
 
   // Execute actions after processing
-  for (auto it : schedule) {
-    std::bind(it.first, it.second)();
+  for (const auto &pr : schedule) {
+    pr.first(pr.second);
   }
 
   // Execute at the end actions
-  for (auto at_end_action : at_end_schedule) {
-    at_end_action();
+  for (const auto &pr : at_end_schedule) {
+    pr.first(pr.second);
   }
 }
 

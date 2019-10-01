@@ -508,9 +508,11 @@ get_security_descriptor(const std::string &file_name);
 
 #ifndef _WIN32
 using perm_mode = mode_t;
+HARNESS_EXPORT
 extern const perm_mode kStrictDirectoryPerm;
 #else
 using perm_mode = int;
+HARNESS_EXPORT
 extern const perm_mode kStrictDirectoryPerm;
 #endif
 
