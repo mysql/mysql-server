@@ -2653,8 +2653,8 @@ static char **new_mysql_completion(const char *text, int start, int end);
 static int fake_magic_space(int, int);
 char *no_completion(const char *, int)
 #elif defined(USE_LIBEDIT_INTERFACE)
-static int fake_magic_space(const char *, int);
-int no_completion(const char *, int)
+static int fake_magic_space(int, int);
+char *no_completion(const char *, int)
 #else
 char *no_completion()
 #endif
@@ -2677,7 +2677,7 @@ static int not_in_history(const char *line) {
 #if defined(USE_NEW_EDITLINE_INTERFACE)
 static int fake_magic_space(int, int)
 #else
-static int fake_magic_space(const char *, int)
+static int fake_magic_space(int, int)
 #endif
 {
   rl_insert(1, ' ');
@@ -2690,16 +2690,15 @@ static void initialize_readline(char *name) {
 
   /* Tell the completer that we want a crack first. */
 #if defined(USE_NEW_EDITLINE_INTERFACE)
-  rl_attempted_completion_function =
-      (rl_completion_func_t *)&new_mysql_completion;
-  rl_completion_entry_function = (rl_compentry_func_t *)&no_completion;
+  rl_attempted_completion_function = &new_mysql_completion;
+  rl_completion_entry_function = &no_completion;
 
-  rl_add_defun("magic-space", (rl_command_func_t *)&fake_magic_space, -1);
+  rl_add_defun("magic-space", &fake_magic_space, -1);
 #elif defined(USE_LIBEDIT_INTERFACE)
   setlocale(LC_ALL, ""); /* so as libedit use isprint */
-  rl_attempted_completion_function = (CPPFunction *)&new_mysql_completion;
+  rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
-  rl_add_defun("magic-space", (Function *)&fake_magic_space, -1);
+  rl_add_defun("magic-space", &fake_magic_space, -1);
 #else
   rl_attempted_completion_function = (CPPFunction *)&new_mysql_completion;
   rl_completion_entry_function = &no_completion;
@@ -2720,7 +2719,7 @@ static char **new_mysql_completion(const char *text,
 #if defined(USE_NEW_EDITLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
-    return completion_matches(text, new_command_generator);
+    return completion_matches(const_cast<char *>(text), new_command_generator);
 #endif
   else
     return (char **)nullptr;

@@ -68,7 +68,6 @@
 #cmakedefine HAVE_SYS_PARAM_H 1
 #cmakedefine HAVE_FNMATCH_H 1
 #cmakedefine HAVE_SYS_UN_H 1
-#cmakedefine HAVE_VIS_H 1
 #cmakedefine HAVE_SASL_SASL_H 1
 
 /* Libevent */
@@ -266,7 +265,13 @@
 /*
  * Libedit
  */
-#cmakedefine HAVE_DECL_TGOTO 1
+#cmakedefine HAVE_GETLINE 1
+#cmakedefine HAVE___SECURE_GETENV 1
+#cmakedefine HAVE_SECURE_GETENV 1
+#cmakedefine HAVE_VIS
+#cmakedefine HAVE_UNVIS
+#cmakedefine HAVE_GETPW_R_DRAFT
+#cmakedefine HAVE_GETPW_R_POSIX
 
 /*
  * Character sets
