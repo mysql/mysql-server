@@ -23,7 +23,11 @@
 SET(METADATA_CACHE_SOURCES
   src/metadata_factory.cc
   src/cluster_metadata.cc
+  src/cluster_metadata_ar.cc
+  src/cluster_metadata_gr.cc
   src/metadata_cache.cc
+  src/metadata_cache_ar.cc
+  src/metadata_cache_gr.cc
   src/cache_api.cc
   src/group_replication_metadata.cc
   src/gr_notifications_listener.cc

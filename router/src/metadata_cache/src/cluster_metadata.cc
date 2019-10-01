@@ -26,17 +26,16 @@
 #include "dim.h"
 #include "group_replication_metadata.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
+#include "mysqlrouter/utils_sqlstring.h"
 #include "tcp_address.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
-#include <cassert>
 #include <chrono>
 #include <cstdlib>
 #include <sstream>
@@ -46,7 +45,9 @@
 #include <errmsg.h>
 #include <mysql.h>
 
+using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
+using mysqlrouter::sqlstring;
 using mysqlrouter::strtoi_checked;
 using mysqlrouter::strtoui_checked;
 IMPORT_LOG_FUNCTIONS()
@@ -70,28 +71,18 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
                                  const std::string &password,
                                  int connect_timeout, int read_timeout,
                                  int /*connection_attempts*/,
-                                 std::chrono::milliseconds ttl,
-                                 const mysqlrouter::SSLOptions &ssl_options,
-                                 const bool use_gr_notifications) {
-  this->ttl_ = ttl;
-  this->user_ = user;
-  this->password_ = password;
-  this->connect_timeout_ = connect_timeout;
-  this->read_timeout_ = read_timeout;
-#if 0  // not used so far
-  this->metadata_uuid_ = "";
-  this->message_ = "";
-  this->connection_attempts_ = connection_attempts;
-  this->reconnect_tries_ = 0;
-#endif
-
+                                 const mysqlrouter::SSLOptions &ssl_options)
+    : user_(user),
+      password_(password),
+      connect_timeout_(connect_timeout),
+      read_timeout_(read_timeout) {
   if (ssl_options.mode.empty()) {
     ssl_mode_ = SSL_MODE_PREFERRED;  // default mode
   } else {
     try {
       ssl_mode_ = MySQLSession::parse_ssl_mode(ssl_options.mode);
       log_info("Connections using ssl_mode '%s'", ssl_options.mode.c_str());
-    } catch (const std::logic_error &e) {
+    } catch (const std::logic_error &) {
       throw metadata_cache::metadata_error(
           "Error initializing metadata cache: invalid configuration item "
           "'ssl_mode=" +
@@ -99,11 +90,6 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
     }
   }
   ssl_options_ = ssl_options;
-
-  if (use_gr_notifications) {
-    gr_notifications_listener_.reset(
-        new GRNotificationListener(user, password));
-  }
 }
 
 /** @brief Destructor
@@ -125,7 +111,7 @@ bool ClusterMetadata::do_connect(MySQLSession &connection,
                        password_, "" /* unix-socket */, "" /* default-schema */,
                        connect_timeout_, read_timeout_);
     return true;
-  } catch (const MySQLSession::Error &e) {
+  } catch (const MySQLSession::Error & /*e*/) {
     return false;  // error is logged in calling function
   }
 }
@@ -158,449 +144,150 @@ bool ClusterMetadata::connect(
   return false;
 }
 
-void ClusterMetadata::update_replicaset_status(
-    const std::string &name,
-    metadata_cache::ManagedReplicaSet
-        &replicaset) {  // throws metadata_cache::metadata_error
+mysqlrouter::MetadataSchemaVersion
+ClusterMetadata::get_and_check_metadata_schema_version(
+    mysqlrouter::MySQLSession &session) {
+  const auto kReqBootstrapVer = mysqlrouter::kRequiredBootstrapSchemaVersion;
+  const auto kReqRoutingVer =
+      mysqlrouter::kRequiredRoutingMetadataSchemaVersion;
 
-  log_debug("Updating replicaset status from GR for '%s'", name.c_str());
+  const auto version = mysqlrouter::get_metadata_schema_version(&session);
 
-  // iterate over all cadidate nodes until we find the node that is part of
-  // quorum
-  bool found_quorum = false;
-  std::shared_ptr<MySQLSession> gr_member_connection;
-  for (const metadata_cache::ManagedInstance &mi : replicaset.members) {
-    std::string mi_addr = (mi.host == "localhost" ? "127.0.0.1" : mi.host) +
-                          ":" + std::to_string(mi.port);
-
-    // this function could test these in an if() instead of assert(),
-    // but so far the logic that calls this function ensures this
-    assert(metadata_connection_->is_connected());
-
-    // connect to node
-    if (mi_addr ==
-        metadata_connection_->get_address()) {  // optimisation: if node is the
-                                                // same as metadata server,
-      gr_member_connection =
-          metadata_connection_;  //               share the established
-                                 //               connection
-    } else {
-      try {
-        gr_member_connection =
-            mysql_harness::DIM::instance().new_MySQLSession();
-      } catch (const std::logic_error &e) {
-        // defensive programming, shouldn't really happen. If it does, there's
-        // nothing we can do really, we give up
-        log_error(
-            "While updating metadata, could not initialise MySQL connetion "
-            "structure");
-        throw metadata_cache::metadata_error(e.what());
-      }
-
-      if (!do_connect(*gr_member_connection, mi)) {
-        log_warning(
-            "While updating metadata, could not establish a connection to "
-            "replicaset '%s' through %s",
-            name.c_str(), mi_addr.c_str());
-        continue;  // server down, next!
-      }
-    }
-
-    assert(gr_member_connection->is_connected());
-    log_debug("Connected to replicaset '%s' through %s", name.c_str(),
-              mi_addr.c_str());
-
-    try {
-      bool single_primary_mode = true;
-
-      // this node's perspective: give status of all nodes you see
-      std::map<std::string, GroupReplicationMember> member_status =
-          fetch_group_replication_members(
-              *gr_member_connection,
-              single_primary_mode);  // throws metadata_cache::metadata_error
-      log_debug(
-          "Replicaset '%s' has %lu members in metadata, %lu in status table",
-          name.c_str(), static_cast<unsigned long>(replicaset.members.size()),
-          static_cast<unsigned long>(
-              member_status.size()));  // 32bit Linux requires cast
-
-      // check status of all nodes; updates instances
-      // ------------------vvvvvvvvvvvvvvvvvv
-      metadata_cache::ReplicasetStatus status =
-          check_replicaset_status(replicaset.members, member_status);
-      switch (status) {
-        case metadata_cache::ReplicasetStatus::AvailableWritable:  // we have
-                                                                   // quorum,
-                                                                   // good!
-          found_quorum = true;
-          break;
-        case metadata_cache::ReplicasetStatus::AvailableReadOnly:  // have
-                                                                   // quorum,
-                                                                   // but only
-                                                                   // RO
-          found_quorum = true;
-          break;
-        case metadata_cache::ReplicasetStatus::
-            UnavailableRecovering:  // have quorum, but only with recovering
-                                    // nodes (cornercase)
-          log_warning(
-              "quorum for replicaset '%s' consists only of recovering nodes!",
-              name.c_str());
-          found_quorum = true;  // no point in futher search
-          break;
-        case metadata_cache::ReplicasetStatus::Unavailable:  // we have nothing
-          log_warning("%s is not part of quorum for replicaset '%s'",
-                      mi_addr.c_str(), name.c_str());
-          continue;  // this server is no good, next!
-      }
-
-      if (found_quorum) {
-        replicaset.single_primary_mode = single_primary_mode;
-        break;  // break out of the member iteration loop
-      }
-
-    } catch (const metadata_cache::metadata_error &e) {
-      log_warning(
-          "Unable to fetch live group_replication member data from %s from "
-          "replicaset '%s': %s",
-          mi_addr.c_str(), name.c_str(), e.what());
-      continue;  // faulty server, next!
-    } catch (...) {
-      assert(0);  // unexpected exception
-      log_warning(
-          "Unable to fetch live group_replication member data from %s from "
-          "replicaset '%s'",
-          mi_addr.c_str(), name.c_str());
-      continue;  // faulty server, next!
-    }
-
-  }  // for (const metadata_cache::ManagedInstance& mi : instances)
-  log_debug("End updating replicaset for '%s'", name.c_str());
-
-  if (!found_quorum) {
-    std::string msg(
-        "Unable to fetch live group_replication member data from any server in "
-        "replicaset '");
-    msg += name + "'";
-    log_error("%s", msg.c_str());
-
-    // if we don't have a quorum, we want to give "nothing" to the Routing
-    // plugin, so it doesn't route anything. Routing plugin is dumb, it has no
-    // idea what a quorum is, etc.
-    replicaset.members.clear();
-  }
-}
-
-metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
-    std::vector<metadata_cache::ManagedInstance> &instances,
-    const std::map<std::string, GroupReplicationMember> &member_status) const
-    noexcept {
-  // In ideal world, the best way to write this function would be to completely
-  // ignore nodes in `instances` and operate on information from `member_status`
-  // only. However, there is one problem: the host:port information contained
-  // there may not be accurate (localhost vs external addressing issues), and we
-  // are forced to use the host:port from `instances` instead. This leads to
-  // nasty corner-cases if inconsistencies exist between the two sets, however.
-
-  // Therefore, this code will work well only under one assumption:
-  // All nodes in `member_status` are present in `instances`. This assumption
-  // should hold unless a user "manually" adds new nodes to the replicaset
-  // without adding them to metadata (and the user is not allowed to do that).
-
-  // Detect violation of above assumption (alarm if there's a node in
-  // `member_status` not present in `instances`). It's O(n*m), but the CPU time
-  // is negligible while keeping code simple.
-  for (const auto &status_node : member_status) {
-    using MI = metadata_cache::ManagedInstance;
-    auto found = std::find_if(instances.begin(), instances.end(),
-                              [&status_node](const MI &metadata_node) {
-                                return status_node.first ==
-                                       metadata_node.mysql_server_uuid;
-                              });
-    if (found == instances.end()) {
-      log_error(
-          "Member %s:%d (%s) found in replicaset, yet is not defined in "
-          "metadata!",
-          status_node.second.host.c_str(), status_node.second.port,
-          status_node.first.c_str());
-    }
+  if (version == mysqlrouter::kUpdateInProgressMetadataVersion) {
+    throw mysqlrouter::UpdateInProgressException();
   }
 
-  using metadata_cache::ReplicasetStatus;
-  using metadata_cache::ServerMode;
-  using GR_State = GroupReplicationMember::State;
-  using GR_Role = GroupReplicationMember::Role;
-
-  // we do two things here:
-  // 1. for all `instances`, set .mode according to corresponding .status found
-  // in `member_status`
-  // 2. count nodes which are part of quorum (online/recovering nodes)
-  unsigned int quorum_count = 0;
-  bool have_primary_instance = false;
-  bool have_secondary_instance = false;
-  for (auto &member : instances) {
-    auto status = member_status.find(member.mysql_server_uuid);
-    if (status != member_status.end()) {
-      switch (status->second.state) {
-        case GR_State::Online:
-          switch (status->second.role) {
-            case GR_Role::Primary:
-              have_primary_instance = true;
-              member.mode = ServerMode::ReadWrite;
-              quorum_count++;
-              break;
-            case GR_Role::Secondary:
-              have_secondary_instance = true;
-              member.mode = ServerMode::ReadOnly;
-              quorum_count++;
-              break;
-          }
-          break;
-        case GR_State::Recovering:
-        case GR_State::Unreachable:
-        case GR_State::Offline:  // online node with disabled GR maps to this
-        case GR_State::Error:
-        case GR_State::Other:
-          // This could be done with a fallthrough but latest gcc (7.1)
-          // generates a warning for that and there is no sane and portable way
-          // to suppress it.
-          if (GR_State::Recovering == status->second.state) quorum_count++;
-          member.mode = ServerMode::Unavailable;
-          break;
-      }
-    } else {
-      member.mode = ServerMode::Unavailable;
-      log_warning(
-          "Member %s:%d (%s) defined in metadata not found in actual "
-          "replicaset",
-          member.host.c_str(), member.port, member.mysql_server_uuid.c_str());
-    }
-  }
-
-  // quorum_count is based on nodes from `instances` instead of `member_status`.
-  // This is okay, because all nodes in `member_status` are present in
-  // `instances` (our assumption described at the top)
-  bool have_quorum = (quorum_count > member_status.size() / 2);
-
-  // if we don't have quorum, we don't allow any access. Some configurations
-  // might allow RO access in this case, but we don't support it at the momemnt
-  if (!have_quorum) return ReplicasetStatus::Unavailable;
-
-  // if we have quorum but no primary/secondary instances, it means the quorum
-  // is composed purely of recovering nodes (this is an unlikey cornercase)
-  if (!(have_primary_instance || have_secondary_instance))
-    return ReplicasetStatus::UnavailableRecovering;
-
-  // if primary node was not elected yet, we can only allow reads (typically
-  // this is a temporary state shortly after a node failure, but could also be
-  // more permanent)
-  return have_primary_instance
-             ? ReplicasetStatus::AvailableWritable   // typical case
-             : ReplicasetStatus::AvailableReadOnly;  // primary not elected yet
-}
-
-// throws metadata_cache::metadata_error
-ClusterMetadata::ReplicaSetsByName ClusterMetadata::fetch_instances(
-    const std::string &cluster_name, const std::string &group_replication_id) {
-  log_debug("Updating metadata information for cluster '%s'",
-            cluster_name.c_str());
-
-  assert(metadata_connection_->is_connected());
-
-  // fetch existing replicasets in the cluster from the metadata server (this is
-  // the topology that was configured, it will be compared later against current
-  // topology reported by (a server in) replicaset)
-  ReplicaSetsByName replicasets(fetch_instances_from_metadata_server(
-      cluster_name,
-      group_replication_id));  // throws metadata_cache::metadata_error
-  if (replicasets.empty())
-    log_warning("No replicasets defined for cluster '%s'",
-                cluster_name.c_str());
-
-  // now connect to each replicaset and query it for the list and status of its
-  // members. (more precisely, foreach replicaset: search and connect to a
-  // member which is part of quorum to retrieve this data)
-  for (auto &&rs : replicasets) {
-    update_replicaset_status(
-        rs.first, rs.second);  // throws metadata_cache::metadata_error
-  }
-
-  return replicasets;
-}
-
-// throws metadata_cache::metadata_error
-ClusterMetadata::ReplicaSetsByName
-ClusterMetadata::fetch_instances_from_metadata_server(
-    const std::string &cluster_name, const std::string &group_replication_id) {
-  mysqlrouter::MetadataSchemaVersion expected_version =
-      mysqlrouter::required_metadata_schema_version;
-
-  auto metadata_schema_version =
-      mysqlrouter::get_metadata_schema_version(metadata_connection_.get());
-
-  if (!metadata_schema_version_is_compatible(expected_version,
-                                             metadata_schema_version)) {
+  if (!metadata_schema_version_is_compatible(kReqRoutingVer, version) &&
+      !metadata_schema_version_is_compatible(kReqBootstrapVer, version)) {
     throw metadata_cache::metadata_error(mysqlrouter::string_format(
         "Unsupported metadata schema on %s. Expected Metadata Schema version "
-        "compatible to %u.%u.%u, got %u.%u.%u",
-        metadata_connection_->get_address().c_str(), expected_version.major,
-        expected_version.minor, expected_version.patch,
-        metadata_schema_version.major, metadata_schema_version.minor,
-        metadata_schema_version.patch));
+        "compatible to %u.%u.%u or %u.%u.%u, got %u.%u.%u",
+        session.get_address().c_str(), kReqRoutingVer.major,
+        kReqRoutingVer.minor, kReqRoutingVer.patch, kReqBootstrapVer.major,
+        kReqBootstrapVer.minor, kReqBootstrapVer.patch, version.major,
+        version.minor, version.patch));
   }
 
-  // If we have group replication id we also want to limit the results only for
-  // that group replication. For backward compatibility we need to check if it
-  // is not empty, we didn't store that information before introducing dynamic
-  // state file.
-  std::string limit_group_replication;
-  if (!group_replication_id.empty()) {
-    limit_group_replication =
-        " AND R.attributes->>'$.group_replication_group_name' = " +
-        metadata_connection_->quote(group_replication_id);
-  }
+  return version;
+}
 
-  // Get expected topology (what was configured) from metadata server. This will
-  // later be compared against current topology (what exists NOW) obtained from
-  // one of the nodes belonging to a quorum. Note that this topology will also
-  // be successfully returned when a particular metadata server is not part of
-  // GR, as serving metadata and being part of replicaset are two orthogonal
-  // ideas.
-  std::string query(
-      "SELECT "
-      "R.replicaset_name, "
-      "I.mysql_server_uuid, "
-      "I.role, "
-      "I.weight, "
-      "I.version_token, "
-      "I.addresses->>'$.mysqlClassic', "
-      "I.addresses->>'$.mysqlX' "
-      "FROM "
-      "mysql_innodb_cluster_metadata.clusters AS F "
-      "JOIN mysql_innodb_cluster_metadata.replicasets AS R "
-      "ON F.cluster_id = R.cluster_id "
-      "JOIN mysql_innodb_cluster_metadata.instances AS I "
-      "ON R.replicaset_id = I.replicaset_id "
-      "WHERE F.cluster_name = " +
-      metadata_connection_->quote(cluster_name) + limit_group_replication +
-      ";");
-
-  // example response
-  // clang-format off
-  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
-  // | replicaset_name | mysql_server_uuid                    | role | weight | version_token | I.addresses->>'$.mysqlClassic' | I.addresses->>'$.mysqlX' |
-  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
-  // | default         | 30ec658e-861d-11e6-9988-08002741aeb6 | HA   | NULL   | NULL          | localhost:3310                 | NULL                     |
-  // | default         | 3acfe4ca-861d-11e6-9e56-08002741aeb6 | HA   | NULL   | NULL          | localhost:3320                 | NULL                     |
-  // | default         | 4c08b4a2-861d-11e6-a256-08002741aeb6 | HA   | NULL   | NULL          | localhost:3330                 | NULL                     |
-  // +-----------------+--------------------------------------+------+--------+---------------+--------------------------------+--------------------------+
-  // clang-format on
-  //
-  // The following instance map stores a list of servers mapped to every
-  // replicaset name.
-  // {
-  //   {replicaset_1:[host1:port1, host2:port2, host3:port3]},
-  //   {replicaset_2:[host4:port4, host5:port5, host6:port6]},
-  //   ...
-  //   {replicaset_n:[hostj:portj, hostk:portk, hostl:portl]}
-  // }
-  ReplicaSetsByName replicaset_map;
-
-  // Deserialize the resultset into a map that stores a list of server
-  // instance objects mapped to each replicaset.
-  auto result_processor =
-      [&replicaset_map](const MySQLSession::Row &row) -> bool {
-    if (row.size() != 7) {  // TODO write a testcase for this
-      throw metadata_cache::metadata_error(
-          "Unexpected number of fields in the resultset. "
-          "Expected = 7, got = " +
-          std::to_string(row.size()));
+bool set_instance_ports(metadata_cache::ManagedInstance &instance,
+                        const mysqlrouter::MySQLSession::Row &row,
+                        const size_t classic_port_column,
+                        const size_t x_port_column) {
+  try {
+    std::string uri = get_string(row[classic_port_column]);
+    std::string::size_type p;
+    if ((p = uri.find(':')) != std::string::npos) {
+      instance.host = uri.substr(0, p);
+      instance.port =
+          static_cast<uint16_t>(strtoi_checked(uri.substr(p + 1).c_str()));
+    } else {
+      instance.host = uri;
+      instance.port = 3306;
     }
-
-    metadata_cache::ManagedInstance s;
-    s.replicaset_name = get_string(row[0]);
-    s.mysql_server_uuid = get_string(row[1]);
-    s.role = get_string(row[2]);
-    s.weight = row[3] ? std::strtof(row[3], nullptr) : 0;
-    s.version_token =
-        row[4] ? static_cast<unsigned int>(strtoi_checked(row[4])) : 0;
+  } catch (const std::runtime_error &e) {
+    log_warning("Error parsing URI in metadata for instance %s: '%s': %s",
+                instance.mysql_server_uuid.c_str(), row[classic_port_column],
+                e.what());
+    return false;
+  }
+  // X protocol support is not mandatory
+  if (row[x_port_column] && *row[x_port_column]) {
     try {
-      std::string uri = get_string(row[5]);
+      std::string uri = get_string(row[x_port_column]);
       std::string::size_type p;
       if ((p = uri.find(':')) != std::string::npos) {
-        s.host = uri.substr(0, p);
-        s.port =
+        instance.host = uri.substr(0, p);
+        instance.xport =
             static_cast<uint16_t>(strtoi_checked(uri.substr(p + 1).c_str()));
       } else {
-        s.host = uri;
-        s.port = 3306;
+        instance.host = uri;
+        instance.xport = 33060;
       }
     } catch (const std::runtime_error &e) {
       log_warning("Error parsing URI in metadata for instance %s: '%s': %s",
-                  row[1], row[5], e.what());
-      return true;  // next row
+                  instance.mysql_server_uuid.c_str(), row[x_port_column],
+                  e.what());
+      return false;
     }
-    // X protocol support is not mandatory
-    if (row[6] && *row[6]) {
-      try {
-        std::string uri = get_string(row[6]);
-        std::string::size_type p;
-        if ((p = uri.find(':')) != std::string::npos) {
-          s.host = uri.substr(0, p);
-          s.xport =
-              static_cast<uint16_t>(strtoi_checked(uri.substr(p + 1).c_str()));
-        } else {
-          s.host = uri;
-          s.xport = 33060;
-        }
-      } catch (const std::runtime_error &e) {
-        log_warning("Error parsing URI in metadata for instance %s: '%s': %s",
-                    row[1], row[6], e.what());
-        return true;  // next row
-      }
-    } else {
-      s.xport = s.port * 10;
-    }
-
-    auto &rset(replicaset_map[s.replicaset_name]);
-    rset.members.push_back(s);
-    rset.name = s.replicaset_name;
-    rset.single_primary_mode =
-        true;  // actual value set elsewhere from GR metadata
-
-    return true;  // false = I don't want more rows
-  };
-
-  assert(metadata_connection_->is_connected());
-
-  try {
-    metadata_connection_->query(query, result_processor);
-  } catch (const MySQLSession::Error &e) {
-    throw metadata_cache::metadata_error(e.what());
-  } catch (const metadata_cache::metadata_error &e) {
-    throw;
-  } catch (...) {
-    assert(
-        0);  // don't expect anything else to be thrown -> catch dev's attention
-    throw;   // in production, rethrow anyway just in case
+  } else {
+    instance.xport = instance.port * 10;
   }
 
-  return replicaset_map;
+  return true;
 }
 
-void ClusterMetadata::setup_gr_notifications_listener(
-    const std::vector<metadata_cache::ManagedInstance> &instances,
-    const GRNotificationListener::NotificationClb &callback) {
-  if (gr_notifications_listener_)
-    gr_notifications_listener_->setup(instances, callback);
+bool ClusterMetadata::update_router_version(
+    const metadata_cache::ManagedInstance &rw_instance,
+    const unsigned router_id) {
+  auto connection = mysql_harness::DIM::instance().new_MySQLSession();
+  if (!do_connect(*connection, rw_instance)) {
+    log_warning(
+        "Updating the router version failed: Could not connect to the writable "
+        "cluster member");
+
+    return false;
+  }
+
+  MySQLSession::Transaction transaction(connection.get());
+  // throws metadata_cache::metadata_error and UpdateInProgressException
+  get_and_check_metadata_schema_version(*connection);
+
+  sqlstring query;
+  if (get_cluster_type() == ClusterType::GR_V1) {
+    query =
+        "UPDATE mysql_innodb_cluster_metadata.routers"
+        " SET attributes = JSON_SET(IF(attributes IS NULL, '{}', attributes), "
+        "'$.version', ?) WHERE router_id = ?";
+  } else {
+    query =
+        "UPDATE mysql_innodb_cluster_metadata.v2_routers set version = ? "
+        "where router_id = ?";
+  }
+
+  query << MYSQL_ROUTER_VERSION << router_id << sqlstring::end;
+  try {
+    connection->execute(query);
+  } catch (const std::exception &e) {
+    log_warning("Updating the router version failed: %s", e.what());
+  }
+
+  transaction.commit();
+
+  return true;
 }
 
-void ClusterMetadata::shutdown_gr_notifications_listener() {
-  gr_notifications_listener_.reset();
-}
+bool ClusterMetadata::update_router_last_check_in(
+    const metadata_cache::ManagedInstance &rw_instance,
+    const unsigned router_id) {
+  // only relevant to for metadata V2
+  if (get_cluster_type() == ClusterType::GR_V1) return true;
 
-#if 0  // not used so far
-unsigned int ClusterMetadata::fetch_ttl() {
-  return ttl_;
+  auto connection = mysql_harness::DIM::instance().new_MySQLSession();
+  if (!do_connect(*connection, rw_instance)) {
+    log_warning(
+        "Updating the router last_check_in failed: Could not connect to the "
+        "writable cluster member");
+
+    return false;
+  }
+
+  MySQLSession::Transaction transaction(connection.get());
+  // throws metadata_cache::metadata_error and UpdateInProgressException
+  get_and_check_metadata_schema_version(*connection);
+
+  sqlstring query =
+      "UPDATE mysql_innodb_cluster_metadata.v2_routers set last_check_in = "
+      "NOW() where router_id = ?";
+
+  query << router_id << sqlstring::end;
+  try {
+    connection->execute(query);
+  } catch (const std::exception &e) {
+    log_warning("Updating the router last_check_in failed: %s", e.what());
+  }
+
+  transaction.commit();
+  return true;
 }
-#endif

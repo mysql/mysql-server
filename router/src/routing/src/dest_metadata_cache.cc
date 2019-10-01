@@ -477,7 +477,7 @@ void DestMetadataCacheGroup::on_instances_change(
 
 void DestMetadataCacheGroup::notify(
     const metadata_cache::LookupResult &instances,
-    const bool md_servers_reachable) noexcept {
+    const bool md_servers_reachable, const unsigned /*view_id*/) noexcept {
   on_instances_change(instances, md_servers_reachable);
 }
 

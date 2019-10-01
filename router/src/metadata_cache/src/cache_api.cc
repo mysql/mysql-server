@@ -22,7 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "metadata_cache.h"
+#include "metadata_cache_ar.h"
+#include "metadata_cache_gr.h"
 #include "metadata_factory.h"
 #include "mysqlrouter/metadata_cache.h"
 
@@ -68,7 +69,11 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
 /**
  * Initialize the metadata cache.
  *
- * @param group_replication_id id of the replication group
+ * @param cluster_type type of the cluster the metadata cache object will
+ * represent (GR or Async Replicaset)
+ * @param router_id id of the router in the cluster metadata
+ * @param cluster_type_specific_id (id of the replication group for GR,
+ * cluster_id for Async Replicaset)
  * @param metadata_servers The list of cluster metadata servers
  * @param user_credentials The user name and password used to connect to the
  * metadata servers.
@@ -80,25 +85,40 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param read_timeout The time in seconds after which read from metadata
  *                     server should timeout.
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
- * @param use_gr_notifications Flag indicating if the metadata cache should
- *                             use GR notifications as an additional trigger
- *                             for metadata refresh
+ * @param use_cluster_notifications Flag indicating if the metadata cache should
+ *                             use cluster notifications as an additional
+ *                             trigger for metadata refresh (only available for
+ *                             GR cluster type)
+ * @param view_id last known view_id of the cluster metadata (only relevant
+ *                for Async Replicaset cluster)
  */
 void MetadataCacheAPI::cache_init(
-    const std::string &group_replication_id,
+    const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
+    const std::string &cluster_type_specific_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
     const mysqlrouter::UserCredentials &user_credentials,
     std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
     const std::string &cluster_name, int connect_timeout, int read_timeout,
-    size_t thread_stack_size, bool use_gr_notifications) {
+    size_t thread_stack_size, bool use_cluster_notifications,
+    const unsigned view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
-  g_metadata_cache.reset(new MetadataCache(
-      group_replication_id, metadata_servers,
-      get_instance(user_credentials.username, user_credentials.password,
-                   connect_timeout, read_timeout, 1, ttl, ssl_options,
-                   use_gr_notifications),
-      ttl, ssl_options, cluster_name, thread_stack_size, use_gr_notifications));
+  if (cluster_type == mysqlrouter::ClusterType::AR_V2) {
+    g_metadata_cache.reset(new ARMetadataCache(
+        router_id, cluster_type_specific_id, metadata_servers,
+        get_instance(cluster_type, user_credentials.username,
+                     user_credentials.password, connect_timeout, read_timeout,
+                     1, ssl_options, use_cluster_notifications, view_id),
+        ttl, ssl_options, cluster_name, thread_stack_size));
+  } else {
+    g_metadata_cache.reset(new GRMetadataCache(
+        router_id, cluster_type_specific_id, metadata_servers,
+        get_instance(cluster_type, user_credentials.username,
+                     user_credentials.password, connect_timeout, read_timeout,
+                     1, ssl_options, use_cluster_notifications, view_id),
+        ttl, ssl_options, cluster_name, thread_stack_size,
+        use_cluster_notifications));
+  }
 
   is_initialized_ = true;
 }
@@ -108,8 +128,8 @@ void MetadataCacheAPI::instance_name(const std::string &inst_name) {
   inst_name_ = inst_name;
 }
 
-std::string MetadataCacheAPI::group_replication_id() const {
-  return g_metadata_cache->group_replication_id();
+std::string MetadataCacheAPI::cluster_type_specific_id() const {
+  return g_metadata_cache->cluster_type_specific_id();
 }
 
 std::string MetadataCacheAPI::cluster_name() const {

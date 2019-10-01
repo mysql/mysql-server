@@ -21,6 +21,7 @@ var group_replication_membership_online =
 
 var options = {
   group_replication_membership: group_replication_membership_online,
+  metadata_schema_version: [1, 0, 2],
 };
 
 // first node is PRIMARY
@@ -29,6 +30,8 @@ options.group_replication_primary_member = options.group_replication_membership[
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses([
   "select_port",
+  "router_start_transaction",
+  "router_commit",
   "router_select_schema_version",
 ], options);
 
@@ -42,15 +45,15 @@ var router_select_group_membership_with_primary_mode =
   common_stmts.get("router_select_group_membership_with_primary_mode", options);
 
 
-if (mysqld.global.MD_asked == undefined) {
+if (mysqld.global.MD_asked === undefined) {
   mysqld.global.MD_asked = false;
 }
 
-if (mysqld.global.primary_asked == undefined) {
+if (mysqld.global.primary_asked === undefined) {
   mysqld.global.primary_asked = false;
 }
 
-if (mysqld.global.health_asked == undefined) {
+if (mysqld.global.health_asked === undefined) {
   mysqld.global.health_asked = false;
 }
 

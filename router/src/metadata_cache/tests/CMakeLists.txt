@@ -28,7 +28,11 @@
 
 SET(METADATA_CACHE_TESTS_HELPER
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata_ar.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cluster_metadata_gr.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/metadata_cache.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/metadata_cache_ar.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/metadata_cache_gr.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/plugin_config.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc

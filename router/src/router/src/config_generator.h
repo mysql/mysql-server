@@ -96,7 +96,7 @@ DECLARE_TEST(ConfigGeneratorTest, get_account_host_args);
 class AutoCleaner;
 
 namespace mysqlrouter {
-class MySQLInnoDBClusterMetadata;
+class ClusterMetadata;
 class MySQLSession;
 class SysUserOperationsBase;
 class SysUserOperations;
@@ -110,7 +110,7 @@ class ConfigGenerator {
       SysUserOperationsBase *sys_user_operations = SysUserOperations::instance()
 #endif
   );
-  virtual ~ConfigGenerator() = default;
+  virtual ~ConfigGenerator();
 
   /** @brief first part of the bootstrap process
    *
@@ -193,8 +193,6 @@ class ConfigGenerator {
                       const std::string &owner);  // throws std::runtime_error
 
  private:
-  friend class MySQLInnoDBClusterMetadata;
-
   /**
    * init() calls this to read and validate several command-line options;
    * results are stored in member fields.
@@ -275,14 +273,10 @@ class ConfigGenerator {
 
   std::tuple<std::string> try_bootstrap_deployment(
       uint32_t &router_id, std::string &username, std::string &password,
-      const std::string &router_name,
+      const std::string &router_name, const std::string &cluster_id,
       const std::map<std::string, std::string> &user_options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const Options &options);
-
-  void fetch_metadata_servers(std::vector<std::string> &metadata_servers,
-                              std::string &metadata_cluster,
-                              std::string &metadata_replicaset);
 
   void create_config(std::ostream &config_file, std::ostream &state_file,
                      uint32_t router_id, const std::string &router_name,
@@ -299,6 +293,7 @@ class ConfigGenerator {
   void print_report(const std::string &config_file_name,
                     const std::string &router_name,
                     const std::string &metadata_cluster,
+                    const std::string &cluster_type_name,
                     const std::string &hostname, bool is_system_deployment,
                     const Options &options);
 
@@ -477,12 +472,10 @@ class ConfigGenerator {
       MySQLSession *sess, const std::map<std::string, std::string> &options);
 
   void ensure_router_id_is_ours(uint32_t &router_id,
-                                const std::string &hostname_override,
-                                MySQLInnoDBClusterMetadata &metadata);
+                                const std::string &hostname_override);
 
   uint32_t register_router(const std::string &router_name,
-                           const std::string &hostname_override, bool force,
-                           MySQLInnoDBClusterMetadata &metadata);
+                           const std::string &hostname_override, bool force);
 
   void verify_router_account(const std::string &username,
                              const std::string &password,
@@ -491,15 +484,18 @@ class ConfigGenerator {
 
  private:
   mysql_harness::UniquePtr<MySQLSession> mysql_;
+  std::unique_ptr<ClusterMetadata> metadata_;
   int connect_timeout_;
   int read_timeout_;
 
-  std::string gr_id_;
-  std::string gr_initial_hostname_;
-  unsigned int gr_initial_port_;
-  std::string gr_initial_username_;
-  std::string gr_initial_password_;
-  std::string gr_initial_socket_;
+  // For GR cluster Group Replication ID, for AR cluster cluster_id from the
+  // metadata
+  std::string cluster_specific_id_;
+  std::string cluster_initial_hostname_;
+  unsigned int cluster_initial_port_;
+  std::string cluster_initial_username_;
+  std::string cluster_initial_password_;
+  std::string cluster_initial_socket_;
 
   KeyringInfo keyring_info_;
   bool keyring_initialized_ = false;

@@ -15,7 +15,7 @@ var group_replication_membership_online =
   ]);
 
 var options = {
-  metadata_schema_version: [0, 0, 0],
+  metadata_schema_version: [0, 0, 1],
   group_replication_membership: group_replication_membership_online,
 };
 
@@ -24,6 +24,8 @@ options.group_replication_primary_member = options.group_replication_membership[
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_start_transaction",
+  "router_commit",
   "select_port",
   "router_select_schema_version",
   "router_select_metadata",

@@ -30,28 +30,31 @@ std::shared_ptr<MetaData> meta_data;
 
 /**
  * Create an instance of the mock metadata.
- *
+ * @param cluster_type type of the cluster the metadata cache object will
+ *                     represent (GR or Async Replicaset)
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
  * @param connect_timeout The time after which trying to connect to the
  *                        metadata server should timeout.
  * @param read_timeout The time after which read from the metadata server should
- * timeout.
+ *                     timeout.
  * @param connection_attempts The number of times a connection to metadata must
  * be attempted, when a connection attempt fails.
- * @param ttl The TTL of the cached data.
  * @param ssl_options ssl options
- * @param use_gr_notifications Flag indicating if the metadata cache should
- *                             use GR notifications as an additional trigger
- *                             for metadata refresh
+ * @param use_cluster_notifications Flag indicating if the metadata cache
+ *                                  should use cluster notifications as an
+ *                                  additional trigger for metadata refresh
+ *                                  (only available for GR cluster type)
+ * @param view_id last known view_id of the cluster metadata (only relevant
+ *                for Async Replicaset cluster)
  */
 std::shared_ptr<MetaData> get_instance(
-    const std::string &user, const std::string &password, int connect_timeout,
-    int read_timeout, int connection_attempts, std::chrono::milliseconds ttl,
-    const mysqlrouter::SSLOptions &ssl_options,
-    const bool use_gr_notifications) {
+    mysqlrouter::ClusterType /*cluster_type*/, const std::string &user,
+    const std::string &password, int connect_timeout, int read_timeout,
+    int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_cluster_notifications, unsigned /*view_id*/ = 0) {
   meta_data.reset(new MockNG(user, password, connect_timeout, read_timeout,
-                             connection_attempts, ttl, ssl_options,
-                             use_gr_notifications));
+                             connection_attempts, ssl_options,
+                             use_cluster_notifications));
   return meta_data;
 }

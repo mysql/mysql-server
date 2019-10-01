@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@
       "required": ["group-replication-id", "cluster-metadata-servers"],
       "properties": {
         "group-replication-id": {
-          "description": "The Group Replication ID the metadata cache module was bootstrapped against",
+          "description": "In case of the Group Replication ID the metadata cache module was bootstrapped against, in case of Async Replicaset cluster ID the metadata cache module was bootstrapped against",
           "type": "string"
         },
         "cluster-metadata-servers": {
@@ -55,6 +55,10 @@
               "type": "string"
             }
           }
+        },
+        "view-id": {
+          "description": "Last seen view_id of the AsyncReplicaset cluster metadata",
+          "type": "number"
         }
       }
     }

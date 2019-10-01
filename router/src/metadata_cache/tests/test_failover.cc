@@ -26,10 +26,10 @@
  * Test the metadata cache implementation.
  */
 
-#include "cluster_metadata.h"
+#include "cluster_metadata_gr.h"
 #include "dim.h"
 #include "gtest/gtest_prod.h"
-#include "metadata_cache.h"
+#include "metadata_cache_gr.h"
 #include "mysql_session_replayer.h"
 #include "tcp_address.h"
 #include "test/helpers.h"
@@ -38,11 +38,13 @@
 
 using namespace metadata_cache;
 
+constexpr unsigned kRouterId = 1;
+
 class FailoverTest : public ::testing::Test {
  public:
   std::shared_ptr<MySQLSessionReplayer> session;
   std::shared_ptr<ClusterMetadata> cmeta;
-  std::shared_ptr<MetadataCache> cache;
+  std::shared_ptr<GRMetadataCache> cache;
 
   FailoverTest() {}
 
@@ -56,14 +58,13 @@ class FailoverTest : public ::testing::Test {
         [](mysqlrouter::MySQLSession *) {}   // and don't try deleting it!
     );
 
-    cmeta.reset(new ClusterMetadata("admin", "admin", 1, 1, 1,
-                                    std::chrono::seconds(10),
-                                    mysqlrouter::SSLOptions()));
+    cmeta.reset(new GRClusterMetadata("admin", "admin", 1, 1, 1,
+                                      mysqlrouter::SSLOptions()));
   }
 
   void init_cache() {
-    cache.reset(new MetadataCache(
-        "3e4338a1-2c5d-49ac-8baa-e5a25ba61e76",
+    cache.reset(new GRMetadataCache(
+        kRouterId, "3e4338a1-2c5d-49ac-8baa-e5a25ba61e76",
         {mysql_harness::TCPAddress("localhost", 32275)}, cmeta,
         std::chrono::seconds(10), mysqlrouter::SSLOptions(), "cluster-1"));
   }
@@ -71,6 +72,8 @@ class FailoverTest : public ::testing::Test {
   // make queries on metadata schema return a 3 members replicaset
   void expect_metadata_1() {
     MySQLSessionReplayer &m = *session;
+    m.expect_execute("START TRANSACTION");
+    m.then_ok();
 
     m.expect_query_one(
         "SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
@@ -88,7 +91,7 @@ class FailoverTest : public ::testing::Test {
         "JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id "
         "= I.replicaset_id WHERE F.cluster_name = 'cluster-1' "
         "AND R.attributes->>'$.group_replication_group_name' = "
-        "'3e4338a1-2c5d-49ac-8baa-e5a25ba61e76';");
+        "'3e4338a1-2c5d-49ac-8baa-e5a25ba61e76'");
     m.then_return(
         7,
         {// replicaset_name, mysql_server_uuid, role, weight, version_token,
@@ -108,6 +111,9 @@ class FailoverTest : public ::testing::Test {
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
           m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
+
+    m.expect_execute("COMMIT");
+    m.then_ok();
   }
 
   // make queries on PFS.replication_group_members return all members ONLINE

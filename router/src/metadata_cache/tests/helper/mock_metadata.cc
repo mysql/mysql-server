@@ -41,7 +41,6 @@ using namespace std;
  *                     timeout.
  * @param connection_attempts The number of times a connection to metadata must
  *                            be attempted, when a connection attempt fails.
- * @param ttl The TTL of the cached data.
  * @param ssl_options SSL related options for connections
  * @param use_gr_notifications Flag indicating if the metadata cache should
  *                             use GR notifications as an additional trigger
@@ -49,12 +48,11 @@ using namespace std;
  */
 MockNG::MockNG(const std::string &user, const std::string &password,
                int connect_timeout, int read_timeout, int connection_attempts,
-               std::chrono::milliseconds ttl,
                const mysqlrouter::SSLOptions &ssl_options,
                const bool use_gr_notifications)
-    : ClusterMetadata(user, password, connect_timeout, read_timeout,
-                      connection_attempts, ttl, ssl_options,
-                      use_gr_notifications) {
+    : GRClusterMetadata(user, password, connect_timeout, read_timeout,
+                        connection_attempts, ssl_options,
+                        use_gr_notifications) {
   ms1.replicaset_name = "replicaset-1";
   ms1.mysql_server_uuid = "instance-1";
   ms1.host = "host-1";
@@ -184,9 +182,14 @@ MockNG::~MockNG() {}
  * @return Map of replicaset ID, server list pairs.
  */
 ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(
-    const std::string &cluster_name, const string &group_replication_id) {
-  (void)cluster_name;
-  (void)group_replication_id;
+    const std::string & /*cluster_name*/,
+    const string & /*group_replication_id*/) {
+  return replicaset_map;
+}
+
+ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(
+    const std::vector<metadata_cache::ManagedInstance> & /*instances*/,
+    const string & /*group_replication_id*/, size_t & /*instance_id*/) {
   return replicaset_map;
 }
 

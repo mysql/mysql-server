@@ -16,33 +16,39 @@ console.log(inst() + "----- JS INIT START -----\n\n");
 
 var common_stmts = require("common_statements");
 
-var options = {};
+var options = {
+  cluster_type: "gr",
+};
 
 var common_responses = common_stmts.prepare_statement_responses([
   "router_select_schema_version",
-  "router_count_clusters_and_replicasets",
+  "router_select_cluster_type_v2",
+  //"router_select_metadata_v2",
+  "router_count_clusters_v2",
   "router_check_member_state",
   "router_select_members_count",
   "router_select_replication_group_name", // account verification also needs it
   "router_show_cipher_status",
-  "router_select_cluster_instances",
+  "router_select_cluster_instances_v2",
+  "router_select_cluster_instance_addresses_v2",
   "router_start_transaction",
   "router_commit",
 
    // account verification
-   "router_select_metadata",
+   "router_select_metadata_v2_gr",
    "router_select_group_replication_primary_member",
    "router_select_group_membership_with_primary_mode",
 ], options);
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex([
-  "router_select_hosts",
-  "router_insert_into_hosts",
   "router_insert_into_routers",
   "router_create_user_if_not_exists", // \
-  "router_grant_on_metadata_db",      //  > overwritten by most tests
-  "router_grant_on_pfs_db",           // /
+  "router_grant_on_metadata_db",      //  \
+  "router_grant_on_pfs_db",           //   > overwritten by most tests
+  "router_grant_on_routers",         //   /
+  "router_grant_on_v2_routers",     //   /
   "router_update_routers_in_metadata",
+  "router_select_router_id",
 ], options);
 
 // Init stuff.  If blocks are necessary, because account verification during

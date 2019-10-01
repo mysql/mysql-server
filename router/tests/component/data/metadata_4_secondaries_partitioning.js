@@ -26,6 +26,7 @@ var group_replication_membership_partitioned = group_replication_membership_onli
 
 var options = {
   group_replication_membership: group_replication_membership_online,
+  metadata_schema_version: [1, 0, 2],
 };
 options.group_replication_primary_member = options.group_replication_membership[0][0];
 
@@ -42,8 +43,12 @@ var router_select_group_membership_with_primary_mode_partitioned =
 
 // common stmts
 
-var router_select_schema_version = common_stmts.get("router_select_schema_version");
-var select_port = common_stmts.get("select_port");
+var common_responses = common_stmts.prepare_statement_responses([
+  "select_port",
+  "router_start_transaction",
+  "router_commit",
+  "router_select_schema_version",
+], options);
 
 if (mysqld.global.cluster_partition === undefined) {
   mysqld.global.cluster_partition = false;
@@ -51,10 +56,8 @@ if (mysqld.global.cluster_partition === undefined) {
 
 ({
   stmts: function (stmt) {
-    if (stmt === router_select_schema_version.stmt) {
-      return router_select_schema_version;
-    } else if (stmt === select_port.stmt) {
-      return select_port;
+    if (common_responses.hasOwnProperty(stmt)) {
+      return common_responses[stmt];
     } else if (stmt === router_select_metadata.stmt) {
       return router_select_metadata;
     } else if (stmt === router_select_group_replication_primary_member.stmt) {
@@ -70,7 +73,7 @@ if (mysqld.global.cluster_partition === undefined) {
         error: {
           code: 1273,
           sql_state: "HY001",
-          message: "Syntax Error at: " + stmt
+          message: "Syntax Errorxxxx at: " + stmt
         }
       };
     }

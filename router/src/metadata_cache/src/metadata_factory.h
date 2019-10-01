@@ -36,9 +36,9 @@
 // fetched.
 
 std::shared_ptr<MetaData> get_instance(
-    const std::string &user, const std::string &password, int connect_timeout,
-    int read_timeout, int connection_attempts, std::chrono::milliseconds ttl,
-    const mysqlrouter::SSLOptions &ssl_options,
-    const bool use_gr_notifications);
+    const mysqlrouter::ClusterType cluster_type, const std::string &user,
+    const std::string &password, int connect_timeout, int read_timeout,
+    int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_gr_notifications, const unsigned view_id);
 
 #endif  // METADATA_CACHE_METADATA_FACTORY_INCLUDED

@@ -53,7 +53,8 @@ std::string json_to_string(const JsonValue &json_doc) {
 
 JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
                                    const std::vector<uint16_t> &gr_node_ports,
-                                   unsigned primary_id) {
+                                   unsigned primary_id, unsigned view_id,
+                                   bool error_on_md_query) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
   json_doc.AddMember(
@@ -68,15 +69,20 @@ JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
   }
   json_doc.AddMember("gr_nodes", gr_nodes_json, allocator);
   json_doc.AddMember("primary_id", static_cast<int>(primary_id), allocator);
+  if (view_id > 0) {
+    json_doc.AddMember("view_id", static_cast<int>(view_id), allocator);
+  }
+  json_doc.AddMember("error_on_md_query", error_on_md_query ? 1 : 0, allocator);
 
   return json_doc;
 }
 
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
-                       unsigned primary_id) {
-  const auto json_doc =
-      mock_GR_metadata_as_json(gr_id, gr_node_ports, primary_id);
+                       unsigned primary_id, unsigned view_id,
+                       bool error_on_md_query) {
+  const auto json_doc = mock_GR_metadata_as_json(
+      gr_id, gr_node_ports, primary_id, view_id, error_on_md_query);
 
   const auto json_str = json_to_string(json_doc);
 
@@ -85,7 +91,8 @@ void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
 
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,
-    const std::vector<std::pair<std::string, unsigned>> &gr_members_ports) {
+    const std::vector<std::pair<std::string, unsigned>> &gr_members_ports,
+    const mysqlrouter::MetadataSchemaVersion &metadata_version) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
   json_doc.AddMember(
@@ -103,6 +110,13 @@ void set_mock_bootstrap_data(
     gr_members_json.PushBack(member, allocator);
   }
   json_doc.AddMember("gr_members", gr_members_json, allocator);
+  json_doc.AddMember("innodb_cluster_instances", gr_members_json, allocator);
+
+  JsonValue md_version(rapidjson::kArrayType);
+  md_version.PushBack(static_cast<int>(metadata_version.major), allocator);
+  md_version.PushBack(static_cast<int>(metadata_version.minor), allocator);
+  md_version.PushBack(static_cast<int>(metadata_version.patch), allocator);
+  json_doc.AddMember("metadata_version", md_version, allocator);
 
   const auto json_str = json_to_string(json_doc);
 

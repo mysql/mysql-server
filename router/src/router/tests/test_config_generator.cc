@@ -165,20 +165,24 @@ using mysqlrouter::ConfigGenerator;
 static void common_pass_schema_version(MySQLSessionReplayer *m) {
   m->expect_query_one(
       "SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
-  m->then_return(2, {// major, minor
-                     {m->string_or_null("1"), m->string_or_null("0")}});
+  m->then_return(3, {// major, minor
+                     {m->string_or_null("2"), m->string_or_null("0"),
+                      m->string_or_null("3")}});
+}
+
+static void common_pass_cluster_type(MySQLSessionReplayer *m) {
+  m->expect_query_one(
+      "select cluster_type from "
+      "mysql_innodb_cluster_metadata.v2_this_instance");
+  m->then_return(1, {{m->string_or_null("gr")}});
 }
 
 static void common_pass_metadata_supported(MySQLSessionReplayer *m) {
   m->expect_query_one(
-      "SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) "
-      "<= 1  AND (SELECT count(*) FROM "
-      "mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, "
-      "(SELECT attributes->>'$.group_replication_group_name' FROM "
-      "mysql_innodb_cluster_metadata.replicasets)  = "
-      "@@group_replication_group_name as replicaset_is_ours");
-  m->then_return(2, {// has_one_replicaset, replicaset_is_ours
-                     {m->string_or_null("1"), m->string_or_null()}});
+      "select ((select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster");
+  m->then_return(1, {// has_one_gr_cluster
+                     {m->string_or_null("1")}});
 }
 
 static void common_pass_group_replication_online(MySQLSessionReplayer *m) {
@@ -215,6 +219,7 @@ static void common_pass_member_is_primary(MySQLSessionReplayer *m) {
 static void common_pass_metadata_checks(MySQLSessionReplayer *m) {
   m->clear_expects();
   common_pass_schema_version(m);
+  common_pass_cluster_type(m);
   common_pass_metadata_supported(m);
   common_pass_group_replication_online(m);
   common_pass_group_has_quorum(m);
@@ -223,26 +228,20 @@ static void common_pass_metadata_checks(MySQLSessionReplayer *m) {
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
-  std::string primary_cluster_name_;
-  std::vector<std::string> primary_replicaset_servers_;
-  std::string primary_replicaset_name_;
-
   {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
+        3, {{"id", "mycluster", "somehost:3306"}});
 
-    config_gen.fetch_metadata_servers(primary_replicaset_servers_,
-                                      primary_cluster_name_,
-                                      primary_replicaset_name_);
+    const auto cluster_info = config_gen.metadata_->fetch_metadata_servers();
 
-    ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
+    ASSERT_THAT(mysql_harness::list_elements(cluster_info.metadata_servers),
                 Eq("mysql://somehost:3306"));
-    ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
-    ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
+    ASSERT_THAT(cluster_info.metadata_cluster_name, Eq("mycluster"));
+    ASSERT_THAT(cluster_info.metadata_replicaset, Eq(""));
   }
 
   {
@@ -251,88 +250,41 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
+        3, {{"id", "mycluster", "somehost:3306"}});
 
-    config_gen.fetch_metadata_servers(primary_replicaset_servers_,
-                                      primary_cluster_name_,
-                                      primary_replicaset_name_);
+    const auto cluster_info = config_gen.metadata_->fetch_metadata_servers();
 
-    ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
+    ASSERT_THAT(mysql_harness::list_elements(cluster_info.metadata_servers),
                 Eq("mysql://somehost:3306"));
-    ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
-    ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
+    ASSERT_THAT(cluster_info.metadata_cluster_name, Eq("mycluster"));
+    ASSERT_THAT(cluster_info.metadata_replicaset, Eq(""));
   }
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
-  std::string primary_cluster_name_;
-  std::vector<std::string> primary_replicaset_servers_;
-  std::string primary_replicaset_name_;
-
   {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
 
-    // "F.cluster_name, "
-    // "R.replicaset_name, "
-    // "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
+    // select c.cluster_id, c.cluster_name, i.address from
+    // mysql_innodb_cluster_metadata.v2_instances...
     mock_mysql->expect_query("").then_return(
-        3, {{"mycluster", "myreplicaset", "somehost:3306"},
-            {"mycluster", "myreplicaset", "otherhost:3306"},
-            {"mycluster", "myreplicaset", "sumhost:3306"}});
+        3, {{"id", "mycluster", "somehost:3306"},
+            {"id", "mycluster", "otherhost:3306"},
+            {"id", "mycluster", "sumhost:3306"}});
 
-    config_gen.fetch_metadata_servers(primary_replicaset_servers_,
-                                      primary_cluster_name_,
-                                      primary_replicaset_name_);
+    const auto cluster_info = config_gen.metadata_->fetch_metadata_servers();
 
-    ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
+    ASSERT_THAT(mysql_harness::list_elements(cluster_info.metadata_servers),
                 Eq("mysql://somehost:3306,mysql://otherhost:3306,mysql://"
                    "sumhost:3306"));
-    ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
-    ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
-  }
-}
-
-TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
-  std::string primary_cluster_name_;
-  std::vector<std::string> primary_replicaset_servers_;
-  std::string primary_replicaset_name_;
-
-  {
-    ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql.get());
-    config_gen.init(kServerUrl, {});
-    mock_mysql->expect_query("").then_return(
-        3, {{"mycluster", "myreplicaset", "somehost:3306"},
-            {"mycluster", "anotherreplicaset", "otherhost:3306"}});
-
-    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
-                                                   primary_cluster_name_,
-                                                   primary_replicaset_name_),
-                 std::runtime_error);
-  }
-
-  {
-    ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql.get());
-    config_gen.init(kServerUrl, {});
-    mock_mysql->expect_query("").then_return(
-        3, {{"mycluster", "myreplicaset", "somehost:3306"},
-            {"anothercluster", "anotherreplicaset", "otherhost:3306"}});
-
-    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
-                                                   primary_cluster_name_,
-                                                   primary_replicaset_name_),
-                 std::runtime_error);
+    ASSERT_THAT(cluster_info.metadata_cluster_name, Eq("mycluster"));
+    ASSERT_THAT(cluster_info.metadata_replicaset, Eq(""));
   }
 }
 
 TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
-  std::string primary_cluster_name_;
-  std::vector<std::string> primary_replicaset_servers_;
-  std::string primary_replicaset_name_;
-
   {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
@@ -340,9 +292,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
 
     mock_mysql->expect_query("").then_return(3, {});
     // no replicasets/clusters defined
-    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
-                                                   primary_cluster_name_,
-                                                   primary_replicaset_name_),
+    ASSERT_THROW(config_gen.metadata_->fetch_metadata_servers(),
                  std::runtime_error);
   }
 }
@@ -363,28 +313,23 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
                       "expected 2 or 3, got 1");
   }
 
-  // invalid number of values returned from query for metadata support
   {
     ConfigGenerator config_gen;
-
     common_pass_schema_version(mock_mysql.get());
-
+    common_pass_cluster_type(mock_mysql.get());
+    // invalid number of values returned from query for metadata support
     mock_mysql->expect_query_one(
-        "SELECT  ((SELECT count(*) FROM "
-        "mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) "
-        "FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as "
-        "has_one_replicaset, (SELECT "
-        "attributes->>'$.group_replication_group_name' FROM "
-        "mysql_innodb_cluster_metadata.replicasets)  = "
-        "@@group_replication_group_name as replicaset_is_ours");
-    mock_mysql->then_return(1,
-                            {// has_one_replicaset, [replicaset_is_ours missing]
-                             {mock_mysql->string_or_null("1")}});
+        "select ((select count(*) from "
+        "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as "
+        "has_one_gr_cluster");
+    mock_mysql->then_return(0,
+                            {// [has_one_gr_cluster missing]
+                             {}});
 
     ASSERT_THROW_LIKE(
         config_gen.init(kServerUrl, {}), std::out_of_range,
         "Invalid number of values returned from query for metadata support: "
-        "expected 2 got 1");
+        "expected 1 got 0");
   }
 
   // invalid number of values returned from query for member_state
@@ -392,6 +337,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
     ConfigGenerator config_gen;
 
     common_pass_schema_version(mock_mysql.get());
+    common_pass_cluster_type(mock_mysql.get());
     common_pass_metadata_supported(mock_mysql.get());
 
     mock_mysql->expect_query_one(
@@ -410,6 +356,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
     ConfigGenerator config_gen;
 
     common_pass_schema_version(mock_mysql.get());
+    common_pass_cluster_type(mock_mysql.get());
     common_pass_metadata_supported(mock_mysql.get());
     common_pass_group_replication_online(mock_mysql.get());
 
@@ -440,7 +387,7 @@ TEST_F(ConfigGeneratorTest, create_accounts_using_password_directly) {
       .then_ok();
   mock_mysql
       ->expect_execute(
-          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
           "'cluster_user'@'%'")
       .then_ok();
   mock_mysql
@@ -452,6 +399,23 @@ TEST_F(ConfigGeneratorTest, create_accounts_using_password_directly) {
       ->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats "
           "TO 'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.global_variables TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.routers TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.v2_routers TO "
+          "'cluster_user'@'%'")
       .then_ok();
 
   ConfigGenerator config_gen;
@@ -472,7 +436,7 @@ TEST_F(ConfigGeneratorTest, create_accounts_using_hashed_password) {
       .then_ok();
   mock_mysql
       ->expect_execute(
-          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
           "'cluster_user'@'%'")
       .then_ok();
   mock_mysql
@@ -484,6 +448,23 @@ TEST_F(ConfigGeneratorTest, create_accounts_using_hashed_password) {
       ->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats "
           "TO 'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.global_variables TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.routers TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.v2_routers TO "
+          "'cluster_user'@'%'")
       .then_ok();
 
   ConfigGenerator config_gen;
@@ -505,7 +486,7 @@ TEST_F(ConfigGeneratorTest,
       .then_ok();
   mock_mysql
       ->expect_execute(
-          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
           "'cluster_user'@'%'")
       .then_ok();
   mock_mysql
@@ -517,6 +498,23 @@ TEST_F(ConfigGeneratorTest,
       ->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats "
           "TO 'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.global_variables TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.routers TO "
+          "'cluster_user'@'%'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.v2_routers TO "
+          "'cluster_user'@'%'")
       .then_ok();
 
   ConfigGenerator config_gen;
@@ -538,7 +536,7 @@ TEST_F(ConfigGeneratorTest, create_accounts_multiple_accounts) {
       .then_ok();
   mock_mysql
       ->expect_execute(
-          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
           "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
           "host3'")
       .then_ok();
@@ -552,6 +550,26 @@ TEST_F(ConfigGeneratorTest, create_accounts_multiple_accounts) {
       ->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats "
           "TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.global_variables TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.routers TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.v2_routers TO "
           "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
           "host3'")
       .then_ok();
@@ -577,7 +595,7 @@ TEST_F(ConfigGeneratorTest, create_accounts_multiple_accounts_if_not_exists) {
       .then_ok();
   mock_mysql
       ->expect_execute(
-          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
           "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
           "host3'")
       .then_ok();
@@ -591,6 +609,26 @@ TEST_F(ConfigGeneratorTest, create_accounts_multiple_accounts_if_not_exists) {
       ->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats "
           "TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.global_variables TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.routers TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.v2_routers TO "
           "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
           "host3'")
       .then_ok();
@@ -645,7 +683,7 @@ TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_1) {
                       });
   mock_mysql
       ->expect_execute(
-          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
           "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
           "host3'")
       .then_ok();
@@ -659,6 +697,26 @@ TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_1) {
       ->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats "
           "TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.global_variables TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.routers TO "
+          "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
+          "host3'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.v2_routers TO "
           "'cluster_user'@'host1','cluster_user'@'host2','cluster_user'@'"
           "host3'")
       .then_ok();
@@ -741,7 +799,7 @@ TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_3) {
           });
   mock_mysql
       ->expect_execute(
-          "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+          "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
           "'cluster_user'@'host2'")
       .then_ok();
   mock_mysql
@@ -753,6 +811,23 @@ TEST_F(ConfigGeneratorTest, create_accounts___show_warnings_parser_3) {
       ->expect_execute(
           "GRANT SELECT ON performance_schema.replication_group_member_stats "
           "TO "
+          "'cluster_user'@'host2'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT SELECT ON performance_schema.global_variables TO "
+          "'cluster_user'@'host2'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.routers TO "
+          "'cluster_user'@'host2'")
+      .then_ok();
+  mock_mysql
+      ->expect_execute(
+          "GRANT INSERT, UPDATE, DELETE ON "
+          "mysql_innodb_cluster_metadata.v2_routers TO "
           "'cluster_user'@'host2'")
       .then_ok();
   mock_mysql->expect_execute("END_MARKER");
@@ -874,7 +949,7 @@ TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_1) {
         .then_ok();
     mock_mysql
         ->expect_execute(
-            "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+            "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
             "'cluster_user'@'host1'")
         .then_ok();
     mock_mysql
@@ -885,7 +960,39 @@ TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_1) {
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_member_stats "
-            "TO "
+            "TO 'cluster_user'@'host1'")
+        .then_ok();
+    mock_mysql
+        ->expect_execute(
+            "GRANT SELECT ON performance_schema.global_variables TO "
+            "'cluster_user'@'host1'")
+        .then_ok();
+    mock_mysql
+        ->expect_execute(
+            "GRANT INSERT, UPDATE, DELETE ON "
+            "mysql_innodb_cluster_metadata.routers TO 'cluster_user'@'host1'")
+        .then_ok();
+    mock_mysql
+        ->expect_execute(
+            "GRANT INSERT, UPDATE, DELETE ON "
+            "mysql_innodb_cluster_metadata.v2_routers TO "
+            "'cluster_user'@'host1'")
+        .then_ok();
+    mock_mysql
+        ->expect_execute(
+            "GRANT SELECT ON performance_schema.global_variables TO "
+            "'cluster_user'@'host1'")
+        .then_ok();
+    mock_mysql
+        ->expect_execute(
+            "GRANT INSERT, UPDATE, DELETE ON "
+            "mysql_innodb_cluster_metadata.routers TO "
+            "'cluster_user'@'host1'")
+        .then_ok();
+    mock_mysql
+        ->expect_execute(
+            "GRANT INSERT, UPDATE, DELETE ON "
+            "mysql_innodb_cluster_metadata.v2_routers TO "
             "'cluster_user'@'host1'")
         .then_ok();
     mock_mysql->expect_execute("END_MARKER");
@@ -1058,7 +1165,6 @@ TEST_F(ConfigGeneratorTest, create_accounts___users_exist_parser_6) {
             ER_CANNOT_USER);
     mock_mysql->expect_execute("ROLLBACK").then_ok();
     mock_mysql->expect_execute("END_MARKER");
-
     ConfigGenerator config_gen;
     config_gen.init(kServerUrl, {});
     EXPECT_THROW_LIKE(
@@ -1196,7 +1302,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
       if (fail_on > 1)
         mock_mysql
             ->expect_execute(
-                "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " +
+                "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO " +
                 make_list(hosts, account))
             .then_ok();
       if (fail_on > 2)
@@ -1206,13 +1312,34 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
                 "TO " +
                 make_list(hosts, account))
             .then_ok();
-      if (fail_on > 3)
+      if (fail_on > 3) {
         mock_mysql
             ->expect_execute(
                 "GRANT SELECT ON "
                 "performance_schema.replication_group_member_stats TO " +
                 make_list(hosts, account))
             .then_ok();
+
+        mock_mysql
+            ->expect_execute(
+                "GRANT SELECT ON performance_schema.global_variables TO " +
+                make_list(hosts, account))
+            .then_ok();
+
+        mock_mysql
+            ->expect_execute(
+                "GRANT INSERT, UPDATE, DELETE ON "
+                "mysql_innodb_cluster_metadata.routers TO " +
+                make_list(hosts, account))
+            .then_ok();
+
+        mock_mysql
+            ->expect_execute(
+                "GRANT INSERT, UPDATE, DELETE ON "
+                "mysql_innodb_cluster_metadata.v2_routers TO " +
+                make_list(hosts, account))
+            .then_ok();
+      }
 
       if (fail_on != kDontFail)
         mock_mysql->then_error("some error",
@@ -1333,6 +1460,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "level = INFO\n"
            "\n"
            "[metadata_cache:mycluster]\n"
+           "cluster_type=gr\n"
            "router_id=123\n"
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
@@ -1403,6 +1531,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "level = INFO\n"
            "\n"
            "[metadata_cache:mycluster]\n"
+           "cluster_type=gr\n"
            "router_id=123\n"
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
@@ -1476,6 +1605,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "level = INFO\n"
            "\n"
            "[metadata_cache:mycluster]\n"
+           "cluster_type=gr\n"
            "router_id=123\n"
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
@@ -1552,6 +1682,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "level = INFO\n"
            "\n"
            "[metadata_cache:mycluster]\n"
+           "cluster_type=gr\n"
            "router_id=123\n"
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
@@ -1630,6 +1761,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "level = INFO\n"
            "\n"
            "[metadata_cache:mycluster]\n"
+           "cluster_type=gr\n"
            "router_id=123\n"
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
@@ -1717,6 +1849,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "level = INFO\n"
            "\n"
            "[metadata_cache:mycluster]\n"
+           "cluster_type=gr\n"
            "router_id=123\n"
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
@@ -1987,14 +2120,10 @@ struct query_entry_t {
 
 std::vector<query_entry_t> expected_bootstrap_queries = {
     {"START TRANSACTION", ACTION_EXECUTE},
-    {"SELECT host_id, host_name", ACTION_QUERY_ONE, 2, {}},
-    {"INSERT INTO mysql_innodb_cluster_metadata.hosts", ACTION_EXECUTE},
-    {"INSERT INTO mysql_innodb_cluster_metadata.routers", ACTION_EXECUTE, 4},
-
-    // ConfigGenerator::create_accounts()
+    {"INSERT INTO mysql_innodb_cluster_metadata.v2_routers", ACTION_EXECUTE, 4},
     {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
-    {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
+    {"GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO "
      "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
     {"GRANT SELECT ON performance_schema.replication_group_members TO "
@@ -2003,8 +2132,17 @@ std::vector<query_entry_t> expected_bootstrap_queries = {
     {"GRANT SELECT ON performance_schema.replication_group_member_stats TO "
      "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
+    {"GRANT SELECT ON performance_schema.global_variables TO "
+     "'mysql_router4_012345678901'@'%'",
+     ACTION_EXECUTE},
+    {"GRANT INSERT, UPDATE, DELETE ON mysql_innodb_cluster_metadata.routers "
+     "TO 'mysql_router4_012345678901'@'%'",
+     ACTION_EXECUTE},
+    {"GRANT INSERT, UPDATE, DELETE ON mysql_innodb_cluster_metadata.v2_routers "
+     "TO 'mysql_router4_012345678901'@'%'",
+     ACTION_EXECUTE},
 
-    {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ",
+    {"UPDATE mysql_innodb_cluster_metadata.v2_routers SET attributes = ",
      ACTION_EXECUTE},
     {"COMMIT", ACTION_EXECUTE},
 };
@@ -2013,8 +2151,7 @@ static void expect_bootstrap_queries(
     MySQLSessionReplayer *m, const char *cluster_name,
     const std::vector<query_entry_t> &expected_queries =
         expected_bootstrap_queries) {
-  m->expect_query("").then_return(
-      3, {{cluster_name, "myreplicaset", "somehost:3306"}});
+  m->expect_query("").then_return(3, {{"id", cluster_name, "somehost:3306"}});
   for (const auto &query : expected_queries) {
     switch (query.action) {
       case ACTION_EXECUTE:
@@ -2129,8 +2266,8 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
-    mock_mysql->expect_query("SELECT F.cluster_name")
-        .then_return(3, {{"mycluter", "myreplicaset", "somehost:3306"}});
+    mock_mysql->expect_query("select c.cluster_id")
+        .then_return(3, {{"id", "mycluter", "somehost:3306"}});
     mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
     KeyringInfo keyring_info("delme", "delme.key");
@@ -2170,7 +2307,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
+        3, {{"id", "mycluster", "somehost:3306"}});
     // force a failure during account creationg
     mock_mysql->expect_execute("").then_error("boo!", 1234);
 
@@ -2192,7 +2329,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        3, {{"mycluter", "myreplicaset", "somehost:3306"}});
+        3, {{"id", "mycluter", "somehost:3306"}});
 
     std::map<std::string, std::string> options2 = options;
     options2["name"] = "force\nfailure";
@@ -2222,7 +2359,7 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     expect_bootstrap_queries(mock_mysql.get(), "mycluster");
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
+        3, {{"id", "mycluster", "somehost:3306"}});
 
     std::map<std::string, std::string> options;
     options["quiet"] = "1";
@@ -2278,7 +2415,7 @@ static void bootstrap_overwrite_test(
     expect_bootstrap_queries(mock_mysql, cluster_name);
   else
     mock_mysql->expect_query("").then_return(
-        3, {{cluster_name, "myreplicaset", "somehost:3306"}});
+        3, {{"id", cluster_name, "somehost:3306"}});
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -2864,6 +3001,13 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
   // bootstrap options).
 
   ConfigGenerator config_gen;
+  common_pass_schema_version(mock_mysql.get());
+  common_pass_cluster_type(mock_mysql.get());
+  common_pass_metadata_supported(mock_mysql.get());
+  common_pass_group_replication_online(mock_mysql.get());
+  common_pass_group_has_quorum(mock_mysql.get());
+  common_pass_group_name(mock_mysql.get());
+  config_gen.init(kServerUrl, {});
 
   auto test_config_output =
       [&config_gen](const std::map<std::string, std::string> &user_options,
@@ -3205,8 +3349,8 @@ static void bootstrap_password_test(
   config_gen.bootstrap_directory_deployment(dir, options, {}, default_paths);
 }
 
-static constexpr unsigned kCreateUserQuery = 4;   // measured from front
-static constexpr unsigned kCreateUserQuery2 = 6;  // measured backwards from end
+static constexpr unsigned kCreateUserQuery = 2;   // measured from front
+static constexpr unsigned kCreateUserQuery2 = 9;  // measured backwards from end
 
 TEST_F(ConfigGeneratorTest,
        bootstrap_generate_password_force_password_validation) {
@@ -3646,21 +3790,30 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
  * in ConfigGenerator::register_router() will be caught
  * and rethrown with a user-friendly message
  */
+
+static const mysqlrouter::MetadataSchemaVersion kNewSchemaVersion{2, 0, 3};
+
 TEST_F(ConfigGeneratorTest, register_router_error_message) {
   MockSocketOperations
       sock_ops;  // this implementation will trigger our scenario by throwing
 
-  mysqlrouter::MySQLInnoDBClusterMetadata metadata(nullptr, &sock_ops);
   mysql_harness::RandomGenerator rg;
 
-  EXPECT_THROW_LIKE(
-      ConfigGenerator().register_router("foo", "", false, metadata),
-      std::runtime_error,
-      "Could not register this Router instance with the cluster "
-      "because querying this host's hostname from OS failed:\n"
-      "  some error message from get_local_hostname()\n"
-      "You may want to try --report-host option to manually "
-      "supply this hostname.");
+  ConfigGenerator conf_gen;
+
+  MySQLSessionReplayer mysql;
+  common_pass_cluster_type(&mysql);
+
+  conf_gen.metadata_ =
+      mysqlrouter::create_metadata(kNewSchemaVersion, &mysql, &sock_ops);
+
+  EXPECT_THROW_LIKE(conf_gen.register_router("foo", "", false),
+                    std::runtime_error,
+                    "Could not register this Router instance with the cluster "
+                    "because querying this host's hostname from OS failed:\n"
+                    "  some error message from get_local_hostname()\n"
+                    "You may want to try --report-host option to manually "
+                    "supply this hostname.");
 }
 
 /**
@@ -3674,22 +3827,19 @@ TEST_F(ConfigGeneratorTest, ensure_router_id_is_ours_error_message) {
       sock_ops;  // this implementation will trigger our scenario by throwing
 
   MySQLSessionReplayer mysql;
-  mysqlrouter::MySQLInnoDBClusterMetadata metadata(&mysql, &sock_ops);
+  common_pass_cluster_type(&mysql);
   mysql
       .expect_query_one(
-          "SELECT h.host_id, h.host_name FROM "
-          "mysql_innodb_cluster_metadata.routers "
-          "r JOIN mysql_innodb_cluster_metadata.hosts h    ON r.host_id = "
-          "h.host_id "
-          "WHERE r.router_id = 1")
-      .then_return(2,
-                   {{mysql.string_or_null("1"), mysql.string_or_null("foo")}});
+          "SELECT address FROM mysql_innodb_cluster_metadata.v2_routers WHERE "
+          "router_id = 1")
+      .then_return(1, {{mysql.string_or_null("foo")}});
   mysql_harness::RandomGenerator rg;
   uint32_t router_id = 1u;
-
+  ConfigGenerator conf_gen;
+  conf_gen.metadata_ =
+      mysqlrouter::create_metadata(kNewSchemaVersion, &mysql, &sock_ops);
   EXPECT_THROW_LIKE(
-      ConfigGenerator().ensure_router_id_is_ours(router_id, "", metadata),
-      std::runtime_error,
+      conf_gen.ensure_router_id_is_ours(router_id, ""), std::runtime_error,
       "Could not verify if this Router instance is already registered with the "
       "cluster because querying this host's hostname from OS failed:\n"
       "  some error message from get_local_hostname()\n"

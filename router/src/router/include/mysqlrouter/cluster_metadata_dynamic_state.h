@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include "mysqlrouter/cluster_metadata.h"
+
 namespace mysql_harness {
 class DynamicState;
 }
@@ -44,8 +46,10 @@ class ClusterMetadataDynamicState {
    *
    * @param base_config pointer to the global dynamic state base object that
    * should be used to read and write metadata cache section.
+   * @param cluster_type type of the cluster (GR or Async Replicaset)
    */
-  ClusterMetadataDynamicState(mysql_harness::DynamicState *base_config);
+  ClusterMetadataDynamicState(mysql_harness::DynamicState *base_config,
+                              mysqlrouter::ClusterType cluster_type);
 
   /**
    * @brief Destructor.
@@ -81,11 +85,14 @@ class ClusterMetadataDynamicState {
   bool save(std::ostream &state_stream);
 
   /**
-   * @brief Sets the new value for the group replication id in the state object.
+   * @brief Sets the new value for the cluster type specific id in the state
+   * object.
    *
-   * @param gr_id stream new value of the the group replication id to set
+   * @param cluster_type_specific_id new value of the cluster type specific id
+   * to set
    */
-  void set_group_replication_id(const std::string &gr_id);
+  void set_cluster_type_specific_id(
+      const std::string &cluster_type_specific_id);
 
   /**
    * @brief Sets the new value for the cluster metadata server list in the state
@@ -104,11 +111,27 @@ class ClusterMetadataDynamicState {
   std::vector<std::string> get_metadata_servers() const;
 
   /**
-   * @brief Reads the current replication group id from the state object.
+   * @brief Sets the new value for the last known metadata view_id of the Async
+   * Replicaset cluster.
    *
-   * @return current replication group id
+   * @param view_id last known metadata view_id of the Async Replicaset cluster
    */
-  std::string get_gr_id() const;
+  void set_view_id(const unsigned view_id);
+
+  /**
+   * @brief Reads the current value of the last known metadata view_id of the
+   * Async Replicaset cluster from the state object.
+   *
+   * @return last known metadata view_id of the Async Replicaset cluster
+   */
+  unsigned get_view_id() const;
+
+  /**
+   * @brief Reads the current cluster type specific id from the state object.
+   *
+   * @return current cluster type specific id
+   */
+  std::string get_cluster_type_specific_id() const;
 
  private:
   void save_section();
@@ -116,11 +139,14 @@ class ClusterMetadataDynamicState {
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
 
-  std::string gr_id_;
+  std::string cluster_type_specific_id_;
   std::vector<std::string> metadata_servers_;
+  unsigned view_id_{0};
 
   bool changed_{false};
   bool auto_save_;
+
+  mysqlrouter::ClusterType cluster_type_;
 };
 
 #endif  // CLUSTER_METADATA_DYNAMIC_STATE_INCLUDED

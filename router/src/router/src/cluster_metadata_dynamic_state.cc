@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ constexpr const char kSectionName[] = "metadata-cache";
 
 using mysql_harness::JsonAllocator;
 using mysql_harness::JsonValue;
+using mysqlrouter::ClusterType;
 
 struct ClusterMetadataDynamicState::Pimpl {
   mysql_harness::DynamicState *base_state_;
@@ -55,8 +56,8 @@ struct ClusterMetadataDynamicState::Pimpl {
 };
 
 ClusterMetadataDynamicState::ClusterMetadataDynamicState(
-    mysql_harness::DynamicState *base_config)
-    : pimpl_(new Pimpl()) {
+    mysql_harness::DynamicState *base_config, ClusterType cluster_type)
+    : pimpl_(new Pimpl()), cluster_type_(cluster_type) {
   pimpl_->base_state_ = base_config;
 }
 
@@ -68,7 +69,8 @@ void ClusterMetadataDynamicState::save_section() {
   // write cluster name
   JsonAllocator allocator;
   JsonValue val;
-  val.SetString(gr_id_.c_str(), gr_id_.length());
+  val.SetString(cluster_type_specific_id_.c_str(),
+                cluster_type_specific_id_.length());
   section.AddMember("group-replication-id", val, allocator);
 
   // write metadata servers
@@ -78,6 +80,12 @@ void ClusterMetadataDynamicState::save_section() {
     metadata_servers.PushBack(val, allocator);
   }
   section.AddMember("cluster-metadata-servers", metadata_servers, allocator);
+
+  // if this is AsyncReplicaset write view_id
+  if (cluster_type_ == ClusterType::AR_V2) {
+    val.SetUint(view_id_);
+    section.AddMember("view-id", val, allocator);
+  }
 
   pimpl_->base_state_->update_section(kSectionName, std::move(section));
 }
@@ -122,11 +130,18 @@ void ClusterMetadataDynamicState::load() {
     }
   }
 
-  gr_id_.clear();
+  cluster_type_specific_id_.clear();
   if (pimpl_->section_->HasMember("group-replication-id")) {
-    const auto &gr_id = section["group-replication-id"];
-    assert(gr_id.IsString());
-    gr_id_ = gr_id.GetString();
+    const auto &cluster_type_specific_id = section["group-replication-id"];
+    assert(cluster_type_specific_id.IsString());
+    cluster_type_specific_id_ = cluster_type_specific_id.GetString();
+  }
+
+  view_id_ = 0;
+  if (pimpl_->section_->HasMember("view-id")) {
+    const auto &view_id = section["view-id"];
+    assert(view_id.IsUint());
+    view_id_ = view_id.GetUint();
   }
 
   changed_ = false;
@@ -145,12 +160,23 @@ std::vector<std::string> ClusterMetadataDynamicState::get_metadata_servers()
   return metadata_servers_;
 }
 
-std::string ClusterMetadataDynamicState::get_gr_id() const { return gr_id_; }
+std::string ClusterMetadataDynamicState::get_cluster_type_specific_id() const {
+  return cluster_type_specific_id_;
+}
 
-void ClusterMetadataDynamicState::set_group_replication_id(
-    const std::string &gr_id) {
-  if (gr_id_ != gr_id) {
-    gr_id_ = gr_id;
+void ClusterMetadataDynamicState::set_cluster_type_specific_id(
+    const std::string &cluster_type_specific_id) {
+  if (cluster_type_specific_id_ != cluster_type_specific_id) {
+    cluster_type_specific_id_ = cluster_type_specific_id;
     changed_ = true;
   }
 }
+
+void ClusterMetadataDynamicState::set_view_id(const unsigned view_id) {
+  if (view_id_ != view_id) {
+    view_id_ = view_id;
+    changed_ = true;
+  }
+}
+
+unsigned ClusterMetadataDynamicState::get_view_id() const { return view_id_; }

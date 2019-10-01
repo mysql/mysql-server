@@ -7,24 +7,30 @@
 // */
 var common_stmts = require("common_statements");
 
+var options = {
+  cluster_type: "gr",
+};
+
 var common_responses = common_stmts.prepare_statement_responses([
   "router_select_schema_version",
+  "router_select_cluster_type_v2",
+  "router_count_clusters_v2",
 ], {});
 
-var router_count_clusters_and_replicasets =
-  common_stmts.get("router_count_clusters_and_replicasets", {});
+var router_check_member_state =
+  common_stmts.get("router_check_member_state", {});
 
 ({
   stmts: function (stmt) {
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
     }
-    else if (stmt === router_count_clusters_and_replicasets.stmt) {
+    else if (stmt === router_check_member_state.stmt) {
       return {
         error: {
-          code: 1193,
+          code: 1146,
           sql_state: "HY001",
-          message: "Unknown system variable 'group_replication_group_name'"
+          message: "Table 'performance_schema.replication_group_members' doesn't exist"
         }
       }
     }
