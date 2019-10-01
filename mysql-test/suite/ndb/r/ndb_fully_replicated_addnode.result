@@ -179,6 +179,7 @@ Table options: readbackup, fullyreplicated
 Table options: readbackup, fullyreplicated
 -- Attributes --
 Creating nodegroup
+Nodegroup 1 created
 alter table t1 algorithm=inplace, reorganize partition;
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
@@ -430,7 +431,9 @@ Table options: readbackup, fullyreplicated
 Table options: readbackup, fullyreplicated
 -- Attributes --
 Creating nodegroup
+Nodegroup 2 created
 Creating nodegroup
+Nodegroup 3 created
 alter table t1 algorithm=inplace, reorganize partition;
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
@@ -546,3 +549,7 @@ and mpf.fixed_elem_count <> tfs.fixed_elem_count
 order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
 node_id	fragment_num	fixed_elem_count	fragment_num	fixed_elem_count
 drop table t1;
+Dropping nodegroups
+Drop Node Group 3 done
+Drop Node Group 2 done
+Drop Node Group 1 done
