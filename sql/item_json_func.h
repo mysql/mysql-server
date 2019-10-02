@@ -845,7 +845,6 @@ enum Cast_target : unsigned char;
 class Item_func_array_cast final : public Item_func {
   /// Type to cast to
   Cast_target cast_type;
-  const CHARSET_INFO *cs;
   /**
     Whether use of CAST(.. AS .. ARRAY) is allowed
 
@@ -866,7 +865,7 @@ class Item_func_array_cast final : public Item_func {
   Item_func_array_cast(const POS &pos, Item *a, Cast_target type, uint len_arg,
                        uint dec_arg, const CHARSET_INFO *cs_arg);
   ~Item_func_array_cast() override;
-  const char *func_name() const override { return "cast"; }
+  const char *func_name() const override { return "cast_as_array"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool returns_array() const override { return true; }
   bool val_json(Json_wrapper *wr) override;
@@ -876,35 +875,33 @@ class Item_func_array_cast final : public Item_func {
   bool resolve_type(THD *) override;
   Field *tmp_table_field(TABLE *table) override;
   bool fix_fields(THD *thd, Item **ref) override;
-  void cleanup() override;
   void allow_array_cast() override { m_is_allowed = true; }
   type_conversion_status save_in_field_inner(Field *field,
                                              bool no_conversions) override;
   // Regular val_x() funcs shouldn't be called
   /* purecov: begin inspected */
-  longlong val_int() override  // For tests only
-  {
-    DBUG_ASSERT(0);
-    return 0;  // For tests only
-  }
-  String *val_str(String *) override {
-    DBUG_ASSERT(0);
-    return NULL;  // For tests only
-  }
-  my_decimal *val_decimal(my_decimal *) override {
-    DBUG_ASSERT(0);  // For tests only
-    return NULL;
-  }
-  virtual double val_real() override {
-    DBUG_ASSERT(0);
+  longlong val_int() override {
+    DBUG_ASSERT(false);
     return 0;
   }
-  virtual bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(0);
+  String *val_str(String *) override {
+    DBUG_ASSERT(false);
+    return nullptr;
+  }
+  my_decimal *val_decimal(my_decimal *) override {
+    DBUG_ASSERT(false);
+    return nullptr;
+  }
+  double val_real() override {
+    DBUG_ASSERT(false);
+    return 0;
+  }
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override {
+    DBUG_ASSERT(false);
     return true;
   }
-  virtual bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
+  bool get_time(MYSQL_TIME *) override {
+    DBUG_ASSERT(false);
     return true;
   }
   /* purecov: end */

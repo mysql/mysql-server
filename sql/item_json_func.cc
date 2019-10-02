@@ -95,7 +95,7 @@ bool ensure_utf8mb4(const String &val, String *buf, const char **resptr,
                   &my_charset_utf8mb4_bin, &dummy_errors)) {
       return true; /* purecov: inspected */
     }
-    buf->set_charset(&my_charset_utf8mb4_bin);
+    DBUG_ASSERT(buf->charset() == &my_charset_utf8mb4_bin);
     s = buf->ptr();
     ss = buf->length();
   }
@@ -3549,16 +3549,69 @@ bool Item_func_json_merge_patch::val_json(Json_wrapper *wr) {
   /* purecov: end */
 }
 
+/**
+  Sets the data type of an Item_func_array_cast based on the Cast_type.
+
+  @param item       the Item whose data type to set
+  @param cast_type  the type of cast
+  @param length     the declared length of the target type
+  @param decimals   the declared precision of the target type
+  @param charset    the character set of the target type (nullptr if not
+                    specified)
+*/
+static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
+                                         unsigned length, unsigned decimals,
+                                         const CHARSET_INFO *charset) {
+  switch (cast_type) {
+    case ITEM_CAST_SIGNED_INT:
+      item->set_data_type_longlong();
+      item->unsigned_flag = false;
+      return;
+    case ITEM_CAST_UNSIGNED_INT:
+      item->set_data_type_longlong();
+      item->unsigned_flag = true;
+      return;
+    case ITEM_CAST_DATE:
+      item->set_data_type_date();
+      return;
+    case ITEM_CAST_TIME:
+      item->set_data_type_time(decimals);
+      return;
+    case ITEM_CAST_DATETIME:
+      item->set_data_type_datetime(decimals);
+      return;
+    case ITEM_CAST_DECIMAL:
+      item->set_data_type_decimal(length, decimals);
+      return;
+    case ITEM_CAST_CHAR:
+      // If no character set is specified, the JSON default character set is
+      // used.
+      if (charset == nullptr)
+        item->set_data_type_string(length, &my_charset_utf8mb4_0900_bin);
+      else
+        item->set_data_type_string(length, charset);
+      return;
+    case ITEM_CAST_JSON:
+      // CAST(... AS JSON ARRAY) is not supported.
+      DBUG_ASSERT(false);
+      return;
+    case ITEM_CAST_DOUBLE:
+      item->set_data_type_double();
+      return;
+    case ITEM_CAST_FLOAT:
+      item->set_data_type_float();
+      return;
+  }
+
+  DBUG_ASSERT(false); /* purecov: deadcode */
+}
+
 Item_func_array_cast::Item_func_array_cast(const POS &pos, Item *a,
                                            Cast_target type, uint len_arg,
                                            uint dec_arg,
                                            const CHARSET_INFO *cs_arg)
-    : Item_func(pos, a), cast_type(type), cs(cs_arg) {
-  max_length = len_arg;
-  decimals = dec_arg;
-  if (cast_type == ITEM_CAST_DECIMAL)
-    fix_char_length(my_decimal_precision_to_length_no_truncation(
-        len_arg, decimals, unsigned_flag));
+    : Item_func(pos, a), cast_type(type) {
+  set_data_type_from_cast_type(this, type, len_arg, dec_arg, cs_arg);
 }
 
 Item_func_array_cast::~Item_func_array_cast() = default;
@@ -3613,19 +3666,11 @@ void Item_func_array_cast::print(const THD *thd, String *str,
       break;
     case ITEM_CAST_TIME:
       str->append(STRING_WITH_LEN("time"));
-      if (decimals) {
-        str->append(STRING_WITH_LEN("("));
-        str->append_ulonglong(decimals);
-        str->append(STRING_WITH_LEN(")"));
-      }
+      if (decimals > 0) str->append_parenthesized(decimals);
       break;
     case ITEM_CAST_DATETIME:
       str->append(STRING_WITH_LEN("datetime"));
-      if (decimals) {
-        str->append(STRING_WITH_LEN("("));
-        str->append_ulonglong(decimals);
-        str->append(STRING_WITH_LEN(")"));
-      }
+      if (decimals > 0) str->append_parenthesized(decimals);
       break;
     case ITEM_CAST_DECIMAL:
       // length and dec are already set
@@ -3634,69 +3679,29 @@ void Item_func_array_cast::print(const THD *thd, String *str,
           my_decimal_length_to_precision(max_length, decimals, unsigned_flag));
       str->append(STRING_WITH_LEN(", "));
       str->append_ulonglong(decimals);
-      str->append(STRING_WITH_LEN(")"));
+      str->append(')');
       break;
     case ITEM_CAST_CHAR:
-      if (cs == &my_charset_bin)
-        str->append(STRING_WITH_LEN("binary("));
-      else
-        str->append(STRING_WITH_LEN("char("));
-      str->append_ulonglong(max_length / cs->mbmaxlen);
-      str->append(STRING_WITH_LEN(")"));
-      if (!(cs == &my_charset_bin ||
-            my_charset_same(cs, &my_charset_utf8mb4_bin) ||
-            my_charset_same(cs, &my_charset_utf8_bin))) {
-        str->append(STRING_WITH_LEN(" character set "));
-        str->append(cs->csname);
+      if (collation.collation == &my_charset_bin) {
+        str->append(STRING_WITH_LEN("binary"));
+        str->append_parenthesized(max_length);
+      } else {
+        str->append(STRING_WITH_LEN("char"));
+        str->append_parenthesized(max_char_length());
+        // CAST AS ARRAY does not support specifying a CHARACTER SET clause, so
+        // don't print one. The lack of a CHARACTER SET clause implies utf8mb4
+        // with the utf8mb4_0900_bin collation.
+        DBUG_ASSERT(collation.collation == &my_charset_utf8mb4_0900_bin);
       }
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      DBUG_ASSERT(false); /* purecov: deadcode */
   }
   str->append(STRING_WITH_LEN(" array)"));
 }
 
 bool Item_func_array_cast::resolve_type(THD *) {
   maybe_null = true;
-  switch (cast_type) {
-    case ITEM_CAST_SIGNED_INT:
-      unsigned_flag = false;
-      set_data_type_longlong();
-      break;
-    case ITEM_CAST_UNSIGNED_INT:
-      unsigned_flag = true;
-      set_data_type_longlong();
-      break;
-    case ITEM_CAST_DATE:
-      set_data_type_date();
-      // Set newer data type
-      set_data_type(MYSQL_TYPE_NEWDATE);
-      break;
-    case ITEM_CAST_TIME:
-      set_data_type_time(decimals);
-      // Set newer data type
-      set_data_type(MYSQL_TYPE_TIME2);
-      break;
-    case ITEM_CAST_DATETIME:
-      set_data_type_datetime(decimals);
-      // Set newer data type
-      set_data_type(MYSQL_TYPE_DATETIME2);
-      break;
-    case ITEM_CAST_DECIMAL:
-      // length and dec are already set
-      set_data_type(MYSQL_TYPE_NEWDECIMAL);
-      collation.set_numeric();
-      break;
-    case ITEM_CAST_CHAR:
-      set_data_type_string(max_length, cs);
-      break;
-    default:
-      /* purecov: begin inspected */
-      DBUG_ASSERT(0);
-      set_data_type_longlong();
-      /* purecov: end */
-  }
-
   return false;
 }
 
@@ -3710,13 +3715,17 @@ enum Item_result Item_func_array_cast::result_type() const {
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME:
     case ITEM_CAST_CHAR:
+    case ITEM_CAST_JSON:
       return STRING_RESULT;
       break;
     case ITEM_CAST_DECIMAL:
       return DECIMAL_RESULT;
-    default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+    case ITEM_CAST_FLOAT:
+    case ITEM_CAST_DOUBLE:
+      return REAL_RESULT;
   }
+
+  DBUG_ASSERT(false); /* purecov: deadcode */
   return INT_RESULT;
 }
 
@@ -3733,18 +3742,28 @@ type_conversion_status Item_func_array_cast::save_in_field_inner(Field *field,
       &wr, m_result_array.get());
 }
 
-Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
-  auto array_field = new (*THR_MALLOC) Field_typed_array(
-      data_type(), unsigned_flag, max_length, decimals, nullptr, nullptr, 0, 0,
-      "", table->s, 4, collation.collation);
-  array_field->init(table);
-  return array_field;
+/// Converts the "data type" used by Item to a "real type" used by Field.
+static enum_field_types data_type_to_real_type(enum_field_types data_type) {
+  // Only temporal types have different "data type" and "real type".
+  switch (data_type) {
+    case MYSQL_TYPE_DATE:
+      return MYSQL_TYPE_NEWDATE;
+    case MYSQL_TYPE_TIME:
+      return MYSQL_TYPE_TIME2;
+    case MYSQL_TYPE_DATETIME:
+      return MYSQL_TYPE_DATETIME2;
+    default:
+      return data_type;
+  }
 }
 
-void Item_func_array_cast::cleanup() {
-  // Un-fix length if the function was resolved and length was adjusted
-  if (cast_type == ITEM_CAST_CHAR && fixed) max_length /= cs->mbmaxlen;
-  Item_func::cleanup();
+Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
+  auto array_field = new (*THR_MALLOC) Field_typed_array(
+      data_type_to_real_type(data_type()), unsigned_flag, max_length, decimals,
+      nullptr, nullptr, 0, 0, "", table->s, 4, collation.collation);
+  if (array_field == nullptr) return nullptr;
+  array_field->init(table);
+  return array_field;
 }
 
 /**
@@ -3952,7 +3971,7 @@ void Item_func_member_of::print(const THD *thd, String *str,
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" member of ("));
   args[1]->print(thd, str, query_type);
-  str->append(STRING_WITH_LEN(")"));
+  str->append(')');
 }
 
 bool can_store_json_value_unencoded(const Field *field_to_store_in,
@@ -4042,7 +4061,7 @@ bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
           default:
             break;
         }
-      } else if (real_type_to_type(field->type()) == MYSQL_TYPE_TIME &&
+      } else if (field->type() == MYSQL_TYPE_TIME &&
                  w->type() == enum_json_type::J_TIME) {
         date_time_handled = true;
         err = w->coerce_time(&ltime, "JSON_TABLE", cr_error);

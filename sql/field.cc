@@ -9941,11 +9941,7 @@ void Field_typed_array::init(TABLE *table_arg) {
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_TIME2:
-    case MYSQL_TYPE_TIMESTAMP2:
-    case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
     case MYSQL_TYPE_NEWDECIMAL:
@@ -10381,6 +10377,11 @@ uint32 Create_field_wrapper::max_display_length() const {
 Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
   Field *tmp_table_field;
   if (item->type() == Item::FUNC_ITEM) {
+    /*
+      If the function returns an array, use the method provided by the function
+      to create the tmp table field, as the generic
+      tmp_table_field_from_field_type() can't handle typed arrays.
+    */
     if (item->result_type() != STRING_RESULT || item->returns_array())
       tmp_table_field = item->tmp_table_field(tmp_table);
     else

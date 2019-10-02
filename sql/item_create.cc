@@ -31,8 +31,10 @@
 
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <cctype>
 #include <iterator>
 #include <limits>
@@ -41,6 +43,9 @@
 #include <unordered_map>
 #include <utility>
 
+#include "decimal.h"
+#include "field_types.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -64,7 +69,8 @@
 #include "sql/my_decimal.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
-#include "sql/sql_class.h"           // THD
+#include "sql/parser_yystype.h"
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exception_handler.h"  // handle_std_exception
@@ -73,8 +79,6 @@
 #include "sql/sql_udf.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
-#include "sql_time.h"  // str_to_datetime
-#include "sql_udf.h"
 #include "tztime.h"  // adjust_time_zone
 
 /**
@@ -1762,71 +1766,69 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
   return create_func_cast(thd, pos, a, &type);
 }
 
-extern CHARSET_INFO my_charset_utf8mb4_0900_bin;
+/**
+  Validates a cast target type and extracts the specified length and precision
+  of the target type.
 
-Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type,
-                       bool as_array) {
+  @param thd        thread handler
+  @param pos        the location of the expression
+  @param arg        the value to cast
+  @param cast_type  the target type of the cast
+  @param as_array   true if the target type is an array type
+  @param[out] length     gets set to the maximum length of the target type
+  @param[out] precision  gets set to the precision of the target type
+  @return true on error, false on success
+*/
+static bool validate_cast_type_and_extract_length(
+    const THD *thd, const POS &pos, Item *arg, const Cast_type &cast_type,
+    bool as_array, int64_t *length, uint *precision) {
   // earlier syntax error detected
-  if (a == nullptr) return nullptr;
-
-  const Cast_target cast_type = type->target;
-  const char *c_len = type->length;
-  const char *c_dec = type->dec;
-
-  Item *res = nullptr;
+  if (arg == nullptr) return true;
 
   if (as_array) {
-    // Disallow CAST( .. AS .. ARRAY) in SP
+    // Disallow arrays in stored routines.
     if (thd->lex->get_sp_current_parsing_ctx()) {
       my_error(ER_WRONG_USAGE, MYF(0), "CAST( .. AS .. ARRAY)",
                "stored routines");
-      return nullptr;
+      return true;
     }
-    if (type->charset != nullptr && type->charset != &my_charset_bin) {
+
+    /*
+      Multi-valued index currently only supports two character sets: binary for
+      BINARY(x) keys and my_charset_utf8mb4_0900_bin for CHAR(x) keys. The
+      latter one is because it's closest to binary in terms of sort order and
+      doesn't pad spaces. This is important because JSON treats e.g. "abc" and
+      "abc " as different values and a space padding charset will cause
+      inconsistent key handling.
+    */
+    if (cast_type.charset != nullptr && cast_type.charset != &my_charset_bin) {
       my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                "specifying charset for multi-valued index");
-      return nullptr;
+      return true;
     }
   }
-  switch (cast_type) {
+
+  *length = 0;
+  *precision = 0;
+
+  const char *const c_len = cast_type.length;
+  const char *const c_dec = cast_type.dec;
+
+  switch (cast_type.target) {
     case ITEM_CAST_SIGNED_INT:
-      if (as_array)
-        res = new (thd->mem_root)
-            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
-      else
-        res = new (thd->mem_root) Item_typecast_signed(pos, a);
-      break;
     case ITEM_CAST_UNSIGNED_INT:
-      if (as_array)
-        res = new (thd->mem_root)
-            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
-      else
-        res = new (thd->mem_root) Item_typecast_unsigned(pos, a);
-      break;
     case ITEM_CAST_DATE:
-      if (as_array)
-        res = new (thd->mem_root)
-            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
-      else
-        res = new (thd->mem_root) Item_typecast_date(pos, a);
-      break;
+      return false;
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME: {
       uint dec = c_dec ? strtoul(c_dec, nullptr, 10) : 0;
       if (dec > DATETIME_MAX_DECIMALS) {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), (int)dec, "CAST",
+        my_error(ER_TOO_BIG_PRECISION, MYF(0), dec, "CAST",
                  DATETIME_MAX_DECIMALS);
-        return nullptr;
+        return true;
       }
-      if (as_array)
-        res = new (thd->mem_root)
-            Item_func_array_cast(pos, a, cast_type, 0, dec, NULL);
-      else
-        res = (cast_type == ITEM_CAST_TIME)
-                  ? (Item *)new (thd->mem_root) Item_typecast_time(pos, a, dec)
-                  : (Item *)new (thd->mem_root)
-                        Item_typecast_datetime(pos, a, dec);
-      break;
+      *precision = dec;
+      return false;
     }
     case ITEM_CAST_DECIMAL: {
       ulong len = 0;
@@ -1835,13 +1837,13 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type,
       if (c_len) {
         ulong decoded_size;
         errno = 0;
-        decoded_size = strtoul(c_len, NULL, 10);
+        decoded_size = strtoul(c_len, nullptr, 10);
         if (errno != 0) {
           StringBuffer<192> buff(pos.cpp.start, pos.cpp.length(),
                                  system_charset_info);
           my_error(ER_TOO_BIG_PRECISION, MYF(0), INT_MAX, buff.c_ptr_safe(),
                    static_cast<ulong>(DECIMAL_MAX_PRECISION));
-          return NULL;
+          return true;
         }
         len = decoded_size;
       }
@@ -1849,133 +1851,150 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type,
       if (c_dec) {
         ulong decoded_size;
         errno = 0;
-        decoded_size = strtoul(c_dec, NULL, 10);
+        decoded_size = strtoul(c_dec, nullptr, 10);
         if ((errno != 0) || (decoded_size > UINT_MAX)) {
+          // The parser rejects scale values above INT32_MAX, so this error path
+          // is never taken.
+          /* purecov: begin inspected */
           StringBuffer<192> buff(pos.cpp.start, pos.cpp.length(),
                                  system_charset_info);
           my_error(ER_TOO_BIG_SCALE, MYF(0), INT_MAX, buff.c_ptr_safe(),
                    static_cast<ulong>(DECIMAL_MAX_SCALE));
-          return NULL;
+          return true;
+          /* purecov: end */
         }
         dec = decoded_size;
       }
       my_decimal_trim(&len, &dec);
       if (len < dec) {
         my_error(ER_M_BIGGER_THAN_D, MYF(0), "");
-        return 0;
+        return true;
       }
       if (len > DECIMAL_MAX_PRECISION) {
         StringBuffer<192> buff(pos.cpp.start, pos.cpp.length(),
                                system_charset_info);
         my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(len),
                  buff.c_ptr_safe(), static_cast<ulong>(DECIMAL_MAX_PRECISION));
-        return 0;
+        return true;
       }
       if (dec > DECIMAL_MAX_SCALE) {
         StringBuffer<192> buff(pos.cpp.start, pos.cpp.length(),
                                system_charset_info);
         my_error(ER_TOO_BIG_SCALE, MYF(0), dec, buff.c_ptr_safe(),
                  static_cast<ulong>(DECIMAL_MAX_SCALE));
-        return 0;
+        return true;
       }
-      if (as_array)
-        res = new (thd->mem_root)
-            Item_func_array_cast(pos, a, cast_type, len, dec, NULL);
-      else
-        res = new (thd->mem_root) Item_typecast_decimal(pos, a, len, dec);
-      break;
+      *length = len;
+      *precision = dec;
+      return false;
     }
     case ITEM_CAST_CHAR: {
       longlong len = -1;
-      const CHARSET_INFO *cs = type->charset;
-      const CHARSET_INFO *real_cs =
-          (cs ? cs : thd->variables.collation_connection);
       if (c_len) {
         int error;
         len = my_strtoll10(c_len, nullptr, &error);
         if ((error != 0) || (len > MAX_FIELD_BLOBLENGTH)) {
           my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char",
                    MAX_FIELD_BLOBLENGTH);
-          return nullptr;
+          return true;
         }
       }
-      if (as_array) {
-        if (cast_type == ITEM_CAST_CHAR &&
-            (len < 0 || len > CONVERT_IF_BIGGER_TO_BLOB)) {
-          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                   "CAST-ing data to array of char/binary BLOBs");
-          return res;
-        }
-        /*
-          Multi-valued index now supports only two charsets: binary for
-          BINARY(x) keys and my_charset_utf8mb4_0900_as_cs for CHAR(x) keys.
-          The latter one is because it's closest to binary in terms of sort
-          order and doesn't pad spaces.  This is important because JSON treat
-          e.g "abc" and "abc " as different values and space padding charset
-          will cause inconsistent key handling and failed asserts in InnoDB.
-        */
-        if (real_cs != &my_charset_bin) real_cs = &my_charset_utf8mb4_0900_bin;
-
-        res = new (thd->mem_root)
-            Item_func_array_cast(pos, a, cast_type, len, 0, real_cs);
-      } else
-        res = new (thd->mem_root) Item_typecast_char(POS(), a, len, real_cs);
-      break;
+      if (as_array && (len == -1 || len > CONVERT_IF_BIGGER_TO_BLOB)) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of char/binary BLOBs");
+        return true;
+      }
+      *length = len;
+      return false;
     }
-    case ITEM_CAST_JSON: {
+    case ITEM_CAST_DOUBLE:
       if (as_array) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                 "CAST-ing data to array of JSON");
-        return nullptr;
+                 "CAST-ing data to array of DOUBLE");
+        return true;
       }
-      res = new (thd->mem_root) Item_typecast_json(thd, pos, a);
-
-      break;
-    }
+      return false;
     case ITEM_CAST_FLOAT: {
-      bool as_double = false;
-
       if (as_array) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                  "CAST-ing data to array of FLOAT");
-        return nullptr;
+        return true;
       }
+
+      ulong decoded_size = 0;
 
       // Check if binary precision is specified
       if (c_len != nullptr) {
-        ulong decoded_size;
         errno = 0;
         decoded_size = strtoul(c_len, nullptr, 10);
         if (errno != 0 || decoded_size > PRECISION_FOR_DOUBLE) {
           my_error(ER_TOO_BIG_PRECISION, MYF(0), decoded_size, "CAST",
                    PRECISION_FOR_DOUBLE);
-          return nullptr;
-        }
-        // Make the cast to DOUBLE
-        if (decoded_size > PRECISION_FOR_FLOAT) {
-          as_double = true;
+          return true;
         }
       }
-
-      res = new (thd->mem_root) Item_typecast_real(pos, a, as_double);
-      break;
+      *length = decoded_size;
+      return false;
     }
-    case ITEM_CAST_DOUBLE: {
+    case ITEM_CAST_JSON:
       if (as_array) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                 "CAST-ing data to array of DOUBLE");
-        return nullptr;
+                 "CAST-ing data to array of JSON");
+        return true;
       }
-
-      res = new (thd->mem_root) Item_typecast_real(pos, a, /*as_double*/ true);
-      break;
-    }
-    default: {
-      DBUG_ASSERT(0);
-      break;
-    }
+      return false;
   }
-  return res;
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(false);
+  return true;
+  /* purecov: end */
+}
+
+Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
+                       const Cast_type *type, bool as_array) {
+  int64_t length = 0;
+  unsigned precision = 0;
+  if (validate_cast_type_and_extract_length(thd, pos, arg, *type, as_array,
+                                            &length, &precision))
+    return nullptr;
+
+  if (as_array)
+    return new (thd->mem_root) Item_func_array_cast(
+        pos, arg, type->target, length, precision, type->charset);
+
+  switch (type->target) {
+    case ITEM_CAST_SIGNED_INT:
+      return new (thd->mem_root) Item_typecast_signed(pos, arg);
+    case ITEM_CAST_UNSIGNED_INT:
+      return new (thd->mem_root) Item_typecast_unsigned(pos, arg);
+    case ITEM_CAST_DATE:
+      return new (thd->mem_root) Item_typecast_date(pos, arg);
+    case ITEM_CAST_TIME:
+      return new (thd->mem_root) Item_typecast_time(pos, arg, precision);
+    case ITEM_CAST_DATETIME:
+      return new (thd->mem_root) Item_typecast_datetime(pos, arg, precision);
+    case ITEM_CAST_DECIMAL:
+      return new (thd->mem_root)
+          Item_typecast_decimal(pos, arg, length, precision);
+    case ITEM_CAST_CHAR: {
+      const CHARSET_INFO *cs = type->charset;
+      if (cs == nullptr) cs = thd->variables.collation_connection;
+      return new (thd->mem_root) Item_typecast_char(pos, arg, length, cs);
+    }
+    case ITEM_CAST_JSON:
+      return new (thd->mem_root) Item_typecast_json(thd, pos, arg);
+    case ITEM_CAST_FLOAT:
+      return new (thd->mem_root) Item_typecast_real(
+          pos, arg, /*as_double=*/(length > PRECISION_FOR_FLOAT));
+    case ITEM_CAST_DOUBLE:
+      return new (thd->mem_root)
+          Item_typecast_real(pos, arg, /*as_double=*/true);
+  }
+
+  /* purecov: begin deadcode */
+  DBUG_ASSERT(false);
+  return nullptr;
+  /* purecov: end */
 }
 
 /**

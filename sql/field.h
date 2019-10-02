@@ -4364,7 +4364,7 @@ class Field_typed_array final : public Field_json {
   uchar null_byte;
   /// conversion field's buffer
   uchar *m_conv_buf;
-  /// Array's element type
+  /// The array element's real type.
   enum_field_types m_elt_type;
   /// Element's decimals
   uint m_elt_decimals;
