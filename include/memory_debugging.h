@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,8 @@
   Various macros useful for communicating with memory debuggers,
   such as Valgrind.
 */
+
+#include <string.h>
 
 #ifdef HAVE_VALGRIND
 #include <valgrind/valgrind.h>
@@ -64,23 +66,16 @@
 /**
   Put bad content in memory to be sure it will segfault if dereferenced.
   With Valgrind, verify that memory is addressable, and mark it undefined.
-  We cache value of B because if B is expression which depends on A, memset()
-  trashes value of B.
 */
-#define TRASH(A, B)              \
-  do {                           \
-    void *p = (A);               \
-    const size_t l = (B);        \
-    MEM_CHECK_ADDRESSABLE(A, l); \
-    memset(p, 0x8F, l);          \
-    MEM_UNDEFINED(A, l);         \
-  } while (0)
+inline void TRASH(void *ptr, size_t length) {
+  MEM_CHECK_ADDRESSABLE(ptr, length);
+  memset(ptr, 0x8F, length);
+  MEM_UNDEFINED(ptr, length);
+}
 
 #else
 
-#define TRASH(A, B) \
-  do {              \
-  } while (0)
+inline void TRASH(void *, size_t) {}
 
 #endif
 
