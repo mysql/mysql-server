@@ -1042,9 +1042,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       log.format = LOG_HEADER_FORMAT_8_0_19;
       mach_write_to_4(buf + LOG_HEADER_FORMAT, log.format);
       log_block_set_checksum(buf, log_block_calc_checksum_crc32(buf));
-      ut_a(fil_redo_io(IORequestLogWrite, page_id_t{log.files_space_id, 0},
-                       univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE,
-                       buf) == DB_SUCCESS);
+      if (!srv_read_only_mode) {
+        const auto err =
+            fil_redo_io(IORequestLogWrite, page_id_t{log.files_space_id, 0},
+                        univ_page_size, 0, OS_FILE_LOG_BLOCK_SIZE, buf);
+        ut_a(err == DB_SUCCESS);
+      }
       break;
 
     case LOG_HEADER_FORMAT_5_7_9:
