@@ -5663,6 +5663,7 @@ static void bind_date_conv(uint row_count, bool preserveFractions) {
         tm[i].second = sec + count;
       } else
         tm[i].hour = tm[i].minute = tm[i].second = 0;
+      tm[i].time_type = MYSQL_TIMESTAMP_NONE;
     }
     rc = mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
@@ -15617,6 +15618,7 @@ static void test_bug27592() {
 
     time_val.second_part = 0;
     time_val.neg = false;
+    time_val.time_type = MYSQL_TIMESTAMP_NONE;
 
     rc = mysql_stmt_bind_param(stmt, bind);
     check_execute(stmt, rc);
@@ -16870,6 +16872,7 @@ static void test_bug40365(void) {
   check_execute(stmt, rc);
 
   for (i = 0; i < array_elements(my_bind); i++) {
+    tm[i].time_type = MYSQL_TIMESTAMP_NONE;
     tm[i].neg = false;
     tm[i].second_part = 0;
     tm[i].year = 2009;
