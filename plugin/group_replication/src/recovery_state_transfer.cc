@@ -609,9 +609,9 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
     /* purecov: end */
   }
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false, NULL, false,
-      NULL, 0, NULL, NULL);
+      const_cast<char *>("<NULL>"), 0, NULL, NULL, false, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, false, DEFAULT_THREAD_PRIORITY, 1, false, NULL,
+      false, NULL, 0, NULL, NULL);
 
   return error;
 }
