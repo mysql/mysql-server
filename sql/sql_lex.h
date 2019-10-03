@@ -1380,7 +1380,7 @@ class SELECT_LEX {
 
           //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
   */
-  SELECT_LEX(Item *where, Item *having);
+  SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having);
 
   SELECT_LEX_UNIT *master_unit() const { return master; }
   SELECT_LEX_UNIT *first_inner_unit() const { return slave; }

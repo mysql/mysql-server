@@ -128,9 +128,6 @@ class Fake_TABLE : public TABLE {
   // Counter for creating unique table id's. See initialize().
   static int highest_table_id;
 
- public:
-  SELECT_LEX select_lex{nullptr, nullptr};
-
  private:
   void initialize() {
     TABLE *as_table = static_cast<TABLE *>(this);
@@ -142,7 +139,8 @@ class Fake_TABLE : public TABLE {
     write_set = &write_set_struct;
     next_number_field = NULL;  // No autoinc column
     pos_in_table_list = &table_list;
-    pos_in_table_list->select_lex = &select_lex;
+    pos_in_table_list->select_lex =
+        new (&mem_root) SELECT_LEX(&mem_root, nullptr, nullptr);
     table_list.table = this;
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields));
     EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields));

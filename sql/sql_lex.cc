@@ -526,7 +526,8 @@ void lex_end(LEX *lex) {
 }
 
 SELECT_LEX *LEX::new_empty_query_block() {
-  SELECT_LEX *select = new (thd->mem_root) SELECT_LEX(nullptr, nullptr);
+  SELECT_LEX *select =
+      new (thd->mem_root) SELECT_LEX(thd->mem_root, nullptr, nullptr);
   if (select == nullptr) return nullptr; /* purecov: inspected */
 
   select->parent_lex = this;
@@ -2013,7 +2014,7 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
   Construct and initialize SELECT_LEX object.
 */
 
-SELECT_LEX::SELECT_LEX(Item *where, Item *having)
+SELECT_LEX::SELECT_LEX(MEM_ROOT *mem_root, Item *where, Item *having)
     : next(NULL),
       prev(NULL),
       master(NULL),
@@ -2049,10 +2050,10 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       ftfunc_list(&ftfunc_list_alloc),
       ftfunc_list_alloc(),
       join(NULL),
-      top_join_list(*THR_MALLOC),
+      top_join_list(mem_root),
       join_list(&top_join_list),
       embedding(NULL),
-      sj_nests(*THR_MALLOC),
+      sj_nests(mem_root),
       leaf_tables(NULL),
       leaf_table_count(0),
       derived_table_count(0),

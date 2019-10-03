@@ -38,6 +38,7 @@
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/fake_integer_iterator.h"
 #include "unittest/gunit/fake_string_iterator.h"
@@ -85,6 +86,12 @@ static hash_join_buffer::TableCollection CreateTenTableJoin(
                                            TablesBetween(0, kNumTablesInJoin));
 }
 
+static void DestroyFakeTables(
+    const hash_join_buffer::TableCollection &table_collection) {
+  for (const hash_join_buffer::Table &table : table_collection.tables())
+    destroy(pointer_cast<Fake_TABLE *>(table.qep_tab->table()));
+}
+
 static void BM_StoreFromTableBuffersNoData(size_t num_iterations) {
   StopBenchmarkTiming();
 
@@ -105,6 +112,7 @@ static void BM_StoreFromTableBuffersNoData(size_t num_iterations) {
   }
   StopBenchmarkTiming();
 
+  DestroyFakeTables(table_collection);
   initializer.TearDown();
 }
 BENCHMARK(BM_StoreFromTableBuffersNoData)
@@ -130,6 +138,7 @@ static void BM_StoreFromTableBuffersWithData(size_t num_iterations) {
   }
   StopBenchmarkTiming();
 
+  DestroyFakeTables(table_collection);
   initializer.TearDown();
 }
 BENCHMARK(BM_StoreFromTableBuffersWithData)
@@ -244,21 +253,20 @@ class HashJoinTestHelper {
                      const vector<int> &right_dataset) {
     m_left_table_field.reset(
         new (&m_mem_root) Mock_field_long("column1", false /* is_nullable */));
-    Fake_TABLE *left_table =
-        new (&m_mem_root) Fake_TABLE(m_left_table_field.get());
+    m_left_table.reset(new (&m_mem_root) Fake_TABLE(m_left_table_field.get()));
 
     m_right_table_field.reset(
         new (&m_mem_root) Mock_field_long("column1", false /* is_nullable */));
-    Fake_TABLE *right_table =
-        new (&m_mem_root) Fake_TABLE(m_right_table_field.get());
-    SetupFakeTables(initializer, left_table, right_table);
+    m_right_table.reset(new (&m_mem_root)
+                            Fake_TABLE(m_right_table_field.get()));
+    SetupFakeTables(initializer);
 
     left_iterator.reset(new (&m_mem_root) FakeIntegerIterator(
-        initializer->thd(), left_table,
-        down_cast<Field_long *>(left_table->field[0]), move(left_dataset)));
+        initializer->thd(), m_left_table.get(),
+        down_cast<Field_long *>(m_left_table->field[0]), move(left_dataset)));
     right_iterator.reset(new (&m_mem_root) FakeIntegerIterator(
-        initializer->thd(), right_table,
-        down_cast<Field_long *>(right_table->field[0]), move(right_dataset)));
+        initializer->thd(), m_right_table.get(),
+        down_cast<Field_long *>(m_right_table->field[0]), move(right_dataset)));
   }
 
   HashJoinTestHelper(Server_initializer *initializer,
@@ -266,32 +274,30 @@ class HashJoinTestHelper {
                      const vector<std::string> &right_dataset) {
     m_left_table_field.reset(new (&m_mem_root) Mock_field_varstring(
         nullptr, "column1", 255 /* length */, false /* is_nullable */));
-    Fake_TABLE *left_table =
-        new (&m_mem_root) Fake_TABLE(m_left_table_field.get());
+    m_left_table.reset(new (&m_mem_root) Fake_TABLE(m_left_table_field.get()));
 
     m_right_table_field.reset(new (&m_mem_root) Mock_field_varstring(
         nullptr, "column1", 255 /* length */, false /* is_nullable */));
-    Fake_TABLE *right_table =
-        new (&m_mem_root) Fake_TABLE(m_right_table_field.get());
-    SetupFakeTables(initializer, left_table, right_table);
+    m_right_table.reset(new (&m_mem_root)
+                            Fake_TABLE(m_right_table_field.get()));
+    SetupFakeTables(initializer);
 
     left_iterator.reset(new (&m_mem_root) FakeStringIterator(
-        initializer->thd(), left_table,
-        down_cast<Field_varstring *>(left_table->field[0]),
+        initializer->thd(), m_left_table.get(),
+        down_cast<Field_varstring *>(m_left_table->field[0]),
         move(left_dataset)));
     right_iterator.reset(new (&m_mem_root) FakeStringIterator(
-        initializer->thd(), right_table,
-        down_cast<Field_varstring *>(right_table->field[0]),
+        initializer->thd(), m_right_table.get(),
+        down_cast<Field_varstring *>(m_right_table->field[0]),
         move(right_dataset)));
   }
 
  private:
-  void SetupFakeTables(Server_initializer *initializer, Fake_TABLE *left_table,
-                       Fake_TABLE *right_table) {
-    bitmap_set_all(left_table->write_set);
-    bitmap_set_all(left_table->read_set);
-    bitmap_set_all(right_table->write_set);
-    bitmap_set_all(right_table->read_set);
+  void SetupFakeTables(Server_initializer *initializer) {
+    bitmap_set_all(m_left_table->write_set);
+    bitmap_set_all(m_left_table->read_set);
+    bitmap_set_all(m_right_table->write_set);
+    bitmap_set_all(m_right_table->read_set);
 
     SELECT_LEX *select_lex =
         parse(initializer,
@@ -303,19 +309,19 @@ class HashJoinTestHelper {
     left_qep_tab = &join->qep_tab[0];
     left_qep_tab->set_qs(new (&m_mem_root) QEP_shared);
     left_qep_tab->set_idx(0);
-    left_qep_tab->set_table(left_table);
-    left_qep_tab->table_ref = left_table->pos_in_table_list;
+    left_qep_tab->set_table(m_left_table.get());
+    left_qep_tab->table_ref = m_left_table->pos_in_table_list;
     left_qep_tab->set_join(join);
 
     right_qep_tab = &join->qep_tab[1];
     right_qep_tab->set_qs(new (&m_mem_root) QEP_shared);
     right_qep_tab->set_idx(1);
-    right_qep_tab->set_table(right_table);
-    right_qep_tab->table_ref = right_table->pos_in_table_list;
+    right_qep_tab->set_table(m_right_table.get());
+    right_qep_tab->table_ref = m_right_table->pos_in_table_list;
     right_qep_tab->set_join(join);
 
-    join_condition = new Item_func_eq(new Item_field(left_table->field[0]),
-                                      new Item_field(right_table->field[0]));
+    join_condition = new Item_func_eq(new Item_field(m_left_table->field[0]),
+                                      new Item_field(m_right_table->field[0]));
     join_condition->set_cmp_func();
   }
 
@@ -324,6 +330,8 @@ class HashJoinTestHelper {
   // for Mock_field_varstring. Wrapping the fields in a unique_ptr_destroy_only
   // will ensure this.
   MEM_ROOT m_mem_root;
+  unique_ptr_destroy_only<Fake_TABLE> m_left_table;
+  unique_ptr_destroy_only<Fake_TABLE> m_right_table;
   unique_ptr_destroy_only<Field> m_left_table_field;
   unique_ptr_destroy_only<Field> m_right_table_field;
 };

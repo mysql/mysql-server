@@ -51,13 +51,12 @@ class JsonDomTest : public ::testing::Test {
  protected:
   Base_mock_field_json m_field{};
   Fake_TABLE m_table{&m_field};
-  virtual void SetUp() {
+  void SetUp() override {
     initializer.SetUp();
     m_field.make_writable();
     m_table.in_use = thd();
-    init_alloc_root(PSI_NOT_INSTRUMENTED, &m_table.mem_root, 256, 0);
   }
-  virtual void TearDown() {
+  void TearDown() override {
     m_table.cleanup_partial_update();
     initializer.TearDown();
   }

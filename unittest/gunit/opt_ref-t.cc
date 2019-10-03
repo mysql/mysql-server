@@ -72,8 +72,8 @@ class OptRefTest : public ::testing::Test {
 
     t1_join_tab.set_qs(&t1_qep_shared);
     t1_join_tab.set_table(&t1);
+    t1_table_list.select_lex = t1.pos_in_table_list->select_lex;
     t1.pos_in_table_list = &t1_table_list;
-    t1.pos_in_table_list->select_lex = &t1.select_lex;
 
     t1_table_list.table = &t1;
     t1_table_list.embedding = NULL;

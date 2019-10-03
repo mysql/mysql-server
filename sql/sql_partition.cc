@@ -922,7 +922,7 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
   LEX *old_lex = thd->lex;
   LEX lex;
   SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(nullptr, nullptr);
+  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   DBUG_TRACE;
@@ -3890,7 +3890,7 @@ bool mysql_unpack_partition(THD *thd, char *part_buf, uint part_info_len,
   LEX *old_lex = thd->lex;
   LEX lex;
   SELECT_LEX_UNIT unit(CTX_NONE);
-  SELECT_LEX select(nullptr, nullptr);
+  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest = thd->m_digest;

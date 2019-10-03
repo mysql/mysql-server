@@ -113,7 +113,7 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
   EXPECT_CALL(where, walk(_, _, _)).Times(1);
   EXPECT_CALL(having, walk(_, _, _)).Times(1);
 
-  SELECT_LEX query_block(&where, &having);
+  SELECT_LEX query_block(thd()->mem_root, &where, &having);
 
   SELECT_LEX_UNIT unit(CTX_NONE);
 
