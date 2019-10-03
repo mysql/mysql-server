@@ -4,7 +4,7 @@
 var common_stmts = require("common_statements");
 
 var options = {
-  metadata_schema_version: [0, 0, 1],
+  metadata_schema_version: mysqld.global.metadata_version,
 }
 
 var router_select_schema_version =

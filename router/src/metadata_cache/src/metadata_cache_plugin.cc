@@ -100,8 +100,8 @@ class MetadataServersStateListener
         replicaset_name_, this);
   }
 
-  void notify(const LookupResult &instances,
-              const bool md_servers_reachable) override {
+  void notify(const LookupResult &instances, const bool md_servers_reachable,
+              const unsigned view_id) override {
     if (!md_servers_reachable) return;
     auto md_servers = instances.instance_vector;
 
@@ -126,6 +126,7 @@ class MetadataServersStateListener
     }
 
     dynamic_state_.set_metadata_servers(metadata_servers_str);
+    dynamic_state_.set_view_id(view_id);
     dynamic_state_.save();
   }
 
@@ -193,13 +194,14 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     md_cache->instance_name(section->key);
 
-    const std::string replicaset_id = config.get_group_replication_id();
+    const std::string replicaset_id = config.get_cluster_type_specific_id();
 
-    md_cache->cache_init(replicaset_id, config.metadata_servers_addresses,
-                         {config.user, password}, ttl,
-                         make_ssl_options(section), metadata_cluster,
-                         config.connect_timeout, config.read_timeout,
-                         config.thread_stack_size, config.use_gr_notifications);
+    md_cache->cache_init(
+        config.cluster_type, config.router_id, replicaset_id,
+        config.metadata_servers_addresses, {config.user, password}, ttl,
+        make_ssl_options(section), metadata_cluster, config.connect_timeout,
+        config.read_timeout, config.thread_stack_size,
+        config.use_gr_notifications, config.get_view_id());
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);

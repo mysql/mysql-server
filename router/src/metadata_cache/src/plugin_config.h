@@ -50,7 +50,7 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
    */
   MetadataCachePluginConfig(const mysql_harness::ConfigSection *section)
       : BasePluginConfig(section),
-        metadata_cache_dynamic_state(get_dynamic_state()),
+        metadata_cache_dynamic_state(get_dynamic_state(section)),
         metadata_servers_addresses(get_metadata_servers(
             section, metadata_cache::kDefaultMetadataPort)),
         user(get_option_string(section, "user")),
@@ -62,7 +62,15 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
         thread_stack_size(
             get_uint_option<uint32_t>(section, "thread_stack_size", 1, 65535)),
         use_gr_notifications(get_uint_option<uint16_t>(
-                                 section, "use_gr_notifications", 0, 1) == 1) {}
+                                 section, "use_gr_notifications", 0, 1) == 1),
+        cluster_type(get_cluster_type(section)),
+        router_id(get_uint_option<uint32_t>(section, "router_id")) {
+    if (cluster_type == mysqlrouter::ClusterType::AR_V2 &&
+        section->has("use_gr_notifications")) {
+      throw std::invalid_argument(
+          "option 'use_gr_notifications' is not valid for cluster type 'ar'");
+    }
+  }
 
   /**
    * @param option name of the option
@@ -91,13 +99,22 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   /** @brief  Whether we should listen to GR notifications from the cluster
    * nodes. */
   const bool use_gr_notifications;
+  /** @brief  Type of the cluster this configuration was bootstrap against. */
+  const mysqlrouter::ClusterType cluster_type;
+  /** @brief  Id of the router in the metadata. */
+  const unsigned int router_id;
 
-  /** @brief Gets Replication Group ID if preset in the dynamic configuration.
+  /** @brief Gets (Replication Group ID for GR cluster or cluster_id for Async
+   * Replicaset cluster) if preset in the dynamic configuration.
    *
    * @note  If there is no dynamic configuration (backward compatibility) it
    * returns empty string.
    */
-  std::string get_group_replication_id() const;
+  std::string get_cluster_type_specific_id() const;
+
+  /** @brief Gets last know Async Replicaset metadata view_id stored in the
+   * dynamic state file . */
+  unsigned get_view_id() const;
 
  private:
   /** @brief Gets a list of metadata servers.
@@ -112,7 +129,11 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   std::vector<mysql_harness::TCPAddress> get_metadata_servers(
       const mysql_harness::ConfigSection *section, uint16_t default_port) const;
 
-  ClusterMetadataDynamicState *get_dynamic_state();
+  mysqlrouter::ClusterType get_cluster_type(
+      const mysql_harness::ConfigSection *section);
+
+  std::unique_ptr<ClusterMetadataDynamicState> get_dynamic_state(
+      const mysql_harness::ConfigSection *section);
 };
 
 #endif  // METADATA_CACHE_PLUGIN_CONFIG_INCLUDED

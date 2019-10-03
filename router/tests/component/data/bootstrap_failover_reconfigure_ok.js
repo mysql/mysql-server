@@ -15,16 +15,18 @@ var options = {
 
 var common_responses = common_stmts.prepare_statement_responses([
   "router_start_transaction",
+  "router_select_view_id_bootstrap_ar",
   "router_commit",
 ], options);
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex([
-  "router_select_hosts",
-  "router_insert_into_hosts",
+  "router_select_router_address",
   "router_insert_into_routers",
   "router_create_user_if_not_exists",
   "router_grant_on_metadata_db",
   "router_grant_on_pfs_db",
+  "router_grant_on_v2_routers",
+  "router_grant_on_routers",
   "router_update_routers_in_metadata",
 ], options);
 

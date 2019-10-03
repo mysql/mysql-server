@@ -171,7 +171,8 @@ class DestMetadataCacheGroup final
   void subscribe_for_metadata_cache_changes();
 
   void notify(const metadata_cache::LookupResult &instances,
-              const bool md_servers_reachable) noexcept override;
+              const bool md_servers_reachable,
+              const unsigned /*view_id*/) noexcept override;
 };
 
 #endif  // ROUTING_DEST_METADATA_CACHE_INCLUDED

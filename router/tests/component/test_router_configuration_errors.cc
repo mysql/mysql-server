@@ -211,7 +211,37 @@ static const BrokenConfigParams broken_config_params[]{
      },
      "option user in [metadata_cache:one] is required",
      ""},
-
+    {"metadata_cache_gr_notifications_for_ar_cluster",
+     {
+         ConfigBuilder::build_section("metadata_cache",
+                                      {{"user", "whateva"},
+                                       {"cluster_type", "ar"},
+                                       {"use_gr_notifications", "1"}}),
+     },
+     "option 'use_gr_notifications' is not valid for cluster type 'ar'",
+     ""},
+    {"metadata_cache_invalid_cluster_type",
+     {
+         ConfigBuilder::build_section("metadata_cache",
+                                      {
+                                          {"user", "whateva"},
+                                          {"cluster_type", "invalid"},
+                                      }),
+     },
+     " option cluster_type in [metadata_cache] is incorrect 'invalid', "
+     "expected 'ar' or 'gr'",
+     ""},
+    {"metadata_cache_invalid_cluster_type2",
+     {
+         ConfigBuilder::build_section("metadata_cache",
+                                      {
+                                          {"user", "whateva"},
+                                          {"cluster_type", "<>."},
+                                      }),
+     },
+     " option cluster_type in [metadata_cache] is incorrect '<>.', expected "
+     "'ar' or 'gr'",
+     ""},
     {"no_plugin",
      {},
      "",

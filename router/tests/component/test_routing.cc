@@ -71,8 +71,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   // use the json file that adds additional rows to the metadata to increase the
   // packet size to +10MB to verify routing of the big packets
-  const std::string json_stmts =
-      get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   TempDirectory bootstrap_dir;
 
   // launch the server mock for bootstrapping
@@ -115,7 +114,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
-      "MySQL Router configured for the InnoDB cluster 'test'"))
+      "MySQL Router configured for the InnoDB cluster 'mycluster'"))
       << "bootstrap output: " << router_bootstrapping.get_full_output()
       << std::endl
       << "routing log: " << router_bootstrapping.get_full_logfile() << std::endl
@@ -128,8 +127,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
-  const std::string json_stmts =
-      get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch the server mock
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
@@ -158,12 +156,12 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
   mysqlrouter::MySQLSession client1, client2, client3;
-  EXPECT_NO_THROW(client1.connect("127.0.0.1", router_port, "username",
-                                  "password", "", ""));
-  EXPECT_NO_THROW(client2.connect("127.0.0.1", router_port, "username",
-                                  "password", "", ""));
+  EXPECT_NO_THROW(
+      client1.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""));
+  EXPECT_NO_THROW(
+      client2.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""));
   ASSERT_THROW_LIKE(
-      client3.connect("127.0.0.1", router_port, "username", "password", "", ""),
+      client3.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
       std::runtime_error, "Too many connections to MySQL Router (1040)");
 }
 
@@ -207,8 +205,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
-  const std::string json_stmts =
-      get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch the server mock
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
@@ -279,8 +276,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   mysqlrouter::MySQLSession client1;
   EXPECT_TRUE(ThrowsExceptionWith<std::runtime_error>(
       [&client1, router_port]() {
-        client1.connect("127.0.0.1", router_port, "username", "password", "",
-                        "");
+        client1.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
       },
       "Router couldn't spawn a new thread to service new client connection "
       "(1040)"))
@@ -362,8 +358,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   const auto router_port = port_pool_.get_next_available();
 
   // json file does not actually matter in this test as we are not going to
-  const std::string json_stmts =
-      get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
   TempDirectory bootstrap_dir;
 
   // launch the server mock for bootstrapping
@@ -410,7 +405,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   // max_connect_errors was exceeded
   MySQLSession client;
   EXPECT_THROW_LIKE(
-      client.connect("127.0.0.1", router_port, "username", "password", "", ""),
+      client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
       std::exception, "Too many connection errors");
 }
 
@@ -487,8 +482,7 @@ TEST_F(RouterRoutingTest, test1) {
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
-  const std::string json_stmts =
-      get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch the server mock
   auto &server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
@@ -519,8 +513,8 @@ TEST_F(RouterRoutingTest, test1) {
     // good connection, followed by 2 bad ones. Good one should reset the error
     // counter
     mysqlrouter::MySQLSession client;
-    EXPECT_NO_THROW(client.connect("127.0.0.1", router_port, "username",
-                                   "password", "", ""));
+    EXPECT_NO_THROW(
+        client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""));
     make_bad_connection(router_port);
     make_bad_connection(router_port);
   }
@@ -534,9 +528,9 @@ TEST_F(RouterRoutingTest, test1) {
   for (int i = 0; i < 5; i++) {
     // now trying to make a good connection should fail due to blockage
     mysqlrouter::MySQLSession client;
-    EXPECT_THROW_LIKE(client.connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""),
-                      std::exception, "Too many connection errors");
+    EXPECT_THROW_LIKE(
+        client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
+        std::exception, "Too many connection errors");
   }
 }
 

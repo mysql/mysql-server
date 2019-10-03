@@ -37,6 +37,7 @@
 #include <rapidjson/pointer.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
+#include "mysqlrouter/cluster_metadata.h"
 
 // AddressSanitizer gets confused by the default, MemoryPoolAllocator
 // Solaris sparc also gets crashes
@@ -54,12 +55,17 @@ using JsonStringBuffer =
  * @param gr_id replication group id to set
  * @param gr_node_ports vector with the ports of the nodes that mock server
  * @param primary_id which node is the primary
+ * @param view_id metadata view id (for AR cluster)
+ * @param error_on_md_query if true the mock should return an error when
+ * handling the metadata query
  *
  * @return JSON object with the GR mock data.
  */
 JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
                                    const std::vector<uint16_t> &gr_node_ports,
-                                   unsigned primary_id = 0);
+                                   unsigned primary_id = 0,
+                                   unsigned view_id = 0,
+                                   bool error_on_md_query = false);
 
 /**
  * Sets the metadata returned by the mock server.
@@ -68,14 +74,19 @@ JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
  * @param gr_id replication group id to set
  * @param gr_node_ports vector with the ports of the nodes that mock server
  * @param primary_id which node is the primary
+ * @param view_id metadata view id (for AR cluster)
+ * @param error_on_md_query if true the mock should return an error when
+ * handling the metadata query
  */
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
-                       unsigned primary_id = 0);
+                       unsigned primary_id = 0, unsigned view_id = 0,
+                       bool error_on_md_query = false);
 
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,
-    const std::vector<std::pair<std::string, unsigned>> &gr_members_ports);
+    const std::vector<std::pair<std::string, unsigned>> &gr_members_ports,
+    const mysqlrouter::MetadataSchemaVersion &metadata_version);
 
 /**
  * Converts JSON object to string representation.

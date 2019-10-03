@@ -133,21 +133,6 @@ const char kAppArmorMsg[] =
     "  /path/to/your/output/dir rw,\n"
     "  /path/to/your/output/dir/** rw,";
 
-/**
- * Return a string representation of the input character string.
- *
- * @param input_str A character string.
- *
- * @return A string object encapsulation of the input character string. An empty
- *         string if input string is nullptr.
- */
-static std::string get_string(const char *input_str) {
-  if (input_str == nullptr) {
-    return "";
-  }
-  return std::string(input_str);
-}
-
 static bool is_valid_name(const std::string &name) {
   if (!name.empty()) {
     for (char c : name) {
@@ -292,6 +277,8 @@ ConfigGenerator::ConfigGenerator(std::ostream &out_stream,
 #endif
 {
 }
+
+ConfigGenerator::~ConfigGenerator() {}
 
 // throws std::logic_error, std::runtime_error, Error(runtime_error)
 /*static*/
@@ -499,16 +486,15 @@ void ConfigGenerator::connect_to_metadata_server(
   }
 }
 
-// throws ?
 void ConfigGenerator::init_gr_data(const URI &u,
                                    const std::string &bootstrap_socket) {
-  gr_id_ = get_group_replication_id(mysql_.get());
+  cluster_specific_id_ = metadata_->get_cluster_type_specific_id();
 
-  gr_initial_username_ = u.username;
-  gr_initial_password_ = u.password;
-  gr_initial_hostname_ = u.host;
-  gr_initial_port_ = u.port;
-  gr_initial_socket_ = bootstrap_socket;
+  cluster_initial_username_ = u.username;
+  cluster_initial_password_ = u.password;
+  cluster_initial_hostname_ = u.host;
+  cluster_initial_port_ = u.port;
+  cluster_initial_socket_ = bootstrap_socket;
 }
 
 // throws std::runtime_error, std::logic_error
@@ -530,13 +516,47 @@ void ConfigGenerator::init(
 
   // throws std::runtime_error, std::logic_error,
   connect_to_metadata_server(u, bootstrap_socket, bootstrap_options);
+  auto schema_version = mysqlrouter::get_metadata_schema_version(mysql_.get());
 
-  // check if the current server is a suitable metadata server
-  // Both of the below throw: std::runtime_error, std::logic_error
-  require_innodb_metadata_is_ok(mysql_.get());
-  require_innodb_group_replication_is_ok(mysql_.get());
+  if (schema_version == mysqlrouter::kUpdateInProgressMetadataVersion) {
+    throw std::runtime_error(
+        "Currently the cluster metadata update is in progress. Please rerun "
+        "the bootstrap when it is finished.");
+  }
 
-  init_gr_data(u, bootstrap_socket);  // throws ?
+  if (!metadata_schema_version_is_compatible(kRequiredBootstrapSchemaVersion,
+                                             schema_version)) {
+    throw std::runtime_error(mysqlrouter::string_format(
+        "This version of MySQL Router is not compatible with the provided "
+        "MySQL InnoDB cluster metadata. Expected metadata version %u.%u.%u, "
+        "got %u.%u.%u",
+        kRequiredBootstrapSchemaVersion.major,
+        kRequiredBootstrapSchemaVersion.minor,
+        kRequiredBootstrapSchemaVersion.patch, schema_version.major,
+        schema_version.minor, schema_version.patch));
+  }
+
+  metadata_ = mysqlrouter::create_metadata(schema_version, mysql_.get());
+
+  // at this point we know the cluster type so let's do additional verifications
+  if (mysqlrouter::ClusterType::AR_V2 == metadata_->get_type()) {
+    if (bootstrap_options.find("use-gr-notifications") !=
+        bootstrap_options.end()) {
+      throw std::runtime_error(
+          "The parameter 'use-gr-notifications' is valid only for GR cluster "
+          "type.");
+    }
+  }
+
+  // check if the current server is meta-data server
+  metadata_->require_metadata_is_ok();  // throws MySQLSession::Error,
+                                        // std::runtime_error,
+                                        // std::out_of_range, std::logic_error
+  metadata_->require_cluster_is_ok();   // throws MySQLSession::Error,
+                                       // std::runtime_error, std::out_of_range,
+                                       // std::logic_error
+
+  init_gr_data(u, bootstrap_socket);
 }
 
 void ConfigGenerator::bootstrap_system_deployment(
@@ -1004,45 +1024,49 @@ enum class MySQLErrorc {
 };
 
 /**
- * Group Replication-aware decorator for MySQL Sessions
+ * Cluster (GR or AR)-aware decorator for MySQL Sessions.
  */
-class GrAwareDecorator {
+class ClusterAwareDecorator {
  public:
-  GrAwareDecorator(
-      MySQLSession &sess, const std::string &gr_initial_username,
-      const std::string &gr_initial_password,
-      const std::string &gr_initial_hostname, unsigned long gr_initial_port,
-      const std::string &gr_initial_socket, unsigned long connection_timeout,
+  ClusterAwareDecorator(
+      MySQLSession &sess, const std::string &cluster_initial_username,
+      const std::string &cluster_initial_password,
+      const std::string &cluster_initial_hostname,
+      unsigned long cluster_initial_port,
+      const std::string &cluster_initial_socket,
+      unsigned long connection_timeout,
       std::set<MySQLErrorc> failure_codes = {MySQLErrorc::kSuperReadOnly,
                                              MySQLErrorc::kLostConnection})
       : mysql_(sess),
-        gr_initial_username_(gr_initial_username),
-        gr_initial_password_(gr_initial_password),
-        gr_initial_hostname_(gr_initial_hostname),
-        gr_initial_port_(gr_initial_port),
-        gr_initial_socket_(gr_initial_socket),
+        cluster_initial_username_(cluster_initial_username),
+        cluster_initial_password_(cluster_initial_password),
+        cluster_initial_hostname_(cluster_initial_hostname),
+        cluster_initial_port_(cluster_initial_port),
+        cluster_initial_socket_(cluster_initial_socket),
         connection_timeout_(connection_timeout),
-        failure_codes_(failure_codes) {}
+        failure_codes_(std::move(failure_codes)) {}
 
   template <class R>
   R failover_on_failure(std::function<R()> wrapped_func);
 
- private:
-  std::vector<std::tuple<std::string, unsigned long>>
-  fetch_group_replication_hosts();
+  virtual ~ClusterAwareDecorator() = default;
+
+ protected:
+  virtual std::vector<std::tuple<std::string, unsigned long>>
+  fetch_cluster_hosts() = 0;
 
   MySQLSession &mysql_;
-  const std::string gr_initial_username_;
-  const std::string gr_initial_password_;
-  const std::string gr_initial_hostname_;
-  unsigned long gr_initial_port_;
-  const std::string gr_initial_socket_;
+  const std::string &cluster_initial_username_;
+  const std::string &cluster_initial_password_;
+  const std::string &cluster_initial_hostname_;
+  unsigned long cluster_initial_port_;
+  const std::string &cluster_initial_socket_;
   unsigned long connection_timeout_;
   std::set<MySQLErrorc> failure_codes_;
 };
 
 /**
- * group replication aware failover
+ * Cluster (GR or AR) aware failover.
  *
  * @param wrapped_func function will be called
  *
@@ -1053,76 +1077,12 @@ class GrAwareDecorator {
  * - wrapped_func throws MySQLSession::Error with .code in .failure_codes
  */
 template <class R>
-R GrAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
-  // failover_to_next_node() expects an established connection, through which
-  // it can query GR for cluster nodes.  If it runs, it will then close this
-  // connection and in its place open another one to a cluster node (more than
-  // once if neccessary).
-  harness_assert(mysql_.is_connected());
-
-  bool fetched_gr_servers = false;
-  std::vector<std::tuple<std::string, unsigned long>> gr_servers;
+R ClusterAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
+  bool fetched_cluster_servers = false;
+  std::vector<std::tuple<std::string, unsigned long>> cluster_servers;
 
   // init it once, even though we'll never use it
-  auto gr_servers_it = gr_servers.begin();
-
-  auto failover_to_next_node = [&]() {
-    do {
-      if (!fetched_gr_servers) {
-        // lazy fetch the GR members
-        //
-        fetched_gr_servers = true;
-
-        log_info("Fetching Group Replication Members");
-
-        for (const auto &gr_node : fetch_group_replication_hosts()) {
-          auto const &gr_host = std::get<0>(gr_node);
-          auto gr_port = std::get<1>(gr_node);
-
-          // if we connected through TCP/IP, ignore the initial host
-          if (gr_initial_socket_.size() == 0 &&
-              (gr_host == gr_initial_hostname_ &&
-               gr_port == gr_initial_port_)) {
-            continue;
-          }
-
-          log_debug("Added GR node: %s:%ld", gr_host.c_str(), gr_port);
-          gr_servers.emplace_back(gr_host, gr_port);
-        }
-
-        // get a new iterator as the old one is now invalid
-        gr_servers_it = gr_servers.begin();
-      } else {
-        std::advance(gr_servers_it, 1);
-      }
-
-      if (gr_servers_it == gr_servers.end()) {
-        throw std::runtime_error("No more nodes to fail-over too, giving up.");
-      }
-
-      if (mysql_.is_connected()) {
-        log_info("%s", "Disconnecting from mysql-server");
-        mysql_.disconnect();
-      }
-
-      auto const &tp = *gr_servers_it;
-
-      auto const &gr_host = std::get<0>(tp);
-      auto gr_port = std::get<1>(tp);
-
-      log_info("Trying to connecting to mysql-server at %s:%ld",
-               gr_host.c_str(), gr_port);
-
-      try {
-        mysql_.connect(gr_host, gr_port, gr_initial_username_,
-                       gr_initial_password_, "", "", connection_timeout_);
-      } catch (const std::exception &inner_e) {
-        log_info("Failed connecting to %s:%ld: %s, trying next",
-                 gr_host.c_str(), gr_port, inner_e.what());
-      }
-      // if this fails, we should just skip it and go to the next
-    } while (!mysql_.is_connected());
-  };
+  auto cluster_servers_it = cluster_servers.begin();
 
   do {
     try {
@@ -1130,51 +1090,174 @@ R GrAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
     } catch (const MySQLSession::Error &e) {
       MySQLErrorc ec = static_cast<MySQLErrorc>(e.code());
 
-      // failover only on authorised error codes
-      bool do_failover = failure_codes_.find(ec) != failure_codes_.end();
-
-      log_info("Executing statements failed with: '%s' (%d)%s", e.what(),
-               e.code(),
-               do_failover ? ", trying to connect to another node" : "");
+      log_info(
+          "Executing statements failed with: '%s' (%d), trying to connect to "
+          "another node",
+          e.what(), e.code());
 
       // code not in failure-set
-      if (!do_failover) {
+      if (failure_codes_.find(ec) == failure_codes_.end()) {
         throw;
       }
 
-      failover_to_next_node();
+      do {
+        if (!fetched_cluster_servers) {
+          // lazy fetch the GR members
+          //
+          fetched_cluster_servers = true;
+
+          log_info("Fetching Cluster Members");
+
+          for (auto &gr_node : fetch_cluster_hosts()) {
+            auto const &gr_host = std::get<0>(gr_node);
+            auto gr_port = std::get<1>(gr_node);
+
+            // if we connected through TCP/IP, ignore the initial host
+            if (cluster_initial_socket_.size() == 0 &&
+                (gr_host == cluster_initial_hostname_ &&
+                 gr_port == cluster_initial_port_)) {
+              continue;
+            }
+
+            log_debug("added cluster node: %s:%ld", gr_host.c_str(), gr_port);
+            cluster_servers.emplace_back(gr_host, gr_port);
+          }
+
+          // get a new iterator as the old one is now invalid
+          cluster_servers_it = cluster_servers.begin();
+        } else {
+          std::advance(cluster_servers_it, 1);
+        }
+
+        if (cluster_servers_it == cluster_servers.end()) {
+          throw std::runtime_error(
+              "no more nodes to fail-over too, giving up.");
+        }
+
+        if (mysql_.is_connected()) {
+          log_info("%s", "disconnecting from mysql-server");
+          mysql_.disconnect();
+        }
+
+        auto const &tp = *cluster_servers_it;
+
+        auto const &host = std::get<0>(tp);
+        auto port = std::get<1>(tp);
+
+        log_info("trying to connecting to mysql-server at %s:%ld", host.c_str(),
+                 port);
+
+        try {
+          mysql_.connect(host, port, cluster_initial_username_,
+                         cluster_initial_password_, "", "",
+                         connection_timeout_);
+        } catch (const std::exception &inner_e) {
+          log_info("Failed connecting to %s:%ld: %s, trying next", host.c_str(),
+                   port, inner_e.what());
+        }
+        // if this fails, we should just skip it and go to the next
+      } while (!mysql_.is_connected());
     }
   } while (true);
 }
 
-std::vector<std::tuple<std::string, unsigned long>>
-GrAwareDecorator::fetch_group_replication_hosts() {
-  std::ostringstream query;
+/**
+ * GR-aware decorator for MySQL Sessions.
+ */
+class GRAwareDecorator : public ClusterAwareDecorator {
+ public:
+  using ClusterAwareDecorator::ClusterAwareDecorator;
 
+ protected:
+  virtual std::vector<std::tuple<std::string, unsigned long>>
+  fetch_cluster_hosts() override;
+};
+
+std::vector<std::tuple<std::string, unsigned long>>
+GRAwareDecorator::fetch_cluster_hosts() {
   // Query the name of the replicaset, the servers in the replicaset and the
   // router credentials using the URL of a server in the replicaset.
   //
   // order by member_role (in 8.0 and later) to sort PRIMARY over SECONDARY
-  query << "SELECT member_host, member_port "
-           "  FROM performance_schema.replication_group_members "
-           " /*!80002 ORDER BY member_role */";
+  const std::string query =
+      "SELECT member_host, member_port "
+      "  FROM performance_schema.replication_group_members "
+      " /*!80002 ORDER BY member_role */";
 
   try {
     std::vector<std::tuple<std::string, unsigned long>> gr_servers;
 
-    mysql_.query(query.str(),
-                 [&gr_servers](const std::vector<const char *> &row) -> bool {
-                   gr_servers.push_back(std::make_tuple(std::string(row[0]),
-                                                        std::stoul(row[1])));
-                   return true;  // don't stop
-                 });
+    mysql_.query(
+        query, [&gr_servers](const std::vector<const char *> &row) -> bool {
+          gr_servers.push_back(
+              std::make_tuple(std::string(row[0]), std::stoul(row[1])));
+          return true;  // don't stop
+        });
 
     return gr_servers;
   } catch (const MySQLSession::Error &e) {
     // log_error("MySQL error: %s (%u)", e.what(), e.code());
     // log_error("    Failed query: %s", query.str().c_str());
-    throw std::runtime_error(std::string("Error querying metadata: ") +
-                             e.what());
+    throw std::runtime_error("Error querying metadata: "s + e.what());
+  }
+}
+
+/**
+ * AsyncRepl-aware decorator for MySQL Sessions
+ */
+class AsyncReplAwareDecorator : public ClusterAwareDecorator {
+ public:
+  using ClusterAwareDecorator::ClusterAwareDecorator;
+
+ protected:
+  virtual std::vector<std::tuple<std::string, unsigned long>>
+  fetch_cluster_hosts() override;
+};
+
+std::vector<std::tuple<std::string, unsigned long>>
+AsyncReplAwareDecorator::fetch_cluster_hosts() {
+  // Query the name of the cluster, and the instance addresses
+  const std::string query =
+      "select i.address from "
+      "mysql_innodb_cluster_metadata.v2_instances i join "
+      "mysql_innodb_cluster_metadata.v2_clusters c on c.cluster_id = "
+      "i.cluster_id";
+
+  try {
+    std::vector<std::tuple<std::string, unsigned long>> ar_servers;
+
+    mysql_.query(query,
+                 [&ar_servers](const std::vector<const char *> &row) -> bool {
+                   mysqlrouter::URI u("mysql://"s + row[0]);
+                   ar_servers.push_back(std::make_tuple(u.host, u.port));
+                   return true;  // don't stop
+                 });
+
+    return ar_servers;
+  } catch (const MySQLSession::Error &e) {
+    throw std::runtime_error("Error querying metadata: "s + e.what());
+  }
+}
+
+std::unique_ptr<ClusterAwareDecorator> create_cluster_aware_decorator(
+    const ClusterType cluster_type, MySQLSession &sess,
+    const std::string &cluster_initial_username,
+    const std::string &cluster_initial_password,
+    const std::string &cluster_initial_hostname,
+    unsigned long cluster_initial_port,
+    const std::string &cluster_initial_socket, unsigned long connection_timeout,
+    std::set<MySQLErrorc> failure_codes = {MySQLErrorc::kSuperReadOnly,
+                                           MySQLErrorc::kLostConnection}) {
+  if (cluster_type == ClusterType::AR_V2) {
+    return std::make_unique<AsyncReplAwareDecorator>(
+        sess, cluster_initial_username, cluster_initial_password,
+        cluster_initial_hostname, cluster_initial_port, cluster_initial_socket,
+        connection_timeout, failure_codes);
+  } else {
+    return std::make_unique<GRAwareDecorator>(
+        sess, cluster_initial_username, cluster_initial_password,
+        cluster_initial_hostname, cluster_initial_port, cluster_initial_socket,
+        connection_timeout, failure_codes);
   }
 }
 
@@ -1221,41 +1304,31 @@ void ConfigGenerator::bootstrap_deployment(
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const std::map<std::string, std::string> &default_paths,
     bool directory_deployment, AutoCleaner &auto_clean) {
-  std::string primary_cluster_name;
-  std::vector<std::string> primary_replicaset_servers;
-  std::string primary_replicaset_name;
   bool force = user_options.find("force") != user_options.end();
   bool quiet = user_options.find("quiet") != user_options.end();
-
-  // query the connected MD server and populate vars with results
-  harness_assert(mysql_->is_connected());
-  fetch_metadata_servers(primary_replicaset_servers, primary_cluster_name,
-                         primary_replicaset_name);
 
   // get router_id and username from config and/or command-line
   uint32_t router_id;
   std::string username;
-  {
-    // throws std::runtime_error on invalid router_id or metadata_cluster
-    std::tie(router_id, username) =
-        get_router_id_and_username_from_config_if_it_exists(
-            config_file_path.str(), primary_cluster_name, force);
+  auto cluster_info = metadata_->fetch_metadata_servers();
 
-    // if user provided --account, override username with it
-    username = map_get(user_options, "account", username);
+  std::tie(router_id, username) =
+      get_router_id_and_username_from_config_if_it_exists(
+          config_file_path.str(), cluster_info.metadata_cluster_name, force);
 
-    // If username is still empty at this point, it will be autogenerated
-    // inside try_bootstrap_deployment().  It cannot be done here, because the
-    // autogenerated name will contain router_id, and that is still subject to
-    // change inside try_bootstrap_deployment()
-  }
+  // if user provided --account, override username with it
+  username = map_get(user_options, "account", username);
+
+  // If username is still empty at this point, it will be autogenerated
+  // inside try_bootstrap_deployment().  It cannot be done here, because the
+  // autogenerated name will contain router_id, and that is still subject to
+  // change inside try_bootstrap_deployment()
 
   if (!quiet)
     print_bootstrap_start_msg(router_id, directory_deployment,
                               config_file_path);
 
   Options options(fill_options(user_options));
-
   // Prompt for the Router's runtime account that's used by metadata_cache and
   // specified by "--account".
   // If running in --account mode, the user provides the password (ALWAYS,
@@ -1273,27 +1346,29 @@ void ConfigGenerator::bootstrap_deployment(
   // bootstrap
   // All SQL writes happen inside here
   {
-    GrAwareDecorator gr_aware(*mysql_, gr_initial_username_,
-                              gr_initial_password_, gr_initial_hostname_,
-                              gr_initial_port_, gr_initial_socket_,
-                              connect_timeout_);
+    auto cluster_aware = create_cluster_aware_decorator(
+        metadata_->get_type(), *mysql_, cluster_initial_username_,
+        cluster_initial_password_, cluster_initial_hostname_,
+        cluster_initial_port_, cluster_initial_socket_, connect_timeout_);
 
     // note: try_bootstrap_deployment() can update router_id, username and
     // password note: failover is performed only on specific errors (subset of
     // what
     //       appears in enum class MySQLErrorc)
     std::tie(password) =
-        gr_aware.failover_on_failure<std::tuple<std::string>>([&]() {
-          return try_bootstrap_deployment(router_id, username, password,
-                                          router_name, user_options,
-                                          multivalue_options, options);
+        cluster_aware->failover_on_failure<std::tuple<std::string>>([&]() {
+          return try_bootstrap_deployment(
+              router_id, username, password, router_name,
+              cluster_info.metadata_cluster_id, user_options,
+              multivalue_options, options);
         });
   }
 
   // test out the connection that Router would use
   {
     bool strict = user_options.count("strict");
-    verify_router_account(username, password, primary_cluster_name, strict);
+    verify_router_account(username, password,
+                          cluster_info.metadata_cluster_name, strict);
   }
 
   store_credentials_in_keyring(auto_clean, user_options, router_id, username,
@@ -1306,31 +1381,36 @@ void ConfigGenerator::bootstrap_deployment(
                 << std::endl;
     auto system_username = map_get(user_options, "user", "");
     create_config(config_file, state_file, router_id, router_name,
-                  system_username, primary_replicaset_servers,
-                  primary_cluster_name, primary_replicaset_name, username,
-                  options, state_file_path.str());
+                  system_username, cluster_info.metadata_servers,
+                  cluster_info.metadata_cluster_name,
+                  cluster_info.metadata_replicaset, username, options,
+                  state_file_path.str());
   }
 
-  if (!quiet)
-    print_report(config_file_path.str(), router_name, primary_cluster_name,
+  if (!quiet) {
+    const std::string cluster_type_name =
+        metadata_->get_type() == ClusterType::AR_V2 ? "Async Replicaset"
+                                                    : "InnoDB";
+    print_report(config_file_path.str(), router_name,
+                 cluster_info.metadata_cluster_name, cluster_type_name,
                  map_get(user_options, "report-host", "localhost"),
                  !directory_deployment, options);
+  }
 }
 
 void ConfigGenerator::ensure_router_id_is_ours(
-    uint32_t &router_id, const std::string &hostname_override,
-    MySQLInnoDBClusterMetadata &metadata) {
+    uint32_t &router_id, const std::string &hostname_override) {
   // if router data is valid
   try {
-    metadata.verify_router_id_is_ours(router_id, hostname_override);
+    metadata_->verify_router_id_is_ours(router_id, hostname_override);
   } catch (
       const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError
           &e) {
     throw std::runtime_error(
-        std::string("Could not verify if this Router instance is already "
-                    "registered with the "
-                    "cluster because querying this host's hostname from OS "
-                    "failed:\n  ") +
+        "Could not verify if this Router instance is already "
+        "registered with the "
+        "cluster because querying this host's hostname from OS "
+        "failed:\n  "s +
         e.what() +
         "\nYou may want to try --report-host option to manually supply this "
         "hostname.");
@@ -1341,20 +1421,20 @@ void ConfigGenerator::ensure_router_id_is_ours(
   }
 }
 
-uint32_t ConfigGenerator::register_router(
-    const std::string &router_name, const std::string &hostname_override,
-    bool force, MySQLInnoDBClusterMetadata &metadata) {
+uint32_t ConfigGenerator::register_router(const std::string &router_name,
+                                          const std::string &hostname_override,
+                                          bool force) {
   // register router
   uint32_t router_id;
   try {
-    router_id = metadata.register_router(router_name, force, hostname_override);
+    router_id =
+        metadata_->register_router(router_name, force, hostname_override);
   } catch (
       const mysql_harness::SocketOperationsBase::LocalHostnameResolutionError
           &e) {
     throw std::runtime_error(
-        std::string(
-            "Could not register this Router instance with the cluster because "
-            "querying this host's hostname from OS failed:\n  ") +
+        "Could not register this Router instance with the cluster because "
+        "querying this host's hostname from OS failed:\n  "s +
         e.what() +
         "\nYou may want to try --report-host option to manually supply this "
         "hostname.");
@@ -1441,36 +1521,8 @@ See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.)";
                           this](MySQLSession &rtr_acct_sess) {
     // no need to differentiate between SQL queries and statements, as both can
     // be called with mysql_real_query() (called inside MySQLSession::execute())
-    const std::array<std::string, 4> stmts = {
-        // MDC startup
-        // source: mysqlrouter::get_group_replication_id(MySQLSession *mysql)
-        "select @@group_replication_group_name",
-
-        /* next 3 are called during MDC Refresh; they access all tables that are
-         * GRANTed by bootstrap
-         */
-
-        // source: ClusterMetadata::fetch_instances_from_metadata_server()
-        "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, I.addresses->>'$.mysqlClassic', "
-        "I.addresses->>'$.mysqlX' FROM mysql_innodb_cluster_metadata.clusters "
-        "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
-        "F.cluster_id = R.cluster_id JOIN "
-        "mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id = "
-        "I.replicaset_id"
-        " WHERE F.cluster_name = " +
-            mysql_->quote(primary_cluster_name) + ";",
-
-        // source: find_group_replication_primary_member()
-        "show status like 'group_replication_primary_member'",
-
-        // source: fetch_group_replication_members()
-        "SELECT member_id, member_host, member_port, member_state, "
-        "@@group_replication_single_primary_mode FROM "
-        "performance_schema.replication_group_members WHERE channel_name = "
-        "'group_replication_applier'",
-
-    };
+    const auto stmts =
+        metadata_->get_routing_mode_queries(primary_cluster_name);
 
     // we just call them (ignore the resultset) - all we care about is whether
     // they execute without error
@@ -1512,12 +1564,11 @@ See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.)";
 
 std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
     uint32_t &router_id, std::string &username, std::string &password,
-    const std::string &router_name,
+    const std::string &router_name, const std::string &cluster_id,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const Options &options) {
   MySQLSession::Transaction transaction(mysql_.get());
-  MySQLInnoDBClusterMetadata metadata(mysql_.get());
 
   // set hostname override if provided
   const auto &it = user_options.find("report-host");
@@ -1531,16 +1582,13 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
     // belongs to a different host.
     // NOTE that these were passed by reference to us, thus they are stored
     //      outside of this function and will be persisted to the next call.
-    ensure_router_id_is_ours(router_id, hostname_override, metadata);
+    ensure_router_id_is_ours(router_id, hostname_override);
   }
 
   // if router not registered yet (or router_id was invalid)
   if (router_id == 0) {
     bool force = user_options.find("force") != user_options.end();
-
-    // throws std::runtime on failure
-    router_id =
-        register_router(router_name, hostname_override, force, metadata);
+    router_id = register_router(router_name, hostname_override, force);
   }
   harness_assert(router_id > 0);
 
@@ -1556,8 +1604,6 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
 
   const std::set<std::string> hostnames_cmd =
       get_account_host_args(multivalue_options);
-
-  // create_router_accounts() throws many things, see its description
   // If password is empty and running without --account, it will be
   // autogenerated and returned
   bool password_change_ok = !user_options.count("account");
@@ -1568,8 +1614,8 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
   const std::string ro_endpoint = str(options.ro_endpoint);
   const std::string rw_x_endpoint = str(options.rw_x_endpoint);
   const std::string ro_x_endpoint = str(options.ro_x_endpoint);
-  metadata.update_router_info(router_id, rw_endpoint, ro_endpoint,
-                              rw_x_endpoint, ro_x_endpoint);
+  metadata_->update_router_info(router_id, cluster_id, rw_endpoint, ro_endpoint,
+                                rw_x_endpoint, ro_x_endpoint);
 
   transaction.commit();
 
@@ -1750,78 +1796,6 @@ void ConfigGenerator::init_keyring_file(uint32_t router_id,
   keyring_initialized_ = true;
 }
 
-void ConfigGenerator::fetch_metadata_servers(
-    std::vector<std::string> &metadata_servers, std::string &metadata_cluster,
-    std::string &metadata_replicaset) {
-  std::ostringstream query;
-
-  // Query the name of the replicaset, the servers in the replicaset and the
-  // router credentials using the URL of a server in the replicaset.
-  query << "SELECT "
-           "F.cluster_name, "
-           "R.replicaset_name, "
-           "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
-           "FROM "
-           "mysql_innodb_cluster_metadata.clusters AS F, "
-           "mysql_innodb_cluster_metadata.instances AS I, "
-           "mysql_innodb_cluster_metadata.replicasets AS R "
-           "WHERE "
-           "R.replicaset_id = "
-           "(SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances "
-           "WHERE "
-           "mysql_server_uuid = @@server_uuid)"
-           "AND "
-           "I.replicaset_id = R.replicaset_id "
-           "AND "
-           "R.cluster_id = F.cluster_id";
-
-  // clang-format off
-  // EXAMPLE RESPONSE:
-  //
-  //   row[0]         row[1]            row[2]          row[3]
-  // +--------------+-----------------+---------------+-----------------------------------------------------------+
-  // | cluster_name | replicaset_name | topology_type | JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) |
-  // +--------------+-----------------+---------------+-----------------------------------------------------------+
-  // | mycluster    | default         | pm            | c18:3310                                                  |
-  // | mycluster    | default         | pm            | c18:3320                                                  |
-  // | mycluster    | default         | pm            | c18:3330                                                  |
-  // +--------------+-----------------+---------------+-----------------------------------------------------------+
-  // clang-format on
-
-  metadata_cluster = "";     // populated from row[0]
-  metadata_replicaset = "";  // populated from row[1]
-  metadata_servers.clear();  // populated from row[3]
-  try {
-    mysql_->query(
-        query.str(),
-        [&metadata_cluster, &metadata_replicaset,
-         &metadata_servers](const std::vector<const char *> &row) -> bool {
-          if (metadata_cluster == "") {
-            metadata_cluster = get_string(row[0]);
-          } else if (metadata_cluster != get_string(row[0])) {
-            // metadata with more than 1 replicaset not currently supported
-            throw std::runtime_error("Metadata contains more than one cluster");
-          }
-          if (metadata_replicaset == "") {
-            metadata_replicaset = get_string(row[1]);
-          } else if (metadata_replicaset != get_string(row[1])) {
-            // metadata with more than 1 replicaset not currently supported
-            throw std::runtime_error(
-                "Metadata contains more than one replica-set");
-          }
-          metadata_servers.push_back("mysql://" + get_string(row[2]));
-          return true;
-        });
-  } catch (const MySQLSession::Error &e) {
-    // log_error("MySQL error: %s (%u)", e.what(), e.code());
-    // log_error("    Failed query: %s", query.str().c_str());
-    throw std::runtime_error(std::string("Error querying metadata: ") +
-                             e.what());
-  }
-  if (metadata_cluster.empty())
-    throw std::runtime_error("No clusters defined in metadata server");
-}
-
 // TODO This is very ugly, it should not be a global. It's set in main(), and
 //      used in find_executable_path() below to provide path to Router binary
 //      when generating start.sh.
@@ -1902,15 +1876,23 @@ static std::string option_line(const std::string &key,
 }
 
 static void save_initial_dynamic_state(
-    std::ostream &state_stream, const std::string &group_replication_id,
+    std::ostream &state_stream, ClusterMetadata &cluster_metadata,
+    const std::string &cluster_type_specific_id,
     const std::vector<std::string> &metadata_server_addresses) {
   // create dynamic state object
   using DynamicState = mysql_harness::DynamicState;
   DynamicState dynamic_state{""};
   // put metadata-caches secion in it
-  ClusterMetadataDynamicState mdc_dynamic_state(&dynamic_state);
-  mdc_dynamic_state.set_group_replication_id(group_replication_id);
+  ClusterMetadataDynamicState mdc_dynamic_state(&dynamic_state,
+                                                cluster_metadata.get_type());
+  mdc_dynamic_state.set_cluster_type_specific_id(cluster_type_specific_id);
   mdc_dynamic_state.set_metadata_servers(metadata_server_addresses);
+  if (cluster_metadata.get_type() == ClusterType::AR_V2) {
+    auto view_id =
+        dynamic_cast<mysqlrouter::ClusterMetadataAR &>(cluster_metadata)
+            .get_view_id();
+    mdc_dynamic_state.set_view_id(view_id);
+  }
   // save to out stream
   mdc_dynamic_state.save(state_stream);
 }
@@ -1977,7 +1959,8 @@ void ConfigGenerator::create_config(
 
   config_file << "dynamic_state=" << state_file_name << "\n";
 
-  save_initial_dynamic_state(state_file, gr_id_, metadata_server_addresses);
+  save_initial_dynamic_state(state_file, *metadata_.get(), cluster_specific_id_,
+                             metadata_server_addresses);
 
   config_file << "\n"
               << "[" << mysql_harness::logging::kConfigSectionLogger << "]\n"
@@ -1987,13 +1970,21 @@ void ConfigGenerator::create_config(
   const auto &metadata_key = metadata_cluster;
   auto ttl = options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON
                                           : kDefaultMetadataTTL;
+
+  const std::string use_gr_notifications =
+      mysqlrouter::ClusterType::AR_V2 == metadata_->get_type()
+          ? ""
+          : "use_gr_notifications="s +
+                (options.use_gr_notifications ? "1" : "0") + "\n";
+
   config_file << "[metadata_cache:" << metadata_key << "]\n"
+              << "cluster_type="
+              << mysqlrouter::to_string(metadata_->get_type()) << "\n"
               << "router_id=" << router_id << "\n"
               << "user=" << username << "\n"
               << "metadata_cluster=" << metadata_cluster << "\n"
               << "ttl=" << mysqlrouter::ms_to_seconds_string(ttl) << "\n"
-              << "use_gr_notifications="
-              << (options.use_gr_notifications ? "1" : "0") << "\n";
+              << use_gr_notifications;
 
   // SSL options
   config_file << option_line("ssl_mode", options.ssl_options.mode);
@@ -2048,6 +2039,7 @@ void ConfigGenerator::print_bootstrap_start_msg(
 void ConfigGenerator::print_report(const std::string &config_file_name,
                                    const std::string &router_name,
                                    const std::string &metadata_cluster,
+                                   const std::string &cluster_type_name,
                                    const std::string &hostname,
                                    bool is_system_deployment,
                                    const Options &options) {
@@ -2064,7 +2056,7 @@ void ConfigGenerator::print_report(const std::string &config_file_name,
               << ((router_name.empty() || router_name == kSystemRouterName)
                       ? ""
                       : "'" + router_name + "' ")
-              << "configured for the InnoDB cluster '"
+              << "configured for the " << cluster_type_name << " cluster '"
               << metadata_cluster.c_str() << "'"
               << Vt100::render(Vt100::Render::ForegroundDefault) << "\n"
               << std::endl;
@@ -2496,11 +2488,20 @@ void ConfigGenerator::give_grants_to_users(const std::string &new_accounts) {
   if (!new_accounts.empty()) {
     // run GRANT stantements
     const std::vector<std::string> statements{
-        "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO " + new_accounts,
+        "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO " +
+            new_accounts,
         "GRANT SELECT ON performance_schema.replication_group_members TO " +
             new_accounts,
         "GRANT SELECT ON performance_schema.replication_group_member_stats "
         "TO " +
+            new_accounts,
+        "GRANT SELECT ON performance_schema.global_variables TO " +
+            new_accounts,
+        "GRANT INSERT, UPDATE, DELETE ON "
+        "mysql_innodb_cluster_metadata.routers TO " +
+            new_accounts,
+        "GRANT INSERT, UPDATE, DELETE ON "
+        "mysql_innodb_cluster_metadata.v2_routers TO " +
             new_accounts};
     for (const auto &s : statements) {
       try {

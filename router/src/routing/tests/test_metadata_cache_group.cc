@@ -73,12 +73,22 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   MOCK_METHOD2(mark_instance_reachability,
                void(const std::string &, InstanceStatus));
   MOCK_METHOD2(wait_primary_failover, bool(const std::string &, int));
-  MOCK_METHOD10(cache_init,
-                void(const std::string &,
-                     const std::vector<mysql_harness::TCPAddress> &,
-                     const mysqlrouter::UserCredentials &,
-                     std::chrono::milliseconds, const mysqlrouter::SSLOptions &,
-                     const std::string &, int, int, size_t, bool));
+
+  // cannot mock it as it has more than 10 parameters
+  void cache_init(
+      const mysqlrouter::ClusterType /*cluster_type*/, unsigned /*router_id*/,
+      const std::string & /*group_replication_id*/,
+      const std::vector<mysql_harness::TCPAddress> & /*metadata_servers*/,
+      const mysqlrouter::UserCredentials & /*user_credentials*/,
+      std::chrono::milliseconds /*ttl*/,
+      const mysqlrouter::SSLOptions & /*ssl_options*/,
+      const std::string & /*cluster_name*/, int /*connect_timeout*/,
+      int /*read_timeout*/,
+      size_t /*thread_stack_size*/ =
+          mysql_harness::kDefaultStackSizeInKiloBytes,
+      bool /*use_gr_notifications*/ = false,
+      unsigned /*cluster_id*/ = 0) override {}
+
   MOCK_METHOD0(cache_start, void());
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
@@ -86,7 +96,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   void instance_name(const std::string &) override {}
   std::string instance_name() const override { return "foo"; }
-  std::string group_replication_id() const override { return "foo"; }
+  std::string cluster_type_specific_id() const override { return "foo"; }
   std::string cluster_name() const override { return "foo"; }
   std::chrono::milliseconds ttl() const { return {}; }
 
@@ -98,7 +108,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   void trigger_instances_change_callback(
       const bool md_servers_reachable = true) {
     if (!instances_change_listener_) return;
-    instances_change_listener_->notify(instance_vector_, md_servers_reachable);
+    instances_change_listener_->notify(instance_vector_, md_servers_reachable,
+                                       0);
   }
 
   std::vector<metadata_cache::ManagedInstance> instance_vector_;

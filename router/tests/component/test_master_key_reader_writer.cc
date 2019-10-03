@@ -189,7 +189,7 @@ TEST_F(MasterKeyReaderWriterTest,
        NoMasterKeyFileWhenBootstrapPassWithMasterKeyReader) {
   auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
@@ -242,7 +242,7 @@ TEST_F(MasterKeyReaderWriterTest,
        CheckConfigFileWhenBootstrapPassWithMasterKeyReader) {
   auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
@@ -305,7 +305,7 @@ TEST_F(MasterKeyReaderWriterTest,
 TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
   auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
@@ -345,7 +345,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
 TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
   auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
@@ -390,7 +390,7 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
 
   auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
@@ -465,7 +465,7 @@ TEST_F(MasterKeyReaderWriterTest,
 
   auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
@@ -511,7 +511,7 @@ TEST_F(MasterKeyReaderWriterTest,
 
   auto server_port = port_pool_.get_next_available();
   auto &server_mock = launch_mysql_server_mock(
-      get_data_dir().join("bootstrap.js").str(), server_port, false);
+      get_data_dir().join("bootstrap_gr.js").str(), server_port, false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
 
   ScriptGenerator script_generator(ProcessManager::get_origin(),
@@ -767,7 +767,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest {
   }
 
   auto &run_server_mock() {
-    const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+    const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
     server_port_ = port_pool_.get_next_available();
 
     // launch mock server and wait for it to start accepting connections

@@ -45,6 +45,7 @@ var nodes = function(host, port_and_state) {
       nodes(gr_node_host, mysqld.global.gr_nodes);
 
     var options = {
+      metadata_schema_version: [1, 0, 2],
       group_replication_membership: group_replication_membership_online,
       gr_id: mysqld.global.gr_id
     };
@@ -55,9 +56,15 @@ var nodes = function(host, port_and_state) {
     // prepare the responses for common statements
     var common_responses = common_stmts.prepare_statement_responses([
       "select_port",
+      "router_start_transaction",
+      "router_commit",
       "router_select_schema_version",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
+    ], options);
+
+    var common_responses_regex = common_stmts.prepare_statement_responses_regex([
+      "router_update_version_v1",
     ], options);
 
     var router_select_metadata =
@@ -65,6 +72,9 @@ var nodes = function(host, port_and_state) {
 
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
+    }
+    else if ((res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !== undefined) {
+      return res;
     }
     else if (stmt === router_select_metadata.stmt) {
       mysqld.global.md_query_count++;

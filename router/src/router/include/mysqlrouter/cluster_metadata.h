@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,24 +25,69 @@
 #ifndef MYSQLROUTER_CLUSTER_METADATA_INCLUDED
 #define MYSQLROUTER_CLUSTER_METADATA_INCLUDED
 
-#include "mysqlrouter/mysql_session.h"
+#include <stdexcept>
+#include <string>
 
 namespace mysqlrouter {
+
+class MySQLSession;
 
 struct MetadataSchemaVersion {
   unsigned int major;
   unsigned int minor;
   unsigned int patch;
+
+  bool operator<(const MetadataSchemaVersion &o) const {
+    if (major == o.major) {
+      if (minor == o.minor) {
+        return patch < o.patch;
+      } else {
+        return minor < o.minor;
+      }
+    } else {
+      return major < o.major;
+    }
+  }
+
+  bool operator==(const MetadataSchemaVersion &o) const {
+    return major == o.major && minor == o.minor && patch == o.patch;
+  }
+
+  bool operator!=(const MetadataSchemaVersion &o) const {
+    return !operator==(o);
+  }
 };
 
-// Semantic version number that this Router version supports
-constexpr MetadataSchemaVersion required_metadata_schema_version{1, 0, 0};
+// Semantic version number that this Router version supports for bootstrap mode
+constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion{2, 0, 0};
+
+// Semantic version number that this Router version supports for routing mode
+constexpr MetadataSchemaVersion kRequiredRoutingMetadataSchemaVersion{1, 0, 0};
+
+// Version that introduced views and support for Async Replicaset cluster type
+constexpr MetadataSchemaVersion kNewMetadataVersion{2, 0, 0};
+
+// Version that will be is set while the metadata is being updated
+constexpr MetadataSchemaVersion kUpdateInProgressMetadataVersion{0, 0, 0};
 
 MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
 
 bool metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,
     const mysqlrouter::MetadataSchemaVersion &available);
+
+enum class ClusterType {
+  GR_V1, /* based on Group Replication (metadata 1.x) */
+  GR_V2, /* based on Group Replication (metadata 2.x) */
+  AR_V2  /* Async Replicaset (metadata 2.x) */
+};
+
+ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
+                             MySQLSession *mysql);
+
+std::string to_string(const ClusterType cluster_type);
+
+class UpdateInProgressException : public std::exception {};
 
 }  // namespace mysqlrouter
 #endif

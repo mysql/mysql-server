@@ -26,6 +26,7 @@ var group_replication_membership_online =
 
 var options = {
   group_replication_membership: group_replication_membership_online,
+  metadata_schema_version: [1, 0, 2],
 };
 
 // in the startup case, first node is PRIMARY
@@ -38,6 +39,8 @@ var options_failover = Object.assign({}, options,
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses([
   "select_port",
+  "router_start_transaction",
+  "router_commit",
   "router_select_schema_version",
   "router_select_metadata",
   "router_select_group_membership_with_primary_mode",
@@ -49,7 +52,7 @@ var router_select_group_replication_primary_member
 var router_select_group_replication_primary_member_failover
   = common_stmts.get("router_select_group_replication_primary_member", options_failover);
 
-if (mysqld.global.primary_failover == undefined) {
+if (mysqld.global.primary_failover === undefined) {
   mysqld.global.primary_failover = false;
 }
 

@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "mysql_router_thread.h"
+#include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/utils.h"
 #include "tcp_address.h"
@@ -119,23 +120,19 @@ class METADATA_API ManagedInstance {
 };
 
 /** @class ManagedReplicaSet
- * Represents a replicaset (a GR group)
+ * Represents a replicaset (a GR group or AR members)
  */
 class METADATA_API ManagedReplicaSet {
  public:
   /** @brief The name of the replica set */
   std::string name;
-#ifdef not_used_yet
-  /** @brief The group_name as known to the GR subsystem */
-  std::string group_id;
-  /** @brief The id of the group view from GR. Changes with topology changes */
-  std::string group_view_id;
-#endif
-  /** @brief List of the members that belong to the group */
+  /** @brief List of the members that belong to the replicaset */
   std::vector<metadata_cache::ManagedInstance> members;
-
-  /** @brief Whether replicaset is in single_primary_mode (from PFS) */
+  /** @brief Whether replicaset is in single_primary_mode (from PFS in case of
+   * GR) */
   bool single_primary_mode;
+  /** @brief Id of the view this metadata represents (only used for AR now)*/
+  unsigned view_id{0};
 };
 
 /** @class connection_error
@@ -190,9 +187,12 @@ class METADATA_API ReplicasetStateListenerInterface {
    * @param instances allowed nodes
    * @param md_servers_reachable true if metadata changed, false if metadata
    * unavailable
+   * @param view_id current metadata view_id in case of Async Replicaset
+   * cluster
    */
   virtual void notify(const LookupResult &instances,
-                      const bool md_servers_reachable) = 0;
+                      const bool md_servers_reachable,
+                      const unsigned view_id) = 0;
 
   ReplicasetStateListenerInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
@@ -268,7 +268,11 @@ class METADATA_API MetadataCacheAPIBase
    * Throws a std::runtime_error when the cache object was already
    * initialized.
    *
-   * @param group_replication_id id of the replication group
+   * @param cluster_type type of the cluster the metadata cache object will
+   *                     represent (GR or Async Replicaset)
+   * @param router_id id of the router in the cluster metadata
+   * @param cluster_type_specific_id (id of the replication group for GR,
+   *                                 cluster_id for Async Replicaset)
    * @param metadata_servers The list of cluster metadata servers
    * @param user_credentials MySQL Metadata username and password
    * @param ttl The time to live for the cached data
@@ -279,18 +283,23 @@ class METADATA_API MetadataCacheAPIBase
    * @param read_timeout The time in seconds after which read from metadata
    *                     server should time out.
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
-   * @param use_gr_notifications Flag indicating if the metadata cache should
-   *                             use GR notifications as an additional trigger
-   *                             for metadata refresh
+   * @param use_cluster_notifications Flag indicating if the metadata cache
+   *                                  should use cluster notifications as an
+   *                                  additional trigger for metadata refresh
+   *                                  (only available for GR cluster type)
+   * @param view_id last known view_id of the cluster metadata (only relevant
+   *                for Async Replicaset cluster)
+   *
    */
   virtual void cache_init(
-      const std::string &group_replication_id,
+      const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
+      const std::string &cluster_type_specific_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       const mysqlrouter::UserCredentials &user_credentials,
       std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name, int connect_timeout, int read_timeout,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
-      bool use_gr_notifications = false) = 0;
+      bool use_cluster_notifications = false, const unsigned view_id = 0) = 0;
 
   virtual void instance_name(const std::string &inst_name) = 0;
   virtual std::string instance_name() const = 0;
@@ -382,7 +391,7 @@ class METADATA_API MetadataCacheAPIBase
   };
 
   virtual RefreshStatus get_refresh_status() = 0;
-  virtual std::string group_replication_id() const = 0;
+  virtual std::string cluster_type_specific_id() const = 0;
   virtual std::string cluster_name() const = 0;
   virtual std::chrono::milliseconds ttl() const = 0;
 };
@@ -392,17 +401,19 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   static MetadataCacheAPIBase *instance();
 
   void cache_init(
-      const std::string &group_replication_id,
+      const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
+      const std::string &cluster_type_specific_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       const mysqlrouter::UserCredentials &user_credentials,
       std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name, int connect_timeout, int read_timeout,
-      size_t thread_stack_size, bool use_gr_notifications) override;
+      size_t thread_stack_size, bool use_cluster_notifications,
+      unsigned view_id) override;
 
   void instance_name(const std::string &inst_name) override;
   std::string instance_name() const override;
 
-  std::string group_replication_id() const override;
+  std::string cluster_type_specific_id() const override;
   std::string cluster_name() const override;
   std::chrono::milliseconds ttl() const override;
 

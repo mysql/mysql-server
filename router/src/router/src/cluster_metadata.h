@@ -28,20 +28,35 @@
 #include <stdexcept>
 
 #include "config_generator.h"
+#include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/mysql_session.h"
 #include "socket_operations.h"
 
 namespace mysqlrouter {
 
-class MySQLInnoDBClusterMetadata {
+struct ClusterInfo {
+  std::vector<std::string> metadata_servers;
+  std::string metadata_cluster_id;
+  std::string metadata_cluster_name;
+  std::string metadata_replicaset;
+};
+
+class ClusterMetadata {
  public:
-  MySQLInnoDBClusterMetadata(MySQLSession *mysql,
-                             mysql_harness::SocketOperationsBase *sockops =
-                                 mysql_harness::SocketOperations::instance())
-      : mysql_(mysql), socket_operations_(sockops) {}
+  ClusterMetadata(const MetadataSchemaVersion &schema_version,
+                  MySQLSession *mysql,
+                  mysql_harness::SocketOperationsBase *sockops =
+                      mysql_harness::SocketOperations::instance())
+      : mysql_(mysql),
+        socket_operations_(sockops),
+        schema_version_(schema_version) {}
+
+  virtual ~ClusterMetadata() = default;
+
+  virtual mysqlrouter::ClusterType get_type() = 0;
 
   /** @brief Checks if Router with given id is already registered in metadata
-   *         database, and belongs to our machine
+   *         database, and belongs to our machi
    *
    * @param router_id Router id
    * @param hostname_override If non-empty, this hostname will be used instead
@@ -53,8 +68,8 @@ class MySQLInnoDBClusterMetadata {
    *         with a different host
    * @throws MySQLSession::Error(std::runtime_error) on database error
    */
-  void verify_router_id_is_ours(uint32_t router_id,
-                                const std::string &hostname_override = "");
+  virtual void verify_router_id_is_ours(
+      uint32_t router_id, const std::string &hostname_override = "");
 
   /** @brief Registers Router in metadata database
    *
@@ -69,42 +84,123 @@ class MySQLInnoDBClusterMetadata {
    * @throws LocalHostnameResolutionError(std::runtime_error) on hostname query
    *         failure, std::runtime_error on other failure
    */
-  uint32_t register_router(const std::string &router_name, bool overwrite,
-                           const std::string &hostname_override = "");
+  virtual uint32_t register_router(const std::string &router_name,
+                                   bool overwrite,
+                                   const std::string &hostname_override = "");
 
-  void update_router_info(uint32_t router_id, const std::string &rw_endpoint,
-                          const std::string &ro_endpoint,
-                          const std::string &rw_x_endpoint,
-                          const std::string &ro_x_endpoint);
+  virtual void update_router_info(uint32_t router_id, std::string cluster_id,
+                                  const std::string &rw_endpoint,
+                                  const std::string &ro_endpoint,
+                                  const std::string &rw_x_endpoint,
+                                  const std::string &ro_x_endpoint);
 
- private:
+  virtual std::vector<std::string> get_routing_mode_queries(
+      const std::string &cluster_name) = 0;
+
+  /** @brief Verify that host is a valid metadata server
+   *
+   *
+   * @throws MySQLSession::Error
+   * @throws std::runtime_error
+   * @throws std::out_of_range
+   * @throws std::logic_error
+   *
+   *  * checks that the server
+   *
+   * - has the metadata in the correct version
+   * - contains metadata for the group it's in (in case of GR cluster)
+   *   (metadata server group must be same as managed group currently)
+   */
+  virtual void require_metadata_is_ok();
+
+  /** @brief Verify that host is a valid cluster member (either Group
+   * Replication or Async Replications)
+   *
+   * @throws MySQLSession::Error
+   * @throws std::runtime_error
+   * @throws std::out_of_range
+   * @throws std::logic_error
+   */
+  virtual void require_cluster_is_ok() = 0;
+
+  virtual std::string get_cluster_type_specific_id() = 0;
+
+  virtual ClusterInfo fetch_metadata_servers() = 0;
+
+ protected:
+  // throws MySQLSession::Error, std::out_of_range, std::logic_error
+  virtual bool check_metadata_is_supported() = 0;
+
   MySQLSession *mysql_;
   mysql_harness::SocketOperationsBase *socket_operations_;
+  mysqlrouter::MetadataSchemaVersion schema_version_;
 };
 
-/** @brief Verify that host is a valid metadata server
- *
- * @param mysql session object
- *
- * @throws MySQLSession::Error
- * @throws std::runtime_error
- * @throws std::out_of_range
- * @throws std::logic_error
-+ */
-void require_innodb_metadata_is_ok(MySQLSession *mysql);
+class ClusterMetadataGR : public ClusterMetadata {
+ public:
+  ClusterMetadataGR(const MetadataSchemaVersion &schema_version,
+                    MySQLSession *mysql,
+                    mysql_harness::SocketOperationsBase *sockops =
+                        mysql_harness::SocketOperations::instance())
+      : ClusterMetadata(schema_version, mysql, sockops) {}
 
-/** @brief Verify that host is a valid Group Replication member
- *
- * @param mysql session object
- *
- * @throws MySQLSession::Error
- * @throws std::runtime_error
- * @throws std::out_of_range
- * @throws std::logic_error
- */
-void require_innodb_group_replication_is_ok(MySQLSession *mysql);
+  virtual ~ClusterMetadataGR() override = default;
 
-std::string get_group_replication_id(MySQLSession *mysql);
+  virtual mysqlrouter::ClusterType get_type() override {
+    return mysqlrouter::ClusterType::GR_V2;
+  }
+
+  // For GR cluster Group Replication ID
+  std::string get_cluster_type_specific_id() override;
+
+  void require_cluster_is_ok() override;
+
+  ClusterInfo fetch_metadata_servers() override;
+
+  std::vector<std::string> get_routing_mode_queries(
+      const std::string &cluster_name) override;
+
+ protected:
+  bool check_metadata_is_supported() override;
+};
+
+class ClusterMetadataAR : public ClusterMetadata {
+ public:
+  ClusterMetadataAR(const MetadataSchemaVersion &schema_version,
+                    MySQLSession *mysql,
+                    mysql_harness::SocketOperationsBase *sockops =
+                        mysql_harness::SocketOperations::instance())
+      : ClusterMetadata(schema_version, mysql, sockops) {}
+
+  virtual ~ClusterMetadataAR() override = default;
+
+  mysqlrouter::ClusterType get_type() override {
+    return mysqlrouter::ClusterType::AR_V2;
+  }
+
+  void require_cluster_is_ok() override {
+    // Nothing specific to check for Async Replicaset cluster
+  }
+
+  ClusterInfo fetch_metadata_servers() override;
+
+  std::string get_cluster_type_specific_id() override;
+
+  unsigned int get_view_id();
+
+  std::vector<std::string> get_routing_mode_queries(
+      const std::string &cluster_name) override;
+
+ protected:
+  bool check_metadata_is_supported() override;
+};
+
+MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
+
+std::unique_ptr<ClusterMetadata> create_metadata(
+    const MetadataSchemaVersion &schema_version, MySQLSession *mysql,
+    mysql_harness::SocketOperationsBase *sockops =
+        mysql_harness::SocketOperations::instance());
 
 }  // namespace mysqlrouter
 

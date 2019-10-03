@@ -16,7 +16,8 @@ var common_responses = common_stmts.prepare_statement_responses([
 ], options);
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex([
-  "router_select_hosts_join_routers",
+  "router_select_router_address",
+  "router_delete_old_accounts",
 ], options);
 
 var router_create_user_if_not_exists =

@@ -9,13 +9,14 @@ var group_replication_membership_online =
 
 var options = {
   group_replication_membership: group_replication_membership_online,
+  cluster_type: "gr",
 };
 
 // first node is PRIMARY
 options.group_replication_primary_member = options.group_replication_membership[0][0];
 
 var router_select_metadata =
-  common_stmts.get("router_select_metadata", options);
+  common_stmts.get("router_select_metadata_v2_gr", options);
 var router_select_group_membership_with_primary_mode =
   common_stmts.get("router_select_group_membership_with_primary_mode", options);
 var router_select_group_replication_primary_member =
@@ -24,16 +25,19 @@ var router_select_group_replication_primary_member =
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses([
   "select_port",
+  "router_start_transaction",
+  "router_commit",
   "router_select_schema_version",
+  "router_select_cluster_type_v2",
 ], options);
 
-if (mysqld.global.MD_failed == undefined) {
+if (mysqld.global.MD_failed === undefined) {
   mysqld.global.MD_failed = false;
 }
-if (mysqld.global.GR_primary_failed == undefined) {
+if (mysqld.global.GR_primary_failed === undefined) {
   mysqld.global.GR_primary_failed = false;
 }
-if (mysqld.global.GR_health_failed == undefined) {
+if (mysqld.global.GR_health_failed === undefined) {
   mysqld.global.GR_health_failed = false;
 }
 ({

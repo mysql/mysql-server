@@ -248,6 +248,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
 };
 
 struct MetadataCacheTestParams {
+  std::string tracefile;
   std::string role;
   std::string routing_strategy;
   std::string mode;
@@ -256,12 +257,14 @@ struct MetadataCacheTestParams {
   std::vector<unsigned> expected_node_connections;
   bool round_robin;
 
-  MetadataCacheTestParams(const std::string &role_,
+  MetadataCacheTestParams(const std::string &tracefile_,
+                          const std::string &role_,
                           const std::string &routing_strategy_,
                           const std::string &mode_,
                           std::vector<unsigned> expected_node_connections_,
                           bool round_robin_ = false)
-      : role(role_),
+      : tracefile(tracefile_),
+        role(role_),
         routing_strategy(routing_strategy_),
         mode(mode_),
         expected_node_connections(expected_node_connections_),
@@ -288,6 +291,7 @@ class RouterRoutingStrategyMetadataCache
 
 TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   auto test_params = GetParam();
+  const std::string tracefile = test_params.tracefile;
 
   TempDirectory temp_test_dir;
 
@@ -303,8 +307,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   std::vector<ProcessWrapper *> cluster_nodes;
 
   // launch the primary node working also as metadata server
-  const auto json_file =
-      get_data_dir().join("metadata_3_secondaries_pass.js").str();
+  const auto json_file = get_data_dir().join(tracefile).str();
   const auto http_port = cluster_nodes_http_ports[0];
   auto &primary_node = launch_mysql_server_mock(
       json_file, cluster_nodes_ports[0], EXIT_SUCCESS, false, http_port);
@@ -404,43 +407,84 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(
         // test round-robin on SECONDARY servers
         // we expect 1->2->3->1 for 4 consecutive connections
-        MetadataCacheTestParams("SECONDARY", "round-robin", "", {1, 2, 3},
+        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
+                                "SECONDARY", "round-robin", "", {1, 2, 3},
+                                /*round-robin=*/true),
+
+        // the same for old metadata
+        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "SECONDARY",
+                                "round-robin", "", {1, 2, 3},
                                 /*round-robin=*/true),
 
         // test first-available on SECONDARY servers
         // we expect 1->1->1 for 3 consecutive connections
-        MetadataCacheTestParams("SECONDARY", "first-available", "", {1, 1, 1}),
+        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
+                                "SECONDARY", "first-available", "", {1, 1, 1}),
+
+        // the same for old metadata
+        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "SECONDARY",
+                                "first-available", "", {1, 1, 1}),
 
         // *basic* test round-robin-with-fallback
         // we expect 1->2->3->1 for 4 consecutive connections
         // as there are SECONDARY servers available (PRIMARY id=0 should not be
         // used)
-        MetadataCacheTestParams("SECONDARY", "round-robin-with-fallback", "",
+        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
+                                "SECONDARY", "round-robin-with-fallback", "",
                                 {1, 2, 3},
+                                /*round-robin=*/true),
+
+        // the same for old metadata
+        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "SECONDARY",
+                                "round-robin-with-fallback", "", {1, 2, 3},
                                 /*round-robin=*/true),
 
         // test round-robin on PRIMARY_AND_SECONDARY
         // we expect the primary to participate in the round-robin from the
         // beginning we expect 0->1->2->3->0 for 5 consecutive connections
-        MetadataCacheTestParams("PRIMARY_AND_SECONDARY", "round-robin", "",
+        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
+                                "PRIMARY_AND_SECONDARY", "round-robin", "",
+                                {0, 1, 2, 3},
+                                /*round-robin=*/true),
+
+        // the same for old metadata
+        MetadataCacheTestParams("metadata_3_secondaries_pass.js",
+                                "PRIMARY_AND_SECONDARY", "round-robin", "",
                                 {0, 1, 2, 3},
                                 /*round-robin=*/true),
 
         // test round-robin with allow-primary-reads=yes
         // this should work similar to PRIMARY_AND_SECONDARY
         // we expect 0->1->2->3->0 for 5 consecutive connections
-        MetadataCacheTestParams("SECONDARY&allow_primary_reads=yes", "",
+        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
+                                "SECONDARY&allow_primary_reads=yes", "",
+                                "read-only", {0, 1, 2, 3},
+                                /*round-robin=*/true),
+
+        // the same for old metadata
+        MetadataCacheTestParams("metadata_3_secondaries_pass.js",
+                                "SECONDARY&allow_primary_reads=yes", "",
                                 "read-only", {0, 1, 2, 3},
                                 /*round-robin=*/true),
 
         // test first-available on PRIMARY
         // we expect 0->0->0 for 2 consecutive connections
-        MetadataCacheTestParams("PRIMARY", "first-available", "", {0, 0}),
+        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
+                                "PRIMARY", "first-available", "", {0, 0}),
+
+        // the same for old metadata
+        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "PRIMARY",
+                                "first-available", "", {0, 0}),
 
         // test round-robin on PRIMARY
         // there is single primary so we expect 0->0->0 for 2 consecutive
         // connections
-        MetadataCacheTestParams("PRIMARY", "round-robin", "", {0, 0})));
+        MetadataCacheTestParams("metadata_3_secondaries_pass_v2_gr.js",
+                                "PRIMARY", "round-robin", "", {0, 0}),
+
+        // the same for old metadata
+        MetadataCacheTestParams("metadata_3_secondaries_pass.js", "PRIMARY",
+                                "round-robin", "", {0, 0})));
 
 ////////////////////////////////////////
 /// STATIC ROUTING TESTS

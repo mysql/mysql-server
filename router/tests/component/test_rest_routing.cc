@@ -178,8 +178,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
-  const std::string json_stmts =
-      get_data_dir().join("bootstrap_big_data.js").str();
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   SCOPED_TRACE("// launch the server mock");
   auto &server_mock =
@@ -199,19 +198,19 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
   // make 3 connections to route "ro"
   mysqlrouter::MySQLSession client_ro_1;
-  EXPECT_NO_THROW(client_ro_1.connect("127.0.0.1", routing_ports_[4],
-                                      "username", "password", "", ""));
+  EXPECT_NO_THROW(client_ro_1.connect("127.0.0.1", routing_ports_[4], "root",
+                                      "fake-pass", "", ""));
   mysqlrouter::MySQLSession client_ro_2;
-  EXPECT_NO_THROW(client_ro_2.connect("127.0.0.1", routing_ports_[4],
-                                      "username", "password", "", ""));
+  EXPECT_NO_THROW(client_ro_2.connect("127.0.0.1", routing_ports_[4], "root",
+                                      "fake-pass", "", ""));
   mysqlrouter::MySQLSession client_ro_3;
-  EXPECT_NO_THROW(client_ro_3.connect("127.0.0.1", routing_ports_[4],
-                                      "username", "password", "", ""));
+  EXPECT_NO_THROW(client_ro_3.connect("127.0.0.1", routing_ports_[4], "root",
+                                      "fake-pass", "", ""));
 
   // make 1 connection to route "Aaz"
   mysqlrouter::MySQLSession client_Aaz_1;
-  EXPECT_NO_THROW(client_Aaz_1.connect("127.0.0.1", routing_ports_[3],
-                                       "username", "password", "", ""));
+  EXPECT_NO_THROW(client_Aaz_1.connect("127.0.0.1", routing_ports_[3], "root",
+                                       "fake-pass", "", ""));
 
   // call wait_port_ready a few times on "123" to trigger blocked client
   // on that route (we set max_connect_errors to 2)
@@ -1188,16 +1187,16 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
 
   // make 1 connection to route "rw"
   mysqlrouter::MySQLSession client_ro_1;
-  EXPECT_NO_THROW(client_ro_1.connect("127.0.0.1", routing_ports_[0],
-                                      "username", "password", "", ""));
+  EXPECT_NO_THROW(client_ro_1.connect("127.0.0.1", routing_ports_[0], "root",
+                                      "fake-pass", "", ""));
 
   // make 2 connection to route "ro"
   mysqlrouter::MySQLSession client_rw_1;
-  EXPECT_NO_THROW(client_rw_1.connect("127.0.0.1", routing_ports_[1],
-                                      "username", "password", "", ""));
+  EXPECT_NO_THROW(client_rw_1.connect("127.0.0.1", routing_ports_[1], "root",
+                                      "fake-pass", "", ""));
   mysqlrouter::MySQLSession client_rw_2;
-  EXPECT_NO_THROW(client_rw_2.connect("127.0.0.1", routing_ports_[1],
-                                      "username", "password", "", ""));
+  EXPECT_NO_THROW(client_rw_2.connect("127.0.0.1", routing_ports_[1], "root",
+                                      "fake-pass", "", ""));
 
   EXPECT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), http_server));

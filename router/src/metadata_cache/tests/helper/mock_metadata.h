@@ -26,7 +26,7 @@
 
 #include <vector>
 
-#include "cluster_metadata.h"
+#include "cluster_metadata_gr.h"
 
 #include "tcp_address.h"
 
@@ -50,7 +50,7 @@
  *
  */
 
-class METADATA_TESTS_API MockNG : public ClusterMetadata {
+class METADATA_TESTS_API MockNG : public GRClusterMetadata {
  public:
   /**
    * Objects representing the servers that are part of the topology.
@@ -89,14 +89,13 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
    * @param connection_attempts The number of times a connection to the metadata
    *                            server must be attempted, when a connection
    *                            attempt fails.
-   * @param ttl The time to live of the data in the cache.
-   * @param use_gr_notifications Flag indicating if the metadata cache should
-   *                             use GR notifications as an additional trigger
-   *                             for metadata refresh
+   * @param use_cluster_notifications Flag indicating if the metadata cache
+   *                                  should use cluster notifications as an
+   *                                  additional trigger for metadata refresh
+   *                                  (only available for GR cluster type)
    */
   MockNG(const std::string &user, const std::string &password,
          int connect_timeout, int read_timeout, int connection_attempts,
-         std::chrono::milliseconds ttl,
          const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions(),
          const bool use_gr_notifications = false);
 
@@ -132,6 +131,10 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
   ReplicaSetsByName fetch_instances(
       const std::string &farm_name,
       const std::string &group_replication_id) override;
+
+  ReplicaSetsByName fetch_instances(
+      const std::vector<metadata_cache::ManagedInstance> &instances,
+      const std::string &group_replication_id, size_t &instance_id) override;
 
 #if 0  // not used so far
   /**
