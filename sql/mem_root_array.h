@@ -417,11 +417,10 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
     other.init_empty_const();
   }
   Mem_root_array &operator=(Mem_root_array &&other) {
-    this->m_root = other.m_root;
-    this->m_array = other.m_array;
-    this->m_size = other.m_size;
-    this->m_capacity = other.m_capacity;
-    other.init_empty_const();
+    if (this != &other) {
+      this->~Mem_root_array();
+      new (this) Mem_root_array(std::move(other));
+    }
     return *this;
   }
 
