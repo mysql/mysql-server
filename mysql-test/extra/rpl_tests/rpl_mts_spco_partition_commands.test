@@ -108,10 +108,10 @@ CREATE TABLE t_part1 (i INTEGER) PARTITION BY RANGE(i)(
 
 FLUSH TABLES t_hash FOR EXPORT;
 --echo # Copying the .cfg and .ibd files as backup
---copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#P#p0.cfg $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p0.cfg
---copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#P#p0.ibd $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p0.ibd
---copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#P#p1.cfg $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p1.cfg
---copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#P#p1.ibd $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p1.ibd
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.cfg $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.cfg
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.ibd $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.ibd
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.cfg $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.cfg
+--copy_file $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.ibd $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.ibd
 UNLOCK TABLES;
 
 --source include/rpl_connection_slave.inc
@@ -119,10 +119,10 @@ UNLOCK TABLES;
 
 FLUSH TABLES t_hash FOR EXPORT;
 --echo # Copying the .cfg and .ibd files as backup
---copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p0.cfg $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p0.cfg
---copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p0.ibd $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p0.ibd
---copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p1.cfg $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p1.cfg
---copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p1.ibd $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p1.ibd
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.cfg $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.cfg
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.ibd $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.ibd
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.cfg $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.cfg
+--copy_file $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.ibd $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.ibd
 UNLOCK TABLES;
 
 --let $mts_num_preceding_trans= 5
@@ -156,17 +156,17 @@ UNLOCK TABLES;
 
 --source include/rpl_connection_master.inc
 --echo # Moving the .cfg and .ibd files back from backup on master
---move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p0.cfg $MYSQLD_MASTER_DATADIR/test/t_hash#P#p0.cfg
---move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p0.ibd $MYSQLD_MASTER_DATADIR/test/t_hash#P#p0.ibd
---move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p1.cfg $MYSQLD_MASTER_DATADIR/test/t_hash#P#p1.cfg
---move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#P#p1.ibd $MYSQLD_MASTER_DATADIR/test/t_hash#P#p1.ibd
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.cfg $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.cfg
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p0.ibd $MYSQLD_MASTER_DATADIR/test/t_hash#p#p0.ibd
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.cfg $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.cfg
+--move_file $MYSQLD_MASTER_DATADIR/test/backup_t_hash#p#p1.ibd $MYSQLD_MASTER_DATADIR/test/t_hash#p#p1.ibd
 
 --source include/rpl_connection_slave.inc
 --echo # Moving the .cfg and .ibd files back from backup on slave
---move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p0.cfg $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p0.cfg
---move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p0.ibd $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p0.ibd
---move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p1.cfg $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p1.cfg
---move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#P#p1.ibd $MYSQLD_SLAVE_DATADIR/test/t_hash#P#p1.ibd
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.cfg $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.cfg
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p0.ibd $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p0.ibd
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.cfg $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.cfg
+--move_file $MYSQLD_SLAVE_DATADIR/test/backup_t_hash#p#p1.ibd $MYSQLD_SLAVE_DATADIR/test/t_hash#p#p1.ibd
 
 --let $mts_num_preceding_trans= 5
 --let $mts_spco_skip_init_statement= 1
