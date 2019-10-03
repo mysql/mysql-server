@@ -1506,7 +1506,7 @@ TEST_F(CacheStorageTest, PartitionTest) {
   part_obj1->set_comment("Partition comment");
   part_obj1->set_tablespace_id(1);
 
-  dd::Partition *sub_part_obj1 = part_obj1->add_sub_partition();
+  dd::Partition *sub_part_obj1 = part_obj1->add_subpartition();
   sub_part_obj1->set_name("p1s1");
   sub_part_obj1->set_se_private_id(0xAFFF);
   sub_part_obj1->set_engine("innodb");
@@ -1514,7 +1514,7 @@ TEST_F(CacheStorageTest, PartitionTest) {
   sub_part_obj1->set_comment("Partition comment");
   sub_part_obj1->set_tablespace_id(1);
 
-  dd::Partition *sub_part_obj2 = part_obj1->add_sub_partition();
+  dd::Partition *sub_part_obj2 = part_obj1->add_subpartition();
   sub_part_obj2->set_name("p1s2");
   sub_part_obj2->set_se_private_id(0xAFFF);
   sub_part_obj2->set_engine("innodb");
@@ -1530,7 +1530,7 @@ TEST_F(CacheStorageTest, PartitionTest) {
   part_obj2->set_comment("Partition comment");
   part_obj2->set_tablespace_id(1);
 
-  sub_part_obj1 = part_obj2->add_sub_partition();
+  sub_part_obj1 = part_obj2->add_subpartition();
   sub_part_obj1->set_name("p2s1");
   sub_part_obj1->set_se_private_id(0xAFFF);
   sub_part_obj1->set_engine("innodb");
@@ -1538,7 +1538,7 @@ TEST_F(CacheStorageTest, PartitionTest) {
   sub_part_obj1->set_comment("Partition comment");
   sub_part_obj1->set_tablespace_id(1);
 
-  sub_part_obj2 = part_obj2->add_sub_partition();
+  sub_part_obj2 = part_obj2->add_subpartition();
   sub_part_obj2->set_name("p2s2");
   sub_part_obj2->set_se_private_id(0xAFFF);
   sub_part_obj2->set_engine("innodb");
@@ -1565,7 +1565,7 @@ TEST_F(CacheStorageTest, PartitionTest) {
       part_name << "p" << i++;
       EXPECT_EQ(p->name(), part_name.str());
       int j = 1;
-      for (const dd::Partition *s : p->sub_partitions()) {
+      for (const dd::Partition *s : p->subpartitions()) {
         dd::Stringstream_type sub_part_name;
         sub_part_name << part_name.str() << "s" << j++;
         EXPECT_EQ(s->name(), sub_part_name.str());

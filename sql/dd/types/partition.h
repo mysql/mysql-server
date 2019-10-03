@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,13 +159,13 @@ class Partition : virtual public Entity_object {
   /////////////////////////////////////////////////////////////////////////
 
   /// Add a subpartition to a parent partition.
-  virtual Partition *add_sub_partition() = 0;
+  virtual Partition *add_subpartition() = 0;
 
   /// Return reference to const collection of sub partitions.
-  virtual const Table::Partition_collection &sub_partitions() const = 0;
+  virtual const Table::Partition_collection &subpartitions() const = 0;
 
   /// Return non-const point to collection of sub partitions.
-  virtual Table::Partition_collection *sub_partitions() = 0;
+  virtual Table::Partition_collection *subpartitions() = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Parent partition for subpartitions (NULL otherwise).

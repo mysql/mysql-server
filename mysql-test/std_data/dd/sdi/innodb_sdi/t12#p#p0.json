@@ -331,7 +331,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p0"
                     }
-                ]
+                ],
+                "subpartitions": []
             },
             {
                 "name": "p1",
@@ -359,7 +360,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p1"
                     }
-                ]
+                ],
+                "subpartitions": []
             },
             {
                 "name": "p2",
@@ -387,7 +389,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p2"
                     }
-                ]
+                ],
+                "subpartitions": []
             },
             {
                 "name": "p3",
@@ -415,7 +418,8 @@
                         "index_opx": 0,
                         "tablespace_ref": "test/t12#p#p3"
                     }
-                ]
+                ],
+                "subpartitions": []
             }
         ],
         "collation_id": 255

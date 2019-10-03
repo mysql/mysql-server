@@ -437,8 +437,6 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   if (lock_schema_name(thd, db)) return true;
 
-  set_db_default_charset(thd, create_info);
-
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire_for_modification(db, &schema)) return true;
@@ -448,8 +446,12 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     return true;
   }
 
-  // Set new collation ID.
-  schema->set_default_collation_id(create_info->default_table_charset->number);
+  // Set new collation ID if submitted in the statement.
+  if (create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) {
+    set_db_default_charset(thd, create_info);
+    schema->set_default_collation_id(
+        create_info->default_table_charset->number);
+  }
 
   // Set encryption type.
   if (create_info->encrypt_type.length > 0)
@@ -470,8 +472,13 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   */
   if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
 
-  /* Change options if current database is being altered. */
-  if (thd->db().str && !strcmp(thd->db().str, db)) {
+  /*
+    Change collation options if the current database is being
+    altered and the clause is explicitly submitted in the ALTER
+    statement.
+  */
+  if (create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET &&
+      thd->db().str && !my_strcasecmp(table_alias_charset, thd->db().str, db)) {
     thd->db_charset = create_info->default_table_charset
                           ? create_info->default_table_charset
                           : thd->variables.collation_server;
