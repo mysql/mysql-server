@@ -2049,3 +2049,29 @@ WHERE subquery1_t1.col_int_k
 NULL
 DROP TABLE t1, t2, t3, t4;
 # End of test for bug#25541454
+#
+# Bug#29596977 MYSQL OPTIMIZER SCAN FULL INDEX FOR MAX() ON INDEXED COLUMN.
+#
+CREATE TABLE t1 (
+id BIGINT NOT NULL AUTO_INCREMENT,
+f1 BIGINT,
+PRIMARY KEY(id),
+INDEX ix_fd2 (f1)
+);
+INSERT INTO t1 VALUES (NULL, 1), (NULL, 2), (NULL, 3);
+CREATE FUNCTION f1 (par INT) RETURNS INT
+DETERMINISTIC
+SQL SECURITY INVOKER
+BEGIN
+RETURN par + 1;
+END|
+EXPLAIN SELECT f1(MAX(f1)) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select `f1`(max(`test`.`t1`.`f1`)) AS `f1(MAX(f1))` from `test`.`t1`
+SELECT f1(MAX(f1)) FROM t1;
+f1(MAX(f1))
+4
+DROP TABLE t1;
+DROP FUNCTION f1;

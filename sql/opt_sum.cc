@@ -590,7 +590,7 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
       }
     } else if (!aggr_impossible) {
       if (recalc_const_item) item->update_used_tables();
-      if (!item->const_item()) aggr_impossible = true;
+      if (!item->const_for_execution()) aggr_impossible = true;
     }
   }
 
