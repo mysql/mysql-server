@@ -17680,7 +17680,6 @@ static int copy_data_between_tables(
   }
   iterator.reset();
   free_io_cache(from);
-  destroy_array(copy, to->s->fields);
 
   if (to->file->ha_end_bulk_insert() && error <= 0) {
     to->file->print_error(my_errno(), MYF(0));
@@ -17696,6 +17695,7 @@ static int copy_data_between_tables(
     error = 1;
 
 err:
+  destroy_array(copy, to->s->fields);
   thd->variables.sql_mode = save_sql_mode;
   free_io_cache(from);
   *copied = found_count;
