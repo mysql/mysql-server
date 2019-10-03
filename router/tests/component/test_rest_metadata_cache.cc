@@ -298,6 +298,63 @@ class RestMetadataCacheApiTest
   const uint16_t metadata_server_port_{port_pool_.get_next_available()};
 };
 
+/**
+ * wait until metadata has fetched data once.
+ *
+ * @param http_hostname hostname of the http server
+ * @param http_port TCP port of the http server
+ * @param user_name username to authenticate against http server
+ * @param user_password password to authenticate against http server
+ * @param metadata_status_uri URI to metadata status, like
+ *   /baseuri/metadata/{section}/status
+ *
+ * uses googletest's ASSERT macros to signal failure
+ */
+static void wait_metadata_fetched(const std::string &http_hostname,
+                                  uint16_t http_port,
+                                  const std::string &user_name,
+                                  const std::string &user_password,
+                                  const std::string &metadata_status_uri,
+                                  std::chrono::milliseconds timeout = 1s) {
+  ASSERT_GT(timeout, 0ms);
+
+  // wait for metadata-cache to finish its first fetch
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname, http_port, user_name,
+                         user_password);
+
+  ASSERT_NO_FATAL_FAILURE(wait_for_rest_endpoint_ready(
+      metadata_status_uri, http_port, user_name, user_password));
+
+  const char refresh_sucesseed_json_pointer[] = "/refreshSucceeded";
+  const size_t max_rounds = 10;
+  size_t rounds{};
+  do {
+    JsonDocument json_doc;
+    ASSERT_NO_FATAL_FAILURE(
+        fetch_json(rest_client, metadata_status_uri, json_doc));
+
+    const auto jp = JsonPointer(refresh_sucesseed_json_pointer);
+    ASSERT_TRUE(jp.IsValid());
+    const auto *val = jp.Get(json_doc);
+
+    ASSERT_TRUE(val != nullptr);
+
+    ASSERT_TRUE(val->IsInt());
+    if (val->GetInt() > 0) {
+      break;
+    }
+
+    // only try a few times before we give up
+    ASSERT_LT(rounds, max_rounds)
+        << metadata_status_uri << " " << refresh_sucesseed_json_pointer
+        << " stayed at 0 for too long";
+
+    std::this_thread::sleep_for(timeout / max_rounds);
+    ++rounds;
+  } while (true);
+}
+
 TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   const std::string http_hostname = "127.0.0.1";
   const std::string http_uri = GetParam().uri;
@@ -340,19 +397,30 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   g_refresh_succeeded = 0;
   g_time_last_refresh_failed = "";
 
+  if (GetParam().methods == HttpMethod::Get &&
+      GetParam().status_code == HttpStatusCode::Ok) {
+    // waits until /refreshSucceeded increments at least once
+    ASSERT_NO_FATAL_FAILURE(
+        wait_metadata_fetched(http_hostname, http_port_, GetParam().user_name,
+                              GetParam().user_password,
+                              rest_api_basepath + "/metadata/" +
+                                  metadata_cache_section_name + "/status"));
+  }
+
   EXPECT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), router_proc))
       << router_proc.get_full_output();
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
-  if (GetParam().status_code == HttpMethod::Get &&
-      GetParam().methods == HttpStatusCode::Ok) {
-    // sleep a while to make the counters and timestamps change
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+  if (GetParam().methods == HttpMethod::Get &&
+      GetParam().status_code == HttpStatusCode::Ok) {
+    // sleep ~2*TTL to make the counters and timestamps change
+    std::this_thread::sleep_for(500ms);
 
     // check the resources again, we want to compare them against the previous
     // ones
-    fetch_and_validate_schema_and_resource(GetParam(), router_proc);
+    EXPECT_NO_FATAL_FAILURE(
+        fetch_and_validate_schema_and_resource(GetParam(), router_proc));
   }
 }
 
