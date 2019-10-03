@@ -385,10 +385,10 @@ class Parallel_reader {
   Read_ahead_queue m_read_aheadq;
 
   /** Number of read ahead requests submitted. */
-  std::atomic<uint64_t> m_submitted{};
+  std::atomic<uint64_t> m_submitted{0};
 
   /** Number of read ahead requests processed. */
-  std::atomic<uint64_t> m_consumed;
+  std::atomic<uint64_t> m_consumed{0};
 
   /** Error during parallel read. */
   std::atomic<dberr_t> m_err{DB_SUCCESS};
