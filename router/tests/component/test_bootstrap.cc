@@ -291,28 +291,28 @@ router_id=1)";
 ttl=0.5
 use_gr_notifications=0
 
-[routing:mycluster__rw]
+[routing:mycluster_rw]
 bind_address=0.0.0.0
 bind_port=6446
 destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=classic
 
-[routing:mycluster__ro]
+[routing:mycluster_ro]
 bind_address=0.0.0.0
 bind_port=6447
 destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
 
-[routing:mycluster__x_rw]
+[routing:mycluster_x_rw]
 bind_address=0.0.0.0
 bind_port=64460
 destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
-[routing:mycluster__x_ro]
+[routing:mycluster_x_ro]
 bind_address=0.0.0.0
 bind_port=64470
 destinations=metadata-cache://mycluster/?role=SECONDARY
@@ -330,28 +330,28 @@ router_id=1)";
       R"(metadata_cluster=mycluster
 ttl=0.5
 
-[routing:mycluster__rw]
+[routing:mycluster_rw]
 bind_address=0.0.0.0
 bind_port=6446
 destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=classic
 
-[routing:mycluster__ro]
+[routing:mycluster_ro]
 bind_address=0.0.0.0
 bind_port=6447
 destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=classic
 
-[routing:mycluster__x_rw]
+[routing:mycluster_x_rw]
 bind_address=0.0.0.0
 bind_port=64460
 destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
-[routing:mycluster__x_ro]
+[routing:mycluster_x_ro]
 bind_address=0.0.0.0
 bind_port=64470
 destinations=metadata-cache://mycluster/?role=SECONDARY

@@ -2000,7 +2000,9 @@ void ConfigGenerator::create_config(
   // connection itself.
   config_file << "\n";
 
-  const std::string fast_router_key = metadata_key + "_" + metadata_replicaset;
+  const std::string fast_router_key = metadata_key +
+                                      (metadata_replicaset.empty() ? "" : "_") +
+                                      metadata_replicaset;
 
   // proxy to save on typing the same long list of args
   auto gen_mdc_rt_sect = [&](bool is_classic, bool is_writable,
