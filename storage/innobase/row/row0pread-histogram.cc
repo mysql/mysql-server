@@ -204,7 +204,7 @@ dberr_t Histogram_sampler::buffer_next() {
 
   wait_for_end_of_buffering();
 
-  if (m_err == DB_END_OF_INDEX) {
+  if (m_err != DB_SUCCESS) {
     /* End of records to be buffered. */
     m_parallel_reader.join();
   }
