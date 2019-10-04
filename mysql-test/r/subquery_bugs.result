@@ -631,18 +631,17 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
 WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
 EXPLAIN
--> Remove duplicate (t1, t5, t4, t3) rows using temporary table (weedout)
-    -> Nested loop left join  (cost=1.04 rows=1)
-        -> Nested loop semijoin  (cost=0.68 rows=1)
-            -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0)
-                -> Index range scan on t1 using PRIMARY  (cost=0.46 rows=1)
-            -> Nested loop inner join  (cost=0.77 rows=2)
-                -> Table scan on t5  (cost=0.45 rows=1)
-                -> Index scan on t4 using PRIMARY  (cost=1.30 rows=2)
-        -> Nested loop inner join  (cost=0.93 rows=1)
-            -> Filter: (t2.f2 = t1.f2)  (cost=0.70 rows=1)
-                -> Table scan on t2  (cost=0.70 rows=1)
-            -> Single-row index lookup on t3 using PRIMARY (pk=t1.pk)  (cost=0.45 rows=1)
+-> Nested loop left join  (cost=0.91 rows=1)
+    -> Nested loop semijoin  (cost=0.68 rows=1)
+        -> Filter: ((t1.f1 = 80) and (t1.pk > 80))  (cost=0.46 rows=0)
+            -> Index range scan on t1 using PRIMARY  (cost=0.46 rows=1)
+        -> Nested loop inner join  (cost=0.77 rows=2)
+            -> Table scan on t5  (cost=0.45 rows=1)
+            -> Index scan on t4 using PRIMARY  (cost=1.30 rows=2)
+    -> Nested loop semijoin  (cost=0.80 rows=1)
+        -> Single-row index lookup on t3 using PRIMARY (pk=t1.pk)  (cost=0.45 rows=1)
+        -> Filter: (t2.f2 = t1.f2)  (cost=0.70 rows=1)
+            -> Table scan on t2  (cost=0.70 rows=1)
 
 DROP TABLE t1, t2;
 #
@@ -796,18 +795,18 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 EXPLAIN
--> Remove duplicate (d0, t1) rows using temporary table (weedout)
-    -> Nested loop left join
-        -> Sort row IDs: d0.f1
+-> Sort: <temporary>.f1
+    -> Stream results
+        -> Nested loop left join
             -> Table scan on d0
                 -> Materialize
                     -> Table scan on <temporary>
                         -> Temporary table with deduplication
                             -> Table scan on t1  (cost=0.45 rows=2)
-        -> Nested loop inner join  (cost=1.10 rows=4)
-            -> Filter: (d0.pk = 1)  (cost=0.45 rows=2)
-                -> Table scan on t1  (cost=0.45 rows=2)
-            -> Table scan on t1  (cost=0.23 rows=2)
+            -> Nested loop semijoin  (cost=0.88 rows=4)
+                -> Filter: (d0.pk = 1)  (cost=0.23 rows=2)
+                    -> Table scan on t1  (cost=0.23 rows=2)
+                -> Table scan on t1  (cost=0.23 rows=2)
 
 SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 pk	f1	pk	f1
@@ -1179,3 +1178,53 @@ c
 2
 2
 DROP TABLE b, c, d;
+CREATE TABLE t1(pk INT PRIMARY KEY, col_int_nokey INT);
+INSERT INTO t1 VALUES(26, 12);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT /*+ JOIN_ORDER(t3,t1) */ *
+FROM
+t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t1`) */ `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_nokey` AS `col_int_nokey` from `test`.`t1` semi join (`test`.`t1` `t3`) where (`test`.`t3`.`col_int_nokey` = 3)
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t1) */ *
+FROM
+t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
+EXPLAIN
+-> Inner hash join
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Limit: 1 row(s)
+            -> Filter: (t3.col_int_nokey = 3)  (cost=0.35 rows=1)
+                -> Table scan on t3  (cost=0.35 rows=1)
+
+EXPLAIN SELECT /*+ JOIN_ORDER(t1,t3,t2) */ *
+FROM
+t1 LEFT JOIN t1 AS t2
+ON 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3)
+WHERE t1.pk=26;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Start temporary
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	End temporary
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`t3`,`t2`) */ '26' AS `pk`,'12' AS `col_int_nokey`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`col_int_nokey` AS `col_int_nokey` from `test`.`t1` left join (`test`.`t1` `t2` semi join (`test`.`t1` `t3`)) on(((`test`.`t3`.`col_int_nokey` = 3))) where true
+EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t1,t3,t2) */ *
+FROM
+t1 LEFT JOIN t1 AS t2
+ON 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3)
+WHERE t1.pk=26;
+EXPLAIN
+-> Remove duplicate (t1, t2) rows using temporary table (weedout)
+    -> Nested loop left join
+        -> Rows fetched before execution
+        -> Nested loop inner join  (cost=0.70 rows=1)
+            -> Filter: (t3.col_int_nokey = 3)  (cost=0.35 rows=1)
+                -> Table scan on t3  (cost=0.35 rows=1)
+            -> Table scan on t2  (cost=0.35 rows=1)
+
+DROP TABLE t1;

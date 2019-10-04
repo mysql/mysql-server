@@ -10729,8 +10729,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
 1	SIMPLE	alias3	NULL	range	PRIMARY,col_varchar_key	col_varchar_key	7	NULL	2	50.00	Using index condition; Using where; Using MRR
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	7	test.alias3.col_varchar_key	2	100.00	Using index
-1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(alias2)
 1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	12	NULL	2	100.00	Using index
+1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(alias1)
 3	MATERIALIZED	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 3	MATERIALIZED	t2	NULL	index	col_int_key	col_int_key	5	NULL	5	100.00	Using index
 Warnings:
@@ -10774,12 +10774,12 @@ AND sq2_alias1.col_varchar_key < "l"
   )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where; Start temporary
+1	SIMPLE	t2	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	test.alias3.pk	2	40.00	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	7	test.alias3.col_varchar_key	2	100.00	Using index
-1	SIMPLE	t2	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	test.alias3.pk	2	32.00	Using where
-1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; FirstMatch(alias2)
-1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(sq2_alias2)
-1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	12	NULL	2	100.00	Using index
+1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	12	NULL	2	100.00	Using index; End temporary
 Warnings:
 Note	1276	Field or reference 'test.alias2.col_varchar_key' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v'))) semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_int_key` = `test`.`alias3`.`pk`) and (`test`.`t2`.`col_varchar_nokey` <> `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_varchar_key` < 'l'))
@@ -11416,10 +11416,11 @@ FROM t1 AS sq1_alias1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(alias1)
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.alias1.col_int	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	MATERIALIZED	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias1`.`col_int` AS `col_int` from `test`.`t1` `alias1` left join (`test`.`t1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_int` = `test`.`alias1`.`col_int`))) where true
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_int` AS `col_int` from `test`.`t1` `alias1` left join (`test`.`t1` semi join (`test`.`t1` `sq1_alias1`)) on(((`<subquery2>`.`col_int` = `test`.`alias1`.`col_int`))) where true
 PREPARE stmt FROM "SELECT alias1.col_int
 FROM t1 AS alias1
 LEFT JOIN view_t1 AS alias2

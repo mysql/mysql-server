@@ -489,6 +489,11 @@ struct POSITION {
     strategy
   */
   uint first_firstmatch_table;
+  /**
+     Value of Optimize_table_order::cur_embedding_map after this table has
+     been added to the plan. Used to constrain FirstMatch table orders.
+  */
+  nested_join_map cur_embedding_map;
   /*
     Tables that were not in the join prefix when we've started considering
     FirstMatch strategy.

@@ -1655,20 +1655,19 @@ FROM
 b AS subquery3_t1
 );
 EXPLAIN
--> Remove duplicate (subquery1_t1, table2, subquery1_t2) rows using temporary table (weedout)
-    -> Inner hash join (subquery1_t2.col_varchar = subquery1_t1.col_varchar)
-        -> Table scan on subquery1_t2  (cost=0.18 rows=2)
+-> Nested loop left join
+    -> Inner hash join (subquery1_t2.col_varchar = subquery1_t1.col_varchar)  (cost=0.80 rows=1)
+        -> Table scan on subquery1_t2  (cost=0.35 rows=2)
         -> Hash
-            -> Nested loop left join
-                -> Table scan on subquery1_t1  (cost=0.35 rows=1)
-                -> Nested loop inner join
-                    -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (cost=0.35 rows=1)
-                        -> Index scan on subquery3_t1 using PRIMARY  (cost=0.35 rows=1)
-                    -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
-                        -> Materialize
-                            -> Table scan on <temporary>
-                                -> Temporary table with deduplication
-                                    -> Table scan on subquery2_t1  (cost=0.45 rows=2)
+            -> Table scan on subquery1_t1  (cost=0.35 rows=1)
+    -> Nested loop semijoin
+        -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
+            -> Materialize
+                -> Table scan on <temporary>
+                    -> Temporary table with deduplication
+                        -> Table scan on subquery2_t1  (cost=0.45 rows=2)
+        -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (cost=0.18 rows=1)
+            -> Index scan on subquery3_t1 using PRIMARY  (cost=0.18 rows=1)
 
 SELECT
 table1.col_varchar
