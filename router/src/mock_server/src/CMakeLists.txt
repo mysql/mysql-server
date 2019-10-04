@@ -31,7 +31,7 @@ ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc mysql_server_mock_schema.h
                      mysql_server_mock_schema.cc
                      mysql_server_mock_schema.h
                      "SqlQueryJsonSchema"
-                   DEPENDS json_schema_embedder)
+                   DEPENDS mysql_server_mock_schema.js)
 
 
 SET(common_libraries)

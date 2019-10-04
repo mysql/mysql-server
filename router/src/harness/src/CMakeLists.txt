@@ -54,7 +54,8 @@ FUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND SHARED_OR_STATIC)
     "StateFileJsonSchema"
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}
     COMMENT "Generating sources for ${SHARED_OR_STATIC} harness library"
-    DEPENDS json_schema_embedder)
+    DEPENDS dynamic_state_schema.js
+    )
 ENDFUNCTION()
 
 ADD_DYNAMIC_STATE_SCHEMA_COMMAND(SHARED)
