@@ -1328,3 +1328,17 @@ SELECT * FROM
                (y INT PATH _utf8mb4'$.y'
                       DEFAULT _utf8mb4'1' ON EMPTY
                       DEFAULT _utf8mb4'2' ON ERROR))) jt;
+
+--echo #
+--echo # Bug#30382156: STORED PROCEDURE, JSON_TABLE AND "CONST" JOIN TYPE
+--echo #
+CREATE TABLE t (id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES (1, '{"x":1}');
+CREATE PROCEDURE p()
+  SELECT * FROM t, JSON_TABLE(j, '$' COLUMNS (x INT PATH '$.x')) jt
+    WHERE id = 1;
+CALL p();
+CALL p();
+CALL p();
+DROP PROCEDURE p;
+DROP TABLE t;
