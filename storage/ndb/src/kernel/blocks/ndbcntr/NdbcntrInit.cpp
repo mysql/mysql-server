@@ -115,13 +115,6 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_DUMP_STATE_ORD, &Ndbcntr::execDUMP_STATE_ORD);
   addRecSignal(GSN_READ_CONFIG_REQ, &Ndbcntr::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Ndbcntr::execSTTOR);
-  addRecSignal(GSN_TCSEIZECONF, &Ndbcntr::execTCSEIZECONF);
-  addRecSignal(GSN_TCSEIZEREF, &Ndbcntr::execTCSEIZEREF);
-  addRecSignal(GSN_TCRELEASECONF, &Ndbcntr::execTCRELEASECONF);
-  addRecSignal(GSN_TCRELEASEREF, &Ndbcntr::execTCRELEASEREF);
-  addRecSignal(GSN_TCKEYCONF, &Ndbcntr::execTCKEYCONF);
-  addRecSignal(GSN_TCKEYREF, &Ndbcntr::execTCKEYREF);
-  addRecSignal(GSN_TCROLLBACKREP, &Ndbcntr::execTCROLLBACKREP);
   addRecSignal(GSN_GETGCICONF, &Ndbcntr::execGETGCICONF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Ndbcntr::execDIH_RESTARTCONF);
   addRecSignal(GSN_DIH_RESTARTREF, &Ndbcntr::execDIH_RESTARTREF);

@@ -4068,7 +4068,7 @@ void Ndbcntr::execSCHEMA_TRANS_END_CONF(Signal* signal)
   jamEntry();
   c_schemaTransId = 0;
   c_schemaTransKey = RNIL;
-  startInsertTransactions(signal);
+  waitpoint52Lab(signal);
 }
 
 void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
@@ -4343,171 +4343,8 @@ void Ndbcntr::execCREATE_TABLE_CONF(Signal* signal)
   table.tableId = conf->tableId;
   table.tableVersion = conf->tableVersion;
   createSystableLab(signal, conf->senderData + 1);
-  //startInsertTransactions(signal);
   return;
 }//Ndbcntr::execDICTTABCONF()
-
-/*******************************/
-/*  DICTRELEASECONF            */
-/*******************************/
-void Ndbcntr::startInsertTransactions(Signal* signal) 
-{
-  jamEntry();
-
-  ckey = 1;
-  ctransidPhase = ZTRUE;
-  signal->theData[0] = 0;
-  signal->theData[1] = reference();
-  sendSignal(DBTC_REF, GSN_TCSEIZEREQ, signal, 2, JBB);
-  return;
-}//Ndbcntr::startInsertTransactions()
-
-/*******************************/
-/*  TCSEIZECONF                */
-/*******************************/
-void Ndbcntr::execTCSEIZECONF(Signal* signal) 
-{
-  jamEntry();
-  ctcConnectionP = signal->theData[1];
-  ctcReference = signal->theData[2];
-  crSystab7Lab(signal);
-  return;
-}//Ndbcntr::execTCSEIZECONF()
-
-const unsigned int RowsPerCommit = 16;
-void Ndbcntr::crSystab7Lab(Signal* signal) 
-{
-  UintR tkey;
-  UintR Tmp;
-  
-  TcKeyReq * const tcKeyReq = (TcKeyReq *)&signal->theData[0];
-  
-  UintR reqInfo_Start = 0;
-  tcKeyReq->setOperationType(reqInfo_Start, ZINSERT); // Insert
-  tcKeyReq->setKeyLength    (reqInfo_Start, 1);
-  tcKeyReq->setAIInTcKeyReq (reqInfo_Start, 5);
-  tcKeyReq->setAbortOption  (reqInfo_Start, TcKeyReq::AbortOnError);
-
-/* KEY LENGTH = 1, ATTRINFO LENGTH IN TCKEYREQ = 5 */
-  cresponses = 0;
-  const UintR guard0 = ckey + (RowsPerCommit - 1);
-  for (Tmp = ckey; Tmp <= guard0; Tmp++) {
-    UintR reqInfo = reqInfo_Start;
-    if (Tmp == ckey) { // First iteration, Set start flag
-      jam();
-      tcKeyReq->setStartFlag(reqInfo, 1);
-    } //if
-    if (Tmp == guard0) { // Last iteration, Set commit flag
-      jam();
-      tcKeyReq->setCommitFlag(reqInfo, 1);      
-      tcKeyReq->setExecuteFlag(reqInfo, 1);
-    } //if
-    if (ctransidPhase == ZTRUE) {
-      jam();
-      tkey = 0;
-      tkey = tkey - Tmp;
-    } else {
-      jam();
-      tkey = Tmp;
-    }//if
-
-    tcKeyReq->apiConnectPtr      = ctcConnectionP;
-    tcKeyReq->attrLen            = 5;
-    tcKeyReq->tableId            = g_sysTable_SYSTAB_0.tableId;
-    tcKeyReq->requestInfo        = reqInfo;
-    tcKeyReq->tableSchemaVersion = g_sysTable_SYSTAB_0.tableVersion;
-    tcKeyReq->transId1           = 0;
-    tcKeyReq->transId2           = ckey;
-
-//-------------------------------------------------------------
-// There is no optional part in this TCKEYREQ. There is one
-// key word and five ATTRINFO words.
-//-------------------------------------------------------------
-    Uint32* tKeyDataPtr          = &tcKeyReq->scanInfo;
-    Uint32* tAIDataPtr           = &tKeyDataPtr[1];
-
-    tKeyDataPtr[0]               = tkey;
-
-    AttributeHeader::init(&tAIDataPtr[0], 0, 1 << 2);
-    tAIDataPtr[1]                = tkey;
-    AttributeHeader::init(&tAIDataPtr[2], 1, 2 << 2);
-    tAIDataPtr[3]                = (tkey << 16);
-    tAIDataPtr[4]                = 1;    
-    sendSignal(ctcReference, GSN_TCKEYREQ, signal,
-	       TcKeyReq::StaticLength + 6, JBB);
-  }//for
-  ckey = ckey + RowsPerCommit;
-  return;
-}//Ndbcntr::crSystab7Lab()
-
-/*******************************/
-/*  TCKEYCONF09                */
-/*******************************/
-void Ndbcntr::execTCKEYCONF(Signal* signal) 
-{
-  const TcKeyConf * const keyConf = (TcKeyConf *)&signal->theData[0];
-  
-  jamEntry();
-  cgciSystab = keyConf->gci_hi;
-  UintR confInfo = keyConf->confInfo;
-  
-  if (TcKeyConf::getMarkerFlag(confInfo)){
-    Uint32 transId1 = keyConf->transId1;
-    Uint32 transId2 = keyConf->transId2;
-    signal->theData[0] = transId1;
-    signal->theData[1] = transId2;
-    sendSignal(ctcReference, GSN_TC_COMMIT_ACK, signal, 2, JBB);
-  }//if
-  
-  cresponses = cresponses + TcKeyConf::getNoOfOperations(confInfo);
-  if (TcKeyConf::getCommitFlag(confInfo)){
-    jam();
-    ndbrequire(cresponses == RowsPerCommit);
-
-    crSystab8Lab(signal);
-    return;
-  }
-  return;
-}//Ndbcntr::tckeyConfLab()
-
-void Ndbcntr::crSystab8Lab(Signal* signal) 
-{
-  if (ckey < ZSIZE_SYSTAB) {
-    jam();
-    crSystab7Lab(signal);
-    return;
-  } else if (ctransidPhase == ZTRUE) {
-    jam();
-    ckey = 1;
-    ctransidPhase = ZFALSE;
-    // skip 2nd loop - tupleid sequence now created on first use
-  }//if
-  signal->theData[0] = ctcConnectionP;
-  signal->theData[1] = reference();
-  signal->theData[2] = 0;
-  sendSignal(ctcReference, GSN_TCRELEASEREQ, signal, 2, JBB);
-  return;
-}//Ndbcntr::crSystab8Lab()
-
-/*******************************/
-/*  TCRELEASECONF              */
-/*******************************/
-void Ndbcntr::execTCRELEASECONF(Signal* signal) 
-{
-  jamEntry();
-  g_eventLogger->info("Creation of System Tables Completed");
-  waitpoint52Lab(signal);
-  return;
-}//Ndbcntr::execTCRELEASECONF()
-
-void Ndbcntr::crSystab9Lab(Signal* signal) 
-{
-  signal->theData[0] = 0; // user ptr
-  signal->theData[1] = reference();
-  signal->theData[2] = 0;
-  sendSignalWithDelay(DBDIH_REF, GSN_GETGCIREQ, signal, 100, 3);
-  return;
-}//Ndbcntr::crSystab9Lab()
 
 /*******************************/
 /*  GETGCICONF                 */
@@ -4516,48 +4353,9 @@ void Ndbcntr::execGETGCICONF(Signal* signal)
 {
   jamEntry();
 
-#ifndef NO_GCP
-  if (signal->theData[1] < cgciSystab) {
-    jam();
-/*--------------------------------------*/
-/* MAKE SURE THAT THE SYSTABLE IS       */
-/* NOW SAFE ON DISK                     */
-/*--------------------------------------*/
-    crSystab9Lab(signal);
-    return;
-  }//if
-#endif
   waitpoint52Lab(signal);
   return;
 }//Ndbcntr::execGETGCICONF()
-
-void Ndbcntr::execTCKEYREF(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCKEYREF()
-
-void Ndbcntr::execTCROLLBACKREP(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCROLLBACKREP()
-
-void Ndbcntr::execTCRELEASEREF(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCRELEASEREF()
-
-void Ndbcntr::execTCSEIZEREF(Signal* signal) 
-{
-  jamEntry();
-  systemErrorLab(signal, __LINE__);
-  return;
-}//Ndbcntr::execTCSEIZEREF()
 
 
 /*---------------------------------------------------------------------------*/
