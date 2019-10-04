@@ -4094,6 +4094,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
   Opt_trace_array trace_choices(trace, "semijoin_strategy_choice");
 
   /* Initialize the state or copy it from prev. tables */
+  pos->cur_embedding_map = cur_embedding_map;
   if (idx == join->const_tables) {
     pos->dups_producing_tables = 0;
     pos->first_firstmatch_table = MAX_TABLES;
@@ -4193,30 +4194,48 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
         */
         pos->first_firstmatch_table = MAX_TABLES;
       } else if (!(pos->firstmatch_need_tables & remaining_tables)) {
-        // Got a complete FirstMatch range. Calculate access paths and cost
-        double cost, rowcount;
-        /* We use the same FirstLetterUpcase as in EXPLAIN */
-        Opt_trace_object trace_one_strategy(trace);
-        trace_one_strategy.add_alnum("strategy", "FirstMatch");
-        (void)semijoin_firstmatch_loosescan_access_paths(
-            pos->first_firstmatch_table, idx, remaining_tables, false,
-            &rowcount, &cost);
-        /*
-          We don't yet know what are the other strategies, so pick FirstMatch.
+        // Got a complete FirstMatch range.
 
-          We ought to save the alternate POSITIONs produced by
-          semijoin_firstmatch_loosescan_access_paths() but the problem is that
-          providing save space uses too much space.
-          Instead, we will re-calculate the alternate POSITIONs after we've
-          picked the best QEP.
-        */
-        sj_strategy = SJ_OPT_FIRST_MATCH;
-        best_cost = cost;
-        best_rowcount = rowcount;
-        trace_one_strategy.add("cost", best_cost).add("rows", best_rowcount);
-        handled_by_fm_or_ls = pos->firstmatch_need_tables;
+        // We cannot FirstMatch to a different embedding nest,
+        // e.g., for B LEFT JOIN (C SEMIJOIN D ON B.X=D.Y) and table order
+        // B-D-C we cannot jump from D to B. This would cause non-hierarchical
+        // joins. So we check that the jump won't leave from a still-open
+        // nest: cur_embedding_map at the last table of this firstmatch range
+        // must be included in cur_embedding_map at the target of the jump.
+        nested_join_map cur_embedding_map_at_jump_target =
+            pos->first_firstmatch_table > join->const_tables
+                ? join->positions[pos->first_firstmatch_table - 1]
+                      .cur_embedding_map
+                : 0;
+        if ((cur_embedding_map_at_jump_target & cur_embedding_map) !=
+            cur_embedding_map) {
+          pos->first_firstmatch_table = MAX_TABLES;
+        } else {
+          // Calculate access paths and cost
+          double cost, rowcount;
+          /* We use the same FirstLetterUpcase as in EXPLAIN */
+          Opt_trace_object trace_one_strategy(trace);
+          trace_one_strategy.add_alnum("strategy", "FirstMatch");
+          (void)semijoin_firstmatch_loosescan_access_paths(
+              pos->first_firstmatch_table, idx, remaining_tables, false,
+              &rowcount, &cost);
+          /*
+            We don't yet know what are the other strategies, so pick FirstMatch.
 
-        trace_one_strategy.add("chosen", true);
+            We ought to save the alternate POSITIONs produced by
+            semijoin_firstmatch_loosescan_access_paths() but the problem is that
+            providing save space uses too much space.
+            Instead, we will re-calculate the alternate POSITIONs after we've
+            picked the best QEP.
+          */
+          sj_strategy = SJ_OPT_FIRST_MATCH;
+          best_cost = cost;
+          best_rowcount = rowcount;
+          trace_one_strategy.add("cost", best_cost).add("rows", best_rowcount);
+          handled_by_fm_or_ls = pos->firstmatch_need_tables;
+
+          trace_one_strategy.add("chosen", true);
+        }
       }
     }
   }

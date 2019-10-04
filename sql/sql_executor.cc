@@ -1534,7 +1534,8 @@ enum class Substructure { NONE, OUTER_JOIN, SEMIJOIN, WEEDOUT };
   first_idx..(this_idx-1) as inner joins), figure out whether this is a
   semijoin, an outer join or a weedout. In general, the outermost structure
   wins; if we are in one of the rare cases where there are e.g. coincident
-  outer- and semijoins, we do various forms of conflict resolution:
+  (first match) semijoins and weedouts, we do various forms of conflict
+  resolution:
 
    - Unhandled weedouts will add elements to unhandled_duplicates
      (to be handled at the top level of the query).
@@ -1658,26 +1659,18 @@ static Substructure FindSubstructure(
       // A special case of the special case; there might be more than one
       // outer join contained in this semijoin, e.g. A LEFT JOIN B LEFT JOIN C
       // where the combination B-C is _also_ the right side of a semijoin.
-      // This forms a non-hierarchical structure and should be exceedingly rare,
-      // so we handle it the same way we handle non-hierarchical weedout above,
-      // ie., just by removing the added duplicates at the top of the query.
-      *unhandled_duplicates |= TablesBetween(this_idx, semijoin_end);
-      is_semijoin = false;
+      // The join optimizer should not produce this.
+      DBUG_ASSERT(false);
     }
   }
 
   // Yet another special case like the above; this is when we have a semijoin
   // and then a partially overlapping outer join that ends outside the semijoin.
   // E.g., A JOIN B JOIN C LEFT JOIN D, where A..C denotes a semijoin
-  // (C has first match back to A).
+  // (C has first match back to A). Verify that it cannot happen.
   if (is_semijoin) {
     for (plan_idx i = this_idx; i < semijoin_end; ++i) {
-      if (qep_tabs[i].last_inner() >= semijoin_end) {
-        // Handle this semijoin as non-hierarchical weedout above.
-        *unhandled_duplicates |= TablesBetween(this_idx, semijoin_end);
-        is_semijoin = false;
-        break;
-      }
+      DBUG_ASSERT(qep_tabs[i].last_inner() < semijoin_end);
     }
   }
 

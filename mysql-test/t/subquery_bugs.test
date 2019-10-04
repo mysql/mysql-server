@@ -896,7 +896,7 @@ DROP TABLE table_city, table_user, table_city_user;
 --echo # Bug#30267889 ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED | TEMPTABLE::HANDLER::POSITION
 --echo #
 
- CREATE TABLE b (c INTEGER, KEY idx_b (c));
+CREATE TABLE b (c INTEGER, KEY idx_b (c));
 CREATE TABLE c (c INTEGER, KEY idx_c (c));
 CREATE TABLE d (c INTEGER, KEY idx_d (c));
 
@@ -922,3 +922,38 @@ WHERE d.c IN (
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE b, c, d;
+
+# These tests cover the particular cases of when the jump target of
+# FirstMatch is either NO_PLAN_IDX (before the first table) or a
+# constant table.
+
+CREATE TABLE t1(pk INT PRIMARY KEY, col_int_nokey INT);
+INSERT INTO t1 VALUES(26, 12);
+ANALYZE TABLE t1;
+
+# No outer join: jump target == NO_PLAN_IDX.
+
+let $query=
+  SELECT /*+ JOIN_ORDER(t3,t1) */ *
+  FROM
+  t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
+
+eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
+
+# Outer join: the jump target could be to constant table t1, but
+# the iterator executor doesn't support it (it would be jumping out of
+# the nest (t2,t3) while in the middle of it), so we choose another
+# plan.
+
+let $query=
+  SELECT /*+ JOIN_ORDER(t1,t3,t2) */ *
+  FROM
+  t1 LEFT JOIN t1 AS t2
+  ON 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3)
+  WHERE t1.pk=26;
+
+eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
+
+DROP TABLE t1;
