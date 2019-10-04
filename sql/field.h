@@ -1046,8 +1046,9 @@ class Field {
   */
   longlong val_temporal_by_field_type() const {
     // Return longlong TIME or DATETIME representation, depending on field type
-    if (type() == MYSQL_TYPE_TIME) return val_time_temporal();
-    DBUG_ASSERT(is_temporal_with_date());
+    const enum_field_types field_type = type();
+    if (field_type == MYSQL_TYPE_TIME) return val_time_temporal();
+    DBUG_ASSERT(is_temporal_type_with_date(field_type));
     return val_date_temporal();
   }
   virtual my_decimal *val_decimal(my_decimal *) const = 0;
@@ -1260,22 +1261,6 @@ class Field {
     in str and restore it with set() if needed
   */
   virtual void sql_type(String &str) const = 0;
-
-  bool is_temporal() const {
-    return is_temporal_type(real_type_to_type(type()));
-  }
-
-  bool is_temporal_with_date() const {
-    return is_temporal_type_with_date(real_type_to_type(type()));
-  }
-
-  bool is_temporal_with_time() const {
-    return is_temporal_type_with_time(real_type_to_type(type()));
-  }
-
-  bool is_temporal_with_date_and_time() const {
-    return is_temporal_type_with_date_and_time(real_type_to_type(type()));
-  }
 
   /**
     Check whether the full table's row is NULL or the Field has value NULL.

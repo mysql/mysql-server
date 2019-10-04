@@ -566,7 +566,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item, Item **item,
                     (*item)->val_time_temporal(), *item)
                 :
 #endif
-                field->is_temporal_with_date()
+                is_temporal_type_with_date(field->type())
                     ?
 #ifdef OLD_CMP
                     new Item_datetime_with_ref(field->type(), field->decimals(),

@@ -4050,7 +4050,7 @@ bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
         Ensure that date is saved to a date column, and time into time
         column. Don't mix.
       */
-      if (field->is_temporal_with_date()) {
+      if (is_temporal_type_with_date(field->type())) {
         switch (w->type()) {
           case enum_json_type::J_DATE:
           case enum_json_type::J_DATETIME:

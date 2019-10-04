@@ -6849,7 +6849,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
             because Field_temporal_with_date::store_time() will convert
             48:00:00 to CURDATE() + 2 days which is the correct lookup key.
           */
-          if ((!field->is_temporal() && value[0]->is_temporal()) ||
+          if ((!is_temporal_type(field->type()) && value[0]->is_temporal()) ||
               (field->cmp_type() == STRING_RESULT &&
                field->match_collation_to_optimize_range() &&
                field->charset() != cond->compare_collation()) ||

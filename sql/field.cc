@@ -10417,8 +10417,8 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
         invalid. For such cases no default is generated.
        */
       table_field = nullptr;
-      if (tmp_table_field->is_temporal_with_date() && thd->is_strict_mode() &&
-          !item->maybe_null)
+      if (is_temporal_type_with_date(tmp_table_field->type()) &&
+          thd->is_strict_mode() && !item->maybe_null)
         tmp_table_field->flags |= NO_DEFAULT_VALUE_FLAG;
     }
   }

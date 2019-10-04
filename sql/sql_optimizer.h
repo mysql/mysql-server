@@ -41,6 +41,7 @@
 #include <memory>
 #include <utility>
 
+#include "field_types.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -1124,7 +1125,8 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
    @param  v  Expression
  */
 inline bool field_time_cmp_date(const Field *f, const Item *v) {
-  return f->is_temporal() && !f->is_temporal_with_date() &&
+  const enum_field_types ft = f->type();
+  return is_temporal_type(ft) && !is_temporal_type_with_date(ft) &&
          v->is_temporal_with_date();
 }
 

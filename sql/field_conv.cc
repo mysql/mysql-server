@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <algorithm>
 
+#include "field_types.h"
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compare.h"
@@ -717,8 +718,8 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
     if (m_to_field->result_type() == DECIMAL_RESULT) return do_field_decimal;
     // Check if identical fields
     if (m_from_field->result_type() == STRING_RESULT) {
-      if (m_from_field->is_temporal()) {
-        if (m_to_field->is_temporal()) {
+      if (is_temporal_type(m_from_field->type())) {
+        if (is_temporal_type(m_to_field->type())) {
           return do_field_time;
         } else {
           if (m_to_field->result_type() == INT_RESULT) return do_field_int;
@@ -813,8 +814,8 @@ static inline bool is_blob_type(Field *to) {
 /** Simple quick field convert that is called on insert. */
 
 type_conversion_status field_conv(Field *to, const Field *from) {
-  const int from_type = from->type();
-  const int to_type = to->type();
+  const enum_field_types from_type = from->type();
+  const enum_field_types to_type = to->type();
 
   if ((to_type == MYSQL_TYPE_JSON) && (from_type == MYSQL_TYPE_JSON)) {
     Field_json *to_json = down_cast<Field_json *>(to);
@@ -839,7 +840,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
         to->real_type() != MYSQL_TYPE_ENUM &&
         to->real_type() != MYSQL_TYPE_SET &&
         to->real_type() != MYSQL_TYPE_BIT &&
-        (!to->is_temporal_with_time() || to->decimals() == from->decimals()) &&
+        (!is_temporal_type_with_time(to_type) ||
+         to->decimals() == from->decimals()) &&
         (to->real_type() != MYSQL_TYPE_NEWDECIMAL ||
          (to->field_length == from->field_length &&
           (down_cast<Field_num *>(to)->dec ==
@@ -847,16 +849,16 @@ type_conversion_status field_conv(Field *to, const Field *from) {
         to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
-         (to->type() != MYSQL_TYPE_DATE && to->type() != MYSQL_TYPE_DATETIME &&
+         (to_type != MYSQL_TYPE_DATE && to_type != MYSQL_TYPE_DATETIME &&
           (!to->table->in_use->variables.explicit_defaults_for_timestamp ||
-           to->type() != MYSQL_TYPE_TIMESTAMP))) &&
+           to_type != MYSQL_TYPE_TIMESTAMP))) &&
         (from->real_type() != MYSQL_TYPE_VARCHAR)) {  // Identical fields
       // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
       memmove(to->ptr, from->ptr, to->pack_length());
       return TYPE_OK;
     }
   }
-  if (to->type() == MYSQL_TYPE_BLOB) {  // Be sure the value is stored
+  if (to_type == MYSQL_TYPE_BLOB) {  // Be sure the value is stored
     Field_blob *blob = (Field_blob *)to;
     return blob->store(from);
   }
@@ -864,10 +866,10 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       to->real_type() == MYSQL_TYPE_ENUM && from->val_int() == 0) {
     ((Field_enum *)(to))->store_type(0);
     return TYPE_OK;
-  } else if (from->is_temporal() && to->result_type() == INT_RESULT) {
+  } else if (is_temporal_type(from_type) && to->result_type() == INT_RESULT) {
     MYSQL_TIME ltime;
     longlong nr;
-    if (from->type() == MYSQL_TYPE_TIME) {
+    if (from_type == MYSQL_TYPE_TIME) {
       from->get_time(&ltime);
       if (current_thd->is_fsp_truncate_mode())
         nr = TIME_to_ulonglong_time(ltime);
@@ -884,21 +886,19 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       }
     }
     return to->store(ltime.neg ? -nr : nr, false);
-  } else if (from->is_temporal() && (to->result_type() == REAL_RESULT ||
-                                     to->result_type() == DECIMAL_RESULT ||
-                                     to->result_type() == INT_RESULT)) {
+  } else if (is_temporal_type(from_type) &&
+             (to->result_type() == REAL_RESULT ||
+              to->result_type() == DECIMAL_RESULT ||
+              to->result_type() == INT_RESULT)) {
     my_decimal tmp;
     /*
       We prefer DECIMAL as the safest precise type:
       double supports only 15 digits, which is not enough for DATETIME(6).
     */
     return to->store_decimal(from->val_decimal(&tmp));
-  } else if (from->is_temporal() && to->is_temporal()) {
+  } else if (is_temporal_type(from_type) && is_temporal_type(to_type)) {
     return copy_time_to_time(from, to);
-  } else if (from_type == MYSQL_TYPE_JSON &&
-             (to_type == MYSQL_TYPE_TINY || to_type == MYSQL_TYPE_SHORT ||
-              to_type == MYSQL_TYPE_INT24 || to_type == MYSQL_TYPE_LONG ||
-              to_type == MYSQL_TYPE_LONGLONG)) {
+  } else if (from_type == MYSQL_TYPE_JSON && is_integer_type(to_type)) {
     return to->store(from->val_int(), from->flags & UNSIGNED_FLAG);
   } else if (from_type == MYSQL_TYPE_JSON && to_type == MYSQL_TYPE_NEWDECIMAL) {
     my_decimal buff;
@@ -906,7 +906,7 @@ type_conversion_status field_conv(Field *to, const Field *from) {
   } else if (from_type == MYSQL_TYPE_JSON &&
              (to_type == MYSQL_TYPE_FLOAT || to_type == MYSQL_TYPE_DOUBLE)) {
     return to->store(from->val_real());
-  } else if (from_type == MYSQL_TYPE_JSON && to->is_temporal()) {
+  } else if (from_type == MYSQL_TYPE_JSON && is_temporal_type(to_type)) {
     MYSQL_TIME ltime;
     bool res = true;
     switch (to_type) {
@@ -928,7 +928,7 @@ type_conversion_status field_conv(Field *to, const Field *from) {
               (to->result_type() == STRING_RESULT ||
                (from->real_type() != MYSQL_TYPE_ENUM &&
                 from->real_type() != MYSQL_TYPE_SET))) ||
-             to->type() == MYSQL_TYPE_DECIMAL) {
+             to_type == MYSQL_TYPE_DECIMAL) {
     char buff[MAX_FIELD_WIDTH];
     String result(buff, sizeof(buff), from->charset());
     from->val_str(&result);

@@ -5968,10 +5968,11 @@ type_conversion_status Item::save_in_field_inner(Field *field,
           return f->store_json(&wr);
         }
 
-        if (field->is_temporal()) {
+        const enum_field_types field_type = field->type();
+        if (is_temporal_type(field_type)) {
           MYSQL_TIME t;
           bool res = true;
-          switch (field->type()) {
+          switch (field_type) {
             case MYSQL_TYPE_TIME:
               res = get_time(&t);
               break;
@@ -6128,8 +6129,9 @@ type_conversion_status Item_int::save_in_field_inner(Field *field, bool) {
 }
 
 type_conversion_status Item_temporal::save_in_field_inner(Field *field, bool) {
-  longlong nr = field->is_temporal_with_time()
-                    ? val_temporal_with_round(field->type(), field->decimals())
+  const enum_field_types field_type = field->type();
+  longlong nr = is_temporal_type_with_time(field_type)
+                    ? val_temporal_with_round(field_type, field->decimals())
                     : val_date_temporal();
   // TODO: call set_field_to_null_with_conversions below
   if (null_value) return set_field_to_null(field);
@@ -8447,7 +8449,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item) {
     longlong item_value = item->val_time_temporal();
     return field_value < item_value ? -1 : field_value > item_value ? 1 : 0;
   }
-  if (field->is_temporal_with_date() && item->is_temporal()) {
+  if (is_temporal_type_with_date(field->type()) && item->is_temporal()) {
     /*
       Note, in case of TIME data type we also go here
       and call item->val_date_temporal(), because we want
@@ -8473,7 +8475,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item) {
     if (item->null_value) return 0;
     String *field_result = field->val_str(&field_tmp);
 
-    if (field->is_temporal_with_date()) {
+    if (is_temporal_type_with_date(field->type())) {
       enum_mysql_timestamp_type type =
           field_type_to_timestamp_type(field->type());
       const char *field_name = field->field_name;
@@ -9450,7 +9452,7 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
       field = tmp_table_field_from_field_type(table, false);
       break;
   }
-  if (strict && field && field->is_temporal_with_date() &&
+  if (strict && field && is_temporal_type_with_date(field->type()) &&
       !field->real_maybe_null()) {
     /*
       This function is used for CREATE SELECT UNION [ALL] ... , and, if

@@ -2203,8 +2203,8 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
 
       sortorder->maybe_null = field->maybe_null();
       sortorder->field_type = field->type();
-      is_string_type =
-          field->result_type() == STRING_RESULT && !field->is_temporal();
+      is_string_type = field->result_type() == STRING_RESULT &&
+                       !is_temporal_type(field->type());
     } else {
       const Item *item = sortorder->item;
       sortorder->result_type = item->result_type();

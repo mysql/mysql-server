@@ -234,7 +234,7 @@ TEST_F(FieldTest, FieldTimef) {
   protocol.verify_time(bigTime, 4);
 
   // Function inherited from Field_temporal
-  EXPECT_TRUE(field->is_temporal());
+  EXPECT_TRUE(is_temporal_type(field->type()));
   EXPECT_EQ(STRING_RESULT, field->result_type());
   EXPECT_EQ(15UL, field->max_display_length());
   EXPECT_TRUE(field->str_needs_quotes());

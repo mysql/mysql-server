@@ -7099,7 +7099,7 @@ static bool comparable_in_index(Item *cond_func, const Field *field,
     create a useful range predicate for temporal values into VARCHAR
     column indexes. @see add_key_field()
   */
-  if (!field->is_temporal() && value->is_temporal()) return false;
+  if (!is_temporal_type(field->type()) && value->is_temporal()) return false;
 
   /*
     Temporal values: Cannot use range access if IndexedTimeComparedToDate:
