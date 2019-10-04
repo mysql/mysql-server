@@ -173,6 +173,10 @@ public:
     TcResetTransientPoolMaxSize = 2557,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
+    /**
+     * Sets the type of restart when the child process crashes due to error
+     * insert (see NdbRestartType).
+     */
     CmvmiSetRestartOnErrorInsert = 2602,
     CmvmiTestLongSigWithDelay = 2603,
     CmvmiDumpSubscriptions = 2604, /* note: done to respective outfile

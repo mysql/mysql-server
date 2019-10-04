@@ -10217,6 +10217,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   if (ERROR_INSERTED(7179) || ERROR_INSERTED(7217))
   {
     CLEAR_ERROR_INSERT_VALUE;
+    CLEAR_ERROR_INSERT_EXTRA;
   }
 
   if (ERROR_INSERTED(7184))
@@ -21865,34 +21866,22 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 
   jamEntry();
 
-  if (ERROR_INSERTED(7178) && nodeId != getOwnNodeId())
+  if (ERROR_INSERTED(7178) && (nodeId == ERROR_INSERT_EXTRA))
   {
     jam();
-    Uint32 owng =Sysfile::getNodeGroup(getOwnNodeId(), SYSFILE->nodeGroups);
-    Uint32 nodeg = Sysfile::getNodeGroup(nodeId, SYSFILE->nodeGroups);
-    if (owng == nodeg)
-    {
-      jam();
-      ndbout_c("throwing away LCP_FRAG_REP from  (and killing) %d", nodeId);
-      SET_ERROR_INSERT_VALUE(7179);
-      signal->theData[0] = 9999;
-      sendSignal(numberToRef(CMVMI, nodeId), 
-		 GSN_NDB_TAMPER, signal, 1, JBA);  
-      return;
-    }
+    ndbout_c("throwing away LCP_FRAG_REP from  (and killing) %d", nodeId);
+    SET_ERROR_INSERT_VALUE2(7179, nodeId);
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, nodeId),
+		  GSN_NDB_TAMPER, signal, 1, JBA);
+    return;
   }
  
-  if (ERROR_INSERTED(7179) && nodeId != getOwnNodeId())
+  if (ERROR_INSERTED(7179) && (nodeId == ERROR_INSERT_EXTRA))
   {
     jam();
-    Uint32 owng =Sysfile::getNodeGroup(getOwnNodeId(), SYSFILE->nodeGroups);
-    Uint32 nodeg = Sysfile::getNodeGroup(nodeId, SYSFILE->nodeGroups);
-    if (owng == nodeg)
-    {
-      jam();
-      ndbout_c("throwing away LCP_FRAG_REP from %d", nodeId);
-      return;
-    }
+    ndbout_c("throwing away LCP_FRAG_REP from %d", nodeId);
+    return;
   }    
 
   CRASH_INSERTION2(7025, isMaster());

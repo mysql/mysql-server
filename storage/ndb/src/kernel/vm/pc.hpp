@@ -202,6 +202,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define SET_ERROR_INSERT_VALUE(x) cerrorInsert = x
 #define SET_ERROR_INSERT_VALUE2(x,y) cerrorInsert = x; c_error_insert_extra = y
 #define CLEAR_ERROR_INSERT_VALUE cerrorInsert = 0
+#define CLEAR_ERROR_INSERT_EXTRA c_error_insert_extra = 0
 #else
 #define ERROR_INSERT_VARIABLE typedef void * cerrorInsert // Will generate compiler error if used
 #define ERROR_INSERTED(x) false
@@ -211,6 +212,7 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 #define SET_ERROR_INSERT_VALUE(x) do { } while(0)
 #define SET_ERROR_INSERT_VALUE2(x,y) do { } while(0)
 #define CLEAR_ERROR_INSERT_VALUE do { } while(0)
+#define CLEAR_ERROR_INSERT_EXTRA do { } while(0)
 #endif
 
 #define DECLARE_DUMP0(BLOCK, CODE, DESC) if (arg == CODE)

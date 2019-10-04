@@ -323,6 +323,8 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
+
+  // find nodegroup corresponding to nodeId
   for (unsigned i = 0; i < ndbNodes.size(); i++)
   {
     if (ndbNodes[i].node_id == nodeId &&
@@ -338,6 +340,8 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
 
   Uint32 counter = 0;
   rand = rand % ndbNodes.size();
+
+  // find random node not belonging to node_group
   while(counter++ < ndbNodes.size() && ndbNodes[rand].node_group == node_group)
     rand = (rand + 1) % ndbNodes.size();
   
@@ -356,6 +360,7 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
+  // find nodegroup corresponding to nodeId
   for(unsigned i = 0; i < ndbNodes.size(); i++){
     if(ndbNodes[i].node_id == nodeId){
       node_group = ndbNodes[i].node_group;
@@ -368,6 +373,8 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
 
   Uint32 counter = 0;
   rand = rand % ndbNodes.size();
+
+  // find random node which is not nodeId, belonging to node_group
   while(counter++ < ndbNodes.size() && 
 	(ndbNodes[rand].node_id == nodeId || 
 	 ndbNodes[rand].node_group != node_group))
