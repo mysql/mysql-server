@@ -1,0 +1,196 @@
+################################################################################
+# This test confirms that server executed and applier retrieved GTIDs are
+# logged when primary changes.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap M1(primary) and create some transactions.
+# 2. Start GR on M2 with higher member weight and start GR on M3.
+# 3. Create some transactions on M1.
+#    Stop applier on M2 and create more transactions on M1.
+#    Wait for transactions to reach M3.
+# 4. Stop primary server M1.
+#    M2 will become next primary due to member weight.
+# 5. Assert messages are present on error log of M2 and M3.
+#    M2 becomes primary and fails since M2 applier is stopped.
+#    M3 becomes primary on M2 failure.
+# 6. Start GR on M1 and M2.
+#    Switch to single primary mode and assert message is displayed.
+# 7. Cleanup.
+################################################################################
+
+--let $group_replication_group_name= a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap M1(primary) and create some transactions.
+--echo
+--source include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 values (1);
+
+--echo
+--echo # 2. Start GR on M2 with higher member weight and start GR on M3.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid=query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+--source include/start_group_replication.inc
+
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $member3_uuid=query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/start_group_replication.inc
+
+--echo
+--echo # 3. Create some transactions on M1.
+--echo #    Stop applier on M2 and create more transactions on M1.
+--echo #    Wait for transactions to reach M3.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 values (2);
+INSERT INTO t1 values (3);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_stop_applier_sql_thread.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 values (4);
+INSERT INTO t1 values (5);
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=5 FROM test.t1
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. Stop primary server M1.
+--echo #    M2 will become next primary due to member weight.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 5. Assert messages are present on error log of M2 and M3.
+--echo #    M2 becomes primary and fails since M2 applier is stopped.
+--echo #    M3 becomes primary on M2 failure.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+## ASSERTS
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_test_gtid_logging_primary_failover
+--let $assert_count = 1
+--let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-7
+--let $assert_text = Server executed GTID set is logged.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_test_gtid_logging_primary_failover
+--let $assert_count = 1
+--let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9
+--let $assert_text = Applier retrieved GTID set is logged.
+--source include/assert_grep.inc
+
+## Server2 applier is stopped so it will become primary and fail.
+## This helps us to avoid debug point before applier_wait.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_expected_uuid=query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--source include/gr_wait_primary_member_uuid.inc
+
+## ASSERTS
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_test_gtid_logging_primary_failover
+--let $assert_count = 1
+--let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9
+--let $assert_text = Server executed GTID set is logged.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.3.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_test_gtid_logging_primary_failover
+--let $assert_count = 1
+--let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:5-9
+--let $assert_text = Applier retrieved GTID set is logged.
+--source include/assert_grep.inc
+
+
+--echo
+--echo # 6. Start GR on M1 and M2.
+--echo #    Switch to single primary mode and assert message is displayed.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+DROP table t1;
+--source include/rpl_sync.inc
+
+--replace_result $member2_uuid MEMBER2_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$member2_uuid")
+
+## ASSERTS
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_test_gtid_logging_primary_failover
+--let $assert_count = 1
+--let $assert_select = Elected primary member gtid_executed: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-12
+--let $assert_text = Server executed GTID set is logged.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_test_gtid_logging_primary_failover
+--let $assert_count = 1
+--let $assert_select = Elected primary member applier channel received_transaction_set: a1a1a1a1-b1b1-c1c1-d1d1-00002222aabb:1-9:11-12
+--let $assert_text = Applier retrieved GTID set is logged.
+--source include/assert_grep.inc
+
+--echo
+--echo # 7. Cleanup.
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_member_weight= @member_weight2_save;
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

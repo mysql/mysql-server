@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,6 +79,11 @@ class Primary_election_handler : public Group_transaction_listener {
   int execute_primary_election(std::string &primary_uuid,
                                enum_primary_election_mode mode,
                                Notification_context *notification_ctx);
+
+  /**
+    Print server executed GTID and applier retrieved GTID in logs.
+  */
+  void print_gtid_info_in_log();
 
   /**
     Is an election process running?

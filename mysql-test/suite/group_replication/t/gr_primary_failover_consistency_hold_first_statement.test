@@ -94,7 +94,7 @@ BEGIN;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch: executing Primary election%"
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "stage/group_rpl/Primary Election: applying buffered transactions"
 --source include/wait_condition.inc
 
 --echo
