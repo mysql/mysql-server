@@ -10629,6 +10629,9 @@ ER_IB_MSG_FIL_STATE_MOVED_CHANGED_NAME
 ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY
   eng "%s Too many files have been moved, disabling logging of detailed messages"
 
+ER_GR_ELECTED_PRIMARY_GTID_INFORMATION
+  eng "Elected primary member %s: %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
