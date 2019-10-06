@@ -55,6 +55,8 @@ call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
 call mtr.add_suppression("Plugin group_replication reported: 'Error, maximum number of retries exceeded when waiting for the internal server session state to be operating'");
 call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("Info table is not ready to be used. *");
+call mtr.add_suppression("Error while starting the group replication applier thread");
 set session sql_log_bin=1;
 [connection server1]
 UNINSTALL PLUGIN clone;
