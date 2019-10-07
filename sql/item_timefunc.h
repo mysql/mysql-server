@@ -468,6 +468,7 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
       set_data_type_decimal(11 + dec, dec);
     } else {
       set_data_type_longlong();
+      decimals = 0;
       max_length = 11;
     }
     return false;
