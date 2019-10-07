@@ -1271,9 +1271,6 @@ ON table2 .col_int_key = table1 .col_int_key
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 4,
-                      "filtering_effect": [
-                      ] /* filtering_effect */,
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 4,
                       "cost": 0.9017,

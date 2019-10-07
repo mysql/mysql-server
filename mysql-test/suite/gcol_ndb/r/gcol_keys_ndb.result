@@ -458,9 +458,6 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
-                      "filtering_effect": [
-                      ] /* filtering_effect */,
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
                       "cost": 2501,
@@ -655,9 +652,6 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 10,
-                      "filtering_effect": [
-                      ] /* filtering_effect */,
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 10,
                       "cost": 2501,
