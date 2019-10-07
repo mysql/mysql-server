@@ -751,7 +751,9 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
             " Start: %s End: %s\n",
             query_time_buff, lock_time_buff, (ulong)thd->get_sent_row_count(),
             (ulong)thd->get_examined_row_count(), (ulong)thd->thread_id(),
-            (ulong)thd->get_protocol_classic()->get_net()->last_errno,
+            (ulong)(thd->is_classic_protocol()
+                        ? thd->get_protocol_classic()->get_net()->last_errno
+                        : 0),
             (ulong)thd->killed,
             (ulong)(thd->status_var.bytes_received -
                     query_start->bytes_received),
