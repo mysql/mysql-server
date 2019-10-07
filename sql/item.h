@@ -851,15 +851,8 @@ class Item : public Parse_tree_node {
   /*
     Hide the contextualize*() functions: call/override the itemize()
     in Item class tree instead.
-
-    Note: contextualize_() is an intermediate function. Remove it together
-    with Parse_tree_node::contextualize_().
   */
   bool contextualize(Parse_context *) override {
-    DBUG_ASSERT(0);
-    return true;
-  }
-  bool contextualize_(Parse_context *) override {
     DBUG_ASSERT(0);
     return true;
   }
@@ -892,7 +885,7 @@ class Item : public Parse_tree_node {
 
  public:
   /**
-    The same as contextualize()/contextualize_() but with additional parameter
+    The same as contextualize() but with additional parameter
 
     This function finalize the construction of Item objects (see the Item(POS)
     constructor): we can access/change parser contexts from the itemize()

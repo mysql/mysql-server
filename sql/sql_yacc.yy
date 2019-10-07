@@ -167,18 +167,6 @@ int yylex(void *yylval, void *yythd);
 
 
 /**
-  Parse_tree_node::contextualize_() function call wrapper
-*/
-#define TMP_CONTEXTUALIZE(x)        \
-  do                                \
-  {                                 \
-    Parse_context pc(YYTHD, Select);\
-    if ((x)->contextualize_(&pc))   \
-      MYSQL_YYABORT;                \
-  } while(0)
-
-
-/**
   Parse_tree_node::contextualize() function call wrapper
 */
 #define CONTEXTUALIZE(x)                                \
