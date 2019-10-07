@@ -332,6 +332,8 @@ template <class T, class AllocationScheme>
 inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
   DBUG_ASSERT(n_elements <= std::numeric_limits<size_type>::max() / sizeof(T));
   DBUG_EXECUTE_IF("temptable_allocator_oom", throw Result::OUT_OF_MEM;);
+  DBUG_EXECUTE_IF("temptable_allocator_record_file_full",
+                  throw Result::RECORD_FILE_FULL;);
 
   const size_t n_bytes_requested = n_elements * sizeof(T);
   if (n_bytes_requested == 0) {
