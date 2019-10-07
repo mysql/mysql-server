@@ -476,3 +476,32 @@ SHOW CREATE FUNCTION очень_очень_очень_очень_очень_оч
 DROP FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 
 SET NAMES default;
+
+
+--echo #
+--echo # Bug#30034972 - Deterministic function returns different value after
+--echo #                error.
+--echo #
+CREATE FUNCTION myfunc(dt VARCHAR(50)) RETURNS VARCHAR(32) DETERMINISTIC
+  RETURN CONCAT(UNIX_TIMESTAMP(dt));
+--echo # Stored function returns seconds without fractional
+--echo # part (e.g. 1546290000)
+SELECT myfunc('2019-01-01 00:00:00');
+--error ER_TRUNCATED_WRONG_VALUE
+SELECT myfunc('2019-01-01 00:00:71');
+--echo # Without the fix, the following returned second value with fractional
+--echo # part (e.g. 1546290000.000000).
+SELECT myfunc('2019-01-01 00:00:00');
+DROP FUNCTION myfunc;
+
+--echo # Issue exists with Prepared Statements too.
+PREPARE stmt FROM 'SELECT CONCAT(UNIX_TIMESTAMP(?))';
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+SET @var = '2019-01-01 00:00:71';
+EXECUTE stmt USING @var;
+--echo # Without the fix, the following returned second value with fractional
+--echo # part (e.g. 1546290000.000000).
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+DEALLOCATE PREPARE stmt;

@@ -464,3 +464,41 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#
 DROP FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 SET NAMES default;
+#
+# Bug#30034972 - Deterministic function returns different value after
+#                error.
+#
+CREATE FUNCTION myfunc(dt VARCHAR(50)) RETURNS VARCHAR(32) DETERMINISTIC
+RETURN CONCAT(UNIX_TIMESTAMP(dt));
+# Stored function returns seconds without fractional
+# part (e.g. 1546290000)
+SELECT myfunc('2019-01-01 00:00:00');
+myfunc('2019-01-01 00:00:00')
+1546290000
+SELECT myfunc('2019-01-01 00:00:71');
+ERROR 22007: Incorrect datetime value: '2019-01-01 00:00:71'
+# Without the fix, the following returned second value with fractional
+# part (e.g. 1546290000.000000).
+SELECT myfunc('2019-01-01 00:00:00');
+myfunc('2019-01-01 00:00:00')
+1546290000
+DROP FUNCTION myfunc;
+# Issue exists with Prepared Statements too.
+PREPARE stmt FROM 'SELECT CONCAT(UNIX_TIMESTAMP(?))';
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+CONCAT(UNIX_TIMESTAMP(?))
+1546290000
+SET @var = '2019-01-01 00:00:71';
+EXECUTE stmt USING @var;
+CONCAT(UNIX_TIMESTAMP(?))
+0.000000
+Warnings:
+Warning	1292	Incorrect datetime value: '2019-01-01 00:00:71'
+# Without the fix, the following returned second value with fractional
+# part (e.g. 1546290000.000000).
+SET @var = '2019-01-01 00:00:00';
+EXECUTE stmt USING @var;
+CONCAT(UNIX_TIMESTAMP(?))
+1546290000
+DEALLOCATE PREPARE stmt;
