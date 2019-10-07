@@ -802,6 +802,19 @@ SET GLOBAL log_output = @saved_log_output;
 TRUNCATE TABLE mysql.general_log;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#30391501: ASSERTION FAILURE WHEN RUNNING RAPID.AGG_PROJ_ANY
+--echo #               WITH --PS-PROTOCOL
+--echo #
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1), (2), (3);
+ALTER TABLE t SECONDARY_LOAD;
+SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y;
+PREPARE ps FROM 'SELECT (SELECT 9 FROM DUAL) AS y FROM t GROUP BY y';
+EXECUTE ps;
+DROP PREPARE ps;
+DROP TABLE t;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

@@ -10970,6 +10970,10 @@ bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select) {
   */
   DBUG_ASSERT(item->const_for_execution() ||
               (item->used_tables() & ~select->join->const_table_map) == 0);
+
+  // If the Item does not access any tables, it can always be evaluated.
+  if (item->const_item()) return true;
+
   return !item->has_subquery() || (select->active_options() &
                                    OPTION_NO_SUBQUERY_DURING_OPTIMIZATION) == 0;
 }
