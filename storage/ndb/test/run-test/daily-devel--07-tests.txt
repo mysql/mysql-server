@@ -161,3 +161,7 @@ cmd: testBackup
 args: -n CheckBackupCompletedPrintout T1
 max-time: 360
 
+cmd: testNodeRestart
+args: -n PostponeRecalculateGCPCommitLag T1
+max-time: 520
+
