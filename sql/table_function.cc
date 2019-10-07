@@ -272,6 +272,8 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
 */
 
 bool Table_function_json::do_init_args() {
+  DBUG_ASSERT(!is_source_parsed);
+
   Item *dummy = source;
   if (source->fix_fields(thd, &dummy)) return true;
 
@@ -796,6 +798,7 @@ table_map Table_function_json::used_tables() { return source->used_tables(); }
 
 void Table_function_json::do_cleanup() {
   source->cleanup();
+  is_source_parsed = false;
   for (uint i = 0; i < MAX_NESTED_PATH; i++) m_jds[i].cleanup();
   for (uint i = 0; i < m_all_columns.size(); i++) m_all_columns[i]->cleanup();
   m_all_columns.clear();

@@ -1998,3 +1998,22 @@ _utf8mb4'$' COLUMNS (NESTED PATH _utf8mb4'$.x' COLUMNS
 DEFAULT _utf8mb4'2' ON ERROR))) jt;
 y
 NULL
+#
+# Bug#30382156: STORED PROCEDURE, JSON_TABLE AND "CONST" JOIN TYPE
+#
+CREATE TABLE t (id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES (1, '{"x":1}');
+CREATE PROCEDURE p()
+SELECT * FROM t, JSON_TABLE(j, '$' COLUMNS (x INT PATH '$.x')) jt
+WHERE id = 1;
+CALL p();
+id	j	x
+1	{"x": 1}	1
+CALL p();
+id	j	x
+1	{"x": 1}	1
+CALL p();
+id	j	x
+1	{"x": 1}	1
+DROP PROCEDURE p;
+DROP TABLE t;
