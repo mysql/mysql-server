@@ -76,3 +76,32 @@ Sort_range	0
 Sort_rows	1000
 Sort_scan	1
 DROP TABLE t0, t1, t2;
+#
+# Bug#30321546: OPTIMIZER TRACE SHOWS DIFFERENT ACTIONS FOR
+#               A QUERY IF ANOTHER QUERY RUN BEFORE
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+INSERT INTO t2 VALUES (1),(2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT t1.a, t2.a FROM t1 JOIN t2
+ON t1.a+t2.a = (SELECT COUNT(*) FROM t1);
+a	a
+2	2
+3	1
+SET optimizer_trace="enabled=on";
+SELECT a + (SELECT SUM(a) + (SELECT COUNT(a) FROM t1) FROM t1) AS cnt
+FROM t2;
+cnt
+15
+16
+SELECT TRACE NOT RLIKE '"final_filtering_effect": 1' AS OK
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+OK
+1
+SET optimizer_trace="enabled=off";
+DROP TABLE t1, t2;

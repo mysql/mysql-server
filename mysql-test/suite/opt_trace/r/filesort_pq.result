@@ -1464,9 +1464,6 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 10.622,
@@ -1621,9 +1618,6 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 10.622,
@@ -1814,9 +1808,6 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 10.622,
@@ -2046,9 +2037,6 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 10.622,
@@ -2943,9 +2931,6 @@ ORDER BY f1, f0 LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 10.622,
@@ -3118,9 +3103,6 @@ ORDER BY f1, f0 LIMIT 0	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 100,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 100,
                       "cost": 10.622,
@@ -5537,9 +5519,6 @@ SELECT * FROM v1	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 500,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 500,
                             "cost": 51.11,
@@ -5852,9 +5831,6 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 500,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 500,
                             "cost": 51.11,
@@ -6266,9 +6242,6 @@ LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 500,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 500,
                             "cost": 51.11,
@@ -6978,9 +6951,6 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 500,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 500,
                       "cost": 51.11,
@@ -7925,9 +7895,6 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 500,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 500,
                             "cost": 51.11,
@@ -8454,9 +8421,6 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 500,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 500,
                       "cost": 51.11,

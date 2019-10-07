@@ -5408,6 +5408,7 @@ void TABLE::clear_column_bitmaps() {
   fields_set_during_insert = &def_fields_set_during_insert;
 
   bitmap_clear_all(&tmp_set);
+  bitmap_clear_all(&cond_set);
 
   if (m_partial_update_columns != nullptr)
     bitmap_clear_all(m_partial_update_columns);

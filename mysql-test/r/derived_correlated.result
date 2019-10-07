@@ -897,9 +897,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,
@@ -920,9 +917,6 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
-                          "filtering_effect": [
-                          ],
-                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -946,9 +940,6 @@ trace
                           "considered_access_paths": [
                             {
                               "rows_to_scan": 2,
-                              "filtering_effect": [
-                              ],
-                              "final_filtering_effect": 1,
                               "access_type": "scan",
                               "using_join_cache": true,
                               "buffers_needed": 1,
@@ -1024,9 +1015,6 @@ trace
                       "considered_access_paths": [
                         {
                           "rows_to_scan": 2,
-                          "filtering_effect": [
-                          ],
-                          "final_filtering_effect": 1,
                           "access_type": "scan",
                           "using_join_cache": true,
                           "buffers_needed": 1,
@@ -1074,9 +1062,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,
@@ -1097,9 +1082,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,
@@ -2406,9 +2388,6 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 2,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 2,
                             "cost": 0.45,
@@ -2429,9 +2408,6 @@ trace
                             "considered_access_paths": [
                               {
                                 "rows_to_scan": 2,
-                                "filtering_effect": [
-                                ],
-                                "final_filtering_effect": 1,
                                 "access_type": "scan",
                                 "using_join_cache": true,
                                 "buffers_needed": 1,
@@ -2456,9 +2432,6 @@ trace
                         "considered_access_paths": [
                           {
                             "rows_to_scan": 2,
-                            "filtering_effect": [
-                            ],
-                            "final_filtering_effect": 1,
                             "access_type": "scan",
                             "resulting_rows": 2,
                             "cost": 0.45,
@@ -2568,9 +2541,6 @@ trace
                   "considered_access_paths": [
                     {
                       "rows_to_scan": 2,
-                      "filtering_effect": [
-                      ],
-                      "final_filtering_effect": 1,
                       "access_type": "scan",
                       "resulting_rows": 2,
                       "cost": 0.45,
