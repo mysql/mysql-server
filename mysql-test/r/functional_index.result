@@ -777,3 +777,30 @@ DROP TABLE t1;
 CREATE TABLE t0(c0 INT UNSIGNED, INDEX idx ((ABS(c0))));
 INSERT INTO t0 (c0) VALUES (4294967294);
 DROP TABLE t0;
+#
+# Bug#29723353: ADDING FUNCTIONAL INDEX ON JSON EXPRESSION CHANGES RESULT
+#
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('{"x":"abc"}'), ('{"x":"ABC"}');
+SELECT * FROM t WHERE j->>'$.x' = 'abc';
+j
+{"x": "abc"}
+SELECT * FROM t WHERE j->'$.x' = 'abc';
+j
+{"x": "abc"}
+CREATE INDEX idx ON t((CAST(j->>'$.x' AS CHAR(100))));
+SELECT * FROM t WHERE j->>'$.x' = 'abc';
+j
+{"x": "abc"}
+SELECT * FROM t WHERE j->'$.x' = 'abc';
+j
+{"x": "abc"}
+ALTER TABLE t DROP INDEX idx;
+CREATE INDEX idx ON t((CAST(j->'$.x' AS CHAR(100))));
+SELECT * FROM t WHERE j->>'$.x' = 'abc';
+j
+{"x": "abc"}
+SELECT * FROM t WHERE j->'$.x' = 'abc';
+j
+{"x": "abc"}
+DROP TABLE t;

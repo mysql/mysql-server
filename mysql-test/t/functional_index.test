@@ -480,3 +480,21 @@ DROP TABLE t1;
 CREATE TABLE t0(c0 INT UNSIGNED, INDEX idx ((ABS(c0))));
 INSERT INTO t0 (c0) VALUES (4294967294);
 DROP TABLE t0;
+
+--echo #
+--echo # Bug#29723353: ADDING FUNCTIONAL INDEX ON JSON EXPRESSION CHANGES RESULT
+--echo #
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES ('{"x":"abc"}'), ('{"x":"ABC"}');
+--let $query1 = SELECT * FROM t WHERE j->>'$.x' = 'abc'
+--let $query2 = SELECT * FROM t WHERE j->'$.x' = 'abc'
+--eval $query1
+--eval $query2
+CREATE INDEX idx ON t((CAST(j->>'$.x' AS CHAR(100))));
+--eval $query1
+--eval $query2
+ALTER TABLE t DROP INDEX idx;
+CREATE INDEX idx ON t((CAST(j->'$.x' AS CHAR(100))));
+--eval $query1
+--eval $query2
+DROP TABLE t;
