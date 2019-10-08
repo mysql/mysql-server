@@ -1,4 +1,5 @@
--- source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/not_valgrind.inc
 --let $MYSQLD_DATADIR= `select @@datadir`
 
 --source include/mysql_upgrade_preparation.inc

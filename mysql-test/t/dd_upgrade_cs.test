@@ -5,6 +5,7 @@
 
 --source include/have_case_sensitive_file_system.inc
 --source include/not_valgrind.inc
+--source include/big_test.inc
 
 --echo ########################################################################
 --echo # Bug#29350955: UPGRADE 8.0.11-13 TO 8.0.14-16 FAILS IF DB OBJ HAS

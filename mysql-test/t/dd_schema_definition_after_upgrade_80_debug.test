@@ -91,6 +91,18 @@
 --source include/dd_schema_definition_after_upgrade_debug.inc
 
 --echo ########################################################################
+--let  $VERSION = 80017
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80018
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
 --echo # Cleanup: Remove definition files and restart with default options.
 --echo ########################################################################
 --remove_file $target_table_defs
