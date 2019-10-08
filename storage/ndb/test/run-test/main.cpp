@@ -45,7 +45,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 6
+#define ATRT_VERSION_NUMBER 7
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -353,13 +353,15 @@ int main(int argc, char **argv) {
   g_logger.info("Starting server processes...");
 
   if (!start_clusters(g_config)) {
-    shutdown_processes(g_config, atrt_process::AP_ALL);
-    return atrt_exit(ATRT_FAILURE);
-  }
+    if (!shutdown_processes(g_config, atrt_process::AP_ALL)) {
+      g_logger.warning("Failure to shutdown processes");
+    }
 
-  if (!check_cluster_status(g_config, atrt_process::AP_ALL)) {
-    g_logger.critical("Cluster start up failed(%d)", ERR_CRITICAL);
-    shutdown_processes(g_config, atrt_process::AP_ALL);
+    int result = 0;
+    if (!gather_result(g_config, &result)) {
+      g_logger.warning("Failure to gather results");
+    }
+
     return atrt_exit(ATRT_FAILURE);
   }
 
@@ -1236,7 +1238,6 @@ bool setup_hosts_filesystem(atrt_config &config) {
 }
 
 bool start_clusters(atrt_config &config) {
-  g_logger.debug("Setup complete, starting servers");
   if (!start(config, p_ndb | p_servers)) {
     g_logger.critical("Failed to start server processes");
     return false;
@@ -1244,6 +1245,11 @@ bool start_clusters(atrt_config &config) {
 
   if (!setup_db(config)) {
     g_logger.critical("Failed to setup database");
+    return false;
+  }
+
+  if (!check_cluster_status(g_config, atrt_process::AP_ALL)) {
+    g_logger.critical("Cluster start up failed");
     return false;
   }
 
@@ -1309,12 +1315,6 @@ TestResult run_test_case(const atrt_testcase &testcase) {
       }
 
       g_logger.info("All servers start completed");
-    }
-
-    if (!check_cluster_status(g_config, atrt_process::AP_ALL)) {
-      g_logger.critical("Cluster processes failed before test starts");
-      test_result.result = ERR_CRITICAL;
-      continue;
     }
 
     {
