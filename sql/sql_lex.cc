@@ -2164,8 +2164,11 @@ void SELECT_LEX_UNIT::exclude_level() {
   SELECT_LEX_UNIT **units_last = &units;
   SELECT_LEX *sl = first_select();
   while (sl) {
-    // Exclusion can only be done prior to optimization.
-    DBUG_ASSERT(sl->join == nullptr);
+    // Exclusion can only be done prior to optimization or if the subquery is
+    // already executed because it might not be using any tables (const item).
+    DBUG_ASSERT(sl->join == nullptr || is_executed());
+    if (sl->join != nullptr) sl->join->destroy();
+
     SELECT_LEX *next_select = sl->next_select();
 
     // unlink current level from global SELECTs list
