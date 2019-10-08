@@ -1703,8 +1703,7 @@ Pgman::check_restart_lcp(Signal *signal)
      */
     return;
   }
-  if (m_sync_extent_pages_ongoing &&
-      m_sync_extent_next_page_entry != RNIL)
+  if (m_sync_extent_pages_ongoing)
   {
     jam();
     /**
@@ -1713,10 +1712,38 @@ Pgman::check_restart_lcp(Signal *signal)
      * that we were blocked by too much IO, so we'll start up the
      * process again here.
      */
-    Ptr<Page_entry> ptr;
-    Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
-    pl.getPtr(ptr, m_sync_extent_next_page_entry);
-    process_lcp_locked(signal, ptr);
+    if (m_sync_extent_next_page_entry != RNIL)
+    {
+      /**
+       * We have more pages to write before the Sync of the extent
+       * pages is completed.
+       */
+      jam();
+      Ptr<Page_entry> ptr;
+      Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
+      pl.getPtr(ptr, m_sync_extent_next_page_entry);
+      process_lcp_locked(signal, ptr);
+    }
+    else if (m_lcp_outstanding == 0)
+    {
+      jam();
+      /**
+       * We had an outstanding CONTINUEB signal when we had the last
+       * write of the sync of extent pages completed, we had to wait
+       * until here to finish the sync of extent pages.
+       */
+      finish_sync_extent_pages(signal);
+    }
+    else
+    {
+      /**
+       * We have written all pages, but we are still waiting for one
+       * or more File IO completion (processed by
+       * process_lcp_locked_fswriteconf). No need to use CONTINUEB to
+       * wait for it, it will arrive in a FSWRITECONF signal.
+       */
+      jam();
+    }
     return;
   }
   if (m_lcp_table_id != RNIL)
@@ -2053,20 +2080,25 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   m_global_page_pool.release(copy);
   ptr.p->m_copy_page_i = RNIL;
 
-  if (m_sync_extent_pages_ongoing)
-  {
-    jam();
-    /**
-     * Ensure that Backup block is notified of any progress we make on
-     * completing LCPs.
-     * Important that this is sent before we send SYNC_EXTENT_PAGES_CONF
-     * to ensure Backup block is prepared for receiving the signal.
-     */
-    m_locked_pages_written++;
-    sendSYNC_PAGE_WAIT_REP(signal, false);
-  }
+  jam();
+  /**
+   * We have already checked that m_sync_extent_pages_ongoing is true
+   * when arriving here. Extent pages are only written during LCPs since
+   * they are locked in memory, so there is no need to write them to
+   * make space for other pages, only required to write to maintain
+   * recoverability.
+   *
+   * Ensure that Backup block is notified of any progress we make on
+   * completing LCPs.
+   * Important that this is sent before we send SYNC_EXTENT_PAGES_CONF
+   * to ensure Backup block is prepared for receiving the signal.
+   */
+  m_locked_pages_written++;
+  sendSYNC_PAGE_WAIT_REP(signal, false);
+
   if (!m_lcp_loop_ongoing)
   {
+    /* No CONTINUEB outstanding, we can finish sync if done */
     if (m_sync_extent_next_page_entry == RNIL)
     {
       if (m_lcp_outstanding == 0)
@@ -2277,6 +2309,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
        * the copy page in all get_page calls during the pageout).
        */
       jam();
+      ndbrequire(m_sync_extent_pages_ongoing);
       Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
       process_lcp_locked_fswriteconf(signal, ptr);
       if (ptr.p->m_dirty_during_pageout)
@@ -2288,6 +2321,10 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
       set_page_state(jamBuffer(), ptr, state);
       do_busy_loop(signal, true, jamBuffer());
       return;
+    }
+    else
+    {
+      ndbrequire(!m_sync_extent_pages_ongoing);
     }
   }
   else
