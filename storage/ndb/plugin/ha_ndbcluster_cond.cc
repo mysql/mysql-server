@@ -1576,7 +1576,8 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
   const Ndb_item *ndb_item = *cond.ref();
   switch (ndb_item->type) {
     case NDB_FUNCTION: {
-      const Ndb_item *b, *field1, *field2 = nullptr, *value = nullptr;
+      const Ndb_item *b = nullptr;
+      const Ndb_item *field1, *field2 = nullptr, *value = nullptr;
       const Ndb_item *a = cond++;
       if (a == nullptr) break;
 

@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   for (int i= 1; i < MAX_NODES; i++)
   {
     ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
-    if (tr.get_transporter(i) && iter.find(CFG_NODE_ID, i))
+    if (tr.get_node_transporter(i) && iter.find(CFG_NODE_ID, i))
     {
       // Transporter exist in TransporterRegistry but not
       // in configuration

@@ -39,5 +39,6 @@ ADD_CONVENIENCE_LIBRARY(ndbtransport
   Loopback_Transporter.cpp
   TransporterRegistry.cpp
   Packer.cpp
+  Multi_Transporter.cpp
   ${EXTRA_SRC}
   )

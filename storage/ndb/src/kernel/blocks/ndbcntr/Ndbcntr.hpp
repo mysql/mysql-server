@@ -237,6 +237,7 @@ private:
   void execGETGCICONF(Signal* signal);
   void execDIH_RESTARTCONF(Signal* signal);
   void execDIH_RESTARTREF(Signal* signal);
+  void execSET_UP_MULTI_TRP_CONF(Signal*);
   void execSCHEMA_TRANS_BEGIN_CONF(Signal* signal);
   void execSCHEMA_TRANS_BEGIN_REF(Signal* signal);
   void execSCHEMA_TRANS_END_CONF(Signal* signal);
@@ -462,6 +463,8 @@ public:
     } m_state;
     SignalCounter m_stop_req_counter;
   };
+  bool is_node_started(NodeId);
+  bool is_node_starting(NodeId);
 private:
   StopRecord c_stopRec;
   friend struct StopRecord;

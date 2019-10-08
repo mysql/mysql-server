@@ -25,6 +25,7 @@
 #include "thrman.hpp"
 #include <mt.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/Sync.hpp>
 
 #include <EventLogger.hpp>
 
@@ -33,6 +34,11 @@
 #define MAIN_THRMAN_INSTANCE 1
 #define NUM_MEASUREMENTS 20
 #define NUM_MEASUREMENT_RECORDS (3 * NUM_MEASUREMENTS)
+
+static NdbMutex *g_freeze_mutex = 0;
+static NdbCondition *g_freeze_condition = 0;
+static Uint32 g_freeze_waiters = 0;
+static bool g_freeze_wakeup = 0;
 
 //define HIGH_DEBUG_CPU_USAGE 1
 //#define DEBUG_CPU_USAGE 1
@@ -46,6 +52,11 @@ Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
 {
   BLOCK_CONSTRUCTOR(Thrman);
 
+  if (g_freeze_mutex == 0)
+  {
+    g_freeze_mutex = NdbMutex_Create();
+    g_freeze_condition = NdbCondition_Create();
+  }
   addRecSignal(GSN_DBINFO_SCANREQ, &Thrman::execDBINFO_SCANREQ);
   addRecSignal(GSN_CONTINUEB, &Thrman::execCONTINUEB);
   addRecSignal(GSN_GET_CPU_USAGE_REQ, &Thrman::execGET_CPU_USAGE_REQ);
@@ -56,11 +67,22 @@ Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
   addRecSignal(GSN_SET_WAKEUP_THREAD_ORD, &Thrman::execSET_WAKEUP_THREAD_ORD);
   addRecSignal(GSN_WAKEUP_THREAD_ORD, &Thrman::execWAKEUP_THREAD_ORD);
   addRecSignal(GSN_SEND_WAKEUP_THREAD_ORD, &Thrman::execSEND_WAKEUP_THREAD_ORD);
+  addRecSignal(GSN_FREEZE_THREAD_REQ, &Thrman::execFREEZE_THREAD_REQ);
+  addRecSignal(GSN_FREEZE_ACTION_CONF, &Thrman::execFREEZE_ACTION_CONF);
   addRecSignal(GSN_STTOR, &Thrman::execSTTOR);
 }
 
 Thrman::~Thrman()
 {
+  if (g_freeze_mutex != 0)
+  {
+    NdbMutex_Destroy(g_freeze_mutex);
+    NdbCondition_Destroy(g_freeze_condition);
+    g_freeze_mutex = 0;
+    g_freeze_condition = 0;
+    g_freeze_waiters = 0;
+    g_freeze_wakeup = false;
+  }
 }
 
 BLOCK_FUNCTIONS(Thrman)
@@ -353,9 +375,33 @@ void
 Thrman::execCONTINUEB(Signal *signal)
 {
   jamEntry();
-  ndbrequire(signal->theData[0] == ZCONTINUEB_MEASURE_CPU_USAGE);
-  measure_cpu_usage(signal);
-  sendNextCONTINUEB(signal);
+  Uint32 tcase = signal->theData[0];
+  switch (tcase)
+  {
+    case ZCONTINUEB_MEASURE_CPU_USAGE:
+    {
+      jam();
+      measure_cpu_usage(signal);
+      sendNextCONTINUEB(signal);
+      break;
+    }
+    case ZWAIT_ALL_STOP:
+    {
+      jam();
+      wait_all_stop(signal);
+      break;
+    }
+    case ZWAIT_ALL_START:
+    {
+      jam();
+      wait_all_start(signal);
+      break;
+    }
+    default:
+    {
+      ndbrequire(false);
+    }
+  }
 }
 
 void
@@ -2803,9 +2849,142 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+static void
+release_wait_freeze()
+{
+  NdbMutex_Lock(g_freeze_mutex);
+  g_freeze_waiters--;
+  if (g_freeze_waiters == 0)
+  {
+    g_freeze_wakeup = false;
+  }
+  NdbMutex_Unlock(g_freeze_mutex);
+}
+
+static Uint32
+check_freeze_waiters()
+{
+  NdbMutex_Lock(g_freeze_mutex);
+  Uint32 sync_waiters = g_freeze_waiters;
+  NdbMutex_Unlock(g_freeze_mutex);
+  return sync_waiters;
+}
+
+void
+Thrman::execFREEZE_THREAD_REQ(Signal *signal)
+{
+  FreezeThreadReq* req = (FreezeThreadReq*)&signal->theData[0];
+  m_freeze_req = *req;
+  /**
+   * We are requested to stop executing in this thread here. When all
+   * threads have stopped here we are ready to perform the change
+   * operation requested.
+   *
+   * The current change operations supported are:
+   * Switch between inactive transporters and active transporters.
+   * This is used when we increase the number of transporters on a link
+   * from a single transporter to multiple transporters sharing the
+   * load. It is important synchronize this to ensure that signals
+   * continue to arrive to the destination threads in signal order.
+   */
+  if (instance() != 1)
+  {
+    flush_send_buffers();
+    wait_freeze(false);
+    return;
+  }
+  wait_freeze(true);
+  wait_all_stop(signal);
+}
+
+void
+Thrman::wait_freeze(bool ret)
+{
+  NdbMutex_Lock(g_freeze_mutex);
+  g_freeze_waiters++;
+  if (ret)
+  {
+    NdbMutex_Unlock(g_freeze_mutex);
+    jam();
+    return;
+  }
+  while (true)
+  {
+    NdbCondition_WaitTimeout(g_freeze_condition,
+                             g_freeze_mutex,
+                             10);
+    set_watchdog_counter();
+    if (g_freeze_wakeup)
+    {
+      g_freeze_waiters--;
+      if (g_freeze_waiters == 0)
+      {
+        g_freeze_wakeup = false;
+      }
+      NdbMutex_Unlock(g_freeze_mutex);
+      jam();
+      return;
+    }
+  }
+  return;
+}
+
+void
+Thrman::wait_all_stop(Signal *signal)
+{
+  if (check_freeze_waiters() == m_num_threads)
+  {
+    jam();
+    FreezeActionReq* req = CAST_PTR(FreezeActionReq, signal->getDataPtrSend());
+    BlockReference ref = m_freeze_req.senderRef;
+    req->nodeId = m_freeze_req.nodeId;
+    req->senderRef = reference();
+    sendSignal(ref, GSN_FREEZE_ACTION_REQ, signal,
+               FreezeActionReq::SignalLength, JBA);
+    return;
+  }
+  signal->theData[0] = ZWAIT_ALL_STOP;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+}
+
+void
+Thrman::execFREEZE_ACTION_CONF(Signal *signal)
+{
+  /**
+   * The action is performed, we have completed this action.
+   * We can now release all threads and ensure that they are
+   * woken up again. We wait for all threads to wakeup before
+   * we proceed to ensure that the functionality is available
+   * for a new synchronize action.
+   */
+  NdbMutex_Lock(g_freeze_mutex);
+  g_freeze_wakeup = true;
+  NdbCondition_Broadcast(g_freeze_condition);
+  NdbMutex_Unlock(g_freeze_mutex);
+  release_wait_freeze();
+  wait_all_start(signal);
+}
+
+void Thrman::wait_all_start(Signal *signal)
+{
+  if (check_freeze_waiters() == 0)
+  {
+    jam();
+    FreezeThreadConf* conf = CAST_PTR(FreezeThreadConf, signal->getDataPtrSend());
+    BlockReference ref = m_freeze_req.senderRef;
+    conf->nodeId = m_freeze_req.nodeId;
+    sendSignal(ref, GSN_FREEZE_THREAD_CONF, signal,
+               FreezeThreadConf::SignalLength, JBA);
+    return;
+  }
+  signal->theData[0] = ZWAIT_ALL_START;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+}
+
 ThrmanProxy::ThrmanProxy(Block_context & ctx) :
   LocalProxy(THRMAN, ctx)
 {
+  addRecSignal(GSN_FREEZE_THREAD_REQ, &ThrmanProxy::execFREEZE_THREAD_REQ);
 }
 
 ThrmanProxy::~ThrmanProxy()
@@ -2818,3 +2997,24 @@ ThrmanProxy::newWorker(Uint32 instanceNo)
   return new Thrman(m_ctx, instanceNo);
 }
 
+BLOCK_FUNCTIONS(ThrmanProxy);
+
+void
+ThrmanProxy::execFREEZE_THREAD_REQ(Signal* signal)
+{
+  /**
+   * This signal is always sent from the main thread. Thus we should not
+   * send the signal to the first instance in THRMAN which is the main
+   * thread since this would block the main thread from moving forward.
+   *
+   * The work to be done is done by the main thread, the other threads
+   * only need to stop and wait to be woken up again to proceed with
+   * normal processing.
+   */
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    jam();
+    Uint32 ref = numberToRef(number(), workerInstance(i), getOwnNodeId());
+    sendSignal(ref, GSN_FREEZE_THREAD_REQ, signal, signal->getLength(), JBA);
+  }
+}

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,6 @@
 #include <NdbOut.hpp>
 
 /**
- * The maximum number of transporters allowed
- * A maximum is needed to be able to allocate the array of transporters
- */
-const int MAX_NTRANSPORTERS = 256;
-
-/**
  * The sendbuffer limit after which the contents of the buffer is sent
  */
 const int TCP_SEND_LIMIT = 64000;
@@ -51,7 +45,8 @@ enum SendStatus {
 
 enum TransporterType {
   tt_TCP_TRANSPORTER = 1,
-  tt_SHM_TRANSPORTER = 3
+  tt_SHM_TRANSPORTER = 3,
+  tt_Multi_TRANSPORTER = 4
 };
 
 enum SB_LevelType
@@ -93,6 +88,7 @@ struct TransporterConfiguration {
   Int32 s_port; // negative port number implies dynamic port
   const char *remoteHostName;
   const char *localHostName;
+  TrpId transporterIndex;
   NodeId remoteNodeId;
   NodeId localNodeId;
   NodeId serverNodeId;

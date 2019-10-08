@@ -69,7 +69,9 @@ void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
 Uint32 mt_getSignalsInJBB(Uint32 self);
 NDB_TICKS mt_getHighResTimer(Uint32 self);
 void mt_setNoSend(Uint32 self);
+void mt_startChangeNeighbourNode();
 void mt_setNeighbourNode(NodeId node);
+void mt_endChangeNeighbourNode();
 void mt_setWakeupThread(Uint32 self, Uint32 wakeup_instance);
 void mt_setOverloadStatus(Uint32 self,
                          OverloadStatus new_status);
@@ -93,6 +95,13 @@ void mt_getSendPerformanceTimers(Uint32 send_instance,
                                  Uint64 & elapsed_time_os);
 Uint32 mt_getNumSendThreads();
 Uint32 mt_getNumThreads();
+void mt_flush_send_buffers(Uint32 self);
+void mt_set_watchdog_counter(Uint32 self);
+void mt_assign_recv_thread_new_trp(Uint32 trp_id);
+bool mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id);
+bool mt_is_recv_thread_for_new_trp(Uint32 self,
+                                   NodeId node_id,
+                                   TrpId trp_id);
 
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
@@ -182,7 +191,7 @@ mt_get_trp_receive_handle(unsigned instance);
  *   (or MAX_NODES is none)
  */
 Uint32
-mt_get_recv_thread_idx(NodeId nodeId);
+mt_get_recv_thread_idx(TrpId trp_id);
 
 #if defined(USE_INIT_GLOBAL_VARIABLES)
 void mt_enable_global_variables(Uint32 self);

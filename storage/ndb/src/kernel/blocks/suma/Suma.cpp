@@ -5126,8 +5126,8 @@ Suma::doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3])
   {
     jam();
     constexpr uint buffer_header_sz = 6;
-    Uint32* dst1;
-    Uint32* dst2;
+    Uint32* dst1 = nullptr;
+    Uint32* dst2 = nullptr;
     Uint32 sz1 = f_trigBufferSize + buffer_header_sz;
     Uint32 sz2 = b_trigBufferSize;
     Page_pos save_pos= c_buckets[bucket].m_buffer_head;
@@ -5156,7 +5156,6 @@ Suma::doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3])
     {
       jam();
       // Revert first buffer allocation
-      Page_pos curr_pos= c_buckets[bucket].m_buffer_head;
       Uint32 first_page_id = save_pos.m_page_id;
 
       Uint32 page_id;
@@ -7304,7 +7303,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
    */
   {
     Uint32 *src = nullptr;
-    Uint32 sz;
+    Uint32 sz = 0;
     Uint32 part = 0;
     while (ptr < end)
     {

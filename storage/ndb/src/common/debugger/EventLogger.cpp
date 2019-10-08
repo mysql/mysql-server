@@ -42,10 +42,6 @@
 //
 // PUBLIC
 //
-EventLoggerBase::~EventLoggerBase()
-{
-  
-}
 
 #define QQQQ char *m_text, size_t m_text_len, const Uint32* theData, Uint32 len
 

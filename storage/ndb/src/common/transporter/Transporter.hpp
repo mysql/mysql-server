@@ -48,6 +48,8 @@
 
 class Transporter {
   friend class TransporterRegistry;
+  friend class Multi_Transporter;
+  friend class Qmgr;
 public:
   virtual bool initTransporter() = 0;
 
@@ -56,11 +58,67 @@ public:
    */
   virtual ~Transporter();
 
+
+  /**
+   * Disconnect node/socket
+   */
+  bool do_disconnect(int err, bool send_source);
+
   /**
    * Clear any data buffered in the transporter.
    * Should only be called in a disconnected state.
    */
   virtual void resetBuffers() {}
+
+  /**
+   * Is this transporter part of a multi transporter.
+   * It is a real transporter, but can be connected
+   * when the node is in the state connected.
+   */
+  virtual bool isPartOfMultiTransporter()
+  {
+    return (m_multi_transporter_instance != 0);
+  }
+
+  Uint32 get_multi_transporter_instance()
+  {
+    return m_multi_transporter_instance;
+  }
+  virtual bool isMultiTransporter()
+  {
+    return false;
+  }
+
+  void set_multi_transporter_instance(Uint32 val)
+  {
+    m_multi_transporter_instance = val;
+  }
+
+  virtual Uint64 get_bytes_sent() const
+  {
+    return m_bytes_sent;
+  }
+
+  virtual Uint64 get_bytes_received() const
+  {
+    return m_bytes_received;
+  }
+
+  /**
+   * In most cases we only use transporter per node connection.
+   * But in cases where the transporter is heavily loaded we can
+   * have multiple transporters to send for one node connection.
+   * In this case theNodeIdTransporters points to a Multi_Transporter
+   * object that has implemented a hash algorithm for
+   * get_send_transporter based on sending thread and receiving
+   * thread.
+   */
+  virtual Transporter* get_send_transporter(Uint32 recBlock, Uint32 sendBlock)
+  {
+    (void)recBlock;
+    (void)sendBlock;
+    return this;
+  }
 
   /**
    * None blocking
@@ -92,6 +150,11 @@ public:
    */
   NodeId getRemoteNodeId() const;
 
+  /**
+   * Index into allTransporters array.
+   */
+  TrpId getTransporterIndex() const;
+  void setTransporterIndex(TrpId);
   /**
    * Local (own) Node Id
    */
@@ -130,11 +193,29 @@ public:
   Uint32 get_overload_count() { return m_overload_count; }
   void inc_slowdown_count() { m_slowdown_count++; }
   Uint32 get_slowdown_count() { return m_slowdown_count; }
+  void set_recv_thread_idx (Uint32 recv_thread_idx)
+  {
+    m_recv_thread_idx = recv_thread_idx;
+  }
+  void set_transporter_active(bool active)
+  {
+    m_is_active = active;
+  }
+  Uint32 get_recv_thread_idx() { return m_recv_thread_idx; }
 
   TransporterType getTransporterType() const;
 
+  /**
+   * Only applies to TCP transporter, abort on any other object.
+   * Used as part of shutting down transporter when switching to
+   * multi socket setup.
+   * Shut down only for writes when all data have been sent.
+   */
+  virtual void shutdown() { abort();}
+
 protected:
   Transporter(TransporterRegistry &,
+              TrpId transporter_index,
 	      TransporterType,
 	      const char *lHostName,
 	      const char *rHostName, 
@@ -147,8 +228,8 @@ protected:
 	      bool compression, 
 	      bool checksum, 
 	      bool signalId,
-        Uint32 max_send_buffer,
-        bool _presend_checksum);
+              Uint32 max_send_buffer,
+              bool _presend_checksum);
 
   virtual bool configure(const TransporterConfiguration* conf);
   virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
@@ -176,7 +257,8 @@ protected:
 
   const NodeId remoteNodeId;
   const NodeId localNodeId;
-  
+
+  TrpId m_transporter_index;
   const bool isServer;
 
   int byteOrder;
@@ -199,13 +281,6 @@ protected:
   // Sending/Receiving socket used by both client and server
   NDB_SOCKET_TYPE theSocket;
 private:
-
-  /**
-   * means that we transform an MGM connection into
-   * a transporter connection
-   */
-  bool isMgmConnection;
-
   SocketClient *m_socket_client;
   struct in_addr m_connect_address;
 
@@ -215,6 +290,16 @@ private:
   void update_connect_state(bool connected);
 
 protected:
+  /**
+   * means that we transform an MGM connection into
+   * a transporter connection
+   */
+  bool isMgmConnection;
+
+  Uint32 m_multi_transporter_instance;
+  Uint32 m_recv_thread_idx;
+  bool m_is_active;
+
   Uint32 m_os_max_iovec;
   Uint32 m_timeOutMillis;
   bool m_connected;     // Are we connected
@@ -231,10 +316,6 @@ protected:
 
   TransporterRegistry &m_transporter_registry;
   TransporterCallback *get_callback_obj() { return m_transporter_registry.callbackObj; }
-  bool do_disconnect(int err, bool send_source)
-  {
-    return m_transporter_registry.do_disconnect(remoteNodeId,err,send_source);
-  }
   void report_error(enum TransporterError err, const char *info = 0)
     { m_transporter_registry.report_error(remoteNodeId, err, info); }
 
@@ -303,6 +384,19 @@ Transporter::getRemoteNodeId() const {
 }
 
 inline
+TrpId
+Transporter::getTransporterIndex() const {
+  return m_transporter_index;
+}
+
+inline
+void
+Transporter::setTransporterIndex(TrpId val)
+{
+  m_transporter_index = val;
+}
+
+inline
 NodeId
 Transporter::getLocalNodeId() const {
   return localNodeId;
@@ -317,15 +411,18 @@ Uint32
 Transporter::fetch_send_iovec_data(struct iovec dst[], Uint32 cnt)
 {
   return get_callback_obj()->get_bytes_to_send_iovec(remoteNodeId,
-                                                     dst, cnt);
+                                                     m_transporter_index,
+                                                     dst,
+                                                     cnt);
 }
 
 inline
 void
 Transporter::iovec_data_sent(int nBytesSent)
 {
-  Uint32 used_bytes
-    = get_callback_obj()->bytes_sent(remoteNodeId, nBytesSent);
+  Uint32 used_bytes = get_callback_obj()->bytes_sent(remoteNodeId,
+                                                     m_transporter_index,
+                                                     nBytesSent);
   update_status_overloaded(used_bytes);
 }
 

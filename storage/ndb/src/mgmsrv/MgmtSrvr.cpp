@@ -4148,7 +4148,9 @@ MgmtSrvr::find_node_type(NodeId node_id,
 int
 MgmtSrvr::try_alloc(NodeId id,
                     ndb_mgm_node_type type,
-                    Uint32 timeout_ms)
+                    Uint32 timeout_ms,
+                    int& error_code,
+                    BaseString& error_string)
 {
   assert(type == NDB_MGM_NODE_TYPE_NDB ||
          type == NDB_MGM_NODE_TYPE_API);
@@ -4180,6 +4182,9 @@ MgmtSrvr::try_alloc(NodeId id,
         g_eventLogger->debug("Unable to allocate nodeid %u for API node " \
                              "in cluster (retried during %u milliseconds)",
                              id, (unsigned)elapsed);
+        error_string.appfmt("No contact with data nodes to get node id %u",
+                            id);
+        error_code = NDB_MGM_ALLOCID_ERROR;
         return -1;
       }
 
@@ -4220,7 +4225,9 @@ int
 MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
                               ndb_mgm_node_type type,
                               Uint32 timeout_ms,
-                              Vector<PossibleNode>& nodes)
+                              Vector<PossibleNode>& nodes,
+                              int& error_code,
+                              BaseString& error_string)
 {
   for (unsigned i = 0; i < nodes.size(); i++)
   {
@@ -4246,7 +4253,11 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
     m_reserved_nodes.set(id, timeout_ms);
 
     NdbMutex_Unlock(m_reserved_nodes_mutex);
-    int res = try_alloc(id, type, timeout_ms);
+    int res = try_alloc(id,
+                        type,
+                        timeout_ms,
+                        error_code,
+                        error_string);
     if (res > 0)
     {
       // Nodeid allocation succeeded
@@ -4296,7 +4307,6 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     }
     return true;
   }
-
   /* Don't allow allocation of this ndb_mgmd's nodeid */
   assert(_ownNodeId);
   if (nodeid == _ownNodeId)
@@ -4406,8 +4416,12 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   }
 
   const int try_alloc_rc =
-    try_alloc_from_list(nodeid, type, timeout_ms, nodes);
-
+    try_alloc_from_list(nodeid,
+                        type,
+                        timeout_ms,
+                        nodes,
+                        error_code,
+                        error_string);
   if (try_alloc_rc == 0)
   {
     if (type == NDB_MGM_NODE_TYPE_NDB)
@@ -4419,7 +4433,6 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     return true;
   }
 
-  error_code = NDB_MGM_ALLOCID_ERROR;
 
   if (try_alloc_rc == -1)
   {
@@ -4429,23 +4442,30 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     */
     if (nodeid)
     {
-      error_string.appfmt("Id %d already allocated by another node.",
-                          nodeid);
+      if (error_code == 0)
+      {
+        error_string.appfmt("Id %d already allocated by another node.",
+                            nodeid);
+      }
     }
     else
     {
-      const char *alias, *str;
-      alias= ndb_mgm_get_node_type_alias_string(type, &str);
-      error_string.appfmt("No free node id found for %s(%s).",
-                          alias, str);
+      if (error_code == 0)
+      {
+        const char *alias, *str;
+        alias = ndb_mgm_get_node_type_alias_string(type, &str);
+        error_string.appfmt("No free node id found for %s(%s).",
+                            alias,
+                            str);
+      }
     }
+    error_code = NDB_MGM_ALLOCID_ERROR;
   }
   else
   {
     assert(try_alloc_rc == -2); /* No contact with cluster */
     error_string.appfmt("Cluster not ready for nodeid allocation.");
   }
-
   return false;
 }
 
@@ -4466,6 +4486,7 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
                                  addr_buf,
                                  sizeof(addr_buf));
 
+  error_code = 0;
   g_eventLogger->debug("Trying to allocate nodeid for %s" \
                        "(nodeid: %u, type: %s)",
                        addr_str, (unsigned)nodeid, type_str);

@@ -127,6 +127,7 @@ BitmaskImpl::setFieldImpl(Uint32 dst[],
 template struct BitmaskPOD<1>;
 template struct BitmaskPOD<2>; // NdbNodeBitmask
 template struct BitmaskPOD<8>; // NodeBitmask
+template struct BitmaskPOD<10>;// TrpBitmask
 template struct BitmaskPOD<16>;
 
 #ifdef TEST_BITMASK

@@ -40,7 +40,6 @@ class Trpman : public SimulatedBlock
 {
 public:
   Trpman(Block_context& ctx, Uint32 instanceNumber = 0);
-  virtual ~Trpman();
   BLOCK_DEFINES(Trpman);
 
   void execCLOSE_COMREQ(Signal *signal);
@@ -50,6 +49,7 @@ public:
   void execDISCONNECT_REP(Signal *signal);
   void execCONNECT_REP(Signal *signal);
   void execROUTE_ORD(Signal* signal);
+  void execACTIVATE_TRP_REQ(Signal*);
 
   void sendSYNC_THREAD_VIA_CONF(Signal*, Uint32, Uint32);
   void execSYNC_THREAD_VIA_REQ(Signal*);
@@ -133,6 +133,7 @@ public:
   void execROUTE_ORD(Signal* signal);
   void execNDB_TAMPER(Signal*);
   void execDUMP_STATE_ORD(Signal*);
+  void execACTIVATE_TRP_REQ(Signal*);
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 };

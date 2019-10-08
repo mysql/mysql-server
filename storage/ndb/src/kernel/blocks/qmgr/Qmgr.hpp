@@ -44,6 +44,7 @@
 #include <RequestTracker.hpp>
 #include <signaldata/StopReq.hpp>
 #include <ndb_limits.h>
+#include "../ndbcntr/Ndbcntr.hpp"
 
 #include "timer.hpp"
 
@@ -67,6 +68,9 @@
 #define ZARBIT_HANDLING 5
 #define ZSTART_FAILURE_LIMIT 6
 #define ZNOTIFY_STATE_CHANGE 7
+#define ZCHECK_MULTI_TRP_CONNECT 8
+#define ZRESEND_GET_NUM_MULTI_TRP_REQ 9
+#define ZSWITCH_MULTI_TRP 10
 
 /* Error Codes ------------------------------*/
 #define ZERRTOOMANY 1101
@@ -221,6 +225,23 @@ public:
     Uint32 hbOrder;
     Phase phase;
 
+    bool m_initial_set_up_multi_trp_done;
+    bool m_is_in_same_nodegroup;
+    bool m_is_multi_trp_setup;
+    bool m_is_get_num_multi_trp_active;
+    bool m_is_activate_trp_ready_for_me;
+    bool m_is_activate_trp_ready_for_other;
+    bool m_is_freeze_thread_completed;
+    bool m_is_ready_to_switch_trp;
+    bool m_is_preparing_switch_trp;
+    bool m_is_using_multi_trp;
+    bool m_set_up_multi_trp_started;
+    Uint8 m_used_num_multi_trps;
+    Uint32 m_num_activated_trps;
+    BlockReference m_multi_trp_blockref;
+    Uint32 m_check_multi_trp_connect_loop_count;
+    Uint32 m_count_multi_trp_ref;
+
     QmgrState sendPrepFailReqStatus;
     QmgrState sendCommitFailReqStatus;
     QmgrState sendPresToStatus;
@@ -352,7 +373,19 @@ private:
 
   void execDIH_RESTARTREF(Signal* signal);
   void execDIH_RESTARTCONF(Signal* signal);
-  
+
+  void execSET_UP_MULTI_TRP_REQ(Signal*);
+  void execGET_NUM_MULTI_TRP_REQ(Signal*);
+  void execGET_NUM_MULTI_TRP_CONF(Signal*);
+  void execGET_NUM_MULTI_TRP_REF(Signal*);
+  void execFREEZE_ACTION_REQ(Signal*);
+  void execFREEZE_THREAD_CONF(Signal*);
+  void execACTIVATE_TRP_REQ(Signal*);
+  void execACTIVATE_TRP_CONF(Signal*);
+  void execSWITCH_MULTI_TRP_REQ(Signal*);
+  void execSWITCH_MULTI_TRP_CONF(Signal*);
+  void execSWITCH_MULTI_TRP_REF(Signal*);
+
   void execAPI_VERSION_REQ(Signal* signal);
   void execAPI_BROADCAST_REP(Signal* signal);
 
@@ -611,6 +644,20 @@ private:
                        Uint32 length, 
                        JobBufferLevel jbuf,
                        Uint32 minversion);
+  void get_node_group_mask(Signal*, NdbNodeBitmask&);
+  bool get_num_multi_trps(Signal*, bool&);
+  void create_multi_transporter(NodeId);
+  void connect_multi_transporter(Signal*, NodeId);
+  void check_connect_multi_transporter(Signal*, NodeId);
+  void send_get_num_multi_trp_req(Signal*, NodeId);
+  void send_switch_multi_transporter(Signal*, NodeId, bool);
+  void switch_multi_transporter(Signal*, NodeId);
+  void check_switch_completed(Signal*, NodeId);
+  void check_no_multi_trp(Signal*, NodeId);
+  void check_more_trp_switch_nodes(Signal*);
+  void handle_activate_trp_req(Signal*, Uint32);
+  bool check_all_multi_trp_nodes_connected();
+  bool select_node_id_for_switch(NodeId&, bool);
 
   bool m_micro_gcp_enabled;
 
@@ -623,6 +670,12 @@ private:
 #endif
 
   struct ndb_rusage m_timer_handling_rusage;
+  Uint32 m_num_multi_trps;
+  Uint32 m_get_num_multi_trps_sent;
+  bool m_initial_set_up_multi_trp_done;
+  Uint32 m_current_switch_multi_trp_node;
+  BlockReference m_ref_set_up_multi_trp_req;
+  Ndbcntr* c_ndbcntr;
 
   Uint32 get_hb_count(Uint32 nodeId) const {
     return globalData.get_hb_count(nodeId);
@@ -636,9 +689,11 @@ private:
 
   void sendReadLocalSysfile(Signal*);
   void execREAD_LOCAL_SYSFILE_CONF(Signal*);
+  bool is_multi_socket_setup_active(Uint32 node_id, bool locked);
+  void complete_multi_trp_setup(Signal*, bool);
+  void dec_get_num_multi_trps_sent(NodeId);
+  void inc_get_num_multi_trps_sent(NodeId);
 };
-
-
 #undef JAM_FILE_ID
 
 #endif

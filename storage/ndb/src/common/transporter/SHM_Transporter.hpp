@@ -41,6 +41,7 @@ class SHM_Transporter : public Transporter {
   friend class TransporterRegistry;
 public:
   SHM_Transporter(TransporterRegistry &,
+                  TrpId transporterIndex,
 		  const char *lHostName,
 		  const char *rHostName, 
 		  int r_port,
@@ -55,7 +56,10 @@ public:
 		  bool preSendChecksum,
                   Uint32 spintime,
                   Uint32 send_buffer_size);
-  
+
+  SHM_Transporter(TransporterRegistry &,
+                  const SHM_Transporter*);
+ 
   /**
    * SHM destructor
    */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,9 @@ public:
   Uint32 m_receiver_thread_idx;
 
   /**
-   * Assign nodes to this TransporterReceiveHandle
+   * Assign trps to this TransporterReceiveHandle
    */
-  void assign_nodes(NodeId *recv_thread_idx_array);
+  void assign_trps(Uint32 *recv_thread_idx_array);
 #endif
 
   /* TransporterCallback interface. */

@@ -1764,8 +1764,9 @@ private:
       errorObjectName[0] = 0;
     }
     void print(NdbOut&) const;
+    ErrorInfo(const ErrorInfo&) = default;
   private:
-    ErrorInfo& operator=(const ErrorInfo&);
+    ErrorInfo& operator=(const ErrorInfo&) = default;
   };
 
   void setError(ErrorInfo&,

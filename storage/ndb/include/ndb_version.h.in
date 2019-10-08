@@ -321,11 +321,7 @@ int
 ndbd_enable_redo_control(Uint32 x)
 {
   const Uint32 major = (x >> 16) & 0xFF;
-  if (major < 7)
-  {
-    return 0;
-  }
-  else if (major == 7)
+  if (major < 8)
   {
     return x >= NDBD_ENABLE_REDO_CONTROL_76;
   }
@@ -504,5 +500,15 @@ ndb_config_version_v2(Uint32 x)
  */
 #define NDB_SHORT_OPAQUE_METADATA_MAX_BYTES 6000
 
-
+/**
+ * Multiple transporters per node in same node group is available.
+ */
+#define NDBD_MULTI_NODE_GROUP_TRANSPORTERS_v8 NDB_MAKE_VERSION(8,0,20)
+static
+inline
+int
+ndbd_use_multi_ng_trps(Uint32 x)
+{
+  return x >= NDBD_MULTI_NODE_GROUP_TRANSPORTERS_v8;
+}
 #endif

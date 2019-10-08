@@ -31,7 +31,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 832;
+const GlobalSignalNumber MAX_GSN = 846;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1191,4 +1191,22 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SYNC_THREAD_VIA_REQ         831
 #define GSN_SYNC_THREAD_VIA_CONF        832
 
+#define GSN_SET_UP_MULTI_TRP_REQ        833
+#define GSN_SET_UP_MULTI_TRP_CONF       834
+
+#define GSN_GET_NUM_MULTI_TRP_REQ       835
+#define GSN_GET_NUM_MULTI_TRP_CONF      836
+#define GSN_GET_NUM_MULTI_TRP_REF       837
+
+#define GSN_FREEZE_THREAD_REQ           838
+#define GSN_FREEZE_THREAD_CONF          839
+#define GSN_FREEZE_ACTION_REQ           840
+#define GSN_FREEZE_ACTION_CONF          841
+
+#define GSN_ACTIVATE_TRP_REQ            842
+#define GSN_ACTIVATE_TRP_CONF           843
+
+#define GSN_SWITCH_MULTI_TRP_REQ        844
+#define GSN_SWITCH_MULTI_TRP_CONF       845
+#define GSN_SWITCH_MULTI_TRP_REF        846
 #endif

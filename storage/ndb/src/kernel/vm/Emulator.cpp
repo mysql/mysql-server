@@ -649,6 +649,7 @@ static const char* const jamFileNames[] =
    "BlockThreadBitmask.hpp",             // 513
    "SyncThreadViaReqConf.hpp",           // 514
    "TakeOverTcConf.hpp",                 // 515
+   "GetNumMultiTrp.hpp",                 // 516
    };
 
 bool 

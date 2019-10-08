@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,6 +123,7 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_GETGCICONF, &Ndbcntr::execGETGCICONF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Ndbcntr::execDIH_RESTARTCONF);
   addRecSignal(GSN_DIH_RESTARTREF, &Ndbcntr::execDIH_RESTARTREF);
+  addRecSignal(GSN_SET_UP_MULTI_TRP_CONF, &Ndbcntr::execSET_UP_MULTI_TRP_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_BEGIN_CONF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF);
   addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_REF);
   addRecSignal(GSN_SCHEMA_TRANS_END_CONF, &Ndbcntr::execSCHEMA_TRANS_END_CONF);

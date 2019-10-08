@@ -502,6 +502,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "4" },
 
   {
+    CFG_DB_NODE_GROUP_TRANSPORTERS,
+    "NodeGroupTransporters",
+    DB_TOKEN,
+    "Number of transporters to use between nodes in same node group",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(MAX_NODE_GROUP_TRANSPORTERS) },
+
+  {
     CFG_DB_NO_ATTRIBUTES,
     "MaxNoOfAttributes",
     DB_TOKEN,

@@ -47,8 +47,8 @@ static const char *work_dir = CPCD_DEFAULT_WORK_DIR;
 static int unsigned port;
 static int unsigned show_version = 0;
 static int use_syslog;
-static const char *logfile = NULL;
-static const char *user = 0;
+static char *logfile = NULL;
+static char *user = 0;
 
 static struct my_option my_long_options[] =
 {

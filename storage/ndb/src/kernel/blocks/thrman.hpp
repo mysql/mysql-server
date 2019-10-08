@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,16 @@
 #include <NdbGetRUsage.h>
 #include <NdbTick.h>
 #include <mt.hpp>
+#include <NdbMutex.h>
+#include <NdbCondition.h>
+#include <signaldata/Sync.hpp>
 
 #define JAM_FILE_ID 340
 
 //#define DEBUG_CPU_USAGE 1
 class Thrman : public SimulatedBlock
 {
+  friend class ThrmanProxy;
 public:
   Thrman(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Thrman();
@@ -51,6 +55,8 @@ public:
   void execSET_WAKEUP_THREAD_ORD(Signal*);
   void execWAKEUP_THREAD_ORD(Signal*);
   void execSEND_WAKEUP_THREAD_ORD(Signal*);
+  void execFREEZE_THREAD_REQ(Signal*);
+  void execFREEZE_ACTION_CONF(Signal*);
   void execSTTOR(Signal*);
 protected:
 
@@ -76,7 +82,19 @@ private:
   NDB_TICKS prev_20sec_tick;
 
   static const Uint32 ZCONTINUEB_MEASURE_CPU_USAGE = 1;
+  static const Uint32 ZWAIT_ALL_STOP = 2;
+  static const Uint32 ZWAIT_ALL_START = 3;
   static const Uint32 default_cpu_load = 95;
+
+  /**
+   * Variables and methods used to synchronize all threads
+   * in the data node to perform a synchronized action.
+   */
+  void wait_freeze(bool ret);
+  void wait_all_stop(Signal*);
+  void wait_all_start(Signal*);
+
+  FreezeThreadReq m_freeze_req;
 
   struct MeasurementRecord
   {
@@ -293,13 +311,12 @@ public:
   ThrmanProxy(Block_context& ctx);
   virtual ~ThrmanProxy();
   BLOCK_DEFINES(ThrmanProxy);
+  void execFREEZE_THREAD_REQ(Signal*);
 
 protected:
   virtual SimulatedBlock* newWorker(Uint32 instanceNo);
 
 };
-
-
 #undef JAM_FILE_ID
 
 #endif

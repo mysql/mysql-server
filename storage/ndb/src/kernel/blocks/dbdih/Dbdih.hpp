@@ -1049,6 +1049,7 @@ private:
   void execCHECK_LCP_IDLE_ORD(Signal *);
 
   void execDIH_GET_TABINFO_REQ(Signal*);
+  void execSET_UP_MULTI_TRP_CONF(Signal*);
 
   /**
    * A number of functions used to find out if any node is currently is
@@ -2793,8 +2794,11 @@ private:
   void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
   bool m_master_lcp_req_lcp_already_completed;
 
+  void complete_restart_nr(Signal*);
+
   /* The highest data node id in the cluster. */
   Uint32 m_max_node_id;
+  bool m_set_up_multi_trp_in_node_restart;
 public:
   bool is_master() { return isMaster(); }
 };

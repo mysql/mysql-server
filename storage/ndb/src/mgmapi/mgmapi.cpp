@@ -624,6 +624,7 @@ int ndb_mgm_is_connected(NdbMgmHandle handle)
     {
       handle->connected= 0;
       ndb_socket_close(handle->socket);
+      ndb_socket_invalidate(&handle->socket);
     }
   }
   return handle->connected;

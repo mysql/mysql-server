@@ -178,7 +178,8 @@ struct Match
   BaseString m_value;
   Match() {}
   virtual int eval(const Iter&);
-  virtual ~Match() {}
+  virtual ~Match() = default;
+  Match(const Match&) = default;
 };
 
 struct HostMatch : public Match
@@ -618,14 +619,16 @@ parse_where(Vector<Match*>& where, int &argc, char**& argv)
   {
     m.m_key = CFG_TYPE_OF_SECTION;
     m.m_value.assfmt("%d", ndb_mgm_match_node_type(g_type));
-    where.push_back(new Match(m));
+    Match *tmp = new Match(m);
+    where.push_back(tmp);
   }
 
   if(g_nodeid)
   {
     m.m_key = CFG_NODE_ID;
     m.m_value.assfmt("%d", g_nodeid);
-    where.push_back(new Match(m));
+    Match *tmp = new Match(m);
+    where.push_back(tmp);
   }
   return 0;
 }

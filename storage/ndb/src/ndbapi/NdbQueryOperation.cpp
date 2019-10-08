@@ -3293,7 +3293,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-    int res;
+    int res = 0;
     const Uint32 long_sections_size = m_keyInfo.getSize() + m_attrInfo.getSize();
     const Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
     if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)

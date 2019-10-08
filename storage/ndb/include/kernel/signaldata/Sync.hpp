@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,88 @@ struct SyncPathConf
   STATIC_CONST( SignalLength = 2 );
 };
 
+struct FreezeThreadReq
+{
+  Uint32 nodeId;
+  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 2);
+};
 
+struct FreezeThreadConf
+{
+  Uint32 nodeId;
+  STATIC_CONST( SignalLength = 1);
+};
+
+struct FreezeActionReq
+{
+  Uint32 nodeId;
+  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 2);
+};
+
+struct FreezeActionConf
+{
+  Uint32 nodeId;
+  STATIC_CONST( SignalLength = 1);
+};
+
+struct ActivateTrpReq
+{
+  Uint32 nodeId;
+  Uint32 trpId;
+  Uint32 numTrps;
+  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 4);
+};
+
+struct ActivateTrpConf
+{
+  Uint32 nodeId;
+  Uint32 trpId;
+  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 3);
+};
+
+struct AddEpollTrpReq
+{
+  Uint32 nodeId;
+  Uint32 trpId;
+  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 3);
+};
+
+struct AddEpollTrpConf
+{
+  Uint32 nodeId;
+  Uint32 trpId;
+  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 3);
+};
+
+struct SwitchMultiTrpReq
+{
+  Uint32 nodeId;
+  Uint32 senderRef;
+  STATIC_CONST( SignalLength = 2);
+};
+
+struct SwitchMultiTrpConf
+{
+  Uint32 nodeId;
+  STATIC_CONST( SignalLength = 1);
+};
+
+struct SwitchMultiTrpRef
+{
+  Uint32 nodeId;
+  Uint32 errorCode;
+  STATIC_CONST( SignalLength = 2);
+  enum ErrorCode
+  {
+    SMTR_NOT_READY_FOR_SWITCH = 1
+  };
+};
 #undef JAM_FILE_ID
 
 #endif

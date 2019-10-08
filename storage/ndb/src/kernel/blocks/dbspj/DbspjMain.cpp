@@ -911,7 +911,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
    *       but this is not yet implemented)
    */
   SegmentedSectionPtr attrPtr;
-  SectionHandle handle = SectionHandle(this, signal);
+  SectionHandle handle(this, signal);
   handle.getSection(attrPtr, LqhKeyReq::AttrInfoSectionNum);
   const Uint32 keyPtrI = handle.m_ptr[LqhKeyReq::KeyInfoSectionNum].i;
 
@@ -1230,7 +1230,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
    * #1 - KEYINFO if first op is index scan - contains bounds for first scan
    *              if first op is lookup - contains keyinfo for lookup
    */
-  SectionHandle handle = SectionHandle(this, signal);
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr attrPtr;
   handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum);
 

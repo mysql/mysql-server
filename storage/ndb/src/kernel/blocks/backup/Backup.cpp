@@ -87,7 +87,7 @@ static const Uint32 WaitScanTempErrorRetryMillis = 10;
 static NDB_TICKS startTime;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-#define DEBUG_LCP 1
+//#define DEBUG_LCP 1
 //#define DEBUG_LCP_ROW 1
 //#define DEBUG_LCP_DEL_FILES 1
 //#define DEBUG_LCP_DEL 1

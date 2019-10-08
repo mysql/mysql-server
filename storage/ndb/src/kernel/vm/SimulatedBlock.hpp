@@ -689,8 +689,10 @@ protected:
   void setWakeupThread(Uint32 wakeup_instance);
   void setNodeOverloadStatus(OverloadStatus new_status);
   void setSendNodeOverloadStatus(OverloadStatus new_status);
+  void startChangeNeighbourNode();
   void setNeighbourNode(NodeId node);
   void setNoSend();
+  void endChangeNeighbourNode();
   void getPerformanceTimers(Uint64 &micros_sleep,
                             Uint64 &spin_time,
                             Uint64 &buffer_full_micros_sleep,
@@ -707,6 +709,11 @@ protected:
   Uint32 getNumThreads();
   const char * getThreadName();
   const char * getThreadDescription();
+  void flush_send_buffers();
+  void set_watchdog_counter();
+  void assign_recv_thread_new_trp(Uint32 trp_id);
+  bool epoll_add_trp(NodeId node_id, TrpId trp_id);
+  bool is_recv_thread_for_new_trp(NodeId node_id, TrpId trp_id);
 
   NDB_TICKS getHighResTimer() const 
   {
@@ -1389,7 +1396,7 @@ protected:
    * Get receiver thread index for node
    * MAX_NODES == no receiver thread
    */
-  Uint32 get_recv_thread_idx(NodeId nodeId);
+  Uint32 get_recv_thread_idx(TrpId trp_id);
 
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */

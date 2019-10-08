@@ -88,10 +88,17 @@
 extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
+#define DEBUG_NODE_STOP 1
 //#define DEBUG_LOCAL_SYSFILE 1
 //#define DEBUG_LCP 1
 //#define DEBUG_UNDO 1
 //#define DEBUG_REDO_CONTROL 1
+#endif
+
+#ifdef DEBUG_NODE_STOP
+#define DEB_NODE_STOP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_NODE_STOP(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -840,9 +847,10 @@ STTOR Phase 3
 Next step is to run the STTOR phase 3. Most modules that need the list of
 nodes in the cluster reads this in this phase. DBDIH reads the nodes in this
 phase, DBDICT sets the restart type. Next NDBCNTR receives this phase and
-starts NDB_STTOR phase 2. In this phase DBLQH sets up connections from its
-operation records to the operation records in DBACC and DBTUP. This is done
-in parallel for all DBLQH module instances.
+starts NDB_STTOR phase 2. This phase starts by setting up any node group
+transporters specified in the configuration.  In this phase DBLQH sets up
+connections from its operation records to the operation records in DBACC and
+DBTUP. This is done in parallel for all DBLQH module instances.
 
 DBDIH now prepares the node restart process by locking the meta data. This
 means that we will wait until any ongoing meta data operation is completed
@@ -2155,6 +2163,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
   m_cntr_start_conf = true;
   g_eventLogger->info("NDBCNTR master accepted us into cluster,"
                       " start NDB start phase 1");
+
   switch (ctypeOfStart)
   {
     case NodeState::ST_INITIAL_START:
@@ -2768,6 +2777,45 @@ void Ndbcntr::ph2GLab(Signal* signal)
 void Ndbcntr::startPhase3Lab(Signal* signal) 
 {
   g_eventLogger->info("Start NDB start phase 2");
+  /**
+   * NDB start phase 2 runs in STTOR start phase 3.
+   * At this point we have set up communication to all nodes that will
+   * be part of the startup. Before proceeding with the rest of the
+   * restart/start we will now set up multiple transporters to those
+   * nodes that require this.
+   *
+   * To avoid doing this concurrently with other start phases we will
+   * do it now, we want to have communication setup already, but we
+   * want as little activity on the channels as possible to make it
+   * easier to setup the new transporters between nodes in the same
+   * node group.
+   *
+   * When coming back to NDBCNTR from QMGR (QMGR controls this set up
+   * of multiple transporters) we have connection to other nodes set
+   * up with multiple transporters. This will have impact on the
+   * update rate we can sustain and also on the copy fragment phase
+   * that will be faster than with only one transporter.
+   */
+  if (ctypeOfStart != NodeState::ST_INITIAL_NODE_RESTART &&
+      ctypeOfStart != NodeState::ST_NODE_RESTART)
+  {
+    jam();
+    signal->theData[0] = reference();
+    sendSignal(QMGR_REF, GSN_SET_UP_MULTI_TRP_REQ, signal, 1, JBB);
+    return;
+  }
+  else
+  {
+    jam();
+    ph3ALab(signal);
+  }
+}
+
+void
+Ndbcntr::execSET_UP_MULTI_TRP_CONF(Signal* signal)
+{
+  g_eventLogger->info("Completed setting up multiple transporters to nodes"
+                      " in the same node group");
   ph3ALab(signal);
   return;
 }//Ndbcntr::startPhase3Lab()
@@ -3030,6 +3078,7 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
 /*******************************/
 void Ndbcntr::startPhase5Lab(Signal* signal) 
 {
+  g_eventLogger->info("Start NDB start phase 4");
   ph5ALab(signal);
   return;
 }//Ndbcntr::startPhase5Lab()
@@ -4548,7 +4597,7 @@ Ndbcntr::execRESUME_REQ(Signal* signal)
 {
   //ResumeReq * const req = (ResumeReq *)&signal->theData[0];
   //ResumeRef * const ref = (ResumeRef *)&signal->theData[0];
-  
+
   jamEntry();
 
   signal->theData[0] = NDB_LE_SingleUser;
@@ -4557,7 +4606,7 @@ Ndbcntr::execRESUME_REQ(Signal* signal)
 
   //Uint32 senderData = req->senderData;
   //BlockReference senderRef = req->senderRef;
-  NodeState newState(NodeState::SL_STARTED);		  
+  NodeState newState(NodeState::SL_STARTED);
   updateNodeState(signal, newState);
   c_stopRec.stopReq.senderRef=0;
   send_node_started_rep(signal);
@@ -4726,6 +4775,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
   }
 
+  DEB_NODE_STOP(("Setting node state to SL_STOPPING_1"));
   NodeState newState(NodeState::SL_STOPPING_1, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   
@@ -4866,6 +4916,7 @@ Ndbcntr::StopRecord::checkApiTimeout(Signal* signal){
      NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithApiInSomeMagicWay)
     jam();
+    DEB_NODE_STOP(("Setting node state to SL_STOPPING_2"));
     NodeState newState(NodeState::SL_STOPPING_2, 
 		       StopReq::getSystemStop(stopReq.requestInfo));
     if(stopReq.singleuser) {
@@ -4885,6 +4936,12 @@ void
 Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
   const Int32 timeout = stopReq.transactionTimeout;
   const NDB_TICKS now = NdbTick_getCurrentTicks();
+#ifdef DEBUG_NODE_STOP
+  const Int32 elapsed = NdbTick_Elapsed(stopInitiatedTime, now).milliSec();
+  DEB_NODE_STOP(("timeout: %d, elapsed: %d",
+                 timeout,
+                 elapsed));
+#endif
   if(timeout >= 0 &&
      NdbTick_Elapsed(stopInitiatedTime, now).milliSec() >= (Uint64)timeout){
     // || checkWithTcInSomeMagicWay)
@@ -4902,6 +4959,7 @@ Ndbcntr::StopRecord::checkTcTimeout(Signal* signal){
       } 
       else
       {
+        DEB_NODE_STOP(("WAIT_GCP_REQ CompleteForceStart"));
 	WaitGCPReq * req = (WaitGCPReq*)&signal->theData[0];
 	req->senderRef = cntr.reference();
 	req->senderData = StopRecord::SR_CLUSTER_SHUTDOWN;
@@ -4971,6 +5029,7 @@ void Ndbcntr::execABORT_ALL_CONF(Signal* signal)
   else 
     {
       jam();
+      DEB_NODE_STOP(("Setting node state to SL_STOPPING_3"));
       NodeState newState(NodeState::SL_STOPPING_3, 
 			 StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
       updateNodeState(signal, newState);
@@ -5005,6 +5064,7 @@ Ndbcntr::StopRecord::checkLqhTimeout_1(Signal* signal){
     
     ChangeNodeStateReq * req = (ChangeNodeStateReq*)&signal->theData[0];
 
+    DEB_NODE_STOP(("Setting node state to SL_STOPPING_4"));
     NodeState newState(NodeState::SL_STOPPING_4, 
 		       StopReq::getSystemStop(stopReq.requestInfo));
     req->nodeState = newState;
@@ -5054,6 +5114,7 @@ void Ndbcntr::execSTOP_ME_CONF(Signal* signal)
     return;
   }
 
+  DEB_NODE_STOP(("2:Setting node state to SL_STOPPING_4"));
   NodeState newState(NodeState::SL_STOPPING_4, 
 		     StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
   updateNodeState(signal, newState);
@@ -5193,6 +5254,7 @@ void Ndbcntr::execWAIT_GCP_CONF(Signal* signal)
   
   {  
     ndbrequire(StopReq::getSystemStop(c_stopRec.stopReq.requestInfo));
+    DEB_NODE_STOP(("2:Setting node state to SL_STOPPING_3"));
     NodeState newState(NodeState::SL_STOPPING_3, true); 
     
     /**
@@ -6959,5 +7021,33 @@ void Ndbcntr::sendWAIT_ALL_COMPLETE_LCP_CONF(Signal *signal)
   m_local_lcp_completed = false;
   m_full_local_lcp_started = false;
   DEB_LCP(("m_lcp_started false again"));
+}
+
+bool Ndbcntr::is_node_starting(NodeId node_id)
+{
+  if (c_start.m_starting.get(node_id))
+  {
+    jam();
+    return true;
+  }
+  else
+  {
+    jam();
+    return false;
+  }
+}
+
+bool Ndbcntr::is_node_started(NodeId node_id)
+{
+  if (c_startedNodes.get(node_id))
+  {
+    jam();
+    return true;
+  }
+  else
+  {
+    jam();
+    return false;
+  }
 }
 template class Vector<ddentry>;

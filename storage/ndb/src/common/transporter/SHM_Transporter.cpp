@@ -46,6 +46,7 @@ extern EventLogger * g_eventLogger;
 #endif
 
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
+                                 TrpId transporter_index,
 				 const char *lHostName,
 				 const char *rHostName, 
 				 int r_port,
@@ -60,7 +61,7 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 bool preSendChecksum,
                                  Uint32 _spintime,
                                  Uint32 _send_buffer_size) :
-  Transporter(t_reg, tt_SHM_TRANSPORTER,
+  Transporter(t_reg, transporter_index, tt_SHM_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection_arg,
 	      lNodeId, rNodeId, serverNodeId,
 	      0, false, checksum, signalId,
@@ -87,6 +88,50 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   printf("shm key (%d - %d) = %d\n", lNodeId, rNodeId, shmKey);
 #endif
   m_signal_threshold = 262144;
+}
+
+SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
+                                 const SHM_Transporter* t)
+  :
+  Transporter(t_reg,
+              0,
+              tt_SHM_TRANSPORTER,
+	      t->localHostName,
+	      t->remoteHostName,
+	      t->m_s_port,
+	      t->isMgmConnection,
+	      t->localNodeId,
+	      t->remoteNodeId,
+	      t->isServer ? t->localNodeId : t->remoteNodeId,
+	      0,
+              false, 
+	      t->checksumUsed,
+	      t->signalIdUsed,
+	      t->m_max_send_buffer,
+	      t->check_send_checksum)
+{
+  m_spintime = t->m_spintime;
+  shmKey = t->shmKey;
+  shmSize = t->shmSize;
+#ifndef NDB_WIN32
+  shmId= 0;
+#endif
+  _shmSegCreated = false;
+  _attached = false;
+
+  shmBuf = 0;
+  reader = 0;
+  writer = 0;
+
+  setupBuffersDone = false;
+  m_server_locked = false;
+  m_client_locked = false;
+#ifdef DEBUG_TRANSPORTER
+  printf("shm key (%d - %d) = %d\n",
+         t->localNodeId, t->remoteNodeId, shmKey);
+#endif
+  m_signal_threshold = 262144;
+  send_checksum_state.init();
 }
 
 
@@ -388,10 +433,10 @@ SHM_Transporter::set_socket(NDB_SOCKET_TYPE sockfd)
   set_get(sockfd, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", 1);
   set_get(sockfd, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
   ndb_socket_nonblock(sockfd, true);
-  get_callback_obj()->lock_transporter(remoteNodeId);
+  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
   theSocket = sockfd;
   send_checksum_state.init();
-  get_callback_obj()->unlock_transporter(remoteNodeId);
+  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 }
 
 bool
@@ -574,7 +619,7 @@ void SHM_Transporter::setupBuffersUndone()
 void
 SHM_Transporter::disconnect_socket()
 {
-  get_callback_obj()->lock_transporter(remoteNodeId);
+  get_callback_obj()->lock_transporter(remoteNodeId, m_transporter_index);
 
   NDB_SOCKET_TYPE sock = theSocket;
   ndb_socket_invalidate(&theSocket);
@@ -587,7 +632,7 @@ SHM_Transporter::disconnect_socket()
     }
   }
   setupBuffersUndone();
-  get_callback_obj()->unlock_transporter(remoteNodeId);
+  get_callback_obj()->unlock_transporter(remoteNodeId, m_transporter_index);
 }
 
 /**

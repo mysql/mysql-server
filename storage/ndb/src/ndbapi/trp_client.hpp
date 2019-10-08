@@ -116,14 +116,18 @@ private:
    * TransporterSendBufferHandle interface
    */
   virtual bool isSendEnabled(NodeId node) const;
-  virtual Uint32 *getWritePtr(NodeId node,
+  virtual Uint32 *getWritePtr(NodeId nodeId,
+                              TrpId trp_id,
                               Uint32 lenBytes,
                               Uint32 prio,
                               Uint32 max_use,
-                              SendStatus* error);
-  virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
+                              SendStatus *error);
+  virtual Uint32 updateWritePtr(NodeId nodeId,
+                                TrpId trp_id,
+                                Uint32 lenBytes,
+                                Uint32 prio);
   virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
-  virtual bool forceSend(NodeId node);
+  virtual bool forceSend(NodeId nodeId, TrpId trp_id);
 
 private:
   Uint32 m_blockNo;

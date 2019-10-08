@@ -35,7 +35,22 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
+#define DEBUG_MULTI_TRP 1
+
+#ifdef DEBUG_MULTI_TRP
+#define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_MULTI_TRP(arglist) do { } while (0)
+#endif
+
 Transporter::Transporter(TransporterRegistry &t_reg,
+                         TrpId transporter_index,
 			 TransporterType _type,
 			 const char *lHostName,
 			 const char *rHostName, 
@@ -50,7 +65,10 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 bool _signalId,
              Uint32 max_send_buffer,
              bool _presend_checksum)
-  : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
+  : m_s_port(s_port),
+    remoteNodeId(rNodeId),
+    localNodeId(lNodeId),
+    m_transporter_index(transporter_index),
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), m_slowdown_limit(0xFFFFFFFF),
@@ -71,6 +89,9 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 
   // Initialize member variables
   ndb_socket_invalidate(&theSocket);
+  m_multi_transporter_instance = 0;
+  m_recv_thread_idx = 0;
+  m_is_active = true;
 
   DBUG_ASSERT(rHostName);
   if (rHostName && strlen(rHostName) > 0){
@@ -129,6 +150,33 @@ Transporter::~Transporter()
   delete m_socket_client;
 }
 
+bool Transporter::do_disconnect(int err, bool send_source)
+{
+  if (m_is_active)
+  {
+    DEB_MULTI_TRP(("Disconnect trp_id %u for node %u in active mode",
+                    getTransporterIndex(), remoteNodeId));
+    return m_transporter_registry.do_disconnect(remoteNodeId,
+                                                err,
+                                                send_source);
+  }
+  else
+  {
+    if (ndb_socket_valid(theSocket))
+    {
+      DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket valid",
+                     getTransporterIndex()));
+      ndb_socket_close(theSocket);
+      ndb_socket_invalidate(&theSocket);
+    }
+    else
+    {
+      DEB_MULTI_TRP(("Close trp_id %u in inactive mode, socket invalid",
+                     getTransporterIndex()));
+    }
+    return true;
+  }
+}
 
 bool
 Transporter::configure(const TransporterConfiguration* conf)
@@ -165,6 +213,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   if (m_connected)
   {
     msg.assfmt("line: %u : already connected ??", __LINE__);
+    DEBUG_FPRINTF((stderr, "Transporter already connected\n"));
     DBUG_RETURN(false);
   }
 
@@ -174,9 +223,18 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   if (!connect_server_impl(sockfd))
   {
     msg.assfmt("line: %u : connect_server_impl failed", __LINE__);
+    DEBUG_FPRINTF((stderr, "connect_server_impl failed\n"));
     DBUG_RETURN(false);
   }
 
+#ifdef DEBUG_FPRINTF
+  if (isPartOfMultiTransporter())
+  {
+    DEBUG_FPRINTF((stderr, "connect_server node_id: %u, trp_id: %u\n",
+                   getRemoteNodeId(),
+                   getTransporterIndex()));
+  }
+#endif
   m_connect_count++;
   resetCounters();
 
@@ -191,6 +249,7 @@ Transporter::connect_client()
   NDB_SOCKET_TYPE sockfd;
   DBUG_ENTER("Transporter::connect_client");
 
+  require(!isMultiTransporter());
   if(m_connected)
   {
     DBUG_RETURN(true);
@@ -208,6 +267,7 @@ Transporter::connect_client()
 
   if(isMgmConnection)
   {
+    require(!isPartOfMultiTransporter());
     sockfd= m_transporter_registry.connect_ndb_mgmd(remoteHostName,
                                                     port);
   }
@@ -215,11 +275,15 @@ Transporter::connect_client()
   {
     if (!m_socket_client->init())
     {
+      DEBUG_FPRINTF((stderr, "m_socket_client->init failed, node: %u\n",
+                             getRemoteNodeId()));
       DBUG_RETURN(false);
     }
 
     if (pre_connect_options(m_socket_client->m_sockfd) != 0)
     {
+      DEBUG_FPRINTF((stderr, "pre_connect_options failed, node: %u\n",
+                             getRemoteNodeId()));
       DBUG_RETURN(false);
     }
 
@@ -227,6 +291,8 @@ Transporter::connect_client()
     {
       if (m_socket_client->bind(localHostName, 0) != 0)
       {
+        DEBUG_FPRINTF((stderr, "m_socket_client->bind failed, node: %u\n",
+                               getRemoteNodeId()));
         DBUG_RETURN(false);
       }
     }
@@ -238,7 +304,6 @@ Transporter::connect_client()
   DBUG_RETURN(connect_client(sockfd));
 }
 
-
 bool
 Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
 {
@@ -247,6 +312,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   if(m_connected)
   {
     DBUG_PRINT("error", ("Already connected"));
+    DEBUG_FPRINTF((stderr, "Already connected\n"));
     DBUG_RETURN(true);
   }
 
@@ -254,6 +320,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   {
     DBUG_PRINT("error", ("Socket " MY_SOCKET_FORMAT " is not valid",
                          MY_SOCKET_FORMAT_VALUE(sockfd)));
+    DEBUG_FPRINTF((stderr, "Socket not valid\n"));
     DBUG_RETURN(false);
   }
 
@@ -263,8 +330,24 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   // Send "hello"
   DBUG_PRINT("info", ("Sending own nodeid: %d and transporter type: %d",
                       localNodeId, m_type));
+  DEBUG_FPRINTF((stderr, "Sending own nodeid: %d and transporter type: %d\n",
+                         localNodeId, m_type));
   SocketOutputStream s_output(sockfd);
-  if (s_output.println("%d %d", localNodeId, m_type) < 0)
+  int ret_code;
+  if (isPartOfMultiTransporter())
+  {
+    DEBUG_FPRINTF((stderr, "connect_client multi trp node: %u\n",
+                            getRemoteNodeId()));
+    ret_code = s_output.println("%d %d %d",
+                                localNodeId,
+                                m_type,
+                                m_multi_transporter_instance);
+  }
+  else
+  {
+    ret_code = s_output.println("%d %d", localNodeId, m_type);
+  }
+  if (ret_code < 0)
   {
     DBUG_PRINT("error", ("Send of 'hello' failed"));
     ndb_socket_close(sockfd);
@@ -287,10 +370,6 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
   switch (r) {
   case 2:
-    break;
-  case 1:
-    // we're running version prior to 4.1.9
-    // ok, but with no checks on transporter configuration compatability
     break;
   default:
     DBUG_PRINT("error", ("Failed to parse reply"));
@@ -332,7 +411,16 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   m_connect_count++;
   resetCounters();
 
+#ifdef DEBUG_FPRINTF
+  if (isPartOfMultiTransporter())
+  {
+    DEBUG_FPRINTF((stderr, "connect_client multi trp node: %u\n",
+                           getRemoteNodeId()));
+  }
+#endif
+  m_transporter_registry.lockMultiTransporters();
   update_connect_state(true);
+  m_transporter_registry.unlockMultiTransporters();
   DBUG_RETURN(true);
 }
 

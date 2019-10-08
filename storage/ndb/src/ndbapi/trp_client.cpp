@@ -361,11 +361,13 @@ trp_client::isSendEnabled(NodeId node) const
 
 Uint32 *
 trp_client::getWritePtr(NodeId node,
+                        TrpId trp_id,
                         Uint32 lenBytes,
                         Uint32 prio,
                         Uint32 max_use,
-                        SendStatus* error)
+                        SendStatus *error)
 {
+  (void)trp_id;
   assert(isSendEnabled(node));
   
   TFBuffer* b = m_send_buffers+node;
@@ -432,8 +434,12 @@ trp_client::getWritePtr(NodeId node,
 }
 
 Uint32
-trp_client::updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio)
+trp_client::updateWritePtr(NodeId node,
+                           TrpId trp_id,
+                           Uint32 lenBytes,
+                           Uint32 prio)
 {
+  (void)trp_id;
   TFBuffer* b = m_send_buffers+node;
   TFBufferGuard g0(* b);
   assert(m_send_nodes_mask.get(node));
@@ -477,7 +483,7 @@ trp_client::getSendBufferLevel(NodeId node, SB_LevelType &level)
 }
 
 bool
-trp_client::forceSend(NodeId node)
+trp_client::forceSend(NodeId, TrpId)
 {
   do_forceSend();
   return true;

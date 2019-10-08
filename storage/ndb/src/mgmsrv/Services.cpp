@@ -564,7 +564,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 
   NodeId tmp= nodeid;
   BaseString error_string;
-  int error_code;
+  int error_code = 0;
   if (!m_mgmsrv.alloc_node_id(tmp,
                               (ndb_mgm_node_type)nodetype,
                               (struct sockaddr*)&addr,
