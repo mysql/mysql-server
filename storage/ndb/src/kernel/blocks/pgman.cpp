@@ -4510,6 +4510,22 @@ Pgman::drop_page(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
     if (state & Page_entry::BOUND)
     {
       thrjam(jamBuf);
+      if (state & Page_entry::LOCKED &&
+          m_sync_extent_next_page_entry == ptr.i)
+      {
+        /**
+         * We are dropping a page that is the next page to be handled
+         * SYNC_EXTENT_PAGES processing. We need to move the
+         * m_sync_extent_next_page_entry reference to the next page
+         * in this list.
+         */
+        thrjam(jamBuf);
+        Ptr<Page_entry> drop_page_ptr;
+        Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
+        pl.getPtr(drop_page_ptr, m_sync_extent_next_page_entry);
+        pl.next(drop_page_ptr);
+        m_sync_extent_next_page_entry = drop_page_ptr.i;
+      }
       ndbrequire(ptr.p->m_copy_page_i == RNIL);
       ndbrequire(ptr.p->m_real_page_i != RNIL);
       release_cache_page(ptr.p->m_real_page_i);
