@@ -10564,7 +10564,7 @@ ER_WARN_LOG_PRIVILEGE_CHECKS_USER_NEEDS_RPL_APPLIER_PRIV
   eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' was set to `%.64s`@`%.255s`, but this user does not have REPLICATION_APPLIER privilege. Correct this before starting the replication threads."
 
 ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS
-  eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on master and slave_allow_load_data_events=0 on this server. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
+  eng "The PRIVILEGE_CHECKS_USER for channel '%.192s' would need FILE privilege to execute a LOAD DATA INFILE statement replicated in statement format. Consider using binlog_format=ROW on master. If the replicated events are trusted, recover from the failure by temporarily granting FILE to the PRIVILEGE_CHECKS_USER."
 
 ER_RPL_SLAVE_SQL_THREAD_STARTING_WITH_PRIVILEGE_CHECKS
   eng "Slave SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s, user: '%.64s'@'%.255s', roles: %.512s"
