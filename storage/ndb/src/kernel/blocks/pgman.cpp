@@ -1649,12 +1649,19 @@ Pgman::execSYNC_PAGE_CACHE_CONF(Signal *signal)
   m_fragmentRecordPool.getPtr(fragPtr);
   if (!get_next_ordered_fragment(fragPtr))
   {
+    /**
+     * We need to create an LCP end point before ending the sync of
+     * disk pages. In the case of single threaded ndbd we next proceed
+     * with sync of the extent pages, we still need to create an end
+     * point of the LCP since the next step will be to create an LCP
+     * start point when executing SYNC_EXTENT_PAGES_REQ(RESTART_SYNC).
+     */ 
+    NDB_TICKS now = getHighResTimer();
+    Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
+    lcp_end_point(Uint32(lcp_time));
     if (isNdbMtLqh())
     {
       jam();
-      NDB_TICKS now = getHighResTimer();
-      Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
-      lcp_end_point(Uint32(lcp_time));
       sendEND_LCPCONF(signal);
       return;
     }
