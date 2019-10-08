@@ -8388,8 +8388,10 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
   else if (state != TcConnectionrec::WAIT_TUP)
   {
     ndbrequire(state == TcConnectionrec::WAIT_TUP_TO_ABORT);
-    abortCommonLab(signal, tcConnectptr);
-    return;
+    TupKeyRef * ref = (TupKeyRef *)signal->getDataPtr();
+    ref->userRef= callbackData;
+    ref->errorCode= disk_page;
+    execTUPKEYREF(signal);
   }
   else
   {
