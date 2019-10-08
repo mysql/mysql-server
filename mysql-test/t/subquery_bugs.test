@@ -957,3 +957,17 @@ eval EXPLAIN $query;
 eval EXPLAIN FORMAT=TREE $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30273827: SIG6 IN SELECT_LEX_UNIT::EXCLUDE_LEVEL() AT
+--echo #               SQL/SQL_LEX.CC
+--echo #
+
+CREATE TABLE t1(f1 varchar(1)) ;
+
+SELECT 1 FROM t1 AS table2 LEFT JOIN (SELECT 'c') AS table3(f1)
+  ON table3.f1 = table2.f1 WHERE table2.f1
+    IN (SELECT 1 FROM (SELECT 1314830897) AS t1(pk)
+          WHERE t1.pk <= ANY(SELECT 5)) AND FALSE;
+
+DROP TABLE t1;
