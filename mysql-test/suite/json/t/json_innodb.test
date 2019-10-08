@@ -260,3 +260,15 @@ WITH
   cte2 AS (SELECT (JSON_INSERT('$.KEY3', NULL, NULL)) AS a2 FROM t)
   SELECT cte1.a1 FROM cte1,cte2 WHERE cte1.a1 LIKE cte2.a2;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#30348554: JSON COLUMN INTERACTION WITH CHAR() SEEMS INCONSISTENT
+--echo #
+# Used to return true, should return false.
+SELECT JSON_ARRAY(_utf8mb4'abc') = JSON_ARRAY(_binary'abc');
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES (JSON_ARRAY('aaa'));
+# Used to be a no-op, should replace the string with a blob.
+UPDATE t SET j = JSON_REPLACE(j, '$[0]', REPEAT(CHAR(97), 3));
+SELECT j, JSON_TYPE(j->'$[0]') FROM t;
+DROP TABLE t;

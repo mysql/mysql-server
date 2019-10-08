@@ -280,3 +280,16 @@ cte2 AS (SELECT (JSON_INSERT('$.KEY3', NULL, NULL)) AS a2 FROM t)
 SELECT cte1.a1 FROM cte1,cte2 WHERE cte1.a1 LIKE cte2.a2;
 ERROR 22032: Invalid JSON text in argument 1 to function json_insert: "Invalid value." at position 0.
 DROP TABLE t;
+#
+# Bug#30348554: JSON COLUMN INTERACTION WITH CHAR() SEEMS INCONSISTENT
+#
+SELECT JSON_ARRAY(_utf8mb4'abc') = JSON_ARRAY(_binary'abc');
+JSON_ARRAY(_utf8mb4'abc') = JSON_ARRAY(_binary'abc')
+0
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES (JSON_ARRAY('aaa'));
+UPDATE t SET j = JSON_REPLACE(j, '$[0]', REPEAT(CHAR(97), 3));
+SELECT j, JSON_TYPE(j->'$[0]') FROM t;
+j	JSON_TYPE(j->'$[0]')
+["base64:type15:YWFh"]	BLOB
+DROP TABLE t;
