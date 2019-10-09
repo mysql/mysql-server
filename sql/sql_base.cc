@@ -3051,6 +3051,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     DBUG_RETURN(true);
   }
 
+  /*
+    P_S table access should be allowed while in LTM, the ignore flush flag is
+    set to avoid the infinite reopening of the table due to version number
+    mismatch.
+  */
+  if (BELONGS_TO_P_S_UNDER_LTM(thd, table_list))
+    flags|= MYSQL_OPEN_IGNORE_FLUSH;
+
   key_length= get_table_def_key(table_list, &key);
 
   /*
