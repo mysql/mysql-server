@@ -1537,8 +1537,9 @@ class HttpServerAuthTest
                     ConfigBuilder::build_section(
                         "http_auth_backend:local",
                         {{"backend", "file"},
-                         {"filename",
-                          get_data_dir().join(passwd_filename_).str()}}),
+                         {"filename", mysql_harness::Path(conf_dir_.name())
+                                          .join(passwd_filename_)
+                                          .str()}}),
                     ConfigBuilder::build_section("http_auth_realm:secure",
                                                  {{"backend", "local"},
                                                   {"method", "basic"},
@@ -1546,9 +1547,13 @@ class HttpServerAuthTest
                                                   {"require", "valid-user"}})},
                 "\n"))},
         http_server_{launch_router({"-c", conf_file_})} {
-    std::fstream pwf{get_data_dir().join(passwd_filename_).str(), pwf.out};
+    std::string pwf_name(
+        mysql_harness::Path(conf_dir_.name()).join(passwd_filename_).str());
+    std::fstream pwf{pwf_name, pwf.out};
 
-    if (!pwf.is_open()) throw std::runtime_error("hmm");
+    if (!pwf.is_open())
+      throw std::runtime_error(pwf_name +
+                               " failed to open: " + std::to_string(errno));
     constexpr const char kPasswdUserTest[]{
         "user:$6$3ieWD5TQkakPm.iT$"  // sha512 and salt
         "4HI5XzmE4UCSOsu14jujlXYNYk2SB6gi2yVoAncaOzynEnTI0Rc9."
