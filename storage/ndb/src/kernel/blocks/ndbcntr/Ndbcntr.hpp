@@ -423,7 +423,16 @@ private:
 
   NdbNodeBitmask c_allDefinedNodes;
   NdbNodeBitmask c_clusterNodes; // All members of qmgr cluster
-  NdbNodeBitmask c_startedNodes; // All cntr started nodes
+  /**
+   * c_cntr_startedNodeSet contains the nodes that have been allowed
+   * to start in CNTR_START_CONF. This is establised in phase 2 of the
+   * start.
+   *
+   * c_startedNodeSet contains the nodes that have completed the
+   * start and passed all start phases.
+   */
+  NdbNodeBitmask c_cntr_startedNodeSet;
+  NdbNodeBitmask c_startedNodeSet;
   
 public:
   struct StopRecord {
@@ -466,6 +475,9 @@ public:
   bool is_node_started(NodeId);
   bool is_node_starting(NodeId);
 private:
+  bool is_nodegroup_starting(Signal*, NodeId);
+  void get_node_group_mask(Signal*, NodeId, NdbNodeBitmask&);
+
   StopRecord c_stopRec;
   friend struct StopRecord;
 

@@ -36,6 +36,8 @@
 
 void Ndbcntr::initData() 
 {
+  c_cntr_startedNodeSet.clear();
+  c_startedNodeSet.clear();
   c_start.reset();
   cmasterNodeId = 0;
   cnoStartNodes = 0;

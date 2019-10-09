@@ -4965,8 +4965,11 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
   /**
    * Allow next node to start...
    */
-  signal->theData[0] = nodeId;
-  sendSignal(NDBCNTR_REF, GSN_START_PERMREP, signal, 1, JBB);
+  StartPermRep *rep = (StartPermRep*)signal->getDataPtrSend();
+  rep->startNodeId = nodeId;
+  rep->reason = StartPermRep::PermissionToStart;
+  sendSignal(NDBCNTR_REF, GSN_START_PERMREP, signal,
+             StartPermRep::SignalLength, JBB);
 }//Dbdih::execUNBLO_DICTCONF()
 
 /*---------------------------------------------------------------------------*/
