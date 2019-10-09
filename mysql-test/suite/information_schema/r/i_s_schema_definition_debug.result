@@ -129,7 +129,7 @@ SET debug = '+d,skip_dd_table_access_check,fetch_system_view_definition';
 ########################################################################
 # The actual I_S version stored on disk.
 ########################################################################
-IS_VERSION=80019
+IS_VERSION=80020
 ########################################################################
 # List the CREATE VIEW statements for the I_S system views.
 # Mask collations that depend on the lower case table names setting.
@@ -309,7 +309,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   IF (evt.on_completion='DROP', 'NOT PRESERVE', 'PRESERVE') AS ON_COMPLETION,
   evt.created AS CREATED,
   evt.last_altered AS LAST_ALTERED,
-  evt.last_executed AS LAST_EXECUTED,
+  CONVERT_TZ(evt.last_executed,'+00:00', evt.time_zone) AS LAST_EXECUTED,
   evt.comment AS EVENT_COMMENT,
   evt.originator AS ORIGINATOR,
   cs_client.name AS CHARACTER_SET_CLIENT,
@@ -343,7 +343,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   IF (evt.on_completion='DROP', 'NOT PRESERVE', 'PRESERVE') AS ON_COMPLETION,
   evt.created AS CREATED,
   evt.last_altered AS LAST_ALTERED,
-  evt.last_executed AS LAST_EXECUTED,
+  CONVERT_TZ(evt.last_executed,'+00:00', evt.time_zone) AS LAST_EXECUTED,
   evt.comment AS EVENT_COMMENT,
   evt.originator AS ORIGINATOR,
   cs_client.name AS CHARACTER_SET_CLIENT,
@@ -1637,5 +1637,5 @@ include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to I_S version 80019.
+The schema checksum corresponds to I_S version 80020.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]

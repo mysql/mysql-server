@@ -156,11 +156,20 @@ namespace info_schema {
        INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
        INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
 
-  80020: Next IS version number after the previous is public.
+  80020: Current
+  ------------------------------------
+  Changes from version 80019:
+
+  - Bug#29871530: MYSQL 8.0 INFORMATION_SCHEMA.EVENTS NOT
+                  OBSERVING CUSTOM TIMEZONE
+    This bug updates LAST_EXECUTED to include time zones in
+    I_S.EVENTS.
+
+  80021: Next IS version number after the previous is public.
   ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80019;
+static const uint IS_DD_VERSION = 80020;
 
 /**
   Initialize INFORMATION_SCHEMA system views.
