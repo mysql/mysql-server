@@ -81,8 +81,7 @@ TEST_F(JSON_generator_test, null_scalar) {
 }
 
 TEST_F(JSON_generator_test, plain_octets_scalar) {
-  generate_json(&m_qb,
-                Scalar(Scalar::Octets("abc")));
+  generate_json(&m_qb, Scalar(Scalar::Octets("abc")));
   EXPECT_STREQ("'abc'", m_qb.get().c_str());
 }
 
@@ -121,8 +120,7 @@ TEST_F(JSON_generator_test, array_of_doubles) {
 
 TEST_F(JSON_generator_test, array_of_bools) {
   generate_json(&m_qb, Any::Array{true, false, true, true, true, false});
-  EXPECT_STREQ("[true,false,true,true,true,false]",
-               m_qb.get().c_str());
+  EXPECT_STREQ("[true,false,true,true,true,false]", m_qb.get().c_str());
 }
 
 TEST_F(JSON_generator_test, array_of_strings) {

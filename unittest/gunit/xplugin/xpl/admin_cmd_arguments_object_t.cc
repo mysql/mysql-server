@@ -1061,7 +1061,6 @@ TEST_F(Admin_command_arguments_object_test, object_arg_all_of) {
   ASSERT_TRUE(value3.fld(0).has_value());
   ASSERT_TRUE(value3.fld(0).value().has_scalar());
   ASSERT_EQ(44, value3.fld(0).value().scalar().v_signed_int());
-
 }
 
 TEST_F(Admin_command_arguments_object_test, object_arg_one_of) {
@@ -1145,7 +1144,6 @@ TEST_F(Admin_command_arguments_object_test, object_arg_optional_one_of) {
   ASSERT_TRUE(value2.fld(0).has_value());
   ASSERT_TRUE(value2.fld(0).value().has_scalar());
   ASSERT_EQ(43, value2.fld(0).value().scalar().v_signed_int());
-
 }
 
 }  // namespace test
