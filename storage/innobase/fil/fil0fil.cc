@@ -9851,23 +9851,29 @@ bool Fil_system::check_missing_tablespaces() {
 
     space_id = page_get_space_id(page.m_page);
 
-    /* If the tablespace was in the missing IDs then we
-    know that the problem is elsewhere. If a file deleted
-    record was not found in the redo log and the tablespace
-    doesn't exist in the SYS_TABLESPACES file then it is
-    an error or data corruption. The special case is an
-    undo truncate in progress. */
+    /* Skip messages for undo tablespaces that are being truncated since
+    they can be deleted during undo truncation without an MLOG_FILE_DELETE. */
+    if (!fsp_is_undo_tablespace(space_id)
+#ifndef UNIV_HOTBACKUP
+        || !(undo::is_active_truncate_log_present(undo::id2num(space_id)))
+#endif /* !UNIV_HOTBACKUP */
+    ) {
+      /* If the tablespace was in the missing IDs then we
+      know that the problem is elsewhere. If a file deleted
+      record was not found in the redo log and the tablespace
+      doesn't exist in the SYS_TABLESPACES file then it is
+      an error or data corruption. The special case is an
+      undo truncate in progress. */
 
-    if (recv_sys->deleted.find(space_id) == end &&
-        recv_sys->missing_ids.find(space_id) != recv_sys->missing_ids.end()) {
-      page_no_t page_no;
+      if (recv_sys->deleted.find(space_id) == end &&
+          recv_sys->missing_ids.find(space_id) != recv_sys->missing_ids.end()) {
+        page_no_t page_no = page_get_page_no(page.m_page);
 
-      page_no = page_get_page_no(page.m_page);
-
-      ib::warn(ER_IB_MSG_1263)
-          << "Doublewrite page " << page.m_no << " for {space: " << space_id
-          << ", page_no:" << page_no << "} could not be restored."
-          << " File name unknown for tablespace ID " << space_id;
+        ib::warn(ER_IB_MSG_1263)
+            << "Doublewrite page " << page.m_no << " for {space: " << space_id
+            << ", page_no:" << page_no << "} could not be restored."
+            << " File name unknown for tablespace ID " << space_id;
+      }
     }
 
     /* Free the memory. */
