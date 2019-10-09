@@ -413,8 +413,7 @@ int main(int argc, char **argv) {
    */
   if (!shutdown_processes(g_config, atrt_process::AP_ALL)) {
     g_logger.critical("Failed to stop all processes");
-    return_code =
-        (return_code == TESTSUITE_SUCCESS) ? ATRT_FAILURE : return_code;
+    return_code = ATRT_FAILURE;
   }
 
   if (g_report_file != 0) {
