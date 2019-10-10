@@ -37,12 +37,12 @@ BEGIN_SERVICE_DEFINITION(mysql_udf_metadata)
   are retrieved based on the extension_type. Following extension_type are
   supported as of now :
 
-  (1) charset - Charactet set name of a UDF argument
+  (1) charset - Character set name of a UDF argument
   (2) collation - Collation name of a UDF argument.
 
   The method returns the requested extension attribute in the output
-  parameter. One need to cast the output value to a respective data type.
-  It sets error message if it is unable to retrirve extension attribute
+  parameter. One must cast the output value to a respective data type.
+  It sets error message if it is unable to retrieve extension attribute
 
   One could retrieve the charset of first UDF argument as following.
 
@@ -71,14 +71,14 @@ DECLARE_BOOL_METHOD(argument_get,
 /**
   Retrieves the extension attribute of UDF return value.
   a UDF argument. The extension attributes are retrieved based on the
-  extension_type. Following extension_type are supported as of now :
+  extension_type. Following extension_type are supported:
 
-  (1) charset - Charactet set name of a UDF argument
+  (1) charset - Character set name of a UDF argument
   (2) collation - Collation name of a UDF argument.
 
   The method returns the requested extension attribute in the output
-  parameter. One need to cast the output value to a respective data type.
-  It sets error message if it is unable to retrirve extension attribute
+  parameter. One must cast the output value to a respective data type.
+  It sets error message if it is unable to retrieve extension attribute
 
   One could retrieve the charset of return value as following.
 
@@ -104,9 +104,9 @@ DECLARE_BOOL_METHOD(result_get, (UDF_INIT * udf_init,
 /**
   Sets the extension attribute of a UDF argument. The extension attribute
   could be set only for supported extension type. Following extension_type
-  are supported as of now :
+  are supported:
 
-  (1) charset - Charactet set name of a UDF argument
+  (1) charset - Character set name of a UDF argument
   (2) collation - Collation name of a UDF argument.
 
   The method sets the input value as the extension attribute of corresponding
@@ -140,9 +140,9 @@ DECLARE_BOOL_METHOD(argument_set,
 /**
   Sets the extension attribute of the UDF return value. The extension attribute
   could be set only for supported extension type. Following extension_type
-  are supported as of now :
+  are supported:
 
-  (1) charset - Charactet set name of a UDF argument
+  (1) charset - Character set name of a UDF argument
   (2) collation - Collation name of a UDF argument.
 
   The method sets the input value as the extension attribute of return value.
