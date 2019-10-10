@@ -47,7 +47,6 @@ SET(STRINGS_SOURCES
   decimal.cc
   dtoa.cc
   int2str.cc
-  longlong2str.cc
   my_strchr.cc
   my_strtoll10.cc
   str2int.cc

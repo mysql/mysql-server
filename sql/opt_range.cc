@@ -11387,7 +11387,7 @@ void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
   size_t length;
   KEY *key_info = head->key_info + index;
   key_names->append(key_info->name);
-  length = longlong2str(max_used_key_length, buf, 10) - buf;
+  length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
   used_lengths->append(buf, length);
 }
 
@@ -11409,14 +11409,15 @@ void QUICK_INDEX_MERGE_SELECT::add_keys_and_lengths(String *key_names,
 
     KEY *key_info = head->key_info + quick->index;
     key_names->append(key_info->name);
-    length = longlong2str(quick->max_used_key_length, buf, 10) - buf;
+    length = longlong10_to_str(quick->max_used_key_length, buf, 10) - buf;
     used_lengths->append(buf, length);
   }
   if (pk_quick_select) {
     KEY *key_info = head->key_info + pk_quick_select->index;
     key_names->append(',');
     key_names->append(key_info->name);
-    length = longlong2str(pk_quick_select->max_used_key_length, buf, 10) - buf;
+    length =
+        longlong10_to_str(pk_quick_select->max_used_key_length, buf, 10) - buf;
     used_lengths->append(',');
     used_lengths->append(buf, length);
   }
@@ -11438,7 +11439,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
       used_lengths->append(',');
     }
     key_names->append(key_info->name);
-    length = longlong2str(quick->max_used_key_length, buf, 10) - buf;
+    length = longlong10_to_str(quick->max_used_key_length, buf, 10) - buf;
     used_lengths->append(buf, length);
   }
 
@@ -11446,7 +11447,7 @@ void QUICK_ROR_INTERSECT_SELECT::add_keys_and_lengths(String *key_names,
     KEY *key_info = head->key_info + cpk_quick->index;
     key_names->append(',');
     key_names->append(key_info->name);
-    length = longlong2str(cpk_quick->max_used_key_length, buf, 10) - buf;
+    length = longlong10_to_str(cpk_quick->max_used_key_length, buf, 10) - buf;
     used_lengths->append(',');
     used_lengths->append(buf, length);
   }
@@ -14205,7 +14206,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
   char buf[64];
   size_t length;
   key_names->append(index_info->name);
-  length = longlong2str(max_used_key_length, buf, 10) - buf;
+  length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
   used_lengths->append(buf, length);
 }
 
@@ -15196,7 +15197,7 @@ void QUICK_SKIP_SCAN_SELECT::add_keys_and_lengths(String *key_names,
   char buf[64];
   uint length;
   key_names->append(index_info->name);
-  length = longlong2str(max_used_key_length, buf, 10) - buf;
+  length = longlong10_to_str(max_used_key_length, buf, 10) - buf;
   used_lengths->append(buf, length);
 }
 

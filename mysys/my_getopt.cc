@@ -1575,7 +1575,7 @@ void my_print_variables_ex(const struct my_option *options, FILE *file) {
           fprintf(file, "%s\n", llstr(*((longlong *)value), buff));
           break;
         case GET_ULL:
-          longlong2str(*(static_cast<ulonglong *>(value)), buff, 10);
+          ullstr(*(static_cast<ulonglong *>(value)), buff);
           fprintf(file, "%s\n", buff);
           break;
         case GET_DOUBLE:

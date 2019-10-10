@@ -654,9 +654,10 @@ bool Explain::explain_subqueries() {
 
       char buff_key_len[24];
       fmt->entry()->col_key_len.set(
-          buff_key_len, longlong2str(tmp_tab->table()->key_info[0].key_length,
-                                     buff_key_len, 10) -
-                            buff_key_len);
+          buff_key_len,
+          longlong10_to_str(tmp_tab->table()->key_info[0].key_length,
+                            buff_key_len, 10) -
+              buff_key_len);
 
       if (explain_ref_key(fmt, tmp_tab->ref().key_parts,
                           tmp_tab->ref().key_copy))
@@ -897,7 +898,7 @@ bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
   char buff_key_len[24];
   const KEY *key_info = table->key_info + key;
   const size_t length =
-      longlong2str(key_length, buff_key_len, 10) - buff_key_len;
+      longlong10_to_str(key_length, buff_key_len, 10) - buff_key_len;
   const bool ret = explain_key_parts(key, key_parts);
   return (ret || fmt->entry()->col_key.set(key_info->name) ||
           fmt->entry()->col_key_len.set(buff_key_len, length));

@@ -117,14 +117,14 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
         break;
       case HA_KEYTYPE_LONGLONG: {
         char buff[21];
-        longlong2str(mi_sint8korr(key), buff, -10);
+        llstr(mi_sint8korr(key), buff);
         (void)fprintf(stream, "%s", buff);
         key = end;
         break;
       }
       case HA_KEYTYPE_ULONGLONG: {
         char buff[21];
-        longlong2str(mi_sint8korr(key), buff, 10);
+        ullstr(mi_sint8korr(key), buff);
         (void)fprintf(stream, "%s", buff);
         key = end;
         break;

@@ -80,7 +80,7 @@ static void BM_Protocol_binary_store_time(size_t num_iterations) {
   String *const packet = protocol->get_output_packet();
 
   const MysqlTime time(0, 0, 0, 123, 59, 59, 670000, false,
-                       MYSQL_TIMESTAMP_DATE);
+                       MYSQL_TIMESTAMP_TIME);
 
   StartBenchmarkTiming();
 
@@ -104,7 +104,7 @@ static void BM_Protocol_binary_store_datetime(size_t num_iterations) {
   String *const packet = protocol->get_output_packet();
 
   const MysqlTime datetime(2020, 2, 29, 23, 59, 59, 670000, false,
-                           MYSQL_TIMESTAMP_DATE);
+                           MYSQL_TIMESTAMP_DATETIME);
 
   StartBenchmarkTiming();
 
@@ -144,5 +144,122 @@ static void BM_Protocol_binary_store_decimal(size_t num_iterations) {
   initializer.TearDown();
 }
 BENCHMARK(BM_Protocol_binary_store_decimal)
+
+static void BM_Protocol_text_store_tiny(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  Protocol_text *const protocol = initializer.thd()->protocol_text.get();
+  SetupProtocolForBenchmark(protocol);
+  String *const packet = protocol->get_output_packet();
+
+  const int value = 123;
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    packet->length(0);
+    protocol->store_tiny(value, 0);
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_Protocol_text_store_tiny)
+
+static void BM_Protocol_text_store_longlong(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  Protocol_text *const protocol = initializer.thd()->protocol_text.get();
+  SetupProtocolForBenchmark(protocol);
+  String *const packet = protocol->get_output_packet();
+
+  const int64_t value = 1234567890123456789;
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    packet->length(0);
+    protocol->store_longlong(value, false, 0);
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_Protocol_text_store_longlong)
+
+static void BM_Protocol_text_store_date(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  Protocol_text *const protocol = initializer.thd()->protocol_text.get();
+  SetupProtocolForBenchmark(protocol);
+  String *const packet = protocol->get_output_packet();
+
+  const MysqlTime date(2020, 2, 29, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE);
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    packet->length(0);
+    protocol->store_date(date);
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_Protocol_text_store_date)
+
+static void BM_Protocol_text_store_time(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  Protocol_text *const protocol = initializer.thd()->protocol_text.get();
+  SetupProtocolForBenchmark(protocol);
+  String *const packet = protocol->get_output_packet();
+
+  const MysqlTime time(0, 0, 0, 123, 59, 59, 670000, false,
+                       MYSQL_TIMESTAMP_TIME);
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    packet->length(0);
+    protocol->store_time(time, 6);
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_Protocol_text_store_time)
+
+static void BM_Protocol_text_store_datetime(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  Protocol_text *const protocol = initializer.thd()->protocol_text.get();
+  SetupProtocolForBenchmark(protocol);
+  String *const packet = protocol->get_output_packet();
+
+  const MysqlTime datetime(2020, 2, 29, 23, 59, 59, 670000, false,
+                           MYSQL_TIMESTAMP_DATETIME);
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    packet->length(0);
+    protocol->store_datetime(datetime, 6);
+  }
+
+  StopBenchmarkTiming();
+  initializer.TearDown();
+}
+BENCHMARK(BM_Protocol_text_store_datetime)
 
 }  // namespace protocol_classic_unittest
