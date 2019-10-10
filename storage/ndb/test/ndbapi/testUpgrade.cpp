@@ -35,6 +35,7 @@
 #include <NdbMutex.h>
 #include <NdbEnv.h>
 #include <signaldata/DumpStateOrd.hpp>
+#include <string>
 
 static Vector<BaseString> table_list;
 
@@ -1250,6 +1251,34 @@ int runUpgrade_Traffic(NDBT_Context* ctx, NDBT_Step* step){
   return res;
 }
 
+/**
+ * Return true for versions that have tests named Downgrade*
+ * for downgrade tests. (>= 7.2.40, 7.3.28, 7.4.27, 7.5.17, 7.6.13, 8.0.19)
+ */
+static bool haveNamedDowngradeTests(Uint32 version)
+{
+  const Uint32 major = (version >> 16) & 0xFF;
+  const Uint32 minor = (version >>  8) & 0xFF;
+  const Uint32 build = (version >>  0) & 0xFF;
+
+  if (major == 7)
+  {
+    switch (minor)
+    {
+      case 0: return false;
+      case 1: return false;
+      case 2: return build >= 40;
+      case 3: return build >= 28;
+      case 4: return build >= 27;
+      case 5: return build >= 17;
+      case 6: return build >= 13;
+      default: return true;
+    }
+  }
+
+  return version >= NDB_MAKE_VERSION(8,0,19);
+}
+
 int
 startPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -1275,8 +1304,37 @@ startPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *     this will restart it as "testUpgrade -n X -n X--post-upgrade"
    */
   BaseString tc;
+  std::string tc_name = ctx->getCase()->getName();
+
+  /**
+   * In older versions, there are no test cases with names of the form
+   * Downgrade* .
+   * Hence, when we downgrade from a version that has a test case like
+   * Downgrade* to a version that doesn't, the post-upgrade test fails
+   * since it is of the form Upgrade* in the lower versions.
+   * Hence, we change the names of the post upgrade test cases of the older
+   * versions to Upgrade* here.
+   */
+  if ((tc_name.find("Downgrade") == 0) && !haveNamedDowngradeTests(postVersion))
+  {
+    // Remove _WithMGMDInitialStart and _WithMGMDStart tags
+    size_t with_mgmd_initial_start_tag = tc_name.find("_WithMGMDInitialStart");
+    size_t with_mgmd_start_tag = tc_name.find("_WithMGMDStart");
+
+    if (with_mgmd_initial_start_tag != std::string::npos)
+    {
+      tc_name = tc_name.substr(0, with_mgmd_initial_start_tag);
+    }
+    else if (with_mgmd_start_tag != std::string::npos)
+    {
+      tc_name = tc_name.substr(0, with_mgmd_start_tag);
+    }
+    // Change tc name from Downgrade* to Upgrade*
+    tc_name = tc_name.substr(strlen("Downgrade"), tc_name.length());
+    tc_name = std::string("Upgrade").append(tc_name);
+  }
   tc.assfmt("-n %s--post-upgrade %s", 
-            ctx->getCase()->getName(),
+            tc_name.c_str(),
             extraArgs.c_str());
 
   ndbout << "About to restart self with extra arg: " << tc.c_str() << endl;
@@ -2102,6 +2160,7 @@ TESTCASE("Upgrade_NR1",
 }
 POSTUPGRADE("Upgrade_NR1")
 {
+  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2251,6 +2310,7 @@ TESTCASE("Upgrade_Api_Before_NR1",
          "Test that upgrading the Api node before the kernel works")
 {
   /* Api, then MGMD(s), then NDBDs */
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
@@ -2400,6 +2460,7 @@ TESTCASE("Downgrade_NR1",
 }
 POSTUPGRADE("Downgrade_NR1")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2448,6 +2509,7 @@ TESTCASE("Downgrade_NR2_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_NR2_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2479,6 +2541,7 @@ TESTCASE("Downgrade_NR3_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_NR3_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2520,6 +2583,7 @@ TESTCASE("Downgrade_FS_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_FS_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2559,6 +2623,7 @@ TESTCASE("Downgrade_Traffic_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Traffic_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2602,6 +2667,7 @@ TESTCASE("Downgrade_Traffic_FS_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Traffic_FS_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2639,6 +2705,7 @@ TESTCASE("Downgrade_Traffic_one_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Traffic_one_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2680,6 +2747,7 @@ TESTCASE("Downgrade_Traffic_FS_one_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Traffic_FS_one_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2719,6 +2787,7 @@ TESTCASE("Downgrade_Api_Only_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Api_Only_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeDecideDDL);
   INITIALIZER(runGetTableList);
@@ -2733,6 +2802,7 @@ TESTCASE("Downgrade_Api_Before_NR1",
          "Test that downgrading the Api node before the kernel works")
 {
   /* Api, then MGMD(s), then NDBDs */
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
@@ -2810,6 +2880,7 @@ TESTCASE("Downgrade_Api_NDBD_MGMD_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Api_NDBD_MGMD_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeDecideDDL);
   INITIALIZER(runGetTableList);
@@ -2858,6 +2929,7 @@ TESTCASE("Downgrade_Mixed_MGMD_API_NDBD_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Mixed_MGMD_API_NDBD_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeDecideDDL);
   INITIALIZER(runGetTableList);
@@ -2899,6 +2971,7 @@ TESTCASE("Downgrade_Bug14702377_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_Bug14702377_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2941,6 +3014,7 @@ TESTCASE("Downgrade_SR_ManyTablesMaxFrag_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_SR_ManyTablesMaxFrag_WithMGMDInitialStart")
 {
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
   INITIALIZER(dropManyTables);
