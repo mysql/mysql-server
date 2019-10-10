@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,11 +21,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <string>
-
-#include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <limits>
 
 #include "m_string.h"
+#include "unittest/gunit/benchmark.h"
 
 namespace m_string_unittest {
 
@@ -91,5 +92,29 @@ TEST(MString, HumanReadableSize) {
   human_readable_num_bytes(data_size_str, 32, data_size);
   EXPECT_STREQ("+INF", data_size_str);
 }
+
+static void BM_longlong10_to_str(size_t num_iterations) {
+  StopBenchmarkTiming();
+  const int64_t value = 1234567890123456789;
+
+  StartBenchmarkTiming();
+  for (size_t i = 0; i < num_iterations; ++i) {
+    char buffer[std::numeric_limits<int64_t>::digits10 + 2];
+    longlong10_to_str(value, buffer, -10);
+  }
+}
+BENCHMARK(BM_longlong10_to_str)
+
+static void BM_longlong2str(size_t num_iterations) {
+  StopBenchmarkTiming();
+  const int64_t value = 1234567890123456789;
+
+  StartBenchmarkTiming();
+  for (size_t i = 0; i < num_iterations; ++i) {
+    char buffer[100];
+    longlong2str(value, buffer, -36);
+  }
+}
+BENCHMARK(BM_longlong2str)
 
 }  // namespace m_string_unittest

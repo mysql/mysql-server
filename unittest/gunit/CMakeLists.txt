@@ -122,6 +122,7 @@ SET(TESTS
   filesort_compare
   float_compare
   inplace_vector
+  integer_digits
   intrusive_list_iterator
   key
   like_range

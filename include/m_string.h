@@ -60,9 +60,9 @@ extern void *(*my_str_malloc)(size_t);
 extern void *(*my_str_realloc)(void *, size_t);
 extern void (*my_str_free)(void *);
 
-/* Declared in int2str() */
-extern char _dig_vec_upper[];
-extern char _dig_vec_lower[];
+/* Declared in int2str.cc. */
+extern const char _dig_vec_upper[];
+extern const char _dig_vec_lower[];
 
 /* Prototypes for string functions */
 
@@ -281,22 +281,16 @@ static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
 #define MY_GCVT_MAX_FIELD_WIDTH \
   (DBL_DIG + 4 + std::max(5, MAX_DECPT_FOR_F_FORMAT))
 
-extern char *int2str(long val, char *dst, int radix, int upcase);
-extern char *int10_to_str(long val, char *dst, int radix);
-extern const char *str2int(const char *src, int radix, long lower, long upper,
-                           long *val);
+char *int10_to_str(long val, char *dst, int radix);
+const char *str2int(const char *src, int radix, long lower, long upper,
+                    long *val);
 longlong my_strtoll10(const char *nptr, const char **endptr, int *error);
-#if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define ll2str(A, B, C, D) int2str((A), (B), (C), (D))
-#define longlong10_to_str(A, B, C) int10_to_str((A), (B), (C))
-#undef strtoll
-#define strtoll(A, B, C) strtol((A), (B), (C))
-#define strtoull(A, B, C) strtoul((A), (B), (C))
-#else
-extern char *ll2str(longlong val, char *dst, int radix, int upcase);
-extern char *longlong10_to_str(longlong val, char *dst, int radix);
-#endif
-#define longlong2str(A, B, C) ll2str((A), (B), (C), 1)
+char *ll2str(int64_t val, char *dst, int radix, bool upcase);
+char *longlong10_to_str(int64_t val, char *dst, int radix);
+
+inline char *longlong2str(int64_t val, char *dst, int radix) {
+  return ll2str(val, dst, radix, true);
+}
 
 /*
   This function saves a longlong value in a buffer and returns the pointer to

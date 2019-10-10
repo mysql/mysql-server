@@ -440,6 +440,7 @@
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -3256,17 +3257,41 @@ bool Protocol_classic::store_string(const char *from, size_t length,
   return net_store_data(pointer_cast<const uchar *>(from), length, packet);
 }
 
+/**
+  Stores an integer in the protocol buffer for the text protocol.
+
+  @param to_string the function that converts the integer to a string
+  @param zerofill  the length up to which the value should be zero-padded
+  @param packet    the destination buffer
+  @return false on success, true on error
+*/
+template <typename ToString>
+static bool store_integer(ToString to_string, uint32 zerofill, String *packet) {
+  if (zerofill != 0) {
+    char buff[MY_INT64_NUM_DECIMAL_DIGITS + 1];
+    const char *end = to_string(buff);
+    const size_t int_length = end - buff;
+    return net_store_zero_padded_data(buff, int_length, zerofill, packet);
+  }
+
+  // Make sure the packet has space for a length byte, the digits and a
+  // terminating zero character.
+  char *pos = packet->prep_append(MY_INT64_NUM_DECIMAL_DIGITS + 2,
+                                  PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+  const char *end = to_string(pos + 1);
+  *pos = end - (pos + 1);  // Set the length byte.
+  packet->length(end - packet->ptr());
+  return false;
+}
+
 bool Protocol_text::store_tiny(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_TINY);
   field_pos++;
-  char buff[20];
-  const char *end = int10_to_str(static_cast<int>(from), buff, -10);
-  const size_t int_length = end - buff;
-  if (zerofill != 0)
-    return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
+  return store_integer([from](char *to) { return int10_to_str(from, to, -10); },
+                       zerofill, packet);
 }
 
 bool Protocol_text::store_short(longlong from, uint32 zerofill) {
@@ -3275,12 +3300,8 @@ bool Protocol_text::store_short(longlong from, uint32 zerofill) {
               field_types[field_pos] == MYSQL_TYPE_YEAR ||
               field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
-  char buff[20];
-  const char *end = int10_to_str(static_cast<int>(from), buff, -10);
-  const size_t int_length = end - buff;
-  if (zerofill != 0)
-    return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
+  return store_integer([from](char *to) { return int10_to_str(from, to, -10); },
+                       zerofill, packet);
 }
 
 bool Protocol_text::store_long(longlong from, uint32 zerofill) {
@@ -3289,13 +3310,9 @@ bool Protocol_text::store_long(longlong from, uint32 zerofill) {
               field_types[field_pos] == MYSQL_TYPE_INT24 ||
               field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
-  char buff[20];
-  const char *end =
-      int10_to_str(static_cast<long>(from), buff, from < 0 ? -10 : 10);
-  const size_t int_length = end - buff;
-  if (zerofill != 0)
-    return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
+  return store_integer(
+      [from](char *to) { return int10_to_str(from, to, from < 0 ? -10 : 10); },
+      zerofill, packet);
 }
 
 bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
@@ -3304,12 +3321,11 @@ bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
   DBUG_ASSERT(send_metadata || field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_LONGLONG);
   field_pos++;
-  char buff[22];
-  const char *end = longlong10_to_str(from, buff, unsigned_flag ? 10 : -10);
-  const size_t int_length = end - buff;
-  if (zerofill != 0)
-    return net_store_zero_padded_data(buff, int_length, zerofill, packet);
-  return net_store_data(pointer_cast<const uchar *>(buff), int_length, packet);
+  return store_integer(
+      [from, unsigned_flag](char *to) {
+        return longlong10_to_str(from, to, unsigned_flag ? 10 : -10);
+      },
+      zerofill, packet);
 }
 
 bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
@@ -3384,19 +3400,35 @@ bool Protocol_text::store_double(double from, uint32 decimals,
 }
 
 /**
-  @todo
-  Second_part format ("%06") needs to change when
-  we support 0-6 decimals for time.
+  Stores a temporal value in the protocol buffer for the text protocol.
+
+  @param to_string the function that converts the temporal value to a string
+  @param packet    the destination buffer
+  @return false on success, true on error
 */
+template <typename ToString>
+static bool store_temporal(ToString to_string, String *packet) {
+  const size_t packet_length = packet->length();
+  // Allocate space for the temporal value, plus one byte for the length.
+  char *pos = packet->prep_append(MAX_DATE_STRING_REP_LENGTH + 1,
+                                  PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+  const int length = to_string(pos + 1);
+  *pos = length;
+  packet->length(packet_length + length + 1);
+  return false;
+}
 
 bool Protocol_text::store_datetime(const MYSQL_TIME &tm, uint decimals) {
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == nullptr ||
               is_temporal_type_with_date_and_time(field_types[field_pos]));
   field_pos++;
-  char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_datetime_to_str(tm, buff, decimals);
-  return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
+  return store_temporal(
+      [&tm, decimals](char *to) {
+        return my_datetime_to_str(tm, to, decimals);
+      },
+      packet);
 }
 
 bool Protocol_text::store_date(const MYSQL_TIME &tm) {
@@ -3404,9 +3436,8 @@ bool Protocol_text::store_date(const MYSQL_TIME &tm) {
   DBUG_ASSERT(send_metadata || field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
-  char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_date_to_str(tm, buff);
-  return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
+  return store_temporal([&tm](char *to) { return my_date_to_str(tm, to); },
+                        packet);
 }
 
 bool Protocol_text::store_time(const MYSQL_TIME &tm, uint decimals) {
@@ -3414,9 +3445,9 @@ bool Protocol_text::store_time(const MYSQL_TIME &tm, uint decimals) {
   DBUG_ASSERT(send_metadata || field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
-  char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_time_to_str(tm, buff, decimals);
-  return net_store_data(pointer_cast<const uchar *>(buff), length, packet);
+  return store_temporal(
+      [&tm, decimals](char *to) { return my_time_to_str(tm, to, decimals); },
+      packet);
 }
 
 /**

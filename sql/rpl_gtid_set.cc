@@ -418,7 +418,7 @@ rpl_gno parse_gno(const char **s) {
 }
 
 int format_gno(char *s, rpl_gno gno) {
-  return (int)(ll2str(gno, s, 10, 1) - s);
+  return static_cast<int>(longlong10_to_str(gno, s, 10) - s);
 }
 
 enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous,

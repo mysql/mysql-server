@@ -53,6 +53,7 @@
 #include <cstring>    // std::memset
 
 #include "field_types.h"     // enum_field_types
+#include "integer_digits.h"  // count_digits, write_digits, write_two_digits
 #include "my_byteorder.h"    // int3store
 #include "my_dbug.h"         // DBUG_ASSERT
 #include "my_systime.h"      // localtime_r
@@ -1241,37 +1242,16 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, long *my_timezone,
 } /* my_system_gmt_sec */
 
 /**
-  Writes an unsigned integer to a string. The string is not zero-terminated.
-
-  @param number the number to write
-  @param min_digits the minimum number of digits to write (the number is
-                    zero-padded if it is shorter)
-  @param[in,out] to the destination string
-  @return pointer to the character just after the last digit
+  Writes a two-digit number to a string, padded with zero if it is less than 10.
+  If the number is greater than or equal to 100, "00" is written to the string.
+  The number should be less than 100 for valid temporal values, but the
+  formatting functions need to handle invalid values too, since they are used
+  for formatting the values in error/warning messages when invalid values have
+  been given by the user.
 */
-static char *unsigned_to_string(unsigned long long number, int min_digits,
-                                char *to) {
-  int digits = min_digits;
-  while (number >= log_10_int[digits]) ++digits;
-  for (char *pos = to + digits - 1; pos >= to; --pos) {
-    *pos = '0' + number % 10;
-    number /= 10;
-  }
-  return to + digits;
-}
-
-/**
-  Writes an unsigned integer, which is less than 100, to a string. Always writes
-  two digits, zero-padded if necessary. The string is not zero-terminated.
-
-  @param number the number to write
-  @param[in,out] to the destination string
-  @return pointer to the character just after the last digit
-*/
-static char *write_two_digits(unsigned number, char *to) {
-  to[0] = '0' + number / 10;
-  to[1] = '0' + number % 10;
-  return to + 2;
+static char *format_two_digits(int value, char *to) {
+  if (value < 0 || value >= 100) value = 0;
+  return write_two_digits(value, to);
 }
 
 /**
@@ -1283,7 +1263,7 @@ static char *write_two_digits(unsigned number, char *to) {
 
   @return          The length of the result string
 */
-static int my_useconds_to_str(char *to, ulong useconds, uint dec) {
+static int my_useconds_to_str(char *to, unsigned useconds, unsigned dec) {
   assert(dec <= DATETIME_MAX_DECIMALS);
 
   // Write the decimal point and the terminating zero character.
@@ -1291,9 +1271,8 @@ static int my_useconds_to_str(char *to, ulong useconds, uint dec) {
   to[dec + 1] = '\0';
 
   // Write the dec most significant digits of the microsecond value.
-  unsigned_to_string(useconds / log_10_int[DATETIME_MAX_DECIMALS - dec], dec,
-                     to + 1);
-
+  for (int i = DATETIME_MAX_DECIMALS - dec; i > 0; --i) useconds /= 10;
+  write_digits(useconds, dec, to + 1);
   return dec + 1;
 }
 
@@ -1318,12 +1297,12 @@ int my_time_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
   if (my_time.neg) *to++ = '-';
 
   // Hours should be zero-padded up to two digits. It might have more digits.
-  to = unsigned_to_string(my_time.hour, 2, to);
+  to = write_digits(my_time.hour, std::max(2, count_digits(my_time.hour)), to);
 
   *to++ = ':';
-  to = write_two_digits(my_time.minute, to);
+  to = format_two_digits(my_time.minute, to);
   *to++ = ':';
-  to = write_two_digits(my_time.second, to);
+  to = format_two_digits(my_time.second, to);
 
   const int length = to - start;
   if (dec) return length + my_useconds_to_str(to, my_time.second_part, dec);
@@ -1345,12 +1324,12 @@ int my_time_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
 */
 int my_date_to_str(const MYSQL_TIME &my_time, char *to) {
   const char *const start = to;
-  to = write_two_digits(my_time.year / 100, to);
-  to = write_two_digits(my_time.year % 100, to);
+  to = format_two_digits(my_time.year / 100, to);
+  to = format_two_digits(my_time.year % 100, to);
   *to++ = '-';
-  to = write_two_digits(my_time.month, to);
+  to = format_two_digits(my_time.month, to);
   *to++ = '-';
-  to = write_two_digits(my_time.day, to);
+  to = format_two_digits(my_time.day, to);
   *to = '\0';
   return to - start;
 }
@@ -1366,23 +1345,23 @@ int my_date_to_str(const MYSQL_TIME &my_time, char *to) {
 */
 static int TIME_to_datetime_str(const MYSQL_TIME &my_time, char *to) {
   /* Year */
-  to = write_two_digits(my_time.year / 100, to);
-  to = write_two_digits(my_time.year % 100, to);
+  to = format_two_digits(my_time.year / 100, to);
+  to = format_two_digits(my_time.year % 100, to);
   *to++ = '-';
   /* Month */
-  to = write_two_digits(my_time.month, to);
+  to = format_two_digits(my_time.month, to);
   *to++ = '-';
   /* Day */
-  to = write_two_digits(my_time.day, to);
+  to = format_two_digits(my_time.day, to);
   *to++ = ' ';
   /* Hour */
-  to = write_two_digits(my_time.hour, to);
+  to = format_two_digits(my_time.hour, to);
   *to++ = ':';
   /* Minute */
-  to = write_two_digits(my_time.minute, to);
+  to = format_two_digits(my_time.minute, to);
   *to++ = ':';
   /* Second */
-  write_two_digits(my_time.second, to);
+  format_two_digits(my_time.second, to);
   return 19;
 }
 

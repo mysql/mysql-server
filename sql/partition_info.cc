@@ -585,10 +585,8 @@ void partition_info::set_show_version_string(String *packet) {
       /* No new functions in partition function */
       packet->append(STRING_WITH_LEN("\n/*!50100"));
     } else {
-      char buf[65];
-      char *buf_ptr = longlong10_to_str((longlong)version, buf, 10);
       packet->append(STRING_WITH_LEN("\n/*!"));
-      packet->append(buf, (size_t)(buf_ptr - buf));
+      packet->append_longlong(version);
     }
   }
 }
@@ -1641,7 +1639,7 @@ void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg) {
       if (part_expr->null_value)
         buf_ptr = "NULL";
       else
-        longlong2str(err_value, buf, part_expr->unsigned_flag ? 10 : -10);
+        longlong10_to_str(err_value, buf, part_expr->unsigned_flag ? 10 : -10);
       dbug_tmp_restore_column_map(table_arg->read_set, old_map);
     }
     my_error(ER_NO_PARTITION_FOR_GIVEN_VALUE, MYF(0), buf_ptr);

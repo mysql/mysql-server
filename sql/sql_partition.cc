@@ -1771,7 +1771,7 @@ static int add_int(File fptr, longlong number) {
 
 static int add_uint(File fptr, ulonglong number) {
   char buff[32];
-  longlong2str(number, buff, 10);
+  ullstr(number, buff);
   return add_string(fptr, buff);
 }
 
