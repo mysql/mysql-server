@@ -103,7 +103,7 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define ABORT_TRACE 1
 //#define DO_TRANSIENT_POOL_STAT 1
 //#define DEBUG_EXTRA_LCP 1
@@ -117,8 +117,9 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_REDO_FLAG 1
 //#define DEBUG_TRANSACTION_TIMEOUT 1
 //#define DEBUG_SCHEMA_VERSION 1
+//#define DEBUG_EARLY_LCP 1
 #endif
-#define DEBUG_EARLY_LCP 1
+
 
 #ifdef DEBUG_EARLY_LCP
 #define DEB_EARLY_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -359,7 +360,7 @@ free_log(const LogPosition& head, const LogPosition& tail,
 /* ------------------------------------------------------------------------- */
 void Dblqh::systemError(Signal* signal, int line)
 {
-  signal->theData[0] = 2304;
+  signal->theData[0] = DumpStateOrd::LqhSystemError;
   execDUMP_STATE_ORD(signal);
   progError(line, NDBD_EXIT_NDBREQUIRE);
 }//Dblqh::systemError()
@@ -4062,7 +4063,7 @@ void Dblqh::timer_handling(Signal *signal)
 	     << " tcTimer="<<tTcConptr.p->tcTimer<<endl
 	     << " tcTimer+12000="<<tTcConptr.p->tcTimer + 12000<<endl;
 
-      signal->theData[0] = 2307;
+      signal->theData[0] = DumpStateOrd::LqhDumpAllTcRec;
       signal->theData[1] = tTcConptr.i;
       execDUMP_STATE_ORD(signal);
       
@@ -8320,11 +8321,14 @@ Dblqh::acckeyconf_load_diskpage(Signal* signal, TcConnectionrecPtr regTcPtr,
                                 Uint32 lkey1, Uint32 lkey2)
 {
   int res;
+  Uint32 disk_flag = regTcPtr.p->operation;
+  disk_flag += (LqhKeyReq::getNrCopyFlag(regTcPtr.p->reqinfo) |
+                c_executing_redo_log) ? Page_cache_client::COPY_FRAG : 0;
   if((res= c_tup->load_diskpage(signal, 
 				regTcPtr.p->tupConnectrec,
 				regFragptrP->tupFragptr,
 				lkey1, lkey2,
-				regTcPtr.p->operation)) > 0)
+				disk_flag)) > 0)
   {
     jamDebug();
     acckeyconf_tupkeyreq(signal, regTcPtr.p, regFragptrP, lkey1, lkey2, res);
@@ -8333,6 +8337,9 @@ Dblqh::acckeyconf_load_diskpage(Signal* signal, TcConnectionrecPtr regTcPtr,
   {
     jamDebug();
     regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP;
+    DEB_COPY(("(%u)get_page returned 0 for %u",
+              instance(),
+              regTcPtr.i));
     regTcPtr.p->m_row_id.m_page_no = lkey1;
     regTcPtr.p->m_row_id.m_page_idx = lkey2;
   }
@@ -8345,12 +8352,14 @@ Dblqh::acckeyconf_load_diskpage(Signal* signal, TcConnectionrecPtr regTcPtr,
     if (res == -1)
     {
       jam();
+      DEB_COPY(("(%u)get_page returned with -1", instance()));
       ref->errorCode= ~0;
     }
     else
     {
       jam();
       ref->errorCode = -res;
+      DEB_COPY(("(%u)get_page returned with %d", instance(), -res));
     }
     execTUPKEYREF(signal);
     return;
@@ -11236,6 +11245,11 @@ void Dblqh::abortStateHandlerLab(Signal* signal,
 // consistency in overload situations.
 /* ------------------------------------------------------------------------- */
     regTcPtr->transactionState = TcConnectionrec::WAIT_TUP_TO_ABORT;
+    DEB_COPY(("(%u)transactionState(%u) set to WAIT_TUP_TO_ABORT,"
+              " abortState: %u",
+              instance(),
+              tcConnectptr.i,
+              regTcPtr->abortState));
     return;
   case TcConnectionrec::WAIT_ACC:
     jam();
@@ -11352,7 +11366,9 @@ void Dblqh::abortCommonLab(Signal* signal,
       /**
        * Let operation wait for pending NR operations
        */
-      
+     DEB_COPY(("(%u)Blocked in abortCommonLab for %u",
+               instance(),
+               tcConnectptr.i));
 #ifdef VM_TRACE
       /**
        * Only disk table can have pending ops...
@@ -14783,12 +14799,14 @@ Dblqh::next_scanconf_load_diskpage(Signal* signal,
 
   int res;
 
+  Uint32 disk_flag = (scanPtr->m_reserved) ? Page_cache_client::COPY_FRAG : 0;
   if ((res = c_tup->load_diskpage_scan(signal,
                                        regTcPtr.p->tupConnectrec,
                                        fragPtrP->tupFragptr,
                                        scanPtr->m_row_id.m_page_no,
                                        scanPtr->m_row_id.m_page_idx,
-                                       scanPtr->rangeScan)) > 0)
+                                       scanPtr->rangeScan,
+                                       disk_flag)) > 0)
   {
     next_scanconf_tupkeyreq(signal, scanPtr, regTcPtr.p, fragPtrP, res);
     return;
@@ -15208,7 +15226,7 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
   if (scanptr.p->copyPtr != RNIL)
   {
     jamDebug();
-    DEB_COPY(("tupScanCloseConfLab from COPY_FRAGREQ"));
+    DEB_COPY(("(%u)tupScanCloseConfLab from COPY_FRAGREQ", instance()));
     tupCopyCloseConfLab(signal, tcConnectptr);
     return;
   }
@@ -22853,7 +22871,7 @@ void Dblqh::writeSinglePage(Signal* signal, Uint32 pageNo,
 
   if (logFilePtr.p->fileRef == RNIL)
   {
-    signal->theData[0] = 2305;
+    signal->theData[0] = DumpStateOrd::LqhFailedHandlingGCP_SAVEREQ;
     execDUMP_STATE_ORD(signal);
   }
   ndbrequire(logFilePtr.p->fileRef != RNIL);
@@ -30096,6 +30114,22 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
+  if (dumpState->args[0] == DumpStateOrd::LqhDumpOneCopyTcRec)
+  {
+    TcConnectionrecPtr tcRec;
+    tcRec.i = signal->theData[1];
+    if (!tcConnect_pool.getValidPtr(tcRec))
+    {
+      jam();
+      return;
+    }
+    g_eventLogger->info("Copy TC record: tab(%u), error: %u,"
+                        " copyCountWords: %u",
+                        tcRec.p->tableref,
+                        tcRec.p->errorCode,
+                        tcRec.p->copyCountWords);
+    return;
+  }
   // Dump all ScanRecords
   if ((dumpState->args[0] == DumpStateOrd::LqhDumpAllScanRec) ||
       (dumpState->args[0] == DumpStateOrd::LqhDumpAllActiveScanRec))
@@ -30260,7 +30294,8 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 #endif
 #endif
 
-  if(arg == 2304 || arg == 2305)
+  if(arg == DumpStateOrd::LqhSystemError ||
+     arg == DumpStateOrd::LqhFailedHandlingGCP_SAVEREQ)
   {
     jam();
 
@@ -30328,7 +30363,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       }
     }
 
-    if(arg== 2305)
+    if(arg== DumpStateOrd::LqhFailedHandlingGCP_SAVEREQ)
     {
       if (ERROR_INSERTED(5085))
       {
@@ -30359,7 +30394,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(arg == 2306)
+  if(arg == DumpStateOrd::LqhDumpAllTcRec)
   {
     Uint32 bucketLen[TRANSID_HASH_SIZE];
     for(Uint32 i = 0; i<TRANSID_HASH_SIZE; i++)
@@ -30371,7 +30406,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       {
         ndbrequire(tcConnect_pool.getValidPtr(tcRec));
 	ndbout << "TcConnectionrec " << tcRec.i;
-	signal->theData[0] = 2307;
+	signal->theData[0] = DumpStateOrd::LqhDumpOneTcRec;
 	signal->theData[1] = tcRec.i;
 	execDUMP_STATE_ORD(signal);
 	tcRec.i = tcRec.p->nextHashRec;
@@ -30389,7 +30424,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     ndbout << "Done." << endl;
   }
 
-  if(arg == 2307 || arg == 2308)
+  if (arg == DumpStateOrd::LqhDumpOneTcRec || arg == 2308)
   {
     TcConnectionrecPtr tcRec;
     tcRec.i = signal->theData[1];
@@ -32590,6 +32625,9 @@ Dblqh::handle_check_system_scans(Signal *signal)
           signal->theData[0] = DumpStateOrd::AccDumpOneScanRec;
           signal->theData[1] = loc_scanptr.p->scanAccPtr;
           EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
+          signal->theData[0] = DumpStateOrd::LqhDumpOneCopyTcRec;
+          signal->theData[1] = loc_tcConnectptr.i;
+          EXECUTE_DIRECT(DBLQH, GSN_DUMP_STATE_ORD, signal, 2);
         }
         signal->theData[0] = DumpStateOrd::LqhDumpOneScanRec;
         signal->theData[1] = loc_scanptr.i;

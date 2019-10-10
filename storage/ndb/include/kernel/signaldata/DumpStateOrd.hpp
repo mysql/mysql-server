@@ -131,6 +131,12 @@ public:
     LqhDumpAllScanRec = 2301,
     LqhDumpAllActiveScanRec = 2302,
     LqhDumpLcpState = 2303,
+    LqhSystemError = 2304,
+    LqhFailedHandlingGCP_SAVEREQ = 2305,
+    LqhDumpAllTcRec = 2306,
+    LqhDumpOneTcRec = 2307,
+    // 2308 is used
+    LqhDumpOneCopyTcRec = 2310,
     LqhErrorInsert5042 = 2315,
     LqhDumpPoolLevels = 2353,
     LqhReportCopyInfo = 2354,

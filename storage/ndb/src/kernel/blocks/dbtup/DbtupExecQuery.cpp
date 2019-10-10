@@ -45,7 +45,7 @@
 #define JAM_FILE_ID 422
 
 #define TUP_NO_TUPLE_FOUND 626
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_LCP 1
 //#define DEBUG_DELETE 1
 //#define DEBUG_DELETE_NR 1
@@ -614,7 +614,8 @@ Dbtup::disk_page_load_callback(Signal* signal, Uint32 opRec, Uint32 page_id)
 int
 Dbtup::load_diskpage_scan(Signal* signal,
 			  Uint32 opRec, Uint32 fragPtrI,
-			  Uint32 lkey1, Uint32 lkey2, Uint32 tux_flag)
+			  Uint32 lkey1, Uint32 lkey2, Uint32 tux_flag,
+                          Uint32 disk_flag)
 {
   Ptr<Operationrec> operPtr;
   operPtr.i = opRec;
@@ -669,7 +670,7 @@ Dbtup::load_diskpage_scan(Signal* signal,
       safe_cast(&Dbtup::disk_page_load_scan_callback);
     
     Page_cache_client pgman(this, c_pgman);
-    res= pgman.get_page(signal, req, 0);
+    res= pgman.get_page(signal, req, disk_flag);
   }
   return res;
 }

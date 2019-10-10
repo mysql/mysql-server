@@ -35,7 +35,7 @@
 
 #define JAM_FILE_ID 408
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_LCP 1
 //#define DEBUG_LCP_DEL2 1
 //#define DEBUG_LCP_DEL_EXTRA 1

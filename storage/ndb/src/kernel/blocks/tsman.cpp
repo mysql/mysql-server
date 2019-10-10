@@ -47,7 +47,7 @@ static bool g_use_old_format = false;
 #define UNCOMMITTED_MASK ((1 << 2) | (1 << 3))
 #define UNCOMMITTED_SHIFT 2
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_TSMAN 1
 //#define DEBUG_TSMAN_NUM_EXTENTS 1
 //#define DEBUG_TSMAN_RESTART 1

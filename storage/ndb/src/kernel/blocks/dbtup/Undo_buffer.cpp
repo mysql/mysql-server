@@ -59,7 +59,7 @@ Undo_buffer::Undo_buffer(Ndbd_mem_manager* mm)
 Uint32 *
 Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
 {
-  UndoPage* page;
+  UndoPage* page = nullptr;
   assert(words);
 #ifdef SAFE_UB
   words += 2; // header + footer
@@ -69,7 +69,7 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   {
     return nullptr;
   }
-  Uint32 pos;
+  Uint32 pos = 0;
   if (m_first_free != RNIL)
   {
     page = get_page(m_mm, m_first_free);

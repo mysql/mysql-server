@@ -304,10 +304,11 @@ private:
       ,UNDO_REQ     = 0x2000 // Request from UNDO processing
       ,DISK_SCAN    = 0x4000 // Request from Disk scan
       ,ABORT_REQ    = 0x8000 // Part of ABORT will not update LSN
+      ,COPY_FRAG    = 0x10000// Request part of BACKUP/COPY_FRAG processing
     };
     
-    Uint16 m_block; // includes instance
-    Uint16 m_flags;
+    Uint32 m_block; // includes instance
+    Uint32 m_flags;
     SimulatedBlock::Callback m_callback;
 
 #ifdef ERROR_INSERT
@@ -897,6 +898,7 @@ public:
     ,DISK_SCAN = Pgman::Page_request::DISK_SCAN
     ,ABORT_REQ = Pgman::Page_request::ABORT_REQ
     ,UNDO_GET_REQ = Pgman::Page_request::UNDO_GET_REQ
+    ,COPY_FRAG = Pgman::Page_request::COPY_FRAG
   };
   
   /**
