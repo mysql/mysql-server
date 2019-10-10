@@ -275,6 +275,8 @@ class Swap_mem_root_guard {
 
   ~Swap_mem_root_guard() { m_thd->mem_root = m_old_mem_root; }
 
+  MEM_ROOT *old_mem_root() { return m_old_mem_root; }
+
  private:
   THD *m_thd;
   MEM_ROOT *m_old_mem_root;

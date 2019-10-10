@@ -2777,7 +2777,7 @@ Field_new_decimal::Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
   bin_size = my_decimal_get_binary_size(precision, dec);
 }
 
-Field *Field_new_decimal::create_from_item(Item *item) {
+Field *Field_new_decimal::create_from_item(const Item *item) {
   uint8 dec = item->decimals;
   uint8 intg = item->decimal_precision() - dec;
   uint32 len = item->max_char_length();
@@ -10373,7 +10373,7 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
     Field *from_field, *default_field;
     tmp_table_field = create_tmp_field(thd, tmp_table, item, item->type(),
                                        nullptr, &from_field, &default_field,
-                                       false, false, false, false);
+                                       false, false, false, false, false);
   }
 
   if (!tmp_table_field) {

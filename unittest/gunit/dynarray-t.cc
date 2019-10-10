@@ -131,17 +131,6 @@ TEST_F(MemRootTest, Reserve) {
   EXPECT_LE(num_pushes, intarr.capacity());
 }
 
-// Verify that we can move MEM_ROOT without any leaks.
-// Run with
-// valgrind --leak-check=full <executable> --gtest_filter='-*DeathTest*' > foo
-TEST_F(MemRootTest, MoveMemRoot) {
-  Mem_root_array<uint> intarr(m_mem_root_p);
-  MEM_ROOT own_root = std::move(*m_mem_root_p);
-  intarr.set_mem_root(&own_root);
-  intarr.push_back(42);
-  *m_mem_root_p = std::move(own_root);
-}
-
 class DestroyCounter {
  public:
   DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {}

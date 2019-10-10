@@ -904,7 +904,7 @@ class Item : public Parse_tree_node {
   void init_make_field(Send_field *tmp_field, enum enum_field_types type);
   virtual void cleanup();
   virtual void make_field(Send_field *field);
-  virtual Field *make_string_field(TABLE *table);
+  virtual Field *make_string_field(TABLE *table) const;
   virtual bool fix_fields(THD *, Item **);
   /**
     Fix after tables have been moved from one select_lex level to the parent
@@ -2370,7 +2370,7 @@ class Item : public Parse_tree_node {
   // used in row subselects to get value of elements
   virtual void bring_value() {}
 
-  Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
+  Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length) const;
   virtual Item_field *field_for_view_update() { return nullptr; }
   /**
     Informs an item that it is wrapped in a truth test, in case it wants to

@@ -30,7 +30,6 @@
   Temporary table handling functions.
 */
 
-#include <stddef.h>
 #include <sys/types.h>
 
 #include "my_base.h"  // ha_rows
@@ -71,7 +70,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                         Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field, bool group, bool modify_item,
                         bool table_cant_handle_bit_fields, bool make_copy_field,
-                        bool copy_result_field = false);
+                        bool copy_result_field);
 Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item);

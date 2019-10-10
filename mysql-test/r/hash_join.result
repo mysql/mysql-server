@@ -1533,7 +1533,7 @@ alias1.col_int_key DESC, field1
 LIMIT 2 OFFSET 2;
 EXPLAIN
 -> Limit/Offset: 2/2 row(s)
-    -> Sort: <temporary>.col_int_key DESC, <temporary>.pk
+    -> Sort: <temporary>.col_int_key DESC, <temporary>.field1
         -> Filter: (field1 <> 0)
             -> Table scan on <temporary>
                 -> Temporary table with deduplication

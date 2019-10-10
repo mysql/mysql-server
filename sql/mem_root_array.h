@@ -85,15 +85,6 @@ class Mem_root_array_YY {
     m_capacity = 0;
   }
 
-  /**
-    Switches mem-root, in case original mem-root was copied.
-    NOTE: m_root should really be const, i.e. never change after initialization.
-  */
-  void set_mem_root(MEM_ROOT *new_root) {
-    m_root = new_root;
-    DBUG_ASSERT(m_root != nullptr);
-  }
-
   Element_type &at(size_t n) {
     DBUG_ASSERT(n < size());
     return m_array[n];

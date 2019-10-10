@@ -5702,7 +5702,7 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp,
   @param table		Table for which the field is created
 */
 
-Field *Item::make_string_field(TABLE *table) {
+Field *Item::make_string_field(TABLE *table) const {
   Field *field;
   DBUG_ASSERT(collation.collation);
   if (data_type() == MYSQL_TYPE_JSON)
@@ -5734,7 +5734,8 @@ Field *Item::make_string_field(TABLE *table) {
   @retval NULL  error
 */
 
-Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length) {
+Field *Item::tmp_table_field_from_field_type(TABLE *table,
+                                             bool fixed_length) const {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
   */
@@ -9455,7 +9456,9 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
       field = tmp_table_field_from_field_type(table, false);
       break;
   }
-  if (strict && field && is_temporal_type_with_date(field->type()) &&
+  if (field == nullptr) return nullptr;
+
+  if (strict && is_temporal_type_with_date(field->type()) &&
       !field->real_maybe_null()) {
     /*
       This function is used for CREATE SELECT UNION [ALL] ... , and, if
@@ -9465,6 +9468,7 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
     */
     field->flags |= NO_DEFAULT_VALUE_FLAG;
   }
+  field->set_derivation(collation.derivation);
   return field;
 }
 

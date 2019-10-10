@@ -315,7 +315,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
       Field *from_field, *default_field;
       tmp_field = create_tmp_field(thd, &table, item, item->type(), nullptr,
                                    &from_field, &default_field, false, false,
-                                   false, false);
+                                   false, false, false);
     }
     if (!tmp_field) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));

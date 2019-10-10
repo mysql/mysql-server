@@ -2157,7 +2157,7 @@ class Field_new_decimal : public Field_num {
   }
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
-  static Field *create_from_item(Item *);
+  static Field *create_from_item(const Item *item);
   bool send_to_protocol(Protocol *protocol) const final override;
   void set_keep_precision(bool arg) { m_keep_precision = arg; }
 };
