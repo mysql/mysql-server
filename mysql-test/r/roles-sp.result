@@ -89,6 +89,36 @@ GRANT EXECUTE, SELECT ON db1.* TO r1;
 ++ Positive test
 CALL db1.sp3();
 c1
+############################################################
+## Make sure function privileges are aggregated correctly ##
+############################################################
+CREATE SCHEMA world;
+USE world;
+CREATE PROCEDURE world.proc_empty() BEGIN END;
+CREATE FUNCTION world.func_plusone(i int) RETURNS INT DETERMINISTIC RETURN i+1;
+CREATE FUNCTION world.func_plustwo(i int) RETURNS INT DETERMINISTIC RETURN i+2;
+CREATE ROLE r_worldrou;
+GRANT EXECUTE ON PROCEDURE world.proc_empty TO r_worldrou;
+GRANT EXECUTE ON FUNCTION world.func_plusone TO r_worldrou;
+CREATE USER u_worldrou@localhost IDENTIFIED BY 'xxx' DEFAULT ROLE r_worldrou;
+SHOW GRANTS FOR u_worldrou@localhost USING r_worldrou;
+Grants for u_worldrou@localhost
+GRANT USAGE ON *.* TO `u_worldrou`@`localhost`
+GRANT EXECUTE ON PROCEDURE `world`.`proc_empty` TO `u_worldrou`@`localhost`
+GRANT EXECUTE ON FUNCTION `world`.`func_plusone` TO `u_worldrou`@`localhost`
+GRANT `r_worldrou`@`%` TO `u_worldrou`@`localhost`
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r_worldrou`@`%`
+CALL world.proc_empty();
+SELECT world.func_plusone(1);
+world.func_plusone(1)
+2
+SELECT world.func_plustwo(1);
+ERROR 42000: execute command denied to user 'u_worldrou'@'localhost' for routine 'world.func_plustwo'
+DROP SCHEMA world;
+DROP ROLE r_worldrou;
+DROP USER u_worldrou@localhost;
 ++ Clean up
 DROP DATABASE db1;
 DROP DATABASE db2;

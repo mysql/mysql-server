@@ -1634,7 +1634,7 @@ class Get_access_maps : public boost::default_bfs_visitor {
     get_sp_access_map(&acl_user, m_sp_map, proc_priv_hash.get());
 
     /* Add user function access */
-    get_sp_access_map(&acl_user, m_sp_map, func_priv_hash.get());
+    get_sp_access_map(&acl_user, m_func_map, func_priv_hash.get());
 
     /* Add dynamic privileges */
     get_dynamic_privileges(&acl_user, m_dynamic_acl);
