@@ -48,7 +48,7 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 441
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_LGMAN 1
 //#define DEBUG_DROP_LG 1
 //#define DEBUG_LGMAN_LCP 1

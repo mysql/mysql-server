@@ -2028,7 +2028,8 @@ public:
 		    Uint32 lkey1, Uint32 lkey2, Uint32 flags);
 
   int load_diskpage_scan(Signal*, Uint32 opRec, Uint32 fragPtrI,
-			 Uint32 lkey1, Uint32 lkey2, Uint32 flags);
+			 Uint32 lkey1, Uint32 lkey2,
+                         Uint32 tux_flags, Uint32 disk_flag);
 
   void start_restore_lcp(Uint32 tableId, Uint32 fragmentId);
   void complete_restore_lcp(Signal*,

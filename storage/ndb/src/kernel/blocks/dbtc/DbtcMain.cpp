@@ -124,7 +124,16 @@ extern EventLogger * g_eventLogger;
 #else
 #define DEBUG(x)
 #endif
-  
+
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_NODE_FAILURE 1
+#endif
+
+#ifdef DEBUG_NODE_FAILURE
+#define DEB_NODE_FAILURE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_NODE_FAILURE(arglist) do { } while (0)
+#endif
 
 #ifdef VM_TRACE
 NdbOut &
@@ -11250,6 +11259,9 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     }
     ndbassert(maxInstanceId < NDBMT_MAX_BLOCK_INSTANCES);
     /* A node has reported one phase of take over handling as completed. */
+    DEB_NODE_FAILURE(("Node %u report completion of a phase, maxInstance: %u",
+                      nodeId,
+                      maxInstanceId));
     nodeTakeOverCompletedLab(signal, nodeId, maxInstanceId);
     return;
   }//if
@@ -11460,6 +11472,7 @@ void Dbtc::nodeTakeOverCompletedLab(Signal* signal,
         /*       NOT ALL NODES ARE COMPLETED WITH REPORTING IN THE    */
         /*       TAKE OVER.                                           */
         /*------------------------------------------------------------*/
+        DEB_NODE_FAILURE(("Not all nodes completed take over"));
         return;
       }//if
     }//if
@@ -11521,6 +11534,9 @@ void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd)
       ctransidFailHash[tcNodeFailptr.p->currentHashIndexTakeOver] = 
         apiConnectptr.p->nextApiConnect;
       tcNodeFailptr.p->handledOneTransaction = true;
+      DEB_NODE_FAILURE(("Handle apiConnect: %u in hash index: %u",
+                        apiConnectptr.i,
+                        tcNodeFailptr.p->currentHashIndexTakeOver));
       completeTransAtTakeOverDoOne(signal, TtakeOverInd, apiConnectptr);
       // One transaction taken care of, return from this function
       // and wait for the next CONTINUEB to continue processing
@@ -11533,6 +11549,7 @@ void Dbtc::completeTransAtTakeOverLab(Signal* signal, UintR TtakeOverInd)
         tcNodeFailptr.p->currentHashIndexTakeOver++;
       } else {
         jam();
+        DEB_NODE_FAILURE(("completeTransAtTakeOverDoLast"));
         completeTransAtTakeOverDoLast(signal, TtakeOverInd); 
         tcNodeFailptr.p->currentHashIndexTakeOver++;
       }//if
@@ -11685,6 +11702,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd, ApiC
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
     commitGciHandling(signal, apiConnectptr.p->globalcheckpointid, apiConnectptr);
+    DEB_NODE_FAILURE(("toCompleteHandling"));
     toCompleteHandlingLab(signal, apiConnectptr);
     return;
   case CS_FAIL_COMMITTING:
@@ -11700,6 +11718,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd, ApiC
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
     commitGciHandling(signal, apiConnectptr.p->globalcheckpointid, apiConnectptr);
+    DEB_NODE_FAILURE(("toCommitHandling"));
     toCommitHandlingLab(signal, apiConnectptr);
     return;
   case CS_FAIL_ABORTING:
@@ -11721,12 +11740,14 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd, ApiC
     apiConnectptr.p->currentTcConnect = tcConnectptr.i;
     apiConnectptr.p->currentReplicaNo = tcConnectptr.p->lastReplicaNo;
     tcurrentReplicaNo = tcConnectptr.p->lastReplicaNo;
+    DEB_NODE_FAILURE(("toAbortHandling"));
     toAbortHandlingLab(signal, apiConnectptr);
     return;
   case CS_FAIL_ABORTED:
     jam();
     sendTCKEY_FAILREF(signal, apiConnectptr.p);
     
+    DEB_NODE_FAILURE(("sendTCKEY_FAILREF"));
     signal->theData[0] = TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER;
     signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
     signal->theData[2] = apiConnectptr.p->takeOverInd;
@@ -11737,6 +11758,7 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd, ApiC
     jam();
     sendTCKEY_FAILCONF(signal, apiConnectptr.p);
     
+    DEB_NODE_FAILURE(("sendTCKEY_FAILCONF"));
     signal->theData[0] = TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER;
     signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
     signal->theData[2] = apiConnectptr.p->takeOverInd;

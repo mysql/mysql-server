@@ -46,7 +46,7 @@
 
 #include <EventLogger.hpp>
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DO_TRANSIENT_POOL_STAT 1
 #endif
 

@@ -30,7 +30,7 @@
 
 #define JAM_FILE_ID 426
 
-#ifdef VM_TRACE
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_LCP 1
 //#define DEBUG_PGMAN 1
 //#define DEBUG_EXTENT_BITS 1
