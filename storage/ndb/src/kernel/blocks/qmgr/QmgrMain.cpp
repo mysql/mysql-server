@@ -464,17 +464,15 @@ Qmgr::execREAD_CONFIG_REQ(Signal* signal)
     {
       jam();
       /**
-       * The default assignment is to use half the number of LDM
-       * threads, if by chance the number of TC threads is higher
-       * we will use half of this number instead. This default
-       * number is based on that we don't expect that two LDM
-       * threads can overload one transporter. This is based on
-       * experimental experience.
+       * The default assignment is to use the same number of multi
+       * transporters as there are LDM instances in this node.
+       * So essentially each LDM thread will have its own transporter
+       * to the corresponding LDM thread in the other nodes in the
+       * same node group. This will ensure that I can assign the
+       * transporter to the send thread the LDM thread assists as
+       * well.
        */
-      Uint32 max_threads_in_one_type = MAX(globalData.ndbMtLqhThreads,
-                                           globalData.ndbMtTcThreads);
-      Uint32 default_num_ng_trps = (max_threads_in_one_type + 1) / 2;
-      m_num_multi_trps = default_num_ng_trps;
+      m_num_multi_trps = globalData.ndbMtLqhThreads;
     }
     else
     {
@@ -9716,6 +9714,7 @@ Qmgr::check_connect_multi_transporter(Signal *signal, NodeId node_id)
       jam();
       return;
     }
+    assign_multi_trps_to_send_threads();
     send_switch_multi_transporter(signal, node_id, false);
     return;
   }
@@ -9808,6 +9807,7 @@ Qmgr::execSWITCH_MULTI_TRP_REQ(Signal *signal)
   NodeRecPtr nodePtr;
   nodePtr.i = node_id;
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+  assign_multi_trps_to_send_threads();
 
   CRASH_INSERTION(954);
   if (!check_all_multi_trp_nodes_connected())

@@ -659,6 +659,8 @@ public:
                          TrpId *trp_ids,
                          Uint32 &num_trp_ids,
                          Uint32 max_trp_ids);
+
+  Uint32 get_num_trps();
 private:
   /**
    * Sum of max transporter memory for each transporter.
@@ -718,6 +720,12 @@ public:
   void setMixologyLevel(Uint32 l);
 #endif
 };
+
+inline Uint32
+TransporterRegistry::get_num_trps()
+{
+  return nTransporters;
+}
 
 inline void
 TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)

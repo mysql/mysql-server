@@ -761,6 +761,14 @@ SimulatedBlock::assign_recv_thread_new_trp(Uint32 trp_id)
 #endif
 }
 
+void
+SimulatedBlock::assign_multi_trps_to_send_threads()
+{
+#ifdef NDBD_MULTITHREADED
+  mt_assign_multi_trps_to_send_threads();
+#endif
+}
+
 bool
 SimulatedBlock::epoll_add_trp(NodeId node_id, TrpId trp_id)
 {

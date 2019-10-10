@@ -1496,7 +1496,8 @@ void*
 Ndbd_mem_manager::alloc_page(Uint32 type,
                              Uint32* i,
                              AllocZone zone,
-                             bool locked)
+                             bool locked,
+                             bool use_max_part)
 {
   Uint32 idx = type & RG_MASK;
   assert(idx && idx <= MM_RG_COUNT);
@@ -1510,9 +1511,18 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
   const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
   if (free_res < cnt)
   {
-    const Uint32 free_shr = m_resource_limits.get_resource_free_shared(idx);
-    const Uint32 free = m_resource_limits.get_resource_free(idx);
-    if (free < min || (free_shr + free_res < min))
+    if (use_max_part)
+    {
+      const Uint32 free_shr = m_resource_limits.get_resource_free_shared(idx);
+      const Uint32 free = m_resource_limits.get_resource_free(idx);
+      if (free < min || (free_shr + free_res < min))
+      {
+        if (!locked)
+          mt_mem_manager_unlock();
+        return NULL;
+      }
+    }
+    else
     {
       if (!locked)
         mt_mem_manager_unlock();
