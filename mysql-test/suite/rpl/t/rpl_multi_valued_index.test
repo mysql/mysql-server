@@ -1,4 +1,5 @@
 --source include/have_binlog_format_row.inc
+--source include/have_binlog_transaction_dependency_tracking_commit_order.inc
 --source include/master-slave.inc
 
 
