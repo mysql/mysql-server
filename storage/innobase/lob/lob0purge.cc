@@ -168,8 +168,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       row_log_table_blob_free(index, ref.page_no());
     }
 
-    first.free_all_index_pages();
-    first.dealloc();
+    first.destroy();
 
   } else {
     ut_ad(first.validate());
@@ -277,9 +276,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       row_log_table_blob_free(index, ref.page_no());
     }
 
-    first.free_all_frag_node_pages();
-    first.free_all_index_pages();
-    first.dealloc();
+    first.destroy();
 
   } else {
     ut_ad(first.validate());
@@ -384,9 +381,7 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       row_log_table_blob_free(index, ref.page_no());
     }
 
-    first.free_all_frag_node_pages();
-    first.free_all_index_pages();
-    first.dealloc();
+    first.destroy();
 
   } else {
     ut_ad(first.validate());
@@ -531,9 +526,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     if (dict_index_is_online_ddl(index)) {
       row_log_table_blob_free(index, ref.page_no());
     }
-    first.free_all_data_pages();
-    first.free_all_index_pages();
-    first.dealloc();
+    first.destroy();
   }
 
   ref.set_page_no(FIL_NULL, mtr);

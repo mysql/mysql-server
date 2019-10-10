@@ -253,6 +253,9 @@ struct first_page_t : public basic_page_t {
   been freed. */
   void dealloc();
 
+  /** Free all the pages associated with this LOB. */
+  void destroy();
+
   /** Check if the index list is empty or not.
   @return true if empty, false otherwise. */
   bool is_empty() const {

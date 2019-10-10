@@ -282,7 +282,7 @@ frag_id_t z_first_page_t::alloc_fragment(bool bulk, ulint len,
 
   if (fil_addr_is_null(loc)) {
     /* Need to allocate a new fragment page. */
-    buf_block_t *tmp_block = frag_page.alloc(first_page_no + 1, bulk);
+    buf_block_t *tmp_block = frag_page.alloc(*this, first_page_no + 1, bulk);
 
     if (tmp_block == nullptr) {
       return (FRAG_ID_NULL);
@@ -484,6 +484,43 @@ void z_first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
   set_last_trx_undo_no(undo_no);
 }
 
+void z_first_page_t::free_all_data_pages() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+
+  flst_base_node_t *flst = index_list();
+  fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
+
+  z_index_entry_t cur_entry(&local_mtr, m_index);
+
+  while (!fil_addr_is_null(node_loc)) {
+    flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
+    cur_entry.reset(node);
+    cur_entry.free_data_pages(&local_mtr);
+
+    flst_base_node_t *vers = cur_entry.get_versions_list();
+    fil_addr_t ver_loc = flst_get_first(vers, &local_mtr);
+
+    while (!fil_addr_is_null(ver_loc)) {
+      flst_node_t *ver_node = addr2ptr_x(ver_loc, &local_mtr);
+      z_index_entry_t vers_entry(ver_node, &local_mtr, m_index);
+      vers_entry.free_data_pages(&local_mtr);
+      ver_loc = vers_entry.get_next();
+
+      restart_mtr(&local_mtr);
+      node = addr2ptr_x(node_loc, &local_mtr);
+      cur_entry.reset(node);
+    }
+
+    node_loc = cur_entry.get_next();
+    cur_entry.reset(nullptr);
+    restart_mtr(&local_mtr);
+  }
+  mtr_commit(&local_mtr);
+}
+
 #ifdef UNIV_DEBUG
 bool z_first_page_t::validate() {
   mtr_t local_mtr;
@@ -541,5 +578,115 @@ void z_first_page_t::import(trx_id_t trx_id) {
     entry.set_trx_id_modifier_no_redo(trx_id);
   }
 }
+
+void z_first_page_t::free_all_frag_pages_old() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+
+  /* There is no list of fragment pages maintained.  We have to identify the
+   * list of fragment pages from the following two lists. */
+  flst_base_node_t *frag_lst = frag_list();
+  flst_base_node_t *free_frag_lst = free_frag_list();
+
+  std::vector<flst_base_node_t *> two_list = {frag_lst, free_frag_lst};
+
+  for (auto cur_lst : two_list) {
+    while (flst_get_len(cur_lst) > 0) {
+      fil_addr_t loc = flst_get_first(cur_lst, &local_mtr);
+      flst_node_t *node = addr2ptr_x(loc, &local_mtr);
+      z_frag_entry_t entry(node, &local_mtr);
+      page_no_t frag_page_no = entry.get_page_no();
+      loc = entry.get_next();
+      entry.remove(cur_lst);
+
+      if (frag_page_no == FIL_NULL) {
+        continue;
+      }
+
+      /* Multiple entries can point to the same fragment page.  So scan through
+       * the list and remove all entries pointing to the same fragment page. */
+      while (!fil_addr_is_null(loc)) {
+        node = addr2ptr_x(loc, &local_mtr);
+        z_frag_entry_t entry2(node, &local_mtr);
+
+        loc = entry2.get_next();
+        if (frag_page_no == entry2.get_page_no()) {
+          entry2.set_page_no(FIL_NULL);
+          entry2.remove(cur_lst);
+        }
+      }
+
+      /* Free the fragment page. */
+      entry.free_frag_page(&local_mtr, m_index);
+      restart_mtr(&local_mtr);
+    }
+  }
+
+  mtr_commit(&local_mtr);
+}
+
+void z_first_page_t::free_all_frag_pages() {
+  if (get_frag_page_no() == 0) {
+    free_all_frag_pages_old();
+  } else {
+    free_all_frag_pages_new();
+  }
+}
+
+void z_first_page_t::free_all_frag_pages_new() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  local_mtr.set_log_mode(m_mtr->get_log_mode());
+  load_x(&local_mtr);
+
+  while (true) {
+    page_no_t page_no = get_frag_page_no(&local_mtr);
+    if (page_no == FIL_NULL) {
+      break;
+    }
+    z_frag_page_t frag_page(&local_mtr, m_index);
+    frag_page.load_x(page_no);
+    page_no_t next_page = frag_page.get_next_page_no();
+    set_frag_page_no(&local_mtr, next_page);
+    frag_page.dealloc();
+    restart_mtr(&local_mtr);
+  }
+  mtr_commit(&local_mtr);
+}
+
+void z_first_page_t::destroy() {
+  free_all_data_pages();
+  free_all_frag_pages();
+  free_all_frag_node_pages();
+  free_all_index_pages();
+  dealloc();
+}
+
+#ifdef UNIV_DEBUG
+bool z_first_page_t::verify_frag_page_no() {
+  mtr_t local_mtr;
+  mtr_start(&local_mtr);
+  page_no_t page_no = get_frag_page_no();
+
+  /* If the page_no is 0, then FIL_PAGE_PREV is not used to store the list of
+   * fragment pages.  So modifying it is not allowed and hence verification is
+   * not needed. */
+  ut_ad(page_no != 0);
+
+  if (page_no == FIL_NULL) {
+    return (true);
+  }
+
+  z_frag_page_t frag_page(&local_mtr, m_index);
+  frag_page.load_x(page_no);
+  page_type_t ptype = frag_page.get_page_type();
+  mtr_commit(&local_mtr);
+
+  ut_ad(ptype == FIL_PAGE_TYPE_ZLOB_FRAG);
+  return (ptype == FIL_PAGE_TYPE_ZLOB_FRAG);
+}
+#endif /* UNIV_DEBUG */
 
 } /* namespace lob */

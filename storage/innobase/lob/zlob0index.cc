@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -139,7 +139,7 @@ void z_index_entry_t::purge(dict_index_t *index, z_first_page_t &first) {
         frag_page.dealloc_fragment(fid);
 
         if (frag_page.get_n_frags() == 0) {
-          frag_page.dealloc(first, m_mtr);
+          frag_page.dealloc_with_entry(first, m_mtr);
         }
       } break;
       default:
@@ -259,6 +259,37 @@ std::ostream &z_index_entry_mem_t::print(std::ostream &out) const {
       << ", z_page_no=" << m_z_page_no << ", z_frag_id=" << m_z_frag_id
       << ", data_len=" << m_data_len << ", z_data_len=" << m_z_data_len << "]";
   return (out);
+}
+
+void z_index_entry_t::free_data_pages(mtr_t *mtr) {
+  page_no_t page_no = get_z_page_no();
+  space_id_t space_id = dict_index_get_space(m_index);
+
+  while (page_no != FIL_NULL) {
+    buf_block_t *block =
+        buf_page_get(page_id_t(space_id, page_no), m_index->get_page_size(),
+                     RW_X_LATCH, mtr);
+
+    /* Save the next page number before freeing. */
+    page_no = block->get_next_page_no();
+
+    page_type_t ptype = block->get_page_type();
+
+    ut_ad(ptype == FIL_PAGE_TYPE_ZLOB_DATA ||
+          ptype == FIL_PAGE_TYPE_ZLOB_FRAG ||
+          ptype == FIL_PAGE_TYPE_ZLOB_FIRST);
+
+    if (ptype == FIL_PAGE_TYPE_ZLOB_DATA) {
+      z_data_page_t data_page(block, mtr, m_index);
+      data_page.dealloc();
+      set_z_page_no_null(mtr);
+    } else if (ptype == FIL_PAGE_TYPE_ZLOB_FRAG) {
+      /* Reached the end of the stream. */
+      break;
+    } else if (ptype == FIL_PAGE_TYPE_ZLOB_FIRST) {
+      /* Do nothing. */
+    }
+  }
 }
 
 } /* namespace lob */
