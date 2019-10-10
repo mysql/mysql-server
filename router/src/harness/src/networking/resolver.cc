@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ std::vector<IPAddress> Resolver::hostname(const char *name) const {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
 
-  if (auto err = getaddrinfo(name, nullptr, &hints, &result) != 0) {
+  if (auto err = getaddrinfo(name, nullptr, &hints, &result)) {
     throw std::invalid_argument(std::string("hostname resolve failed for ") +
                                 name + ": " + gai_strerror(err));
   }
