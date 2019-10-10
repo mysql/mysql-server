@@ -2284,7 +2284,7 @@ main(int argc, char** argv)
     for (int part_id=1; part_id<=ga_part_count; part_id++)
     {
       NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_MEAN;
-      uint stack_size = 64*1024;
+      uint stack_size = 128*1024;
       char name[20];
       snprintf (name, sizeof(name), "restore%d", part_id);
       RestoreThreadData *data = new RestoreThreadData(part_id, &barrier);
