@@ -24,7 +24,7 @@
 
 #include <NdbSqlUtil.hpp>
 
-#include <math.h>
+#include <cmath>
 
 #include "my_byteorder.h"
 #include "m_ctype.h"
