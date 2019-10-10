@@ -911,8 +911,7 @@ class HttpClientSecureTest
                     {"ssl_cert",
                      ssl_cert_data_dir_.join(kServerCertFile).str()},
                     {"ssl_key", ssl_cert_data_dir_.join(kServerKeyFile).str()},
-                }))},
-        http_server_{launch_router({"-c", conf_file_})} {}
+                }))} {}
 
  protected:
   TcpPortPool port_pool_;
@@ -921,8 +920,35 @@ class HttpClientSecureTest
   TempDirectory conf_dir_;
   mysql_harness::Path ssl_cert_data_dir_;
   std::string conf_file_;
-  ProcessWrapper &http_server_;
 };
+
+/**
+ * pretty printer for TlsVersion for gtest.
+ */
+std::ostream &operator<<(std::ostream &os, TlsVersion v) {
+  switch (v) {
+    case TlsVersion::AUTO:
+      os << "AUTO";
+      break;
+    case TlsVersion::SSL_3:
+      os << "SSL3";
+      break;
+    case TlsVersion::TLS_1_0:
+      os << "TLS1.0";
+      break;
+    case TlsVersion::TLS_1_1:
+      os << "TLS1.1";
+      break;
+    case TlsVersion::TLS_1_2:
+      os << "TLS1.2";
+      break;
+    case TlsVersion::TLS_1_3:
+      os << "TLS1.3";
+      break;
+  }
+
+  return os;
+}
 
 /**
  * ensure HTTPS requests work against a well configured server.
@@ -935,22 +961,35 @@ TEST_P(HttpClientSecureTest, ensure) {
   bool should_succeeed = GetParam().should_succeeed;
   std::string cipher_list = GetParam().cipher_list;
 
-  HttpUri u;
-  u.set_scheme("https");
-  u.set_port(http_port_);
-  u.set_host(http_hostname_);
-  u.set_path("/");
-
   SCOPED_TRACE("// preparing client and connection object");
-  IOContext io_ctx;
   TlsClientContext tls_ctx;
+
+  // get the libraries min-version
+  //
+  // ubuntu/debian disable SSLv3 all the time, which makes TLSv1.0 the
+  // min-version
+  //
+  // check if this test can succeed at all
+  tls_ctx.version_range(TlsVersion::AUTO, TlsVersion::AUTO);
+  auto library_min_version = tls_ctx.min_version();
+
+  if (GetParam().max_version != TlsVersion::AUTO &&
+      GetParam().max_version < library_min_version) {
+    // the library will not allow us to set that value, assume it will fail
+    ASSERT_FALSE(should_succeeed)
+        << "test's TLS.max_version " << GetParam().max_version
+        << " is less than " << library_min_version
+        << " which can't succeed, but test is expected not fail";
+
+    return;
+  }
 
   tls_ctx.version_range(GetParam().min_version, GetParam().max_version);
 
   // as min-version isn't set, it may either be "AUTO" aka the lowest supported
   // or SSL_3 ... which is the lowest supported (openssl 1.1.0 and before)
   std::set<TlsVersion> allowed{TlsVersion::AUTO, GetParam().min_version,
-                               TlsVersion::SSL_3};
+                               library_min_version};
   EXPECT_THAT(allowed, ::testing::Contains(tls_ctx.min_version()));
 
   tls_ctx.ssl_ca(ssl_cert_data_dir_.join(ca_cert).str(), "");
@@ -1021,13 +1060,24 @@ TEST_P(HttpClientSecureTest, ensure) {
     }
   });
 
-  std::unique_ptr<HttpsClient> http_client(
-      new HttpsClient(io_ctx, std::move(tls_ctx), u.get_host(), u.get_port()));
+  HttpUri u;
+  u.set_scheme("https");
+  u.set_port(http_port_);
+  u.set_host(http_hostname_);
+  u.set_path("/");
+
+  IOContext io_ctx;
+
+  auto http_client = std::make_unique<HttpsClient>(io_ctx, std::move(tls_ctx),
+                                                   u.get_host(), u.get_port());
 
   RestClient rest_client(std::move(http_client));
 
   SCOPED_TRACE("// wait http port connectable");
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server_, http_port_));
+
+  ProcessWrapper &http_server = launch_router({"-c", conf_file_});
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port_));
 
   SCOPED_TRACE("// GETing " + u.join());
   auto req = rest_client.request_sync(HttpMethod::Get, u.get_path());
@@ -1487,8 +1537,9 @@ class HttpServerAuthTest
                     ConfigBuilder::build_section(
                         "http_auth_backend:local",
                         {{"backend", "file"},
-                         {"filename",
-                          get_data_dir().join(passwd_filename_).str()}}),
+                         {"filename", mysql_harness::Path(conf_dir_.name())
+                                          .join(passwd_filename_)
+                                          .str()}}),
                     ConfigBuilder::build_section("http_auth_realm:secure",
                                                  {{"backend", "local"},
                                                   {"method", "basic"},
@@ -1496,9 +1547,13 @@ class HttpServerAuthTest
                                                   {"require", "valid-user"}})},
                 "\n"))},
         http_server_{launch_router({"-c", conf_file_})} {
-    std::fstream pwf{get_data_dir().join(passwd_filename_).str(), pwf.out};
+    std::string pwf_name(
+        mysql_harness::Path(conf_dir_.name()).join(passwd_filename_).str());
+    std::fstream pwf{pwf_name, pwf.out};
 
-    if (!pwf.is_open()) throw std::runtime_error("hmm");
+    if (!pwf.is_open())
+      throw std::runtime_error(pwf_name +
+                               " failed to open: " + std::to_string(errno));
     constexpr const char kPasswdUserTest[]{
         "user:$6$3ieWD5TQkakPm.iT$"  // sha512 and salt
         "4HI5XzmE4UCSOsu14jujlXYNYk2SB6gi2yVoAncaOzynEnTI0Rc9."
