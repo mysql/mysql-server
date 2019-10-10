@@ -66,10 +66,10 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-#ifdef VM_TRACE
-#define DEBUG_MULTI_TRP 1
-#define DEBUG_STARTUP 1
-#define DEBUG_ARBIT 1
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_MULTI_TRP 1
+//#define DEBUG_STARTUP 1
+//#define DEBUG_ARBIT 1
 #endif
 
 #ifdef DEBUG_ARBIT
@@ -498,6 +498,11 @@ Qmgr::execREAD_CONFIG_REQ(Signal* signal)
      * more transporters than the other node permits as well. This will be
      * established in the setup phase of multi transporters.
      */
+  }
+  if (m_num_multi_trps == 0)
+  {
+    jam();
+    m_num_multi_trps = 1;
   }
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -9336,7 +9341,9 @@ Qmgr::execGET_NUM_MULTI_TRP_REQ(Signal* signal)
      * This is only required if we want to use more than one socket.
      */
     jam();
-    DEB_MULTI_TRP(("Node %u starting, prepare switch trp", sender_node_id));
+    DEB_MULTI_TRP(("Node %u starting, prepare switch trp using %u trps",
+                   sender_node_id,
+                   nodePtr.p->m_used_num_multi_trps));
     connect_multi_transporter(signal, sender_node_id);
     if (ERROR_INSERTED(972))
     {
@@ -9354,9 +9361,10 @@ Qmgr::execGET_NUM_MULTI_TRP_REQ(Signal* signal)
   if (m_ref_set_up_multi_trp_req != 0)
   {
     jam();
-    DEB_MULTI_TRP(("Node %u starting, get num multi %u",
+    DEB_MULTI_TRP(("Node %u starting, sent GET_NUM_MULTI_TRP_REQ, get"
+                   " num multi %u",
                    sender_node_id,
-                   m_num_multi_trps));
+                   nodePtr.p->m_used_num_multi_trps));
     GetNumMultiTrpConf* conf = (GetNumMultiTrpConf*)signal->getDataPtrSend();
     conf->numMultiTrps = nodePtr.p->m_used_num_multi_trps;
     conf->nodeId = getOwnNodeId();
@@ -9521,6 +9529,9 @@ Qmgr::execGET_NUM_MULTI_TRP_CONF(Signal* signal)
     complete_multi_trp_setup(signal, true);
     return;
   }
+  DEB_MULTI_TRP(("GET_NUM_MULTI_TRP_CONF received from %u using %u trps",
+                 sender_node_id,
+                 nodePtr.p->m_used_num_multi_trps));
   jam();
   connect_multi_transporter(signal, nodePtr.i);
   if (ERROR_INSERTED(973))
@@ -9932,7 +9943,9 @@ Qmgr::switch_multi_transporter(Signal *signal, NodeId node_id)
   NodeRecPtr nodePtr;
   nodePtr.i = node_id;
   ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
-  DEB_MULTI_TRP(("Start switch multi trp for node %u", node_id));
+  g_eventLogger->info("Switch to %u multi trp for node %u",
+                      nodePtr.p->m_used_num_multi_trps,
+                      node_id);
   nodePtr.p->m_is_preparing_switch_trp = false;
   nodePtr.p->m_is_ready_to_switch_trp = false;
   nodePtr.p->m_is_multi_trp_setup = false;

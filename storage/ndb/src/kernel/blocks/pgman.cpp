@@ -65,7 +65,7 @@ static bool g_dbg_lcp = false;
 //#define DEBUG_PGMAN_LCP_EXTRA 1
 //#define DEBUG_PGMAN_LCP 1
 //#define DEBUG_PGMAN_LCP_STAT 1
-#define DEBUG_PGMAN_PREP_PAGE 1
+//#define DEBUG_PGMAN_PREP_PAGE 1
 #endif
 
 #ifdef DEBUG_PGMAN

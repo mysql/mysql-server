@@ -88,13 +88,13 @@
 
 extern EventLogger * g_eventLogger;
 
-#ifdef VM_TRACE
-#define DEBUG_NODE_STOP 1
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_NODE_STOP 1
 //#define DEBUG_LOCAL_SYSFILE 1
 //#define DEBUG_LCP 1
 //#define DEBUG_UNDO 1
 //#define DEBUG_REDO_CONTROL 1
-#define DEBUG_NODE_GROUP_START 1
+//#define DEBUG_NODE_GROUP_START 1
 #endif
 
 #ifdef DEBUG_NODE_GROUP_START

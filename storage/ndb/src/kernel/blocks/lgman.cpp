@@ -52,8 +52,8 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_LGMAN 1
 //#define DEBUG_DROP_LG 1
 //#define DEBUG_LGMAN_LCP 1
+//#define DEBUG_UNDO_SPACE 1
 #endif
-#define DEBUG_UNDO_SPACE 1
 
 #ifdef DEBUG_LGMAN
 #define DEB_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)

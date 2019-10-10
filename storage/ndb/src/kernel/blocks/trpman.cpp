@@ -36,7 +36,9 @@ extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 430
 
-#define DEBUG_MULTI_TRP 1
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_MULTI_TRP 1
+#endif
 
 #ifdef DEBUG_MULTI_TRP
 #define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
