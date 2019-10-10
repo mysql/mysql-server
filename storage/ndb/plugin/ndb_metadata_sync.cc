@@ -450,7 +450,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
                                            const std::string &lfg_name,
                                            bool &temp_error) const {
   Ndb_dd_client dd_client(thd);
-  if (!dd_client.mdl_lock_logfile_group_exclusive(lfg_name.c_str(), true, 10)) {
+  if (!dd_client.mdl_lock_logfile_group_exclusive(lfg_name.c_str(), true)) {
     ndb_log_info("Failed to acquire MDL on logfile group '%s'",
                  lfg_name.c_str());
     temp_error = true;
@@ -533,7 +533,7 @@ bool Ndb_metadata_sync::sync_logfile_group(THD *thd,
 bool Ndb_metadata_sync::sync_tablespace(THD *thd, const std::string &ts_name,
                                         bool &temp_error) const {
   Ndb_dd_client dd_client(thd);
-  if (!dd_client.mdl_lock_tablespace_exclusive(ts_name.c_str(), true, 10)) {
+  if (!dd_client.mdl_lock_tablespace_exclusive(ts_name.c_str(), true)) {
     ndb_log_info("Failed to acquire MDL on tablespace '%s'", ts_name.c_str());
     temp_error = true;
     // Since it's a temporary error, the THD conditions should be cleared but
@@ -618,10 +618,10 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
   // Acquire exclusive MDL on the schema upfront. Note that this isn't strictly
   // necessary since the Ndb_local_connection is used further down the function.
   // But the binlog thread shouldn't stall while waiting for the MDL to be
-  // acquired. Thus, there's an attempt to lock the schema with a low
-  // lock_wait_timeout value to ensure that the binlog thread can bail out early
+  // acquired. Thus, there's an attempt to lock the schema with
+  // lock_wait_timeout = 0 to ensure that the binlog thread can bail out early
   // should there be any conflicting locks
-  if (!dd_client.mdl_lock_schema_exclusive(schema_name.c_str(), true, 10)) {
+  if (!dd_client.mdl_lock_schema_exclusive(schema_name.c_str(), true)) {
     ndb_log_info("Failed to acquire MDL on schema '%s'", schema_name.c_str());
     temp_error = true;
     // Since it's a temporary error, the THD conditions should be cleared but
@@ -708,7 +708,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
   }
   Ndb_dd_client dd_client(thd);
   if (!dd_client.mdl_locks_acquire_exclusive(schema_name.c_str(),
-                                             table_name.c_str(), true, 10)) {
+                                             table_name.c_str(), true)) {
     ndb_log_info("Failed to acquire MDL on table '%s.%s'", schema_name.c_str(),
                  table_name.c_str());
     temp_error = true;
