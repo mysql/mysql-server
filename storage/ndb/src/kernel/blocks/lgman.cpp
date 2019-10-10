@@ -1284,9 +1284,12 @@ Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
     {
       jam();
       /**
-       * Restart case, we don't know version yet, will read when reading file.
+       * We will set the version to v2 although we don't know it yet.
+       * We cannot upgrade from v1 to v2 anymore since this was disabled
+       * due to partial LCP. Thus we ensure that we set the version info
+       * properly immediately.
        */
-      ptr.p->m_ndb_version = 0;
+      ptr.p->m_ndb_version = g_v2 ? NDB_DISK_V2 : 0;
       ptr.p->m_state = Logfile_group::LG_STARTING;
     }
     else
@@ -1853,9 +1856,24 @@ Lgman::completed_zero_page_read(Signal *signal, Ptr<Undofile> file_ptr)
   File_formats::Zero_page_header *zp =
     (File_formats::Zero_page_header*)page_ptr.p;
 
-  if (lg_ptr.p->m_ndb_version == 0)
+  if (lg_ptr.p->m_ndb_version != zp->m_ndb_version)
   {
     jam();
+    char buf[255];
+    if (lg_ptr.p->m_ndb_version > zp->m_ndb_version)
+    {
+      BaseString::snprintf(buf, sizeof(buf),
+        "Trying to start with wrong version of UNDO log file. Most"
+        " likely trying to upgrade from 7.5, this requires use of "
+        "initial node restart.");
+    }
+    else
+    {
+      BaseString::snprintf(buf, sizeof(buf),
+        "Trying to start with wrong version of UNDO log file. This version"
+        " supports the v2 format of disk data files.");
+    }
+    progError(__LINE__, NDBD_EXIT_NDBREQUIRE, buf);
     /**
      * This is the first logfile opened in a restart.
      * Now that we know the version that we wrote the logfile group
