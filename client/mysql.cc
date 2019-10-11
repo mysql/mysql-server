@@ -2659,7 +2659,7 @@ int no_completion(const char *, int)
 char *no_completion()
 #endif
 {
-  return nullptr; /* No filename completion */
+  return 0; /* No filename completion */
 }
 
 /*
