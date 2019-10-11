@@ -352,6 +352,7 @@ class Item_func_true : public Item_func_bool_const {
   void print(const THD *, String *str, enum_query_type) const override {
     str->append("true");
   }
+  enum Functype functype() const override { return TRUE_FUNC; }
 };
 
 /// A predicate that is "always false".
