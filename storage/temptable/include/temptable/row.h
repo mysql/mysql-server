@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,8 +55,7 @@ the row buffer that is passed to `write_row()` is 352 bytes:
 
 hex | raw | description
 --- | --- | -----------
-f0  | .   | NULLs bitmask 11110000 denoting that out of 4 columns that could
-            possibly be NULL (c1, c3, c5 and c7) none is actually NULL.
+f0  | .   | NULLs bitmask 11110000 denoting that out of 4 columns that could possibly be NULL (c1, c3, c5 and c7) none is actually NULL.
 7b  | {   | c1=123 stored in 4 bytes (little endian) (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
@@ -99,8 +98,7 @@ a5  | .   | from above (4/4)
 20  |     | from above (6/8)
 20  |     | from above (7/8)
 20  |     | from above (8/8)
-04  | .   | the length (occupying 2 bytes) of the following data
-            (for VARCHAR cells): 4 (1/2)
+04  | .   | the length (occupying 2 bytes) of the following data (for VARCHAR cells): 4 (1/2)
 00  | .   | from above (2/2)
 61  | a   | c7='abcd' - the actual data (1/4)
 62  | b   | from above (2/4)
@@ -130,19 +128,16 @@ the indexed cells buffer that is passed to `index_read()` is 350 bytes:
 
 hex | raw | description
 --- | --- | -----------
-00  | .   | c1 NULL byte, denoting that c1 is not NULL
-            (would have been 01 is c1 was NULL)
+00  | .   | c1 NULL byte, denoting that c1 is not NULL (would have been 01 is c1 was NULL)
 7b  | {   | c1=123 stored in 4 bytes (little endian) (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 00  | .   | from above (4/4)
-7b  | {   | c2=123 stored in 4 bytes (little endian) (because c2 cannot be NULL
-            there is no leading byte to indicate NULL or not NULL) (1/4)
+7b  | {   | c2=123 stored in 4 bytes (little endian) (because c2 cannot be NULL there is no leading byte to indicate NULL or not NULL) (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 00  | .   | from above (4/4)
-00  | .   | c3 NULL byte, denoting that c3 is not NULL
-            (would have been 01 if c3 was NULL)
+00  | .   | c3 NULL byte, denoting that c3 is not NULL (would have been 01 if c3 was NULL)
 04  | .   | c3 length (4), always 2 bytes (1/2)
 00  | .   | from above (2/2)
 61  | a   | c3='abcd' - the actual data (1/4)
@@ -163,8 +158,7 @@ hex | raw | description
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 00  | .   | from above (4/4)
-00  | .   | c5 NULL byte, denoting that c5 is not NULL
-            (would have been 01 if c5 was NULL)
+00  | .   | c5 NULL byte, denoting that c5 is not NULL (would have been 01 if c5 was NULL)
 61  | a   | c5='abcd    ' (1/8)
 62  | b   | from above (2/8)
 63  | c   | from above (3/8)
@@ -238,8 +232,7 @@ hex | raw | description
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c1 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c1 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -255,8 +248,7 @@ f1  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c2 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c2 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -272,8 +264,7 @@ f2  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c3 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c3 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -289,8 +280,7 @@ f3  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c4 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c4 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
@@ -306,8 +296,7 @@ f4  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c5 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c5 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 08  | .   | from above (4/4)
@@ -323,8 +312,7 @@ f5  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c6 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c6 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 08  | .   | from above (4/4)
@@ -340,8 +328,7 @@ f6  | .   | from above (8/8)
 00  | .   | 3 bytes padding (1/3)
 00  | .   | from above (2/3)
 00  | .   | from above (3/3)
-00  | .   | c7 length in 4 bytes in whatever is the machine's
-            native byte order (1/4)
+00  | .   | c7 length in 4 bytes in whatever is the machine's native byte order (1/4)
 00  | .   | from above (2/4)
 00  | .   | from above (3/4)
 04  | .   | from above (4/4)
