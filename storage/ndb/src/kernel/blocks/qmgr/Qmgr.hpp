@@ -44,6 +44,7 @@
 #include <RequestTracker.hpp>
 #include <signaldata/StopReq.hpp>
 #include <ndb_limits.h>
+#include "../ndbcntr/Ndbcntr.hpp"
 
 #include "timer.hpp"
 
@@ -623,6 +624,8 @@ private:
 #endif
 
   struct ndb_rusage m_timer_handling_rusage;
+
+  Ndbcntr *c_ndbcntr;
 
   Uint32 get_hb_count(Uint32 nodeId) const {
     return globalData.get_hb_count(nodeId);

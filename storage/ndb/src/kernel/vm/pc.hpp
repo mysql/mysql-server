@@ -320,6 +320,11 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
     progError(__LINE__, NDBD_EXIT_ERROR_INSERT, __FILE__); \
   }
 
+#define CRASH_INSERTION3() \
+  { \
+    jamNoBlock(); \
+    progError(__LINE__, NDBD_EXIT_ERROR_INSERT, __FILE__); \
+  }
 #define MEMCOPY_PAGE(to, from, page_size_in_bytes) \
   memcpy((void*)(to), (void*)(from), (size_t)(page_size_in_bytes));
 #define MEMCOPY_NO_WORDS(to, from, no_of_words) \

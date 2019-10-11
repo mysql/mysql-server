@@ -63,6 +63,16 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_ARBIT 1
+#endif
+
+#ifdef DEBUG_ARBIT
+#define DEB_ARBIT(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_ARBIT(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_QMGR_START
 #ifdef DEBUG_QMGR_START
 #include <DebuggerNames.hpp>
@@ -367,6 +377,10 @@ void Qmgr::execFAIL_REP(Signal* signal)
   const NodeId failNodeId = failRep->failNodeId;
   const FailRep::FailCause failCause = (FailRep::FailCause)failRep->failCause; 
   Uint32 failSource = failRep->getFailSourceNodeId(signal->length());
+  if (ERROR_INSERT_VALUE >= 951 && ERROR_INSERT_VALUE <= 960)
+  {
+    CRASH_INSERTION3();
+  }
   if (!failSource)
   {
     /* Failure source not included, use sender of signal as 'source' */
@@ -448,6 +462,7 @@ void Qmgr::execSTTOR(Signal* signal)
   case 1:
     initData(signal);
     g_eventLogger->info("Starting QMGR phase 1");
+    c_ndbcntr = (Ndbcntr*)globalData.getBlock(NDBCNTR);
     startphase1(signal);
     recompute_version_info(NodeInfo::DB);
     recompute_version_info(NodeInfo::API);
@@ -3096,6 +3111,7 @@ void Qmgr::initData(Signal* signal)
 
   arbitRec.method = (ArbitRec::Method)arbitMethod;
   arbitRec.state = ARBIT_NULL;          // start state for all nodes
+  DEB_ARBIT(("Arbit state = ARBIT_INIT init"));
   arbitRec.apiMask[0].clear();          // prepare for ARBIT_CFG
 
   Uint32 sum = 0;
@@ -3935,6 +3951,10 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
 {
   jamEntry();
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
+  if (ERROR_INSERT_VALUE >= 951 && ERROR_INSERT_VALUE <= 960)
+  {
+    CRASH_INSERTION3();
+  }
   const Uint32 nodeId = rep->nodeId;
   const Uint32 err = rep->err;
   const NodeInfo nodeInfo = getNodeInfo(nodeId);
@@ -5137,7 +5157,7 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
     jam();
     /**
      * We're performing a system shutdown, 
-     * don't let artibtrator shut us down
+     * don't let arbitrator shut us down
      */
     return;
   }
@@ -6027,6 +6047,7 @@ Qmgr::handleArbitStart(Signal* signal)
   ndbrequire(cpresident == getOwnNodeId());
   ndbrequire(arbitRec.state == ARBIT_NULL);
   arbitRec.state = ARBIT_INIT;
+  DEB_ARBIT(("Arbit state = ARBIT_INIT from NULL"));
   arbitRec.newstate = true;
   startArbitThread(signal);
 }
@@ -6068,11 +6089,13 @@ Qmgr::handleArbitApiFail(Signal* signal, Uint16 nodeId)
     if (cpresident == getOwnNodeId()) {
       jam();
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT from RUN"));
       arbitRec.newstate = true;
       startArbitThread(signal);
     } else {
       jam();
       arbitRec.state = ARBIT_NULL;
+      DEB_ARBIT(("Arbit state = ARBIT_NULL from RUN"));
     }
     break;
   case ARBIT_CHOOSE:		// XXX too late
@@ -6113,6 +6136,7 @@ Qmgr::handleArbitNdbAdd(Signal* signal, Uint16 nodeId)
   case ARBIT_PREP2:
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT from PREP2"));
     arbitRec.newstate = true;
     startArbitThread(signal);
     break;
@@ -6169,6 +6193,14 @@ Qmgr::handleArbitCheck(Signal* signal)
   Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
   NdbNodeBitmask survivorNodes;
+  /**
+   * computeArbitNdbMask will only count nodes in the state ZRUNNING, crashed
+   * nodes are thus not part of this set of nodes. The method
+   * count_previously_alive_nodes counts both nodes in ZRUNNING and in
+   * ZPREPARE_FAIL but deducts those that was previously not started to ensure
+   * that we don't rely on non-started nodes in our check for whether
+   * arbitration is required.
+   */
   computeArbitNdbMask(survivorNodes);
   {
     jam();
@@ -6184,6 +6216,7 @@ Qmgr::handleArbitCheck(Signal* signal)
       ndbout << "Requiring arbitration, even if there is no" 
              << " possible split."<< endl;
       sd->output = CheckNodeGroups::Partitioning;
+      DEB_ARBIT(("Arbit state = ARBIT_RUN in 943"));
       arbitRec.state = ARBIT_RUN;
     }
     switch (sd->output) {
@@ -6251,6 +6284,7 @@ Qmgr::handleArbitCheck(Signal* signal)
       break;
     }
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT from non-RUN WinGroups"));
     arbitRec.newstate = true;
     break;
   case ArbitCode::Partitioning:
@@ -6258,6 +6292,7 @@ Qmgr::handleArbitCheck(Signal* signal)
     {
       jam();
       arbitRec.state = ARBIT_CHOOSE;
+      DEB_ARBIT(("Arbit state = ARBIT_CHOOSE from RUN"));
       arbitRec.newstate = true;
       break;
     }
@@ -6276,6 +6311,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   crashme:
     jam();
     arbitRec.state = ARBIT_CRASH;
+    DEB_ARBIT(("Arbit state = ARBIT_CRASH"));
     arbitRec.newstate = true;
     break;
   }
@@ -6419,6 +6455,7 @@ Qmgr::stateArbitInit(Signal* signal)
   }
   arbitRec.setTimestamp();  // Init arbitration timer 
   arbitRec.state = ARBIT_FIND;
+  DEB_ARBIT(("Arbit state = ARBIT_FIND"));
   arbitRec.newstate = true;
   stateArbitFind(signal);
 }
@@ -6449,6 +6486,7 @@ Qmgr::stateArbitFind(Signal* signal)
     // Don't select any API node as arbitrator
     arbitRec.node = 0;
     arbitRec.state = ARBIT_PREP1;
+    DEB_ARBIT(("Arbit state = ARBIT_PREP1"));
     arbitRec.newstate = true;
     stateArbitPrep(signal);
     return;
@@ -6471,6 +6509,7 @@ Qmgr::stateArbitFind(Signal* signal)
         ndbrequire(c_connectedNodes.get(aPtr.i));
         arbitRec.node = aPtr.i;
         arbitRec.state = ARBIT_PREP1;
+        DEB_ARBIT(("2:Arbit state = ARBIT_PREP1"));
         arbitRec.newstate = true;
         stateArbitPrep(signal);
         return;
@@ -6546,16 +6585,19 @@ Qmgr::stateArbitPrep(Signal* signal)
   if (arbitRec.code != 0) {			// error
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitPrep"));
     arbitRec.newstate = true;
     return;
   }
   if (arbitRec.recvMask.count() == 0) {		// recv all
     if (arbitRec.state == ARBIT_PREP1) {
       jam();
+      DEB_ARBIT(("Arbit state = ARBIT_PREP2 stateArbitPrep"));
       arbitRec.state = ARBIT_PREP2;
       arbitRec.newstate = true;
     } else {
       jam();
+      DEB_ARBIT(("Arbit state = ARBIT_START stateArbitPrep"));
       arbitRec.state = ARBIT_START;
       arbitRec.newstate = true;
       stateArbitStart(signal);
@@ -6565,6 +6607,7 @@ Qmgr::stateArbitPrep(Signal* signal)
   if (arbitRec.getTimediff() > getArbitTimeout()) {
     jam();
     arbitRec.state = ARBIT_INIT;
+    DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitPrep"));
     arbitRec.newstate = true;
     return;
   }
@@ -6603,6 +6646,7 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_RUN;
     arbitRec.newstate = true;
+    DEB_ARBIT(("Arbit state = ARBIT_RUN PrepAtRun"));
 
     // Non-president node logs.
     if (!c_connectedNodes.get(arbitRec.node))
@@ -6707,6 +6751,7 @@ Qmgr::stateArbitStart(Signal* signal)
 
     // Don't start arbitrator in API node => ARBIT_RUN
     arbitRec.state = ARBIT_RUN;
+    DEB_ARBIT(("Arbit state = ARBIT_RUN stateArbitStart"));
     arbitRec.newstate = true;
     return;
     break;
@@ -6733,10 +6778,12 @@ Qmgr::stateArbitStart(Signal* signal)
       if (arbitRec.code == ArbitCode::ApiStart) {
         jam();
         arbitRec.state = ARBIT_RUN;
+        DEB_ARBIT(("Arbit state = ARBIT_RUN stateArbitStart:Default"));
         arbitRec.newstate = true;
         return;
       }
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitStart:Default"));
       arbitRec.newstate = true;
       return;
     }
@@ -6745,6 +6792,7 @@ Qmgr::stateArbitStart(Signal* signal)
       arbitRec.code = ArbitCode::ErrTimeout;
       reportArbitEvent(signal, NDB_LE_ArbitState);
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitStart:Default timeout"));
       arbitRec.newstate = true;
       return;
     }
@@ -6863,6 +6911,7 @@ Qmgr::stateArbitChoose(Signal* signal)
 
       sendCommitFailReq(signal);        // start commit of failed nodes
       arbitRec.state = ARBIT_INIT;
+      DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitChoose"));
       arbitRec.newstate = true;
       return;
     }
@@ -6902,10 +6951,12 @@ Qmgr::stateArbitChoose(Signal* signal)
         jam();
         sendCommitFailReq(signal);        // start commit of failed nodes
         arbitRec.state = ARBIT_INIT;
+        DEB_ARBIT(("Arbit state = ARBIT_INIT stateArbitChoose:Default"));
         arbitRec.newstate = true;
         return;
       }
       arbitRec.state = ARBIT_CRASH;
+      DEB_ARBIT(("Arbit state = ARBIT_CRASH stateArbitChoose:Default"));
       arbitRec.newstate = true;
       stateArbitCrash(signal);		// do it at once
       return;
@@ -6917,6 +6968,7 @@ Qmgr::stateArbitChoose(Signal* signal)
       arbitRec.code = ArbitCode::ErrTimeout;
       reportArbitEvent(signal, NDB_LE_ArbitState);
       arbitRec.state = ARBIT_CRASH;
+      DEB_ARBIT(("Arbit state = ARBIT_CRASH stateArbitChoose:Def timeout"));
       arbitRec.newstate = true;
       stateArbitCrash(signal);		// do it at once
       return;
@@ -7010,16 +7062,31 @@ Qmgr::execARBIT_STOPREP(Signal* signal)
 Uint32
 Qmgr::count_previously_alive_nodes()
 {
+  /**
+   * This function is called as part of PREP_FAILCONF handling. This
+   * means that we are preparing a node failure. This means that
+   * NDBCNTR have not yet heard about the node failure and thus we
+   * can still use the method is_node_started to see whether the
+   * node was fully started before this failure.
+   *
+   * This method is called as part of arbitration check. A node is
+   * only counted as previously alive if the node was fully started.
+   *
+   * In addition we check that the node is a data node and that the
+   * QMGR node state is what we expect it to be if it was previously
+   * alive.
+   */
   Uint32 count = 0;
   NodeRecPtr aPtr;
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
   {
-    jam();
     ptrAss(aPtr, nodeRec);
     if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        c_ndbcntr->is_node_started(aPtr.i) &&
         (aPtr.p->phase == ZRUNNING || aPtr.p->phase == ZPREPARE_FAIL))
     {
       jam();
+      jamLine(Uint16(aPtr.i));
       count++;
     }
   }
@@ -7034,7 +7101,9 @@ Qmgr::computeArbitNdbMask(NodeBitmaskPOD& aMask)
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++) {
     jam();
     ptrAss(aPtr, nodeRec);
-    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB && aPtr.p->phase == ZRUNNING){
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        aPtr.p->phase == ZRUNNING)
+    {
       jam();
       aMask.set(aPtr.i);
     }
@@ -7049,7 +7118,9 @@ Qmgr::computeArbitNdbMask(NdbNodeBitmaskPOD& aMask)
   for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++) {
     jam();
     ptrAss(aPtr, nodeRec);
-    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB && aPtr.p->phase == ZRUNNING){
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        aPtr.p->phase == ZRUNNING)
+    {
       jam();
       aMask.set(aPtr.i);
     }

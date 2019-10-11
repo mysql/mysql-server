@@ -48,6 +48,7 @@
 #include <signaldata/SystemError.hpp>
 #include <signaldata/NdbSttor.hpp>
 #include <signaldata/CntrStart.hpp>
+#include <signaldata/StartPerm.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <signaldata/FsRemoveReq.hpp>
@@ -92,6 +93,13 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_LCP 1
 //#define DEBUG_UNDO 1
 //#define DEBUG_REDO_CONTROL 1
+#define DEBUG_NODE_GROUP_START 1
+#endif
+
+#ifdef DEBUG_NODE_GROUP_START
+#define DEB_NODE_GROUP_START(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_NODE_GROUP_START(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -2124,7 +2132,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
 
   if (signal->getNoOfSections() >= 1)
   {
-    ndbrequire(signal->getNoOfSections() == 2);
+    Uint32 num_sections = signal->getNoOfSections();
     SegmentedSectionPtr ptr;
     SectionHandle handle(this, signal);
 
@@ -2141,15 +2149,39 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal)
            0,
            NdbNodeBitmask::Size * sizeof(Uint32));
     copy(&signal->theData[CntrStartConf::SignalLength], ptr);
-    tmp.assign(NdbNodeBitmask::Size, &signal->theData[CntrStartConf::SignalLength]);
-    c_startedNodes.bitOR(tmp);
+    tmp.assign(NdbNodeBitmask::Size,
+               &signal->theData[CntrStartConf::SignalLength]);
+    c_cntr_startedNodeSet.bitOR(tmp);
 
+    const Uint32 version = getNodeInfo(cmasterNodeId).m_version;
+    if (ndbd_send_started_bitmask(version))
+    {
+      NdbNodeBitmask tmp2;
+      jam();
+      ndbrequire(num_sections == 3);
+      handle.getSection(ptr, 2);
+      memset(&signal->theData[CntrStartConf::SignalLength],
+             0,
+             NdbNodeBitmask::Size * sizeof(Uint32));
+      copy(&signal->theData[CntrStartConf::SignalLength], ptr);
+      tmp2.assign(NdbNodeBitmask::Size,
+                  &signal->theData[CntrStartConf::SignalLength]);
+      c_startedNodeSet.bitOR(tmp2);
+    }
+    else
+    {
+      jam();
+      ndbrequire(num_sections == 2);
+      c_startedNodeSet.bitOR(tmp);
+    }
     releaseSections(handle);
   }
   else
   {
+    jam();
     tmp.assign(NdbNodeBitmask48::Size, conf->startedNodes_v1);
-    c_startedNodes.bitOR(tmp);
+    c_cntr_startedNodeSet.bitOR(tmp);
+    c_startedNodeSet.bitOR(tmp);
     c_start.m_starting.assign(NdbNodeBitmask48::Size, conf->startingNodes_v1);
   }
   m_cntr_start_conf = true;
@@ -2199,7 +2231,8 @@ Ndbcntr::execCNTR_START_REP(Signal* signal)
   jamEntry();
   Uint32 nodeId = signal->theData[0];
 
-  c_startedNodes.set(nodeId);
+  c_cntr_startedNodeSet.set(nodeId);
+  c_startedNodeSet.set(nodeId);
   c_start.m_starting.clear(nodeId);
 
   /**
@@ -2209,7 +2242,11 @@ Ndbcntr::execCNTR_START_REP(Signal* signal)
     sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
   }
 
-  signal->theData[0] = nodeId;
+  g_eventLogger->info("Node %u has completed its restart", nodeId);
+
+  StartPermRep *rep = (StartPermRep*)signal->getDataPtrSend();
+  rep->startNodeId = nodeId;
+  rep->reason = StartPermRep::CompletedStart;
   execSTART_PERMREP(signal);
 }
 
@@ -2217,8 +2254,9 @@ void
 Ndbcntr::execSTART_PERMREP(Signal* signal)
 {
   jamEntry();
-  Uint32 nodeId = signal->theData[0];
-  c_startedNodes.set(nodeId);
+  StartPermRep rep = *(StartPermRep*)signal->getDataPtr();
+  Uint32 nodeId = rep.startNodeId;
+  c_cntr_startedNodeSet.set(nodeId);
   c_start.m_starting.clear(nodeId);
 
   if(!c_start.m_starting.isclear()){
@@ -2238,6 +2276,12 @@ Ndbcntr::execSTART_PERMREP(Signal* signal)
     return;
   }
 
+  if (rep.reason == StartPermRep::CompletedStart)
+  {
+    jam();
+    DEB_NODE_GROUP_START(("Node %u got permission to start,"
+                          " ready to start another node", nodeId));
+  }
   startWaitingNodes(signal);
 }
 
@@ -2417,96 +2461,168 @@ Ndbcntr::startWaitingNodes(Signal * signal){
      * TO during SR
      *   this can run in parallel (nowadays :-)
      */
-    NodeReceiverGroup rg(NDBCNTR, c_start.m_waitTO);
-    c_start.m_starting.bitOR(c_start.m_waitTO);
-    c_start.m_waiting.bitANDC(c_start.m_waitTO);
-    c_start.m_waitTO.clear();
-
-    /**
-     * They are stuck in CntrWaitRep::ZWAITPOINT_4_1
-     *   have all meta data ok...but needs START_COPYREQ
-     */
-    CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtrSend();
-    rep->nodeId = getOwnNodeId();
-    rep->waitPoint = CntrWaitRep::ZWAITPOINT_4_2_TO;
-    sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
+    for (Uint32 node_id = 1; node_id < MAX_NDB_NODES; node_id++)
+    {
+      if (c_start.m_waitTO.get(node_id))
+      {
+        if (is_nodegroup_starting(signal, node_id))
+        {
+          jam();
+          g_eventLogger->info("SR:Node %u has to wait for other node in"
+                              " same node group to complete start",
+                              node_id);
+          /**
+           * The node is waiting to be started, but another node
+           * is still busy starting in this node group. So cannot
+           * parallelise this with the other node restart within
+           * the same node group.
+           */
+          continue;
+        }
+        c_start.m_waitTO.clear(node_id);
+        c_start.m_starting.set(node_id);
+        ndbrequire(c_start.m_waiting.get(node_id));
+        c_start.m_waiting.clear(node_id);
+        /**
+         * They are stuck in CntrWaitRep::ZWAITPOINT_4_1
+         *   have all meta data ok...but needs START_COPYREQ
+         */
+        BlockReference ref = calcNdbCntrBlockRef(node_id);
+        CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtrSend();
+        rep->nodeId = getOwnNodeId();
+        rep->waitPoint = CntrWaitRep::ZWAITPOINT_4_2_TO;
+        sendSignal(ref, GSN_CNTR_WAITREP, signal, 2, JBB);
+      }
+    }
     return;
   }
 
-  const Uint32 nodeId = c_start.m_waiting.find(0);
-  const Uint32 Tref = calcNdbCntrBlockRef(nodeId);
-  ndbrequire(nodeId != c_start.m_waiting.NotFound);
+  bool first = true;
+  Uint32 nodeId = 0;
+  while (true)
+  {
+    jam();
+    nodeId = c_start.m_waiting.find(nodeId + 1);
+    if (nodeId == c_start.m_waiting.NotFound)
+    {
+      jam();
+      ndbrequire(!first);
+      /**
+       * All the waiting nodes already have a node in their node group
+       * performing a node restart. So no more nodes will be started
+       * now. We will wait for those nodes to complete their node
+       * restarts before we can move on.
+       */
+      return;
+    }
+    first = false;
+    if (is_nodegroup_starting(signal, nodeId))
+    {
+      jam();
+      g_eventLogger->info("NR:Node %u has to wait for other node in"
+                          " same node group to complete start",
+                          nodeId);
+      /**
+       * Another node in the same nodegroup is already starting.
+       * We must wait to start this node since only one node per
+       * node group is allowed to perform a node restart. This
+       * ensures that we get back to a replicated state as soon
+       * as possible and minimises the load on the live node(s)
+       * during node restart handling.
+       */
+      continue;
+    }
+    const Uint32 Tref = calcNdbCntrBlockRef(nodeId);
 
-  NodeState::StartType nrType = NodeState::ST_NODE_RESTART;
-  const char *start_type_str = "node restart";
-  if(c_start.m_withoutLog.get(nodeId))
-  {
-    jam();
-    nrType = NodeState::ST_INITIAL_NODE_RESTART;
-    start_type_str = "initial node restart";
-  }
-  else if (c_start.m_withLogNotRestorable.get(nodeId))
-  {
-    jam();
-    start_type_str = "node restart (node not restorable on its own)";
-  }
+    NodeState::StartType nrType = NodeState::ST_NODE_RESTART;
+    const char *start_type_str = "node restart";
+    if(c_start.m_withoutLog.get(nodeId))
+    {
+      jam();
+      nrType = NodeState::ST_INITIAL_NODE_RESTART;
+      start_type_str = "initial node restart";
+    }
+    else if (c_start.m_withLogNotRestorable.get(nodeId))
+    {
+      jam();
+      start_type_str = "node restart (node not restorable on its own)";
+    }
   
-  /**
-   * Let node perform restart
-   */
-  infoEvent("Start node: %u using %s as part of system restart",
-            nodeId, start_type_str);
+    /**
+     * Let node perform restart
+     */
+    infoEvent("Start node: %u using %s",
+              nodeId, start_type_str);
+    g_eventLogger->info("Start node: %u using %s",
+                        nodeId, start_type_str);
 
-  CntrStartConf * conf = (CntrStartConf*)signal->getDataPtrSend();
-  conf->noStartNodes = 1;
-  conf->startType = nrType;
-  conf->startGci = ~0; // Not used
-  conf->masterNodeId = getOwnNodeId();
-  Uint32* startingNodes = &signal->theData[CntrStartConf::SignalLength];
-  BitmaskImpl::clear(NdbNodeBitmask::Size, startingNodes);
-  BitmaskImpl::set(NdbNodeBitmask::Size, startingNodes, nodeId);
+    CntrStartConf * conf = (CntrStartConf*)signal->getDataPtrSend();
+    conf->noStartNodes = 1;
+    conf->startType = nrType;
+    conf->startGci = ~0; // Not used
+    conf->masterNodeId = getOwnNodeId();
+    Uint32* startingNodes = &signal->theData[CntrStartConf::SignalLength];
+    BitmaskImpl::clear(NdbNodeBitmask::Size, startingNodes);
+    BitmaskImpl::set(NdbNodeBitmask::Size, startingNodes, nodeId);
 
-  Uint32 packed_length1 = NdbNodeBitmask::getPackedLengthInWords(startingNodes);
-  Uint32 packed_length2 = c_startedNodes.getPackedLengthInWords();
+    Uint32 packed_length1 =
+      NdbNodeBitmask::getPackedLengthInWords(startingNodes);
+    Uint32 packed_length2 = c_cntr_startedNodeSet.getPackedLengthInWords();
+    const Uint32 version = getNodeInfo(refToNode(Tref)).m_version;
+    if (ndbd_send_node_bitmask_in_section(version))
+    {
+      STATIC_ASSERT(CntrStartConf::SignalLength + NdbNodeBitmask::Size <=
+                    NDB_ARRAY_SIZE(signal->theData));
+      LinearSectionPtr lsptr[3];
+      Uint32 num_sections;
+      lsptr[0].p = startingNodes;
+      lsptr[0].sz = packed_length1;
+      lsptr[1].p = c_cntr_startedNodeSet.rep.data;
+      lsptr[1].sz = packed_length2;
+      if (ndbd_send_started_bitmask(version))
+      {
+        num_sections = 3;
+        Uint32 packed_length3 = c_startedNodeSet.getPackedLengthInWords();
+        lsptr[2].p = c_startedNodeSet.rep.data;
+        lsptr[2].sz = packed_length3;
+      }
+      else
+      {
+        jam();
+        num_sections = 2;
+      }
+      sendSignal(Tref, GSN_CNTR_START_CONF, signal,
+                 CntrStartConf::SignalLength, JBB, lsptr, num_sections);
+    }
+    else if ((packed_length1 <= 2) && (packed_length2 <= 2))
+    {
+      BitmaskImpl::clear(2, conf->startingNodes_v1);
+      BitmaskImpl::set(2, conf->startingNodes_v1, nodeId);
+      c_cntr_startedNodeSet.copyto(2, conf->startedNodes_v1);
+      sendSignal(Tref, GSN_CNTR_START_CONF, signal,
+	         CntrStartConf::SignalLength_v1, JBB);
+    }
+    else
+    {
+      ndbabort();
+    }
+    /**
+     * A node restart is ongoing where we are master and we just accepted this
+     * node to proceed with his node restart. Inform DBDIH about this event in
+     * the node restart.
+     */
+    NdbcntrStartedRep *rep = (NdbcntrStartedRep*)signal->getDataPtrSend();
+    rep->nodeId = nodeId;
+    EXECUTE_DIRECT(DBDIH, GSN_NDBCNTR_STARTED_REP, signal,
+                   NdbcntrStartedRep::SignalLength);
 
-  if (ndbd_send_node_bitmask_in_section(getNodeInfo(refToNode(Tref)).m_version))
-  {
-    STATIC_ASSERT(CntrStartConf::SignalLength + NdbNodeBitmask::Size <= NDB_ARRAY_SIZE(signal->theData));
-    LinearSectionPtr lsptr[3];
-    lsptr[0].p = startingNodes;
-    lsptr[0].sz = packed_length1;
-    lsptr[1].p = c_startedNodes.rep.data;
-    lsptr[1].sz = packed_length2;
-    sendSignal(Tref, GSN_CNTR_START_CONF, signal,
-       CntrStartConf::SignalLength, JBB, lsptr, 2);
+    c_start.m_waiting.clear(nodeId);
+    c_start.m_withLog.clear(nodeId);
+    c_start.m_withLogNotRestorable.clear(nodeId);
+    c_start.m_withoutLog.clear(nodeId);
+    c_start.m_starting.set(nodeId);
+    return;
   }
-  else if ((packed_length1 <= 2) && (packed_length2 <= 2))
-  {
-    BitmaskImpl::clear(2, conf->startingNodes_v1);
-    BitmaskImpl::set(2, conf->startingNodes_v1, nodeId);
-    c_startedNodes.copyto(2, conf->startedNodes_v1);
-    sendSignal(Tref, GSN_CNTR_START_CONF, signal,
-	     CntrStartConf::SignalLength_v1, JBB);
-  }
-  else
-  {
-    ndbabort();
-  }
-  /**
-   * A node restart is ongoing where we are master and we just accepted this
-   * node to proceed with his node restart. Inform DBDIH about this event in
-   * the node restart.
-   */
-  NdbcntrStartedRep *rep = (NdbcntrStartedRep*)signal->getDataPtrSend();
-  rep->nodeId = nodeId;
-  EXECUTE_DIRECT(DBDIH, GSN_NDBCNTR_STARTED_REP, signal,
-                 NdbcntrStartedRep::SignalLength);
-
-  c_start.m_waiting.clear(nodeId);
-  c_start.m_withLog.clear(nodeId);
-  c_start.m_withLogNotRestorable.clear(nodeId);
-  c_start.m_withoutLog.clear(nodeId);
-  c_start.m_starting.set(nodeId);
 }
 
 void
@@ -2691,10 +2807,15 @@ Ndbcntr::trySystemRestart(Signal* signal){
             conf->noStartNodes,
             conf->startGci);
   char buf[NdbNodeBitmask::TextLength + 1];
-  infoEvent("CNTR_START_CONF: started: %s", c_startedNodes.getText(buf));
+  infoEvent("CNTR_START_CONF: started: %s",
+            c_startedNodeSet.getText(buf));
+  infoEvent("CNTR_START_CONF: cntr_started: %s",
+            c_cntr_startedNodeSet.getText(buf));
   infoEvent("CNTR_START_CONF: starting: %s", c_start.m_starting.getText(buf));
   g_eventLogger->info("CNTR_START_CONF: started: %s",
-                      c_startedNodes.getText(buf));
+                      c_startedNodeSet.getText(buf));
+  g_eventLogger->info("CNTR_START_CONF: cntr_started: %s",
+                      c_cntr_startedNodeSet.getText(buf));
   g_eventLogger->info("CNTR_START_CONF: starting: %s",
                        c_start.m_starting.getText(buf));
 
@@ -2708,22 +2829,37 @@ Ndbcntr::trySystemRestart(Signal* signal){
 
     const Uint32 ref = calcNdbCntrBlockRef(recNode);
     Uint32 packed_length1 = c_start.m_starting.getPackedLengthInWords();
-    Uint32 packed_length2 = c_startedNodes.getPackedLengthInWords();
+    Uint32 packed_length2 = c_cntr_startedNodeSet.getPackedLengthInWords();
+    const Uint32 version = getNodeInfo(recNode).m_version;
 
-    if (ndbd_send_node_bitmask_in_section(getNodeInfo(recNode).m_version))
+    if (ndbd_send_node_bitmask_in_section(version))
     {
+      Uint32 num_sections;
       LinearSectionPtr lsptr[3];
       lsptr[0].p = c_start.m_starting.rep.data;
       lsptr[0].sz = packed_length1;
-      lsptr[1].p = c_startedNodes.rep.data;
+      lsptr[1].p = c_cntr_startedNodeSet.rep.data;
       lsptr[1].sz = packed_length2;
+      if (ndbd_send_started_bitmask(version))
+      {
+        jam();
+        num_sections = 3;
+        Uint32 packed_length3 = c_startedNodeSet.getPackedLengthInWords();
+        lsptr[2].p = c_startedNodeSet.rep.data;
+        lsptr[2].sz = packed_length3;
+      }
+      else
+      {
+        jam();
+        num_sections = 2;
+      }
       sendSignal(ref, GSN_CNTR_START_CONF, signal,
-               CntrStartConf::SignalLength, JBB, lsptr, 2);
+                 CntrStartConf::SignalLength, JBB, lsptr, num_sections);
     }
     else if ((packed_length1 <= 2) && (packed_length2 <= 2))
     {
       c_start.m_starting.copyto(NdbNodeBitmask::Size, conf->startingNodes_v1);
-      c_startedNodes.copyto(NdbNodeBitmask::Size, conf->startedNodes_v1);
+      c_cntr_startedNodeSet.copyto(NdbNodeBitmask::Size, conf->startedNodes_v1);
       sendSignal(ref, GSN_CNTR_START_CONF, signal,
          CntrStartConf::SignalLength_v1, JBB);
     }
@@ -3540,7 +3676,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   }
   packed_nodebitmask_length = allFailed.getPackedLengthInWords();
 
-  NdbNodeBitmask failedStarted = c_startedNodes;
+  NdbNodeBitmask failedStarted = c_startedNodeSet;
   NdbNodeBitmask failedStarting = c_start.m_starting;
   NdbNodeBitmask failedWaiting = c_start.m_waiting;
 
@@ -3571,7 +3707,8 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   c_start.m_withLogNotRestorable.bitANDC(allFailed);
   c_start.m_waitTO.bitANDC(allFailed);
   c_clusterNodes.bitANDC(allFailed);
-  c_startedNodes.bitANDC(allFailed);
+  c_cntr_startedNodeSet.bitANDC(allFailed);
+  c_startedNodeSet.bitANDC(allFailed);
 
   const NodeState & st = getNodeState();
   if (st.startLevel == st.SL_STARTING)
@@ -3736,7 +3873,7 @@ void Ndbcntr::execREAD_NODESREQ(Signal* signal)
    * It makes parallell starts more or less impossible...
    */
   NdbNodeBitmask tmp1; 
-  tmp1.bitOR(c_startedNodes);
+  tmp1.bitOR(c_cntr_startedNodeSet);
   if(!getNodeState().getNodeRestartInProgress()){
     tmp1.bitOR(c_start.m_starting);
   } else {
@@ -3752,7 +3889,7 @@ void Ndbcntr::execREAD_NODESREQ(Signal* signal)
   readNodes->inactiveNodes = tmp2;
   readNodes->definedNodes = c_allDefinedNodes;
   readNodes->clusterNodes = c_clusterNodes;
-  readNodes->startedNodes = c_startedNodes;
+  readNodes->startedNodes = c_cntr_startedNodeSet;
   readNodes->startingNodes = c_start.m_starting;
 
   readNodes->noOfNodes = c_allDefinedNodes.count();
@@ -4780,7 +4917,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
    * Check if I can survive me stopping
    */
   NdbNodeBitmask ndbMask; 
-  ndbMask.assign(cntr.c_startedNodes);
+  ndbMask.assign(cntr.c_startedNodeSet);
 
   if (StopReq::getStopNodes(stopReq.requestInfo))
   {
@@ -6129,7 +6266,7 @@ Ndbcntr::get_restorable_flag_string(Uint32 restorable_flag)
 void
 Ndbcntr::read_local_sysfile_data(Signal *signal)
 {
-  Uint32 version = c_local_sysfile.m_data[0];
+  const Uint32 version = c_local_sysfile.m_data[0];
   Uint32 node_restorable_flag = c_local_sysfile.m_data[1];
   Uint32 max_restorable_gci = c_local_sysfile.m_data[2];
   c_local_sysfile.m_restorable_flag = node_restorable_flag;
@@ -6959,5 +7096,73 @@ void Ndbcntr::sendWAIT_ALL_COMPLETE_LCP_CONF(Signal *signal)
   m_local_lcp_completed = false;
   m_full_local_lcp_started = false;
   DEB_LCP(("m_lcp_started false again"));
+}
+
+void Ndbcntr::get_node_group_mask(Signal *signal,
+                                  NodeId node_id,
+                                  NdbNodeBitmask& mask)
+{ 
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->blockRef = reference();
+  sd->requestType =
+    CheckNodeGroups::Direct |
+    CheckNodeGroups::GetNodeGroupMembers;
+  sd->nodeId = node_id;
+  EXECUTE_DIRECT_MT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
+                   CheckNodeGroups::SignalLength, 0);
+  jamEntry();
+  mask.assign(sd->mask);
+}
+
+bool Ndbcntr::is_nodegroup_starting(Signal *signal, NodeId node_id)
+{ 
+  NdbNodeBitmask mask;
+  get_node_group_mask(signal, node_id, mask);
+  for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
+  { 
+    if (mask.get(i) && i != getOwnNodeId())
+    { 
+      jam();
+      jamLine(Uint16(i));
+      /* Node i is in same node group */
+      if (is_node_starting(i))
+      { 
+        jam(); 
+        return true;
+      }
+    }
+  }
+  jam(); 
+  return false;
+}
+
+bool Ndbcntr::is_node_starting(NodeId node_id)
+{
+  if (c_start.m_starting.get(node_id) ||
+      (c_cntr_startedNodeSet.get(node_id) &&
+       !c_startedNodeSet.get(node_id)))
+  {
+    jam();
+    return true;
+  }
+  else
+  {
+    jam();
+    return false;
+  }
+}
+
+bool Ndbcntr::is_node_started(NodeId node_id)
+{
+  if (c_startedNodeSet.get(node_id))
+  {
+    jam();
+    return true;
+  }
+  else
+  {
+    jam();
+    return false;
+  }
 }
 template class Vector<ddentry>;

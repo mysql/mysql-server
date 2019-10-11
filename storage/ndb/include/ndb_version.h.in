@@ -95,6 +95,18 @@ Uint32 ndbGetOwnVersion();
 
 #ifdef __cplusplus
 }
+
+/*
+ * Send both cntr_started and started bitmasks in CNTR_START_CONF
+ */
+#define NDBD_SEND_STARTED_BITMASK NDB_MAKE_VERSION(8,0,19)
+static
+inline
+int
+ndbd_send_started_bitmask(Uint32 x)
+{
+  return x >= NDBD_SEND_STARTED_BITMASK;
+}
 #endif
 
 #define NDB_VERSION_STRING ndbGetOwnVersionString()
