@@ -107,6 +107,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
   int read_rec_errcode;
   MEM_ROOT tmp_mem;
   char percentile_character[2] = {'%', '\0'};
+  char empty_str = '\0';
   /*
     We need the the dynamic privilege register in order to register any unknown
     privilege identifiers.
@@ -123,14 +124,14 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
       char *host =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);
       if (host == 0) host = &percentile_character[0];
-      const char *user =
+      char *user =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_USER]);
-      if (user == nullptr) user = "\0";
+      if (user == nullptr) user = &empty_str;
       char *priv =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_PRIV]);
       char *with_grant_option = get_field(
           &tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_WITH_GRANT_OPTION]);
-
+      if (priv == nullptr) priv = &empty_str;
       my_caseup_str(system_charset_info, priv);
       LEX_CSTRING str_priv = {priv, strlen(priv)};
       LEX_CSTRING str_user = {user, strlen(user)};

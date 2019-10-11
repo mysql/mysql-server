@@ -614,3 +614,24 @@ GRANT GRANT OPTION ON *.* TO u1;
 DROP USER u1;
 RESET MASTER;
 RESET SLAVE ALL;
+
+--echo #
+--echo # WRITING EMPTY PRIVILEGES INTO GLOBAL_GRANTS TABLE
+--echo #
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '%', ' ');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '%' AND priv = ' ';
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values (' ', '', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = ' ' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values (' ', ' ', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = ' ' AND host = ' ' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '', ' ');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = ' ';
+FLUSH PRIVILEGES;
+
