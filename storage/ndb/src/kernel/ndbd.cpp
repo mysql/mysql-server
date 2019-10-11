@@ -653,7 +653,13 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
     pgman_pages + stpages + transmem;
 
-  g_eventLogger->info("Allocating %u MB to memory manager", sum / 32);
+  /**
+   * We allocate a bit of extra pages to handle map pages in the NDB memory
+   * manager. We need 2 extra pages per 8 GByte of memory added and one more
+   * page per chunk. We add the first chunk already here.
+   */
+  Uint32 extra_chunk_pages = (2 * (sum / (32768 * 8))) + 3;
+  sum += extra_chunk_pages;
 
   if (!ed.m_mem_manager->init(watchCounter, sum))
   {
