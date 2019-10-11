@@ -2219,17 +2219,13 @@ struct ST_FIELD_INFO {
 struct ST_SCHEMA_TABLE {
   const char *table_name;
   ST_FIELD_INFO *fields_info;
-  /* Create information_schema table */
-  TABLE *(*create_table)(THD *thd, TABLE_LIST *table_list);
   /* Fill table with data */
   int (*fill_table)(THD *thd, TABLE_LIST *tables, Item *cond);
   /* Handle fileds for old SHOW */
   int (*old_format)(THD *thd, ST_SCHEMA_TABLE *schema_table);
   int (*process_table)(THD *thd, TABLE_LIST *tables, TABLE *table, bool res,
                        LEX_CSTRING db_name, LEX_CSTRING table_name);
-  int idx_field1, idx_field2;
   bool hidden;
-  uint i_s_requested_object;  // Not used
 };
 
 enum Outer_join_type {

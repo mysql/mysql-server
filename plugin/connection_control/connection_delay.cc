@@ -854,7 +854,5 @@ int connection_control_failed_attempts_view_init(void *ptr) {
 
   schema_table->fields_info = failed_attempts_view_fields;
   schema_table->fill_table = fill_failed_attempts_view;
-  schema_table->idx_field1 = 0;
-  schema_table->idx_field2 = 1;
   return 0;
 }
