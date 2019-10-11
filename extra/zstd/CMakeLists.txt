@@ -9,97 +9,45 @@
 
 PROJECT(zstd)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
-SET(ZSTD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
-
-
-SET(ZSTD_LIB_DIR
-  "${CMAKE_SOURCE_DIR}/extra/zstd/lib")
-INCLUDE_DIRECTORIES(
-  ${ZSTD_LIB_DIR}/common
-)
-#SET(ZSTD_PUBLIC_HDRS ${ZSTD_LIB_DIR}/zstd.h)
-SET(ZSTD_PUBLIC_HDRS
-  ${ZSTD_LIB_DIR}/zstd.h
-  ${ZSTD_LIB_DIR}/common/bitstream.h
-  ${ZSTD_LIB_DIR}/common/compiler.h
-  ${ZSTD_LIB_DIR}/common/error_private.h
-  ${ZSTD_LIB_DIR}/common/fse.h
-  ${ZSTD_LIB_DIR}/common/huf.h
-  ${ZSTD_LIB_DIR}/common/mem.h
-  ${ZSTD_LIB_DIR}/common/pool.h
-  ${ZSTD_LIB_DIR}/common/threading.h
-  ${ZSTD_LIB_DIR}/common/xxhash.h
-  ${ZSTD_LIB_DIR}/common/zstd_errors.h
-  ${ZSTD_LIB_DIR}/common/zstd_internal.h
-  ${ZSTD_LIB_DIR}/compress/zstd_compress_internal.h
-  ${ZSTD_LIB_DIR}/compress/zstd_double_fast.h
-  ${ZSTD_LIB_DIR}/compress/zstd_fast.h
-  ${ZSTD_LIB_DIR}/compress/zstd_lazy.h
-  ${ZSTD_LIB_DIR}/compress/zstd_ldm.h
-  ${ZSTD_LIB_DIR}/compress/zstdmt_compress.h
-  ${ZSTD_LIB_DIR}/compress/zstd_opt.h
-  ${ZSTD_LIB_DIR}/deprecated/zbuff.h
-  ${ZSTD_LIB_DIR}/dictBuilder/divsufsort.h
-  ${ZSTD_LIB_DIR}/dictBuilder/zdict.h
-)
 
 SET(ZSTD_SRCS
-  ${ZSTD_LIB_DIR}/common/entropy_common.c
-  ${ZSTD_LIB_DIR}/common/error_private.c
-  ${ZSTD_LIB_DIR}/common/fse_decompress.c
-  ${ZSTD_LIB_DIR}/common/pool.c
-  ${ZSTD_LIB_DIR}/common/threading.c
-  ${ZSTD_LIB_DIR}/common/xxhash.c
-  ${ZSTD_LIB_DIR}/common/zstd_common.c
-  ${ZSTD_LIB_DIR}/compress/fse_compress.c
-  ${ZSTD_LIB_DIR}/compress/hist.c
-  ${ZSTD_LIB_DIR}/compress/huf_compress.c
-  ${ZSTD_LIB_DIR}/compress/zstd_compress.c
-  ${ZSTD_LIB_DIR}/compress/zstd_compress_literals.c
-  ${ZSTD_LIB_DIR}/compress/zstd_compress_sequences.c
-  ${ZSTD_LIB_DIR}/compress/zstd_double_fast.c
-  ${ZSTD_LIB_DIR}/compress/zstd_fast.c
-  ${ZSTD_LIB_DIR}/compress/zstd_lazy.c
-  ${ZSTD_LIB_DIR}/compress/zstd_ldm.c
-  ${ZSTD_LIB_DIR}/compress/zstdmt_compress.c
-  ${ZSTD_LIB_DIR}/compress/zstd_opt.c
-  ${ZSTD_LIB_DIR}/decompress/huf_decompress.c
-  ${ZSTD_LIB_DIR}/decompress/zstd_decompress.c
-  ${ZSTD_LIB_DIR}/decompress/zstd_decompress_block.c
-  ${ZSTD_LIB_DIR}/decompress/zstd_ddict.c
-  ${ZSTD_LIB_DIR}/deprecated/zbuff_common.c
-  ${ZSTD_LIB_DIR}/deprecated/zbuff_compress.c
-  ${ZSTD_LIB_DIR}/deprecated/zbuff_decompress.c
-  ${ZSTD_LIB_DIR}/dictBuilder/cover.c
-  ${ZSTD_LIB_DIR}/dictBuilder/divsufsort.c
-  ${ZSTD_LIB_DIR}/dictBuilder/zdict.c
-  ${ZSTD_LIB_DIR}/zstd.h
-  ${ZSTD_LIB_DIR}/common/bitstream.h
-  ${ZSTD_LIB_DIR}/common/compiler.h
-  ${ZSTD_LIB_DIR}/common/error_private.h
-  ${ZSTD_LIB_DIR}/common/fse.h
-  ${ZSTD_LIB_DIR}/common/huf.h
-  ${ZSTD_LIB_DIR}/common/mem.h
-  ${ZSTD_LIB_DIR}/common/pool.h
-  ${ZSTD_LIB_DIR}/common/threading.h
-  ${ZSTD_LIB_DIR}/common/xxhash.h
-  ${ZSTD_LIB_DIR}/common/zstd_errors.h
-  ${ZSTD_LIB_DIR}/common/zstd_internal.h
-  ${ZSTD_LIB_DIR}/compress/zstd_compress_internal.h
-  ${ZSTD_LIB_DIR}/compress/zstd_double_fast.h
-  ${ZSTD_LIB_DIR}/compress/zstd_fast.h
-  ${ZSTD_LIB_DIR}/compress/zstd_lazy.h
-  ${ZSTD_LIB_DIR}/compress/zstd_ldm.h
-  ${ZSTD_LIB_DIR}/compress/zstdmt_compress.h
-  ${ZSTD_LIB_DIR}/compress/zstd_opt.h
-  ${ZSTD_LIB_DIR}/deprecated/zbuff.h
-  ${ZSTD_LIB_DIR}/dictBuilder/divsufsort.h
-  ${ZSTD_LIB_DIR}/dictBuilder/zdict.h
+  lib/common/debug.c
+  lib/common/entropy_common.c
+  lib/common/error_private.c
+  lib/common/fse_decompress.c
+  lib/common/pool.c
+  lib/common/threading.c
+  lib/common/xxhash.c
+  lib/common/zstd_common.c
+  lib/compress/fse_compress.c
+  lib/compress/hist.c
+  lib/compress/huf_compress.c
+  lib/compress/zstd_compress.c
+  lib/compress/zstd_compress_literals.c
+  lib/compress/zstd_compress_sequences.c
+  lib/compress/zstd_double_fast.c
+  lib/compress/zstd_fast.c
+  lib/compress/zstd_lazy.c
+  lib/compress/zstd_ldm.c
+  lib/compress/zstdmt_compress.c
+  lib/compress/zstd_opt.c
+  lib/decompress/huf_decompress.c
+  lib/decompress/zstd_ddict.c
+  lib/decompress/zstd_decompress_block.c
+  lib/decompress/zstd_decompress.c
+  lib/deprecated/zbuff_common.c
+  lib/deprecated/zbuff_compress.c
+  lib/deprecated/zbuff_decompress.c
+  lib/dictBuilder/cover.c
+  lib/dictBuilder/divsufsort.c
+  lib/dictBuilder/fastcover.c
+  lib/dictBuilder/zdict.c
 )
 
 ADD_CONVENIENCE_LIBRARY(zstd
-  ${ZSTD_SRCS} ${ZSTD_PUBLIC_HDRS})
+  ${ZSTD_SRCS}
+  INCLUDE_DIRECTORIES lib/common
+  )
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
 #-----------------------------------------------------------------------------
