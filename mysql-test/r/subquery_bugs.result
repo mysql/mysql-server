@@ -362,6 +362,9 @@ INSERT INTO p VALUES (1);
 # Test UNIQUE KEY with NULL values
 CREATE TABLE s (Id INT, u INT, UNIQUE KEY o(Id, u) );
 INSERT INTO s VALUES (1, NULL),(1, NULL);
+ANALYZE TABLE s;
+Table	Op	Msg_type	Msg_text
+test.s	analyze	status	OK
 EXPLAIN SELECT p.Id FROM (p) WHERE p.Id IN (
 SELECT s.Id FROM s WHERE Id=1 AND u IS NULL)ORDER BY Id DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -386,6 +389,9 @@ Id
 # UNIQUE KEY without NULL values
 CREATE TABLE s1 (Id INT, u INT, UNIQUE KEY o(Id, u) );
 INSERT INTO s1 VALUES (1, 2),(1, 3);
+ANALYZE TABLE s1;
+Table	Op	Msg_type	Msg_text
+test.s1	analyze	status	OK
 EXPLAIN SELECT p.Id FROM (p) WHERE p.Id IN (
 SELECT s1.Id FROM s1 WHERE Id=1 AND u IS NOT NULL) ORDER BY Id DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -411,9 +417,15 @@ Id
 # NON UNIQUE KEY Scenario
 CREATE TABLE s2 (Id INT, u INT, KEY o(Id, u) );
 INSERT INTO s2 VALUES (1, NULL),(1, NULL);
+ANALYZE TABLE s2;
+Table	Op	Msg_type	Msg_text
+test.s2	analyze	status	OK
 #UNIQUE KEY with NON NULL FIELDS
 CREATE TABLE s3 (Id INT NOT NULL, u INT NOT NULL, UNIQUE KEY o(Id, u));
 INSERT INTO s3 VALUES (1, 2),(1, 3);
+ANALYZE TABLE s3;
+Table	Op	Msg_type	Msg_text
+test.s3	analyze	status	OK
 EXPLAIN SELECT p.Id FROM (p) WHERE p.Id IN (
 SELECT s.Id FROM s2 s WHERE Id=1 AND u IS NULL) ORDER BY Id DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1133,6 +1145,11 @@ CREATE TABLE d (c INTEGER, KEY idx_d (c));
 INSERT INTO b VALUES (1), (2);
 INSERT INTO c VALUES (1), (2);
 INSERT INTO d VALUES (1), (2);
+ANALYZE TABLE b, c, d;
+Table	Op	Msg_type	Msg_text
+test.b	analyze	status	OK
+test.c	analyze	status	OK
+test.d	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(b, c_inner, c_inner_inner, d, c) */ d.c
 FROM d JOIN c
 WHERE d.c IN (
