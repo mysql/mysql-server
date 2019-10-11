@@ -37,8 +37,10 @@ SET(SYS_SCHEMA_SOURCES
 
   functions/extract_schema_from_file_name.sql
   functions/extract_table_from_file_name.sql
+  functions/format_bytes.sql
   functions/format_path.sql
   functions/format_statement.sql
+  functions/format_time.sql
   functions/list_add.sql
   functions/list_drop.sql
   functions/ps_is_account_enabled.sql
@@ -46,6 +48,7 @@ SET(SYS_SCHEMA_SOURCES
   functions/ps_is_instrument_default_enabled.sql
   functions/ps_is_instrument_default_timed.sql
   functions/ps_is_thread_instrumented.sql
+  functions/ps_thread_id.sql
   functions/ps_thread_account.sql
   functions/ps_thread_stack.sql
   functions/ps_thread_trx_info.sql

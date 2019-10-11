@@ -152,12 +152,6 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
     return error_str();
   }
 
-  /* Check for numeric input. Negative values are ok. */
-  if (!is_numeric_type(args[0]->data_type())) {
-    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "Input", func_name());
-    return error_str();
-  }
-
   /* Declaring 'volatile' as workaround for 32-bit optimization bug. */
   volatile double bytes = args[0]->val_real();
   volatile double bytes_abs = std::abs(bytes);
@@ -225,12 +219,6 @@ String *Item_func_pfs_format_pico_time::val_str(String *) {
   /* If input is null, return null. */
   null_value = args[0]->null_value;
   if (null_value) {
-    return error_str();
-  }
-
-  /* Check for numeric input. Negative values are ok. */
-  if (!is_numeric_type(args[0]->data_type())) {
-    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "Input", func_name());
     return error_str();
   }
 

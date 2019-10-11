@@ -122,16 +122,41 @@ SELECT format_bytes((pow(2, 63) - 1) * 2 + 1);
 format_bytes((pow(2, 63) - 1) * 2 + 1)
 16.00 EiB
 
-## Bad input
+## Text input
 SELECT format_bytes("foo");
-ERROR 22003: Input value is out of range in 'format_bytes'
+format_bytes("foo")
+   0 bytes
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'foo'
 
+SELECT format_bytes("");
+format_bytes("")
+   0 bytes
+
+SELECT format_bytes("118059162071741143500099");
+format_bytes("118059162071741143500099")
+1.02e+05 EiB
+
+SELECT format_bytes("-118059162071741143500099");
+format_bytes("-118059162071741143500099")
+-1.02e+05 EiB
+
+## Recognizes up to first non-numeric
+SELECT format_bytes("40000 * 2000");
+format_bytes("40000 * 2000")
+39.06 KiB
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '40000 * 2000'
+
+SELECT format_bytes("40000 foo 2000");
+format_bytes("40000 foo 2000")
+39.06 KiB
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '40000 foo 2000'
 ## Aggregate functions
 USE test;
 
-CREATE TABLE memory_counts (id VARCHAR(10), bytes BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE memory_counts (id VARCHAR(10), bytes BIGINT UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 INSERT INTO memory_counts VALUES ('Bytes', 512);
 INSERT INTO memory_counts VALUES ('10 KiB', 10 * 1024);

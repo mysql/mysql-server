@@ -125,16 +125,41 @@ format_pico_time(8640000000000000000099 * 2)
 2.00e+05 d
 
 
-## Bad input
+## Text input
 SELECT format_pico_time("foo");
-ERROR 22003: Input value is out of range in 'format_pico_time'
+format_pico_time("foo")
+  0 ps
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'foo'
 
+SELECT format_pico_time("");
+format_pico_time("")
+  0 ps
+
+SELECT format_pico_time("118059162071741143500099");
+format_pico_time("118059162071741143500099")
+1.37e+06 d
+
+SELECT format_pico_time("-118059162071741143500099");
+format_pico_time("-118059162071741143500099")
+-1.37e+06 d
+
+## Recognizes up to first non-numeric
+SELECT format_pico_time("40000 * 2000");
+format_pico_time("40000 * 2000")
+40.00 ns
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '40000 * 2000'
+
+SELECT format_pico_time("40000 foo 2000");
+format_pico_time("40000 foo 2000")
+40.00 ns
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '40000 foo 2000'
 ## Aggregate functions
 USE test;
 
-CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
 INSERT INTO timer_waits VALUES ('1 sec',          1000000000000);
 INSERT INTO timer_waits VALUES ('1 min',         60000000000000);
