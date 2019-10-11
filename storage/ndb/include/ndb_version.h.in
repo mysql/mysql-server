@@ -515,7 +515,7 @@ ndbd_use_multi_ng_trps(Uint32 x)
 /*
  * Send both cntr_started and started bitmasks in CNTR_START_CONF
  */
-#define NDBD_SEND_STARTED_BITMASK NDB_MAKE_VERSION(8,0,20)
+#define NDBD_SEND_STARTED_BITMASK NDB_MAKE_VERSION(8,0,19)
 static
 inline
 int
