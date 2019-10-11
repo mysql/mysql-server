@@ -1,0 +1,444 @@
+
+#Don't run this test when thread_pool active
+--source include/not_threadpool.inc
+
+-- source include/testdb_only.inc
+
+set @orig_sql_mode= @@sql_mode;
+
+--disable_warnings
+drop table if exists t1,t2;
+drop view if exists v1,v2;
+drop function if exists f1;
+drop function if exists f2;
+--enable_warnings
+
+use INFORMATION_SCHEMA;
+sorted_result;
+--replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
+show tables where Tables_in_INFORMATION_SCHEMA NOT LIKE 'INNODB%' and Tables_in_INFORMATION_SCHEMA NOT LIKE 'ndb%';
+sorted_result;
+--replace_result 'Tables_in_INFORMATION_SCHEMA (T%)' 'Tables_in_information_schema (T%)'
+show tables from INFORMATION_SCHEMA like 'T%';
+create database `inf%`;
+create database mbase;
+use `inf%`;
+show tables;
+
+#
+# Bug#18113 SELECT * FROM information_schema.xxx crashes server
+# Bug#17204 second CALL to procedure crashes Server
+# Crash happened when one selected data from one of INFORMATION_SCHEMA
+# tables and in order to build its contents server had to open view which
+# used stored function and table or view on which one had not global or
+# database-level privileges (e.g. had only table-level or had no
+# privileges at all).
+#
+create user 'mysqltest_1'@'localhost';
+grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
+grant all privileges on `mbase`.* to 'mysqltest_1'@'localhost';
+create table t1 (f1 int);
+delimiter |;
+create function func1(curr_int int) returns int
+begin
+  declare ret_val int;
+  select max(f1) from t1 into ret_val;
+  return ret_val;
+end|
+delimiter ;|
+create view v1 as select f1 from t1 where f1 = func1(f1);
+create function func2() returns int return 1;
+
+use mbase;
+delimiter |;
+create procedure p1 ()
+begin
+select table_name from information_schema.key_column_usage
+order by table_name;
+end|
+delimiter ;|
+
+create table t1
+(f1 int(10) unsigned not null,
+ f2 varchar(100) not null,
+ primary key (f1), unique key (f2));
+
+connect (user1,localhost,mysqltest_1,,);
+connection user1;
+--disable_result_log
+select * from information_schema.tables;
+call mbase.p1();
+call mbase.p1();
+call mbase.p1();
+--enable_result_log
+
+connection default;
+use `inf%`;
+drop user mysqltest_1@localhost;
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='inf%' and func2();
+drop view v1;
+drop function func1;
+drop function func2;
+
+drop database `inf%`;
+drop procedure mbase.p1;
+drop database mbase;
+disconnect user1;
+
+#
+# Bug#18282 INFORMATION_SCHEMA.TABLES provides inconsistent info about invalid views
+#
+use test;
+create table t1 (i int);
+create function f1 () returns int return (select max(i) from t1);
+create view v1 as select f1();
+create table t2 (id int);
+create function f2 () returns int return (select max(i) from t2);
+create view v2 as select f2();
+drop table t2;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+drop table t1;
+select table_name, table_type, table_comment from information_schema.tables
+where table_schema='test';
+drop function f1;
+drop function f2;
+drop view v1, v2;
+
+#
+# Bug#20543 select on information_schema strange warnings, view, different
+#           schemas/users
+#
+#
+create database testdb_1;
+create user testdb_1@localhost;
+grant all on testdb_1.* to testdb_1@localhost with grant option;
+
+create user testdb_2@localhost;
+grant all on test.* to testdb_2@localhost with grant option;
+
+connect (testdb_1,localhost,testdb_1,,test);
+use testdb_1;
+create table t1 (f1 char(4));
+create view v1 as select f1 from t1;
+grant insert on v1 to testdb_2@localhost;
+
+create view v5 as select f1 from t1;
+grant select, show view on v5 to testdb_2@localhost;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+create definer=`no_such_user`@`no_such_host` view v6 as select f1 from t1;
+
+connection default;
+use testdb_1;
+create view v6 as select f1 from t1;
+grant select, show view on v6 to testdb_2@localhost;
+
+create table t2 (f1 char(4));
+create definer=`no_such_user`@`no_such_host` view v7 as select * from t2;
+
+show fields from testdb_1.v6;
+show create view testdb_1.v6;
+
+show create view testdb_1.v7;
+show fields from testdb_1.v7;
+
+connection testdb_1;
+
+create table t3 (f1 char(4), f2 char(4));
+create view v3 as select f1,f2 from t3;
+grant insert(f1), insert(f2) on v3 to testdb_2@localhost;
+
+connect (testdb_2,localhost,testdb_2,,test);
+create view v2 as select f1 from testdb_1.v1;
+create view v4 as select f1,f2 from testdb_1.v3;
+
+show fields from testdb_1.v5;
+show create view testdb_1.v5;
+
+show fields from testdb_1.v6;
+show create view testdb_1.v6;
+
+connection testdb_1;
+show fields from testdb_1.v7;
+show create view testdb_1.v7;
+
+revoke insert(f1) on v3 from testdb_2@localhost;
+revoke select,show view on v5 from testdb_2@localhost;
+connection default;
+use testdb_1;
+revoke select,show view on v6 from testdb_2@localhost;
+connection testdb_2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+show fields from testdb_1.v5;
+--error ER_TABLEACCESS_DENIED_ERROR
+show create view testdb_1.v5;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+show fields from testdb_1.v6;
+--error ER_TABLEACCESS_DENIED_ERROR
+show create view testdb_1.v6;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+show fields from testdb_1.v7;
+--error ER_TABLEACCESS_DENIED_ERROR
+show create view testdb_1.v7;
+
+show create view v4;
+#--error ER_VIEW_NO_EXPLAIN
+show fields from v4;
+
+show fields from v2;
+show fields from testdb_1.v1;
+show create view v2;
+--error ER_TABLEACCESS_DENIED_ERROR
+show create view testdb_1.v1;
+
+select table_name from information_schema.columns a
+where a.table_name = 'v2';
+select view_definition from information_schema.views a
+where a.table_name = 'v2';
+select view_definition from information_schema.views a
+where a.table_name = 'testdb_1.v1';
+
+--error ER_VIEW_INVALID
+select * from v2;
+
+connection default;
+use test;
+drop view testdb_1.v1, v2, testdb_1.v3, v4;
+drop database testdb_1;
+connection testdb_1;
+disconnect testdb_1;
+--source include/wait_until_disconnected.inc
+connection testdb_2;
+disconnect testdb_2;
+--source include/wait_until_disconnected.inc
+connection default;
+drop user testdb_1@localhost;
+drop user testdb_2@localhost;
+
+#
+# Bug#22763 Disrepancy between SHOW CREATE VIEW and I_S.VIEWS
+#
+create database testdb_1;
+create table testdb_1.t1 (a int);
+create view testdb_1.v1 as select * from testdb_1.t1;
+
+create user mysqltest_1@localhost;
+grant show view on testdb_1.* to mysqltest_1@localhost;
+grant select on testdb_1.v1 to mysqltest_1@localhost;
+
+connect (user1,localhost,mysqltest_1,,test);
+connection user1;
+select table_schema, table_name, view_definition from information_schema.views
+where table_name='v1';
+show create view testdb_1.v1;
+
+connection default;
+revoke select on testdb_1.v1 from mysqltest_1@localhost;
+connection user1;
+select table_schema, table_name, view_definition from information_schema.views
+where table_name='v1';
+--error ER_TABLEACCESS_DENIED_ERROR
+show create view testdb_1.v1;
+
+connection default;
+drop user mysqltest_1@localhost;
+drop database testdb_1;
+set sql_mode= @orig_sql_mode;
+connection user1;
+disconnect user1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--echo #
+--echo # Bug#30158484 FULLY QUALIFIED COLUMN NAMES IN WHERE CLAUSE ARE
+--echo #              FAILING WITH INFORMATION_SCHEMA TABLES IN 8.0
+
+--echo #
+--echo # Case 1: INFORMATION_SCHEMA name in SELECT clause with mixed case.
+--echo #
+--echo # These commands fail with ER_BAD_FIELD_ERROR without the fix.
+SELECT INFORMATION_schema.TABLES.TABLE_NAME,
+       information_SCHEMA.TABLES.TABLE_NAME,
+       INFORMATION_SCHEMA.TABLES.TABLE_NAME,
+       information_schema.TABLES.TABLE_NAME
+   FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+
+SELECT INFORMATION_schema.TABLES.TABLE_NAME,
+       information_SCHEMA.TABLES.TABLE_NAME,
+       INFORMATION_SCHEMA.TABLES.TABLE_NAME,
+       information_schema.TABLES.TABLE_NAME
+   FROM information_schema.TABLES WHERE TABLE_NAME='non_existing_table';
+
+SELECT INFORMATION_schema.TABLES.TABLE_NAME,
+       information_SCHEMA.TABLES.TABLE_NAME,
+       INFORMATION_SCHEMA.TABLES.TABLE_NAME,
+       information_schema.TABLES.TABLE_NAME
+   FROM information_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+
+--echo #
+--echo # Case 2: INFORMATION_SCHEMA name used to specify '*' in SELECT
+--echo # clause with mixed case.
+--echo #
+SELECT INFORMATION_SCHEMA.TABLES.*
+FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+
+SELECT information_schema.TABLES.*
+FROM information_schema.TABLES WHERE TABLE_NAME='non_existing_table';
+
+SELECT INFORMATION_SCHEMA.TABLES.*
+FROM information_schema.TABLES WHERE TABLE_NAME='non_existing_table';
+
+SELECT INFORMATION_schema.TABLES.*
+FROM information_SCHEMA.TABLES WHERE TABLE_NAME='non_existing_table';
+
+--echo #
+--echo # Case 3: INFORMATION_SCHEMA name in WHERE clause with mixed case.
+--echo #
+SELECT COUNT(*) > 1 FROM INFORMATION_SCHEMA.TABLES
+  WHERE INFORMATION_schema.TABLES.TABLE_NAME LIKE 'a%' AND
+        information_SCHEMA.TABLES.TABLE_NAME LIKE 'b%' AND
+        information_schema.TABLES.TABLE_NAME LIKE 'c%' AND
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME LIKE 'd%';
+
+SELECT COUNT(*) > 1 FROM information_schema.TABLES
+  WHERE INFORMATION_schema.TABLES.TABLE_NAME LIKE 'a%' AND
+        information_SCHEMA.TABLES.TABLE_NAME LIKE 'b%' AND
+        information_schema.TABLES.TABLE_NAME LIKE 'c%' AND
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME LIKE 'd%';
+
+SELECT COUNT(*) > 1 FROM INFORMATION_schema.TABLES
+  WHERE INFORMATION_schema.TABLES.TABLE_NAME LIKE 'a%' AND
+        information_SCHEMA.TABLES.TABLE_NAME LIKE 'b%' AND
+        information_schema.TABLES.TABLE_NAME LIKE 'c%' AND
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME LIKE 'd%';
+
+--echo #
+--echo # Case 4: INFORMATION_SCHEMA name in ORDER BY clause with mixed case.
+--echo #
+SELECT COUNT(*) > 1 FROM INFORMATION_SCHEMA.TABLES
+  ORDER BY INFORMATION_schema.TABLES.TABLE_NAME,
+        information_SCHEMA.TABLES.TABLE_NAME,
+        information_schema.TABLES.TABLE_NAME,
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME;
+
+SELECT COUNT(*) > 1 FROM information_schema.TABLES
+  ORDER BY INFORMATION_schema.TABLES.TABLE_NAME,
+        information_SCHEMA.TABLES.TABLE_NAME,
+        information_schema.TABLES.TABLE_NAME,
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME;
+
+SELECT COUNT(*) > 1 FROM INFORMATION_schema.TABLES
+  ORDER BY INFORMATION_schema.TABLES.TABLE_NAME,
+        information_SCHEMA.TABLES.TABLE_NAME,
+        information_schema.TABLES.TABLE_NAME,
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME;
+
+--echo #
+--echo # Case 5: INFORMATION_SCHEMA name in GROUP BY clause with mixed case.
+--echo #
+SELECT COUNT(*) > 1 FROM INFORMATION_SCHEMA.TABLES
+  GROUP BY INFORMATION_schema.TABLES.TABLE_NAME,
+        information_SCHEMA.TABLES.TABLE_NAME,
+        information_schema.TABLES.TABLE_NAME,
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME LIMIT 1;
+
+SELECT COUNT(*) > 1 FROM information_schema.TABLES
+  GROUP BY INFORMATION_schema.TABLES.TABLE_NAME,
+        information_SCHEMA.TABLES.TABLE_NAME,
+        information_schema.TABLES.TABLE_NAME,
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME LIMIT 1;
+
+SELECT COUNT(*) > 1 FROM INFORMATION_schema.TABLES
+  GROUP BY INFORMATION_schema.TABLES.TABLE_NAME,
+        information_SCHEMA.TABLES.TABLE_NAME,
+        information_schema.TABLES.TABLE_NAME,
+        INFORMATION_SCHEMA.TABLES.TABLE_NAME LIMIT 1;
+
+--echo #
+--echo # Case 6: Test behavior using INFORMATION_SCHEMA name, I_S table name
+--echo # and I_S column name with mixed cases.
+--echo #
+# EXPECTATION:
+# - INFORMATION_SCHEMA name is treated as case-insensitive, in any of SELECT
+#   clause.
+#
+# - I_S COLUMN name is treated as case-insensitive, in any of SELECT clause.
+#
+# - I_S table name is allowed with mixed case in FROM clause. However, the
+#   name used in the FROM clause should match the I_S table name used in
+#   other SELECT clause or else we get ER_BAD_FIELD_ERROR in setting
+#   lower_case_table_names=0. The I_S table name are treated as case
+#   insensitive in setting lower_case_table_names > 0.
+
+
+--let $error_code= `SELECT IF(@@lower_case_table_names>0,'0','ER_BAD_FIELD_ERROR')`
+--disable_result_log
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE INFORMATION_SCHEMA.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE INFORMATION_SCHEMA.SCHEMATA.schema_name = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE INFORMATION_SCHEMA.schemata.SCHEMA_NAME = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE INFORMATION_SCHEMA.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE information_schema.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE information_schema.SCHEMATA.schema_name = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE information_schema.schemata.SCHEMA_NAME = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA
+  WHERE information_schema.schemata.schema_name = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE INFORMATION_SCHEMA.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE INFORMATION_SCHEMA.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE INFORMATION_SCHEMA.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE INFORMATION_SCHEMA.schemata.schema_name = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE information_schema.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE information_schema.SCHEMATA.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE information_schema.schemata.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.schemata
+  WHERE information_schema.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE INFORMATION_SCHEMA.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE INFORMATION_SCHEMA.SCHEMATA.schema_name = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE INFORMATION_SCHEMA.schemata.SCHEMA_NAME = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE INFORMATION_SCHEMA.schemata.schema_name = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE information_schema.SCHEMATA.SCHEMA_NAME = 'unknowdb';
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE information_schema.SCHEMATA.schema_name = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE information_schema.schemata.SCHEMA_NAME = 'unknowdb';
+--error $error_code
+SELECT SCHEMA_NAME FROM information_schema.SCHEMATA
+  WHERE information_schema.schemata.schema_name = 'unknowdb';
+--enable_result_log
