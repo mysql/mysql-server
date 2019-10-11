@@ -37,6 +37,15 @@
 # 2) Stop the slave and drop the user.
 # 3) Start the slave and expect an error.
 #
+# TC4. Validate that slave stops when PRIVILEGE_CHECKS_USER is not able
+#      to grant privileges.
+# ----------------------------------------------------------------------------
+# 1) Setup PRIVILEGE_CHECKS_USER without WITH GRANT OPTION, that is,
+#    u1 will not be able to GRANT privileges.
+# 2) GRANT a privilege to u1 on master.
+# 3) Slave will stop since u1 cannot GRANT privileges.
+# 4) Clean up test case.
+#
 # ==== References ====
 #
 # WL#12966 Replication with privilege checks
@@ -147,11 +156,77 @@ START SLAVE;
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave.inc
 
+--echo #
+--echo # TC4. Validate that slave stops when PRIVILEGE_CHECKS_USER is not able
+--echo #      to grant privileges.
+--echo # ---------------------------------------------------------------------
+
+#
+# 1) Setup PRIVILEGE_CHECKS_USER without WITH GRANT OPTION, that is,
+#    u1 will not be able to GRANT privileges.
+#
+--source include/rpl_connection_master.inc
+--let $master_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+--let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+SET sql_log_bin= 0;
+CREATE USER 'u1'@'localhost';
+SET sql_log_bin= 1;
+
+--source include/rpl_connection_slave.inc
+CREATE USER 'u1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+
+--replace_result $MASTER_MYPORT MY_MASTER_PORT $master_log_pos MY_MASTER_LOG_POS
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', REQUIRE_ROW_FORMAT=1, MASTER_LOG_POS=$master_log_pos
+--source include/start_slave.inc
+
+#
+# 2) GRANT a privilege to u1 on master.
+#
+--source include/rpl_connection_master.inc
+GRANT REPLICATION_APPLIER on *.* TO 'u1'@'localhost';
+
+#
+# 3) Slave will stop since u1 cannot GRANT privileges.
+#
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression(".*Access denied. you need .at least one of. the GRANT OPTION privilege.*");
+--let $slave_sql_errno= convert_error(ER_SPECIFIC_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# Allow slave to skip the transaction by commiting a empty
+# transaction with the same GTID.
+if (`SELECT @@GLOBAL.GTID_MODE = "ON"`)
+{
+  --disable_query_log
+  --eval SET GTID_NEXT= '$master_uuid:2'
+  BEGIN;
+  COMMIT;
+  SET GTID_NEXT= 'AUTOMATIC';
+  --enable_query_log
+}
+
+#
+# 4) Clean up test case.
+#
+--source include/rpl_connection_master.inc
+SET sql_log_bin= 0;
+DROP USER 'u1'@'localhost';
+SET sql_log_bin= 1;
+
+--source include/rpl_connection_slave.inc
+DROP USER 'u1'@'localhost';
+
 # Clean up
+--source include/rpl_connection_master.inc
+--let $master_log_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+--source include/rpl_connection_slave.inc
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT DROP ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER='u1'@'localhost';
+--source include/stop_slave.inc
+--replace_result $master_log_pos MY_MASTER_LOG_POS
+--eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=$master_log_pos
 START SLAVE;
 --source include/rpl_connection_master.inc
 DROP TABLE t1;

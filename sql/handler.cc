@@ -1631,22 +1631,19 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
     to update slave applier state as part of DDL's transaction.
     Call Relay_log_info::pre_commit() hook to do this before DDL
     gets committed in the following block.
+    Failed atomic DDL statements should've been marked as executed/committed
+    during statement rollback, though some like GRANT may continue until
+    this point.
+    When applying a DDL statement on a slave and the statement is filtered
+    out by a table filter, we report an error "ER_SLAVE_IGNORED_TABLE" to
+    warn slave applier thread. We need to save the DDL statement's gtid
+    into mysql.gtid_executed system table if the binary log is disabled
+    on the slave and gtids are enabled.
   */
-  if (is_real_trans && is_atomic_ddl_commit_on_slave(thd)) {
-    /*
-      Failed atomic DDL statements should've been marked as executed/committed
-      during statement rollback.
-      When applying a DDL statement on a slave and the statement is filtered
-      out by a table filter, we report an error "ER_SLAVE_IGNORED_TABLE" to
-      warn slave applier thread. We need to save the DDL statement's gtid
-      into mysql.gtid_executed system table if the binary log is disabled
-      on the slave and gtids are enabled. It is not necessary to assert that
-      there is no error when committing the DDL statement's gtid into table.
-    */
-    DBUG_ASSERT(!thd->is_error() ||
-                (thd->is_operating_gtid_table_implicitly &&
-                 thd->get_stmt_da()->mysql_errno() == ER_SLAVE_IGNORED_TABLE));
-
+  if (is_real_trans && is_atomic_ddl_commit_on_slave(thd) &&
+      (!thd->is_error() ||
+       (thd->is_operating_gtid_table_implicitly &&
+        thd->get_stmt_da()->mysql_errno() == ER_SLAVE_IGNORED_TABLE))) {
     run_slave_post_commit = true;
     error = error || thd->rli_slave->pre_commit();
 

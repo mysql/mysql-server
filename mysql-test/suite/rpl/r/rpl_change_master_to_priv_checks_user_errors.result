@@ -47,10 +47,40 @@ DROP USER 'u1'@'localhost';
 START SLAVE;
 include/wait_for_slave_sql_error.inc [errno=13494]
 include/stop_slave.inc
+#
+# TC4. Validate that slave stops when PRIVILEGE_CHECKS_USER is not able
+#      to grant privileges.
+# ---------------------------------------------------------------------
+[connection master]
+SET sql_log_bin= 0;
+CREATE USER 'u1'@'localhost';
+SET sql_log_bin= 1;
+[connection slave]
+CREATE USER 'u1'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MY_MASTER_PORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', REQUIRE_ROW_FORMAT=1, MASTER_LOG_POS=MY_MASTER_LOG_POS;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+[connection master]
+GRANT REPLICATION_APPLIER on *.* TO 'u1'@'localhost';
+[connection slave]
+CALL mtr.add_suppression(".*Access denied. you need .at least one of. the GRANT OPTION privilege.*");
+include/wait_for_slave_sql_error.inc [errno=1227]
+[connection master]
+SET sql_log_bin= 0;
+DROP USER 'u1'@'localhost';
+SET sql_log_bin= 1;
+[connection slave]
+DROP USER 'u1'@'localhost';
+[connection master]
+[connection slave]
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT DROP ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER='u1'@'localhost';
+include/stop_slave.inc
+CHANGE MASTER TO PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=MY_MASTER_LOG_POS;
 START SLAVE;
 [connection master]
 DROP TABLE t1;
