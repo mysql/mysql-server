@@ -30,6 +30,16 @@
 
 #define JAM_FILE_ID 296
 
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+#define DEBUG_MEM_ALLOC 1
+#endif
+
+#ifdef DEBUG_MEM_ALLOC
+#define DEB_MEM_ALLOC(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_MEM_ALLOC(arglist) do { } while (0)
+#endif
+
 #define PAGES_PER_REGION_LOG BPP_2LOG
 
 #ifdef _WIN32
@@ -780,6 +790,8 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
   assert(max_pages > 0);
   assert(m_resource_limits.get_allocated() == 0);
 
+  DEB_MEM_ALLOC(("Allocating %u pages", max_pages));
+
   if (watchCounter)
     *watchCounter = 9;
 
@@ -787,11 +799,6 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
   Uint32 max_page = 0;
   
   const Uint64 pg = Uint64(sizeof(Alloc_page));
-  g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %lluMb initial: %lluMb",
-                      alloc_less_memory,
-                      (pg*m_resource_limits.get_free_reserved())>>20,
-                      (pg*pages) >> 20);
-
   if (pages == 0)
   {
     return false;
@@ -812,11 +819,15 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
 #ifdef USE_DO_VIRTUAL_ALLOC
   {
     InitChunk chunks[ZONE_COUNT];
+    /* Add one more page per ZONE */
+    pages += ZONE_COUNT;
     if (do_virtual_alloc(pages, chunks, watchCounter, &m_base_page))
     {
       for (int i = 0; i < ZONE_COUNT; i++)
       {
         m_unmapped_chunks.push_back(chunks[i]);
+        DEB_MEM_ALLOC(("Adding one more chunk with %u pages",
+                       chunks[i].m_cnt));
         allocated += chunks[i].m_cnt;
       }
       require(allocated == pages);
@@ -866,6 +877,12 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
 
       m_unmapped_chunks.push_back(chunk);
       allocated += chunk.m_cnt;
+      DEB_MEM_ALLOC(("malloc of a chunk of %u pages", chunk.m_cnt));
+      if (allocated < pages)
+      {
+        /* Add one more page for another chunk */
+        pages++;
+      }
     }
     else
     {
@@ -918,6 +935,11 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
     if (last > max_page)
       max_page = last;
   }
+
+  g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %lluMb initial: %lluMb",
+                      alloc_less_memory,
+                      (pg*m_resource_limits.get_free_reserved())>>20,
+                      (pg*pages) >> 20);
 
   m_resource_limits.set_max_page(max_page);
   m_resource_limits.set_allocated(0);
@@ -1012,6 +1034,7 @@ Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
       g_eventLogger->info("Lock memory Completed");
     }
 
+    DEB_MEM_ALLOC(("grow %u pages", chunk->m_cnt));
     grow(chunk->m_start, chunk->m_cnt);
     sofar += chunk->m_cnt;
 
