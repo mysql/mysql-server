@@ -23274,15 +23274,16 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     {
       if (m_gcp_monitor.m_gcp_save.m_max_lag_ms)
       {
-        warningEvent("GCP Monitor: GCP_SAVE lag %u seconds"
-                     " (max lag: %us)",
-                     lag0/1000, m_gcp_monitor.m_gcp_save.m_max_lag_ms/1000);
+        warningEvent("GCP Monitor: GCP_SAVE lag %u sec"
+                     " (max lag: %us), %s",
+                     lag0/1000, m_gcp_monitor.m_gcp_save.m_max_lag_ms/1000,
+                     c_GCP_SAVEREQ_Counter.getText());
       }
       else
       {
-        warningEvent("GCP Monitor: GCP_SAVE lag %u seconds"
-                     " (no max lag)",
-                     lag0/1000);
+        warningEvent("GCP Monitor: GCP_SAVE lag %u sec"
+                     " (no max lag), %s",
+                     lag0/1000, c_GCP_SAVEREQ_Counter.getText());
       }
     }
   }
@@ -23328,15 +23329,16 @@ void Dbdih::checkGcpStopLab(Signal* signal)
     {
       if (m_gcp_monitor.m_micro_gcp.m_max_lag_ms)
       {
-        warningEvent("GCP Monitor: GCP_COMMIT lag %u seconds"
-                     " (max lag: %u)",
-                     lag1/1000, m_gcp_monitor.m_micro_gcp.m_max_lag_ms/1000);
+        warningEvent("GCP Monitor: GCP_COMMIT lag %u sec"
+                     " (max lag: %us), %s",
+                     lag1/1000, m_gcp_monitor.m_micro_gcp.m_max_lag_ms/1000,
+                     c_GCP_COMMIT_Counter.getText());
       }
       else
       {
-        warningEvent("GCP Monitor: GCP_COMMIT lag %u seconds"
-                     " (no max lag)",
-                     lag1/1000);
+        warningEvent("GCP Monitor: GCP_COMMIT lag %u sec"
+                     " (no max lag), %s",
+                     lag1/1000, c_GCP_COMMIT_Counter.getText());
       }
     }
   }
