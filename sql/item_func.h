@@ -220,7 +220,8 @@ class Item_func : public Item_result_field {
     JSON_CONTAINS,
     JSON_OVERLAPS,
     MEMBER_OF_FUNC,
-    STRCMP_FUNC
+    STRCMP_FUNC,
+    TRUE_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
