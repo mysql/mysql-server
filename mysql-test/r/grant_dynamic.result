@@ -1131,3 +1131,22 @@ binlog.000001	#	Query	#	#	use `test`; GRANT GRANT OPTION ON *.* TO 'u1'@'%' WITH
 DROP USER u1;
 RESET MASTER;
 RESET SLAVE ALL;
+#
+# WRITING EMPTY PRIVILEGES INTO GLOBAL_GRANTS TABLE
+#
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '%', ' ');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '%' AND priv = ' ';
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values (' ', '', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = ' ' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values (' ', ' ', '');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = ' ' AND host = ' ' AND priv = '';
+INSERT INTO mysql.global_grants (user, host, priv) values ('', '', ' ');
+FLUSH PRIVILEGES;
+DELETE FROM mysql.global_grants WHERE user = '' AND host = '' AND priv = ' ';
+FLUSH PRIVILEGES;
