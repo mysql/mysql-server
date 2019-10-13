@@ -72,7 +72,6 @@ rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
-rpl.rpl_multi_source_corrupt_repository   : Bug#28765425 Disabled until the bug is fixed
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.
