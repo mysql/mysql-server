@@ -2134,7 +2134,10 @@ int runBug25468(NDBT_Context* ctx, NDBT_Step* step)
     case 4:
       node1 = restarter.getRandomNodeOtherNodeGroup(master, rand());
       if (node1 == -1)
-	node1 = master;
+      {
+        // only one node group in cluster
+        node1 = master;
+      }
       node2 = restarter.getRandomNodeSameNodeGroup(node1, rand());
       break;
     }
@@ -2146,7 +2149,7 @@ int runBug25468(NDBT_Context* ctx, NDBT_Step* step)
     if (restarter.dumpStateOneNode(node2, val2, 2))
       return NDBT_FAILED;
 
-    if (restarter.insertErrorInNode(node1, 7178))
+    if (restarter.insertError2InNode(node1, 7178, node2))
       return NDBT_FAILED;
 
     int val1 = 7099;
