@@ -10276,23 +10276,27 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     }
 #endif
 
-    if (!eof ||
-        !c_defaults.m_o_direct ||
-        (sz % 128 == 0) ||
-        (filePtr.i != ptr.p->dataFilePtr[0]) ||
-        (ptr.p->slaveState.getState() != STOPPING) ||
-        ptr.p->is_lcp())
+    const bool write_to_datafile = (filePtr.i == ptr.p->dataFilePtr[0]);
+    /**
+     * If O_DIRECT is enabled, the write should be done in 128-word chunks.
+     * For O_DIRECT writes of less than 128 words, we skip the writes when
+     * we have reached end of file and we are about to abort the backup (and
+     * will not be interested in its results). We avoid writing in this case
+     * since we don't want to handle errors for O_DIRECT calls.
+     * However we only avoid this write for data files since CTL files and
+     * LOG files never use O_DIRECT. Also no need to avoid write if we don't
+     * use O_DIRECT at all.
+     */
+    const bool skip_write = (c_defaults.m_o_direct &&  // O_DIRECT write
+                       write_to_datafile &&   // to datafile
+                       !ptr.p->is_lcp() &&    // during backup
+                       eof &&    // last chunk of data to write to file
+                       (sz % 128 != 0) &&     // too small for O_DIRECT
+                       (ptr.p->slaveState.getState() == STOPPING) &&
+                       ptr.p->checkError());  // backup to be aborted
+
+    if(likely(!skip_write))
     {
-      /**
-       * We always perform the writes for LCPs, for backups we ignore
-       * the writes when we have reached end of file and we are in the
-       * process of stopping a backup (this means we are about to abort
-       * the backup and will not be interested in its results.). We avoid
-       * writing in this case since we don't want to handle errors for
-       * e.g. O_DIRECT calls in this case. However we only avoid this write
-       * for data files since CTL files and LOG files never use O_DIRECT.
-       * Also no need to avoid write if we don't use O_DIRECT at all.
-       */
       jam();
       ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
       FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
