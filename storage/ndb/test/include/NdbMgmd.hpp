@@ -594,6 +594,43 @@ public:
     return true;
   }
 
+  Uint32 get_config32(unsigned type_of_section,
+                      unsigned config_variable)
+  {
+    if (!is_connected())
+    {
+      if (!connect())
+      {
+        error("Mgmd not connected");
+        return 0;
+      }
+    }
+
+    Config conf;
+    if (!get_config(conf))
+    {
+      error("Mgmd : get_config failed");
+      return 0;
+    }
+
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    {
+      if (!iter.openSection(type_of_section, nodeid))
+        continue;
+      Uint32 current_value = 0;
+      if (iter.get(config_variable, &current_value))
+      {
+        if (current_value > 0)
+        {
+          return current_value;
+        }
+      }
+      iter.closeSection();
+    }
+    return 0;
+  }
+
   // Pretty printer for 'ndb_mgm_node_type'
   class NodeType {
     BaseString m_str;

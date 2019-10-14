@@ -19830,8 +19830,8 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
   ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
   ndbrequire(lcpPtr.p->lcpRunState == LcpRecord::LCP_CHECKPOINTING);
   lcpPtr.p->lcpRunState = LcpRecord::LCP_COMPLETED;
-  lcpPtr.p->m_no_of_records += noOfRecords;
-  lcpPtr.p->m_no_of_bytes += noOfBytes;
+  lcpPtr.p->m_no_of_records = noOfRecords;
+  lcpPtr.p->m_no_of_bytes = noOfBytes;
 
   /* ------------------------------------------------------------------------
    *   THE LOCAL CHECKPOINT HAS BEEN COMPLETED. IT IS NOW TIME TO START 

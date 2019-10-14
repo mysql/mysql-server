@@ -34,6 +34,7 @@
 #include <NdbConfig.hpp>
 #include <BlockNumbers.h>
 #include <NdbHost.h>
+#include <NdbMgmd.hpp>
 
 #define CHK1(b) \
   if (!(b)) { \
@@ -49,6 +50,11 @@
     result = NDBT_FAILED; \
     break; \
   }
+
+#define CHECK3(b) if (!(b)) { \
+  ndbout << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << endl; \
+  return NDBT_FAILED; }
 
 /**
  * TODO 
@@ -4017,6 +4023,105 @@ int testAbortRace(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/**
+ * This test case passes if the # records checkpointed
+ * is equal to #records in the table given in the test context
+ * times number of replicas in the cluster.
+ * It
+ * - performs a local checkpoint.
+ * - fills the table with #records given in the test context.
+ * - performs another local checkpoint. With the pLCP, only the
+ *    the records inserted into the context's table is expected to
+ *    appear in the LCP-statistics calculated by the test.
+ * - Checks the LCP'd records.
+ */
+int
+runCheckLCPStats(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  Uint32 master = restarter.getMasterNodeId();
+
+  // Perform an LCP and wait it to start and finish
+  int dump_req[] = { DumpStateOrd::DihStartLcpImmediately};
+  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle =
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  struct ndb_logevent event;
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointStarted);
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointCompleted);
+
+  // Insert ctx->getNumRecords()
+  CHECK3(runLoadTable(ctx,step) == 0);
+
+  // Perform an LCP and wait until it is started
+  CHECK3(restarter.dumpStateOneNode(master, dump_req, 1) == 0);
+  while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+        event.type != NDB_LE_LocalCheckpointStarted);
+
+  NdbMgmd mgmd;
+  CHECK3(mgmd.connect());
+  CHECK3(mgmd.subscribe_to_events());
+  Uint32 no_of_replicas = mgmd.get_config32(CFG_SECTION_NODE,
+                                            CFG_DB_NO_REPLICAS);
+  g_err << "Number of replicas in cluster " << no_of_replicas << endl;
+  CHECK3(no_of_replicas > 0);
+  Uint64 expected_records = no_of_replicas * ctx->getNumRecords();
+  Uint64 checkpointed_records = 0;
+
+  Uint64 max_wait_seconds = 120;
+  Uint64 end_time = NdbTick_CurrentMillisecond() +
+    (max_wait_seconds * 1000);
+
+  // Read 'Completed LCP' events and sum up the checkpointed records
+  while (NdbTick_CurrentMillisecond() < end_time)
+  {
+    char buff[512];
+    if (!mgmd.get_next_event_line(buff,
+                                  sizeof(buff),
+                                  10 * 1000) == 0)
+    {
+      if  (strstr(buff, "Local checkpoint"))
+      {
+        /**
+         * Since we have already seen "Local checkpoint %u started" event
+         * earlier, this must be "Local checkpoint %u completed" event.
+         */
+        if (checkpointed_records == expected_records)
+        {
+          return NDBT_OK;
+        }
+        // Probably "Local checkpoint %u completed" came before all
+        // "Completed LCP" events came. Continue until end_time.
+      }
+
+      if (strstr(buff, "Completed LCP"))
+      {
+        unsigned int node = 0;
+        unsigned int ldm = 0;
+        unsigned int nfrags = 0;
+        unsigned int nRecords = 0;
+        unsigned int nBytes = 0;
+
+        sscanf(buff, "Node %u: LDM(%u): Completed LCP, #frags = %u #records = %u, #bytes = %u", &node, &ldm, &nfrags, &nRecords, &nBytes);
+
+        g_info << "Node " << node << " ldm " << ldm
+              << " Records " << nRecords << endl;
+        checkpointed_records += nRecords;
+      }
+    }
+  }
+
+  // Total checkpointed records includes both primary and the backup replicas
+  g_err << "Number of records checkpointed " << checkpointed_records << endl;
+
+  CHECK3(checkpointed_records == expected_records);
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
@@ -4442,7 +4547,13 @@ TESTCASE("AbortRace",
   STEP(testAbortRace);
   FINALIZER(runClearTable);
 }
-NDBT_TESTSUITE_END(testBasic)
+TESTCASE("CheckCompletedLCPStats",
+        "Check if the LCP'd #records is equal to "
+         "nReplicas * #records inserted" )
+{
+  STEP(runCheckLCPStats);
+}
+NDBT_TESTSUITE_END(testBasic);
 
 #if 0
 TESTCASE("ReadConsistency",
