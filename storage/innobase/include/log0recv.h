@@ -79,7 +79,7 @@ than buf_len if log data ended here
 @param[out]	has_encrypted_log	set true, if buffer contains encrypted
 redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *block_no,
+                      uint32_t *scanned_checkpoint_no, uint32_t *block_no,
                       ulint *n_bytes_scanned, bool *has_encrypted_log);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
