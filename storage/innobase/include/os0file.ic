@@ -524,8 +524,8 @@ bool pfs_os_file_rename_func(mysql_pfs_key_t key, const char *oldpath,
   PSI_file_locker_state state;
   struct PSI_file_locker *locker = NULL;
 
-  register_pfs_file_rename_begin(&state, locker, key, PSI_FILE_RENAME, newpath,
-                                 src_file, src_line);
+  register_pfs_file_rename_begin(&state, locker, key, PSI_FILE_RENAME, oldpath,
+                                 newpath, src_file, src_line);
 
   bool result = os_file_rename_func(oldpath, newpath);
 

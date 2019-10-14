@@ -44,45 +44,55 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_file.h"
 
-#define PSI_FILE_CALL(M) pfs_##M##_v1
+/*
+  Naming current apis as _vc (version 'current'),
+  to avoid changing the names every time
+  psi_file_v<N> is replaced by psi_file_v<N+1>.
+*/
 
-void pfs_register_file_v1(const char *category, PSI_file_info_v1 *info,
+#define PSI_FILE_CALL(M) pfs_##M##_vc
+
+void pfs_register_file_vc(const char *category, PSI_file_info_v1 *info,
                           int count);
 
-void pfs_create_file_v1(PSI_file_key key, const char *name, File file);
+void pfs_create_file_vc(PSI_file_key key, const char *name, File file);
 
-PSI_file_locker *pfs_get_thread_file_name_locker_v1(
+PSI_file_locker *pfs_get_thread_file_name_locker_vc(
     PSI_file_locker_state *state, PSI_file_key key, PSI_file_operation op,
     const char *name, const void *identity);
 
-PSI_file_locker *pfs_get_thread_file_stream_locker_v1(
+PSI_file_locker *pfs_get_thread_file_stream_locker_vc(
     PSI_file_locker_state *state, PSI_file *file, PSI_file_operation op);
 
-PSI_file_locker *pfs_get_thread_file_descriptor_locker_v1(
+PSI_file_locker *pfs_get_thread_file_descriptor_locker_vc(
     PSI_file_locker_state *state, File file, PSI_file_operation op);
 
-void pfs_start_file_open_wait_v1(PSI_file_locker *locker, const char *src_file,
+void pfs_start_file_open_wait_vc(PSI_file_locker *locker, const char *src_file,
                                  uint src_line);
 
-PSI_file *pfs_end_file_open_wait_v1(PSI_file_locker *locker, void *result);
+PSI_file *pfs_end_file_open_wait_vc(PSI_file_locker *locker, void *result);
 
-void pfs_end_file_open_wait_and_bind_to_descriptor_v1(PSI_file_locker *locker,
+void pfs_end_file_open_wait_and_bind_to_descriptor_vc(PSI_file_locker *locker,
                                                       File file);
 
-void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1(
+void pfs_end_temp_file_open_wait_and_bind_to_descriptor_vc(
     PSI_file_locker *locker, File file, const char *filename);
 
-void pfs_start_file_wait_v1(PSI_file_locker *locker, size_t count,
+void pfs_start_file_wait_vc(PSI_file_locker *locker, size_t count,
                             const char *src_file, uint src_line);
 
-void pfs_end_file_wait_v1(PSI_file_locker *locker, size_t byte_count);
+void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count);
 
-void pfs_start_file_close_wait_v1(PSI_file_locker *locker, const char *src_file,
+void pfs_start_file_close_wait_vc(PSI_file_locker *locker, const char *src_file,
                                   uint src_line);
 
-void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc);
+void pfs_end_file_close_wait_vc(PSI_file_locker *locker, int rc);
 
-void pfs_end_file_rename_wait_v1(PSI_file_locker *locker, const char *old_name,
+void pfs_start_file_rename_wait_vc(PSI_file_locker *locker, size_t count,
+                                   const char *old_name, const char *new_name,
+                                   const char *src_file, uint src_line);
+
+void pfs_end_file_rename_wait_vc(PSI_file_locker *locker, const char *old_name,
                                  const char *new_name, int rc);
 
 #endif /* WITH_LOCK_ORDER */

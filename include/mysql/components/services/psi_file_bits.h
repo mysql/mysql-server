@@ -300,6 +300,20 @@ typedef void (*end_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                          int rc);
 
 /**
+  Record a file instrumentation start event.
+  @param locker a file locker for the running thread
+  @param count the number of bytes requested, or 0 if not applicable
+  @param old_name name of the file to be renamed.
+  @param new_name name of the file after rename.
+  @param src_file the source file name
+  @param src_line the source line number
+*/
+typedef void (*start_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
+                                            size_t count, const char *old_name,
+                                            const char *new_name,
+                                            const char *src_file,
+                                            unsigned int src_line);
+/**
  Rename a file instrumentation close operation.
  @param locker the file locker.
  @param old_name name of the file to be renamed.

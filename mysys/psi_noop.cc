@@ -385,6 +385,11 @@ static void start_file_close_wait_noop(PSI_file_locker *, const char *, uint) {
 
 static void end_file_close_wait_noop(PSI_file_locker *, int) { return; }
 
+static void start_file_rename_wait_noop(PSI_file_locker *, size_t, const char *,
+                                        const char *, const char *, uint) {
+  return;
+}
+
 static void end_file_rename_wait_noop(PSI_file_locker *, const char *,
                                       const char *, int) {
   return;
@@ -404,6 +409,7 @@ static PSI_file_service_t psi_file_noop = {
     end_file_wait_noop,
     start_file_close_wait_noop,
     end_file_close_wait_noop,
+    start_file_rename_wait_noop,
     end_file_rename_wait_noop};
 
 struct PSI_file_bootstrap *psi_file_hook = NULL;

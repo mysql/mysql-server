@@ -40,16 +40,23 @@
 /**
   @def PSI_FILE_VERSION_1
   Performance Schema File Interface number for version 1.
-  This version is supported.
+  This version is obsolete.
 */
 #define PSI_FILE_VERSION_1 1
 
 /**
+  @def PSI_FILE_VERSION_2
+  Performance Schema File Interface number for version 2.
+  This version is supported.
+*/
+#define PSI_FILE_VERSION_2 2
+
+/**
   @def PSI_CURRENT_FILE_VERSION
   Performance Schema File Interface number for the most recent version.
-  The most current version is @c PSI_FILE_VERSION_1
+  The most current version is @c PSI_FILE_VERSION_2
 */
-#define PSI_CURRENT_FILE_VERSION 1
+#define PSI_CURRENT_FILE_VERSION 2
 
 /** Entry point for the performance schema interface. */
 struct PSI_file_bootstrap {
@@ -67,10 +74,10 @@ struct PSI_file_bootstrap {
 #ifdef HAVE_PSI_FILE_INTERFACE
 
 /**
-  Performance Schema file Interface, version 1.
-  @since PSI_FILE_VERSION_1
+  Performance Schema file Interface, version 2.
+  @since PSI_FILE_VERSION_2
 */
-struct PSI_file_service_v1 {
+struct PSI_file_service_v2 {
   /** @sa register_file_v1_t. */
   register_file_v1_t register_file;
   /** @sa create_file_v1_t. */
@@ -99,11 +106,13 @@ struct PSI_file_service_v1 {
   start_file_close_wait_v1_t start_file_close_wait;
   /** @sa end_file_close_wait_v1_t. */
   end_file_close_wait_v1_t end_file_close_wait;
-  /** @sa rename_file_close_wait_v1_t. */
+  /** @sa start_file_rename_wait_v1_t. */
+  start_file_rename_wait_v1_t start_file_rename_wait;
+  /** @sa end_file_rename_wait_v1_t. */
   end_file_rename_wait_v1_t end_file_rename_wait;
 };
 
-typedef struct PSI_file_service_v1 PSI_file_service_t;
+typedef struct PSI_file_service_v2 PSI_file_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_file_service_t *psi_file_service;
 

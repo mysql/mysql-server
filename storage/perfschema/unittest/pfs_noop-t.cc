@@ -161,6 +161,7 @@ static void test_noop() {
   psi_file_service->end_file_wait(NULL, 0);
   psi_file_service->start_file_close_wait(NULL, NULL, 0);
   psi_file_service->end_file_close_wait(NULL, 0);
+  psi_file_service->start_file_rename_wait(NULL, 0, NULL, NULL, NULL, 0);
   psi_file_service->end_file_rename_wait(NULL, NULL, NULL, 0);
   psi_stage_service->start_stage(1, NULL, 0);
 

@@ -1040,10 +1040,16 @@ are used to register file deletion operations*/
     }                                                                 \
   } while (0)
 
-#define register_pfs_file_rename_begin(state, locker, key, op, name, src_file, \
-                                       src_line)                               \
-  register_pfs_file_open_begin(state, locker, key, op, name, src_file,         \
-                               static_cast<uint>(src_line))
+#define register_pfs_file_rename_begin(state, locker, key, op, from, to,    \
+                                       src_file, src_line)                  \
+  do {                                                                      \
+    locker = PSI_FILE_CALL(get_thread_file_name_locker)(state, key.m_value, \
+                                                        op, from, &locker); \
+    if (locker != nullptr) {                                                \
+      PSI_FILE_CALL(start_file_rename_wait)                                 \
+      (locker, (size_t)0, from, to, src_file, static_cast<uint>(src_line)); \
+    }                                                                       \
+  } while (0)
 
 #define register_pfs_file_rename_end(locker, from, to, result)       \
   do {                                                               \

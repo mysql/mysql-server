@@ -41,6 +41,7 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/thread_type.h"
@@ -260,12 +261,12 @@ int mysql_tmpfile_path(const char *path, const char *prefix) {
   DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
 
   char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, path, prefix,
+  int mode = O_CREAT | O_EXCL | O_RDWR;
 #ifdef _WIN32
-                             O_TRUNC | O_SEQUENTIAL |
-#endif /* _WIN32 */
-                                 O_CREAT | O_EXCL | O_RDWR,
-                             UNLINK_FILE, MYF(MY_WME));
+  mode |= O_TRUNC | O_SEQUENTIAL;
+#endif
+  File fd = mysql_file_create_temp(PSI_NOT_INSTRUMENTED, filename, path, prefix,
+                                   mode, UNLINK_FILE, MYF(MY_WME));
   return fd;
 }
 
