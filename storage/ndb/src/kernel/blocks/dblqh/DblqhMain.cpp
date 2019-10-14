@@ -15826,8 +15826,8 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
   ptrCheckGuard(lcpPtr, clcpFileSize, lcpRecord);
   ndbrequire(lcpPtr.p->lcpState == LcpRecord::LCP_START_CHKP);
   lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
-  lcpPtr.p->m_no_of_records += noOfRecords;
-  lcpPtr.p->m_no_of_bytes += noOfBytes;
+  lcpPtr.p->m_no_of_records = noOfRecords;
+  lcpPtr.p->m_no_of_bytes = noOfBytes;
 
   stopLcpFragWatchdog();
 
