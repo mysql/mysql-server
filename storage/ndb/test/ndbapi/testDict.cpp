@@ -9986,6 +9986,7 @@ runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
 
   if (pIdx == 0)
   {
+    // Exit if there aren't any indexes in the table
     return NDBT_OK;
   }
 
