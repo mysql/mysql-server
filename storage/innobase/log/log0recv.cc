@@ -1388,14 +1388,14 @@ than buf_len if log data ended here
 +@param[out]	has_encrypted_log	set true, if buffer contains encrypted
 +redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *block_no,
+                      uint32_t *scanned_checkpoint_no, uint32_t *block_no,
                       ulint *n_bytes_scanned, bool *has_encrypted_log) {
   *n_bytes_scanned = 0;
   *has_encrypted_log = false;
 
   for (auto log_block = buf; log_block < buf + buf_len;
        log_block += OS_FILE_LOG_BLOCK_SIZE) {
-    ulint no = log_block_get_hdr_no(log_block);
+    uint32_t no = log_block_get_hdr_no(log_block);
     bool is_encrypted = log_block_get_encrypt_bit(log_block);
 
     if (is_encrypted) {
