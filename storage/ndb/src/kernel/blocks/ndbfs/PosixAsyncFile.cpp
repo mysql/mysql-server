@@ -45,8 +45,6 @@
 
 #include <NdbTick.h>
 
-// For readv and writev
-#include <sys/uio.h>
 #include <dirent.h>
 
 #include <EventLogger.hpp>
@@ -697,27 +695,6 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     offset += bytes_read;
   }
   return 0;
-}
-
-void PosixAsyncFile::readvReq(Request *request)
-{
-  int return_value;
-  int length = 0;
-  struct iovec iov[20]; // the parameter in the signal restricts this to 20 deep
-  for(int i=0; i < request->par.readWrite.numberOfPages ; i++) {
-    iov[i].iov_base= request->par.readWrite.pages[i].buf;
-    iov[i].iov_len= request->par.readWrite.pages[i].size;
-    length = length + iov[i].iov_len;
-  }
-  lseek( theFd, request->par.readWrite.pages[0].offset, SEEK_SET );
-  return_value = ::readv(theFd, iov, request->par.readWrite.numberOfPages);
-  if (return_value == -1) {
-    request->error = errno;
-    return;
-  } else if (return_value != length) {
-    request->error = 1011;
-    return;
-  }
 }
 
 int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)

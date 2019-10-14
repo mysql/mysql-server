@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,19 +91,12 @@ private:
   virtual void rmrfReq(Request *request, const char * path, bool removePath)=0;
   virtual void createDirectories()=0;
 
-  /**
-   * Unlikely to need to implement these. readvReq for iovec
-   */
 protected:
-  virtual void readReq(Request *request);
-  virtual void readvReq(Request *request);
-
   /**
-   * Unlikely to need to implement these, writeBuffer likely sufficient.
-   * writevReq for iovec (not yet used)
+   * These calls readBuffer and writeBuffer respectively, implement them instead.
    */
-  virtual void writeReq(Request *request);
-  virtual void writevReq(Request *request);
+  void readReq(Request *request);
+  void writeReq(Request *request);
 
 private:
   void attach(AsyncIoThread* thr);

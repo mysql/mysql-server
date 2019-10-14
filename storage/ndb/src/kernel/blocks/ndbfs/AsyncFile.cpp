@@ -92,13 +92,6 @@ AsyncFile::readReq( Request * request)
 }
 
 void
-AsyncFile::readvReq( Request * request)
-{
-  readReq(request);
-  return;
-}
-
-void
 AsyncFile::writeReq(Request * request)
 {
   const Uint32 cnt = request->par.readWrite.numberOfPages;
@@ -177,12 +170,6 @@ done:
   {
     syncReq(request);
   }
-}
-
-void
-AsyncFile::writevReq(Request * request)
-{
-  writeReq(request);
 }
 
 #ifdef DEBUG_ASYNCFILE

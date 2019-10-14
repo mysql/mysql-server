@@ -882,7 +882,6 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       }//for
       request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
       break;
-      // make it a writev or readv
     }//case
 
     case FsReadWriteReq::fsFormatMemAddress:
@@ -1397,16 +1396,15 @@ Ndbfs::report(Request * request, Signal* signal)
       break;
     }
     case Request:: writeSync:
-    case Request:: writevSync:
     case Request:: write:
-    case Request:: writev: {
+    {
       jam();
       sendSignal(ref, GSN_FSWRITEREF, signal, FsRef::SignalLength, JBB);
       break;
     }
     case Request:: read: 
     case Request:: readPartial:
-    case Request:: readv: {
+    {
       jam();
       sendSignal(ref, GSN_FSREADREF, signal, FsRef::SignalLength, JBB);
       break;
@@ -1490,15 +1488,14 @@ Ndbfs::report(Request * request, Signal* signal)
       break;
     }
     case Request:: writeSync:
-    case Request:: writevSync:
     case Request:: write:
-    case Request:: writev: {
+    {
       jam();
       sendSignal(ref, GSN_FSWRITECONF, signal, 1, JBA);
       break;
     }
     case Request:: read:
-    case Request:: readv: {
+    {
       jam();
       sendSignal(ref, GSN_FSREADCONF, signal, 1, JBA);
       break;

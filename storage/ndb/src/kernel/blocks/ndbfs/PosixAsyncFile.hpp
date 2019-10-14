@@ -46,7 +46,6 @@ public:
   bool isOpen() override;
 
   void openReq(Request *request) override;
-  void readvReq(Request *request) override;
 
   void closeReq(Request *request) override;
   void syncReq(Request *request) override;

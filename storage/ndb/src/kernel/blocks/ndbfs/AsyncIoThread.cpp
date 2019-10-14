@@ -212,21 +212,11 @@ AsyncIoThread::run()
     case Request::read:
       file->readReq(request);
       break;
-    case Request::readv:
-      file->readvReq(request);
-      break;
     case Request::write:
       file->writeReq(request);
       break;
-    case Request::writev:
-      file->writevReq(request);
-      break;
     case Request::writeSync:
       file->writeReq(request);
-      file->syncReq(request);
-      break;
-    case Request::writevSync:
-      file->writevReq(request);
       file->syncReq(request);
       break;
     case Request::sync:
@@ -365,16 +355,10 @@ Request::actionName(Request::Action action)
     return "closeRemove";
   case Request::read:
     return "read";
-  case Request::readv:
-    return "readv";
   case Request::write:
     return "write";
-  case Request::writev:
-    return "writev";
   case Request::writeSync:
     return "writeSync";
-  case Request::writevSync:
-    return "writevSync";
   case Request::sync:
     return "sync";
   case Request::end:
