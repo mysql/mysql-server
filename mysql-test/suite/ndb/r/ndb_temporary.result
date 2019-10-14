@@ -5,6 +5,8 @@ alter table t1 engine=ndb;
 ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'TEMPORARY'
 drop table t1;
 CREATE TABLE bar ( id TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY ) ENGINE=NDBCluster ;
+Warnings:
+Warning	1063	Max value for column id in table test.bar is less than autoincrement prefetch size. Please decrease ndb_autoincrement_prefetch_sz
 CREATE TEMPORARY TABLE foo LIKE bar ;
 ERROR HY000: Cannot create temporary table with partitions
 DROP TABLE bar;

@@ -290,14 +290,14 @@ select * from t1 order by a;
 
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 
 drop table t1;
 
 connection server2;
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 
 # bug#46712 Auto_increment work incorrectly when using triggers and NDB Cluster
 #
@@ -457,5 +457,13 @@ set @@insert_id=1;
 --error ER_DUP_ENTRY
 insert into t1 values(null);
 
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 connection server1;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+drop table t1;
+
+#
+# Bug 30316314 INCREASE AUTO INCREMENT PREFETCH SIZE
+#
+create table t1 (a tinyint not null auto_increment primary key) engine ndb;
 drop table t1;

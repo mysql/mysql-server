@@ -446,11 +446,11 @@ a
 101
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 drop table t1;
 set auto_increment_offset = @old_auto_increment_offset;
 set auto_increment_increment = @old_auto_increment_increment;
-set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
 CREATE TABLE `t1` (
 `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
 `k` int(10) unsigned NOT NULL DEFAULT '0',
@@ -583,4 +583,10 @@ a
 set @@insert_id=1;
 insert into t1 values(null);
 ERROR 23000: Duplicate entry '1' for key 't1.a'
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+drop table t1;
+create table t1 (a tinyint not null auto_increment primary key) engine ndb;
+Warnings:
+Warning	1063	Max value for column a in table test.t1 is less than autoincrement prefetch size. Please decrease ndb_autoincrement_prefetch_sz
 drop table t1;
