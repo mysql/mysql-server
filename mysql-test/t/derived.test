@@ -2985,3 +2985,60 @@ SET a=5
 WHERE a IN (SELECT a FROM t2
             ORDER BY (SELECT a FROM (SELECT SUM(a) FROM t1) AS dt));
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30381092 WRONG BEHAVIOR OF '=' CONDITION WHEN WORKING WITH COMPLEX SUBQUERIES
+--echo #
+
+# Parent table
+CREATE TABLE t1 (t1_id INT PRIMARY KEY);
+# Child table, one-to-many.
+CREATE TABLE t2 (t2_id INT, t1_id INT);
+
+INSERT INTO t1 VALUES (-1), (1);
+INSERT INTO t2 SELECT t1_id, t1_id FROM t1;
+ANALYZE TABLE t1,t2;
+
+# ot.t2_id is a deeply nested outer reference.
+
+# We verify that the pulling-out finds the outer reference. We hide
+# this reference in various places :-)
+
+# Inside the WHERE clause of a merged derived table in a scalar subquery.
+
+let $query=
+SELECT * FROM t2 AS ot
+WHERE
+( SELECT t1_id AS it1
+  FROM ( SELECT * FROM t1 AS it2
+         WHERE t1_id = ( SELECT t1_id
+                         FROM ( SELECT * FROM t2 AS it3
+                                WHERE t2_id=ot.t2_id
+                              ) AS dt1
+                       )
+       ) AS dt2
+) IS NOT NULL;
+
+eval EXPLAIN $query;
+eval $query;
+
+# Inside the WHERE clause of a non-merged derived table in a scalar
+# subquery.
+
+let $query=
+SELECT * FROM t2 AS ot
+WHERE
+( SELECT t1_id AS it1
+  FROM ( SELECT * FROM t1 AS it2
+         WHERE t1_id = ( SELECT /*+ NO_MERGE() */ t1_id
+                         FROM ( SELECT * FROM t2 AS it3
+                                WHERE t2_id=ot.t2_id
+                              ) AS dt1
+                       )
+       ) AS dt2
+) IS NOT NULL;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2;

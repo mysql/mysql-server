@@ -1909,6 +1909,7 @@ class SELECT_LEX {
   bool setup_wild(THD *thd);
   bool setup_order_final(THD *thd);
   bool setup_group(THD *thd);
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
   void remove_redundant_subquery_clauses(THD *thd,
                                          int hidden_group_field_count);
   void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list);
