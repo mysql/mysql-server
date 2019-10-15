@@ -1,0 +1,127 @@
+# ==== Purpose ====
+#
+# This script intends to test that privilege checks, within the applier context,
+# aren't impacted when DDL changes are performed on the slave.
+#
+# ==== Requirements ====
+#
+# R1. Adding extra columns, on the slave, to a replicated table MUST not impact
+#     column level privilege checking.
+# R2. Removing columns, on the slave, from a replicated table MUST not impact
+#     column level privilege checking.
+#
+# ==== Implementation ====
+#
+# TC.1) Check column level privilege checking with an extra column on the slave
+# -----------------------------------------------------------------------------
+# 1) Set applier privilege checks.
+# 2) Set `binlog_row_image` to `MINIMAL`.
+# 3) Create a table on the master.
+# 4) Add an extra column on the slave.
+# 5) Make a DDL change on the master.
+# 6) Check tables have the same data on master and slave.
+#
+# TC.2) Check column level privilege checking with a column short on the slave
+# ----------------------------------------------------------------------------
+# 1) Create a table on the master with two or more columns.
+# 2) Remove the table last column on the slave.
+# 3) Make a DDL change on the master.
+# 4) Check tables have the same data on master and slave.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+#
+# BUG#30343310 ASSERTION `BIT < MAP->N_BITS' POST SLAVE RESTART IF SLAVE HAS
+#              MORE COLUMNS
+#
+
+--echo #
+--echo # TC.1) Check column level privilege checking with an extra column on the
+--echo # slave
+--echo #
+
+--source include/have_binlog_format_row.inc
+--echo #
+--echo # 1) Set applier privilege checks.
+--echo #
+--let $rpl_privilege_checks_user = *:'u1'@'localhost'
+--let $rpl_privilege_checks_user_additional_grants = INSERT,CREATE,DROP
+--source include/master-slave.inc
+
+--echo #
+--echo # 2) Set `binlog_row_image` to `MINIMAL`.
+--echo #
+--let $global_binlog_row_image = `SELECT @@global.binlog_row_image`
+--let $session_binlog_row_image = `SELECT @@session.binlog_row_image`
+SET @@global.binlog_row_image = MINIMAL;
+SET @@session.binlog_row_image = MINIMAL;
+
+--echo #
+--echo # 3) Create a table on the master.
+--echo #
+--connection master
+CREATE TABLE test.t1 (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 4) Add an extra column on the slave.
+--echo #
+ALTER TABLE test.t1 ADD COLUMN b INT;
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--echo #
+--echo # 5) Make a DDL change on the master.
+--echo #
+--connection master
+INSERT INTO test.t1 VALUES (1);
+
+--echo #
+--echo # 6) Check tables have the same data on master and slave.
+--echo #
+--let $diff_tables = master:t1,slave:t1
+--let $mask_column_list = b
+--source include/diff_tables.inc
+
+--echo #
+--echo # TC.2) Check column level privilege checking with a column short on the
+--echo # slave
+--echo #
+
+--echo #
+--echo # 1) Create a table on the master with two or more columns.
+--echo #
+--connection master
+CREATE TABLE test.t2 (a INT, b INT, c VARCHAR(50));
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 2) Remove the table last column on the slave.
+--echo #
+ALTER TABLE test.t2 DROP COLUMN c;
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--echo #
+--echo # 3) Make a DDL change on the master.
+--echo #
+--connection master
+INSERT INTO test.t2 VALUES (1,1,"a string of characters");
+
+--echo #
+--echo # 4) Check tables have the same data on master and slave.
+--echo #
+--let $diff_tables = master:t2,slave:t2
+--let $mask_column_list = c
+--source include/diff_tables.inc
+
+# Clean up
+--connection master
+--replace_result $global_binlog_row_image GLOBAL_BINLOG_ROW_IMAGE
+--eval SET @@global.binlog_row_image = $global_binlog_row_image
+--replace_result $session_binlog_row_image SESSION_BINLOG_ROW_IMAGE
+--eval SET @@session.binlog_row_image = $session_binlog_row_image
+DROP TABLE t1;
+DROP TABLE t2;
+--source include/rpl_end.inc

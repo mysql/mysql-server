@@ -3257,7 +3257,8 @@ void Applier_security_context_guard::extract_columns_to_check(
   else
     return;
 
-  for (size_t idx = 0; idx != table->s->fields; ++idx) {
+  size_t max = std::min(bitmap->n_bits, table->s->fields);
+  for (size_t idx = 0; idx != max; ++idx) {
     if (bitmap_is_set(bitmap, idx)) {
       columns.push_back(table->field[idx]->field_name);
     }
