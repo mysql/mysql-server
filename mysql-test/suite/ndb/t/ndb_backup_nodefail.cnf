@@ -1,0 +1,8 @@
+!include suite/ndb/my.cnf
+
+# Override suite conf to get high data node nodeids
+[cluster_config.ndbd.1.1]
+NodeId=143
+
+[cluster_config.ndbd.1.2]
+NodeId=144
