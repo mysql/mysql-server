@@ -401,7 +401,6 @@ void GRClusterMetadata::update_backend(
   }
 }
 
-// throws metadata_cache::metadata_error
 ClusterMetadata::ReplicaSetsByName GRClusterMetadata::fetch_instances(
     const std::string &cluster_name,
     const std::string &cluster_type_specific_id) {

@@ -41,6 +41,10 @@ if(mysqld.global.error_on_md_query === undefined){
     mysqld.global.error_on_md_query = 0;
 }
 
+if(mysqld.global.empty_result_from_cluster_type_query === undefined){
+    mysqld.global.empty_result_from_cluster_type_query = 0;
+}
+
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function (current_value) {
     return [ current_value[0], host, current_value[0], current_value[1], current_value[2]];
@@ -72,7 +76,6 @@ var nodes = function(host, port_and_state) {
       "router_commit",
       "router_rollback",
       "router_select_schema_version",
-      "router_select_cluster_type_v2",
       "router_select_view_id_v2_ar",
       "router_update_last_check_in_v2",
     ], options);
@@ -87,6 +90,8 @@ var nodes = function(host, port_and_state) {
     var router_start_transaction =
         common_stmts.get("router_start_transaction", options);
 
+    var router_select_cluster_type =
+        common_stmts.get("router_select_cluster_type_v2", options);
 
     if (stmt === select_port.stmt) {
       return select_port;
@@ -104,6 +109,20 @@ var nodes = function(host, port_and_state) {
           message: "Syntax Error at: " + stmt
         }
       }
+    }
+    else if (stmt === router_select_cluster_type.stmt) {
+      if (mysqld.global.empty_result_from_cluster_type_query === 1)
+        return { "result": {
+                  "columns": [
+                    {
+                      "type": "STRING",
+                      "name": "cluster_type"
+                    }
+                   ],
+                   "rows": []
+                }}
+      else
+        return router_select_cluster_type;
     }
     else if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
