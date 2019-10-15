@@ -98,6 +98,9 @@ void MetadataCache::refresh_thread() {
       refresh_ok = refresh();
     } catch (const mysqlrouter::UpdateInProgressException &) {
       log_info("Cluster metadata in progress, aborting the metada refresh");
+    } catch (const std::exception &e) {
+      log_info("Failed refreshing metadata: %s", e.what());
+      on_refresh_failed(true);
     }
 
     if (refresh_ok) {

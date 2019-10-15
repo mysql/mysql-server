@@ -37,6 +37,10 @@ if(mysqld.global.primary_id === undefined){
     mysqld.global.primary_id = 0;
 }
 
+if(mysqld.global.empty_result_from_cluster_type_query === undefined){
+    mysqld.global.empty_result_from_cluster_type_query = 0;
+}
+
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function (current_value) {
     return [ current_value[0], host, current_value[0], current_value[1], current_value[2]];
@@ -63,7 +67,6 @@ var nodes = function(host, port_and_state) {
       "router_commit",
       "router_rollback",
       "router_select_schema_version",
-      "router_select_cluster_type_v2",
       "router_select_group_replication_primary_member",
       "router_select_group_membership_with_primary_mode",
       "router_update_last_check_in_v2",
@@ -79,11 +82,28 @@ var nodes = function(host, port_and_state) {
     var router_start_transaction =
         common_stmts.get("router_start_transaction", options);
 
+    var router_select_cluster_type =
+        common_stmts.get("router_select_cluster_type_v2", options);
+
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
     }
     else if ((res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !== undefined) {
       return res;
+    }
+    else if (stmt === router_select_cluster_type.stmt) {
+      if (mysqld.global.empty_result_from_cluster_type_query === 1)
+        return { "result": {
+                  "columns": [
+                    {
+                      "type": "STRING",
+                      "name": "cluster_type"
+                    }
+                   ],
+                   "rows": []
+                }}
+      else
+        return router_select_cluster_type;
     }
     else if (stmt === router_start_transaction.stmt) {
       mysqld.global.transaction_count++;

@@ -73,7 +73,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    * @param cluster_type_specific_id    (GR ID for GR cluster, cluster_id for AR
    * cluster)
    * @return Map of replicaset ID, server list pairs.
-   * @throws metadata_cache::metadata_error
+   * @throws metadata_cache::metadata_error, UpdateInProgressException
    */
   ReplicaSetsByName fetch_instances(
       const std::string &cluster_name,

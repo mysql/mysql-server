@@ -283,7 +283,8 @@ class AsyncReplicasetTest : public RouterComponentTest {
   void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                          const std::vector<uint16_t> &gr_node_ports,
                          unsigned primary_id = 0, unsigned view_id = 0,
-                         bool error_on_md_query = false) {
+                         bool error_on_md_query = false,
+                         bool empty_result_from_cluster_type_query = false) {
     auto json_doc = mock_GR_metadata_as_json(gr_id, gr_node_ports, primary_id,
                                              view_id, error_on_md_query);
 
@@ -291,6 +292,10 @@ class AsyncReplicasetTest : public RouterComponentTest {
     // wait_for_transaction_count_increase logic
     JsonAllocator allocator;
     json_doc.AddMember("md_query_count", 0, allocator);
+
+    if (empty_result_from_cluster_type_query) {
+      json_doc.AddMember("empty_result_from_cluster_type_query", 1, allocator);
+    }
 
     const auto json_str = json_to_string(json_doc);
 
@@ -841,7 +846,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
   ASSERT_ANY_THROW(client2.query_one("select @@port"));
 
   SCOPED_TRACE(
-      "// Make sure the state file did not change, it should sitll containt "
+      "// Make sure the state file did not change, it should still contain "
       "the 2 members.");
   check_state_file(state_file, cluster_id, view_id, cluster_nodes_ports);
 }
@@ -1677,7 +1682,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
   ASSERT_ANY_THROW(client_rw.connect("127.0.0.1", router_port_ro, "username",
                                      "password", "", ""));
 
-  SCOPED_TRACE("// Logfile should containt proper message");
+  SCOPED_TRACE("// Logfile should contain proper message");
   const std::string log_content = router.get_full_logfile();
   ASSERT_TRUE(pattern_found(log_content, GetParam().expected_error))
       << log_content;
@@ -1691,6 +1696,111 @@ INSTANTIATE_TEST_CASE_P(ClusterTypeMismatch, ClusterTypeMismatchTest,
                             ClusterTypeMismatchTestParams{
                                 "gr", "metadata_dynamic_nodes_v2_ar.js",
                                 "Invalid cluster type 'ar'. Configured 'gr'"}));
+
+class UnexpectedResultFromMDRefreshTest
+    : public AsyncReplicasetTest,
+      public ::testing::WithParamInterface<ClusterTypeMismatchTestParams> {};
+
+/**
+ * @test Check that unexpected result returned from the metadata query does not
+ * cause a router crash (BUG#30407266)
+ */
+TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
+  const unsigned CLUSTER_NODES = 2;
+  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
+    cluster_nodes_ports.push_back(port_pool_.get_next_available());
+    cluster_http_ports.push_back(port_pool_.get_next_available());
+  }
+
+  SCOPED_TRACE("// Launch 2 server mocks that will act as our cluster members");
+  const auto trace_file = get_data_dir().join(GetParam().tracefile).str();
+  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i]));
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
+    ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
+                    .wait_for_rest_endpoint_ready())
+        << cluster_nodes[i]->get_full_output();
+
+    SCOPED_TRACE(
+        "// Make our metadata server to return both nodes as a cluster "
+        "members");
+    set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports, 0,
+                      view_id);
+  }
+
+  SCOPED_TRACE("// Create a router state file containing both members");
+  const std::string state_file = create_state_file(
+      temp_test_dir.name(),
+      create_state_file_content(cluster_id, view_id, cluster_nodes_ports));
+
+  SCOPED_TRACE(
+      "// Create a configuration file. disconnect_on_metadata_unavailable for "
+      "R/W  and R/O routing is true");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(0, kTTL, GetParam().cluster_type_str);
+  const uint16_t router_port_rw = port_pool_.get_next_available();
+  const std::string routing_section_rw = get_metadata_cache_routing_section(
+      router_port_rw, "PRIMARY", "first-available",
+      /*disconnect_on_metadata_unavailable=*/true);
+  const uint16_t router_port_ro = port_pool_.get_next_available();
+  const std::string routing_section_ro = get_metadata_cache_routing_section(
+      router_port_ro, "SECONDARY", "round-robin",
+      /*disconnect_on_metadata_unavailable=*/true);
+
+  const std::string routing_section =
+      routing_section_rw + "\n" + routing_section_ro;
+
+  SCOPED_TRACE("// Launch the router with the initial state file");
+  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
+                               routing_section, state_file);
+
+  SCOPED_TRACE("// Wait until the router at least once queried the metadata");
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+
+  SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
+  MySQLSession client1, client2;
+  ASSERT_NO_THROW(client1.connect("127.0.0.1", router_port_rw, "username",
+                                  "password", "", ""))
+      << router.get_full_logfile();
+  auto result{client1.query_one("select @@port")};
+  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
+            cluster_nodes_ports[0]);
+  client2.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
+  auto result2{client2.query_one("select @@port")};
+  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
+            cluster_nodes_ports[1]);
+
+  SCOPED_TRACE(
+      "// Make all members to start returning invalid data when queried for "
+      "cluster type (empty resultset)");
+
+  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
+    set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports, 0,
+                      view_id, /*error_on_md_query=*/false,
+                      /*empty_result_from_cluster_type_query=*/true);
+  }
+
+  SCOPED_TRACE("// Wait untill the router sees this change");
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+
+  SCOPED_TRACE("// Both connections should get dropped");
+  ASSERT_ANY_THROW(client1.query_one("select @@port"))
+      << router.get_full_logfile();
+  ASSERT_ANY_THROW(client2.query_one("select @@port"));
+
+  // check that the router did not crash (happens automatically)
+}
+
+INSTANTIATE_TEST_CASE_P(UnexpectedResultFromMDRefreshQuery,
+                        UnexpectedResultFromMDRefreshTest,
+                        ::testing::Values(
+                            ClusterTypeMismatchTestParams{
+                                "gr", "metadata_dynamic_nodes_v2_gr.js", ""},
+                            ClusterTypeMismatchTestParams{
+                                "ar", "metadata_dynamic_nodes_v2_ar.js", ""}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();
