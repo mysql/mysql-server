@@ -1603,8 +1603,8 @@ static struct my_option my_long_options[] = {
      &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {"require-row-format", 0,
-     "Fail when printing an event that was not logged using row format or\n"
-     "other forbidden events like Load instructions or the creation/deletion\n"
+     "Fail when printing an event that was not logged using row format or "
+     "other forbidden events like Load instructions or the creation/deletion "
      "of temporary tables.",
      &opt_require_row_format, &opt_require_row_format, 0, GET_BOOL, NO_ARG, 0,
      0, 0, 0, 0, 0},
