@@ -1,0 +1,8 @@
+Setup error insert so that backup fails in a controlled way
+
+Start backup, that will fail due to node failure
+Check that node failure was controlled (e.g. node recovers)
+Node recovered, ok
+Clear error
+
+Check backup ok

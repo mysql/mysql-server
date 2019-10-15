@@ -3985,7 +3985,7 @@ Backup::checkNodeFail(Signal* signal,
 		      Uint32 theFailedNodes[NdbNodeBitmask::Size])
 {
   NdbNodeBitmask mask;
-  mask.assign(2, theFailedNodes);
+  mask.assign(NdbNodeBitmask::Size, theFailedNodes);
 
   /* Update ptr.p->nodes to be up to date with current alive nodes
    */

@@ -1,0 +1,23 @@
+-- source include/have_ndb.inc
+-- source include/have_ndb_debug.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+--echo Setup error insert so that backup fails in a controlled way
+--exec $NDB_MGM --no-defaults --verbose=0 -e "ALL ERROR 10010"
+
+--echo Start backup, that will fail due to node failure
+--error 255
+--exec $NDB_MGM --no-defaults --verbose=0 -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--echo Check that node failure was controlled (e.g. node recovers)
+--exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
+
+--echo Node recovered, ok
+--echo Clear error
+--exec $NDB_MGM --no-defaults --verbose=0 -e "ALL ERROR 0"
+
+--echo Check backup ok
+--exec $NDB_MGM --no-defaults --verbose=0 -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT
