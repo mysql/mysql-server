@@ -117,7 +117,6 @@ class Parse_tree_node_tmpl {
 #ifndef DBUG_OFF
  private:
   bool contextualized;  // true if the node object is contextualized
-  bool transitional;    // TODO: remove that after parser refactoring
 #endif                  // DBUG_OFF
 
  public:
@@ -139,7 +138,6 @@ class Parse_tree_node_tmpl {
   Parse_tree_node_tmpl() {
 #ifndef DBUG_OFF
     contextualized = false;
-    transitional = false;
 #endif  // DBUG_OFF
   }
 
@@ -159,13 +157,6 @@ class Parse_tree_node_tmpl {
     @retval     true    syntax/OOM/etc error
   */
   virtual bool contextualize(Context *pc) {
-#ifndef DBUG_OFF
-    if (transitional) {
-      DBUG_ASSERT(contextualized);
-      return false;
-    }
-#endif  // DBUG_OFF
-
     uchar dummy;
     if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
 
@@ -174,42 +165,6 @@ class Parse_tree_node_tmpl {
     contextualized = true;
 #endif  // DBUG_OFF
 
-    return false;
-  }
-
-  /**
-   Intermediate version of the contextualize() function
-
-   This function is intended to resolve parser grammar loops.
-
-    During the step-by-step refactoring of the parser grammar we wrap
-    each context-sensitive semantic action with 3 calls:
-    1. Parse_tree_node_tmpl() context-independent constructor call,
-    2. contextualize_() function call to evaluate all context-sensitive things
-       from the former context-sensitive semantic action code.
-    3. Call of dummy contextualize() function.
-
-    Then we lift the contextualize() function call to outer grammar rules but
-    save the contextualize_() function call untouched.
-
-    When all loops in the grammar rules are resolved (i.e. transformed
-    as described above) we:
-    a. remove all contextualize_() function calls and
-    b. rename all contextualize_() function definitions to contextualize()
-       function definitions.
-
-    Note: it's not necessary to transform the whole grammar and remove
-    this function calls in one pass: it's possible to transform the
-    grammar statement by statement in a way described above.
-
-    Note: remove this function together with Item::contextualize_().
-  */
-  virtual bool contextualize_(Context *) {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(!contextualized && !transitional);
-    transitional = true;
-    contextualized = true;
-#endif  // DBUG_OFF
     return false;
   }
 
