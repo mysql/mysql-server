@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -208,6 +208,7 @@ row_undo_ins_remove_sec_low(
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 	ibool			modify_leaf = false;
+	ulint			rec_deleted;
 
 	log_free_check();
 
@@ -253,10 +254,11 @@ row_undo_ins_remove_sec_low(
 		ut_error;
 	}
 
+	rec_deleted = rec_get_deleted_flag(btr_pcur_get_rec(&pcur),
+					   dict_table_is_comp(index->table));
+
 	if (search_result == ROW_FOUND && dict_index_is_spatial(index)) {
-		rec_t*	rec = btr_pcur_get_rec(&pcur);
-		if (rec_get_deleted_flag(rec,
-					 dict_table_is_comp(index->table))) {
+		if(rec_deleted) {
 			ib::error() << "Record found in index " << index->name
 				<< " is deleted marked on insert rollback.";
 		}
@@ -264,7 +266,14 @@ row_undo_ins_remove_sec_low(
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-	row_convert_impl_to_expl_if_needed(btr_cur, node);
+	if (rec_deleted == 0) {
+		/* This record is not delete marked and has an implicit
+		lock on it. For delete marked record, INSERT has not
+		modified it yet and we don't have implicit lock on it.
+		We must convert to explicit if and only if we have
+		implicit lock on the record.*/
+		row_convert_impl_to_expl_if_needed(btr_cur, node);
+	}
 
 	if (modify_leaf) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
