@@ -10,25 +10,27 @@ SET @save_slave_parallel_workers= @@global.slave_parallel_workers;
 SET @save_slave_parallel_type= @@global.slave_parallel_type;
 SET @save_slave_preserve_commit_order= @@global.slave_preserve_commit_order;
 SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
-SET GLOBAL slave_parallel_workers= 8;
+SET GLOBAL slave_parallel_workers= 10;
 SET GLOBAL slave_preserve_commit_order= ON;
 include/start_slave.inc
 [connection master1]
 SET @save_binlog_transaction_dependency_tracking= @@global.binlog_transaction_dependency_tracking;
 SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
-# Check for ANALYZE TABLE
+#################################################################
+# 1. Check for ANALYZE TABLE
+#################################################################
 
 # Setup
 
 [connection master]
-CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t2 VALUES (1);;
+BEGIN; INSERT INTO t2 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -36,11 +38,11 @@ BEGIN; INSERT INTO t2 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; ANALYZE TABLE t1;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
@@ -54,23 +56,25 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2;;
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 include/rpl_connect.inc [creating master]
 
-# Check for REPAIR TABLE
+#################################################################
+# 2. Check for REPAIR TABLE
+#################################################################
 
 # Setup
 
 [connection master]
-CREATE TABLE t3(a INT PRIMARY KEY)Engine=MyISAM; INSERT INTO t3 VALUES(1),(2),(3);;
+CREATE TABLE t3(a INT PRIMARY KEY)Engine=MyISAM; INSERT INTO t3 VALUES(1),(2),(3);
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t2 VALUES (1);;
+BEGIN; INSERT INTO t2 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -78,17 +82,17 @@ BEGIN; INSERT INTO t2 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; SET TIMESTAMP = 100; REPAIR TABLE t3;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; SET TIMESTAMP = 100; REPAIR TABLE t3;
 Table	Op	Msg_type	Msg_text
 test.t3	repair	status	OK
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
 
 [connection server_2]
-include/assert.inc [Verify table t2 has 2 rows]
+include/assert.inc [Verify table t2 has 0 rows]
 [connection slave]
 include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
 
@@ -96,23 +100,25 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2; DROP TABLE t3;;
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t3;
 include/sync_slave_sql_with_master.inc
 include/rpl_connect.inc [creating master]
 
-# Check for OPTIMIZE TABLE
+#################################################################
+# 3. Check for OPTIMIZE TABLE
+#################################################################
 
 # Setup
 
 [connection master]
-CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t4 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t4 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t4 VALUES (1);;
+BEGIN; INSERT INTO t4 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -120,12 +126,12 @@ BEGIN; INSERT INTO t4 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t4 VALUES (1); COMMIT; BEGIN; INSERT INTO t4 VALUES (2); COMMIT; OPTIMIZE TABLE t3;;
+BEGIN; INSERT INTO t4 VALUES (1); COMMIT; BEGIN; INSERT INTO t4 VALUES (2); COMMIT; OPTIMIZE TABLE t3;
 Table	Op	Msg_type	Msg_text
 test.t3	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.t3	optimize	status	OK
 [connection server_1]
-BEGIN; INSERT INTO t4 VALUES (3); COMMIT; BEGIN; INSERT INTO t4 VALUES (4); COMMIT; BEGIN; INSERT INTO t4 VALUES (5); COMMIT;;
+BEGIN; INSERT INTO t4 VALUES (3); COMMIT; BEGIN; INSERT INTO t4 VALUES (4); COMMIT; BEGIN; INSERT INTO t4 VALUES (5); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
@@ -139,23 +145,27 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-DROP TABLE t3; DROP TABLE t4;;
+ROLLBACK;
+DROP TABLE t3; DROP TABLE t4;
 include/sync_slave_sql_with_master.inc
 include/rpl_connect.inc [creating master]
 
-# Check for RENAME TABLE
+#################################################################
+# 4. Check for RENAME TABLE
+#################################################################
+
+# 4.1 Check for RENAME single table
 
 # Setup
 
 [connection master]
-INSERT INTO t1 VALUES (10);;
+INSERT INTO t1 VALUES (10);
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t2 VALUES (1);;
+BEGIN; INSERT INTO t2 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -163,16 +173,17 @@ BEGIN; INSERT INTO t2 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; RENAME TABLE t1 to t10;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; RENAME TABLE t1 to t10;
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
 
 [connection server_2]
 include/assert.inc [Verify table t2 is empty]
-include/assert.inc [Verify table t1 exists]
+include/assert.inc [Verify tables t1 and t2 exist]
+include/assert.inc [Verify table t10 does not exist]
 [connection slave]
 include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
 
@@ -180,22 +191,22 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t2; DROP TABLE t10; CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+ROLLBACK;
+RENAME TABLE t10 to t1; TRUNCATE TABLE t1; TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 
-# Check for CREATE DATABASE and CREATE DATABASE IF NOT EXISTS
+# 4.2 Check for RENAME multiple tables
 
 # Setup
 
 [connection master]
-INSERT INTO t1 VALUES (10);;
+CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t1 VALUES (1);;
+BEGIN; INSERT INTO t2 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -203,17 +214,17 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE DATABASE db1; CREATE DATABASE IF NOT EXISTS db2;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; RENAME TABLE t1 to t10, t3 to t30;
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (3); COMMIT; BEGIN; INSERT INTO t2 VALUES (4); COMMIT; BEGIN; INSERT INTO t2 VALUES (5); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
 
 [connection server_2]
 include/assert.inc [Verify table t2 is empty]
-include/assert.inc [Verify DATABASE db1 does not exist]
-include/assert.inc [Verify DATABASE db2 does not exist]
+include/assert.inc [Verify tables t1, t2 and t3 exist]
+include/assert.inc [Verify tables t10 and t30 do not exist]
 [connection slave]
 include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
 
@@ -221,22 +232,24 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2; DROP DATABASE db1; DROP DATABASE db2;;
+ROLLBACK;
+DROP TABLE t10, t2, t30;
 include/sync_slave_sql_with_master.inc
 
-# Check for CREATE TABLESPACE
+####################################################################
+# 5. CREATE TABLE and CREATE TABLE IF NOT EXISTS
+####################################################################
 
 # Setup
 
 [connection master]
-INSERT INTO t1 VALUES (10);;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t1 VALUES (1);;
+BEGIN; INSERT INTO t1 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -244,9 +257,187 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;;
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE TABLE t10 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE IF NOT EXISTS t20 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify tables t1 and t2 exist]
+include/assert.inc [Verify tables t10 and t20 do not exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+DROP TABLE t10, t20; TRUNCATE TABLE t1; TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+
+####################################################################
+# 6. DROP TABLE and DROP TABLE IF EXISTS
+####################################################################
+
+# Setup
+
+[connection master]
+CREATE TABLE t3 LIKE t1; CREATE TABLE t4 LIKE t1; CREATE TABLE t5 LIKE t1;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TABLE t2; DROP TABLE t3, t4; DROP TABLE IF EXISTS t5; DROP TABLE IF EXISTS t10;
+Warnings:
+Note	1051	Unknown table 'test.t10'
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify tables t1, t2, t3, t4, and t5 exist]
+include/assert.inc [Verify table t10 does not exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+TRUNCATE TABLE t1; CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+include/sync_slave_sql_with_master.inc
+
+####################################################################
+# 7. Check for CREATE DATABASE and CREATE DATABASE IF NOT EXISTS
+####################################################################
+
+# Setup
+
+[connection master]
+CREATE DATABASE db1;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE DATABASE db10; CREATE DATABASE IF NOT EXISTS db20;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+include/assert.inc [Verify DATABASE db1 exists]
+include/assert.inc [Verify DATABASES db10 and db20 do not exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP DATABASE db1; DROP DATABASE db10; DROP DATABASE db20;
+include/sync_slave_sql_with_master.inc
+
+#################################################################
+# 8. Check for DROP DATABASE and DROP DATABASE IF EXISTS
+#################################################################
+
+# Setup
+
+[connection master]
+CREATE DATABASE db1; CREATE DATABASE db2;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP DATABASE db1; DROP DATABASE IF EXISTS db2; DROP DATABASE IF EXISTS db10;
+Warnings:
+Note	1008	Can't drop database 'db10'; database doesn't exist
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify table t2 is empty]
+include/assert.inc [Verify DATABASES db1 and db2 exist]
+include/assert.inc [Verify DATABASE db10 does not exist]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+
+#################################################################
+# 9. Check for CREATE TABLESPACE
+#################################################################
+
+# Setup
+
+[connection master]
+INSERT INTO t1 VALUES (10);
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+[connection server_1]
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
@@ -262,22 +453,24 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2; DROP TABLESPACE ts1;;
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLESPACE ts1;
 include/sync_slave_sql_with_master.inc
 
-# Check for ALTER TABLESPACE
+#################################################################
+# 10. Check for ALTER TABLESPACE
+#################################################################
 
 # Setup
 
 [connection master]
-INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB; CREATE TABLE t11 (a INT, b INT) ENGINE = InnoDB TABLESPACE=ts1;;
+INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB; CREATE TABLE t11 (a INT, b INT) ENGINE = InnoDB TABLESPACE=ts1;
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t1 VALUES (1);;
+BEGIN; INSERT INTO t1 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -285,9 +478,9 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLESPACE ts1 RENAME TO ts11;;
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLESPACE ts1 RENAME TO ts11;
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
@@ -303,22 +496,24 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2; DROP TABLE t11;  DROP TABLESPACE ts11;;
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t11; DROP TABLESPACE ts11;
 include/sync_slave_sql_with_master.inc
 
-# Check for DROP TABLESPACE
+#################################################################
+# 11. Check for DROP TABLESPACE
+#################################################################
 
 # Setup
 
 [connection master]
-INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;;
+INSERT INTO t1 VALUES (10); CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t1 VALUES (1);;
+BEGIN; INSERT INTO t1 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -326,9 +521,9 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TABLESPACE ts1;;
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TABLESPACE ts1;
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
@@ -344,22 +539,24 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2;;
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2;
 include/sync_slave_sql_with_master.inc
 
-# Check for CREATE INDEX
+#################################################################
+# 12. Check for CREATE INDEX
+#################################################################
 
 # Setup
 
 [connection master]
-INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1);;
+INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1);
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t1 VALUES (1);;
+BEGIN; INSERT INTO t1 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -367,9 +564,9 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE INDEX idx1 ON t3 ((col1 + col2));;
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; CREATE INDEX idx1 ON t3 ((col1 + col2));
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
@@ -385,22 +582,24 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2; DROP INDEX idx1 ON t3; DROP TABLE t3;;
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP INDEX idx1 ON t3; DROP TABLE t3;
 include/sync_slave_sql_with_master.inc
 
-# Check for DROP INDEX
+#################################################################
+# 13. Check for DROP INDEX
+#################################################################
 
 # Setup
 
 [connection master]
-INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1); CREATE INDEX idx1 ON t3 ((col1 + col2));;
+INSERT INTO t1 VALUES (10); CREATE TABLE t3 (col1 INT, col2 INT, INDEX func_index ((ABS(col1)))); INSERT INTO t3 VALUES(1,1); CREATE INDEX idx1 ON t3 ((col1 + col2));
 include/sync_slave_sql_with_master.inc
 
 # Block slave sql applier threads
 
 [connection slave]
-BEGIN; INSERT INTO t1 VALUES (1);;
+BEGIN; INSERT INTO t1 VALUES (1);
 [connection slave]
 [connection slave]
 
@@ -408,9 +607,9 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
-BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP INDEX idx1 ON t3;;
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP INDEX idx1 ON t3;
 [connection server_1]
-BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
+BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 
 # Verify the transactions are ordered correctly on slave
@@ -426,12 +625,13 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 # unblock and proceed. Verify the transactions are applied.
 
 [connection slave]
-ROLLBACK;;
-truncate table t1; truncate table t2; DROP TABLE t1,t2,t3;;
+ROLLBACK;
+TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t1, t2, t3;
 include/sync_slave_sql_with_master.inc
 
+#################################################################
 # Cleanup
-
+#################################################################
 [connection master1]
 SET GLOBAL binlog_transaction_dependency_tracking=@save_binlog_transaction_dependency_tracking;
 include/sync_slave_sql_with_master.inc
