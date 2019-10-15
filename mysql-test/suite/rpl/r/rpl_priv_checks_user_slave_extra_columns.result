@@ -1,0 +1,64 @@
+#
+# TC.1) Check column level privilege checking with an extra column on the
+# slave
+#
+#
+# 1) Set applier privilege checks.
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 2) Set `binlog_row_image` to `MINIMAL`.
+#
+SET @@global.binlog_row_image = MINIMAL;
+SET @@session.binlog_row_image = MINIMAL;
+#
+# 3) Create a table on the master.
+#
+CREATE TABLE test.t1 (a INT);
+include/sync_slave_sql_with_master.inc
+#
+# 4) Add an extra column on the slave.
+#
+ALTER TABLE test.t1 ADD COLUMN b INT;
+include/stop_slave.inc
+include/start_slave.inc
+#
+# 5) Make a DDL change on the master.
+#
+INSERT INTO test.t1 VALUES (1);
+#
+# 6) Check tables have the same data on master and slave.
+#
+include/diff_tables.inc [master:t1,slave:t1]
+#
+# TC.2) Check column level privilege checking with a column short on the
+# slave
+#
+#
+# 1) Create a table on the master with two or more columns.
+#
+CREATE TABLE test.t2 (a INT, b INT, c VARCHAR(50));
+include/sync_slave_sql_with_master.inc
+#
+# 2) Remove the table last column on the slave.
+#
+ALTER TABLE test.t2 DROP COLUMN c;
+include/stop_slave.inc
+include/start_slave.inc
+#
+# 3) Make a DDL change on the master.
+#
+INSERT INTO test.t2 VALUES (1,1,"a string of characters");
+#
+# 4) Check tables have the same data on master and slave.
+#
+include/diff_tables.inc [master:t2,slave:t2]
+SET @@global.binlog_row_image = GLOBAL_BINLOG_ROW_IMAGE;
+SET @@session.binlog_row_image = SESSION_BINLOG_ROW_IMAGE;
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl_end.inc
