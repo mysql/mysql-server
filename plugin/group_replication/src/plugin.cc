@@ -544,7 +544,7 @@ int initialize_plugin_and_join(
   bool is_restart_after_clone = is_server_restarting_after_clone();
   if (is_restart_after_clone) {
     Replication_thread_api gr_channel("group_replication_applier");
-    gr_channel.purge_logs(true);
+    gr_channel.purge_logs(false);
 
     gr_channel.set_channel_name("group_replication_recovery");
     gr_channel.purge_logs(false);

@@ -49,7 +49,7 @@ int Applier_handler::initialize_repositories(bool reset_logs,
   if (reset_logs) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_PURGE_APPLIER_LOGS);
 
-    if ((error = channel_interface.purge_logs(true))) {
+    if ((error = channel_interface.purge_logs(false))) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RESET_APPLIER_MODULE_LOGS_ERROR);
       return error;
