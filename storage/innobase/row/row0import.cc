@@ -214,7 +214,7 @@ struct row_import {
  public:
   dict_table_t *m_table; /*!< Table instance */
 
-  uint32_t m_version; /*!< Version of config file */
+  ulint m_version; /*!< Version of config file */
 
   byte *m_hostname;   /*!< Hostname where the
                       tablespace was exported */
@@ -1067,8 +1067,9 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
   for (ulint i = 0; i < index->n_fields; ++i, ++field, ++cfg_field) {
     if (strcmp(field->name(), cfg_field->name()) != 0) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index field name %s doesn't match tablespace metadata"
-              " field name %s for field position %lu",
+              "Index field name %s doesn't match"
+              " tablespace metadata field name %s"
+              " for field position %lu",
               field->name(), cfg_field->name(), (ulong)i);
 
       err = DB_ERROR;
@@ -1076,8 +1077,9 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
 
     if (cfg_field->prefix_len != field->prefix_len) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index %s field %s prefix len %lu doesn't match metadata"
-              " file value %lu",
+              "Index %s field %s prefix len %lu"
+              " doesn't match metadata file value"
+              " %lu",
               index->name(), field->name(), (ulong)field->prefix_len,
               (ulong)cfg_field->prefix_len);
 
@@ -1086,25 +1088,13 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
 
     if (cfg_field->fixed_len != field->fixed_len) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index %s field %s fixed len %lu doesn't match metadata"
-              " file value %lu",
+              "Index %s field %s fixed len %lu"
+              " doesn't match metadata file value"
+              " %lu",
               index->name(), field->name(), (ulong)field->fixed_len,
               (ulong)cfg_field->fixed_len);
 
       err = DB_ERROR;
-    }
-
-    constexpr char asc[] = "ascending";
-    constexpr char desc[] = "descending";
-
-    if (cfg_field->is_ascending != field->is_ascending) {
-      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Index %s field %s is %s which does not match metadata"
-              " file which is %s",
-              index->name(), field->name(), (field->is_ascending ? asc : desc),
-              (cfg_field->is_ascending ? asc : desc));
-
-      err = DB_SCHEMA_MISMATCH;
     }
   }
 
@@ -2221,12 +2211,8 @@ static void row_import_discard_changes(
 
   prebuilt->trx->error_index = NULL;
 
-  ib::info(ER_IB_MSG_945) << "Failed to import tablespace of table '"
-                          << prebuilt->table->name.m_name
-                          << (err == DB_UNSUPPORTED
-                                  ? "': the CFG file version is "
-                                  : "': ")
-                          << ut_strerr(err);
+  ib::info(ER_IB_MSG_945) << "Discarding tablespace of table "
+                          << prebuilt->table->name << ": " << ut_strerr(err);
 
   if (trx->dict_operation_lock_mode != RW_X_LATCH) {
     ut_a(trx->dict_operation_lock_mode == 0);
@@ -2543,14 +2529,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         row_index_t *index, /*!< Index being read in */
         row_import *cfg)    /*!< in/out: meta-data read */
 {
-  /* v4 row will have prefix_len, fixed_len, is_ascending, name length */
-  byte row[sizeof(ib_uint32_t) * 4];
-  size_t row_len = sizeof(row);
-  if (cfg->m_version < IB_EXPORT_CFG_VERSION_V4) {
-    /* v3 row will have prefix_len, fixed_len, name length */
-    row_len = sizeof(ib_uint32_t) * 3;
-  }
-
+  byte row[sizeof(ib_uint32_t) * 3];
   ulint n_fields = index->m_n_fields;
 
   index->m_fields = UT_NEW_ARRAY_NOKEY(dict_field_t, n_fields);
@@ -2574,7 +2553,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     DBUG_EXECUTE_IF("ib_import_io_read_error_1",
                     (void)fseek(file, 0L, SEEK_END););
 
-    if (fread(row, 1, row_len, file) != row_len) {
+    if (fread(row, 1, sizeof(row), file) != sizeof(row)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
                   strerror(errno), "while reading index fields.");
 
@@ -2586,16 +2565,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
     field->fixed_len = mach_read_from_4(ptr);
     ptr += sizeof(ib_uint32_t);
-
-    if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V4) {
-      field->is_ascending = mach_read_from_4(ptr);
-      ptr += sizeof(ib_uint32_t);
-    } else {
-      /* Previous to CFG version 4 the DESC key was not recorded.
-      Assume the index column is ascending.
-      This flag became available in v8.0. */
-      field->is_ascending = true;
-    }
 
     /* Include the NUL byte in the length. */
     ulint len = mach_read_from_4(ptr);
@@ -3254,7 +3223,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
 
     case IB_EXPORT_CFG_VERSION_V2:
     case IB_EXPORT_CFG_VERSION_V3:
-    case IB_EXPORT_CFG_VERSION_V4:
       err = row_import_read_v1(file, thd, &cfg);
 
       if (err == DB_SUCCESS) {
@@ -3266,11 +3234,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
       }
       return (err);
     default:
-      my_error(ER_IMP_INCOMPATIBLE_CFG_VERSION, MYF(0), table->name.m_name,
-               unsigned{cfg.m_version}, unsigned{IB_EXPORT_CFG_VERSION_V4});
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+              "Unsupported meta-data version number (%lu),"
+              " file ignored",
+              (ulong)cfg.m_version);
   }
 
-  return (DB_UNSUPPORTED);
+  return (DB_ERROR);
 }
 
 /**

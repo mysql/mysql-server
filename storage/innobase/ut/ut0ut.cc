@@ -439,8 +439,6 @@ const char *ut_strerr(dberr_t num) {
       return ("Table is being used in foreign key check");
     case DB_DATA_MISMATCH:
       return ("data mismatch");
-    case DB_SCHEMA_MISMATCH:
-      return ("schema mismatch");
     case DB_NOT_FOUND:
       return ("not found");
     case DB_ONLINE_LOG_TOO_BIG:
