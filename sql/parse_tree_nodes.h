@@ -664,8 +664,6 @@ class PT_locking_clause : public Parse_tree_node {
 
   virtual bool set_lock_for_tables(Parse_context *pc) = 0;
 
-  virtual bool is_legacy_syntax() const = 0;
-
   Locked_row_action action() const { return m_locked_row_action; }
 
  protected:
@@ -690,22 +688,12 @@ class PT_locking_clause : public Parse_tree_node {
 
 class PT_query_block_locking_clause : public PT_locking_clause {
  public:
-  PT_query_block_locking_clause(Lock_strength strength,
-                                Locked_row_action action)
-      : PT_locking_clause(strength, action),
-        m_is_legacy_syntax(strength == Lock_strength::UPDATE &&
-                           action == Locked_row_action::WAIT) {}
-
-  PT_query_block_locking_clause(Lock_strength strength)
-      : PT_locking_clause(strength, Locked_row_action::WAIT),
-        m_is_legacy_syntax(true) {}
+  explicit PT_query_block_locking_clause(
+      Lock_strength strength,
+      Locked_row_action action = Locked_row_action::WAIT)
+      : PT_locking_clause(strength, action) {}
 
   bool set_lock_for_tables(Parse_context *pc) override;
-
-  bool is_legacy_syntax() const override { return m_is_legacy_syntax; }
-
- private:
-  bool m_is_legacy_syntax;
 };
 
 class PT_table_locking_clause : public PT_locking_clause {
@@ -718,8 +706,6 @@ class PT_table_locking_clause : public PT_locking_clause {
       : PT_locking_clause(strength, action), m_tables(tables) {}
 
   bool set_lock_for_tables(Parse_context *pc) override;
-
-  bool is_legacy_syntax() const override { return false; }
 
  private:
   /// @todo Move this function to Table_ident?
@@ -740,11 +726,6 @@ class PT_locking_clause_list : public Parse_tree_node {
 
   bool push_back(PT_locking_clause *locking_clause) {
     return m_locking_clauses.push_back(locking_clause);
-  }
-
-  bool is_legacy_syntax() const {
-    return m_locking_clauses.size() == 1 &&
-           m_locking_clauses[0]->is_legacy_syntax();
   }
 
   bool contextualize(Parse_context *pc) override {
@@ -1550,8 +1531,7 @@ class PT_query_expression final : public PT_query_primary {
                       PT_query_expression_body *body, PT_order *order,
                       PT_limit_clause *limit,
                       PT_locking_clause_list *locking_clauses)
-      : contextualized(false),
-        m_body(body),
+      : m_body(body),
         m_order(order),
         m_limit(limit),
         m_locking_clauses(locking_clauses),
@@ -1600,7 +1580,6 @@ class PT_query_expression final : public PT_query_primary {
   */
   bool contextualize_order_and_limit(Parse_context *pc);
 
-  bool contextualized;
   PT_query_expression_body *m_body;
   PT_order *m_order;
   PT_limit_clause *m_limit;
