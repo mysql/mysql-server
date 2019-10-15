@@ -68,7 +68,7 @@ constexpr MetadataSchemaVersion kRequiredRoutingMetadataSchemaVersion{1, 0, 0};
 constexpr MetadataSchemaVersion kNewMetadataVersion{2, 0, 0};
 
 // Version that will be is set while the metadata is being updated
-constexpr MetadataSchemaVersion kUpdateInProgressMetadataVersion{0, 0, 0};
+constexpr MetadataSchemaVersion kUpgradeInProgressMetadataVersion{0, 0, 0};
 
 MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
 
@@ -87,7 +87,7 @@ ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,
 
 std::string to_string(const ClusterType cluster_type);
 
-class UpdateInProgressException : public std::exception {};
+class MetadataUpgradeInProgressException : public std::exception {};
 
 }  // namespace mysqlrouter
 #endif

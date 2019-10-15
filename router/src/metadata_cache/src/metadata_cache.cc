@@ -96,8 +96,9 @@ void MetadataCache::refresh_thread() {
     bool refresh_ok{false};
     try {
       refresh_ok = refresh();
-    } catch (const mysqlrouter::UpdateInProgressException &) {
-      log_info("Cluster metadata in progress, aborting the metada refresh");
+    } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+      log_info(
+          "Cluster metadata upgrade in progress, aborting the metada refresh");
     } catch (const std::exception &e) {
       log_info("Failed refreshing metadata: %s", e.what());
       on_refresh_failed(true);
@@ -114,7 +115,7 @@ void MetadataCache::refresh_thread() {
             try {
               meta_data_->update_router_version(*rw_instance, router_id_);
               version_udpated_ = true;
-            } catch (const mysqlrouter::UpdateInProgressException &) {
+            } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
             } catch (...) {
               // we only attempt it once, if it fails we will not try again
               version_udpated_ = true;
@@ -132,7 +133,7 @@ void MetadataCache::refresh_thread() {
           if (find_rw_instance(instances, &rw_instance)) {
             try {
               meta_data_->update_router_last_check_in(*rw_instance, router_id_);
-            } catch (const mysqlrouter::UpdateInProgressException &) {
+            } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
             } catch (...) {
             }
           }

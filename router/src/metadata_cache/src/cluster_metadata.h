@@ -125,7 +125,8 @@ class METADATA_API ClusterMetadata : public MetaData {
   bool do_connect(mysqlrouter::MySQLSession &connection,
                   const metadata_cache::ManagedInstance &mi);
 
-  // throws metadata_cache::metadata_error and UpdateInProgressException
+  // throws metadata_cache::metadata_error and
+  // MetadataUpgradeInProgressException
   mysqlrouter::MetadataSchemaVersion get_and_check_metadata_schema_version(
       mysqlrouter::MySQLSession &session);
 

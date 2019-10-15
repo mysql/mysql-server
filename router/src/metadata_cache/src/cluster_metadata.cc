@@ -153,8 +153,8 @@ ClusterMetadata::get_and_check_metadata_schema_version(
 
   const auto version = mysqlrouter::get_metadata_schema_version(&session);
 
-  if (version == mysqlrouter::kUpdateInProgressMetadataVersion) {
-    throw mysqlrouter::UpdateInProgressException();
+  if (version == mysqlrouter::kUpgradeInProgressMetadataVersion) {
+    throw mysqlrouter::MetadataUpgradeInProgressException();
   }
 
   if (!metadata_schema_version_is_compatible(kReqRoutingVer, version) &&
@@ -231,7 +231,8 @@ bool ClusterMetadata::update_router_version(
   }
 
   MySQLSession::Transaction transaction(connection.get());
-  // throws metadata_cache::metadata_error and UpdateInProgressException
+  // throws metadata_cache::metadata_error and
+  // MetadataUpgradeInProgressException
   get_and_check_metadata_schema_version(*connection);
 
   sqlstring query;
@@ -274,7 +275,8 @@ bool ClusterMetadata::update_router_last_check_in(
   }
 
   MySQLSession::Transaction transaction(connection.get());
-  // throws metadata_cache::metadata_error and UpdateInProgressException
+  // throws metadata_cache::metadata_error and
+  // MetadataUpgradeInProgressException
   get_and_check_metadata_schema_version(*connection);
 
   sqlstring query =
