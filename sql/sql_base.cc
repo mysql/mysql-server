@@ -7667,11 +7667,17 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
     }
   }
 
-  if (db && lower_case_table_names) {
+  if (db && (lower_case_table_names || is_infoschema_db(db, strlen(db)))) {
     /*
       convert database to lower case for comparison.
       We can't do this in Item_field as this would change the
       'name' of the item which may be used in the select list
+
+      The 'information_schema' name is treated as case-insenstive
+      identifier when specified in FROM clause even in
+      lower_case_table_names=0. We lowercase the 'information_schema' name
+      below to treat it as case-insensitive even when it is refered in WHERE
+      or SELECT clause.
     */
     strmake(name_buff, db, sizeof(name_buff) - 1);
     my_casedn_str(files_charset_info, name_buff);
@@ -8850,11 +8856,15 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
   DBUG_TRACE;
   DBUG_PRINT("arena", ("stmt arena: %p", thd->stmt_arena));
 
-  if (db_name && lower_case_table_names) {
+  if (db_name &&
+      (lower_case_table_names || is_infoschema_db(db_name, strlen(db_name)))) {
     /*
       convert database to lower case for comparison
       We can't do this in Item_field as this would change the
       'name' of the item which may be used in the select list
+
+      We lowercase the 'information_schema' name below to treat it as
+      case-insensitive even in lower_case_table_names=0.
     */
     strmake(name_buff, db_name, sizeof(name_buff) - 1);
     my_casedn_str(files_charset_info, name_buff);
