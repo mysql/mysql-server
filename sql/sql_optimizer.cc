@@ -6338,14 +6338,14 @@ static bool pull_out_semijoin_tables(JOIN *join) {
     TABLE_LIST *tbl;
     /*
       Calculate set of tables within this semi-join nest that have
-      other dependent tables
+      other dependent tables. They cannot be pulled out. For example, with
+      t1 SEMIJOIN (t2 LEFT JOIN t3 ON ...) ON t1.a=t2.pk,
+      t2 cannot be pulled out because t3 depends on it.
     */
     table_map dep_tables = 0;
     while ((tbl = child_li++)) {
-      TABLE *const table = tbl->table;
-      if (table && (table->reginfo.join_tab->dependent &
-                    sj_nest->nested_join->used_tables))
-        dep_tables |= table->reginfo.join_tab->dependent;
+      if (tbl->dep_tables & sj_nest->nested_join->used_tables)
+        dep_tables |= tbl->dep_tables;
     }
     /*
       Find which tables we can pull out based on key dependency data.
