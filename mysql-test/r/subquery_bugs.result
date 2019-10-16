@@ -599,13 +599,14 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
 EXPLAIN
--> Remove duplicate t1 rows using temporary table (weedout)
-    -> Nested loop inner join  (cost=1.16 rows=1)
-        -> Nested loop left join  (cost=0.81 rows=1)
-            -> Filter: (t1.f1 >= 'o')  (cost=0.46 rows=1)
-                -> Index range scan on t1 using k1  (cost=0.46 rows=1)
-            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
-        -> Single-row index lookup on t1 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
+-> Nested loop inner join
+    -> Table scan on <subquery2>
+        -> Materialize with deduplication
+            -> Nested loop left join  (cost=0.81 rows=1)
+                -> Filter: (t1.f1 >= 'o')  (cost=0.46 rows=1)
+                    -> Index range scan on t1 using k1  (cost=0.46 rows=1)
+                -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
+    -> Single-row index lookup on t1 using PRIMARY (pk=`<subquery2>`.pk)  (cost=0.35 rows=1)
 
 DROP TABLE t1, t2;
 DROP VIEW v2;
@@ -776,16 +777,17 @@ RIGHT JOIN t3 ON t4.col_int_key = t3.pk
 RIGHT JOIN t2 ON t3.col_int_key <> t2.pk
 );
 EXPLAIN
--> Remove duplicate (t1, t2) rows using temporary table (weedout)
-    -> Nested loop left join  (cost=1.45 rows=5)
-        -> Nested loop inner join  (cost=0.70 rows=1)
-            -> Filter: (t1.pk is not null)  (cost=0.35 rows=1)
-                -> Table scan on t1  (cost=0.35 rows=1)
-            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.35 rows=1)
-        -> Nested loop left join  (cost=2.50 rows=5)
-            -> Filter: (t3.col_int_key <> t2.pk)  (cost=0.75 rows=5)
-                -> Table scan on t3  (cost=0.75 rows=5)
-            -> Index lookup on t4 using ix2 (col_int_key=t3.pk)  (cost=1.35 rows=1)
+-> Nested loop inner join
+    -> Filter: (t1.pk is not null)  (cost=0.35 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+    -> Single-row index lookup on <subquery2> using <auto_distinct_key> (pk=t1.pk)
+        -> Materialize with deduplication
+            -> Nested loop left join  (cost=1.10 rows=5)
+                -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
+                -> Nested loop left join  (cost=2.50 rows=5)
+                    -> Filter: (t3.col_int_key <> t2.pk)  (cost=0.75 rows=5)
+                        -> Table scan on t3  (cost=0.75 rows=5)
+                    -> Index lookup on t4 using ix2 (col_int_key=t3.pk)  (cost=0.27 rows=1)
 
 SELECT * FROM t1 WHERE pk IN (
 SELECT t2.pk FROM
