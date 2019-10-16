@@ -1,3 +1,11 @@
+# To disable parts that are not supported by all engines, such as ndbcluster,
+# define corresponding variables as below.
+# Note they will be cleared before exit.
+# let $invisible_indexes_skip_inplace=1;
+# let $invisible_indexes_skip_fulltext=1;
+# let $invisible_indexes_skip_spatial=1;
+# let $invisible_indexes_skip_non_pk_autoincrement=1;
+
 --echo #
 --echo # WL#8697: Invisible Indexes
 --echo #
@@ -151,11 +159,29 @@ ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM = COPY;
 ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
 
+if (!$invisible_indexes_skip_inplace)
+{
 --enable_info
 ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM = INPLACE;
 --disable_info
 ANALYZE TABLE t1;
 SHOW INDEXES FROM t1;
+}
+
+if ($invisible_indexes_skip_inplace)
+{
+let $is_ndbcluster=
+SELECT 1
+FROM information_schema.tables
+WHERE table_schema = 'test' AND table_name = 't1' AND engine = 'ndbcluster';
+
+if ($is_ndbcluster)
+{
+--echo # See Bug#29700179
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALTER INDEX a VISIBLE, ALGORITHM = INPLACE;
+}
+}
 
 --enable_info
 ALTER TABLE t1 ALTER INDEX a INVISIBLE, ALGORITHM = DEFAULT;
@@ -263,6 +289,8 @@ EXPLAIN SELECT a FROM t1;
 DROP TABLE t1;
 
 
+if (!$invisible_indexes_skip_spatial)
+{
 --echo #
 --echo # Invisible spatial indexes.
 --echo #
@@ -302,8 +330,28 @@ SHOW INDEXES FROM t1;
 --eval $query
 
 DROP TABLE t1;
+}
 
+if ($invisible_indexes_skip_spatial)
+{
+let $is_ndbcluster=
+SELECT 1
+FROM information_schema.tables
+WHERE table_schema = 'test' AND table_name = 't1' AND engine = 'ndbcluster';
 
+if ($is_ndbcluster)
+{
+--error ER_TABLE_CANT_HANDLE_SPKEYS
+CREATE TABLE t1 (
+  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  g GEOMETRY NOT NULL SRID 0,
+  SPATIAL KEY(g)
+);
+}
+}
+
+if (!$invisible_indexes_skip_spatial)
+{
 --echo #
 --echo # Test of invisible fulltext indexes.
 --echo #
@@ -327,8 +375,11 @@ SHOW INDEXES FROM t1;
 --enable_abort_on_error
 
 DROP TABLE t1;
+}
 
 
+if (!$invisible_indexes_skip_non_pk_autoincrement)
+{
 --echo #
 --echo # Invisible indexes on AUTO_INCREMENT columns.
 --echo #
@@ -342,6 +393,17 @@ SHOW INDEXES FROM t1;
 EXPLAIN SELECT a FROM t1;
 
 DROP TABLE t1;
+}
+
+if ($invisible_indexes_skip_non_pk_autoincrement)
+{
+--let $ndbcluster_is_default=SELECT @@default_storage_engine = 'ndbcluster';
+if ($ndbcluster_is_default)
+{
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1 ( a INT AUTO_INCREMENT, KEY ( a ) );
+}
+}
 
 --echo #
 --echo # Bug#24660093: REMOVING AN INVISIBLE INDEX BREAKS EXPLAIN
@@ -388,3 +450,8 @@ SELECT * FROM t1 IGNORE INDEX FOR GROUP BY (a);
 
 
 DROP TABLE t1;
+
+let $invisible_indexes_skip_inplace=;
+let $invisible_indexes_skip_fulltext=;
+let $invisible_indexes_skip_spatial=;
+let $invisible_indexes_skip_non_pk_autoincrement=;
