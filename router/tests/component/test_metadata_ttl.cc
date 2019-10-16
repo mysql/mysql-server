@@ -809,10 +809,8 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
 
   SCOPED_TRACE("// Info about the update should be logged.");
   const std::string log_content = router.get_full_logfile();
-  ASSERT_TRUE(
-      log_content.find(
-          "Cluster metadata in progress, aborting the metada refresh") !=
-      std::string::npos);
+  ASSERT_TRUE(log_content.find("Cluster metadata upgrade in progress, aborting "
+                               "the metada refresh") != std::string::npos);
 }
 
 INSTANTIATE_TEST_CASE_P(

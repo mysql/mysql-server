@@ -518,7 +518,7 @@ void ConfigGenerator::init(
   connect_to_metadata_server(u, bootstrap_socket, bootstrap_options);
   auto schema_version = mysqlrouter::get_metadata_schema_version(mysql_.get());
 
-  if (schema_version == mysqlrouter::kUpdateInProgressMetadataVersion) {
+  if (schema_version == mysqlrouter::kUpgradeInProgressMetadataVersion) {
     throw std::runtime_error(
         "Currently the cluster metadata update is in progress. Please rerun "
         "the bootstrap when it is finished.");

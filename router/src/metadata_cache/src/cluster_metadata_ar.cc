@@ -56,7 +56,8 @@ ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
 
       MySQLSession::Transaction transaction(metadata_connection_.get());
 
-      // throws metadata_cache::metadata_error and UpdateInProgressException
+      // throws metadata_cache::metadata_error and
+      // MetadataUpgradeInProgressException
       const auto version =
           get_and_check_metadata_schema_version(*metadata_connection_);
 
@@ -93,7 +94,7 @@ ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
       this->view_id_ = view_id;
       metadata_read = true;
       instance_id = i;
-    } catch (const mysqlrouter::UpdateInProgressException &) {
+    } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
       throw;
     } catch (const std::exception &e) {
       log_warning("Failed fetching metadata from instance: %s on %s:%d - %s",
