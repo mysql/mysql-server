@@ -593,6 +593,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       fsRef->userPointer  = userPointer; 
       fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrOutOfMemory);
       fsRef->osErrorCode  = ~0; // Indicate local error
+ndbabort();
       sendSignal(userRef, GSN_FSOPENREF, signal, 3, JBB);
       return;
     }
@@ -615,6 +616,7 @@ Ndbfs::execFSOPENREQ(Signal* signal)
       fsRef->userPointer  = userPointer;
       fsRef->setErrorCode(fsRef->errorCode, FsRef::fsErrOutOfMemory);
       fsRef->osErrorCode  = ~0; // Indicate local error
+ndbabort();
       sendSignal(userRef, GSN_FSOPENREF, signal, 3, JBB);
       return;
     }
@@ -1378,6 +1380,7 @@ Ndbfs::report(Request * request, Signal* signal)
       jam();
       // Put the file back in idle files list
       pushIdleFile(request->file);
+//ndbabort();
       sendSignal(ref, GSN_FSOPENREF, signal, FsRef::SignalLength, JBB);
       break;
     }
@@ -1471,7 +1474,7 @@ Ndbfs::report(Request * request, Signal* signal)
 	m_maxOpenedFiles = theOpenFiles.size();
 
       fsConf->filePointer = request->theFilePointer;
-      fsConf->fileInfo = request->m_fileinfo;
+      fsConf->fileInfo = 0;
       fsConf->file_size_hi = request->m_file_size_hi;
       fsConf->file_size_lo = request->m_file_size_lo;
       sendSignal(ref, GSN_FSOPENCONF, signal, 5, JBA);
@@ -1595,11 +1598,16 @@ Uint32 Ndbfs::translateErrno(int aErrno)
       //none valid parameters
     case ERROR_INVALID_HANDLE:
     case ERROR_INVALID_DRIVE:
+    case ERROR_INVALID_DATA:
     case ERROR_INVALID_ACCESS:
     case ERROR_HANDLE_EOF:
     case ERROR_BUFFER_OVERFLOW:
 
       return FsRef::fsErrInvalidParameters;
+
+    case ERROR_FILE_EXISTS:
+      return FsRef::fsErrFileExists;
+
       //environment error
     case ERROR_CRC:
     case ERROR_ARENA_TRASHED:
@@ -1618,6 +1626,8 @@ Uint32 Ndbfs::translateErrno(int aErrno)
       return FsRef::fsErrNoMoreResources;
       //no file
     case ERROR_FILE_NOT_FOUND:
+    case ERROR_INVALID_NAME:
+    case ERROR_PATH_NOT_FOUND:
       return FsRef::fsErrFileDoesNotExist;
 
     case ERR_ReadUnderflow:
@@ -1660,9 +1670,11 @@ Uint32 Ndbfs::translateErrno(int aErrno)
     case EFAULT:
     case EISDIR:
     case ENOTDIR:
-    case EEXIST:
     case ETXTBSY:
       return FsRef::fsErrInvalidParameters;
+      // file exists
+    case EEXIST:
+      return FsRef::fsErrFileExists;
       //environment error
     case ELOOP:
 #ifdef ENOLINK
@@ -1875,10 +1887,9 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       AsyncFile* file = theFiles[i];
       if (file == 0)
         continue;
-      ndbout_c("%u : %s %s fileInfo=%08x", i,
+      ndbout_c("%u : %s %s", i,
                file->theFileName.c_str() ? file->theFileName.c_str() : "",
-               file->isOpen() ? "OPEN" : "CLOSED",
-               file->get_fileinfo());
+               file->isOpen() ? "OPEN" : "CLOSED");
     }
   }
 }//Ndbfs::execDUMP_STATE_ORD()

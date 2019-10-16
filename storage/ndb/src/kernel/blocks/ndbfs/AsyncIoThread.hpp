@@ -131,7 +131,6 @@ public:
   MemoryChannel<Request>::ListMember m_mem_channel;
 
   // file info for debug
-  Uint32 m_fileinfo;
   Uint32 m_file_size_hi;
   Uint32 m_file_size_lo;
 

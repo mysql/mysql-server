@@ -50,6 +50,8 @@ public:
   ~Ndbfs() override;
   const char* get_filename(Uint32 fd) const override;
 
+  static Uint32 translateErrno(int aErrno);
+
 protected:
   BLOCK_DEFINES(Ndbfs);
 
@@ -119,8 +121,6 @@ private:
 #else
   void readWriteRequest(  int action, Signal * signal );
 #endif
-
-  static Uint32 translateErrno(int aErrno);
 
   Uint32 m_bound_threads_cnt;
   Uint32 m_unbounds_threads_cnt;

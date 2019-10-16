@@ -31,7 +31,7 @@
  * Also does direct IO, preallocation.
  */
 
-#include <ndbzio.h>
+#include "portlib/ndb_file.h"
 
 #define JAM_FILE_ID 397
 
@@ -40,43 +40,11 @@ class PosixAsyncFile : public AsyncFile
   friend class Ndbfs;
 public:
   PosixAsyncFile(SimulatedBlock& fs);
-  ~PosixAsyncFile() override;
 
-  int init() override;
-  bool isOpen() override;
-
-  void openReq(Request *request) override;
-
-  void closeReq(Request *request) override;
-  void syncReq(Request *request) override;
   void removeReq(Request *request) override;
-  void appendReq(Request *request) override;
   void rmrfReq(Request *request, const char * path, bool removePath) override;
 
-  int readBuffer(Request*, char * buf, size_t size, off_t offset) override;
-  int writeBuffer(const char * buf, size_t size, off_t offset) override;
-
   void createDirectories() override;
-
-  Uint32 get_fileinfo() const override {
-    Uint32 ft = (Uint32)m_filetype;
-    Uint32 fd = (Uint32)theFd;
-    return (ft << 16) | (fd & 0xFFFF);
-  }
-
-private:
-  int theFd;
-  int m_filetype;
-  bool m_use_o_direct_sync_flag;
-  void set_or_check_filetype(bool set);
-
-  int use_gz;
-  ndbzio_stream nzf;
-  struct ndbz_alloc_rec nz_mempool;
-  void* nzfBufferUnaligned;
-
-  int check_odirect_read(Uint32 flags, int&new_flags, int mode);
-  int check_odirect_write(Uint32 flags, int&new_flags, int mode);
 };
 
 

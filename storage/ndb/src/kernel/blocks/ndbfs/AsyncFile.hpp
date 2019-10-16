@@ -25,12 +25,38 @@
 #ifndef AsyncFile_H
 #define AsyncFile_H
 
+#include "portlib/ndb_file.h"
+#include "util/ndbzio.h"
+
 #include <kernel_types.h>
 #include "AsyncIoThread.hpp"
 #include "Filename.hpp"
 
 #define JAM_FILE_ID 391
 
+#ifndef _WIN32
+static inline int get_last_os_error()
+{
+  return errno;
+}
+
+static inline void set_last_os_error(int err)
+{
+  errno = err;
+}
+
+#else
+static inline int get_last_os_error()
+{
+  return GetLastError();
+}
+
+static inline void set_last_os_error(int err)
+{
+  SetLastError(err);
+}
+
+#endif
 
 class AsyncFile
 {
@@ -39,10 +65,10 @@ class AsyncFile
 
 public:
   AsyncFile(SimulatedBlock& fs);
-  virtual ~AsyncFile() {}
+  virtual ~AsyncFile();
 
-  virtual int init() = 0;
-  virtual bool isOpen() = 0;
+  int init();
+  bool isOpen() const;
 
   Filename theFileName;
   Request *m_current_request, *m_last_request;
@@ -61,7 +87,6 @@ public:
     m_thread_bound = value;
   }
 
-  virtual Uint32 get_fileinfo() const { return 0; }
 private:
 
   /**
@@ -72,22 +97,22 @@ private:
   /**
    * openReq() - open a file.
    */
-  virtual void openReq(Request *request) = 0;
+  void openReq(Request *request);
 
   /**
    * readBuffer - read into buffer
    */
-  virtual int readBuffer(Request*, char * buf, size_t size, off_t offset)=0;
+  int readBuffer(Request*, char * buf, size_t size, off_t offset);
 
   /**
    * writeBuffer() - write into file
    */
-  virtual int writeBuffer(const char * buf, size_t size, off_t offset)=0;
+  int writeBuffer(const char * buf, size_t size, off_t offset);
 
-  virtual void closeReq(Request *request)=0;
-  virtual void syncReq(Request *request)=0;
+  void closeReq(Request *request);
+  void syncReq(Request *request);
   virtual void removeReq(Request *request)=0;
-  virtual void appendReq(Request *request)=0;
+  void appendReq(Request *request);
   virtual void rmrfReq(Request *request, const char * path, bool removePath)=0;
   virtual void createDirectories()=0;
 
@@ -107,10 +132,14 @@ private:
   bool m_thread_bound;
 
 protected:
-  size_t m_write_wo_sync;  // Writes wo/ sync
-  size_t m_auto_sync_freq; // Auto sync freq in bytes
-  bool m_always_sync; /* O_SYNC not supported, then use this flag */
+  ndb_file m_file;
+
   Uint32 m_open_flags;
+
+  int use_gz;
+  ndbzio_stream nzf;
+  struct ndbz_alloc_rec nz_mempool;
+  void* nzfBufferUnaligned;
 
   /**
    * file buffers
@@ -160,6 +189,12 @@ AsyncFile::clear_buffer(Uint32 & rg, Ptr<GlobalPage> & ptr, Uint32 & cnt)
   theWriteBufferSize = 0;
 }
 
+inline
+bool
+AsyncFile::isOpen() const
+{
+  return m_file.is_open();
+}
 
 #undef JAM_FILE_ID
 
