@@ -2339,7 +2339,7 @@ thr_send_threads::assign_threads_to_assist_send_threads()
                                            selfptr->m_instance_count);
     if (is_recv_thread(thr_no) || selfptr->m_nosend == 1)
     {
-      selfptr->m_send_instance_no = Uint32(~0);
+      selfptr->m_send_instance_no = 0;
       selfptr->m_send_instance = NULL;
       selfptr->m_nosend = 1;
     }
@@ -8191,7 +8191,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   selfptr->m_max_extra_signals = 0;
   selfptr->m_first_free = 0;
   selfptr->m_first_unused = 0;
-  selfptr->m_send_instance_no = Uint32(~0);
+  selfptr->m_send_instance_no = 0;
   selfptr->m_send_instance = NULL;
   selfptr->m_nosend = 1;
   
