@@ -748,7 +748,7 @@ CREATE PROCEDURE p1() LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO T
 SET @save_local_infile = @@local_infile;
 SET GLOBAL local_infile = OFF;
 
---error ER_NOT_ALLOWED_COMMAND
+--error ER_CLIENT_LOCAL_FILES_DISABLED
 LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
 
 SET GLOBAL local_infile = @save_local_infile;
