@@ -106,7 +106,7 @@ SELECT ROUTINE_NAME, ROUTINE_TYPE FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE
 ROUTINE_NAME	ROUTINE_TYPE
 extract_schema_from_file_name	FUNCTION
 extract_table_from_file_name	FUNCTION
-format_bytes_orig	FUNCTION
+format_bytes	FUNCTION
 format_path	FUNCTION
 format_statement	FUNCTION
 format_time	FUNCTION
