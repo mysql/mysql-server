@@ -28,7 +28,7 @@ DROP TABLE IF EXISTS t1;
 create table t1(a int);
 LOAD DATA LOCAL INFILE
 'MYSQLTEST_VARDIR/std_data/numbers.txt' INTO TABLE test.t1;
-ERROR 42000: The used command is not allowed with this MySQL version
+ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server side
 SELECT count(*) from t1;
 count(*)
 0

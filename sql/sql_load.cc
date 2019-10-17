@@ -1982,7 +1982,7 @@ bool Sql_cmd_load_table::execute(THD *thd) {
   if (m_is_local_file) {
     if (!thd->get_protocol()->has_client_capability(CLIENT_LOCAL_FILES) ||
         !opt_local_infile) {
-      my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
+      my_error(ER_CLIENT_LOCAL_FILES_DISABLED, MYF(0));
       return true;
     }
   }
