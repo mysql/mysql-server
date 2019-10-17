@@ -528,12 +528,10 @@ void ConfigGenerator::init(
                                              schema_version)) {
     throw std::runtime_error(mysqlrouter::string_format(
         "This version of MySQL Router is not compatible with the provided "
-        "MySQL InnoDB cluster metadata. Expected metadata version %u.%u.%u, "
-        "got %u.%u.%u",
-        kRequiredBootstrapSchemaVersion.major,
-        kRequiredBootstrapSchemaVersion.minor,
-        kRequiredBootstrapSchemaVersion.patch, schema_version.major,
-        schema_version.minor, schema_version.patch));
+        "MySQL InnoDB cluster metadata. Expected metadata version %s, "
+        "got %s",
+        to_string(kRequiredBootstrapSchemaVersion).c_str(),
+        to_string(schema_version).c_str()));
   }
 
   metadata_ = mysqlrouter::create_metadata(schema_version, mysql_.get());
@@ -2489,22 +2487,8 @@ void ConfigGenerator::give_grants_to_users(const std::string &new_accounts) {
   // give GRANTs to new accounts
   if (!new_accounts.empty()) {
     // run GRANT stantements
-    const std::vector<std::string> statements{
-        "GRANT SELECT, EXECUTE ON mysql_innodb_cluster_metadata.* TO " +
-            new_accounts,
-        "GRANT SELECT ON performance_schema.replication_group_members TO " +
-            new_accounts,
-        "GRANT SELECT ON performance_schema.replication_group_member_stats "
-        "TO " +
-            new_accounts,
-        "GRANT SELECT ON performance_schema.global_variables TO " +
-            new_accounts,
-        "GRANT INSERT, UPDATE, DELETE ON "
-        "mysql_innodb_cluster_metadata.routers TO " +
-            new_accounts,
-        "GRANT INSERT, UPDATE, DELETE ON "
-        "mysql_innodb_cluster_metadata.v2_routers TO " +
-            new_accounts};
+    const std::vector<std::string> statements =
+        metadata_->get_grant_statements(new_accounts);
     for (const auto &s : statements) {
       try {
         mysql_->execute(s);  // throws MySQLSession::Error, std::logic_error

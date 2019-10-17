@@ -168,7 +168,7 @@ TEST_P(MetadataSchemaVersionError, version) {
 INSTANTIATE_TEST_CASE_P(Quorum, MetadataSchemaVersionError,
                         ::testing::Values(
                             // too old
-                            std::make_tuple("1", "0", "0"),
+                            std::make_tuple("0", "0", "1"),
 
                             // too new
                             std::make_tuple("3", "0", "0")));

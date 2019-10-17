@@ -8,13 +8,13 @@
 var common_stmts = require("common_statements");
 
 var options = {
+  metadata_schema_version: [1, 0, 2],
   cluster_type: "gr",
 };
 
 var common_responses = common_stmts.prepare_statement_responses([
   "router_select_schema_version",
-  "router_select_cluster_type_v2",
-  "router_count_clusters_v2",
+  "router_count_clusters_v1",
 ], options);
 
 var router_check_member_state =

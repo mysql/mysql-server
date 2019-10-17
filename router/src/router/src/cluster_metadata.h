@@ -56,7 +56,7 @@ class ClusterMetadata {
   virtual mysqlrouter::ClusterType get_type() = 0;
 
   /** @brief Checks if Router with given id is already registered in metadata
-   *         database, and belongs to our machi
+   *         database, and belongs to our machine
    *
    * @param router_id Router id
    * @param hostname_override If non-empty, this hostname will be used instead
@@ -69,7 +69,7 @@ class ClusterMetadata {
    * @throws MySQLSession::Error(std::runtime_error) on database error
    */
   virtual void verify_router_id_is_ours(
-      uint32_t router_id, const std::string &hostname_override = "");
+      const uint32_t router_id, const std::string &hostname_override = "") = 0;
 
   /** @brief Registers Router in metadata database
    *
@@ -84,15 +84,16 @@ class ClusterMetadata {
    * @throws LocalHostnameResolutionError(std::runtime_error) on hostname query
    *         failure, std::runtime_error on other failure
    */
-  virtual uint32_t register_router(const std::string &router_name,
-                                   bool overwrite,
-                                   const std::string &hostname_override = "");
+  virtual uint32_t register_router(
+      const std::string &router_name, const bool overwrite,
+      const std::string &hostname_override = "") = 0;
 
-  virtual void update_router_info(uint32_t router_id, std::string cluster_id,
+  virtual void update_router_info(const uint32_t router_id,
+                                  const std::string &cluster_id,
                                   const std::string &rw_endpoint,
                                   const std::string &ro_endpoint,
                                   const std::string &rw_x_endpoint,
-                                  const std::string &ro_x_endpoint);
+                                  const std::string &ro_x_endpoint) = 0;
 
   virtual std::vector<std::string> get_routing_mode_queries(
       const std::string &cluster_name) = 0;
@@ -127,6 +128,9 @@ class ClusterMetadata {
 
   virtual ClusterInfo fetch_metadata_servers() = 0;
 
+  virtual std::vector<std::string> get_grant_statements(
+      const std::string &new_accounts) const = 0;
+
  protected:
   // throws MySQLSession::Error, std::out_of_range, std::logic_error
   virtual bool check_metadata_is_supported() = 0;
@@ -146,19 +150,86 @@ class ClusterMetadataGR : public ClusterMetadata {
 
   virtual ~ClusterMetadataGR() override = default;
 
-  virtual mysqlrouter::ClusterType get_type() override {
-    return mysqlrouter::ClusterType::GR_V2;
-  }
-
   // For GR cluster Group Replication ID
   std::string get_cluster_type_specific_id() override;
 
   void require_cluster_is_ok() override;
+};
+
+class ClusterMetadataGRV1 : public ClusterMetadataGR {
+ public:
+  ClusterMetadataGRV1(const MetadataSchemaVersion &schema_version,
+                      MySQLSession *mysql,
+                      mysql_harness::SocketOperationsBase *sockops =
+                          mysql_harness::SocketOperations::instance())
+      : ClusterMetadataGR(schema_version, mysql, sockops) {}
+
+  virtual ~ClusterMetadataGRV1() override = default;
+
+  mysqlrouter::ClusterType get_type() override {
+    return mysqlrouter::ClusterType::GR_V1;
+  }
 
   ClusterInfo fetch_metadata_servers() override;
 
   std::vector<std::string> get_routing_mode_queries(
       const std::string &cluster_name) override;
+
+  void verify_router_id_is_ours(
+      const uint32_t router_id,
+      const std::string &hostname_override = "") override;
+
+  void update_router_info(const uint32_t router_id,
+                          const std::string &cluster_id,
+                          const std::string &rw_endpoint,
+                          const std::string &ro_endpoint,
+                          const std::string &rw_x_endpoint,
+                          const std::string &ro_x_endpoint) override;
+
+  uint32_t register_router(const std::string &router_name, const bool overwrite,
+                           const std::string &hostname_override = "") override;
+
+  std::vector<std::string> get_grant_statements(
+      const std::string &new_accounts) const override;
+
+ protected:
+  bool check_metadata_is_supported() override;
+};
+
+class ClusterMetadataGRV2 : public ClusterMetadataGR {
+ public:
+  ClusterMetadataGRV2(const MetadataSchemaVersion &schema_version,
+                      MySQLSession *mysql,
+                      mysql_harness::SocketOperationsBase *sockops =
+                          mysql_harness::SocketOperations::instance())
+      : ClusterMetadataGR(schema_version, mysql, sockops) {}
+
+  virtual ~ClusterMetadataGRV2() override = default;
+
+  mysqlrouter::ClusterType get_type() override {
+    return mysqlrouter::ClusterType::GR_V2;
+  }
+
+  ClusterInfo fetch_metadata_servers() override;
+
+  std::vector<std::string> get_routing_mode_queries(
+      const std::string &cluster_name) override;
+
+  void verify_router_id_is_ours(
+      uint32_t router_id, const std::string &hostname_override = "") override;
+
+  void update_router_info(const uint32_t router_id,
+                          const std::string &cluster_id,
+                          const std::string &rw_endpoint,
+                          const std::string &ro_endpoint,
+                          const std::string &rw_x_endpoint,
+                          const std::string &ro_x_endpoint) override;
+
+  uint32_t register_router(const std::string &router_name, const bool overwrite,
+                           const std::string &hostname_override = "") override;
+
+  std::vector<std::string> get_grant_statements(
+      const std::string &new_accounts) const override;
 
  protected:
   bool check_metadata_is_supported() override;
@@ -190,6 +261,22 @@ class ClusterMetadataAR : public ClusterMetadata {
 
   std::vector<std::string> get_routing_mode_queries(
       const std::string &cluster_name) override;
+
+  void verify_router_id_is_ours(
+      uint32_t router_id, const std::string &hostname_override = "") override;
+
+  void update_router_info(const uint32_t router_id,
+                          const std::string &cluster_id,
+                          const std::string &rw_endpoint,
+                          const std::string &ro_endpoint,
+                          const std::string &rw_x_endpoint,
+                          const std::string &ro_x_endpoint) override;
+
+  uint32_t register_router(const std::string &router_name, const bool overwrite,
+                           const std::string &hostname_override = "") override;
+
+  std::vector<std::string> get_grant_statements(
+      const std::string &new_accounts) const override;
 
  protected:
   bool check_metadata_is_supported() override;

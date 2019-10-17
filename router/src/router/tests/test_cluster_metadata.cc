@@ -47,7 +47,7 @@
 
 using ::testing::Return;
 using namespace testing;
-using mysqlrouter::ClusterMetadataGR;
+using mysqlrouter::ClusterMetadataGRV2;
 
 class MockSocketOperations : public mysql_harness::SocketOperationsBase {
  public:
@@ -100,8 +100,8 @@ const mysqlrouter::MetadataSchemaVersion kNewSchemaVersion{1, 0, 1};
 
 TEST_F(ClusterMetadataTest, check_router_id_ok) {
   const std::string kHostname = "hostname";
-  ClusterMetadataGR cluster_metadata(kNewSchemaVersion, &session_replayer,
-                                     &hostname_operations);
+  ClusterMetadataGRV2 cluster_metadata(kNewSchemaVersion, &session_replayer,
+                                       &hostname_operations);
 
   session_replayer.expect_query_one(kQueryGetHostname)
       .then_return(1, {{kHostname.c_str()}});
@@ -122,8 +122,8 @@ ACTION_P(ThrowLocalHostnameResolutionError, msg) {
  */
 TEST_F(ClusterMetadataTest, check_router_id_get_hostname_throws) {
   const std::string kHostname = "";
-  ClusterMetadataGR cluster_metadata(kNewSchemaVersion, &session_replayer,
-                                     &hostname_operations);
+  ClusterMetadataGRV2 cluster_metadata(kNewSchemaVersion, &session_replayer,
+                                       &hostname_operations);
 
   session_replayer.expect_query_one(kQueryGetHostname)
       .then_return(1, {{kHostname.c_str()}});
@@ -139,8 +139,8 @@ TEST_F(ClusterMetadataTest, check_router_id_get_hostname_throws) {
 }
 
 TEST_F(ClusterMetadataTest, check_router_id_router_not_found) {
-  ClusterMetadataGR cluster_metadata(kNewSchemaVersion, &session_replayer,
-                                     &hostname_operations);
+  ClusterMetadataGRV2 cluster_metadata(kNewSchemaVersion, &session_replayer,
+                                       &hostname_operations);
 
   session_replayer.expect_query_one(kQueryGetHostname).then_return(2, {});
 
@@ -155,8 +155,8 @@ TEST_F(ClusterMetadataTest, check_router_id_router_not_found) {
 TEST_F(ClusterMetadataTest, check_router_id_different_hostname) {
   const std::string kHostname1 = "hostname";
   const std::string kHostname2 = "another.hostname";
-  ClusterMetadataGR cluster_metadata(kNewSchemaVersion, &session_replayer,
-                                     &hostname_operations);
+  ClusterMetadataGRV2 cluster_metadata(kNewSchemaVersion, &session_replayer,
+                                       &hostname_operations);
 
   session_replayer.expect_query_one(kQueryGetHostname)
       .then_return(1, {{kHostname1.c_str()}});
@@ -178,8 +178,8 @@ TEST_F(ClusterMetadataTest, check_router_id_different_hostname) {
 TEST_F(ClusterMetadataTest, register_router_ok) {
   const std::string kRouterName = "routername";
   const std::string kHostName = "hostname";
-  ClusterMetadataGR cluster_metadata(kNewSchemaVersion, &session_replayer,
-                                     &hostname_operations);
+  ClusterMetadataGRV2 cluster_metadata(kNewSchemaVersion, &session_replayer,
+                                       &hostname_operations);
 
   session_replayer.expect_execute(kRegisterRouter).then_ok();
   EXPECT_CALL(hostname_operations, get_local_hostname())
@@ -196,8 +196,8 @@ TEST_F(ClusterMetadataTest, register_router_ok) {
 TEST_F(ClusterMetadataTest, register_router_get_hostname_throws) {
   const std::string kRouterName = "routername";
   const std::string kHostName = "";
-  ClusterMetadataGR cluster_metadata(kNewSchemaVersion, &session_replayer,
-                                     &hostname_operations);
+  ClusterMetadataGRV2 cluster_metadata(kNewSchemaVersion, &session_replayer,
+                                       &hostname_operations);
 
   session_replayer.expect_execute(kRegisterRouter).then_ok();
   EXPECT_CALL(hostname_operations, get_local_hostname())

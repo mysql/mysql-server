@@ -147,25 +147,20 @@ bool ClusterMetadata::connect(
 mysqlrouter::MetadataSchemaVersion
 ClusterMetadata::get_and_check_metadata_schema_version(
     mysqlrouter::MySQLSession &session) {
-  const auto kReqBootstrapVer = mysqlrouter::kRequiredBootstrapSchemaVersion;
-  const auto kReqRoutingVer =
-      mysqlrouter::kRequiredRoutingMetadataSchemaVersion;
-
   const auto version = mysqlrouter::get_metadata_schema_version(&session);
 
   if (version == mysqlrouter::kUpgradeInProgressMetadataVersion) {
     throw mysqlrouter::MetadataUpgradeInProgressException();
   }
 
-  if (!metadata_schema_version_is_compatible(kReqRoutingVer, version) &&
-      !metadata_schema_version_is_compatible(kReqBootstrapVer, version)) {
+  if (!metadata_schema_version_is_compatible(
+          mysqlrouter::kRequiredRoutingMetadataSchemaVersion, version)) {
     throw metadata_cache::metadata_error(mysqlrouter::string_format(
         "Unsupported metadata schema on %s. Expected Metadata Schema version "
-        "compatible to %u.%u.%u or %u.%u.%u, got %u.%u.%u",
-        session.get_address().c_str(), kReqRoutingVer.major,
-        kReqRoutingVer.minor, kReqRoutingVer.patch, kReqBootstrapVer.major,
-        kReqBootstrapVer.minor, kReqBootstrapVer.patch, version.major,
-        version.minor, version.patch));
+        "compatible to %s, got %s",
+        session.get_address().c_str(),
+        to_string(mysqlrouter::kRequiredRoutingMetadataSchemaVersion).c_str(),
+        to_string(version).c_str()));
   }
 
   return version;

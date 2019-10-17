@@ -503,11 +503,11 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
   constexpr const char log_msg_re[]{
 #ifdef GTEST_USES_POSIX_RE
       "Unsupported metadata schema on .*\\. Expected Metadata Schema version "
-      "compatible to [0-9]\\.[0-9]\\.[0-9] or [0-9]\\.[0-9]\\.[0-9], got "
+      "compatible to [0-9]\\.[0-9]\\.[0-9], [0-9]\\.[0-9]\\.[0-9], got "
       "0\\.0\\.1"
 #else
       "Unsupported metadata schema on .*\\. Expected Metadata Schema version "
-      "compatible to \\d\\.\\d\\.\\d or \\d\\.\\d\\.\\d, got 0\\.0\\.1"
+      "compatible to \\d\\.\\d\\.\\d, \\d\\.\\d\\.\\d, got 0\\.0\\.1"
 #endif
   };
 
