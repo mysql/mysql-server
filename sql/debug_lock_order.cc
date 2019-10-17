@@ -6729,7 +6729,7 @@ static PSI_file_locker *lo_get_thread_file_descriptor_locker(
   int index = (int)file;
   if (index >= 0) {
     /*
-      See comment in pfs_get_thread_file_descriptor_locker_v1().
+      See comment in pfs_get_thread_file_descriptor_locker_v2().
 
       We are about to close a file by descriptor number,
       and the calling code still holds the descriptor.
@@ -7440,6 +7440,21 @@ static void lo_end_file_close_wait(PSI_file_locker *locker, int rc) {
   delete lo_locker;
 }
 
+static void lo_start_file_rename_wait(PSI_file_locker *locker,
+                                      size_t count MY_ATTRIBUTE((unused)),
+                                      const char *old_name,
+                                      const char *new_name,
+                                      const char *src_file, uint src_line) {
+  LO_file_locker *lo_locker = reinterpret_cast<LO_file_locker *>(locker);
+  DBUG_ASSERT(lo_locker != nullptr);
+  PSI_file_locker *chain_locker = lo_locker->m_chain_locker;
+
+  if ((g_file_chain != nullptr) && (chain_locker != nullptr)) {
+    g_file_chain->start_file_rename_wait(chain_locker, count, old_name,
+                                         new_name, src_file, src_line);
+  }
+}
+
 static void lo_end_file_rename_wait(PSI_file_locker *locker,
                                     const char *old_name, const char *new_name,
                                     int rc) {
@@ -7680,7 +7695,7 @@ static void *lo_get_cond_interface(int version) {
 
 struct PSI_cond_bootstrap LO_cond_bootstrap = {lo_get_cond_interface};
 
-PSI_file_service_v1 LO_file = {
+PSI_file_service_v2 LO_file = {
     lo_register_file,
     lo_create_file,
     lo_get_thread_file_name_locker,
@@ -7694,6 +7709,7 @@ PSI_file_service_v1 LO_file = {
     lo_end_file_wait,
     lo_start_file_close_wait,
     lo_end_file_close_wait,
+    lo_start_file_rename_wait,
     lo_end_file_rename_wait};
 
 static void *lo_get_file_interface(int version) {
