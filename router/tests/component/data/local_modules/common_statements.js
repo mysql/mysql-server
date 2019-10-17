@@ -444,6 +444,72 @@ exports.get = function get(stmt_key, options) {
       }
     },
 
+    router_select_hosts_v1:
+    {
+      stmt_regex: "^SELECT host_id, host_name, ip_address FROM mysql_innodb_cluster_metadata.hosts WHERE host_name = '"
+                  + options.bootstrap_report_host_pattern + "' LIMIT 1",
+      result: {
+        columns: [
+          {
+            "type": "STRING",
+            "name": "host_id"
+          },
+          {
+            "type": "STRING",
+            "name": "host_name"
+          },
+          {
+            "type": "STRING",
+            "name": "ip_address"
+          }
+        ],
+        rows: options["innodb_cluster_hosts"].map(function(currentValue) {
+          return [
+             currentValue[0], currentValue[1], currentValue[2]
+          ]
+        })
+      }
+    },
+
+    router_select_hosts_join_routers_v1:
+    {
+      stmt_regex: "SELECT h.host_id, h.host_name FROM mysql_innodb_cluster_metadata.routers r JOIN mysql_innodb_cluster_metadata.hosts h    ON r.host_id = h.host_id WHERE r.router_id = .*",
+      result: {
+        columns: [
+          {
+            "type": "STRING",
+            "name": "host_id"
+          },
+          {
+            "type": "STRING",
+            "name": "host_name"
+          }
+        ],
+        rows: options["innodb_cluster_hosts"].map(function(currentValue) {
+          return [
+             currentValue[0], currentValue[1]
+          ]
+        })
+      }
+    },
+
+    router_insert_into_hosts_v1:
+    {
+        "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.hosts        \\(host_name, location, attributes\\) VALUES \\('"
+                      + options.bootstrap_report_host_pattern + "',.*",
+      "ok": {
+        "last_insert_id": 1
+      }
+    },
+
+    router_insert_into_routers_v1:
+    {
+      "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.routers.*",
+      "ok": {
+        "last_insert_id": 1
+      }
+    },
+
     router_insert_into_routers:
     {
       "stmt_regex": "^INSERT INTO mysql_innodb_cluster_metadata.v2_routers.*",
@@ -497,6 +563,12 @@ exports.get = function get(stmt_key, options) {
     {
       "stmt_regex": "^GRANT INSERT, UPDATE, DELETE ON mysql_innodb_cluster_metadata\\.v2_routers.*"
                     + options.user_host_pattern,
+      "ok": {}
+    },
+
+    router_update_routers_in_metadata_v1:
+    {
+      "stmt_regex": "^UPDATE mysql_innodb_cluster_metadata\\.routers.*",
       "ok": {}
     },
 
@@ -599,6 +671,24 @@ exports.get = function get(stmt_key, options) {
         }
     },
 
+    router_count_clusters_v1: {
+      stmt: "select ((select count(*) from " +
+            "mysql_innodb_cluster_metadata.clusters)=1) as has_one_gr_cluster",
+      result: {
+        columns: [
+          {
+            "type": "LONGLONG",
+            "name": "has_one_gr_cluster"
+          }
+         ],
+         rows: [
+           [
+             1
+           ]
+         ]
+      }
+    },
+
     router_count_clusters_v2: {
       stmt: "select ((select count(*) from " +
              "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster",
@@ -655,6 +745,42 @@ exports.get = function get(stmt_key, options) {
             ""
           ]
         ]
+      }
+    },
+
+    router_select_cluster_instances_v1:
+    {
+      "stmt": "SELECT F.cluster_id, F.cluster_name, " +
+            "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) " +
+            "FROM " +
+            "mysql_innodb_cluster_metadata.clusters AS F, " +
+            "mysql_innodb_cluster_metadata.instances AS I, " +
+            "mysql_innodb_cluster_metadata.replicasets AS R " +
+            "WHERE R.replicaset_id = (SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances " +
+            "WHERE mysql_server_uuid = @@server_uuid) AND I.replicaset_id = R.replicaset_id " +
+            "AND R.cluster_id = F.cluster_id",
+      result: {
+        columns: [
+          {
+            "type": "STRING",
+            "name": "cluster_id"
+          },
+          {
+            "type": "STRING",
+            "name": "cluster_name"
+          },
+          {
+            "type": "STRING",
+            "name": "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
+          }
+        ],
+        rows: options["innodb_cluster_instances"].map(function(currentValue) {
+              return [
+                options.cluster_id,
+                options.innodb_cluster_name,
+                currentValue[0] + ":" + currentValue[1],
+              ]
+        })
       }
     },
 

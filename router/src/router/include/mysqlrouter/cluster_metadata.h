@@ -58,11 +58,15 @@ struct MetadataSchemaVersion {
   }
 };
 
-// Semantic version number that this Router version supports for bootstrap mode
-constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion{2, 0, 0};
+std::string to_string(const MetadataSchemaVersion &version);
+
+// Semantic version numbers that this Router version supports for bootstrap mode
+constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion[]{{1, 0, 0},
+                                                                  {2, 0, 0}};
 
 // Semantic version number that this Router version supports for routing mode
-constexpr MetadataSchemaVersion kRequiredRoutingMetadataSchemaVersion{1, 0, 0};
+constexpr MetadataSchemaVersion kRequiredRoutingMetadataSchemaVersion[]{
+    {1, 0, 0}, {2, 0, 0}};
 
 // Version that introduced views and support for Async Replicaset cluster type
 constexpr MetadataSchemaVersion kNewMetadataVersion{2, 0, 0};
@@ -75,6 +79,31 @@ MetadataSchemaVersion get_metadata_schema_version(MySQLSession *mysql);
 bool metadata_schema_version_is_compatible(
     const mysqlrouter::MetadataSchemaVersion &required,
     const mysqlrouter::MetadataSchemaVersion &available);
+
+template <size_t N>
+bool metadata_schema_version_is_compatible(
+    const mysqlrouter::MetadataSchemaVersion (&required)[N],
+    const mysqlrouter::MetadataSchemaVersion &available) {
+  for (size_t i = 0; i < N; ++i) {
+    if (metadata_schema_version_is_compatible(required[i], available))
+      return true;
+  }
+
+  return false;
+}
+
+template <size_t N>
+std::string to_string(const mysqlrouter::MetadataSchemaVersion (&version)[N]) {
+  std::string result;
+  for (size_t i = 0; i < N; ++i) {
+    result += to_string(version[i]);
+    if (i != N - 1) {
+      result += ", ";
+    }
+  }
+
+  return result;
+}
 
 enum class ClusterType {
   GR_V1, /* based on Group Replication (metadata 1.x) */
