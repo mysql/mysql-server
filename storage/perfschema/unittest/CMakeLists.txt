@@ -66,8 +66,6 @@ ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
 # We need to explicitly link in everything referenced in sql/sql_builtin.cc
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t
   mytap
-  perfschema
-  sql_main
+  server_unittest_library
   ${MYSQLD_STATIC_PLUGIN_LIBS}
-  ${ICU_LIBRARIES}
   )

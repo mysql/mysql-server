@@ -1335,6 +1335,20 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(sql)
 ENDIF()
 
+# Some unit tests need to link with the entire server, use this library:
+IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
+  SET(DUMMY_SOURCE_FILE ${CMAKE_BINARY_DIR}/server_unittest_library.c)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT  ${DUMMY_SOURCE_FILE}
+    COMMAND ${CMAKE_COMMAND} -E touch ${DUMMY_SOURCE_FILE}
+    DEPENDS sql_main
+    )
+  ADD_LIBRARY(server_unittest_library STATIC ${DUMMY_SOURCE_FILE})
+  TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
+  TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
+  TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
+ENDIF()
+
 # scripts/mysql_config depends on client and server targets loaded above.
 # It is referenced by some of the directories below, so we insert it here.
 ADD_SUBDIRECTORY(scripts)

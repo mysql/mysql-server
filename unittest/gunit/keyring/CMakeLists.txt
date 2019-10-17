@@ -71,9 +71,7 @@ MYSQL_ADD_EXECUTABLE(merge_keyring_file_tests-t
 TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
   keyring_test
   gunit_large
-  perfschema
-  sql_main
-  ${ICU_LIBRARIES}
+  server_unittest_library
   )
 
 ADD_DEPENDENCIES(merge_keyring_file_tests-t GenError)
@@ -85,9 +83,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t
     keyring_test
     gunit_large
-    sql_main
-    perfschema
-    ${ICU_LIBRARIES}
+    server_unittest_library
     )
 ENDFOREACH()
 

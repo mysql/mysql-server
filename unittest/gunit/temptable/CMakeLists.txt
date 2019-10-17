@@ -43,9 +43,7 @@ MYSQL_ADD_EXECUTABLE(merge_temptable_tests-t ${ALL_TEMPTABLE_TESTS}
 
 TARGET_LINK_LIBRARIES(merge_temptable_tests-t
   gunit_large
-  perfschema
-  sql_main
-  ${ICU_LIBRARIES}
+  server_unittest_library
   )
 
 # Download TBB from https://www.threadingbuildingblocks.org
@@ -69,9 +67,7 @@ FOREACH(test ${TESTS})
 
   TARGET_LINK_LIBRARIES(${test}-t
     gunit_large
-    perfschema
-    sql_main
-    ${ICU_LIBRARIES}
+    server_unittest_library
     )
 
   ADD_DEPENDENCIES(${test}-t GenError)
