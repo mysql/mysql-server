@@ -12190,11 +12190,15 @@ insert_stmt:
           opt_values_reference         /* #8 */
           opt_insert_update_list       /* #9 */
           {
+            DBUG_EXECUTE_IF("bug29614521_simulate_oom",
+                             DBUG_SET("+d,simulate_out_of_memory"););
             $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
                                   $7.column_list, $7.row_value_list,
                                   NULL,
                                   $8.table_alias, $8.column_list,
                                   $9.column_list, $9.value_list);
+            DBUG_EXECUTE_IF("bug29614521_simulate_oom",
+                            DBUG_SET("-d,bug29614521_simulate_oom"););
           }
         | INSERT_SYM                   /* #1 */
           insert_lock_option           /* #2 */
