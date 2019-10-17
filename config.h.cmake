@@ -102,7 +102,6 @@
 #cmakedefine HAVE_POLL 1
 #cmakedefine HAVE_POSIX_FALLOCATE 1
 #cmakedefine HAVE_POSIX_MEMALIGN 1
-#cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_GETAFFINITY_NP 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
