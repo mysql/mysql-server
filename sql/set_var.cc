@@ -798,7 +798,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
           (setvar->type == OPT_PERSIST || setvar->type == OPT_PERSIST_ONLY)) {
         pv = Persisted_variables_cache::get_instance();
         /* update in-memory copy of persistent options */
-        pv->set_variable(thd, setvar);
+        if (pv->set_variable(thd, setvar)) return 1;
       }
     }
     /* flush all persistent options to a file */

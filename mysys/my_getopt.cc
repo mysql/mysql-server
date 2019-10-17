@@ -72,7 +72,6 @@ static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, const char *, bool);
 static void setval_source(const struct my_option *, void *);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static bool get_bool_argument(const char *argument, bool *error);
 
 /*
   The following three variables belong to same group and the number and
@@ -723,7 +722,7 @@ static char *check_struct_option(char *cur_arg, char *key_name) {
    @param [out] error Error indicator
    @return boolean value
 */
-static bool get_bool_argument(const char *argument, bool *error) {
+bool get_bool_argument(const char *argument, bool *error) {
   if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
       !my_strcasecmp(&my_charset_latin1, argument, "on") ||
       !my_strcasecmp(&my_charset_latin1, argument, "1"))

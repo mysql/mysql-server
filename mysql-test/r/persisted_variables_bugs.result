@@ -421,7 +421,7 @@ SELECT @@global.skip_name_resolve;
 0
 SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
-skip_name_resolve	0
+skip_name_resolve	OFF
 RESET PERSIST;
 DROP USER 'bug28749668'@'%';
 # End of the 8.0 tests
