@@ -368,3 +368,22 @@ SET PERSIST_ONLY gtid_owned='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
 SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable
+#
+# Bug#30094645: SET PERSIST_ONLY TO 0/1 BOOLEAN GLOBAL VARIABLES HAVING SESSION, RESTART FAILS
+#
+SET PERSIST_ONLY log_slave_updates = 1,super_read_only=1, end_markers_in_json = 1;
+# Restart server
+# restart
+select @@global.log_slave_updates, @@global.super_read_only, @@global.end_markers_in_json;
+@@global.log_slave_updates	@@global.super_read_only	@@global.end_markers_in_json
+1	1	1
+SET PERSIST_ONLY super_read_only="invalid value";
+ERROR 42000: Variable 'super_read_only' can't be set to the value of 'invalid value'
+SET PERSIST_ONLY end_markers_in_json = flase;
+ERROR 42000: Variable 'end_markers_in_json' can't be set to the value of 'flase'
+SET PERSIST_ONLY super_read_only=default;
+# Restart server
+# restart
+RESET PERSIST;
+# Restart server with defaults
+# restart

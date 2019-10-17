@@ -274,6 +274,30 @@ Persisted_variables_cache *Persisted_variables_cache::get_instance() {
 }
 
 /**
+  For boolean variable types do validation on what value is set for the
+  variable and then report error in case an invalid value is set.
+
+   @param [in]  value        Value which needs to be checked for.
+   @param [out] bool_str     Target String into which correct value needs to be
+                             stored after validation.
+
+   @return true  Failure if value is set to anything other than "true", "on",
+                 "1", "false" , "off", "0"
+   @return false Success
+*/
+static bool check_boolean_value(const char *value, String &bool_str) {
+  bool ret = false;
+  bool result = get_bool_argument(value, &ret);
+  if (ret) return true;
+  if (result) {
+    bool_str = String("ON", system_charset_info);
+  } else {
+    bool_str = String("OFF", system_charset_info);
+  }
+  return false;
+}
+
+/**
   Retrieve variables name/value and update the in-memory copy with
   this new values. If value is default then remove this entry from
   in-memory copy, else update existing key with new value
@@ -281,9 +305,10 @@ Persisted_variables_cache *Persisted_variables_cache::get_instance() {
    @param [in] thd           Pointer to connection handler
    @param [in] setvar        Pointer to set_var which is being SET
 
-   @return void
+   @return true  Failure
+   @return false Success
 */
-void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
+bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
   char val_buf[1024] = {0};
   String utf8_str;
   bool is_null = false;
@@ -298,8 +323,19 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
     String str(val_buf, sizeof(val_buf), system_charset_info), *res;
     const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
     uint dummy_err;
+    String bool_str;
     if (setvar->value) {
       res = setvar->value->val_str(&str);
+      if (system_var->get_var_type() == GET_BOOL) {
+        if (res == nullptr ||
+            check_boolean_value(res->c_ptr_quick(), bool_str)) {
+          my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name,
+                   (res ? res->c_ptr_quick() : "null"));
+          return true;
+        } else {
+          res = &bool_str;
+        }
+      }
       if (res && res->length()) {
         /*
           value held by Item class can be of different charset,
@@ -313,7 +349,13 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       /* persist default value */
       setvar->var->save_default(thd, setvar);
       setvar->var->saved_value_to_string(thd, setvar, str.ptr());
-      utf8_str.copy(str.ptr(), str.length(), str.charset(), tocs, &dummy_err);
+      res = &str;
+      if (system_var->get_var_type() == GET_BOOL) {
+        check_boolean_value(res->c_ptr_quick(), bool_str);
+        res = &bool_str;
+      }
+      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
+                    &dummy_err);
       var_value = utf8_str.c_ptr_quick();
     }
   } else {
@@ -358,6 +400,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
     }
   }
   unlock();
+  return false;
 }
 
 /**

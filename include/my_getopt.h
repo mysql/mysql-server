@@ -169,6 +169,7 @@ int findopt(const char *, uint, const struct my_option **);
 
 bool is_key_cache_variable_suffix(const char *suffix);
 
+bool get_bool_argument(const char *argument, bool *error);
 // Declared here, so we can unit test it.
 template <typename LLorULL>
 LLorULL eval_num_suffix(const char *argument, int *error,

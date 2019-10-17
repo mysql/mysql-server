@@ -135,7 +135,7 @@ include/assert.inc ['Expect 72 persisted variables in persisted_variables table.
 
 include/assert.inc ['Expect 72 persisted variables in persisted_variables table.']
 include/assert.inc ['Expect 72 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 71 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 72 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings

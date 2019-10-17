@@ -412,3 +412,29 @@ SET PERSIST_ONLY gtid_owned='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 
+--echo #
+--echo # Bug#30094645: SET PERSIST_ONLY TO 0/1 BOOLEAN GLOBAL VARIABLES HAVING SESSION, RESTART FAILS
+--echo #
+
+SET PERSIST_ONLY log_slave_updates = 1,super_read_only=1, end_markers_in_json = 1;
+
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+select @@global.log_slave_updates, @@global.super_read_only, @@global.end_markers_in_json;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET PERSIST_ONLY super_read_only="invalid value";
+--error ER_WRONG_VALUE_FOR_VAR
+SET PERSIST_ONLY end_markers_in_json = flase;
+
+# default value is 0 which once persisted should make next server restart to start
+SET PERSIST_ONLY super_read_only=default;
+
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+#cleanup
+RESET PERSIST;
+--echo # Restart server with defaults
+--source include/restart_mysqld.inc
