@@ -6982,13 +6982,18 @@ class Parser_oom_handler : public Internal_error_handler {
     if (*level == Sql_condition::SL_ERROR) {
       m_has_errors = true;
       /* Out of memory error is reported only once. Return as handled */
-      if (m_is_mem_error && sql_errno == EE_CAPACITY_EXCEEDED) return true;
-      if (sql_errno == EE_CAPACITY_EXCEEDED) {
+      if (m_is_mem_error &&
+          (sql_errno == EE_CAPACITY_EXCEEDED || sql_errno == EE_OUTOFMEMORY))
+        return true;
+      if (sql_errno == EE_CAPACITY_EXCEEDED || sql_errno == EE_OUTOFMEMORY) {
         m_is_mem_error = true;
-        my_error(ER_CAPACITY_EXCEEDED, MYF(0),
-                 static_cast<ulonglong>(thd->variables.parser_max_mem_size),
-                 "parser_max_mem_size",
-                 ER_THD(thd, ER_CAPACITY_EXCEEDED_IN_PARSER));
+        if (sql_errno == EE_CAPACITY_EXCEEDED)
+          my_error(ER_CAPACITY_EXCEEDED, MYF(0),
+                   static_cast<ulonglong>(thd->variables.parser_max_mem_size),
+                   "parser_max_mem_size",
+                   ER_THD(thd, ER_CAPACITY_EXCEEDED_IN_PARSER));
+        else
+          my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
         return true;
       }
     }
