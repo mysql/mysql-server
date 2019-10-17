@@ -315,9 +315,7 @@ MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
 
 TARGET_LINK_LIBRARIES(merge_large_tests-t
   gunit_large
-  perfschema
-  sql_main
-  ${ICU_LIBRARIES}
+  server_unittest_library
   )
 
 FOREACH(test ${TESTS})
@@ -349,9 +347,7 @@ FOREACH(test ${SERVER_TESTS})
 
   TARGET_LINK_LIBRARIES(${test}-t
     gunit_large
-    perfschema
-    sql_main
-    ${ICU_LIBRARIES}
+    server_unittest_library
     )
 ENDFOREACH()
 
