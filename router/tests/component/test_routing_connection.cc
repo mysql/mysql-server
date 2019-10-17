@@ -114,7 +114,7 @@ class ConfigGenerator {
     // dynamic state file,  a new test should be added to test that
     // bootstrap_server_addresses is still handled properly.
     const std::string cluster_type_str =
-        (cluster_type == ClusterType::AR_V2) ? "ar" : "gr";
+        (cluster_type == ClusterType::RS_V2) ? "ar" : "gr";
     metadata_cache_section_ =
         "[logger]\n"
         "level = INFO\n\n"

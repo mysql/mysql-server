@@ -530,8 +530,8 @@ bool GRMetadataCache::fetch_metadata_from_connected_instance(
     auto replicaset_data_temp =
         meta_data_->fetch_instances(cluster_name_, cluster_type_specific_id_);
 
-    // this node no longer contains metadata for our cluster, or is not async
-    // replicaset primary member check the next node (if available)
+    // this node no longer contains metadata for our cluster, check the next
+    // node (if available)
     if (replicaset_data_temp.empty()) {
       log_warning(
           "Tried node %s on host %s, port %d as a metadata server, it does "

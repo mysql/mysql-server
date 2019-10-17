@@ -64,11 +64,11 @@ ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
       const auto cluster_type =
           mysqlrouter::get_cluster_type(version, metadata_connection_.get());
 
-      if (cluster_type != mysqlrouter::ClusterType::AR_V2) {
+      if (cluster_type != mysqlrouter::ClusterType::RS_V2) {
         log_error(
             "Invalid cluster type '%s'. Configured '%s'",
             mysqlrouter::to_string(cluster_type).c_str(),
-            mysqlrouter::to_string(mysqlrouter::ClusterType::AR_V2).c_str());
+            mysqlrouter::to_string(mysqlrouter::ClusterType::RS_V2).c_str());
         continue;
       }
 

@@ -114,7 +114,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
-      "MySQL Router configured for the InnoDB cluster 'mycluster'"))
+      "MySQL Router configured for the InnoDB Cluster 'mycluster'"))
       << "bootstrap output: " << router_bootstrapping.get_full_output()
       << std::endl
       << "routing log: " << router_bootstrapping.get_full_logfile() << std::endl

@@ -115,7 +115,7 @@ class ClusterMetadata {
   virtual void require_metadata_is_ok();
 
   /** @brief Verify that host is a valid cluster member (either Group
-   * Replication or Async Replications)
+   * Replication or ReplicaSet cluster)
    *
    * @throws MySQLSession::Error
    * @throws std::runtime_error
@@ -246,11 +246,11 @@ class ClusterMetadataAR : public ClusterMetadata {
   virtual ~ClusterMetadataAR() override = default;
 
   mysqlrouter::ClusterType get_type() override {
-    return mysqlrouter::ClusterType::AR_V2;
+    return mysqlrouter::ClusterType::RS_V2;
   }
 
   void require_cluster_is_ok() override {
-    // Nothing specific to check for Async Replicaset cluster
+    // Nothing specific to check for ReplicaSet cluster
   }
 
   ClusterInfo fetch_metadata_servers() override;

@@ -769,7 +769,7 @@ static ClusterType get_cluster_type(MySQLSession *mysql) {
     if (type == "gr") {
       return ClusterType::GR_V2;
     } else if (type == "ar") {
-      return ClusterType::AR_V2;
+      return ClusterType::RS_V2;
     } else {
       throw std::runtime_error(
           "Unsupported cluster type found in the metadata: '" + type + "'");
@@ -837,8 +837,8 @@ unsigned ClusterMetadataAR::get_view_id() {
 }
 
 std::string to_string(const ClusterType cluster_type) {
-  if (cluster_type == ClusterType::AR_V2) {
-    return "ar";
+  if (cluster_type == ClusterType::RS_V2) {
+    return "rs";
   } else {
     return "gr";
   }

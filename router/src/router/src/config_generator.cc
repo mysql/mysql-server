@@ -537,7 +537,7 @@ void ConfigGenerator::init(
   metadata_ = mysqlrouter::create_metadata(schema_version, mysql_.get());
 
   // at this point we know the cluster type so let's do additional verifications
-  if (mysqlrouter::ClusterType::AR_V2 == metadata_->get_type()) {
+  if (mysqlrouter::ClusterType::RS_V2 == metadata_->get_type()) {
     if (bootstrap_options.find("use-gr-notifications") !=
         bootstrap_options.end()) {
       throw std::runtime_error(
@@ -1201,7 +1201,7 @@ GRAwareDecorator::fetch_cluster_hosts() {
 }
 
 /**
- * AsyncRepl-aware decorator for MySQL Sessions
+ * ReplicaSet-aware decorator for MySQL Sessions
  */
 class AsyncReplAwareDecorator : public ClusterAwareDecorator {
  public:
@@ -1246,7 +1246,7 @@ std::unique_ptr<ClusterAwareDecorator> create_cluster_aware_decorator(
     const std::string &cluster_initial_socket, unsigned long connection_timeout,
     std::set<MySQLErrorc> failure_codes = {MySQLErrorc::kSuperReadOnly,
                                            MySQLErrorc::kLostConnection}) {
-  if (cluster_type == ClusterType::AR_V2) {
+  if (cluster_type == ClusterType::RS_V2) {
     return std::make_unique<AsyncReplAwareDecorator>(
         sess, cluster_initial_username, cluster_initial_password,
         cluster_initial_hostname, cluster_initial_port, cluster_initial_socket,
@@ -1387,8 +1387,8 @@ void ConfigGenerator::bootstrap_deployment(
 
   if (!quiet) {
     const std::string cluster_type_name =
-        metadata_->get_type() == ClusterType::AR_V2 ? "Async Replicaset"
-                                                    : "InnoDB";
+        metadata_->get_type() == ClusterType::RS_V2 ? "InnoDB ReplicaSet"
+                                                    : "InnoDB Cluster";
     print_report(config_file_path.str(), router_name,
                  cluster_info.metadata_cluster_name, cluster_type_name,
                  map_get(user_options, "report-host", "localhost"),
@@ -1885,7 +1885,7 @@ static void save_initial_dynamic_state(
                                                 cluster_metadata.get_type());
   mdc_dynamic_state.set_cluster_type_specific_id(cluster_type_specific_id);
   mdc_dynamic_state.set_metadata_servers(metadata_server_addresses);
-  if (cluster_metadata.get_type() == ClusterType::AR_V2) {
+  if (cluster_metadata.get_type() == ClusterType::RS_V2) {
     auto view_id =
         dynamic_cast<mysqlrouter::ClusterMetadataAR &>(cluster_metadata)
             .get_view_id();
@@ -1970,7 +1970,7 @@ void ConfigGenerator::create_config(
                                           : kDefaultMetadataTTL;
 
   const std::string use_gr_notifications =
-      mysqlrouter::ClusterType::AR_V2 == metadata_->get_type()
+      mysqlrouter::ClusterType::RS_V2 == metadata_->get_type()
           ? ""
           : "use_gr_notifications="s +
                 (options.use_gr_notifications ? "1" : "0") + "\n";
@@ -2056,7 +2056,7 @@ void ConfigGenerator::print_report(const std::string &config_file_name,
               << ((router_name.empty() || router_name == kSystemRouterName)
                       ? ""
                       : "'" + router_name + "' ")
-              << "configured for the " << cluster_type_name << " cluster '"
+              << "configured for the " << cluster_type_name << " '"
               << metadata_cluster.c_str() << "'"
               << Vt100::render(Vt100::Render::ForegroundDefault) << "\n"
               << std::endl;

@@ -79,7 +79,7 @@ class AsyncReplicasetTest : public RouterComponentTest {
   std::string get_metadata_cache_section(
       uint16_t metadata_server_port = 0,
       const std::chrono::milliseconds ttl = kTTL,
-      const std::string &cluster_type_str = "ar") {
+      const std::string &cluster_type_str = "rs") {
     auto ttl_str = std::to_string(std::chrono::duration<double>(ttl).count());
 
     return "[metadata_cache:test]\n"
@@ -1691,11 +1691,11 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
 INSTANTIATE_TEST_CASE_P(ClusterTypeMismatch, ClusterTypeMismatchTest,
                         ::testing::Values(
                             ClusterTypeMismatchTestParams{
-                                "ar", "metadata_dynamic_nodes_v2_gr.js",
-                                "Invalid cluster type 'gr'. Configured 'ar'"},
+                                "rs", "metadata_dynamic_nodes_v2_gr.js",
+                                "Invalid cluster type 'gr'. Configured 'rs'"},
                             ClusterTypeMismatchTestParams{
                                 "gr", "metadata_dynamic_nodes_v2_ar.js",
-                                "Invalid cluster type 'ar'. Configured 'gr'"}));
+                                "Invalid cluster type 'rs'. Configured 'gr'"}));
 
 class UnexpectedResultFromMDRefreshTest
     : public AsyncReplicasetTest,
@@ -1800,7 +1800,7 @@ INSTANTIATE_TEST_CASE_P(UnexpectedResultFromMDRefreshQuery,
                             ClusterTypeMismatchTestParams{
                                 "gr", "metadata_dynamic_nodes_v2_gr.js", ""},
                             ClusterTypeMismatchTestParams{
-                                "ar", "metadata_dynamic_nodes_v2_ar.js", ""}));
+                                "rs", "metadata_dynamic_nodes_v2_ar.js", ""}));
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

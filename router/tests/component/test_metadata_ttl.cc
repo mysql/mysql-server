@@ -61,7 +61,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
       bootstrap_server_addresses += "mysql://localhost:" + std::to_string(port);
     }
     const std::string cluster_type_str =
-        (cluster_type == ClusterType::AR_V2) ? "ar" : "gr";
+        (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
 
     return "[metadata_cache:test]\n"
            "cluster_type=" +
@@ -297,7 +297,7 @@ INSTANTIATE_TEST_CASE_P(
                               ClusterType::GR_V1, "0.4",
                               std::chrono::milliseconds(600), 2),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "0_ar_v2",
-                              ClusterType::AR_V2, "0.4",
+                              ClusterType::RS_V2, "0.4",
                               std::chrono::milliseconds(600), 2),
 
         MetadataTTLTestParams("metadata_1_node_repeat_v2_gr.js", "1_gr_v2",
@@ -307,7 +307,7 @@ INSTANTIATE_TEST_CASE_P(
                               ClusterType::GR_V1, "1",
                               std::chrono::milliseconds(2500), 3),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "1_ar_v2",
-                              ClusterType::AR_V2, "1",
+                              ClusterType::RS_V2, "1",
                               std::chrono::milliseconds(2500), 3),
 
         // check that default is 0.5 if not provided:
@@ -318,7 +318,7 @@ INSTANTIATE_TEST_CASE_P(
                               ClusterType::GR_V1, "",
                               std::chrono::milliseconds(1750), 4),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "2_ar_v2",
-                              ClusterType::AR_V2, "",
+                              ClusterType::RS_V2, "",
                               std::chrono::milliseconds(1750), 4),
 
         // check that for 0 there are multiple ttl queries (we can't really
@@ -333,7 +333,7 @@ INSTANTIATE_TEST_CASE_P(
                               std::chrono::milliseconds(1000), 5,
                               /*at_least=*/true),
         MetadataTTLTestParams("metadata_1_node_repeat_v2_ar.js", "3_ar_v2",
-                              ClusterType::AR_V2, "0",
+                              ClusterType::RS_V2, "0",
                               std::chrono::milliseconds(1000), 5,
                               /*at_least=*/true)),
     get_test_description);
@@ -478,7 +478,7 @@ INSTANTIATE_TEST_CASE_P(
         MetadataTTLTestParams("metadata_dynamic_nodes.js", "unordered_gr",
                               ClusterType::GR_V2, "0.1"),
         MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
-                              "unordered_ar_v2", ClusterType::AR_V2, "0.1")),
+                              "unordered_ar_v2", ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 /**
@@ -626,7 +626,7 @@ INSTANTIATE_TEST_CASE_P(
                               ClusterType::GR_V2, "0.1"),
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update_v2_ar.js",
                               "router_version_update_once_ar_v2",
-                              ClusterType::AR_V2, "0.1")),
+                              ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 class PermissionErrorOnVersionUpdateTest
@@ -711,7 +711,7 @@ INSTANTIATE_TEST_CASE_P(
                               ClusterType::GR_V2, "0.1"),
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update_v2_ar.js",
                               "router_version_update_fail_on_perm_ar_v2",
-                              ClusterType::AR_V2, "0.1")),
+                              ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 class UpgradeInProgressTest
@@ -824,7 +824,7 @@ INSTANTIATE_TEST_CASE_P(
                               ClusterType::GR_V2, "0.1"),
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update_v2_ar.js",
                               "metadata_upgrade_in_progress_ar_v2",
-                              ClusterType::AR_V2, "0.1")),
+                              ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 int main(int argc, char *argv[]) {
