@@ -34,6 +34,7 @@
 #include <ndb_version.h>
 #include <NodeBitmask.hpp>
 #include <ndb_cluster_connection.hpp>
+#include <ndb_rand.h>
 
 #define MGMERR(h) \
   ndbout << "latest_error="<<ndb_mgm_get_latest_error(h) \
@@ -1242,38 +1243,66 @@ NdbRestarter::getNodeStatus(int nodeid)
   return -1;
 }
 
+
+static uint
+urandom(uint m)
+{
+  require(m != 0);
+  uint n = (uint)ndb_rand();
+  return n % m;
+}
+
 Vector<Vector<int> >
 NdbRestarter::splitNodes()
 {
-  Vector<int> part0;
-  Vector<int> part1;
-  Bitmask<255> ngmask;
+  // Vector of parts. Each part has the NodeIds of nodes belonging to it.
+  Vector<Vector<int>> parts;
+
+  // Vector of node group masks
+  Vector<Bitmask<255>>ngMasks;
+
   for (int i = 0; i < getNumDbNodes(); i++)
   {
     int nodeId = getDbNodeId(i);
     int ng = getNodeGroup(nodeId);
-    if (ngmask.get(ng))
+    unsigned numOfNGKnown = ngMasks.size();
+    unsigned j = 0;
+    for (j = 0; j < numOfNGKnown; j++)
     {
-      part1.push_back(nodeId);
+      if (ngMasks[j].get(ng) == false)
+      {
+        // parts[j] doesn't have node belonging to ng, add to parts[j]
+        parts[j].push_back(nodeId);
+
+        // set ng in ngMasks[j] so we know it's there in parts[j]
+        ngMasks[j].set(ng);
+        break;
+      }
     }
-    else
+    if (j == numOfNGKnown)
     {
-      ngmask.set(ng);
-      part0.push_back(nodeId);
+      /**
+       * It's the first node we're looping through, or;
+       * there's already one node in each part that has a nodeId belonging to
+       * ng. So, create new part and new ng bitmask
+       */
+
+      Vector<int> newPart;
+      Bitmask<255> newNGMask;
+
+      // add the nodeId to a new part
+      newPart.push_back(nodeId);
+      parts.push(newPart, urandom(numOfNGKnown + 1));
+
+      // set ng in a new bitmask, add to ngMasks
+      newNGMask.set(ng);
+      ngMasks.push_back(newNGMask);
     }
   }
-  Vector<Vector<int> > result;
-  if ((rand() % 100) > 50)
-  {
-    result.push_back(part0);
-    result.push_back(part1);
-  }
-  else
-  {
-    result.push_back(part1);
-    result.push_back(part0);
-  }
-  return result;
+
+  g_debug << "Number of parts: " << parts.size() << endl;
+  g_debug << "Number of masks: " << ngMasks.size() << endl;
+  return parts;
 }
 
 int
