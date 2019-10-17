@@ -4536,16 +4536,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   {
     Applier_security_context_guard security_context{rli, thd};
     if (!thd->variables.require_row_format) {
-      if (!security_context.skip_priv_checks() &&
-          !security_context.has_access({SUPER_ACL}) &&
-          !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
-          !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
-        rli->report(ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
-                    ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
-                    "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
-        thd->is_slave_error = true;
-        goto end;
-      }
+      DBUG_ASSERT(security_context.skip_priv_checks());
       thd->variables.pseudo_thread_id = thread_id;  // for temp tables
     }
 
@@ -4694,6 +4685,17 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (sql_require_primary_key != 0xff) {
         DBUG_ASSERT(sql_require_primary_key == 0 ||
                     sql_require_primary_key == 1);
+        if (!security_context.skip_priv_checks() &&
+            !security_context.has_access({SUPER_ACL}) &&
+            !security_context.has_access({"SYSTEM_VARIABLES_ADMIN"}) &&
+            !security_context.has_access({"SESSION_VARIABLES_ADMIN"})) {
+          rli->report(
+              ERROR_LEVEL, ER_SPECIFIC_ACCESS_DENIED_ERROR,
+              ER_THD(thd, ER_SPECIFIC_ACCESS_DENIED_ERROR),
+              "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+          thd->is_slave_error = true;
+          goto end;
+        }
         thd->variables.sql_require_primary_key = sql_require_primary_key;
       }
 
