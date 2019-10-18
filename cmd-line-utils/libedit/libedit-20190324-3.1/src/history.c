@@ -428,7 +428,10 @@ history_def_add(void *p, TYPE(HistEvent) *ev, const Char *str)
 	}
 	(void) Strncpy(s, h->cursor->ev.str, len);
         s[len - 1] = '\0';
-	(void) Strncat(s, str, len - Strlen(s) - 1);
+//	Strlen(s) == len - 1
+//	len - (len - 1) - 1 == 0
+//	so we comment out this, to get rid of a [-Wstringop-overflow=]
+//	(void) Strncat(s, str, len - Strlen(s) - 1);
 	h_free(evp->str);
 	evp->str = s;
 	*ev = h->cursor->ev;

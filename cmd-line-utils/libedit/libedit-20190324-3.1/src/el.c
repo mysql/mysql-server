@@ -84,6 +84,18 @@ char *secure_getenv(char const *name)
 }
 #endif
 
+#if defined(HAVE_GETUID) && defined(HAVE_GETEUID) && \
+    defined(HAVE_GETGID) && defined(HAVE_GETEGID)
+#define HAVE_IDENTITY_FUNCS 1
+
+#ifndef HAVE_ISSETUGID
+static int issetugid(void) {
+  return (getuid() != geteuid() || getgid() != getegid());
+}
+#endif
+
+#endif
+
 /* el_init():
  *	Initialize editline and set default parameters.
  */
@@ -554,7 +566,7 @@ el_source(EditLine *el, const char *fname)
 
 	fp = NULL;
 	if (fname == NULL) {
-#ifdef HAVE_ISSETUGID
+#if defined(HAVE_ISSETUGID) || defined(HAVE_IDENTITY_FUNCS)
 		if (issetugid())
 			return -1;
 
