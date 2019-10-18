@@ -641,7 +641,7 @@ PFS_thread *find_thread_by_processlist_id(ulonglong processlist_id) {
   uint index = 0;
 
   /* Valid processlist ID is > 0 (see Global_THD_manager) */
-  if (processlist_id == 0) return NULL;
+  if (processlist_id == 0) return nullptr;
 
   PFS_thread_iterator it = global_thread_container.iterate(index);
 
