@@ -387,3 +387,19 @@ SET PERSIST_ONLY super_read_only=default;
 RESET PERSIST;
 # Restart server with defaults
 # restart
+#
+# Bug#30318828: SET PERSIST/PERSIST_ONLY NOT INNODB_BUFFER_POOL_INSTANCES CORRECTLY
+#
+SET PERSIST innodb_buffer_pool_size = 1073742336;
+Warnings:
+Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '1073742336'
+Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '1073741824'
+SET PERSIST_ONLY innodb_buffer_pool_instances = 2;
+# Restart server
+# restart
+SELECT FORMAT_BYTES(@@global.innodb_buffer_pool_size) AS Size, @@global.innodb_buffer_pool_instances AS Instances;
+Size	Instances
+1.25 GiB	2
+RESET PERSIST;
+# Restart server
+# restart

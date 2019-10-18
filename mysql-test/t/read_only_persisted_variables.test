@@ -438,3 +438,20 @@ SET PERSIST_ONLY super_read_only=default;
 RESET PERSIST;
 --echo # Restart server with defaults
 --source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug#30318828: SET PERSIST/PERSIST_ONLY NOT INNODB_BUFFER_POOL_INSTANCES CORRECTLY
+--echo #
+
+SET PERSIST innodb_buffer_pool_size = 1073742336;
+SET PERSIST_ONLY innodb_buffer_pool_instances = 2;
+
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+SELECT FORMAT_BYTES(@@global.innodb_buffer_pool_size) AS Size, @@global.innodb_buffer_pool_instances AS Instances;
+
+#cleanup
+RESET PERSIST;
+--echo # Restart server
+--source include/restart_mysqld.inc
