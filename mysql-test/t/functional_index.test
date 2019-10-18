@@ -3,7 +3,7 @@ INSERT INTO t1 (int_col, string_col) VALUES (-1, "foo"), (1, "bar");
 
 CREATE INDEX int_func_index ON t1 ((ABS(int_col)));
 CREATE INDEX string_func_index ON t1 ((SUBSTRING(string_col, 1, 2)));
-
+ANALYZE TABLE t1;
 --echo # We should see the functional index syntax in SHOW CREATE TABLE
 SHOW CREATE TABLE t1;
 
@@ -165,6 +165,7 @@ INSERT INTO t1 VALUES(CAST('{"id":1}' AS JSON)), (CAST('{"id":2}' AS JSON)),
   (CAST('{"id":7}' AS JSON)), (CAST('{"id":8}' AS JSON)),
   (CAST('{"id":9}' AS JSON)), (CAST('{"id":10}' AS JSON));
 
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE f1->"$.id"= 5;
 EXPLAIN SELECT * FROM t1 WHERE f1->"$.id"= 5;
 SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
@@ -183,6 +184,7 @@ INSERT INTO t1 VALUES
   (JSON_OBJECT("id",JSON_QUOTE("n"))), (CAST('{"id":"w"}' AS JSON)),
   (CAST('{"id":"m"}' AS JSON)), (CAST('{"id":"q"}' AS JSON));
 
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
 EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
@@ -198,6 +200,7 @@ INSERT INTO t1 VALUES
   ('{"name": "Peter"}'),
   ('{"name": "parker"}');
 
+ANALYZE TABLE t1;
 --echo # Should not return any rows, and should use the index
 SELECT * FROM t1 WHERE f1->>"$.name" = "James";
 EXPLAIN SELECT * FROM t1 WHERE f1->>"$.name" = "James";
@@ -263,6 +266,7 @@ CREATE TABLE t1(x VARCHAR(100), KEY ((ST_GeomFromText(x))));
 --echo # but rather the expression that they represent.
 CREATE TABLE t1(x VARCHAR(30), INDEX idx ((CAST(x->>'$.name' AS CHAR(30)))));
 INSERT INTO t1 VALUES ('{"name":"knut"}');
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE CAST(x->>'$.name' AS CHAR(30)) = 'knut';
 DROP TABLE t1;
 
@@ -354,6 +358,7 @@ CREATE TABLE t1(x INT, KEY `` ((x + 1)));
 --echo # mismatch
 CREATE TABLE t(x VARCHAR(10), KEY k ((CAST(CONCAT(x,x) AS BINARY))));
 INSERT INTO t VALUES ('x');
+ANALYZE TABLE t;
 EXPLAIN SELECT * FROM t WHERE CONCAT(x,x) = 'XX';
 DROP TABLE t;
 
