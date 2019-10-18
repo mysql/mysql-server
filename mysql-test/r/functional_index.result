@@ -2,6 +2,9 @@ CREATE TABLE t1 (int_col INTEGER, string_col VARCHAR(255));
 INSERT INTO t1 (int_col, string_col) VALUES (-1, "foo"), (1, "bar");
 CREATE INDEX int_func_index ON t1 ((ABS(int_col)));
 CREATE INDEX string_func_index ON t1 ((SUBSTRING(string_col, 1, 2)));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # We should see the functional index syntax in SHOW CREATE TABLE
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -192,6 +195,9 @@ INSERT INTO t1 VALUES(CAST('{"id":1}' AS JSON)), (CAST('{"id":2}' AS JSON)),
 (CAST('{"id":5}' AS JSON)), (CAST('{"id":6}' AS JSON)),
 (CAST('{"id":7}' AS JSON)), (CAST('{"id":8}' AS JSON)),
 (CAST('{"id":9}' AS JSON)), (CAST('{"id":10}' AS JSON));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE f1->"$.id"= 5;
 f1
 {"id": 5}
@@ -219,6 +225,9 @@ INSERT INTO t1 VALUES
 (CAST('{"id":"x"}' AS JSON)), (CAST('{"id":"\'z"}' AS JSON)),
   (JSON_OBJECT("id",JSON_QUOTE("n"))), (CAST('{"id":"w"}' AS JSON)),
   (CAST('{"id":"m"}' AS JSON)), (CAST('{"id":"q"}' AS JSON));
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
 f1
 {"id": "\"n\""}
@@ -244,6 +253,9 @@ INSERT INTO t1 VALUES
 ('{"name": "JAMES"}'),
 ('{"name": "Peter"}'),
 ('{"name": "parker"}');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # Should not return any rows, and should use the index
 SELECT * FROM t1 WHERE f1->>"$.name" = "James";
 f1
@@ -524,6 +536,9 @@ ERROR HY000: Spatial functional index is not supported.
 # but rather the expression that they represent.
 CREATE TABLE t1(x VARCHAR(30), INDEX idx ((CAST(x->>'$.name' AS CHAR(30)))));
 INSERT INTO t1 VALUES ('{"name":"knut"}');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE CAST(x->>'$.name' AS CHAR(30)) = 'knut';
 EXPLAIN
 {
@@ -647,6 +662,9 @@ ERROR 42000: Incorrect index name ''
 # mismatch
 CREATE TABLE t(x VARCHAR(10), KEY k ((CAST(CONCAT(x,x) AS BINARY))));
 INSERT INTO t VALUES ('x');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN SELECT * FROM t WHERE CONCAT(x,x) = 'XX';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
