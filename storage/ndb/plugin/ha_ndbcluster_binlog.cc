@@ -2365,9 +2365,13 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
   const uint32 own_nodeid = g_ndb_cluster_connection->node_id();
 
   // Write schema operation to the table
-  if (!write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
+  if (DBUG_EVALUATE_IF("ndb_schema_write_fail", true, false) ||
+      !write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
                               ndb_table_id, ndb_table_version, own_nodeid, type,
                               ndb_schema_object->schema_op_id(), anyvalue)) {
+    ndb_schema_object->fail_schema_op(Ndb_schema_dist::NDB_TRANS_FAILURE,
+                                      "Failed to write schema operation");
+    ndb_log_warning("Failed to write the schema op into the ndb_schema table");
     return false;
   }
 
