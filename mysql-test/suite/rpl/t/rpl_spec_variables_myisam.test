@@ -171,7 +171,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHA
 SELECT COUNT(*) FROM t1;
 --source include/sync_slave_sql_with_master.inc
 --replace_regex /\'.+\'/'FILE2'/
---error 1148
+--error ER_CLIENT_LOCAL_FILES_DISABLED
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words2.dat' INTO TABLE t1 (b)
 SELECT COUNT(*) FROM t1;
 
