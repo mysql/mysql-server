@@ -21082,7 +21082,8 @@ can be removed and 8 used instead. The problem with the current setup is that
 with 128MiB default buffer pool size and 8 instances by default we would emit
 a warning when no options are specified. */
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, srv_buf_pool_curr_size,
-                             PLUGIN_VAR_RQCMDARG,
+                             PLUGIN_VAR_RQCMDARG |
+                                 PLUGIN_VAR_PERSIST_AS_READ_ONLY,
                              "The size of the memory buffer InnoDB uses to "
                              "cache data and indexes of its tables.",
                              NULL, innodb_buffer_pool_size_update,
