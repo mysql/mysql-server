@@ -42,7 +42,6 @@ INSERT INTO db1.t1 VALUES (1), (2);
 # 6) Start `server1` and expect an error as the user doesn't have INSERT
 #    privilege.
 [connection server1]
-include/gr_start_applier_sql_thread.inc
 START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 include/gr_wait_for_member_state.inc
 
