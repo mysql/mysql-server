@@ -69,15 +69,24 @@ SELECT format_pico_time(8640000000000000000099 * 2);
 --echo
 
 --echo
---echo ## Bad input
---error ER_DATA_OUT_OF_RANGE
+--echo ## Text input
 SELECT format_pico_time("foo");
 --echo
+SELECT format_pico_time("");
+--echo
+SELECT format_pico_time("118059162071741143500099");
+--echo
+SELECT format_pico_time("-118059162071741143500099");
+--echo
+--echo ## Recognizes up to first non-numeric
+SELECT format_pico_time("40000 * 2000");
+--echo
+SELECT format_pico_time("40000 foo 2000");
 
 --echo ## Aggregate functions
 USE test;
 --echo
-CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 --echo
 # Max BIGINT unsigned is  18 446 744 073 709 551 615
 INSERT INTO timer_waits VALUES ('1 sec',          1000000000000);

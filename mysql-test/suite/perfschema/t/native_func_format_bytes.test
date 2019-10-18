@@ -71,15 +71,24 @@ SELECT format_bytes(pow(2,400));
 SELECT format_bytes((pow(2, 63) - 1) * 2 + 1);
 
 --echo
---echo ## Bad input
---error ER_DATA_OUT_OF_RANGE
+--echo ## Text input
 SELECT format_bytes("foo");
 --echo
+SELECT format_bytes("");
+--echo
+SELECT format_bytes("118059162071741143500099");
+--echo
+SELECT format_bytes("-118059162071741143500099");
+--echo
+--echo ## Recognizes up to first non-numeric
+SELECT format_bytes("40000 * 2000");
+--echo
+SELECT format_bytes("40000 foo 2000");
 
 --echo ## Aggregate functions
 USE test;
 --echo
-CREATE TABLE memory_counts (id VARCHAR(10), bytes BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+CREATE TABLE memory_counts (id VARCHAR(10), bytes BIGINT UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 --echo
 # Max BIGINT unsigned is  18 446 744 073 709 551 615
 INSERT INTO memory_counts VALUES ('Bytes', 512);

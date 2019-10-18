@@ -53,8 +53,10 @@ SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys
 ROUTINE_NAME
 extract_schema_from_file_name
 extract_table_from_file_name
+format_bytes
 format_path
 format_statement
+format_time
 list_add
 list_drop
 ps_is_account_enabled
@@ -63,6 +65,7 @@ ps_is_instrument_default_enabled
 ps_is_instrument_default_timed
 ps_is_thread_instrumented
 ps_thread_account
+ps_thread_id
 ps_thread_stack
 ps_thread_trx_info
 quote_identifier
