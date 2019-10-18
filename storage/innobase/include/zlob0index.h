@@ -388,8 +388,9 @@ struct z_index_entry_t {
   }
 
   /** Free the data pages pointed to by this index entry.
-  @param[in]   mtr   the mini transaction used to free the pages. */
-  void free_data_pages(mtr_t *mtr);
+  @param[in]   mtr   the mini transaction used to free the pages.
+  @return the number of pages freed. */
+  size_t free_data_pages(mtr_t *mtr);
 
   /** Set the page number pointed to by this index entry to given value.
    @param[in]   page_no    Page number to be put in index entry. */

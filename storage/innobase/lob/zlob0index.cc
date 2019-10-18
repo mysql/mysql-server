@@ -261,7 +261,8 @@ std::ostream &z_index_entry_mem_t::print(std::ostream &out) const {
   return (out);
 }
 
-void z_index_entry_t::free_data_pages(mtr_t *mtr) {
+size_t z_index_entry_t::free_data_pages(mtr_t *mtr) {
+  size_t n_pages = 0;
   page_no_t page_no = get_z_page_no();
   space_id_t space_id = dict_index_get_space(m_index);
 
@@ -283,6 +284,7 @@ void z_index_entry_t::free_data_pages(mtr_t *mtr) {
       z_data_page_t data_page(block, mtr, m_index);
       data_page.dealloc();
       set_z_page_no_null(mtr);
+      n_pages++;
     } else if (ptype == FIL_PAGE_TYPE_ZLOB_FRAG) {
       /* Reached the end of the stream. */
       break;
@@ -290,6 +292,7 @@ void z_index_entry_t::free_data_pages(mtr_t *mtr) {
       /* Do nothing. */
     }
   }
+  return (n_pages);
 }
 
 } /* namespace lob */

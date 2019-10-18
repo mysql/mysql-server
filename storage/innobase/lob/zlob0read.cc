@@ -303,13 +303,8 @@ ulint z_read_strm(dict_index_t *index, z_index_entry_t &entry, byte *zbuf,
 }
 
 #ifdef UNIV_DEBUG
-/** Validate one zlib stream, given its index entry.
-@param[in]	index      the index dictionary object.
-@param[in]	entry      the index entry (memory copy).
-@param[in]	mtr        mini-transaction.
-@return true if validation passed.
-@return does not return if validation failed.*/
-bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
+static bool z_validate_strm_low(dict_index_t *index, z_index_entry_t &entry,
+                                mtr_t *mtr) {
   /* Expected length of compressed data. */
   const ulint exp_zlen = entry.get_zdata_len();
   page_no_t page_no = entry.get_z_page_no();
@@ -343,6 +338,16 @@ bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
 
   ut_ad(remain == 0);
   return (true);
+}
+
+bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
+  static const uint32_t FREQ = 50;
+  static std::atomic<uint32_t> n{0};
+  bool ret = true;
+  if (++n % FREQ == 0) {
+    ret = z_validate_strm_low(index, entry, mtr);
+  }
+  return (ret);
 }
 #endif /* UNIV_DEBUG */
 
