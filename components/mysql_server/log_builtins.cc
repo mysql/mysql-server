@@ -191,6 +191,13 @@ static int log_buffering_flushworthy = false;
 static ulonglong log_sink_trad_last = 0;
 
 /**
+  Timestamp of the last event we put into the error-log buffer
+  during buffered mode (while starting up). New items must
+  receive a LOG_ITEM_LOG_BUFFERED timestamp greater than this.
+*/
+static ulonglong log_sink_buffer_last = 0;
+
+/**
   Finding and acquiring a service in the component framework is
   expensive, and we may use services a log (depending on how many
   events are logged per second), so we cache the relevant data.
@@ -1447,12 +1454,22 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
 
   if (ll != nullptr) {
     /*
+      Prevent two events from receiving the exact same timestamp on
+      systems with low resolution clocks.
+    */
+    if (now > log_sink_buffer_last)
+      log_sink_buffer_last = now;
+    else
+      log_sink_buffer_last++;
+
+    /*
       Save the current time so we can regenerate the textual timestamp
       later when we have the command-line options telling us what format
       it should be in (e.g. UTC or system time).
     */
     if (!log_line_full(&llb->ll)) {
-      log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer = now;
+      log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer =
+          log_sink_buffer_last;
     }
 
     *log_line_buffer_tail = llb;
