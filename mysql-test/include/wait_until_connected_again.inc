@@ -6,7 +6,9 @@
 #
 # $explicit_default_counter - can be set before calling the script,
 #                             reset only at the end of the test, overrides $wait_counter
-
+#
+# $add_wait_counter - can be set before calling the script,
+#                     additional time count to wait during valgrind run.
 
 --disable_result_log
 --disable_query_log
@@ -18,6 +20,9 @@ if ($explicit_default_counter)
 }
 if ($VALGRIND_TEST) {
   --let $wait_counter= 20000
+  if ($add_wait_counter) {
+    --expr $wait_counter= $wait_counter + $add_wait_counter
+  }
 }
 if ($TSAN_OPTIONS) {
   --let $wait_counter= 15000

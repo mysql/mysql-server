@@ -92,6 +92,10 @@ if (!$NO_EXT_PATH) {
 }
 
 --let $wait_counter= 10000
+
+# Additional wait for 30 minutes for valgrid run
+--let add_wait_counter= 18000
+
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
