@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,10 +133,13 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
   {
     jam();
     c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_50ms_measure.addFirst(measurePtr);
     c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_1sec_measure.addFirst(measurePtr);
     c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_20sec_measure.addFirst(measurePtr);
   }
   if (instance() == MAIN_THRMAN_INSTANCE)
@@ -149,6 +152,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       jam();
       SendThreadPtr sendThreadPtr;
       c_sendThreadRecordPool.seizeId(sendThreadPtr, send_instance);
+      sendThreadPtr.p = new (sendThreadPtr.p) SendThreadRecord();
       sendThreadPtr.p->m_send_thread_50ms_measurements.init();
       sendThreadPtr.p->m_send_thread_1sec_measurements.init();
       sendThreadPtr.p->m_send_thread_20sec_measurements.init();
@@ -159,6 +163,8 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         SendThreadMeasurementPtr sendThreadMeasurementPtr;
 
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+        sendThreadMeasurementPtr.p =
+            new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
           jam();
           LocalSendThreadMeasurement_list list_50ms(
@@ -168,6 +174,8 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         }
 
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+        sendThreadMeasurementPtr.p =
+            new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
           jam();
           LocalSendThreadMeasurement_list list_1sec(
@@ -177,6 +185,8 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         }
 
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+        sendThreadMeasurementPtr.p =
+            new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
           jam();
           LocalSendThreadMeasurement_list list_20sec(
@@ -275,9 +285,9 @@ Thrman::execSTTOR(Signal *signal)
         Uint64 send_elapsed_time_os;
         getSendPerformanceTimers(send_instance,
                                  send_exec_time,
-                                 send_user_time_os,
                                  send_sleep_time,
                                  send_spin_time,
+                                 send_user_time_os,
                                  send_kernel_time_os,
                                  send_elapsed_time_os);
 
@@ -2338,8 +2348,9 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         jam();
         c_measurementRecordPool.getPtr(measurePtr, pos_ptrI);
       }
+
       Ndbinfo::Row row(signal, req);
-      if (pos_thread_id == 0)
+      if (pos_thread_id == 0 && measurePtr.p->m_first_measure_done)
       {
         jam();
         /**
@@ -2371,8 +2382,9 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         row.write_uint32(Uint32(measurePtr.p->m_send_time_thread));
         row.write_uint32(Uint32(measurePtr.p->m_buffer_full_time_thread));
         row.write_uint32(Uint32(measurePtr.p->m_elapsed_time));
+        ndbinfo_send_row(signal, req, row, rl);
       }
-      else
+      else if (pos_thread_id != 0 && sendThreadMeasurementPtr.p->m_first_measure_done)
       {
         jam();
         row.write_uint32(getOwnNodeId());
@@ -2396,8 +2408,13 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
           sendThreadMeasurementPtr.p->m_exec_time +
           sendThreadMeasurementPtr.p->m_sleep_time;
         row.write_uint32(elapsed_time);
+        ndbinfo_send_row(signal, req, row, rl);
       }
-      ndbinfo_send_row(signal, req, row, rl);
+      else
+      {
+        // Procede to next thread at first undone measurement
+        pos_index = NUM_MEASUREMENTS - 1;
+      }
 
       if ((pos_index + 1) == NUM_MEASUREMENTS)
       {
