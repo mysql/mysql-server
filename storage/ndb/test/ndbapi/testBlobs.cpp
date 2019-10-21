@@ -575,7 +575,15 @@ createTable(int storageType)
 
     // Assume at least one node group had all replicas alive.
     const Uint32 numReplicas = max_alive_replicas;
-    const Uint32 numFragsPerNode = 2 + (rand() % 3);
+    /**
+     * The maximum number of partitions that may be defined explicitly
+     * for any NDB table is =
+     * 8 * [number of LDM threads] * [number of node groups]
+     * In this case, we consider the number of LDM threads to be 1
+     * (min. no of LDMs). This calculated number of partitions works for
+     * higher number of LDMs as well.
+     */
+    const Uint32 numFragsPerNode = (rand() % (8 / numReplicas)) + 1;
     const Uint32 numPartitions = numReplicas * numNgs * numFragsPerNode;
 
     tab.setFragmentCount(numPartitions);
