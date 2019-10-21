@@ -463,10 +463,10 @@ node_id	fragment_num	block_instance
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` bigint(20) NOT NULL,
-  `c` bigint(20) NOT NULL,
-  `d` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
+  `b` bigint NOT NULL,
+  `c` bigint NOT NULL,
+  `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
 alter table t1 algorithm=inplace,
@@ -487,10 +487,10 @@ select @cnt_t1_5;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` bigint(20) NOT NULL,
-  `c` bigint(20) NOT NULL,
-  `d` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
+  `b` bigint NOT NULL,
+  `c` bigint NOT NULL,
+  `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
 alter table t1 algorithm=inplace,
@@ -515,10 +515,10 @@ select @cnt_t1_6;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` bigint(20) NOT NULL,
-  `c` bigint(20) NOT NULL,
-  `d` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
+  `b` bigint NOT NULL,
+  `c` bigint NOT NULL,
+  `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
 alter table t1 algorithm=inplace,
@@ -551,10 +551,10 @@ select @cnt_t1_7;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` bigint(20) NOT NULL,
-  `c` bigint(20) NOT NULL,
-  `d` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
+  `b` bigint NOT NULL,
+  `c` bigint NOT NULL,
+  `d` bigint NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
 -- t1 --
@@ -651,8 +651,8 @@ comment="NDB_TABLE=READ_BACKUP=1";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` bigint(20) DEFAULT NULL,
+  `a` bigint NOT NULL,
+  `b` bigint DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -699,8 +699,8 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` bigint(20) DEFAULT NULL,
+  `a` bigint NOT NULL,
+  `b` bigint DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'

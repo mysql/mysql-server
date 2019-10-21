@@ -25,9 +25,9 @@ PRIMARY KEY(a1)
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` smallint(6) NOT NULL,
-  `a2` int(11) NOT NULL,
-  `a3` bigint(20) NOT NULL,
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
   `a4` char(10) DEFAULT NULL,
   `a5` decimal(5,1) DEFAULT NULL,
   `a6` time DEFAULT NULL,
@@ -65,9 +65,9 @@ ALTER TABLE test.t1 ALGORITHM=COPY, TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` smallint(6) NOT NULL,
-  `a2` int(11) NOT NULL,
-  `a3` bigint(20) NOT NULL,
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
   `a4` char(10) DEFAULT NULL,
   `a5` decimal(5,1) DEFAULT NULL,
   `a6` time DEFAULT NULL,
@@ -127,9 +127,9 @@ PRIMARY KEY(a1)
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` smallint(6) NOT NULL,
-  `a2` int(11) NOT NULL,
-  `a3` bigint(20) NOT NULL,
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
   `a4` char(10) DEFAULT NULL,
   `a5` decimal(5,1) DEFAULT NULL,
   `a6` time DEFAULT NULL,
@@ -165,9 +165,9 @@ ALTER TABLE test.t1 ALGORITHM=COPY, TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` smallint(6) NOT NULL,
-  `a2` int(11) NOT NULL,
-  `a3` bigint(20) NOT NULL,
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
   `a4` char(10) DEFAULT NULL,
   `a5` decimal(5,1) DEFAULT NULL,
   `a6` time DEFAULT NULL,
@@ -217,9 +217,9 @@ ALTER TABLE test.t1 ALGORITHM=COPY, ENGINE=InnoDB TABLESPACE ts_innodb;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` smallint(6) NOT NULL,
-  `a2` int(11) NOT NULL,
-  `a3` bigint(20) NOT NULL,
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
   `a4` char(10) DEFAULT NULL,
   `a5` decimal(5,1) DEFAULT NULL,
   `a6` time DEFAULT NULL,
@@ -255,9 +255,9 @@ ALTER TABLE test.t1 TABLESPACE ts STORAGE DISK ENGINE=NDB;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` smallint(6) NOT NULL,
-  `a2` int(11) NOT NULL,
-  `a3` bigint(20) NOT NULL,
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
   `a4` char(10) DEFAULT NULL,
   `a5` decimal(5,1) DEFAULT NULL,
   `a6` time DEFAULT NULL,
@@ -285,9 +285,9 @@ ALTER TABLE test.t1 ALGORITHM=COPY, ENGINE=MyISAM;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` smallint(6) NOT NULL,
-  `a2` int(11) NOT NULL,
-  `a3` bigint(20) NOT NULL,
+  `a1` smallint NOT NULL,
+  `a2` int NOT NULL,
+  `a3` bigint NOT NULL,
   `a4` char(10) DEFAULT NULL,
   `a5` decimal(5,1) DEFAULT NULL,
   `a6` time DEFAULT NULL,
@@ -385,12 +385,12 @@ ALTER TABLE test.t1 ADD a9 DATETIME, ADD a10 TINYTEXT, ADD a11 MEDIUMTEXT, ADD a
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` float DEFAULT NULL,
   `a3` double DEFAULT NULL,
   `a4` bit(1) DEFAULT NULL,
-  `a5` tinyint(4) DEFAULT NULL,
-  `a6` bigint(20) DEFAULT NULL,
+  `a5` tinyint DEFAULT NULL,
+  `a6` bigint DEFAULT NULL,
   `a7` date DEFAULT NULL,
   `a8` time DEFAULT NULL,
   `a9` datetime DEFAULT NULL,
@@ -455,12 +455,12 @@ ALTER TABLE test.t1 ALGORITHM=COPY, ADD INDEX a2_i (a2), ADD INDEX a3_i (a3);
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` float DEFAULT NULL,
   `a3` double DEFAULT NULL,
   `a4` bit(1) DEFAULT NULL,
-  `a5` tinyint(4) DEFAULT NULL,
-  `a6` bigint(20) DEFAULT NULL,
+  `a5` tinyint DEFAULT NULL,
+  `a6` bigint DEFAULT NULL,
   `a7` date DEFAULT NULL,
   `a8` time DEFAULT NULL,
   `a9` datetime DEFAULT NULL,
@@ -492,12 +492,12 @@ ALTER TABLE test.t1 ALGORITHM=INPLACE, DROP INDEX a2_i;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` float DEFAULT NULL,
   `a3` double DEFAULT NULL,
   `a4` bit(1) DEFAULT NULL,
-  `a5` tinyint(4) DEFAULT NULL,
-  `a6` bigint(20) DEFAULT NULL,
+  `a5` tinyint DEFAULT NULL,
+  `a6` bigint DEFAULT NULL,
   `a7` date DEFAULT NULL,
   `a8` time DEFAULT NULL,
   `a9` datetime DEFAULT NULL,
@@ -528,12 +528,12 @@ TRUNCATE TABLE test.t1;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` float DEFAULT NULL,
   `a3` double DEFAULT NULL,
   `a4` bit(1) DEFAULT NULL,
-  `a5` tinyint(4) DEFAULT NULL,
-  `a6` bigint(20) DEFAULT NULL,
+  `a5` tinyint DEFAULT NULL,
+  `a6` bigint DEFAULT NULL,
   `a7` date DEFAULT NULL,
   `a8` time DEFAULT NULL,
   `a9` datetime DEFAULT NULL,
@@ -577,11 +577,11 @@ ALTER TABLE test.t1 ALGORITHM=COPY, DROP PRIMARY KEY;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a1` int(11) NOT NULL,
+  `a1` int NOT NULL,
   `a2` float DEFAULT NULL,
   `a3` double DEFAULT NULL,
   `a4` bit(1) DEFAULT NULL,
-  `a5` tinyint(4) DEFAULT NULL,
+  `a5` tinyint DEFAULT NULL,
   KEY `a3_i` (`a3`)
 ) /*!50100 TABLESPACE `ts` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 Attributes:

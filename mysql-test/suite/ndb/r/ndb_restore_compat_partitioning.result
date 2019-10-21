@@ -2,29 +2,29 @@ use test;
 show create table standard;
 Table	Create Table
 standard	CREATE TABLE `standard` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 show create table maxrows_low;
 Table	Create Table
 maxrows_low	CREATE TABLE `maxrows_low` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 MAX_ROWS=10000000
 show create table maxrows_high;
 Table	Create Table
 maxrows_high	CREATE TABLE `maxrows_high` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 MAX_ROWS=1000000000
 show create table bykeycount;
 Table	Create Table
 bykeycount	CREATE TABLE `bykeycount` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
@@ -32,8 +32,8 @@ PARTITIONS 8 */
 show create table bykeycount_big;
 Table	Create Table
 bykeycount_big	CREATE TABLE `bykeycount_big` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
@@ -41,8 +41,8 @@ PARTITIONS 32 */
 show create table another;
 Table	Create Table
 another	CREATE TABLE `another` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LINEAR KEY (a) */

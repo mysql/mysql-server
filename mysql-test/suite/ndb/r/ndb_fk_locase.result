@@ -21,8 +21,8 @@ add constraint MYfk2 foreign key (b) references test.t1 (a);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `XB` (`b`),
   CONSTRAINT `myFK1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),
@@ -53,8 +53,8 @@ algorithm=copy;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `XB` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -71,8 +71,8 @@ add constraint MYfk2 foreign key (b) references TEST.T1 (a);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `XB` (`b`),
   CONSTRAINT `myFK1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`),

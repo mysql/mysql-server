@@ -23,7 +23,7 @@ index fx (f)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` year(4) NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time NOT NULL DEFAULT '10:11:12',
@@ -67,7 +67,7 @@ drop table t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` year(4) NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time NOT NULL DEFAULT '10:11:12',

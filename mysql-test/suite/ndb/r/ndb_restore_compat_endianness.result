@@ -5,14 +5,14 @@ SET GLOBAL ndb_metadata_check = false;
 SHOW CREATE TABLE t_num;
 Table	Create Table
 t_num	CREATE TABLE `t_num` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_bit` bit(64) DEFAULT NULL,
-  `t_tinyint` tinyint(4) DEFAULT NULL,
-  `t_bool` tinyint(1) DEFAULT NULL,
-  `t_smallint` smallint(6) DEFAULT NULL,
-  `t_mediumint` mediumint(9) DEFAULT NULL,
-  `t_int` int(11) DEFAULT NULL,
-  `t_bigint` bigint(20) DEFAULT NULL,
+  `t_tinyint` tinyint DEFAULT NULL,
+  `t_bool` tinyint DEFAULT NULL,
+  `t_smallint` smallint DEFAULT NULL,
+  `t_mediumint` mediumint DEFAULT NULL,
+  `t_int` int DEFAULT NULL,
+  `t_bigint` bigint DEFAULT NULL,
   `t_float` float DEFAULT NULL,
   `t_double` double DEFAULT NULL,
   `t_decimal` decimal(37,16) DEFAULT NULL,
@@ -28,7 +28,7 @@ Error	1146	Table 'test.t_datetime' doesn't exist
 SHOW CREATE TABLE t_string_1;
 Table	Create Table
 t_string_1	CREATE TABLE `t_string_1` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_char` char(255) DEFAULT NULL,
   `t_varchar` varchar(655) DEFAULT NULL,
   `t_binary` binary(255) DEFAULT NULL,
@@ -38,7 +38,7 @@ t_string_1	CREATE TABLE `t_string_1` (
 SHOW CREATE TABLE t_string_2;
 Table	Create Table
 t_string_2	CREATE TABLE `t_string_2` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_tinyblob` tinyblob,
   `t_tinytext` tinytext,
   `t_blob` blob,
@@ -54,7 +54,7 @@ t_string_2	CREATE TABLE `t_string_2` (
 SHOW CREATE TABLE t_gis;
 Table	Create Table
 t_gis	CREATE TABLE `t_gis` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_point` point DEFAULT NULL,
   `t_linestring` linestring DEFAULT NULL,
   `t_polygon` polygon DEFAULT NULL,
@@ -97,14 +97,14 @@ DROP TABLE t_num,t_string_1,t_string_2,t_gis;
 SHOW CREATE TABLE t_num;
 Table	Create Table
 t_num	CREATE TABLE `t_num` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_bit` bit(64) DEFAULT NULL,
-  `t_tinyint` tinyint(4) DEFAULT NULL,
-  `t_bool` tinyint(1) DEFAULT NULL,
-  `t_smallint` smallint(6) DEFAULT NULL,
-  `t_mediumint` mediumint(9) DEFAULT NULL,
-  `t_int` int(11) DEFAULT NULL,
-  `t_bigint` bigint(20) DEFAULT NULL,
+  `t_tinyint` tinyint DEFAULT NULL,
+  `t_bool` tinyint DEFAULT NULL,
+  `t_smallint` smallint DEFAULT NULL,
+  `t_mediumint` mediumint DEFAULT NULL,
+  `t_int` int DEFAULT NULL,
+  `t_bigint` bigint DEFAULT NULL,
   `t_float` float DEFAULT NULL,
   `t_double` double DEFAULT NULL,
   `t_decimal` decimal(37,16) DEFAULT NULL,
@@ -120,7 +120,7 @@ Error	1146	Table 'test.t_datetime' doesn't exist
 SHOW CREATE TABLE t_string_1;
 Table	Create Table
 t_string_1	CREATE TABLE `t_string_1` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_char` char(255) DEFAULT NULL,
   `t_varchar` varchar(655) DEFAULT NULL,
   `t_binary` binary(255) DEFAULT NULL,
@@ -130,7 +130,7 @@ t_string_1	CREATE TABLE `t_string_1` (
 SHOW CREATE TABLE t_string_2;
 Table	Create Table
 t_string_2	CREATE TABLE `t_string_2` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_tinyblob` tinyblob,
   `t_tinytext` tinytext,
   `t_blob` blob,
@@ -146,7 +146,7 @@ t_string_2	CREATE TABLE `t_string_2` (
 SHOW CREATE TABLE t_gis;
 Table	Create Table
 t_gis	CREATE TABLE `t_gis` (
-  `t_pk` int(11) NOT NULL,
+  `t_pk` int NOT NULL,
   `t_point` point DEFAULT NULL,
   `t_linestring` linestring DEFAULT NULL,
   `t_polygon` polygon DEFAULT NULL,

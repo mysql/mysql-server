@@ -62,9 +62,9 @@ constraint fk2 foreign key (b) references t1(b)
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `c` (`c`),
   KEY `fk1` (`a`),
   KEY `fk2` (`b`),
@@ -77,9 +77,9 @@ create index id1 on t2(a);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `c` (`c`),
   KEY `fk2` (`b`),
   KEY `id1` (`a`),
@@ -101,9 +101,9 @@ create unique index id2 on t2(b);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `c` (`c`),
   UNIQUE KEY `id2` (`b`),
   KEY `id1` (`a`),

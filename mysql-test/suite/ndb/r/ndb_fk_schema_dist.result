@@ -39,7 +39,7 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -64,7 +64,7 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -105,7 +105,7 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -118,7 +118,7 @@ a int unique
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `ref` int(11) DEFAULT NULL,
+  `ref` int DEFAULT NULL,
   KEY `fk2` (`ref`),
   CONSTRAINT `fk2` FOREIGN KEY (`ref`) REFERENCES `parent` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -148,7 +148,7 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -188,7 +188,7 @@ show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
   `a` varchar(64) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'

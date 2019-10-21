@@ -480,8 +480,8 @@ create table t1 (a int not null primary key, b int not null default 0, c varchar
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL DEFAULT '0',
+  `a` int NOT NULL,
+  `b` int NOT NULL DEFAULT '0',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -489,8 +489,8 @@ alter table t1 alter b set default 1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL DEFAULT '1',
+  `a` int NOT NULL,
+  `b` int NOT NULL DEFAULT '1',
   `c` varchar(254) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -664,8 +664,8 @@ ALTER TABLE t1 ADD value INT NULL, COMMENT='comment1' PARTITION BY KEY(id);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1 comment1'
 /*!50100 PARTITION BY KEY (id) */
@@ -676,7 +676,7 @@ ALTER TABLE t1 ENGINE=NDB PARTITION BY KEY(id);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 /*!50100 PARTITION BY KEY (id) */
@@ -686,7 +686,7 @@ ALTER TABLE t1 PARTITION BY KEY(id);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 /*!50100 PARTITION BY KEY (id) */
