@@ -7,8 +7,8 @@ flush tables;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `a_asc_b_desc` (`a`,`b` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -255,8 +255,8 @@ create index i1 on t1 (a desc, b desc);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `i1` (`a` DESC,`b` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -264,7 +264,7 @@ create table t2 (a int auto_increment, primary key (a desc)) engine= innodb;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert ignore into t2 select a from t1;

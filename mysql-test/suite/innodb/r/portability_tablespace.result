@@ -34,21 +34,21 @@ INSERT INTO tab3 VALUES (300,'VISWANATH',100);
 SHOW CREATE TABLE tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`) USING BTREE
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
@@ -91,7 +91,7 @@ DATA_HOME_DIR/data_home_dir
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
@@ -131,21 +131,21 @@ DATA_HOME_DIR/data_home_dir
 SHOW CREATE TABLE tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`) USING BTREE
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
@@ -216,7 +216,7 @@ CREATE TABLE tab4(c1 int, c2 varchar(10)) TABLESPACE=ts2;
 SHOW CREATE TABLE tab4;
 Table	Create Table
 tab4	CREATE TABLE `tab4` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tab4 VALUES(1, 'VISH');
@@ -226,7 +226,7 @@ CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
 SHOW CREATE TABLE tab5;
 Table	Create Table
 tab5	CREATE TABLE `tab5` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tab5 VALUES(1, 'VISH');
@@ -259,7 +259,7 @@ SPACE	PATH
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `empno` int(11) DEFAULT NULL,
+  `empno` int DEFAULT NULL,
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   `c3` varchar(15) DEFAULT NULL,
@@ -271,13 +271,13 @@ tab3	CREATE TABLE `tab3` (
 SHOW CREATE TABLE tab4;
 Table	Create Table
 tab4	CREATE TABLE `tab4` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab5;
 Table	Create Table
 tab5	CREATE TABLE `tab5` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;

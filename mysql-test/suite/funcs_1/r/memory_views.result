@@ -22867,13 +22867,13 @@ INSERT INTO t1 SET f1 = -1, f4 = 'ABC', report = 't1 0';
 INSERT INTO v1 SET f1 = -1, f4 = 'ABC', report = 'v1 0';
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	char(5)	YES		NULL	
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	char(5)	YES		NULL	
 report	char(10)	YES		NULL	
@@ -22895,7 +22895,7 @@ INSERT INTO v1 SET f1 = 0, report = 'v1 1b';
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4x	char(5)	YES		NULL	
 report	char(10)	YES		NULL	
@@ -22914,13 +22914,13 @@ INSERT INTO t1 SET f1 = 2, f4 = '<-- 10 -->', report = 't1 2';
 INSERT INTO v1 SET f1 = 2, f4 = '<-- 10 -->', report = 'v1 2';
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	char(10)	YES		NULL	
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	char(10)	YES		NULL	
 report	char(10)	YES		NULL	
@@ -22950,13 +22950,13 @@ Warnings:
 Warning	1265	Data truncated for column 'f4' at row 1
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	char(8)	YES		NULL	
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	char(8)	YES		NULL	
 report	char(10)	YES		NULL	
@@ -22983,13 +22983,13 @@ INSERT INTO t1 SET f1 = 4, f4 = '<------ 20 -------->', report = 't1 4';
 INSERT INTO v1 SET f1 = 4, f4 = '<------ 20 -------->', report = 'v1 4';
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-f1	bigint(20)	YES		NULL	
+f1	bigint	YES		NULL	
 f2	date	YES		NULL	
 f4	varchar(20)	YES		NULL	
 report	char(10)	YES		NULL	
@@ -23257,7 +23257,7 @@ CREATE VIEW v1 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	
-f2	bigint(20)	YES		NULL	
+f2	bigint	YES		NULL	
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES		NULL	

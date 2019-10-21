@@ -25,13 +25,13 @@ performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10
 performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
 describe performance_schema.pfs_example_employee_name;
 Field	Type	Null	Key	Default	Extra
-EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+EMPLOYEE_NUMBER	int	NO	PRI	NULL	
 FIRST_NAME	char(20)	YES	MUL	NULL	
 LAST_NAME	varchar(20)	YES		NULL	
 show create table performance_schema.pfs_example_employee_name;
 Table	Create Table
 pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
-  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `EMPLOYEE_NUMBER` int NOT NULL,
   `FIRST_NAME` char(20) DEFAULT NULL,
   `LAST_NAME` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`EMPLOYEE_NUMBER`),
@@ -91,13 +91,13 @@ performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10
 performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
 describe performance_schema.pfs_example_employee_name;
 Field	Type	Null	Key	Default	Extra
-EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+EMPLOYEE_NUMBER	int	NO	PRI	NULL	
 FIRST_NAME	char(20)	YES	MUL	NULL	
 LAST_NAME	varchar(20)	YES		NULL	
 show create table performance_schema.pfs_example_employee_name;
 Table	Create Table
 pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
-  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `EMPLOYEE_NUMBER` int NOT NULL,
   `FIRST_NAME` char(20) DEFAULT NULL,
   `LAST_NAME` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`EMPLOYEE_NUMBER`),
@@ -123,13 +123,13 @@ performance_schema	pfs_example_machine	PERFORMANCE_SCHEMA	10
 performance_schema	pfs_example_machine_by_employee_by_type	PERFORMANCE_SCHEMA	10	
 describe performance_schema.pfs_example_employee_name;
 Field	Type	Null	Key	Default	Extra
-EMPLOYEE_NUMBER	int(11)	NO	PRI	NULL	
+EMPLOYEE_NUMBER	int	NO	PRI	NULL	
 FIRST_NAME	char(20)	YES	MUL	NULL	
 LAST_NAME	varchar(20)	YES		NULL	
 show create table performance_schema.pfs_example_employee_name;
 Table	Create Table
 pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
-  `EMPLOYEE_NUMBER` int(11) NOT NULL,
+  `EMPLOYEE_NUMBER` int NOT NULL,
   `FIRST_NAME` char(20) DEFAULT NULL,
   `LAST_NAME` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`EMPLOYEE_NUMBER`),

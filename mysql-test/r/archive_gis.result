@@ -11,41 +11,41 @@ CREATE TABLE gis_geometry (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g GEOMETRY);
 SHOW CREATE TABLE gis_point;
 Table	Create Table
 gis_point	CREATE TABLE `gis_point` (
-  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `fid` int NOT NULL AUTO_INCREMENT,
   `g` point DEFAULT NULL,
   PRIMARY KEY (`fid`)
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	auto_increment
+fid	int	NO	PRI	NULL	auto_increment
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
 (101, ST_PointFromText('POINT(10 10)')),
@@ -420,7 +420,7 @@ gm  geometry
 );
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	auto_increment
+a	int	NO	PRI	NULL	auto_increment
 gp	point	YES		NULL	
 ln	linestring	YES		NULL	
 pg	polygon	YES		NULL	
@@ -432,7 +432,7 @@ gm	geometry	YES		NULL
 ALTER TABLE t1 ADD fid INT;
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	auto_increment
+a	int	NO	PRI	NULL	auto_increment
 gp	point	YES		NULL	
 ln	linestring	YES		NULL	
 pg	polygon	YES		NULL	
@@ -441,7 +441,7 @@ mln	multilinestring	YES		NULL
 mpg	multipolygon	YES		NULL	
 gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
-fid	int(11)	YES		NULL	
+fid	int	YES		NULL	
 DROP TABLE t1;
 create table t1 (pk integer primary key auto_increment, a geometry not null);
 insert into t1 (a) values (ST_GeomFromText('Point(1 2)'));

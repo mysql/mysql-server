@@ -26,7 +26,7 @@ Level	Code	Message
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -68,7 +68,7 @@ a	b
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -99,7 +99,7 @@ RENAME TABLE t1 TO t11;
 SHOW CREATE TABLE t11;
 Table	Create Table
 t11	CREATE TABLE `t11` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -139,7 +139,7 @@ DEALLOCATE PREPARE stmt1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -202,7 +202,7 @@ id	purchased
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -286,7 +286,7 @@ id	purchased
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -357,7 +357,7 @@ SUBPARTITION sp8));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
@@ -385,7 +385,7 @@ PARTITION p1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -404,14 +404,14 @@ ENGINE = InnoDB;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
 t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -419,14 +419,14 @@ SET @@global.innodb_file_per_table = ON;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
 t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -436,7 +436,7 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -446,7 +446,7 @@ SET @@sql_quote_show_create=0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE t1 (
-  a int(11) NOT NULL,
+  a int NOT NULL,
   PRIMARY KEY (a)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -476,14 +476,14 @@ SET @@global.innodb_file_per_table = ON;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
 t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -491,14 +491,14 @@ SET @@global.innodb_file_per_table = OFF;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
 t_file_per_table_on	CREATE TABLE `t_file_per_table_on` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t_file_per_table_off;
 Table	Create Table
 t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

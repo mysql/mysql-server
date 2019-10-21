@@ -30,7 +30,7 @@ CREATE TABLE t2(id int, `col1` binary(10),`col2` blob);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `col1` binary(10) DEFAULT NULL,
   `col2` blob
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

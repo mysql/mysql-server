@@ -63,8 +63,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -522,8 +522,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -989,8 +989,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1461,8 +1461,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -1929,8 +1929,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -2401,8 +2401,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -2880,8 +2880,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -3355,8 +3355,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -3820,8 +3820,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -4315,8 +4315,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -4818,8 +4818,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -5326,8 +5326,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -5830,8 +5830,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -6338,8 +6338,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -6853,8 +6853,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -7364,8 +7364,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -7864,8 +7864,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -8359,8 +8359,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -8862,8 +8862,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -9370,8 +9370,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -9874,8 +9874,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -10382,8 +10382,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -10897,8 +10897,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -11408,8 +11408,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) NOT NULL,
-  `f_int2` mediumint(9) NOT NULL,
+  `f_int1` mediumint NOT NULL,
+  `f_int2` mediumint NOT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -11909,8 +11909,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -12420,8 +12420,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -12939,8 +12939,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -13463,8 +13463,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -13983,8 +13983,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -14507,8 +14507,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -15038,8 +15038,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -15565,8 +15565,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -16081,8 +16081,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -16592,8 +16592,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -17111,8 +17111,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -17635,8 +17635,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -18155,8 +18155,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -18679,8 +18679,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -19210,8 +19210,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,
@@ -19737,8 +19737,8 @@ create_command
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` mediumint(9) DEFAULT NULL,
-  `f_int2` mediumint(9) DEFAULT NULL,
+  `f_int1` mediumint DEFAULT NULL,
+  `f_int2` mediumint DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL,

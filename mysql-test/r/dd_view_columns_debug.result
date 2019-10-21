@@ -23,7 +23,7 @@ FLUSH TABLES;
 # Without fix, SHOW FIELDS from valid view "v1" reports invalid view error.
 SHOW FIELDS FROM v1;
 Field	Type	Null	Key	Default	Extra
-13	int(2)	NO		0	
+13	int	NO		0	
 connection default;
 SET DEBUG_SYNC='RESET';
 DROP VIEW v1;

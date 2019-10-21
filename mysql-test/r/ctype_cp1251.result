@@ -1226,7 +1226,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(1) CHARACTER SET cp1251 DEFAULT NULL,
-  `c2` int(1) NOT NULL DEFAULT '0'
+  `c2` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @a2=1;
@@ -1241,7 +1241,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(20) CHARACTER SET cp1251 DEFAULT NULL,
-  `c2` bigint(20) DEFAULT NULL
+  `c2` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(@a1:=sqrt(1)));
@@ -2885,7 +2885,7 @@ create table t1 as select f1(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 as select concat(f1(1)) as c1;
@@ -3169,7 +3169,7 @@ CREATE TABLE t1 (test1 INT, test2 VARCHAR(255));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `test1` int(11) DEFAULT NULL,
+  `test1` int DEFAULT NULL,
   `test2` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT COALESCE(IF(test1=1, 1, NULL), test2) FROM t1;

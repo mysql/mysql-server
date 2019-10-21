@@ -228,20 +228,20 @@ user	CREATE TABLE `user` (
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,
   `x509_subject` blob NOT NULL,
-  `max_questions` int(11) unsigned NOT NULL DEFAULT '0',
-  `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
-  `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
-  `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_questions` int unsigned NOT NULL DEFAULT '0',
+  `max_updates` int unsigned NOT NULL DEFAULT '0',
+  `max_connections` int unsigned NOT NULL DEFAULT '0',
+  `max_user_connections` int unsigned NOT NULL DEFAULT '0',
   `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'caching_sha2_password',
   `authentication_string` text COLLATE utf8_bin,
   `password_expired` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `password_last_changed` timestamp NULL DEFAULT NULL,
-  `password_lifetime` smallint(5) unsigned DEFAULT NULL,
+  `password_lifetime` smallint unsigned DEFAULT NULL,
   `account_locked` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Create_role_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Drop_role_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
-  `Password_reuse_history` smallint(5) unsigned DEFAULT NULL,
-  `Password_reuse_time` smallint(5) unsigned DEFAULT NULL,
+  `Password_reuse_history` smallint unsigned DEFAULT NULL,
+  `Password_reuse_time` smallint unsigned DEFAULT NULL,
   `Password_require_current` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `User_attributes` json DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
@@ -252,9 +252,9 @@ innodb_table_stats	CREATE TABLE `innodb_table_stats` (
   `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `n_rows` bigint(20) unsigned NOT NULL,
-  `clustered_index_size` bigint(20) unsigned NOT NULL,
-  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  `n_rows` bigint unsigned NOT NULL,
+  `clustered_index_size` bigint unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint unsigned NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.innodb_index_stats;
@@ -265,8 +265,8 @@ innodb_index_stats	CREATE TABLE `innodb_index_stats` (
   `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `stat_value` bigint(20) unsigned NOT NULL,
-  `sample_size` bigint(20) unsigned DEFAULT NULL,
+  `stat_value` bigint unsigned NOT NULL,
+  `sample_size` bigint unsigned DEFAULT NULL,
   `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
@@ -281,34 +281,34 @@ table_name	199
 SHOW CREATE TABLE test.t_compressed;
 Table	Create Table
 t_compressed	CREATE TABLE `t_compressed` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 SHOW CREATE TABLE test.t_compressed2;
 Table	Create Table
 t_compressed2	CREATE TABLE `t_compressed2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SHOW CREATE TABLE test.t_compressed3;
 Table	Create Table
 t_compressed3	CREATE TABLE `t_compressed3` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SHOW CREATE TABLE test.t_dynamic;
 Table	Create Table
 t_dynamic	CREATE TABLE `t_dynamic` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE test.t_index;
 Table	Create Table
 t_index	CREATE TABLE `t_index` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`) USING BTREE
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -333,7 +333,7 @@ SHOW CREATE TABLE test.jemp;
 Table	Create Table
 jemp	CREATE TABLE `jemp` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
+  `g` int GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
   KEY `i` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t_gen_stored_myisam;
@@ -353,7 +353,7 @@ SHOW CREATE TABLE test.jemp_myisam;
 Table	Create Table
 jemp_myisam	CREATE TABLE `jemp_myisam` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
+  `g` int GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
@@ -442,23 +442,23 @@ SET names default;
 SHOW CREATE TABLE performance_schema.threads;
 Table	Create Table
 threads	CREATE TABLE `threads` (
-  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `THREAD_ID` bigint unsigned NOT NULL,
   `NAME` varchar(128) NOT NULL,
   `TYPE` varchar(10) NOT NULL,
-  `PROCESSLIST_ID` bigint(20) unsigned DEFAULT NULL,
+  `PROCESSLIST_ID` bigint unsigned DEFAULT NULL,
   `PROCESSLIST_USER` varchar(32) DEFAULT NULL,
   `PROCESSLIST_HOST` varchar(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
   `PROCESSLIST_DB` varchar(64) DEFAULT NULL,
   `PROCESSLIST_COMMAND` varchar(16) DEFAULT NULL,
-  `PROCESSLIST_TIME` bigint(20) DEFAULT NULL,
+  `PROCESSLIST_TIME` bigint DEFAULT NULL,
   `PROCESSLIST_STATE` varchar(64) DEFAULT NULL,
   `PROCESSLIST_INFO` longtext,
-  `PARENT_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `PARENT_THREAD_ID` bigint unsigned DEFAULT NULL,
   `ROLE` varchar(64) DEFAULT NULL,
   `INSTRUMENTED` enum('YES','NO') NOT NULL,
   `HISTORY` enum('YES','NO') NOT NULL,
   `CONNECTION_TYPE` varchar(16) DEFAULT NULL,
-  `THREAD_OS_ID` bigint(20) unsigned DEFAULT NULL,
+  `THREAD_OS_ID` bigint unsigned DEFAULT NULL,
   `RESOURCE_GROUP` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`THREAD_ID`),
   KEY `PROCESSLIST_ID` (`PROCESSLIST_ID`),
@@ -513,7 +513,7 @@ e_totals	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERR
 SHOW CREATE TABLE test.opening_lines;
 Table	Create Table
 opening_lines	CREATE TABLE `opening_lines` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `opening_line` text,
   `author` varchar(200) DEFAULT NULL,
   `title` varchar(200) DEFAULT NULL,
@@ -544,13 +544,13 @@ my_test_func	latin1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE TABLE tablespace.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(50) DEFAULT NULL
 ) /*!50100 TABLESPACE `tbsp1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tablespace.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(50) DEFAULT NULL,
   `c` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -561,7 +561,7 @@ a	b	c
 SHOW CREATE TABLE tablespace.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) /*!50100 TABLESPACE `tbsp2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 #
 # Bug#26431355 : ALTER TABLE COMMENT FAILS WITH FAILED TO DROP TABLE SDI AFTER UPGRADE
@@ -570,14 +570,14 @@ t4	CREATE TABLE `t4` (
 SHOW CREATE TABLE test.t_blackhole;
 Table	Create Table
 t_blackhole	CREATE TABLE `t_blackhole` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1
 # Check for table with special character in name
 SHOW CREATE TABLE `test`.`t_sc~!@#$%^&*(`;
 Table	Create Table
 t_sc~!@#$%^&*(	CREATE TABLE `t_sc~!@#$%^&*(` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Check for JSON types
@@ -671,23 +671,23 @@ x	y
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
 TABLE_SCHEMA='view_with_column_names';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
-def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	view_with_column_names	t1	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	view_with_column_names	t1	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	view_with_column_names	v1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	view_with_column_names	v1	b	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 # Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY CONSTRAINT.
 # MISSING INDEX FOR CONSTR". Coverage for upgrade scenario. Main part
 # of coverage resides in foreign_key test.
 SHOW CREATE TABLE foreign_keys.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `b` (`b`),
   KEY `a` (`a`)
@@ -695,42 +695,42 @@ t9	CREATE TABLE `t9` (
 SHOW CREATE TABLE foreign_keys.ta;
 Table	Create Table
 ta	CREATE TABLE `ta` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
   KEY `fk1` (`fk1`,`fk2`),
   CONSTRAINT `ta_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `t9` (`a`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE foreign_keys.tb;
 Table	Create Table
 tb	CREATE TABLE `tb` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
   KEY `fk1` (`fk1`,`fk2`),
   CONSTRAINT `tb_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `t9` (`b`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE foreign_keys.tc;
 Table	Create Table
 tc	CREATE TABLE `tc` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE foreign_keys.td;
 Table	Create Table
 td	CREATE TABLE `td` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
   KEY `fk1` (`fk1`,`fk2`),
   CONSTRAINT `td_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `tc` (`b`, `a`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE foreign_keys.te;
 Table	Create Table
 te	CREATE TABLE `te` (
-  `pk` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `a` (`a`),
   KEY `fk1` (`fk1`,`fk2`),
@@ -739,10 +739,10 @@ te	CREATE TABLE `te` (
 SHOW CREATE TABLE foreign_keys.tf;
 Table	Create Table
 tf	CREATE TABLE `tf` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`),
   KEY `fk1` (`fk1`,`fk2`),

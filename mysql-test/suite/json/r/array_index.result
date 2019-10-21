@@ -434,7 +434,7 @@ create index i1 on t1((cast(f1->"$[*]" as unsigned array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$[*]') as unsigned array)))
@@ -637,7 +637,7 @@ create index i1 on t1((cast(f1->"$" as signed array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$') as signed array)))
@@ -798,7 +798,7 @@ create index i1 on t1((cast(f1->"$" as decimal(10,4) array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$') as decimal(10, 4) array)))
@@ -863,7 +863,7 @@ create index i1 on t1((cast(f1->"$" as date array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$') as date array)))
@@ -921,7 +921,7 @@ create index i1 on t1((cast(f1->"$" as time(6) array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$') as time(6) array)))
@@ -936,7 +936,7 @@ create index i1 on t1((cast(f1->"$" as time array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$') as time array)))
@@ -995,7 +995,7 @@ create index i1 on t1((cast(f1->"$" as datetime(6) array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$') as datetime(6) array)))
@@ -1010,7 +1010,7 @@ create index i1 on t1((cast(f1->"$" as datetime array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$') as datetime array)))
@@ -1151,7 +1151,7 @@ create index i1 on t1((cast(f1->"$[*]" as signed array)));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `f1` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `i1` ((cast(json_extract(`f1`,_utf8mb4'$[*]') as signed array)))

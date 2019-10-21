@@ -131,7 +131,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 INT NOT NULL DEFAULT (32));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-f1	int(11)	NO		32	DEFAULT_GENERATED
+f1	int	NO		32	DEFAULT_GENERATED
 SELECT CONCAT(t.name, ".", c.name) as col_name,
 c.default_option, c.default_value_utf8
 FROM mysql.tables AS t JOIN mysql.columns as c ON t.id = c.table_id

@@ -2,10 +2,10 @@ DESC sys.statements_with_errors_or_warnings;
 Field	Type	Null	Key	Default	Extra
 query	longtext	YES		NULL	
 db	varchar(64)	YES		NULL	
-exec_count	bigint(20) unsigned	NO		NULL	
-errors	bigint(20) unsigned	NO		NULL	
+exec_count	bigint unsigned	NO		NULL	
+errors	bigint unsigned	NO		NULL	
 error_pct	decimal(27,4)	NO		0.0000	
-warnings	bigint(20) unsigned	NO		NULL	
+warnings	bigint unsigned	NO		NULL	
 warning_pct	decimal(27,4)	NO		0.0000	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
@@ -15,10 +15,10 @@ DESC sys.x$statements_with_errors_or_warnings;
 Field	Type	Null	Key	Default	Extra
 query	longtext	YES		NULL	
 db	varchar(64)	YES		NULL	
-exec_count	bigint(20) unsigned	NO		NULL	
-errors	bigint(20) unsigned	NO		NULL	
+exec_count	bigint unsigned	NO		NULL	
+errors	bigint unsigned	NO		NULL	
 error_pct	decimal(27,4)	NO		0.0000	
-warnings	bigint(20) unsigned	NO		NULL	
+warnings	bigint unsigned	NO		NULL	
 warning_pct	decimal(27,4)	NO		0.0000	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	

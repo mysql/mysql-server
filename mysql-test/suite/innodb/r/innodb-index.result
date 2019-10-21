@@ -18,8 +18,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`)
@@ -41,8 +41,8 @@ ERROR 23000: Duplicate entry '4' for key 't1.b'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`)
@@ -53,8 +53,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`),
@@ -68,8 +68,8 @@ Warning	1831	Duplicate index 'd' defined on the table 'test.t1'. This is depreca
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   UNIQUE KEY `c` (`c`),
@@ -91,8 +91,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -111,8 +111,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -141,8 +141,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -199,8 +199,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -219,8 +219,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -233,8 +233,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -283,8 +283,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -330,8 +330,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -368,8 +368,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -404,8 +404,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -457,8 +457,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -525,9 +525,9 @@ info: Records: 1  Duplicates: 0  Warnings: 0
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
-  `e` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `d` int NOT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `d` (`d`),
   CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
@@ -541,9 +541,9 @@ SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `c` int NOT NULL,
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -553,11 +553,11 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `alpha` int(11) NOT NULL,
-  `beta` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
+  `alpha` int NOT NULL,
+  `beta` int DEFAULT NULL,
+  `c` int NOT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`alpha`),
   UNIQUE KEY `dc` (`d`,`c`),
   KEY `c` (`c`),
@@ -601,8 +601,8 @@ a	b	c	d
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -633,8 +633,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -696,8 +696,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -720,8 +720,8 @@ ERROR 23000: Duplicate entry '1' for key 't1.a'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, c int not null,b int, primary key(a), unique key(c), key(b)) engine = innodb;
@@ -729,9 +729,9 @@ alter table t1 drop index c, drop index b;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `c` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -740,8 +740,8 @@ alter table t1 add index (b);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -755,8 +755,8 @@ ERROR 23000: Duplicate entry 'ac' for key 't1.c'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -771,9 +771,9 @@ insert into t1 values (10,20,20),(11,19,19),(12,18,18),(13,17,17);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`),
   KEY `c` (`c`)
@@ -840,8 +840,8 @@ insert into t1 values (2,2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
@@ -882,7 +882,7 @@ insert into t1 values (2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
@@ -932,9 +932,9 @@ SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -943,9 +943,9 @@ CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `i_t2_c3_c2` (`c3`,`c2`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -974,9 +974,9 @@ SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`,`c2`,`c3`),
   KEY `fk_t2_ca` (`c3`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -985,9 +985,9 @@ CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`,`c2`,`c3`),
   KEY `i_t2_c3_c2` (`c3`,`c2`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`) REFERENCES `t1` (`c1`)
@@ -1057,17 +1057,17 @@ affected rows: 0
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(12) NOT NULL,
-  `c2` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c2`,`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 affected rows: 1
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`,`c2`),
   CONSTRAINT `fk_t2_ca` FOREIGN KEY (`c3`, `c2`) REFERENCES `t1` (`c2`, `c1`)
@@ -1079,9 +1079,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`,`c2`),
   KEY `i_t2_c2_c1` (`c2`,`c1`),
@@ -1094,9 +1094,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk_t2_ca` (`c3`,`c2`),
   KEY `i_t2_c2_c1` (`c2`,`c1`),
@@ -1110,9 +1110,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(16) NOT NULL,
-  `c2` bigint(12) NOT NULL,
-  `c3` bigint(12) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `i_t2_c2_c1` (`c2`,`c1`),
   KEY `i_t2_c3_c1_c2` (`c3`,`c1`,`c2`),
@@ -1223,14 +1223,14 @@ alter table t2 drop index t2a, add index t2a(b);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   KEY `t2a` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2i;
 Table	Create Table
 t2i	CREATE TABLE `t2i` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)
@@ -1238,7 +1238,7 @@ t2i	CREATE TABLE `t2i` (
 show create table t2c;
 Table	Create Table
 t2c	CREATE TABLE `t2c` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)
@@ -1726,8 +1726,8 @@ CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY (a ASC)) ENGINE=INNODB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(5,5), (4,4), (3,4), (2,3);

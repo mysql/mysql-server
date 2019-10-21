@@ -9,7 +9,7 @@ test.t1	analyze	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `int_col` int(11) DEFAULT NULL,
+  `int_col` int DEFAULT NULL,
   `string_col` varchar(255) DEFAULT NULL,
   KEY `int_func_index` ((abs(`int_col`))),
   KEY `string_func_index` ((substr(`string_col`,1,2)))
@@ -57,7 +57,7 @@ INDEX ((col1 * 6)));
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) DEFAULT NULL,
+  `col1` int DEFAULT NULL,
   KEY `functional_index` (((`col1` * 2))),
   KEY `functional_index_2` (((`col1` * 4))),
   KEY `functional_index_3` (((`col1` * 6)))
@@ -69,7 +69,7 @@ CREATE INDEX combined_index ON t1 ((int_col + int_col), string_col);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `int_col` int(11) DEFAULT NULL,
+  `int_col` int DEFAULT NULL,
   `string_col` varchar(255) DEFAULT NULL,
   KEY `int_func_index` ((abs(`int_col`))),
   KEY `string_func_index` ((substr(`string_col`,1,2))),
@@ -142,8 +142,8 @@ ALTER TABLE t1 ADD INDEX ((ABS(col1))), ADD INDEX ((ABS(col2)));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int DEFAULT NULL,
+  `col2` int DEFAULT NULL,
   KEY `functional_index` ((abs(`col1`))),
   KEY `functional_index_2` ((abs(`col2`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

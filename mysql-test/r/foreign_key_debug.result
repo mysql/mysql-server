@@ -12,9 +12,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
@@ -27,9 +27,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (c) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   KEY `c` (`c`),
@@ -45,9 +45,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`),
   KEY `b` (`b`),
@@ -65,9 +65,9 @@ ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`),
   KEY `b` (`b`),
@@ -83,9 +83,9 @@ ALTER TABLE t3 ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`),
   KEY `b` (`b`),

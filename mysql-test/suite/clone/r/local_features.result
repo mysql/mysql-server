@@ -65,8 +65,8 @@ call execute_dml(0, 0, 200, 200, 100, 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -101,8 +101,8 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -155,8 +155,8 @@ ID	STAGE	STATE
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -191,8 +191,8 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -288,8 +288,8 @@ SET DEBUG_SYNC = 'now SIGNAL resume_clone2';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -324,8 +324,8 @@ col1	col3	SUBSTRING(col4, 1000, 32)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)

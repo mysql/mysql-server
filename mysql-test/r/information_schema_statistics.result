@@ -1,8 +1,8 @@
 CREATE TEMPORARY TABLE t1 (f1 int, f2 int primary key, UNIQUE KEY (f1));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-f1	int(11)	YES	UNI	NULL	NULL
-f2	int(11)	NO	PRI	NULL	NULL
+f1	int	YES	UNI	NULL	NULL
+f2	int	NO	PRI	NULL	NULL
 SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	0	PRIMARY	1	f2	A	0	NULL	NULL		BTREE			YES	NULL

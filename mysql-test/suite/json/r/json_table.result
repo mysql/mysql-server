@@ -1836,8 +1836,8 @@ AS json;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` bigint(20) unsigned DEFAULT NULL,
-  `value` bigint(20) DEFAULT NULL
+  `id` bigint unsigned DEFAULT NULL,
+  `value` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #

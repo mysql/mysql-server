@@ -173,13 +173,13 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	testf_bug11763507	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION testf_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
+testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int
 BEGIN
 RETURN 0;
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION TESTF_bug11763507;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int(11)
+testf_bug11763507		CREATE DEFINER=`root`@`localhost` FUNCTION `testf_bug11763507`() RETURNS int
 BEGIN
 RETURN 0;
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci

@@ -182,7 +182,7 @@ create fulltext index idx on t2(s2);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `FTS_DOC_ID` bigint(20) unsigned NOT NULL,
+  `FTS_DOC_ID` bigint unsigned NOT NULL,
   `s2` varchar(200) DEFAULT NULL,
   KEY `FTS_DOC_ID` (`FTS_DOC_ID`),
   FULLTEXT KEY `idx` (`s2`),
@@ -496,7 +496,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `a` varchar(200) DEFAULT NULL,
   `b` text,
   PRIMARY KEY (`id`),

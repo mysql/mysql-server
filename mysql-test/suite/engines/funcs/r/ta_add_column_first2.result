@@ -191,7 +191,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
   `c1` char(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -213,7 +213,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
   `c1` varchar(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -235,7 +235,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
   `c1` binary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -257,7 +257,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
   `c1` varbinary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -279,7 +279,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) NOT NULL,
+  `c2` tinyint NOT NULL,
   `c1` char(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -301,7 +301,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) NOT NULL,
+  `c2` tinyint NOT NULL,
   `c1` varchar(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -323,7 +323,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) NOT NULL,
+  `c2` tinyint NOT NULL,
   `c1` binary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -345,7 +345,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` tinyint(4) NOT NULL,
+  `c2` tinyint NOT NULL,
   `c1` varbinary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -367,7 +367,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) DEFAULT NULL,
+  `c2` smallint DEFAULT NULL,
   `c1` char(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -389,7 +389,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) DEFAULT NULL,
+  `c2` smallint DEFAULT NULL,
   `c1` varchar(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -411,7 +411,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) DEFAULT NULL,
+  `c2` smallint DEFAULT NULL,
   `c1` binary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -433,7 +433,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) DEFAULT NULL,
+  `c2` smallint DEFAULT NULL,
   `c1` varbinary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -455,7 +455,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) NOT NULL,
+  `c2` smallint NOT NULL,
   `c1` char(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -477,7 +477,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) NOT NULL,
+  `c2` smallint NOT NULL,
   `c1` varchar(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -499,7 +499,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) NOT NULL,
+  `c2` smallint NOT NULL,
   `c1` binary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -521,7 +521,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` smallint(6) NOT NULL,
+  `c2` smallint NOT NULL,
   `c1` varbinary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -543,7 +543,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) DEFAULT NULL,
+  `c2` mediumint DEFAULT NULL,
   `c1` char(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -565,7 +565,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) DEFAULT NULL,
+  `c2` mediumint DEFAULT NULL,
   `c1` varchar(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -587,7 +587,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) DEFAULT NULL,
+  `c2` mediumint DEFAULT NULL,
   `c1` binary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -609,7 +609,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) DEFAULT NULL,
+  `c2` mediumint DEFAULT NULL,
   `c1` varbinary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -631,7 +631,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) NOT NULL,
+  `c2` mediumint NOT NULL,
   `c1` char(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -653,7 +653,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) NOT NULL,
+  `c2` mediumint NOT NULL,
   `c1` varchar(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -675,7 +675,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) NOT NULL,
+  `c2` mediumint NOT NULL,
   `c1` binary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -697,7 +697,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` mediumint(9) NOT NULL,
+  `c2` mediumint NOT NULL,
   `c1` varbinary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -719,7 +719,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` char(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -741,7 +741,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` varchar(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -763,7 +763,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` binary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -785,7 +785,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` varbinary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -807,7 +807,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` char(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -829,7 +829,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` varchar(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -851,7 +851,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` binary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -873,7 +873,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` varbinary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -895,7 +895,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` char(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -917,7 +917,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` varchar(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -939,7 +939,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` binary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -961,7 +961,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   `c1` varbinary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -983,7 +983,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` char(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1005,7 +1005,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` varchar(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1027,7 +1027,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` binary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1049,7 +1049,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c1` varbinary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1071,7 +1071,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) DEFAULT NULL,
+  `c2` bigint DEFAULT NULL,
   `c1` char(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1093,7 +1093,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) DEFAULT NULL,
+  `c2` bigint DEFAULT NULL,
   `c1` varchar(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1115,7 +1115,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) DEFAULT NULL,
+  `c2` bigint DEFAULT NULL,
   `c1` binary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1137,7 +1137,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) DEFAULT NULL,
+  `c2` bigint DEFAULT NULL,
   `c1` varbinary(15) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1159,7 +1159,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) NOT NULL,
+  `c2` bigint NOT NULL,
   `c1` char(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1181,7 +1181,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) NOT NULL,
+  `c2` bigint NOT NULL,
   `c1` varchar(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1203,7 +1203,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) NOT NULL,
+  `c2` bigint NOT NULL,
   `c1` binary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1225,7 +1225,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c2` bigint(20) NOT NULL,
+  `c2` bigint NOT NULL,
   `c1` varbinary(15) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

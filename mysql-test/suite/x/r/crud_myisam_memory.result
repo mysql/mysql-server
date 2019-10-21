@@ -138,7 +138,7 @@ RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
 table1	CREATE TABLE `table1` (
   `doc` varchar(100) DEFAULT NULL,
-  `_id` int(11) NOT NULL AUTO_INCREMENT,
+  `_id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`_id`)
 ) ENGINE=MEMORY AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
@@ -263,7 +263,7 @@ RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
 table1	CREATE TABLE `table1` (
   `doc` varchar(100) DEFAULT NULL,
-  `_id` int(11) NOT NULL AUTO_INCREMENT,
+  `_id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`_id`)
 ) ENGINE=MEMORY AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected

@@ -48,7 +48,7 @@ create table `a/a` (a int);
 show create table `a/a`;
 Table	Create Table
 a/a	CREATE TABLE `a/a` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t1 like `a/a`;
 drop table `a/a`;
@@ -134,9 +134,9 @@ Field	Type	Null	Key	Default	Extra
 a	datetime	NO		0000-00-00 00:00:00	
 b	time	NO		00:00:00	
 c	date	NO		0000-00-00	
-d	int(3)	NO		0	
+d	int	NO		0	
 e	decimal(3,1)	NO		0.0	
-f	bigint(19)	NO		0	
+f	bigint	NO		0	
 drop table t2;
 create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
 describe t2;
@@ -149,10 +149,10 @@ create table t1 (a tinyint);
 create table t2 (a int) select * from t1;
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(4)	YES		NULL	
+a	tinyint	YES		NULL	
 describe t2;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 drop table if exists t2;
 create table t2 (a int, a float) select * from t1;
 ERROR 42S21: Duplicate column name 'a'
@@ -214,8 +214,8 @@ Warning	1831	Duplicate index 'b_31' defined on the table 'test.t1'. This is depr
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   KEY `b_2` (`b`),
@@ -265,7 +265,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET SESSION default_storage_engine="gemini";
@@ -277,7 +277,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_storage_engine=default;
 drop table t1;
@@ -351,7 +351,7 @@ create table t3 like t1;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` char(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3;
@@ -366,7 +366,7 @@ create temporary table t3 like t2;
 show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `id` int(11) NOT NULL
+  `id` int NOT NULL
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3;
 id
@@ -374,7 +374,7 @@ drop table t3;
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` char(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3;
@@ -386,14 +386,14 @@ create temporary table t3 like mysqltest.t3;
 show create table t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` char(20) DEFAULT NULL
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 like t3;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` char(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t2;
@@ -429,7 +429,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET SESSION default_storage_engine="gemini";
@@ -441,7 +441,7 @@ CREATE TABLE t1 (a int not null);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_storage_engine=default;
 drop table t1;
@@ -480,9 +480,9 @@ addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
 from t1;
 explain t2;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	bigint(11)	NO		0	
-c	bigint(10) unsigned	NO		0	
+a	int	YES		NULL	
+b	bigint	NO		0	
+c	bigint unsigned	NO		0	
 d	date	YES		NULL	
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
@@ -505,11 +505,11 @@ Warning	1681	Specifying number of digits for floating point data types is deprec
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `ifnull(a,a)` tinyint(4) DEFAULT NULL,
-  `ifnull(b,b)` smallint(6) DEFAULT NULL,
-  `ifnull(c,c)` mediumint(9) DEFAULT NULL,
-  `ifnull(d,d)` int(11) DEFAULT NULL,
-  `ifnull(e,e)` bigint(20) DEFAULT NULL,
+  `ifnull(a,a)` tinyint DEFAULT NULL,
+  `ifnull(b,b)` smallint DEFAULT NULL,
+  `ifnull(c,c)` mediumint DEFAULT NULL,
+  `ifnull(d,d)` int DEFAULT NULL,
+  `ifnull(e,e)` bigint DEFAULT NULL,
   `ifnull(f,f)` float(3,2) DEFAULT NULL,
   `ifnull(g,g)` double(4,3) DEFAULT NULL,
   `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
@@ -528,26 +528,26 @@ describe t1;
 Field	Type	Null	Key	Default	Extra
 str	varchar(10)	YES		def	
 strnull	varchar(10)	YES		NULL	
-intg	int(11)	YES		10	
+intg	int	YES		10	
 rel	double	YES		3.14	
 create table t2 select default(str) as str, default(strnull) as strnull, default(intg) as intg, default(rel) as rel from t1;
 describe t2;
 Field	Type	Null	Key	Default	Extra
 str	varchar(10)	YES		NULL	
 strnull	varchar(10)	YES		NULL	
-intg	int(11)	YES		NULL	
+intg	int	YES		NULL	
 rel	double	YES		NULL	
 drop table t1, t2;
 create table t1(name varchar(10), age smallint default -1);
 describe t1;
 Field	Type	Null	Key	Default	Extra
 name	varchar(10)	YES		NULL	
-age	smallint(6)	YES		-1	
+age	smallint	YES		-1	
 create table t2(name varchar(10), age smallint default - 1);
 describe t2;
 Field	Type	Null	Key	Default	Extra
 name	varchar(10)	YES		NULL	
-age	smallint(6)	YES		-1	
+age	smallint	YES		-1	
 drop table t1, t2;
 create table t1(cenum enum('a'), cset set('b'));
 create table t2(cenum enum('a','a'), cset set('b','b'));
@@ -586,14 +586,14 @@ create table t1 (`primary` int, index(`primary`));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `primary` int(11) DEFAULT NULL,
+  `primary` int DEFAULT NULL,
   KEY `primary_2` (`primary`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 (`PRIMARY` int, index(`PRIMARY`));
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `PRIMARY` int(11) DEFAULT NULL,
+  `PRIMARY` int DEFAULT NULL,
   KEY `PRIMARY_2` (`PRIMARY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t3 (a int);
@@ -606,7 +606,7 @@ alter table t4 add index(`primary`);
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `primary` int(11) DEFAULT NULL,
+  `primary` int DEFAULT NULL,
   KEY `primary_2` (`primary`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t5 (`PRIMARY` int);
@@ -614,7 +614,7 @@ alter table t5 add index(`PRIMARY`);
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `PRIMARY` int(11) DEFAULT NULL,
+  `PRIMARY` int DEFAULT NULL,
   KEY `PRIMARY_2` (`PRIMARY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2, t3, t4, t5;
@@ -729,7 +729,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `b` int(11) NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -744,9 +744,9 @@ Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) NOT NULL,
+  `b` int NOT NULL,
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `c` int(1) NOT NULL DEFAULT '0',
+  `c` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -760,9 +760,9 @@ Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `c` int(1) NOT NULL DEFAULT '0',
+  `c` int NOT NULL DEFAULT '0',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -777,7 +777,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `b` int(11) NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -792,7 +792,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(12) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `b` int(11) NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
@@ -836,10 +836,10 @@ select a1,a2 from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT '3',
-  `b` int(11) DEFAULT '3',
-  `a1` int(11) DEFAULT NULL,
-  `a2` int(11) DEFAULT NULL
+  `a` int DEFAULT '3',
+  `b` int DEFAULT '3',
+  `a1` int DEFAULT NULL,
+  `a2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1(a set("a,b","c,d") not null);
@@ -1082,7 +1082,7 @@ TABLE_NAME
 show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
 Table	Create Table
 имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48	CREATE TABLE `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48` (
-  `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` int(11) DEFAULT NULL,
+  `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` int DEFAULT NULL,
   KEY `имя_индекса_в_кодировке_утф8_длиной_больше_чем_48` (`имя_поля_в_кодировке_утф8_длиной_больше_чем_45`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
@@ -1146,12 +1146,12 @@ create table t1 like information_schema.processlist;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `ID` bigint unsigned NOT NULL DEFAULT '0',
   `USER` varchar(32) NOT NULL DEFAULT '',
   `HOST` varchar(261) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
-  `TIME` int(7) NOT NULL DEFAULT '0',
+  `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
@@ -1160,12 +1160,12 @@ create temporary table t1 like information_schema.processlist;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `ID` bigint unsigned NOT NULL DEFAULT '0',
   `USER` varchar(32) NOT NULL DEFAULT '',
   `HOST` varchar(261) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
-  `TIME` int(7) NOT NULL DEFAULT '0',
+  `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
 ) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
@@ -1177,7 +1177,7 @@ t1	CREATE TABLE `t1` (
   `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
   `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
   `DESCRIPTION` varchar(2048) CHARACTER SET utf8 NOT NULL,
-  `MAXLEN` int(10) unsigned NOT NULL
+  `MAXLEN` int unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 
@@ -1204,9 +1204,9 @@ Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT '12' COMMENT 'column1',
-  `c2` int(11) DEFAULT NULL COMMENT 'column2',
-  `c3` int(11) NOT NULL COMMENT 'column3',
+  `c1` int DEFAULT '12' COMMENT 'column1',
+  `c2` int DEFAULT NULL COMMENT 'column2',
+  `c3` int NOT NULL COMMENT 'column3',
   `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
@@ -1217,9 +1217,9 @@ CREATE TABLE t2 AS SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT '12' COMMENT 'column1',
-  `c2` int(11) DEFAULT NULL COMMENT 'column2',
-  `c3` int(11) NOT NULL COMMENT 'column3',
+  `c1` int DEFAULT '12' COMMENT 'column1',
+  `c2` int DEFAULT NULL COMMENT 'column2',
+  `c3` int NOT NULL COMMENT 'column3',
   `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
@@ -1933,22 +1933,22 @@ CREATE TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= COMPRESSED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `fl1` int(11) DEFAULT NULL
+  `fl1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 # Test with show_create_table_verbosity enabled.
 # Row format used is displayed for all tables.
@@ -1956,22 +1956,22 @@ SET SESSION show_create_table_verbosity= ON;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `fl1` int(11) DEFAULT NULL
+  `fl1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SET GLOBAL innodb_default_row_format= 'DYNAMIC';
 SET SESSION show_create_table_verbosity= OFF;
@@ -1987,22 +1987,22 @@ CREATE TEMPORARY TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= REDUNDANT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TEMPORARY TABLE `t4` (
-  `fl1` int(11) DEFAULT NULL
+  `fl1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 # Test with show_create_table_verbosity enabled.
 # Row format used is displayed for all tables.
@@ -2010,22 +2010,22 @@ SET SESSION show_create_table_verbosity= ON;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `fld1` int(11) DEFAULT NULL
+  `fld1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TEMPORARY TABLE `t4` (
-  `fl1` int(11) DEFAULT NULL
+  `fl1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 # Clean up.
 DROP TABLE t1, t2, t3, t4;
@@ -2171,7 +2171,7 @@ CREATE TABLE t4(i INT PRIMARY KEY) AS SELECT * FROM t3;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `I` int(11) NOT NULL,
+  `I` int NOT NULL,
   PRIMARY KEY (`I`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Drop and add PK in same ALTER statement should be ok
@@ -2209,7 +2209,7 @@ CREATE TABLE t3 AS SELECT now();
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fld1` int(11) DEFAULT NULL,
+  `fld1` int DEFAULT NULL,
   `fld2` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
@@ -2228,7 +2228,7 @@ CREATE TABLE t3 AS SELECT now();
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fld1` int(11) DEFAULT NULL,
+  `fld1` int DEFAULT NULL,
   `fld2` date NOT NULL DEFAULT '0000-00-00'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
@@ -2261,7 +2261,7 @@ INSERT INTO t1 VALUES (1, '1111:11:11');
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `fld1` int(11) DEFAULT NULL,
+  `fld1` int DEFAULT NULL,
   `fld2` datetime DEFAULT '1211-01-01 00:00:00'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -2785,3 +2785,165 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
 DROP TABLE types;
+#
+# WL#13528: Remove integer display width from SHOW CREATE output
+#
+CREATE TABLE t1(
+a TINYINT,
+b SMALLINT,
+c MEDIUMINT,
+d INT,
+e BIGINT,
+f TINYINT(1),
+g SMALLINT(1),
+h MEDIUMINT(1),
+i INT(1),
+j BIGINT(1),
+k TINYINT ZEROFILL,
+l SMALLINT ZEROFILL,
+m MEDIUMINT ZEROFILL,
+n INT ZEROFILL,
+o BIGINT ZEROFILL
+);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` tinyint DEFAULT NULL,
+  `b` smallint DEFAULT NULL,
+  `c` mediumint DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` bigint DEFAULT NULL,
+  `f` tinyint DEFAULT NULL,
+  `g` smallint DEFAULT NULL,
+  `h` mediumint DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` bigint DEFAULT NULL,
+  `k` tinyint(3) unsigned zerofill DEFAULT NULL,
+  `l` smallint(5) unsigned zerofill DEFAULT NULL,
+  `m` mediumint(8) unsigned zerofill DEFAULT NULL,
+  `n` int(10) unsigned zerofill DEFAULT NULL,
+  `o` bigint(20) unsigned zerofill DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+COLUMN_TYPE
+tinyint
+smallint
+mediumint
+int
+bigint
+tinyint
+smallint
+mediumint
+int
+bigint
+tinyint(3) unsigned zerofill
+smallint(5) unsigned zerofill
+mediumint(8) unsigned zerofill
+int(10) unsigned zerofill
+bigint(20) unsigned zerofill
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint	YES		NULL	
+b	smallint	YES		NULL	
+c	mediumint	YES		NULL	
+d	int	YES		NULL	
+e	bigint	YES		NULL	
+f	tinyint	YES		NULL	
+g	smallint	YES		NULL	
+h	mediumint	YES		NULL	
+i	int	YES		NULL	
+j	bigint	YES		NULL	
+k	tinyint(3) unsigned zerofill	YES		NULL	
+l	smallint(5) unsigned zerofill	YES		NULL	
+m	mediumint(8) unsigned zerofill	YES		NULL	
+n	int(10) unsigned zerofill	YES		NULL	
+o	bigint(20) unsigned zerofill	YES		NULL	
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+COLUMN_TYPE
+tinyint
+smallint
+mediumint
+int
+bigint
+tinyint
+smallint
+mediumint
+int
+bigint
+tinyint(3) unsigned zerofill
+smallint(5) unsigned zerofill
+mediumint(8) unsigned zerofill
+int(10) unsigned zerofill
+bigint(20) unsigned zerofill
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint	YES		NULL	
+b	smallint	YES		NULL	
+c	mediumint	YES		NULL	
+d	int	YES		NULL	
+e	bigint	YES		NULL	
+f	tinyint	YES		NULL	
+g	smallint	YES		NULL	
+h	mediumint	YES		NULL	
+i	int	YES		NULL	
+j	bigint	YES		NULL	
+k	tinyint(3) unsigned zerofill	YES		NULL	
+l	smallint(5) unsigned zerofill	YES		NULL	
+m	mediumint(8) unsigned zerofill	YES		NULL	
+n	int(10) unsigned zerofill	YES		NULL	
+o	bigint(20) unsigned zerofill	YES		NULL	
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE FUNCTION f1(a INT) RETURNS INT RETURN 1;
+CREATE FUNCTION f2(a INT ZEROFILL) RETURNS INT ZEROFILL RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(a INT) RETURNS int
+RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f2;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`(a INT ZEROFILL) RETURNS int(10) unsigned zerofill
+RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+DTD_IDENTIFIER
+int
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f2';
+DTD_IDENTIFIER
+int(10) unsigned zerofill
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+DTD_IDENTIFIER
+int
+int
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f2';
+DTD_IDENTIFIER
+int(10) unsigned zerofill
+int(10) unsigned zerofill
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+CREATE PROCEDURE p1(a INT, b INT ZEROFILL) BEGIN END;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a INT, b INT ZEROFILL)
+BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+DTD_IDENTIFIER
+int
+int(10) unsigned zerofill
+DROP PROCEDURE p1;

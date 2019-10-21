@@ -92,7 +92,7 @@ create table İ (s1 int);
 show create table İ;
 Table	Create Table
 İ	CREATE TABLE `i` (
-  `s1` int(11) DEFAULT NULL
+  `s1` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show tables;
 Tables_in_test
@@ -102,7 +102,7 @@ create table İİ (s1 int);
 show create table İİ;
 Table	Create Table
 İİ	CREATE TABLE `ii` (
-  `s1` int(11) DEFAULT NULL
+  `s1` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show tables;
 Tables_in_test

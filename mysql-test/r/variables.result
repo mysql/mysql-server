@@ -705,11 +705,11 @@ c5 bigint);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
-  `c2` smallint(6) DEFAULT NULL,
-  `c3` mediumint(9) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
-  `c5` bigint(20) DEFAULT NULL
+  `c1` tinyint DEFAULT NULL,
+  `c2` smallint DEFAULT NULL,
+  `c3` mediumint DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  `c5` bigint DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @arg00= 8, @arg01= 8.8, @arg02= 'a string', @arg03= 0.2e0;
@@ -717,7 +717,7 @@ create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3, @arg03 as c4
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` decimal(65,30) DEFAULT NULL,
   `c3` longtext,
   `c4` double DEFAULT NULL
@@ -1569,7 +1569,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(1) unsigned NOT NULL DEFAULT '0'
+  `a` int unsigned NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET @@global.max_binlog_cache_size=DEFAULT;

@@ -182,7 +182,7 @@ SUBPARTITION subp7));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)
@@ -676,7 +676,7 @@ ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)
@@ -994,7 +994,7 @@ CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)
@@ -1085,7 +1085,7 @@ Handler_write	21
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)
@@ -1117,7 +1117,7 @@ a	b
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)
@@ -1146,7 +1146,7 @@ a	b
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(64) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t3;
@@ -1634,7 +1634,7 @@ SUBPARTITION subp14));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`,`a`)

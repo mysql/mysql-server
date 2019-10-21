@@ -46,47 +46,47 @@ Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	
 e1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_DB2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_DB2"() RETURNS int(11)
+f_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_DB2"() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_MAXDB;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_MAXDB"() RETURNS int(11)
+f_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_MAXDB"() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_MSSQL;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_MSSQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_MSSQL"() RETURNS int(11)
+f_MSSQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_MSSQL"() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_MYSQL323;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_MYSQL323	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` FUNCTION `f_MYSQL323`() RETURNS int(11)
+f_MYSQL323	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` FUNCTION `f_MYSQL323`() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_MYSQL40;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_MYSQL40	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` FUNCTION `f_MYSQL40`() RETURNS int(11)
+f_MYSQL40	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` FUNCTION `f_MYSQL40`() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_NO_FIELD_OPTIONS;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_NO_FIELD_OPTIONS		CREATE DEFINER=`root`@`localhost` FUNCTION `f_NO_FIELD_OPTIONS`() RETURNS int(11)
+f_NO_FIELD_OPTIONS		CREATE DEFINER=`root`@`localhost` FUNCTION `f_NO_FIELD_OPTIONS`() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_NO_KEY_OPTIONS;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_NO_KEY_OPTIONS		CREATE DEFINER=`root`@`localhost` FUNCTION `f_NO_KEY_OPTIONS`() RETURNS int(11)
+f_NO_KEY_OPTIONS		CREATE DEFINER=`root`@`localhost` FUNCTION `f_NO_KEY_OPTIONS`() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_NO_TABLE_OPTIONS;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_NO_TABLE_OPTIONS		CREATE DEFINER=`root`@`localhost` FUNCTION `f_NO_TABLE_OPTIONS`() RETURNS int(11)
+f_NO_TABLE_OPTIONS		CREATE DEFINER=`root`@`localhost` FUNCTION `f_NO_TABLE_OPTIONS`() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_ORACLE;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_ORACLE"() RETURNS int(11)
+f_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_ORACLE"() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_POSTGRESQL;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_POSTGRESQL"() RETURNS int(11)
+f_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_POSTGRESQL"() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER="root"@"localhost" FUNCTION "f1"() RETURNS int(11)
+f1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER="root"@"localhost" FUNCTION "f1"() RETURNS int
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1.p_DB2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation

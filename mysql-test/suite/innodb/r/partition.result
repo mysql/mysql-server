@@ -340,7 +340,7 @@ ENGINE=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col_1_int` int(11) DEFAULT NULL,
+  `col_1_int` int DEFAULT NULL,
   `col_2_text` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #insert two records in t1
@@ -361,8 +361,8 @@ PARTITION BY KEY(col_1_int) partitions 5;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col_1_int` int(11) NOT NULL,
-  `col_2_int` int(11) DEFAULT NULL,
+  `col_1_int` int NOT NULL,
+  `col_2_int` int DEFAULT NULL,
   `col_3_text` text NOT NULL,
   PRIMARY KEY (`col_1_int`,`col_3_text`(100)),
   KEY `idx1` (`col_2_int`,`col_1_int`)
@@ -398,7 +398,7 @@ ENGINE=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col_1_int` int(11) DEFAULT NULL,
+  `col_1_int` int DEFAULT NULL,
   `col_2_text` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #insert two records in t1
@@ -419,8 +419,8 @@ PARTITION BY KEY(col_2_int) partitions 5;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col_1_int` int(11) NOT NULL,
-  `col_2_int` int(11) NOT NULL,
+  `col_1_int` int NOT NULL,
+  `col_2_int` int NOT NULL,
   `col_3_text` text,
   PRIMARY KEY (`col_2_int`,`col_1_int`),
   KEY `idx1` (`col_1_int`,`col_3_text`(100))
@@ -486,7 +486,7 @@ ALTER TABLE t1 CHANGE col1 col1 INT UNSIGNED AUTO_INCREMENT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `col1` int unsigned NOT NULL AUTO_INCREMENT,
   `col2` char(10) DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

@@ -36,15 +36,15 @@ ENGINE=InnoDB;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
   KEY `idx` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `ind` (`b`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -543,7 +543,7 @@ CREATE TABLE `......................................`
 SHOW CREATE TABLE `......................................`;
 Table	Create Table
 ......................................	CREATE TABLE `......................................` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `......................................_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

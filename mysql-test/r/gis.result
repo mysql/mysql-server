@@ -10,35 +10,35 @@ CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMET
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
 (101, ST_PointFromText('POINT(10 10)')),
@@ -431,7 +431,7 @@ mln	multilinestring	YES		NULL
 mpg	multipolygon	YES		NULL	
 gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
-fid	int(11)	NO		NULL	
+fid	int	NO		NULL	
 DROP TABLE t1;
 SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))
@@ -1024,7 +1024,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 create view v1 as select * from t1;
 desc v1;
 Field	Type	Null	Key	Default	Extra
-f1	tinyint(1)	YES		NULL	
+f1	tinyint	YES		NULL	
 f2	char(1)	YES		NULL	
 f3	varchar(1)	YES		NULL	
 f4	geometry	YES		NULL	
@@ -2433,7 +2433,7 @@ ALTER TABLE t1 ADD COLUMN g5 GEOMETRY NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` geometry NOT NULL,
   `g2` geometry NOT NULL,
   `g3` geometry NOT NULL,
@@ -2456,7 +2456,7 @@ ERROR 22004: Invalid use of NULL value
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
@@ -2467,7 +2467,7 @@ ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` geometry NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, ST_ASTEXT(g) FROM t1;
@@ -2485,7 +2485,7 @@ ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` geometry NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -2508,7 +2508,7 @@ SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `h` geometry NOT NULL,
   `h2` geometry NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2523,8 +2523,8 @@ ALTER TABLE t1 ADD COLUMN g INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `g` int(11) DEFAULT NULL
+  `i` int NOT NULL,
+  `g` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
@@ -2538,7 +2538,7 @@ ERROR 22004: Invalid use of NULL value
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
@@ -2554,8 +2554,8 @@ ALTER TABLE t1 ADD COLUMN g INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `g` int(11) DEFAULT NULL
+  `i` int NOT NULL,
+  `g` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
@@ -2577,8 +2577,8 @@ SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `g` int(11) DEFAULT NULL
+  `i` int NOT NULL,
+  `g` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
@@ -2593,8 +2593,8 @@ ALTER TABLE t1 ADD COLUMN g INT DEFAULT 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `g` int(11) DEFAULT '1'
+  `i` int NOT NULL,
+  `g` int DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
@@ -2606,8 +2606,8 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `g` int(11) DEFAULT '1'
+  `i` int NOT NULL,
+  `g` int DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
 i	g
@@ -2627,8 +2627,8 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `g` int(11) DEFAULT '1'
+  `i` int NOT NULL,
+  `g` int DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 i	g
@@ -2643,7 +2643,7 @@ ALTER TABLE t1 ADD COLUMN g VARCHAR(20) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` varchar(20) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
@@ -2656,7 +2656,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` varchar(20) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
@@ -2673,7 +2673,7 @@ ALTER TABLE t1 ADD COLUMN g VARCHAR(20) NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` varchar(20) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;
@@ -2686,7 +2686,7 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` varchar(20) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT i, g FROM t1;

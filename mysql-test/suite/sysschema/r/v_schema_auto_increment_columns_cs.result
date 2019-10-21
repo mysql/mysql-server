@@ -5,10 +5,10 @@ table_name	varchar(64)	NO		NULL
 column_name	varchar(64)	YES		NULL	
 data_type	longtext	YES		NULL	
 column_type	mediumtext	NO		NULL	
-is_signed	int(1)	NO		0	
-is_unsigned	int(1)	NO		0	
-max_value	bigint(21) unsigned	YES		NULL	
-auto_increment	bigint(21) unsigned	YES		NULL	
+is_signed	int	NO		0	
+is_unsigned	int	NO		0	
+max_value	bigint unsigned	YES		NULL	
+auto_increment	bigint unsigned	YES		NULL	
 auto_increment_ratio	decimal(25,4) unsigned	YES		NULL	
 SELECT * FROM sys.schema_auto_increment_columns;
 CREATE DATABASE auto_incs;
@@ -160,14 +160,14 @@ Table	Op	Msg_type	Msg_text
 auto_incs.bigintcolunsigned	analyze	status	OK
 SELECT * FROM sys.schema_auto_increment_columns;
 table_schema	table_name	column_name	data_type	column_type	is_signed	is_unsigned	max_value	auto_increment	auto_increment_ratio
-auto_incs	tinyintcol	id	tinyint	tinyint(4)	1	0	127	28	0.2205
-auto_incs	tinyintcolunsigned	id	tinyint	tinyint(3) unsigned	0	1	255	32	0.1255
-auto_incs	smallintcol	id	smallint	smallint(6)	1	0	32767	4085	0.1247
-auto_incs	smallintcolunsigned	id	smallint	smallint(5) unsigned	0	1	65535	4096	0.0625
-auto_incs	mediumintcol	id	mediumint	mediumint(9)	1	0	8388607	262126	0.0312
-auto_incs	mediumintcolunsigned	id	mediumint	mediumint(8) unsigned	0	1	16777215	196606	0.0117
-auto_incs	intcol	id	int	int(11)	1	0	2147483647	262126	0.0001
-auto_incs	intcolunsigned	id	int	int(10) unsigned	0	1	4294967295	196606	0.0000
-auto_incs	bigintcol	id	bigint	bigint(20)	1	0	9223372036854775807	262126	0.0000
-auto_incs	bigintcolunsigned	id	bigint	bigint(20) unsigned	0	1	18446744073709551615	196606	0.0000
+auto_incs	tinyintcol	id	tinyint	tinyint	1	0	127	28	0.2205
+auto_incs	tinyintcolunsigned	id	tinyint	tinyint unsigned	0	1	255	32	0.1255
+auto_incs	smallintcol	id	smallint	smallint	1	0	32767	4085	0.1247
+auto_incs	smallintcolunsigned	id	smallint	smallint unsigned	0	1	65535	4096	0.0625
+auto_incs	mediumintcol	id	mediumint	mediumint	1	0	8388607	262126	0.0312
+auto_incs	mediumintcolunsigned	id	mediumint	mediumint unsigned	0	1	16777215	196606	0.0117
+auto_incs	intcol	id	int	int	1	0	2147483647	262126	0.0001
+auto_incs	intcolunsigned	id	int	int unsigned	0	1	4294967295	196606	0.0000
+auto_incs	bigintcol	id	bigint	bigint	1	0	9223372036854775807	262126	0.0000
+auto_incs	bigintcolunsigned	id	bigint	bigint unsigned	0	1	18446744073709551615	196606	0.0000
 DROP DATABASE auto_incs;

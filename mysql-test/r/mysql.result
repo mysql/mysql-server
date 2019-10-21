@@ -90,21 +90,21 @@ drop table t1;
 i	j	k
 NULL	1	NULL
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
-j	int(11)	NO		NULL	
-k	int(11)	YES		NULL	
+i	int	YES		NULL	
+j	int	NO		NULL	
+k	int	YES		NULL	
 +------+---+------+
 | i    | j | k    |
 +------+---+------+
 | NULL | 1 | NULL |
 +------+---+------+
-+-------+---------+------+-----+---------+-------+
-| Field | Type    | Null | Key | Default | Extra |
-+-------+---------+------+-----+---------+-------+
-| i     | int(11) | YES  |     | NULL    |       |
-| j     | int(11) | NO   |     | NULL    |       |
-| k     | int(11) | YES  |     | NULL    |       |
-+-------+---------+------+-----+---------+-------+
++-------+------+------+-----+---------+-------+
+| Field | Type | Null | Key | Default | Extra |
++-------+------+------+-----+---------+-------+
+| i     | int  | YES  |     | NULL    |       |
+| j     | int  | NO   |     | NULL    |       |
+| k     | int  | YES  |     | NULL    |       |
++-------+------+------+-----+---------+-------+
 i	s1
 1	x
 2	NULL
@@ -125,13 +125,13 @@ NULL
 +--------------+
 create table t1(a int, b varchar(255), c int);
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
-c	int(11)	YES		NULL	
+c	int	YES		NULL	
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
-c	int(11)	YES		NULL	
+c	int	YES		NULL	
 drop table t1;
 ERROR 1059 (42000) at line 1: Identifier name 'verylongdatabasenamethatshouldblowthe256byteslongbufferincom_connectfunctionxkxkxkxkxkxkxkxkxkxkxkxk' is too long
 1

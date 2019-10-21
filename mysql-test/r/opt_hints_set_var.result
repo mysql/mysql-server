@@ -204,13 +204,13 @@ CREATE TEMPORARY TABLE t1 SELECT 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `1` int(1) NOT NULL DEFAULT '0'
+  `1` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=InnoDB)*/ 1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `1` int(1) NOT NULL DEFAULT '0'
+  `1` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 CALL test_hint("SET_VAR(default_tmp_storage_engine=InnoDB)", "default_tmp_storage_engine");

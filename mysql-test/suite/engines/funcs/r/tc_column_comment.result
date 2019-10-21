@@ -18,7 +18,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL COMMENT 'This is a TINYINT column'
+  `c1` tinyint DEFAULT NULL COMMENT 'This is a TINYINT column'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
@@ -30,7 +30,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) DEFAULT NULL COMMENT 'This is a SMALLINT column'
+  `c1` smallint DEFAULT NULL COMMENT 'This is a SMALLINT column'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
@@ -42,7 +42,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL COMMENT 'This is a MEDIUMINT column'
+  `c1` mediumint DEFAULT NULL COMMENT 'This is a MEDIUMINT column'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
@@ -54,7 +54,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL COMMENT 'This is a INT column'
+  `c1` int DEFAULT NULL COMMENT 'This is a INT column'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
@@ -66,7 +66,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL COMMENT 'This is a INTEGER column'
+  `c1` int DEFAULT NULL COMMENT 'This is a INTEGER column'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;
@@ -78,7 +78,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL COMMENT 'This is a BIGINT column'
+  `c1` bigint DEFAULT NULL COMMENT 'This is a BIGINT column'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SHOW TABLES;

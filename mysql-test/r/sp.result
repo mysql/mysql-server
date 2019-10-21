@@ -819,7 +819,7 @@ comment 'Characteristics procedure test'
   return 42|
 show create function chistics|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int
     DETERMINISTIC
     SQL SECURITY INVOKER
     COMMENT 'Characteristics procedure test'
@@ -832,7 +832,7 @@ no sql
 comment 'Characteristics function test'|
 show create function chistics|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int(11)
+chistics	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `chistics`() RETURNS int
     NO SQL
     DETERMINISTIC
     SQL SECURITY INVOKER
@@ -1916,7 +1916,7 @@ show procedure status where db='test';
 end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call bug2267_4()|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int(11)
+bug2267_4		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2267_4`() RETURNS int
 return 100	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2267_1|
 drop procedure bug2267_2|
@@ -2233,11 +2233,11 @@ bug2564_2	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" PROCEDURE "bug2564_2"()
 insert into "t1" values ('foo', 1)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int(11)
+bug2564_3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug2564_3`(x int, y int) RETURNS int
 return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function bug2564_4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int(11)
+bug2564_4	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI	CREATE DEFINER="root"@"localhost" FUNCTION "bug2564_4"(x int, y int) RETURNS int
 return x || y	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug2564_1|
 drop procedure bug2564_2|
@@ -2305,7 +2305,7 @@ create table t3 as select bug2773()|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `bug2773()` int(11) DEFAULT NULL
+  `bug2773()` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t3|
 drop function bug2773|
@@ -2365,7 +2365,7 @@ Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
-  `data` int(11) NOT NULL
+  `data` int NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Database	Create Database
 test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
@@ -2373,7 +2373,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO		NULL	
+data	int	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 Database	Table	In_use	Name_locked
 Variable_name	Value
@@ -2386,7 +2386,7 @@ Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` char(16) NOT NULL DEFAULT '',
-  `data` int(11) NOT NULL
+  `data` int NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Database	Create Database
 test	CREATE DATABASE `test` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
@@ -2394,7 +2394,7 @@ Database (foo)
 Level	Code	Message
 Field	Type	Null	Key	Default	Extra
 id	char(16)	NO			
-data	int(11)	NO		NULL	
+data	int	NO		NULL	
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 Database	Table	In_use	Name_locked
 Variable_name	Value
@@ -3887,7 +3887,7 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create function bug14723;;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint(20)
+bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint
 main_loop: begin
 return 42;
 end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -4797,7 +4797,7 @@ create table t3 as select bug12472() as i|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3|
 i
@@ -4808,7 +4808,7 @@ create table t3 as select * from v1|
 show create table t3|
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `j` int(11) DEFAULT NULL
+  `j` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t3|
 j
@@ -6060,14 +6060,14 @@ insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807,
 show create table examplebug20777;
 Table	Create Table
 examplebug20777	CREATE TABLE `examplebug20777` (
-  `i` int(1) NOT NULL DEFAULT '0',
-  `2**63-2` bigint(20) unsigned DEFAULT NULL,
-  `2**63-1` bigint(20) unsigned DEFAULT NULL,
-  `2**63` bigint(20) unsigned DEFAULT NULL,
-  `2**63+1` bigint(20) unsigned DEFAULT NULL,
-  `2**64-2` bigint(20) unsigned DEFAULT NULL,
-  `2**64-1` bigint(20) unsigned DEFAULT NULL,
-  `2**64` bigint(20) unsigned DEFAULT NULL
+  `i` int NOT NULL DEFAULT '0',
+  `2**63-2` bigint unsigned DEFAULT NULL,
+  `2**63-1` bigint unsigned DEFAULT NULL,
+  `2**63` bigint unsigned DEFAULT NULL,
+  `2**63+1` bigint unsigned DEFAULT NULL,
+  `2**64-2` bigint unsigned DEFAULT NULL,
+  `2**64-1` bigint unsigned DEFAULT NULL,
+  `2**64` bigint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from examplebug20777 order by i;
 i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64
@@ -6468,7 +6468,7 @@ CALL p2(10);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` bigint(11) DEFAULT NULL
+  `v` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
@@ -6479,7 +6479,7 @@ Warning	1366	Incorrect integer value: 'text' for column 'v' at row 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` bigint(11) DEFAULT NULL
+  `v` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE t1;
@@ -7935,20 +7935,20 @@ ERROR 42S02: Table 'mysql.proc' doesn't exist
 # Metadata of stored function f1.
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-f1	def	test	f1	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+f1	def	test	f1	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int	SQL	return 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	test	f1	0	NULL	NULL	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
-def	test	f1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
+def	test	f1	0	NULL	NULL	int	NULL	NULL	10	0	NULL	NULL	NULL	int	FUNCTION
+def	test	f1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int	FUNCTION
 # Metadata of stored procedure p1.
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'p1';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 p1	def	test	p1	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	select 1	NULL	SQL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION		root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
-def	test	p1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
-def	test	p1	2	INOUT	b	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
-def	test	p1	3	OUT	c	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
+def	test	p1	1	IN	a	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PROCEDURE
+def	test	p1	2	INOUT	b	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PROCEDURE
+def	test	p1	3	OUT	c	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PROCEDURE
 # Basic test to cover "READS SQL DATA" in ALTER operation.
 ALTER FUNCTION f1 READS SQL DATA;
 DROP FUNCTION f1;

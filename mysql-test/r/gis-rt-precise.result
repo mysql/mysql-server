@@ -7,7 +7,7 @@ SPATIAL KEY(g)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `fid` int NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
@@ -42,7 +42,7 @@ ALTER TABLE t1 ADD SPATIAL KEY(g);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fid` int(11) NOT NULL AUTO_INCREMENT,
+  `fid` int NOT NULL AUTO_INCREMENT,
   `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)

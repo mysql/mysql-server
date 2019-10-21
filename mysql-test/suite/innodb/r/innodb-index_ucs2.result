@@ -14,8 +14,8 @@ a	b	c	d
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -46,8 +46,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -109,8 +109,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),

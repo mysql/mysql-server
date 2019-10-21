@@ -104,7 +104,7 @@ c1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LINEAR HASH (`c1`)
 PARTITIONS 15 */
@@ -230,9 +230,9 @@ insert into t1 values (1,1,1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH ((`a` + 2))
@@ -279,9 +279,9 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH ((`a` + 3))
@@ -359,7 +359,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -374,7 +374,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -389,7 +389,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -404,7 +404,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -419,7 +419,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -434,7 +434,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -449,7 +449,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -464,7 +464,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -479,7 +479,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -494,7 +494,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -509,7 +509,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -524,7 +524,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -539,7 +539,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -554,7 +554,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -569,7 +569,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -584,7 +584,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -599,7 +599,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -614,7 +614,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -629,7 +629,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -644,7 +644,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -659,7 +659,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -674,7 +674,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -689,7 +689,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -704,7 +704,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -719,7 +719,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -734,7 +734,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -749,7 +749,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -764,7 +764,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -779,7 +779,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -794,7 +794,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -809,7 +809,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -824,7 +824,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -839,7 +839,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -854,7 +854,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -869,7 +869,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -884,7 +884,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -899,7 +899,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -914,7 +914,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -929,7 +929,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -944,7 +944,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -959,7 +959,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -974,7 +974,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -989,7 +989,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1004,7 +1004,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1019,7 +1019,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1034,7 +1034,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1049,7 +1049,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1064,7 +1064,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1079,7 +1079,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1094,7 +1094,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1109,7 +1109,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1124,7 +1124,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1139,7 +1139,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1154,7 +1154,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1169,7 +1169,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1184,7 +1184,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1199,7 +1199,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1214,7 +1214,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1229,7 +1229,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1244,7 +1244,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1259,7 +1259,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1274,7 +1274,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) DEFAULT NULL,
+  `c1` smallint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1289,7 +1289,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1304,7 +1304,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1319,7 +1319,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1334,7 +1334,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1349,7 +1349,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1364,7 +1364,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1379,7 +1379,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1394,7 +1394,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1409,7 +1409,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1424,7 +1424,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1442,7 +1442,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) DEFAULT NULL,
+  `c1` tinyint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1457,7 +1457,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) DEFAULT NULL,
+  `c1` mediumint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1472,7 +1472,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1487,7 +1487,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1502,7 +1502,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) DEFAULT NULL,
+  `c1` bigint DEFAULT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1517,7 +1517,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
+  `c1` tinyint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1532,7 +1532,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
+  `c1` smallint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1547,7 +1547,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
+  `c1` mediumint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1562,7 +1562,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1577,7 +1577,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -1592,7 +1592,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
   `c2` char(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)

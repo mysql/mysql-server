@@ -32,7 +32,7 @@ connection con1;
 # Check that the table t3 was created
 DESCRIBE t3;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 # Test case 4: Check that several statements LOCK INSTANCE FOR BACKUP
 # can be issued from different connections.
 LOCK INSTANCE FOR BACKUP;
@@ -65,7 +65,7 @@ connection default;
 # Check that the table t2 was created after Backup Lock had been released
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 # Test case 5: Check that Backup Lock independent from
 # FLUSH TABLES <table list> WITH READ LOCK
 # Case 5.1: Check that FLUSH TABLES <table list> WITH READ LOCK following with

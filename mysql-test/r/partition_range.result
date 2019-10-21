@@ -183,7 +183,7 @@ ERROR HY000: MAXVALUE can only be used in last partition definition
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
@@ -337,9 +337,9 @@ a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -361,9 +361,9 @@ a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -393,9 +393,9 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION x1 VALUES LESS THAN (5) ENGINE = InnoDB,
@@ -416,9 +416,9 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION x1 VALUES LESS THAN (5) ENGINE = InnoDB,
@@ -448,9 +448,9 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -471,9 +471,9 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -508,9 +508,9 @@ a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -525,10 +525,10 @@ ALTER TABLE t1 ADD COLUMN d int;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -576,9 +576,9 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -776,7 +776,7 @@ partition p1 values less than (10));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned DEFAULT NULL
+  `a` bigint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
@@ -789,7 +789,7 @@ partition p1 values less than (10));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned DEFAULT NULL
+  `a` bigint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (2) ENGINE = InnoDB,

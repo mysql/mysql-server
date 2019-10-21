@@ -60,8 +60,8 @@ CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
@@ -85,8 +85,8 @@ name567890123456789012345678901234567890123456789012345678901234
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `name567890123456789012345678901234567890123456789012345678901234` (`b`),
   CONSTRAINT `name567890123456789012345678901234567890123456789012345678901234` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
@@ -149,7 +149,7 @@ ALTER TABLE t2 RENAME TO t3;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -159,7 +159,7 @@ ALTER TABLE t3 RENAME TO t4, ALGORITHM= INPLACE;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -169,7 +169,7 @@ ALTER TABLE t4 RENAME TO t5;
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -179,7 +179,7 @@ RENAME TABLE t5 to t6;
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   KEY `c1` (`c1`),
   CONSTRAINT `t6_ibfk_1` FOREIGN KEY (`c1`) REFERENCES `t1` (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -534,7 +534,7 @@ CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), fname VAR
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
@@ -542,7 +542,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   `fname` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -557,7 +557,7 @@ SET foreign_key_checks= ON;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
@@ -565,7 +565,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(100) DEFAULT NULL,
   `fname` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -2181,9 +2181,9 @@ CREATE SCHEMA mysqltest;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2201,9 +2201,9 @@ RENAME TABLE t2 TO t3;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2221,9 +2221,9 @@ RENAME TABLE t3 TO mysqltest.t3;
 SHOW CREATE TABLE mysqltest.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2240,9 +2240,9 @@ RENAME TABLE mysqltest.t3 TO t4;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2260,9 +2260,9 @@ ALTER TABLE t4 RENAME TO t5;
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2279,9 +2279,9 @@ ALTER TABLE t5 RENAME TO mysqltest.t5;
 SHOW CREATE TABLE mysqltest.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2298,9 +2298,9 @@ ALTER TABLE mysqltest.t5 RENAME TO t6;
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2318,10 +2318,10 @@ ALTER TABLE t6 ADD COLUMN i INT, RENAME TO t7, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2338,11 +2338,11 @@ ALTER TABLE t7 ADD COLUMN j INT, RENAME TO mysqltest.t7, ALGORITHM=INPLACE;
 SHOW CREATE TABLE mysqltest.t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2359,12 +2359,12 @@ ALTER TABLE mysqltest.t7 ADD COLUMN k INT, RENAME TO t8, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t8;
 Table	Create Table
 t8	CREATE TABLE `t8` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2382,13 +2382,13 @@ ALTER TABLE t8 ADD COLUMN l INT, RENAME TO t9, ALGORITHM=COPY;
 SHOW CREATE TABLE t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2405,14 +2405,14 @@ ALTER TABLE t9 ADD COLUMN m INT, RENAME TO mysqltest.t9, ALGORITHM=COPY;
 SHOW CREATE TABLE mysqltest.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2429,15 +2429,15 @@ ALTER TABLE mysqltest.t9 ADD COLUMN n INT, RENAME TO t10, ALGORITHM=COPY;
 SHOW CREATE TABLE t10;
 Table	Create Table
 t10	CREATE TABLE `t10` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2458,15 +2458,15 @@ RENAME TO t11, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t11;
 Table	Create Table
 t11	CREATE TABLE `t11` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2491,15 +2491,15 @@ RENAME TO mysqltest.t11, ALGORITHM=INPLACE;
 SHOW CREATE TABLE mysqltest.t11;
 Table	Create Table
 t11	CREATE TABLE `t11` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2530,15 +2530,15 @@ RENAME TO t12, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t12;
 Table	Create Table
 t12	CREATE TABLE `t12` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2578,17 +2578,17 @@ RENAME TO t13, ALGORITHM=COPY;
 SHOW CREATE TABLE t13;
 Table	Create Table
 t13	CREATE TABLE `t13` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
-  `o` int(11) DEFAULT NULL,
-  `p` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  `o` int DEFAULT NULL,
+  `p` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2632,19 +2632,19 @@ RENAME TO mysqltest.t13, ALGORITHM=COPY;
 SHOW CREATE TABLE mysqltest.t13;
 Table	Create Table
 t13	CREATE TABLE `t13` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
-  `o` int(11) DEFAULT NULL,
-  `p` int(11) DEFAULT NULL,
-  `q` int(11) DEFAULT NULL,
-  `r` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  `o` int DEFAULT NULL,
+  `p` int DEFAULT NULL,
+  `q` int DEFAULT NULL,
+  `r` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -2694,21 +2694,21 @@ RENAME TO t14, ALGORITHM=COPY;
 SHOW CREATE TABLE t14;
 Table	Create Table
 t14	CREATE TABLE `t14` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
-  `m` int(11) DEFAULT NULL,
-  `n` int(11) DEFAULT NULL,
-  `o` int(11) DEFAULT NULL,
-  `p` int(11) DEFAULT NULL,
-  `q` int(11) DEFAULT NULL,
-  `r` int(11) DEFAULT NULL,
-  `s` int(11) DEFAULT NULL,
-  `t` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
+  `m` int DEFAULT NULL,
+  `n` int DEFAULT NULL,
+  `o` int DEFAULT NULL,
+  `p` int DEFAULT NULL,
+  `q` int DEFAULT NULL,
+  `r` int DEFAULT NULL,
+  `s` int DEFAULT NULL,
+  `t` int DEFAULT NULL,
   KEY `a` (`fk1`),
   KEY `t2_ibfk_1` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -3086,7 +3086,7 @@ CREATE TABLE parent (pkfk INT, FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk` int(11) DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   KEY `pkfk` (`pkfk`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3099,7 +3099,7 @@ ALTER TABLE parent ADD UNIQUE KEY u (pkfk);
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk` int(11) DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   UNIQUE KEY `u` (`pkfk`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3114,8 +3114,8 @@ FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   KEY `fk` (`fk`),
   KEY `pkfk` (`pkfk`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
@@ -3131,8 +3131,8 @@ ALTER TABLE self ADD UNIQUE KEY u (pkfk);
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk` int DEFAULT NULL,
   UNIQUE KEY `u` (`pkfk`),
   KEY `fk` (`fk`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
@@ -3151,8 +3151,8 @@ CREATE TABLE parent (pkfk1 INT, pkfk2 INT, FOREIGN KEY (pkfk1) REFERENCES grandp
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `pkfk1` (`pkfk1`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3165,8 +3165,8 @@ ALTER TABLE parent ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, p
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `pkfk1` (`pkfk1`,`pkfk2`),
   CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`),
   CONSTRAINT `parent_ibfk_2` FOREIGN KEY (`pkfk1`, `pkfk2`) REFERENCES `grandparent2` (`pk1`, `pk2`)
@@ -3182,9 +3182,9 @@ FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `fk` (`fk`),
   KEY `pkfk1` (`pkfk1`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
@@ -3200,9 +3200,9 @@ ALTER TABLE self ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `fk` int(11) DEFAULT NULL,
-  `pkfk1` int(11) DEFAULT NULL,
-  `pkfk2` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `pkfk1` int DEFAULT NULL,
+  `pkfk2` int DEFAULT NULL,
   KEY `fk` (`fk`),
   KEY `pkfk1` (`pkfk1`,`pkfk2`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
@@ -3409,7 +3409,7 @@ ALTER TABLE child ADD KEY fk_s(fk);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `fk_s` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3417,8 +3417,8 @@ ALTER TABLE self ADD KEY fk_s(fk);
 SHOW CREATE TABLE self;
 Table	Create Table
 self	CREATE TABLE `self` (
-  `pk` int(11) NOT NULL,
-  `fk` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `fk` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `fk_s` (`fk`),
   CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pk`)
@@ -4195,27 +4195,27 @@ REFERENCES t1(id) ON DELETE RESTRICT ON UPDATE RESTRICT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t2_fk` (`t1_id`),
   CONSTRAINT `t2_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t3_fk` (`t1_id`),
   CONSTRAINT `t3_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t4_fk` (`t1_id`),
   CONSTRAINT `t4_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4231,27 +4231,27 @@ DROP TABLE t1, t2, t3, t4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t2_fk` (`t1_id`),
   CONSTRAINT `t2_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t3_fk` (`t1_id`),
   CONSTRAINT `t3_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `t1_id` int(11) NOT NULL,
+  `t1_id` int NOT NULL,
   KEY `t4_fk` (`t1_id`),
   CONSTRAINT `t4_fk` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4485,14 +4485,14 @@ CREATE TABLE t3 (t1id INT, FOREIGN KEY fk_index (t1id) REFERENCES t1 (id));
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t1id` int(11) DEFAULT NULL,
+  `t1id` int DEFAULT NULL,
   KEY `fk_index` (`t1id`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `t1id` int(11) DEFAULT NULL,
+  `t1id` int DEFAULT NULL,
   KEY `fk_index` (`t1id`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`t1id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4512,10 +4512,10 @@ CONSTRAINT e FOREIGN KEY f (fk4) REFERENCES t1 (id));
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
   KEY `fk1` (`fk1`),
   KEY `c` (`fk2`),
   KEY `d` (`fk3`),
@@ -4545,8 +4545,8 @@ INSERT INTO child VALUES (1, 1);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4558,8 +4558,8 @@ ALTER TABLE child MODIFY COLUMN b BIGINT, RENAME TO child_renamed, ALGORITHM=COP
 SHOW CREATE TABLE child_renamed;
 Table	Create Table
 child_renamed	CREATE TABLE `child_renamed` (
-  `fk` int(11) DEFAULT NULL,
-  `b` bigint(20) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `b` bigint DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `child_renamed_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4590,8 +4590,8 @@ SET FOREIGN_KEY_CHECKS=1;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `parent_id` int(11) DEFAULT NULL,
-  `uncle_id` int(11) DEFAULT NULL,
+  `parent_id` int DEFAULT NULL,
+  `uncle_id` int DEFAULT NULL,
   KEY `parent_id` (`parent_id`),
   KEY `uncle_id` (`uncle_id`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `parent` (`id`),
@@ -4718,8 +4718,8 @@ ERROR HY000: Cannot drop index 'k1': needed in a foreign key constraint
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
   KEY `k1` (`fk1`),
   KEY `b` (`fk2`),
   CONSTRAINT `a` FOREIGN KEY (`fk1`) REFERENCES `t1` (`pk`),
@@ -4736,8 +4736,8 @@ EXECUTE stmt1;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
-  `a` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4748,8 +4748,8 @@ EXECUTE stmt1;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fkold` int(11) DEFAULT NULL,
-  `fk` int(11) DEFAULT NULL,
+  `fkold` int DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `fk` (`fkold`),
   KEY `fk_2` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fkold`) REFERENCES `parent` (`pk`),
@@ -4856,7 +4856,7 @@ CREATE TABLE child (fk INT, CONSTRAINT c1 FOREIGN KEY (fk) REFERENCES parent (id
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `c1` (`fk`),
   CONSTRAINT `c1` FOREIGN KEY (`fk`) REFERENCES `parent` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4867,7 +4867,7 @@ ALTER TABLE child ADD CONSTRAINT c2 FOREIGN KEY (fk) REFERENCES parent /*! (id) 
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `c2` (`fk`),
   CONSTRAINT `c2` FOREIGN KEY (`fk`) REFERENCES `parent` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4881,7 +4881,7 @@ CREATE TABLE parent (pk INT PRIMARY KEY);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4891,7 +4891,7 @@ CREATE TABLE child (fk INT);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

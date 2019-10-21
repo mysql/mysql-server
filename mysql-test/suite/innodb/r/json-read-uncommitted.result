@@ -2,7 +2,7 @@ create table t1 (f1 int primary key, f2 json) row_format=redundant;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f2` json DEFAULT NULL,
   PRIMARY KEY (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT

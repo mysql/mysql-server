@@ -96,7 +96,7 @@ INSERT INTO `t !@#$%^&*()_+-={}[]|\?<>,.` VALUES(1,'one');
 SHOW CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.`;
 Table	Create Table
 t !@#$%^&*()_+-={}[]|\?<>,.	CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2` (
@@ -108,7 +108,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.`;
 Table	Create Table
 t !@#$%^&*()_+-={}[]|\?<>,.	CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `t !@#$%^&*()_+-={}[]|\?<>,.2`;
@@ -118,7 +118,7 @@ INSERT INTO `#sql_1` VALUES(1,'one');
 SHOW CREATE TABLE `#sql_1`;
 Table	Create Table
 #sql_1	CREATE TABLE `#sql_1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `#sql_1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLESPACE `s_Cöŀumň` ADD DATAFILE 's_utf8_a.ibd';
@@ -126,7 +126,7 @@ CREATE TABLE `t_utf8_1` (a int, b text) TABLESPACE `s_Cöŀumň`;
 SHOW CREATE TABLE `t_utf8_1`;
 Table	Create Table
 t_utf8_1	CREATE TABLE `t_utf8_1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `s_Cöŀumň` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLESPACE `s_cöĿǖmň` ADD DATAFILE 's_utf8_b.ibd';
@@ -134,7 +134,7 @@ CREATE TABLE `t_utf8_2` (a int, b text) TABLESPACE `s_cöĿǖmň`;
 SHOW CREATE TABLE `t_utf8_2`;
 Table	Create Table
 t_utf8_2	CREATE TABLE `t_utf8_2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `s_cöĿǖmň` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLESPACE `s_😲` ADD DATAFILE 's_utf8_c.ibd';
@@ -146,7 +146,7 @@ CREATE TABLE `t_utf8_3` (a int, b text) TABLESPACE `s_வணக்கம்`;
 SHOW CREATE TABLE `t_utf8_3`;
 Table	Create Table
 t_utf8_3	CREATE TABLE `t_utf8_3` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `s_வணக்கம்` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 === information_schema.innodb_tablespaces and innodb_datafiles ===
@@ -592,7 +592,7 @@ CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY=
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/'
 # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY
@@ -600,7 +600,7 @@ ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC DATA DIRECTORY='MYSQL_TMP_DIR/'
 DROP TABLE t4;
@@ -730,25 +730,25 @@ t_red_as_file_per_table.ibd
 SHOW CREATE TABLE t_red_as_file_per_table;
 Table	Create Table
 t_red_as_file_per_table	CREATE TABLE `t_red_as_file_per_table` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SHOW CREATE TABLE t_com_as_file_per_table;
 Table	Create Table
 t_com_as_file_per_table	CREATE TABLE `t_com_as_file_per_table` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t_dyn_as_file_per_table;
 Table	Create Table
 t_dyn_as_file_per_table	CREATE TABLE `t_dyn_as_file_per_table` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t_def_as_remote;
 Table	Create Table
 t_def_as_remote	CREATE TABLE `t_def_as_remote` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/'
 #
@@ -968,7 +968,7 @@ a	left(b,50)
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -982,7 +982,7 @@ ALTER TABLE t_in_def ROW_FORMAT=redundant;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -991,7 +991,7 @@ ALTER TABLE t_in_def ROW_FORMAT=dynamic;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1000,9 +1000,9 @@ ALTER TABLE t_in_def ADD COLUMN (c int);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1010,9 +1010,9 @@ ALTER TABLE t_in_def ADD INDEX c (c);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`),
   KEY `c` (`c`)
@@ -1021,9 +1021,9 @@ ALTER TABLE t_in_def DROP INDEX c;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1031,7 +1031,7 @@ ALTER TABLE t_in_def DROP COLUMN c;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1040,7 +1040,7 @@ ALTER TABLE t_in_def AUTO_INCREMENT=100;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1056,7 +1056,7 @@ a	left(b,50)
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1065,7 +1065,7 @@ ALTER TABLE t_in_def CHANGE a aa int;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `b` text,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
@@ -1074,7 +1074,7 @@ ALTER TABLE t_in_def CHANGE b bb varchar(1000);
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
@@ -1083,7 +1083,7 @@ ALTER TABLE t_in_def DROP PRIMARY KEY;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   UNIQUE KEY `a` (`aa`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1091,7 +1091,7 @@ ALTER TABLE t_in_def ADD PRIMARY KEY aa(aa), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`)
@@ -1100,7 +1100,7 @@ ALTER TABLE t_in_def ADD INDEX ab(aa,bb(25)), ALGORITHM=COPY;
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
@@ -1110,7 +1110,7 @@ ALTER TABLE t_in_def ADD INDEX bb(bb(50));
 SHOW CREATE TABLE t_in_def;
 Table	Create Table
 t_in_def	CREATE TABLE `t_in_def` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
@@ -1121,7 +1121,7 @@ RENAME TABLE t_in_def TO t;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
@@ -1165,7 +1165,7 @@ ALTER TABLE t RENAME TO t_nomad, TABLESPACE s_alt1;
 SHOW CREATE TABLE t_nomad;
 Table	Create Table
 t_nomad	CREATE TABLE `t_nomad` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
@@ -1181,7 +1181,7 @@ ALTER TABLE t_nomad TABLESPACE s_alt2;
 SHOW CREATE TABLE t_nomad;
 Table	Create Table
 t_nomad	CREATE TABLE `t_nomad` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   `bb` varchar(1000) DEFAULT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
@@ -1197,7 +1197,7 @@ ALTER TABLE t_nomad TABLESPACE s_def, DROP COLUMN bb;
 SHOW CREATE TABLE t_nomad;
 Table	Create Table
 t_nomad	CREATE TABLE `t_nomad` (
-  `aa` int(11) NOT NULL,
+  `aa` int NOT NULL,
   PRIMARY KEY (`aa`),
   UNIQUE KEY `a` (`aa`),
   KEY `ab` (`aa`)
@@ -1235,7 +1235,7 @@ INSERT INTO t_system(b) VALUES(repeat("a long string - ",50));
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1249,7 +1249,7 @@ ALTER TABLE t_system TABLESPACE s_def;
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1263,7 +1263,7 @@ ALTER TABLE t_system TABLESPACE=`innodb_system`;
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1280,7 +1280,7 @@ ALTER TABLE t_system ROW_FORMAT=redundant;
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1289,7 +1289,7 @@ ALTER TABLE t_system ROW_FORMAT=dynamic;
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1298,9 +1298,9 @@ ALTER TABLE t_system ADD COLUMN (c int);
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1308,9 +1308,9 @@ ALTER TABLE t_system ADD INDEX c (c);
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`),
   KEY `c` (`c`)
@@ -1319,9 +1319,9 @@ ALTER TABLE t_system DROP INDEX c;
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1329,7 +1329,7 @@ ALTER TABLE t_system DROP COLUMN c;
 SHOW CREATE TABLE t_system;
 Table	Create Table
 t_system	CREATE TABLE `t_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1343,7 +1343,7 @@ ALTER TABLE t_system RENAME TO t_still_system;
 SHOW CREATE TABLE t_still_system;
 Table	Create Table
 t_still_system	CREATE TABLE `t_still_system` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1378,7 +1378,7 @@ Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporar
 SHOW CREATE TABLE t_my_temp;
 Table	Create Table
 t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t_my_temp;
@@ -1422,7 +1422,7 @@ INSERT INTO t_single(b) VALUES(repeat("a long string - ",50));
 SHOW CREATE TABLE t_single;
 Table	Create Table
 t_single	CREATE TABLE `t_single` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1436,7 +1436,7 @@ ALTER TABLE t_single TABLESPACE s_def;
 SHOW CREATE TABLE t_single;
 Table	Create Table
 t_single	CREATE TABLE `t_single` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
@@ -1455,8 +1455,8 @@ INSERT INTO t_myisam(b) VALUES(11);
 SHOW CREATE TABLE t_myisam;
 Table	Create Table
 t_myisam	CREATE TABLE `t_myisam` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1465,8 +1465,8 @@ INSERT INTO t_innodb(b) VALUES(22);
 SHOW CREATE TABLE t_innodb;
 Table	Create Table
 t_innodb	CREATE TABLE `t_innodb` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1485,8 +1485,8 @@ a	b
 SHOW CREATE TABLE t_myisam;
 Table	Create Table
 t_myisam	CREATE TABLE `t_myisam` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1495,8 +1495,8 @@ INSERT INTO t_innodb(b) VALUES(44);
 SHOW CREATE TABLE t_innodb;
 Table	Create Table
 t_innodb	CREATE TABLE `t_innodb` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1516,8 +1516,8 @@ INSERT INTO t_dyn_in_s_def(b) VALUES(11);
 SHOW CREATE TABLE t_dyn_in_s_def;
 Table	Create Table
 t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1531,8 +1531,8 @@ INSERT INTO t_dyn_in_s_def(b) VALUES(22);
 SHOW CREATE TABLE t_dyn_in_s_def;
 Table	Create Table
 t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1545,8 +1545,8 @@ INSERT INTO t_dyn_in_s_def(b) VALUES(33);
 SHOW CREATE TABLE t_dyn_in_s_def;
 Table	Create Table
 t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1560,8 +1560,8 @@ INSERT INTO t_dyn_in_s_def(b) VALUES(44);
 SHOW CREATE TABLE t_dyn_in_s_def;
 Table	Create Table
 t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=MEMORY AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1581,8 +1581,8 @@ a	b
 SHOW CREATE TABLE t_dyn_in_s_def;
 Table	Create Table
 t_dyn_in_s_def	CREATE TABLE `t_dyn_in_s_def` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_def` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -1605,8 +1605,8 @@ INSERT INTO t_nomad(b) VALUES(11);
 SHOW CREATE TABLE t_nomad;
 Table	Create Table
 t_nomad	CREATE TABLE `t_nomad` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_short_life` */ ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1620,8 +1620,8 @@ INSERT INTO t_nomad(b) VALUES(22);
 SHOW CREATE TABLE t_nomad;
 Table	Create Table
 t_nomad	CREATE TABLE `t_nomad` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_short_life` */ ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1637,8 +1637,8 @@ ALTER TABLE t_nomad ENGINE=InnoDB TABLESPACE=s_shorter_life;
 SHOW CREATE TABLE t_nomad;
 Table	Create Table
 t_nomad	CREATE TABLE `t_nomad` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
 ) /*!50100 TABLESPACE `s_shorter_life` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1839,7 +1839,7 @@ CREATE TABLE db1.t1 (c1 INT) ENGINE=InnoDB;
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @@global.innodb_file_per_table = ON;
 # Case 2
@@ -1848,7 +1848,7 @@ CREATE TABLE db1.t2 LIKE db1.t1;
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Verify the same by listing the .ibd file.
 t2.ibd
@@ -1859,7 +1859,7 @@ CREATE TABLE db1.tables (c1 INT) ENGINE=InnoDB tablespace=ts0;
 SHOW CREATE TABLE db1.tables;
 Table	Create Table
 tables	CREATE TABLE `tables` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts0` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE db1.tables;
 DROP TABLESPACE ts0;
@@ -1878,7 +1878,7 @@ CREATE TABLE t_expl_usr (i INT) TABLESPACE s1;
 SHOW CREATE TABLE t_expl_usr;
 Table	Create Table
 t_expl_usr	CREATE TABLE `t_expl_usr` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Table with an explicitly assigned system tablespace.
@@ -1886,7 +1886,7 @@ CREATE TABLE t_expl_sys (i INT) TABLESPACE innodb_system;
 SHOW CREATE TABLE t_expl_sys;
 Table	Create Table
 t_expl_sys	CREATE TABLE `t_expl_sys` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Table with an explicitly assigned f_p_t tablespace.
@@ -1894,7 +1894,7 @@ CREATE TABLE t_expl_fpt (i INT) TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t_expl_fpt;
 Table	Create Table
 t_expl_fpt	CREATE TABLE `t_expl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Temporary table with an explicitly assigned tmp tablespace.
@@ -1915,7 +1915,7 @@ CREATE TABLE t_impl_sys (i INT);
 SHOW CREATE TABLE t_impl_sys;
 Table	Create Table
 t_impl_sys	CREATE TABLE `t_impl_sys` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Table with an implicitly assigned f_p_t tablespace.
@@ -1924,7 +1924,7 @@ CREATE TABLE t_impl_fpt (i INT);
 SHOW CREATE TABLE t_impl_fpt;
 Table	Create Table
 t_impl_fpt	CREATE TABLE `t_impl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Temporary table with an implicitly assigned tmp tablespace.
@@ -1932,7 +1932,7 @@ CREATE TEMPORARY TABLE t_impl_tmp (i INT);
 SHOW CREATE TABLE t_impl_tmp;
 Table	Create Table
 t_impl_tmp	CREATE TEMPORARY TABLE `t_impl_tmp` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # CREATE LIKE when innodb_file_per_table is ON.
@@ -1944,19 +1944,19 @@ CREATE TABLE fpt_on_like_t_expl_usr LIKE t_expl_usr;
 SHOW CREATE TABLE fpt_on_like_t_expl_usr;
 Table	Create Table
 fpt_on_like_t_expl_usr	CREATE TABLE `fpt_on_like_t_expl_usr` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE fpt_on_like_t_expl_sys LIKE t_expl_sys;
 SHOW CREATE TABLE fpt_on_like_t_expl_sys;
 Table	Create Table
 fpt_on_like_t_expl_sys	CREATE TABLE `fpt_on_like_t_expl_sys` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE fpt_on_like_t_expl_fpt LIKE t_expl_fpt;
 SHOW CREATE TABLE fpt_on_like_t_expl_fpt;
 Table	Create Table
 fpt_on_like_t_expl_fpt	CREATE TABLE `fpt_on_like_t_expl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION innodb_strict_mode=OFF;
 CREATE TEMPORARY TABLE fpt_on_like_t_expl_tmp LIKE t_expl_tmp;
@@ -1972,19 +1972,19 @@ CREATE TABLE fpt_on_like_t_impl_sys LIKE t_impl_sys;
 SHOW CREATE TABLE fpt_on_like_t_impl_sys;
 Table	Create Table
 fpt_on_like_t_impl_sys	CREATE TABLE `fpt_on_like_t_impl_sys` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE fpt_on_like_t_impl_fpt LIKE t_impl_fpt;
 SHOW CREATE TABLE fpt_on_like_t_impl_fpt;
 Table	Create Table
 fpt_on_like_t_impl_fpt	CREATE TABLE `fpt_on_like_t_impl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE fpt_on_like_t_impl_tmp LIKE t_impl_tmp;
 SHOW CREATE TABLE fpt_on_like_t_impl_tmp;
 Table	Create Table
 fpt_on_like_t_impl_tmp	CREATE TEMPORARY TABLE `fpt_on_like_t_impl_tmp` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # CREATE LIKE when innodb_file_per_table is OFF.
@@ -1996,14 +1996,14 @@ CREATE TABLE fpt_off_like_t_expl_usr LIKE t_expl_usr;
 SHOW CREATE TABLE fpt_off_like_t_expl_usr;
 Table	Create Table
 fpt_off_like_t_expl_usr	CREATE TABLE `fpt_off_like_t_expl_usr` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE fpt_off_like_t_expl_sys LIKE t_expl_sys;
 CREATE TABLE fpt_off_like_t_expl_fpt LIKE t_expl_fpt;
 SHOW CREATE TABLE fpt_off_like_t_expl_fpt;
 Table	Create Table
 fpt_off_like_t_expl_fpt	CREATE TABLE `fpt_off_like_t_expl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE fpt_off_like_t_expl_tmp LIKE t_expl_tmp;
 Warnings:
@@ -2014,19 +2014,19 @@ CREATE TABLE fpt_off_like_t_impl_sys LIKE t_impl_sys;
 SHOW CREATE TABLE fpt_off_like_t_impl_sys;
 Table	Create Table
 fpt_off_like_t_impl_sys	CREATE TABLE `fpt_off_like_t_impl_sys` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE fpt_off_like_t_impl_fpt LIKE t_impl_fpt;
 SHOW CREATE TABLE fpt_off_like_t_impl_fpt;
 Table	Create Table
 fpt_off_like_t_impl_fpt	CREATE TABLE `fpt_off_like_t_impl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE fpt_off_like_t_impl_tmp LIKE t_impl_tmp;
 SHOW CREATE TABLE fpt_off_like_t_impl_tmp;
 Table	Create Table
 fpt_off_like_t_impl_tmp	CREATE TEMPORARY TABLE `fpt_off_like_t_impl_tmp` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # The end result should be that we have .ibd files for:
 #   fpt_off_like_t_expl_fpt.ibd
@@ -2049,13 +2049,13 @@ ALTER TABLE t_impl_sys TABLESPACE innodb_system;
 SHOW CREATE TABLE t_impl_sys;
 Table	Create Table
 t_impl_sys	CREATE TABLE `t_impl_sys` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t_impl_fpt TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t_impl_fpt;
 Table	Create Table
 t_impl_fpt	CREATE TABLE `t_impl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t_impl_tmp TABLESPACE innodb_temporary;
 Warnings:
@@ -2063,7 +2063,7 @@ Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporar
 SHOW CREATE TABLE t_impl_tmp;
 Table	Create Table
 t_impl_tmp	CREATE TEMPORARY TABLE `t_impl_tmp` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # And CREATE TABLE LIKE will now preserve the
 # tablespace name of the above tables.
@@ -2071,13 +2071,13 @@ CREATE TABLE after_alter_like_t_impl_sys LIKE t_impl_sys;
 SHOW CREATE TABLE after_alter_like_t_impl_sys;
 Table	Create Table
 after_alter_like_t_impl_sys	CREATE TABLE `after_alter_like_t_impl_sys` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE after_alter_like_t_impl_fpt LIKE t_impl_fpt;
 SHOW CREATE TABLE after_alter_like_t_impl_fpt;
 Table	Create Table
 after_alter_like_t_impl_fpt	CREATE TABLE `after_alter_like_t_impl_fpt` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE after_alter_like_t_impl_tmp LIKE t_impl_tmp;
 Warnings:
@@ -2085,7 +2085,7 @@ Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporar
 SHOW CREATE TABLE after_alter_like_t_impl_tmp;
 Table	Create Table
 after_alter_like_t_impl_tmp	CREATE TEMPORARY TABLE `after_alter_like_t_impl_tmp` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP SCHEMA s1;
 DROP TABLESPACE s1;

@@ -24,8 +24,8 @@ f2 int CONSTRAINT t1_f2_ck CHECK (f2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_f2_ck` CHECK ((`f2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -53,9 +53,9 @@ f3 int CONSTRAINT t1_f3_ck CHECK (f3  < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f2` < 10)),
   CONSTRAINT `t1_f3_ck` CHECK ((`f3` < 10))
@@ -80,7 +80,7 @@ CREATE TABLE t1(f1 int, CONSTRAINT t1_ck CHECK(f1 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_ck` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -100,7 +100,7 @@ CREATE TABLE t1(f1 int, CHECK(f1<10), CONSTRAINT t2_ck CHECK(f1 > 1));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t2_ck` CHECK ((`f1` > 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -112,8 +112,8 @@ CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT `ck_1$` CHECK (c2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   CONSTRAINT `ck_1$` CHECK ((`c2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -124,8 +124,8 @@ CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT ` ck_2$ ` CHECK (c2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   CONSTRAINT ` ck_2$ ` CHECK ((`c2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP CHECK ck_2$;
@@ -134,16 +134,16 @@ ALTER TABLE t1 DROP CHECK ` ck_2$ `;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN c3 INTEGER , ADD CONSTRAINT ` c 3 ` CHECK ( c3 > 10 );
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   CONSTRAINT ` c 3 ` CHECK ((`c3` > 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -156,8 +156,8 @@ CREATE TABLE t1(c1 INT, c2 INT, CONSTRAINT `FLOAT` CHECK (c2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   CONSTRAINT `FLOAT` CHECK ((`c2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -170,8 +170,8 @@ CHECK (c2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   CONSTRAINT `ckkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk` CHECK ((`c2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2(c1 INT, c2 INT,
@@ -230,7 +230,7 @@ CONSTRAINT café CHECK (f1 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `cafe` CHECK ((`f1` < 10)),
   CONSTRAINT `café` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -244,8 +244,8 @@ CREATE TABLE t1(CHECK((f1 + f2) > 10), f1 int CHECK (f1 < 10), f2 int);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK (((`f1` + `f2`) > 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -269,10 +269,10 @@ ADD CONSTRAINT ck42 CHECK(c4 < 1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
   CONSTRAINT `ck11` CHECK ((`c1` > 1)),
   CONSTRAINT `ck12` CHECK ((`c1` < 1)),
   CONSTRAINT `ck21` CHECK ((`c2` > 1)),
@@ -294,9 +294,9 @@ CONSTRAINT ck CHECK (c3 > 10)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) GENERATED ALWAYS AS ((`c1` + `c2`)) VIRTUAL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int GENERATED ALWAYS AS ((`c1` + `c2`)) VIRTUAL,
   CONSTRAINT `ck` CHECK ((`c3` > 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(c1,c2) VALUES(1,1);
@@ -340,7 +340,7 @@ CREATE TABLE t1 (CHECK (1 < 1), f1 int);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((1 < 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(1);
@@ -359,8 +359,8 @@ CONSTRAINT t2_cc1 CHECK (f1 + SQRT(f2) > 6174));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
   CONSTRAINT `t2_cc1` CHECK (((`f1` + sqrt(`f2`)) > 6174))
@@ -383,8 +383,8 @@ f2 int);
 SHOW CREATE TABLE tmp_t1;
 Table	Create Table
 tmp_t1	CREATE TEMPORARY TABLE `tmp_t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `tmp_t1_chk_1` CHECK (((`f1` + `f2`) > 10)),
   CONSTRAINT `tmp_t1_chk_2` CHECK ((`f1` < 12))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -400,8 +400,8 @@ CONSTRAINT max CHECK (f1 + f2 < 929));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `max` CHECK (((`f1` + `f2`) < 929)),
   CONSTRAINT `min` CHECK (((`f1` + `f2`) > 10)),
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
@@ -411,8 +411,8 @@ CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t2_chk_1` CHECK (((`f1` + `f2`) < 929)),
   CONSTRAINT `t2_chk_2` CHECK (((`f1` + `f2`) > 10)),
   CONSTRAINT `t2_chk_3` CHECK ((`f1` < 10)),
@@ -422,8 +422,8 @@ CREATE TEMPORARY TABLE tmp_t2 LIKE t2;
 SHOW CREATE TABLE tmp_t2;
 Table	Create Table
 tmp_t2	CREATE TEMPORARY TABLE `tmp_t2` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `tmp_t2_chk_1` CHECK (((`f1` + `f2`) < 929)),
   CONSTRAINT `tmp_t2_chk_2` CHECK (((`f1` + `f2`) > 10)),
   CONSTRAINT `tmp_t2_chk_3` CHECK ((`f1` < 10)),
@@ -433,8 +433,8 @@ CREATE TABLE t3 LIKE tmp_t2;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t3_chk_1` CHECK (((`f1` + `f2`) < 929)),
   CONSTRAINT `t3_chk_2` CHECK (((`f1` + `f2`) > 10)),
   CONSTRAINT `t3_chk_3` CHECK ((`f1` < 10)),
@@ -448,8 +448,8 @@ CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -538,8 +538,8 @@ CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -591,8 +591,8 @@ CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -686,22 +686,22 @@ CREATE TABLE t1 (f1 INT CHECK(f1 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 RENAME TABLE t1 TO t2;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t2_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t1(f1 INT CHECK (f1>10), f11 INT CHECK (f11 < 1000));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f11` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f11` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` > 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f11` < 1000))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -709,14 +709,14 @@ RENAME TABLE t1 TO t3, t2 TO t1, t3 TO t2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL,
-  `f11` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f11` int DEFAULT NULL,
   CONSTRAINT `t2_chk_1` CHECK ((`f1` > 10)),
   CONSTRAINT `t2_chk_2` CHECK ((`f11` < 1000))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -728,8 +728,8 @@ CREATE TABLE t1(f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -752,7 +752,7 @@ ALTER TABLE t3 ADD CONSTRAINT CHECK (f1 > 1), ADD CONSTRAINT `t3_p_ck` CHECK (f1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t1_p_ck` CHECK ((`f1` > 1))
@@ -760,7 +760,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1))
@@ -772,8 +772,8 @@ ALTER TABLE t1 ADD f2 INT CHECK (f2 < 10), RENAME TO t6, ALGORITHM=COPY;
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_p_ck` CHECK ((`f1` > 1)),
   CONSTRAINT `t6_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t6_chk_2` CHECK ((`f1` > 1)),
@@ -783,8 +783,8 @@ ALTER TABLE t3 ADD f2 INT CHECK (f2 < 10), RENAME TO t7, ALGORITHM=COPY;
 SHOW CREATE TABLE t7;
 Table	Create Table
 t7	CREATE TEMPORARY TABLE `t7` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t7_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t7_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1)),
@@ -794,8 +794,8 @@ ALTER TABLE t6 RENAME TO t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t1_chk_3` CHECK ((`f2` < 10)),
@@ -805,8 +805,8 @@ ALTER TABLE t7 RENAME TO t3;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1)),
@@ -828,8 +828,8 @@ ERROR 42S22: Unknown column 'f1' in 'check constraint t1_chk_1 expression'
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1)),
@@ -839,8 +839,8 @@ ALTER TABLE t3 DROP CHECK t3_chk_3;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t3_p_ck` CHECK ((`f1` > 1))
@@ -849,8 +849,8 @@ ALTER TABLE t3 DROP CHECK t3_p_ck, ADD CONSTRAINT t3_p_ck CHECK (f1 > 38);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TEMPORARY TABLE `t3` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t3_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t3_chk_2` CHECK ((`f1` > 1)),
   CONSTRAINT `t3_p_ck` CHECK ((`f1` > 38))
@@ -884,7 +884,7 @@ ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITH
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`C1` > 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -895,14 +895,14 @@ CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP CHECK t1_chk_1, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #-----------------------------------------------------------------------
@@ -914,8 +914,8 @@ ADD CONSTRAINT ck2 CHECK (c2 > 10);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   CONSTRAINT `ck1` CHECK ((`c1` > 10)),
   CONSTRAINT `ck2` CHECK ((`c2` > 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -929,8 +929,8 @@ ADD COLUMN c4 INT, ADD CONSTRAINT ck4 CHECK( c4 > 10);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
   CONSTRAINT `ck1` CHECK ((`c1` > 10)),
   CONSTRAINT `ck4` CHECK ((`c4` > 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -951,9 +951,9 @@ CONSTRAINT CHECK (f1 > 10) NOT ENFORCED);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
@@ -970,9 +970,9 @@ ALTER TABLE t1 ALTER CHECK ck NOT ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)) /*!80016 NOT ENFORCED */,
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
@@ -989,9 +989,9 @@ ALTER TABLE t1 ALTER CHECK ck ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
   CONSTRAINT `t1_chk_2` CHECK ((`f3` < 10)) /*!80016 NOT ENFORCED */,
@@ -1008,9 +1008,9 @@ ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK(f1<10) NOT ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)),
   CONSTRAINT `ck1` CHECK ((`f1` < 10)) /*!80016 NOT ENFORCED */,
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
@@ -1029,9 +1029,9 @@ ALTER TABLE t1 ALTER CHECK ck1 ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)),
   CONSTRAINT `ck1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
@@ -1050,9 +1050,9 @@ ALTER TABLE t1 ALTER CHECK t1_chk_2 ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)),
   CONSTRAINT `ck1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
@@ -1071,10 +1071,10 @@ ALTER TABLE t1 ADD f4 INT CONSTRAINT t1_f4_chk CHECK (f4 < 10) NOT ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
-  `f4` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)),
   CONSTRAINT `ck1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
@@ -1095,10 +1095,10 @@ ALTER TABLE t1 ALTER CHECK t1_f4_chk ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
-  `f4` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` int DEFAULT NULL,
   CONSTRAINT `ck` CHECK ((`f1` > 10)),
   CONSTRAINT `ck1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_1` CHECK ((`f2` < 10)),
@@ -1141,10 +1141,10 @@ ADD CONSTRAINT ck42 CHECK(c4 < 1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
   CONSTRAINT `ck11` CHECK ((`c1` > 1)),
   CONSTRAINT `ck12` CHECK ((`c1` < 1)),
   CONSTRAINT `ck21` CHECK ((`c2` > 1)),
@@ -1170,10 +1170,10 @@ ERROR HY000: Check constraint 'ck11' is not found in the table.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
   CONSTRAINT `ck11` CHECK ((`c1` > 1)),
   CONSTRAINT `ck12` CHECK ((`c1` < 1)) /*!80016 NOT ENFORCED */,
   CONSTRAINT `ck21` CHECK ((`c1` > 10)),
@@ -1191,8 +1191,8 @@ CREATE TABLE t1 (f1 INT check (f1 < 10), f2 INT);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Drops check constraint t1_chk_1 too.
@@ -1203,8 +1203,8 @@ ADD CONSTRAINT check(f2 < 10);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f2` int(11) DEFAULT NULL,
-  `f1` int(11) DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10)),
   CONSTRAINT `t1_chk_2` CHECK (((`f1` + `f2`) < 10)),
   CONSTRAINT `t1_chk_3` CHECK ((`f2` < 10))
@@ -1218,7 +1218,7 @@ ALTER TABLE t1 DROP CHECK t1_chk_2, DROP COLUMN f1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f2` int(11) DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_3` CHECK ((`f2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1293,8 +1293,8 @@ CREATE TABLE t1(f1 int CHECK (f1 IN (10, 20, 30)), f2 int, CHECK(f2 IN (100, 120
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` in (10,20,30))),
   CONSTRAINT `t1_chk_2` CHECK ((`f2` in (100,120,450)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1312,8 +1312,8 @@ f2 int, CHECK(f2 BETWEEN 100 AND 450));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` between 10 and 30)),
   CONSTRAINT `t1_chk_2` CHECK ((`f2` between 100 and 450))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1330,7 +1330,7 @@ CREATE TABLE t1 (f1 int CHECK(f1 IS NOT NULL));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` is not null))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(10);
@@ -1344,7 +1344,7 @@ CREATE TABLE t1 (f1 int CHECK(f1 IS NULL));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` is null))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(NULL);
@@ -1359,8 +1359,8 @@ ALTER TABLE t1 ADD CONSTRAINT CHECK( (CASE WHEN c1 > 10 THEN c2 = 20 END) = 1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK (((case when (`c1` > 10) then (`c2` = 20) end) = 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(1,1);
@@ -1543,12 +1543,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint(1) DEFAULT NULL,
-  `c3` tinyint(4) DEFAULT NULL,
-  `c4` smallint(6) DEFAULT NULL,
-  `c5` mediumint(9) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` bigint(20) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
+  `c3` tinyint DEFAULT NULL,
+  `c4` smallint DEFAULT NULL,
+  `c5` mediumint DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` bigint DEFAULT NULL,
   `c8` decimal(6,2) DEFAULT NULL,
   `c9` float(6,2) DEFAULT NULL,
   `c10` double(6,2) DEFAULT NULL,
@@ -1795,11 +1795,11 @@ CONSTRAINT ck6 CHECK (country IN ('usa','uk'))
 SHOW CREATE TABLE student;
 Table	Create Table
 student	CREATE TABLE `student` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `stu_code` varchar(10) DEFAULT NULL,
   `name` varchar(14) DEFAULT NULL,
   `email` varchar(20) DEFAULT NULL,
-  `scholarship` int(11) DEFAULT NULL,
+  `scholarship` int DEFAULT NULL,
   `country` varchar(20) DEFAULT NULL,
   CONSTRAINT `ck1` CHECK ((`id` <> 0)),
   CONSTRAINT `ck2` CHECK ((`stu_code` like _utf8mb4'j%')),
@@ -1834,7 +1834,7 @@ ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK ( c1 > c2 );
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(20) DEFAULT NULL,
   CONSTRAINT `ck1` CHECK ((`c1` > `c2`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1917,21 +1917,21 @@ INSERT INTO t1(c15) VALUES(0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` int(11) DEFAULT NULL,
-  `c8` int(11) DEFAULT NULL,
-  `c9` int(11) DEFAULT NULL,
-  `c10` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
+  `c5` int DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` int DEFAULT NULL,
+  `c8` int DEFAULT NULL,
+  `c9` int DEFAULT NULL,
+  `c10` int DEFAULT NULL,
   `c11` year(4) DEFAULT NULL,
-  `c12` int(11) DEFAULT NULL,
-  `c13` int(11) DEFAULT NULL,
+  `c12` int DEFAULT NULL,
+  `c13` int DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,
-  `c15` int(11) DEFAULT NULL,
+  `c15` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`c1` <=> NULL)),
   CONSTRAINT `t1_chk_10` CHECK ((`c10` not in (1,2,3))),
   CONSTRAINT `t1_chk_11` CHECK ((`c11` > 2008)),
@@ -1980,8 +1980,8 @@ ERROR HY000: Check constraint 't1_chk_1' is violated.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK (((`c1` > 10) xor (`c2` < 20)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1993,7 +1993,7 @@ CREATE TABLE t1(c1 INT DEFAULT 2 PRIMARY KEY CHECK(c1 > 1 OR c1 IS NOT NULL));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL DEFAULT '2',
+  `c1` int NOT NULL DEFAULT '2',
   PRIMARY KEY (`c1`),
   CONSTRAINT `t1_chk_1` CHECK (((`c1` > 1) or (`c1` is not null)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2081,14 +2081,14 @@ CONSTRAINT fk FOREIGN KEY (cid) REFERENCES parent(pid));
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `pid` int(11) NOT NULL,
+  `pid` int NOT NULL,
   PRIMARY KEY (`pid`),
   CONSTRAINT `parent_chk_1` CHECK ((`pid` > 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `cid` int(11) DEFAULT NULL,
+  `cid` int DEFAULT NULL,
   KEY `fk` (`cid`),
   CONSTRAINT `fk` FOREIGN KEY (`cid`) REFERENCES `parent` (`pid`),
   CONSTRAINT `child_chk_1` CHECK ((`cid` > 1))
@@ -2317,12 +2317,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint(1) DEFAULT NULL,
-  `c3` tinyint(4) DEFAULT NULL,
-  `c4` smallint(6) DEFAULT NULL,
-  `c5` mediumint(9) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` bigint(20) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
+  `c3` tinyint DEFAULT NULL,
+  `c4` smallint DEFAULT NULL,
+  `c5` mediumint DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` bigint DEFAULT NULL,
   `c8` decimal(6,2) DEFAULT NULL,
   `c9` float(6,2) DEFAULT NULL,
   `c10` double(6,2) DEFAULT NULL,
@@ -2345,12 +2345,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint(1) DEFAULT NULL,
-  `c3` tinyint(4) DEFAULT NULL,
-  `c4` smallint(6) DEFAULT NULL,
-  `c5` mediumint(9) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` bigint(20) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
+  `c3` tinyint DEFAULT NULL,
+  `c4` smallint DEFAULT NULL,
+  `c5` mediumint DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` bigint DEFAULT NULL,
   `c8` decimal(6,2) DEFAULT NULL,
   `c9` float(6,2) DEFAULT NULL,
   `c10` double(6,2) DEFAULT NULL,
@@ -2400,12 +2400,12 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint(1) DEFAULT NULL,
-  `c3` tinyint(4) DEFAULT NULL,
-  `c4` smallint(6) DEFAULT NULL,
-  `c5` mediumint(9) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` bigint(20) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
+  `c3` tinyint DEFAULT NULL,
+  `c4` smallint DEFAULT NULL,
+  `c5` mediumint DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` bigint DEFAULT NULL,
   `c8` decimal(6,2) DEFAULT NULL,
   `c9` float(6,2) DEFAULT NULL,
   `c10` double(6,2) DEFAULT NULL,
@@ -2426,12 +2426,12 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint(1) DEFAULT NULL,
-  `c3` tinyint(4) DEFAULT NULL,
-  `c4` smallint(6) DEFAULT NULL,
-  `c5` mediumint(9) DEFAULT NULL,
-  `c6` int(11) DEFAULT NULL,
-  `c7` bigint(20) DEFAULT NULL,
+  `c2` tinyint DEFAULT NULL,
+  `c3` tinyint DEFAULT NULL,
+  `c4` smallint DEFAULT NULL,
+  `c5` mediumint DEFAULT NULL,
+  `c6` int DEFAULT NULL,
+  `c7` bigint DEFAULT NULL,
   `c8` decimal(6,2) DEFAULT NULL,
   `c9` float(6,2) DEFAULT NULL,
   `c10` double(6,2) DEFAULT NULL,
@@ -2493,7 +2493,7 @@ COMMIT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`C1` > 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET AUTOCOMMIT = ON;
@@ -2543,7 +2543,7 @@ PARTITION p3 VALUES IN (40,49)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(10) DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`id` between 10 and 50))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2568,7 +2568,7 @@ PARTITIONS 4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(40) DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`id` > 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2590,7 +2590,7 @@ PARTITIONS 4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(40) DEFAULT NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `t1_chk_1` CHECK ((`id` > 10))
@@ -2641,14 +2641,14 @@ CREATE TABLE t1(a INTEGER CHECK (a > 0) NOT NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`a` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2(a INTEGER CHECK (a > 0) UNIQUE);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   CONSTRAINT `t2_chk_1` CHECK ((`a` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2656,7 +2656,7 @@ CREATE TABLE t3(a INTEGER CHECK (a > 0) PRIMARY KEY);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`),
   CONSTRAINT `t3_chk_1` CHECK ((`a` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2664,21 +2664,21 @@ CREATE TABLE t4(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   CONSTRAINT `t4_chk_1` CHECK ((`a` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t5(a INTEGER CHECK (a > 0) NOT ENFORCED NOT NULL);
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   CONSTRAINT `t5_chk_1` CHECK ((`a` > 0)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t6(a INTEGER CHECK (a > 0) UNIQUE CHECK (a IS NOT NULL) NULL CHECK (a < 100));
 SHOW CREATE TABLE t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   CONSTRAINT `t6_chk_1` CHECK ((`a` > 0)),
   CONSTRAINT `t6_chk_2` CHECK ((`a` is not null)),
@@ -2736,8 +2736,8 @@ CREATE TABLE t1 (f1 INT CONSTRAINT ck1 CHECK (f1 > 0), f2 INT);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `ck1` CHECK ((`f1` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Without fix, following statement succeeds. With fix, error is
@@ -2751,8 +2751,8 @@ ALTER TABLE t1 ADD CONSTRAINT ck1 CHECK (f2 > 0), DROP CHECK ck1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `ck1` CHECK ((`f2` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # ck1 is auto-dropped on dropping column f2. New constraint with
@@ -2761,7 +2761,7 @@ ALTER TABLE t1 DROP COLUMN f2, ADD CONSTRAINT ck1 CHECK (f1 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `ck1` CHECK ((`f1` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # ck1 is auto-dropped on dropping column f1. New column f1 and check
@@ -2770,7 +2770,7 @@ ALTER TABLE t1 DROP COLUMN f1, ADD COLUMN f1 BIGINT, ADD CONSTRAINT CHECK (f1!= 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` bigint(20) DEFAULT NULL,
+  `f1` bigint DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` <> 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -2812,7 +2812,7 @@ CHECK ( scol < col));
 SHOW CREATE TABLE tst;
 Table	Create Table
 tst	CREATE TABLE `tst` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `scol` date DEFAULT (curdate()),
   `col` date DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -2857,7 +2857,7 @@ ALTER TABLE tst MODIFY COLUMN scol TIME DEFAULT(CURTIME()), MODIFY COLUMN col TI
 SHOW CREATE TABLE tst;
 Table	Create Table
 tst	CREATE TABLE `tst` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `scol` time DEFAULT (curtime()),
   `col` time DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -2905,7 +2905,7 @@ MODIFY COLUMN col  timestamp;
 SHOW CREATE TABLE tst;
 Table	Create Table
 tst	CREATE TABLE `tst` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `scol` timestamp NULL DEFAULT (now()),
   `col` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -2943,7 +2943,7 @@ ALTER TABLE tst MODIFY COLUMN scol timestamp ON UPDATE CURRENT_TIMESTAMP;
 SHOW CREATE TABLE tst;
 Table	Create Table
 tst	CREATE TABLE `tst` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `scol` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   `col` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -2965,7 +2965,7 @@ CREATE TABLE tst1 (id INT, col timestamp DEFAULT('2019-05-21 12:12:12'));
 SHOW CREATE TABLE tst1;
 Table	Create Table
 tst1	CREATE TABLE `tst1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `col` timestamp NULL DEFAULT (_utf8mb4'2019-05-21 12:12:12')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tst1(id) VALUES(1);
@@ -2988,7 +2988,7 @@ MODIFY COLUMN col  datetime;
 SHOW CREATE TABLE tst;
 Table	Create Table
 tst	CREATE TABLE `tst` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `scol` datetime DEFAULT (now()),
   `col` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -3030,7 +3030,7 @@ ALTER TABLE tst MODIFY COLUMN scol datetime ON UPDATE CURRENT_TIMESTAMP;
 SHOW CREATE TABLE tst;
 Table	Create Table
 tst	CREATE TABLE `tst` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `scol` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   `col` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -3052,7 +3052,7 @@ ALTER TABLE tst1 MODIFY COLUMN col datetime DEFAULT('2019-05-21 12:12:12');
 SHOW CREATE TABLE tst1;
 Table	Create Table
 tst1	CREATE TABLE `tst1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `col` datetime DEFAULT (_utf8mb4'2019-05-21 12:12:12')
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tst1(id) VALUES(1);
@@ -3074,9 +3074,9 @@ CHECK ( scol < col));
 SHOW CREATE TABLE tst;
 Table	Create Table
 tst	CREATE TABLE `tst` (
-  `id` int(11) NOT NULL,
-  `scol` int(11) DEFAULT ((`col` * `col`)),
-  `col` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `scol` int DEFAULT ((`col` * `col`)),
+  `col` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `tst_chk_1` CHECK ((`scol` < `col`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3332,7 +3332,7 @@ CREATE TABLE t1 (f1 INT CHECK (f1 < 10), f2 CHAR(100));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   `f2` char(100) DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3412,8 +3412,8 @@ Warning	3819	Check constraint 'c' is violated.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `c` CHECK ((`b` is null))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

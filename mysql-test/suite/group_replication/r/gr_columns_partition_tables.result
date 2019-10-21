@@ -25,8 +25,8 @@ include/rpl_sync.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY RANGE  COLUMNS(c1,c2)
@@ -39,7 +39,7 @@ INSERT INTO t1 VALUES (100, 50);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(5) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

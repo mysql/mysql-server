@@ -6,9 +6,9 @@ CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -37,9 +37,9 @@ CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -72,9 +72,9 @@ CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -121,9 +121,9 @@ CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -152,9 +152,9 @@ CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -183,9 +183,9 @@ CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   UNIQUE KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -222,9 +222,9 @@ f2 INT, f3 INT, UNIQUE KEY(f2))ENGINE=INNODB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2` (`f2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

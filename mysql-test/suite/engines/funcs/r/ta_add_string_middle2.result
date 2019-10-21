@@ -7,7 +7,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -19,7 +19,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -34,8 +34,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -46,8 +46,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -62,8 +62,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -74,8 +74,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -90,8 +90,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -102,8 +102,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -118,8 +118,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -130,8 +130,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -146,8 +146,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -158,8 +158,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -174,8 +174,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -186,8 +186,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -203,7 +203,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -215,7 +215,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -231,7 +231,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -243,7 +243,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -259,7 +259,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -271,7 +271,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -287,7 +287,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -299,7 +299,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -315,7 +315,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -327,7 +327,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -343,7 +343,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -355,7 +355,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -371,7 +371,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -383,7 +383,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -399,7 +399,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -411,7 +411,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -427,7 +427,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -439,7 +439,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -455,7 +455,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -467,7 +467,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -482,8 +482,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -494,8 +494,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -510,8 +510,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -522,8 +522,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -538,8 +538,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -550,8 +550,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -566,8 +566,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -578,8 +578,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -594,8 +594,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -606,8 +606,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -622,8 +622,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -634,8 +634,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -651,7 +651,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -663,7 +663,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -679,7 +679,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -691,7 +691,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -707,7 +707,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -719,7 +719,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -735,7 +735,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -747,7 +747,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -763,7 +763,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -775,7 +775,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -791,7 +791,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -803,7 +803,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -819,7 +819,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -831,7 +831,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -847,7 +847,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -859,7 +859,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -875,7 +875,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -887,7 +887,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -903,7 +903,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -915,7 +915,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -930,8 +930,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -942,8 +942,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -958,8 +958,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -970,8 +970,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -986,8 +986,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -998,8 +998,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1014,8 +1014,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1026,8 +1026,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1042,8 +1042,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1054,8 +1054,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1070,8 +1070,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1082,8 +1082,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1099,7 +1099,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1111,7 +1111,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1127,7 +1127,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1139,7 +1139,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1155,7 +1155,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1167,7 +1167,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1183,7 +1183,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1195,7 +1195,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1211,7 +1211,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1223,7 +1223,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1239,7 +1239,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1251,7 +1251,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1267,7 +1267,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1279,7 +1279,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1295,7 +1295,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1307,7 +1307,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1323,7 +1323,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1335,7 +1335,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1351,7 +1351,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1363,7 +1363,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1378,8 +1378,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1390,8 +1390,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1406,8 +1406,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1418,8 +1418,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1434,8 +1434,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1446,8 +1446,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1462,8 +1462,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1474,8 +1474,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1490,8 +1490,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1502,8 +1502,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1518,8 +1518,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1530,8 +1530,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1547,7 +1547,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1559,7 +1559,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1575,7 +1575,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1587,7 +1587,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1603,7 +1603,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1615,7 +1615,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1631,7 +1631,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1643,7 +1643,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1659,7 +1659,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1671,7 +1671,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1687,7 +1687,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1699,7 +1699,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1715,7 +1715,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1727,7 +1727,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1743,7 +1743,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1755,7 +1755,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1771,7 +1771,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1783,7 +1783,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1799,7 +1799,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1811,7 +1811,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1826,8 +1826,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1838,8 +1838,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1854,8 +1854,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1866,8 +1866,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1882,8 +1882,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1894,8 +1894,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1910,8 +1910,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1922,8 +1922,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1938,8 +1938,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1950,8 +1950,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1966,8 +1966,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1978,8 +1978,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1995,7 +1995,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2007,7 +2007,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2023,7 +2023,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2035,7 +2035,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2051,7 +2051,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2063,7 +2063,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2079,7 +2079,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2091,7 +2091,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2107,7 +2107,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2119,7 +2119,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2135,7 +2135,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2147,7 +2147,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2163,7 +2163,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2175,7 +2175,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2191,7 +2191,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2203,7 +2203,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2219,7 +2219,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2231,7 +2231,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2247,7 +2247,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2259,7 +2259,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2274,8 +2274,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2286,8 +2286,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2302,8 +2302,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2314,8 +2314,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2330,8 +2330,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2342,8 +2342,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2358,8 +2358,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2370,8 +2370,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2386,8 +2386,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2398,8 +2398,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2414,8 +2414,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2426,8 +2426,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2443,7 +2443,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2455,7 +2455,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2471,7 +2471,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2483,7 +2483,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2499,7 +2499,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2511,7 +2511,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2527,7 +2527,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2539,7 +2539,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2555,7 +2555,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2567,7 +2567,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2583,7 +2583,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2595,7 +2595,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2611,7 +2611,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2623,7 +2623,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2639,7 +2639,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2651,7 +2651,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2667,7 +2667,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2679,7 +2679,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2695,7 +2695,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2707,7 +2707,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2722,8 +2722,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2734,8 +2734,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2750,8 +2750,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2762,8 +2762,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2778,8 +2778,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2790,8 +2790,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2806,8 +2806,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2818,8 +2818,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2834,8 +2834,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2846,8 +2846,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2862,8 +2862,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2874,8 +2874,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2891,7 +2891,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2903,7 +2903,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2919,7 +2919,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2931,7 +2931,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2947,7 +2947,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2959,7 +2959,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2975,7 +2975,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2987,7 +2987,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -3003,7 +3003,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3015,7 +3015,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -3031,7 +3031,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3043,7 +3043,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -3059,7 +3059,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3071,7 +3071,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -3087,7 +3087,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3099,7 +3099,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -3115,7 +3115,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3127,7 +3127,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -3143,7 +3143,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3155,7 +3155,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` bit(1) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3170,8 +3170,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3182,8 +3182,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` tinyint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3198,8 +3198,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3210,8 +3210,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` smallint(6) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` smallint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3226,8 +3226,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3238,8 +3238,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` mediumint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3254,8 +3254,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3266,8 +3266,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3282,8 +3282,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3294,8 +3294,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3310,8 +3310,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3322,8 +3322,8 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` bigint(20) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3339,7 +3339,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3351,7 +3351,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3367,7 +3367,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3379,7 +3379,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` double NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3395,7 +3395,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3407,7 +3407,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` float NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3423,7 +3423,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3435,7 +3435,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3451,7 +3451,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3463,7 +3463,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3479,7 +3479,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3491,7 +3491,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` date NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3507,7 +3507,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3519,7 +3519,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` time NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3535,7 +3535,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3547,7 +3547,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` timestamp NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3563,7 +3563,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3575,7 +3575,7 @@ SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `c1` year(4) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)

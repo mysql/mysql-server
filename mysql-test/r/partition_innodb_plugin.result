@@ -25,9 +25,9 @@ COUNT(*)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `id` bigint NOT NULL AUTO_INCREMENT,
   `time` date NOT NULL,
-  `id2` bigint(20) NOT NULL,
+  `id2` bigint NOT NULL,
   PRIMARY KEY (`id`,`time`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8
 /*!50100 PARTITION BY RANGE (to_days(`time`))
@@ -49,7 +49,7 @@ t1#P#p0.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
@@ -82,7 +82,7 @@ UNLOCK TABLES;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4

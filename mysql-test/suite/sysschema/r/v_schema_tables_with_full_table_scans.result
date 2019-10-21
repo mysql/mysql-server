@@ -2,15 +2,15 @@ DESC sys.schema_tables_with_full_table_scans;
 Field	Type	Null	Key	Default	Extra
 object_schema	varchar(64)	YES		NULL	
 object_name	varchar(64)	YES		NULL	
-rows_full_scanned	bigint(20) unsigned	NO		NULL	
+rows_full_scanned	bigint unsigned	NO		NULL	
 latency	varchar(11)	YES		NULL	
 SELECT * FROM sys.schema_tables_with_full_table_scans;
 DESC sys.x$schema_tables_with_full_table_scans;
 Field	Type	Null	Key	Default	Extra
 object_schema	varchar(64)	YES		NULL	
 object_name	varchar(64)	YES		NULL	
-rows_full_scanned	bigint(20) unsigned	NO		NULL	
-latency	bigint(20) unsigned	NO		NULL	
+rows_full_scanned	bigint unsigned	NO		NULL	
+latency	bigint unsigned	NO		NULL	
 SELECT * FROM sys.x$schema_tables_with_full_table_scans;
 CREATE TABLE test.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;
 INSERT INTO test.t (j) VALUES (1), (2), (3);

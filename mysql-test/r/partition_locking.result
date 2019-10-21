@@ -15,7 +15,7 @@ PARTITION BY HASH (a) PARTITIONS 13;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -25,7 +25,7 @@ PARTITIONS 13 */
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -119,7 +119,7 @@ CREATE TABLE t3 (a INT, b CHAR(10)) PARTITION BY HASH (a) PARTITIONS 2;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
@@ -301,10 +301,10 @@ PARTITION `p11-100` VALUES LESS THAN (99, MAXVALUE));
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL DEFAULT '10',
+  `a` int NOT NULL DEFAULT '10',
   `b` varchar(64) NOT NULL DEFAULT 'Default',
   `c` varchar(64) NOT NULL DEFAULT 'Default',
-  `d` int(10) unsigned NOT NULL DEFAULT '9',
+  `d` int unsigned NOT NULL DEFAULT '9',
   `e` varchar(255) DEFAULT 'Default-filler.filler.filler.',
   PRIMARY KEY (`a`,`b`,`c`,`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -1813,7 +1813,7 @@ Handler_write
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2236,7 +2236,7 @@ ALTER TABLE t4 PARTITION BY HASH (a) PARTITIONS 5;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
@@ -3421,7 +3421,7 @@ INSERT INTO t3 VALUES (OLD.a, NEW.a, CONCAT("AU: ", OLD.b), CONCAT("AU: ", NEW.b
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3431,7 +3431,7 @@ PARTITIONS 13 */
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3440,8 +3440,8 @@ PARTITIONS 13 */
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `old_a` int(11) DEFAULT NULL,
-  `new_a` int(11) DEFAULT NULL,
+  `old_a` int DEFAULT NULL,
+  `new_a` int DEFAULT NULL,
   `old_b` varchar(255) DEFAULT NULL,
   `new_b` varchar(255) DEFAULT NULL,
   KEY `new_a` (`new_a`,`new_b`),
@@ -3494,7 +3494,7 @@ INSERT INTO t3 VALUES (OLD.a, NULL, CONCAT("AD: ", OLD.b), NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3521,7 +3521,7 @@ INSERT INTO t3 VALUES (OLD.a, NULL, CONCAT("BD: ", OLD.b), NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3548,7 +3548,7 @@ INSERT INTO t3 VALUES (OLD.a, NEW.a, CONCAT("BU: ", OLD.b), CONCAT("BU: ", NEW.b
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3630,7 +3630,7 @@ INSERT INTO t3 VALUES (1, NEW.a, NULL, CONCAT("BI: ", NEW.b));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3752,7 +3752,7 @@ SET NEW.b = CONCAT("b: ", NEW.b, " a: ", NEW.a);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3805,7 +3805,7 @@ SET NEW.b = CONCAT("b: ", NEW.b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3858,7 +3858,7 @@ SET NEW.b = CONCAT("old a: ", OLD.a, " new b: ", NEW.b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3913,7 +3913,7 @@ SET NEW.b = CONCAT("new a: ", NEW.a, " new b: ", NEW.b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -3967,7 +3967,7 @@ SET NEW.b = CONCAT("new b: ", NEW.b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
@@ -4030,7 +4030,7 @@ PARTITION BY HASH (a) PARTITIONS 13;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(128) DEFAULT NULL,
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4039,7 +4039,7 @@ PARTITIONS 13 */
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4058,7 +4058,7 @@ SET NEW.b = CONCAT("new2 a: ", NEW.a, " new2 b: ", NEW.b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(128) DEFAULT NULL,
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4067,7 +4067,7 @@ PARTITIONS 13 */
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4202,7 +4202,7 @@ PARTITION pMax VALUES LESS THAN MAXVALUE);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(128) DEFAULT NULL,
   KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4216,7 +4216,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -4738,7 +4738,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(64) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
@@ -4778,8 +4778,8 @@ INSERT INTO t1 VALUES (1, 1), (2, 0), (4, -1), (5, 2), (7, -3), (8, -9),
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 PARTITIONS 3 */

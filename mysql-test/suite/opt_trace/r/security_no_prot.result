@@ -627,7 +627,7 @@ select 48 into b from dual	407	0
 freturn 3 36	20	0
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int
 begin
 declare b int;
 select 48 into b from dual;
@@ -722,7 +722,7 @@ freturn 3 36	20	0
 # could see anyway:
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` FUNCTION `f1`() RETURNS int
 begin
 declare b int;
 select 48 into b from dual;

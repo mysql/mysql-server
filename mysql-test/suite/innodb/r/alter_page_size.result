@@ -9,7 +9,7 @@ Warning	3674	The spatial index on column 'f3' will not be used by the query opti
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f3` linestring NOT NULL,
   PRIMARY KEY (`f1`),
   SPATIAL KEY `f3` (`f3`)

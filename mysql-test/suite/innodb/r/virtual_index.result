@@ -267,14 +267,14 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) NOT NULL,
-  `col4` int(11) DEFAULT NULL,
-  `col5` int(11) GENERATED ALWAYS AS ((`col2` - `col4`)) VIRTUAL,
-  `col6` int(11) GENERATED ALWAYS AS ((`col5` + `col1`)) VIRTUAL,
-  `col7` bigint(20) GENERATED ALWAYS AS ((`col2` / `col1`)) VIRTUAL,
-  `col8` int(11) GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int NOT NULL,
+  `col4` int DEFAULT NULL,
+  `col5` int GENERATED ALWAYS AS ((`col2` - `col4`)) VIRTUAL,
+  `col6` int GENERATED ALWAYS AS ((`col5` + `col1`)) VIRTUAL,
+  `col7` bigint GENERATED ALWAYS AS ((`col2` / `col1`)) VIRTUAL,
+  `col8` int GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
   `col9` text,
   KEY `idx1` (`col5` DESC),
   KEY `idx2` (`col6`)

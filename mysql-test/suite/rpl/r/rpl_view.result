@@ -94,7 +94,7 @@ create view  v1(a, b) as select a, sum(b) from t1 group by a;
 include/sync_slave_sql_with_master.inc
 explain v1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	decimal(32,0)	YES		NULL	
 show create table v1;
 View	Create View	character_set_client	collation_connection

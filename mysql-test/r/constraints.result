@@ -28,7 +28,7 @@ Warning	1831	Duplicate index 'key_2' defined on the table 'test.t1'. This is dep
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
   UNIQUE KEY `key_2` (`a`)
@@ -82,8 +82,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -96,8 +96,8 @@ ALTER TABLE t1 DROP CONSTRAINT f2_check;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD CONSTRAINT PRIMARY KEY (f1),
 ADD CONSTRAINT f2_unique UNIQUE (f2),
@@ -106,8 +106,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -120,8 +120,8 @@ DROP CONSTRAINT f2_check;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #-----------------------------------------------------------------------
 # Test case to verify drop multiple type constraints with the same name.
@@ -133,8 +133,8 @@ ADD CONSTRAINT name2 CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `name2` (`f1`),
   CONSTRAINT `primary` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -151,8 +151,8 @@ DROP CHECK name2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #-----------------------------------------------------------------------
 # Test case to verify drop constraint with constraint specific drop
@@ -165,8 +165,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -179,8 +179,8 @@ DROP CHECK f2_check;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #-----------------------------------------------------------------------
 # Test case to verify drop constraint and add constraint with same name
@@ -194,9 +194,9 @@ ADD COLUMN f3 INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -209,9 +209,9 @@ ADD CONSTRAINT f2_check CHECK ((f3 + f2 + f1) < 999);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f3`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -257,8 +257,8 @@ CONSTRAINT f2_check CHECK (f2 > 0));
 SHOW CREATE TABLE tmp;
 Table	Create Table
 tmp	CREATE TEMPORARY TABLE `tmp` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `f2_check` CHECK ((`f2` > 0))
@@ -269,8 +269,8 @@ DROP CONSTRAINT f2_unique;
 SHOW CREATE TABLE tmp;
 Table	Create Table
 tmp	CREATE TEMPORARY TABLE `tmp` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE tmp;
 #-----------------------------------------------------------------------
@@ -288,8 +288,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -303,8 +303,8 @@ ADD CONSTRAINT f2_unique CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_check` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -316,8 +316,8 @@ CALL drop_constraint_proc();
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP PROCEDURE drop_constraint_proc;
 #-----------------------------------------------------------------------
@@ -358,8 +358,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -373,8 +373,8 @@ ADD CONSTRAINT f2_unique CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_check` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -386,8 +386,8 @@ EXECUTE drop_constraint_stmt;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP PREPARE drop_constraint_stmt;
 ###############################################################################
@@ -422,8 +422,8 @@ ADD CONSTRAINT name2 CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `name2` (`f1`),
   CONSTRAINT `primary` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -438,8 +438,8 @@ DROP CHECK name2;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #-----------------------------------------------------------------------
 # Test case to verify alter unsupported constraint.
@@ -451,8 +451,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -471,8 +471,8 @@ ALTER TABLE t1 ALTER CONSTRAINT f2_check NOT ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -485,8 +485,8 @@ DROP CONSTRAINT f2_check;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #-----------------------------------------------------------------------
 # Test case to verify alter constraint with constraint specific alter
@@ -496,32 +496,32 @@ ALTER TABLE t1 ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `f2_check` CHECK ((`f2` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ALTER CHECK f2_check NOT ENFORCED, ALTER CHECK f2_check ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `f2_check` CHECK ((`f2` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ALTER CONSTRAINT f2_check NOT ENFORCED, ALTER CONSTRAINT f2_check ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `f2_check` CHECK ((`f2` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ALTER CHECK f2_check NOT ENFORCED, ALTER CONSTRAINT f2_check ENFORCED;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   CONSTRAINT `f2_check` CHECK ((`f2` > 0))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #-----------------------------------------------------------------------
@@ -552,8 +552,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -568,8 +568,8 @@ ADD CONSTRAINT f2_unique CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_check` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -583,8 +583,8 @@ CALL drop_constraint_proc();
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP PROCEDURE alter_constraint_proc;
 DROP PROCEDURE drop_constraint_proc;
@@ -643,8 +643,8 @@ ADD CONSTRAINT f2_check CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -659,8 +659,8 @@ ADD CONSTRAINT f2_unique CHECK (f2 > 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_check` (`f2`),
   CONSTRAINT `fk` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`),
@@ -674,8 +674,8 @@ EXECUTE drop_constraint_stmt;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP PREPARE alter_constraint_stmt;
 DROP PREPARE drop_constraint_stmt;
@@ -689,8 +689,8 @@ CONSTRAINT f2_check CHECK (f2 > 0));
 SHOW CREATE TABLE tmp;
 Table	Create Table
 tmp	CREATE TEMPORARY TABLE `tmp` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `f2_check` CHECK ((`f2` > 0))
@@ -699,8 +699,8 @@ ALTER TABLE tmp ALTER CONSTRAINT f2_check NOT ENFORCED;
 SHOW CREATE TABLE tmp;
 Table	Create Table
 tmp	CREATE TEMPORARY TABLE `tmp` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   UNIQUE KEY `f2_unique` (`f2`),
   CONSTRAINT `f2_check` CHECK ((`f2` > 0)) /*!80016 NOT ENFORCED */

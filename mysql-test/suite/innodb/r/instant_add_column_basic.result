@@ -536,18 +536,18 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) NOT NULL DEFAULT '10',
-  `d1` bigint(20) DEFAULT NULL,
-  `d2` bigint(20) NOT NULL DEFAULT '1234567890',
-  `e1` smallint(6) DEFAULT NULL,
-  `e2` smallint(6) NOT NULL DEFAULT '10',
-  `f1` tinyint(4) DEFAULT NULL,
-  `f2` tinyint(4) NOT NULL DEFAULT '123',
-  `g1` mediumint(9) DEFAULT NULL,
-  `g2` mediumint(9) NOT NULL DEFAULT '12345',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int NOT NULL DEFAULT '10',
+  `d1` bigint DEFAULT NULL,
+  `d2` bigint NOT NULL DEFAULT '1234567890',
+  `e1` smallint DEFAULT NULL,
+  `e2` smallint NOT NULL DEFAULT '10',
+  `f1` tinyint DEFAULT NULL,
+  `f2` tinyint NOT NULL DEFAULT '123',
+  `g1` mediumint DEFAULT NULL,
+  `g2` mediumint NOT NULL DEFAULT '12345',
   `h1` float DEFAULT NULL,
   `h2` float NOT NULL DEFAULT '12.34',
   `i1` decimal(5,2) DEFAULT NULL,
@@ -657,15 +657,15 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) GENERATED ALWAYS AS ((`b` * 2)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL,
+  `d` int GENERATED ALWAYS AS ((`b` * 2)) VIRTUAL,
   `e` varchar(100) DEFAULT 'ABCD EFGH',
-  `f` int(11) GENERATED ALWAYS AS (length(`e`)) VIRTUAL,
+  `f` int GENERATED ALWAYS AS (length(`e`)) VIRTUAL,
   `g` varchar(100) GENERATED ALWAYS AS (`e`) VIRTUAL,
-  `h` bigint(20) DEFAULT '10000',
-  `i` bigint(20) GENERATED ALWAYS AS (((`h` * 2) + `b`)) VIRTUAL,
+  `h` bigint DEFAULT '10000',
+  `i` bigint GENERATED ALWAYS AS (((`h` * 2) + `b`)) VIRTUAL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 DROP TABLE t1;
@@ -767,10 +767,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '500',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '500',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'HELLO MySQL!',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -842,10 +842,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   `t` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
@@ -910,10 +910,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   PRIMARY KEY (`a`,`c`),
   KEY `c` (`c`),
@@ -988,10 +988,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1084,13 +1084,13 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) NOT NULL DEFAULT '100',
-  `c` int(11) NOT NULL DEFAULT '100',
-  `e` int(11) NOT NULL DEFAULT '100',
-  `f` int(11) NOT NULL DEFAULT '100',
-  `g` int(11) NOT NULL DEFAULT '100',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `d` int NOT NULL DEFAULT '100',
+  `c` int NOT NULL DEFAULT '100',
+  `e` int NOT NULL DEFAULT '100',
+  `f` int NOT NULL DEFAULT '100',
+  `g` int NOT NULL DEFAULT '100',
   PRIMARY KEY (`a`),
   KEY `e` (`e`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1142,9 +1142,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '3',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '3',
   PRIMARY KEY (`a`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1197,9 +1197,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 /*!50100 PARTITION BY HASH (`a`)
@@ -1249,19 +1249,19 @@ test.t2	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 /*!50100 PARTITION BY RANGE (`a`)
@@ -1549,8 +1549,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` point DEFAULT NULL,
   `d1` linestring DEFAULT NULL,
   `e1` polygon DEFAULT NULL,
@@ -1588,8 +1588,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` json DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1653,16 +1653,16 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1698,8 +1698,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1743,8 +1743,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1786,8 +1786,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 DROP TABLE t1;
@@ -1821,8 +1821,8 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1864,8 +1864,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c2` char(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -1926,8 +1926,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   `c2` varchar(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
@@ -1989,16 +1989,16 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'bbbb',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -2051,14 +2051,14 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `h` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `h` int NOT NULL,
   `i` varchar(100) DEFAULT 'ABCD EFGH',
-  `f` int(11) GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
-  `d` int(11) GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
+  `f` int GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
+  `d` int GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
+  `e` int GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 DROP TABLE t1;
@@ -2600,18 +2600,18 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) NOT NULL DEFAULT '10',
-  `d1` bigint(20) DEFAULT NULL,
-  `d2` bigint(20) NOT NULL DEFAULT '1234567890',
-  `e1` smallint(6) DEFAULT NULL,
-  `e2` smallint(6) NOT NULL DEFAULT '10',
-  `f1` tinyint(4) DEFAULT NULL,
-  `f2` tinyint(4) NOT NULL DEFAULT '123',
-  `g1` mediumint(9) DEFAULT NULL,
-  `g2` mediumint(9) NOT NULL DEFAULT '12345',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int NOT NULL DEFAULT '10',
+  `d1` bigint DEFAULT NULL,
+  `d2` bigint NOT NULL DEFAULT '1234567890',
+  `e1` smallint DEFAULT NULL,
+  `e2` smallint NOT NULL DEFAULT '10',
+  `f1` tinyint DEFAULT NULL,
+  `f2` tinyint NOT NULL DEFAULT '123',
+  `g1` mediumint DEFAULT NULL,
+  `g2` mediumint NOT NULL DEFAULT '12345',
   `h1` float DEFAULT NULL,
   `h2` float NOT NULL DEFAULT '12.34',
   `i1` decimal(5,2) DEFAULT NULL,
@@ -2721,15 +2721,15 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) GENERATED ALWAYS AS ((`b` * 2)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL,
+  `d` int GENERATED ALWAYS AS ((`b` * 2)) VIRTUAL,
   `e` varchar(100) DEFAULT 'ABCD EFGH',
-  `f` int(11) GENERATED ALWAYS AS (length(`e`)) VIRTUAL,
+  `f` int GENERATED ALWAYS AS (length(`e`)) VIRTUAL,
   `g` varchar(100) GENERATED ALWAYS AS (`e`) VIRTUAL,
-  `h` bigint(20) DEFAULT '10000',
-  `i` bigint(20) GENERATED ALWAYS AS (((`h` * 2) + `b`)) VIRTUAL,
+  `h` bigint DEFAULT '10000',
+  `i` bigint GENERATED ALWAYS AS (((`h` * 2) + `b`)) VIRTUAL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
@@ -2831,10 +2831,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '500',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '500',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'HELLO MySQL!',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -2906,10 +2906,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   `t` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
@@ -2974,10 +2974,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   PRIMARY KEY (`a`,`c`),
   KEY `c` (`c`),
@@ -3052,10 +3052,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3148,13 +3148,13 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) NOT NULL DEFAULT '100',
-  `c` int(11) NOT NULL DEFAULT '100',
-  `e` int(11) NOT NULL DEFAULT '100',
-  `f` int(11) NOT NULL DEFAULT '100',
-  `g` int(11) NOT NULL DEFAULT '100',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `d` int NOT NULL DEFAULT '100',
+  `c` int NOT NULL DEFAULT '100',
+  `e` int NOT NULL DEFAULT '100',
+  `f` int NOT NULL DEFAULT '100',
+  `g` int NOT NULL DEFAULT '100',
   PRIMARY KEY (`a`),
   KEY `e` (`e`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3206,9 +3206,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '3',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '3',
   PRIMARY KEY (`a`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3261,9 +3261,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 /*!50100 PARTITION BY HASH (`a`)
@@ -3313,19 +3313,19 @@ test.t2	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 /*!50100 PARTITION BY RANGE (`a`)
@@ -3613,8 +3613,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` point DEFAULT NULL,
   `d1` linestring DEFAULT NULL,
   `e1` polygon DEFAULT NULL,
@@ -3652,8 +3652,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` json DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3717,16 +3717,16 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3762,8 +3762,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3807,8 +3807,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3850,8 +3850,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
@@ -3885,8 +3885,8 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3928,8 +3928,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c2` char(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -3990,8 +3990,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   `c2` varchar(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
@@ -4053,16 +4053,16 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'bbbb',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -4115,14 +4115,14 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `h` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `h` int NOT NULL,
   `i` varchar(100) DEFAULT 'ABCD EFGH',
-  `f` int(11) GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
-  `d` int(11) GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
+  `f` int GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
+  `d` int GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
+  `e` int GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
@@ -4664,18 +4664,18 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) NOT NULL DEFAULT '10',
-  `d1` bigint(20) DEFAULT NULL,
-  `d2` bigint(20) NOT NULL DEFAULT '1234567890',
-  `e1` smallint(6) DEFAULT NULL,
-  `e2` smallint(6) NOT NULL DEFAULT '10',
-  `f1` tinyint(4) DEFAULT NULL,
-  `f2` tinyint(4) NOT NULL DEFAULT '123',
-  `g1` mediumint(9) DEFAULT NULL,
-  `g2` mediumint(9) NOT NULL DEFAULT '12345',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int NOT NULL DEFAULT '10',
+  `d1` bigint DEFAULT NULL,
+  `d2` bigint NOT NULL DEFAULT '1234567890',
+  `e1` smallint DEFAULT NULL,
+  `e2` smallint NOT NULL DEFAULT '10',
+  `f1` tinyint DEFAULT NULL,
+  `f2` tinyint NOT NULL DEFAULT '123',
+  `g1` mediumint DEFAULT NULL,
+  `g2` mediumint NOT NULL DEFAULT '12345',
   `h1` float DEFAULT NULL,
   `h2` float NOT NULL DEFAULT '12.34',
   `i1` decimal(5,2) DEFAULT NULL,
@@ -4785,15 +4785,15 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) GENERATED ALWAYS AS ((`b` * 2)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL,
+  `d` int GENERATED ALWAYS AS ((`b` * 2)) VIRTUAL,
   `e` varchar(100) DEFAULT 'ABCD EFGH',
-  `f` int(11) GENERATED ALWAYS AS (length(`e`)) VIRTUAL,
+  `f` int GENERATED ALWAYS AS (length(`e`)) VIRTUAL,
   `g` varchar(100) GENERATED ALWAYS AS (`e`) VIRTUAL,
-  `h` bigint(20) DEFAULT '10000',
-  `i` bigint(20) GENERATED ALWAYS AS (((`h` * 2) + `b`)) VIRTUAL,
+  `h` bigint DEFAULT '10000',
+  `i` bigint GENERATED ALWAYS AS (((`h` * 2) + `b`)) VIRTUAL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 DROP TABLE t1;
@@ -4895,10 +4895,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '500',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '500',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'HELLO MySQL!',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -4970,10 +4970,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   `t` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
@@ -5038,10 +5038,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   PRIMARY KEY (`a`,`c`),
   KEY `c` (`c`),
@@ -5116,10 +5116,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '100',
-  `d` int(11) GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '100',
+  `d` int GENERATED ALWAYS AS (((`c` * 2) + `b`)) VIRTUAL,
   `e` varchar(100) DEFAULT 'Hello world',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5212,13 +5212,13 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) NOT NULL DEFAULT '100',
-  `c` int(11) NOT NULL DEFAULT '100',
-  `e` int(11) NOT NULL DEFAULT '100',
-  `f` int(11) NOT NULL DEFAULT '100',
-  `g` int(11) NOT NULL DEFAULT '100',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `d` int NOT NULL DEFAULT '100',
+  `c` int NOT NULL DEFAULT '100',
+  `e` int NOT NULL DEFAULT '100',
+  `f` int NOT NULL DEFAULT '100',
+  `g` int NOT NULL DEFAULT '100',
   PRIMARY KEY (`a`),
   KEY `e` (`e`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5270,9 +5270,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '3',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '3',
   PRIMARY KEY (`a`),
   KEY `c` (`c`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5325,9 +5325,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 /*!50100 PARTITION BY HASH (`a`)
@@ -5377,19 +5377,19 @@ test.t2	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) NOT NULL DEFAULT '5',
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int NOT NULL DEFAULT '5',
+  `d` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 /*!50100 PARTITION BY RANGE (`a`)
@@ -5677,8 +5677,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` point DEFAULT NULL,
   `d1` linestring DEFAULT NULL,
   `e1` polygon DEFAULT NULL,
@@ -5716,8 +5716,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` json DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5781,16 +5781,16 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5826,8 +5826,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5871,8 +5871,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5914,8 +5914,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 DROP TABLE t1;
@@ -5949,8 +5949,8 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -5992,8 +5992,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c2` char(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -6054,8 +6054,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   `c2` varchar(10) NOT NULL DEFAULT 'cccc',
   PRIMARY KEY (`a`)
@@ -6117,16 +6117,16 @@ test.t2	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'aaaa',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   `c1` varchar(10) NOT NULL DEFAULT 'bbbb',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -6179,14 +6179,14 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `h` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `h` int NOT NULL,
   `i` varchar(100) DEFAULT 'ABCD EFGH',
-  `f` int(11) GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
-  `d` int(11) GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
+  `f` int GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
+  `d` int GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
+  `e` int GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 DROP TABLE t1;
@@ -6203,7 +6203,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text GENERATED ALWAYS AS (lpad(1,1,1)) VIRTUAL,
-  `b` int(11) DEFAULT NULL
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
@@ -6239,11 +6239,11 @@ col1	new_col	new_col_1	col2	new_col_2
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `new_col` int(11) DEFAULT NULL,
-  `new_col_1` int(11) DEFAULT NULL,
-  `col2` int(11) GENERATED ALWAYS AS ((`col1` + `col1`)) VIRTUAL,
-  `new_col_2` int(11) GENERATED ALWAYS AS ((`new_col` * 3)) VIRTUAL,
+  `col1` int DEFAULT NULL,
+  `new_col` int DEFAULT NULL,
+  `new_col_1` int DEFAULT NULL,
+  `col2` int GENERATED ALWAYS AS ((`col1` + `col1`)) VIRTUAL,
+  `new_col_2` int GENERATED ALWAYS AS ((`new_col` * 3)) VIRTUAL,
   KEY `col2` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CHECK TABLE t1;

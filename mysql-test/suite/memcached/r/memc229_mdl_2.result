@@ -59,9 +59,9 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` bigint(20) unsigned DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` bigint unsigned DEFAULT NULL,
+  `c5` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT c1,c2,c21 FROM t1;

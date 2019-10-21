@@ -25,7 +25,7 @@ second_office	1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(255) DEFAULT NULL,
   `department` varchar(10) DEFAULT NULL,
   `country` varchar(255) DEFAULT NULL
@@ -234,7 +234,7 @@ RANGE COLUMNS	`a`,`b`,`c`,`d`	1,MAXVALUE,MAXVALUE,MAXVALUE
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(10) DEFAULT NULL,
   `c` varchar(25) DEFAULT NULL,
   `d` datetime DEFAULT NULL
@@ -329,8 +329,8 @@ LIST COLUMNS	`a`,`b`	(3,NULL),(NULL,1)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0 VALUES IN ((1,NULL),(2,NULL),(NULL,NULL)) ENGINE = InnoDB,
@@ -363,8 +363,8 @@ a	b
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a,b)
 (PARTITION p0 VALUES IN ((1,NULL),(2,NULL),(NULL,NULL)) ENGINE = InnoDB,
@@ -388,7 +388,7 @@ LIST	`a`	NULL,4,3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION p0 VALUES IN (2,1) ENGINE = InnoDB,
@@ -418,7 +418,7 @@ LIST COLUMNS	`a`	4,NULL,3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN (2,1) ENGINE = InnoDB,
@@ -433,7 +433,7 @@ ERROR HY000: Table has no partition for value from column_list
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a)
 (PARTITION p0 VALUES IN (2,1) ENGINE = InnoDB,
@@ -465,10 +465,10 @@ RANGE COLUMNS	`a`,`b`,`c`	4,'abc','abc'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` char(10) DEFAULT NULL,
   `c` varchar(5) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL
+  `d` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY RANGE  COLUMNS(a,b,c)
 SUBPARTITION BY KEY (c,d)
@@ -499,9 +499,9 @@ RANGE COLUMNS	`a`,`b`,`c`	1,'B',1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(2) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY RANGE  COLUMNS(a,b,c)
 (PARTITION p0 VALUES LESS THAN (1,'A',1) ENGINE = InnoDB,

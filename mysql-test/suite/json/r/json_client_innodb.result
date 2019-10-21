@@ -4,7 +4,7 @@ CREATE TABLE t(i INT, j1 JSON, j2 JSON NOT NULL) CHARSET utf8mb4;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `j1` json DEFAULT NULL,
   `j2` json NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

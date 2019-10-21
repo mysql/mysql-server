@@ -65,7 +65,7 @@ create spatial index idx2 on t1(c2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` geometry NOT NULL /*!80003 SRID 4326 */,
   SPATIAL KEY `idx2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

@@ -85,7 +85,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `name` varchar(10) DEFAULT NULL,
-  `level` smallint(5) unsigned DEFAULT NULL
+  `level` smallint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=cp1250
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
@@ -180,7 +180,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `name` varchar(10) COLLATE cp1250_czech_cs DEFAULT NULL,
-  `level` smallint(5) unsigned DEFAULT NULL
+  `level` smallint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=cp1250 COLLATE=cp1250_czech_cs
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;

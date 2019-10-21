@@ -33,7 +33,7 @@ CREATE TABLE child(fk INT, CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent (pk))
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `c` (`fk`),
   CONSTRAINT `c` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -43,7 +43,7 @@ SET GLOBAL innodb_fast_shutdown = 0;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `c` (`fk`),
   CONSTRAINT `c` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

@@ -25,7 +25,7 @@ t5980.ibd
 SHOW CREATE TABLE t5980;
 Table	Create Table
 t5980	CREATE TABLE `t5980` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -323,7 +323,7 @@ a	b
 SHOW CREATE TABLE t5980;
 Table	Create Table
 t5980	CREATE TABLE `t5980` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -419,7 +419,7 @@ a	b
 SHOW CREATE TABLE t5980;
 Table	Create Table
 t5980	CREATE TABLE `t5980` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -471,25 +471,25 @@ a	b
 SHOW CREATE TABLE t5980a;
 Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
 Table	Create Table
 t5980c	CREATE TABLE `t5980c` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980d;
 Table	Create Table
 t5980d	CREATE TABLE `t5980d` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -543,13 +543,13 @@ ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
 SHOW CREATE TABLE t5980a;
 Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
@@ -622,13 +622,13 @@ ERROR HY000: Tablespace is missing for table `test`.`t5980d`.
 SHOW CREATE TABLE t5980aa;
 Table	Create Table
 t5980aa	CREATE TABLE `t5980aa` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980bb;
 Table	Create Table
 t5980bb	CREATE TABLE `t5980bb` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE t5980c;
@@ -703,13 +703,13 @@ ERROR HY000: Tablespace has been discarded for table 't5980bb'
 SHOW CREATE TABLE t5980aa;
 Table	Create Table
 t5980aa	CREATE TABLE `t5980aa` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t5980bb;
 Table	Create Table
 t5980bb	CREATE TABLE `t5980bb` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -759,7 +759,7 @@ RENAME TABLE t5980bb TO t5980b;
 SHOW CREATE TABLE t5980a;
 Table	Create Table
 t5980a	CREATE TABLE `t5980a` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Warnings:
@@ -767,7 +767,7 @@ Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 Warnings:

@@ -82,9 +82,9 @@ SET DEBUG_SYNC= 'now SIGNAL purged';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
@@ -120,9 +120,9 @@ SET DEBUG_SYNC= 'now SIGNAL purged';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;

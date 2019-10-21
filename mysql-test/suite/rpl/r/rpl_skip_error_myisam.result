@@ -10,8 +10,8 @@ CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `data` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `data` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SQL_LOG_BIN=1;
@@ -19,8 +19,8 @@ CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MyIsam;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `data` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `data` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t2 VALUES(1, 1);

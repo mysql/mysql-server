@@ -1002,11 +1002,11 @@ a int, b varchar(255), c datetime
 );
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
-statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=int(11)
-statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int(11)
+statement=SHOW COLUMNS FROM t1 row_number=1, column_name="Type", Value=int
+statement="SHOW COLUMNS FROM t1" row_number=1, column_name="Type", Value=int
 statement=SHOW COLUMNS FROM t1 row_number=1, column_name=Default, Value=NULL
 value= ->A B<-
 value= 1
@@ -1026,7 +1026,7 @@ mysqltest: At line 1: Query 'let $value= query_get_value(SHOW COLNS FROM t1, Fie
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
 
 Field Type Null Key Default Extra
-a int(11) YES -><- NULL 
+a int YES -><- NULL 
 b varchar(255) YES -><- NULL 
 c datetime YES -><- NULL 
 
@@ -1034,7 +1034,7 @@ Number of columns with Default NULL: 3
 
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
 drop table t1;
@@ -1308,7 +1308,7 @@ COUNT(*)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t1;
 #

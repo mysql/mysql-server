@@ -22,7 +22,7 @@ Warning	3778	'utf8_phone_ci' is a collation of the deprecated character set UTF8
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) DEFAULT NULL
+  `pk` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_phone_ci
 DROP TABLE t1;
 #

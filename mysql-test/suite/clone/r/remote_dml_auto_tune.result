@@ -84,8 +84,8 @@ call execute_dml(0, 0, 1000, 1000, 10, 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -120,8 +120,8 @@ col1	col2	col3
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -202,8 +202,8 @@ call execute_dml(0, 0, 2000, 2000, 10, 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -238,8 +238,8 @@ col1	col2	col3
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -314,8 +314,8 @@ call execute_dml(0, 0, 100, 100, 10, 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)
@@ -350,8 +350,8 @@ col1	col2	col3
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   `col3` varchar(64) DEFAULT NULL,
   `col4` blob,
   PRIMARY KEY (`col1`)

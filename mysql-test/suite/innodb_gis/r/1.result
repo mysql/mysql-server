@@ -10,35 +10,35 @@ CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMET
 CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_line;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geometry	YES		NULL	
 INSERT INTO gis_point VALUES 
 (101, ST_PointFromText('POINT(10 10)')),
@@ -431,7 +431,7 @@ mln	multilinestring	YES		NULL
 mpg	multipolygon	YES		NULL	
 gc	geomcollection	YES		NULL	
 gm	geometry	YES		NULL	
-fid	int(11)	NO		NULL	
+fid	int	NO		NULL	
 DROP TABLE t1;
 SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))))
@@ -1033,7 +1033,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 create view v1 as select * from t1;
 desc v1;
 Field	Type	Null	Key	Default	Extra
-f1	tinyint(1)	YES		NULL	
+f1	tinyint	YES		NULL	
 f2	char(1)	YES		NULL	
 f3	varchar(1)	YES		NULL	
 f4	geometry	YES		NULL	

@@ -72,7 +72,7 @@ books0	CREATE TABLE `books0` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   `$ix_t80_27B323C313AA758D7F01480F94271D0B13D88CE7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.isbn'))) VIRTUAL,
-  `$ix_i_94F8A4D3704392CE73A5A69F07681271C98C8CB2` int(11) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.pages')) VIRTUAL,
+  `$ix_i_94F8A4D3704392CE73A5A69F07681271C98C8CB2` int GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.pages')) VIRTUAL,
   `$ix_c64_r_2BAA686C5604372BA51E965E6346198F5072C3D7` char(64) CHARACTER SET latin1 COLLATE latin1_bin GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   `$ix_t64_r_27B323C313AA758D7F01480F94271D0B13D88CE7` text CHARACTER SET latin1 COLLATE latin1_bin GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.isbn'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),

@@ -1670,12 +1670,12 @@ b ENUM('value','๖ไü_value','สรี') character set latin1 NOT NULL
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT '1',
+  `a` int DEFAULT '1',
   `b` enum('value','๖ไü_value','สรี') CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		1	
+a	int	YES		1	
 b	enum('value','๖ไü_value','สรี')	NO		NULL	
 drop table t1;
 CREATE TABLE t1 (c enum('a', 'A') BINARY);
@@ -1766,7 +1766,7 @@ alter table t1 add f2 enum(0xFFFF);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   `f2` enum('') DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

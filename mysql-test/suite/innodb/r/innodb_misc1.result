@@ -409,7 +409,7 @@ ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_0;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `t2_ibfk_0` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2,t1;
@@ -446,8 +446,8 @@ references t2(c1) on delete cascade;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`),
   CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
@@ -456,8 +456,8 @@ alter table t1 drop foreign key c2_fk;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -670,8 +670,8 @@ DELETE CASCADE ON UPDATE CASCADE;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `f` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `f` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `f` (`f`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f`) REFERENCES `t1` (`f`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -709,7 +709,7 @@ id
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
@@ -718,7 +718,7 @@ ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

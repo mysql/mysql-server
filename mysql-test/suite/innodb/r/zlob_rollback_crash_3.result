@@ -4,7 +4,7 @@ ENGINE=InnoDB ROW_FORMAT=compressed;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f2` longblob,
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`(50))

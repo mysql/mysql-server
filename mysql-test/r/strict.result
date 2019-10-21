@@ -1041,7 +1041,7 @@ CREATE TABLE t1 (col1 INT NOT NULL default 99, col2 CHAR(6) NOT NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "col1" int(11) NOT NULL DEFAULT '99',
+  "col1" int NOT NULL DEFAULT '99',
   "col2" char(6) NOT NULL
 )
 INSERT INTO t1 VALUES (1, 'hello');
@@ -1285,7 +1285,7 @@ alter table t1 modify a bigint unsigned not null;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned NOT NULL,
+  `a` bigint unsigned NOT NULL,
   `b` date NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -1308,7 +1308,7 @@ alter table t1 add primary key(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1318,7 +1318,7 @@ alter table t1 add primary key(a);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` timestamp NOT NULL DEFAULT '2005-01-02 03:04:05',
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1479,14 +1479,14 @@ comment '123456789*123456789*123456789*123456789*123456789*123456789*';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='123456789*123456789*123456789*123456789*123456789*123456789*'
 drop table t1;
 CREATE TABLE t3 (f1 INT) COMMENT 'כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן';
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='כקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחןכקבהחן'
 DROP TABLE t3;
 set sql_mode= 'traditional';

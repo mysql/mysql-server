@@ -32,8 +32,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` tinyint(4) DEFAULT NULL
+  `c1` tinyint NOT NULL,
+  `c2` tinyint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME t2;
 SHOW TABLES;
@@ -44,8 +44,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` tinyint(4) DEFAULT NULL
+  `c1` tinyint NOT NULL,
+  `c2` tinyint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -57,8 +57,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
-  `c2` smallint(6) DEFAULT NULL
+  `c1` smallint NOT NULL,
+  `c2` smallint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME t2;
 SHOW TABLES;
@@ -69,8 +69,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) NOT NULL,
-  `c2` smallint(6) DEFAULT NULL
+  `c1` smallint NOT NULL,
+  `c2` smallint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -82,8 +82,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` mediumint(9) DEFAULT NULL
+  `c1` mediumint NOT NULL,
+  `c2` mediumint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME t2;
 SHOW TABLES;
@@ -94,8 +94,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` mediumint(9) DEFAULT NULL
+  `c1` mediumint NOT NULL,
+  `c2` mediumint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -107,8 +107,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME t2;
 SHOW TABLES;
@@ -119,8 +119,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -132,8 +132,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME t2;
 SHOW TABLES;
@@ -144,8 +144,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -157,8 +157,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) DEFAULT NULL
+  `c1` bigint NOT NULL,
+  `c2` bigint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME t2;
 SHOW TABLES;
@@ -169,8 +169,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) DEFAULT NULL
+  `c1` bigint NOT NULL,
+  `c2` bigint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -432,8 +432,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` tinyint(4) DEFAULT NULL
+  `c1` tinyint NOT NULL,
+  `c2` tinyint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME TO t2;
 SHOW TABLES;
@@ -444,8 +444,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` tinyint(4) NOT NULL,
-  `c2` tinyint(4) DEFAULT NULL
+  `c1` tinyint NOT NULL,
+  `c2` tinyint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -457,8 +457,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` smallint(6) NOT NULL,
-  `c2` smallint(6) DEFAULT NULL
+  `c1` smallint NOT NULL,
+  `c2` smallint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME TO t2;
 SHOW TABLES;
@@ -469,8 +469,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` smallint(6) NOT NULL,
-  `c2` smallint(6) DEFAULT NULL
+  `c1` smallint NOT NULL,
+  `c2` smallint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -482,8 +482,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` mediumint(9) DEFAULT NULL
+  `c1` mediumint NOT NULL,
+  `c2` mediumint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME TO t2;
 SHOW TABLES;
@@ -494,8 +494,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` mediumint(9) NOT NULL,
-  `c2` mediumint(9) DEFAULT NULL
+  `c1` mediumint NOT NULL,
+  `c2` mediumint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -507,8 +507,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME TO t2;
 SHOW TABLES;
@@ -519,8 +519,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -532,8 +532,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME TO t2;
 SHOW TABLES;
@@ -544,8 +544,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -557,8 +557,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) DEFAULT NULL
+  `c1` bigint NOT NULL,
+  `c2` bigint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME TO t2;
 SHOW TABLES;
@@ -569,8 +569,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) DEFAULT NULL
+  `c1` bigint NOT NULL,
+  `c2` bigint DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;

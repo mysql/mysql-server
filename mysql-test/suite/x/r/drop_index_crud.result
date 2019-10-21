@@ -27,7 +27,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint(4) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -58,7 +58,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint(3) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -89,7 +89,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint(2) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -120,7 +120,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint(6) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -151,7 +151,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint(5) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -182,7 +182,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint(4) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -223,7 +223,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint(9) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -254,7 +254,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint(8) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -285,7 +285,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint(7) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -326,7 +326,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` int(11) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` int GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -357,7 +357,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` int(10) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` int unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -388,7 +388,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` int(6) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` int unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -429,7 +429,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(20) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -460,7 +460,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(20) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -491,7 +491,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(13) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -532,7 +532,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(22) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
+  `$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
@@ -1667,7 +1667,7 @@ Got expected error: Incorrect table definition; there can be only one auto colum
 RUN SHOW CREATE TABLE xplugintest.table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
-  `ID` tinyint(4) NOT NULL AUTO_INCREMENT,
+  `ID` tinyint NOT NULL AUTO_INCREMENT,
   `Name` varchar(255) NOT NULL,
   `LastName` varchar(255) NOT NULL,
   PRIMARY KEY (`ID`),

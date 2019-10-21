@@ -16,9 +16,9 @@ REFERENCES self_ref(i)
 SHOW CREATE TABLE self_ref;
 Table	Create Table
 self_ref	CREATE TABLE `self_ref` (
-  `pk` int(11) NOT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ix` (`i`),
   KEY `fk_j_unique_i` (`j`),
@@ -35,8 +35,8 @@ REFERENCES self_ref(i)
 SHOW CREATE TABLE self_ref;
 Table	Create Table
 self_ref	CREATE TABLE `self_ref` (
-  `pk` int(11) NOT NULL,
-  `i` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `i` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ix` (`i`),
   CONSTRAINT `fk_i_unique_i` FOREIGN KEY (`i`) REFERENCES `self_ref` (`i`)
@@ -58,9 +58,9 @@ REFERENCES self_ref(j, i)
 SHOW CREATE TABLE self_ref;
 Table	Create Table
 self_ref	CREATE TABLE `self_ref` (
-  `pk` int(11) NOT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`),
   CONSTRAINT `fk_ij_unique_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref` (`j`, `i`)
@@ -75,9 +75,9 @@ Warning	1121	Ndb does not support unique index on NULL valued attributes, index 
 SHOW CREATE TABLE self_ref_hash;
 Table	Create Table
 self_ref_hash	CREATE TABLE `self_ref_hash` (
-  `pk` int(11) NOT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`) USING HASH,
   CONSTRAINT `fk_ij_unique_hash_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref_hash` (`j`, `i`)
@@ -90,9 +90,9 @@ REFERENCES self_ref_btree(j, i)
 SHOW CREATE TABLE self_ref_btree;
 Table	Create Table
 self_ref_btree	CREATE TABLE `self_ref_btree` (
-  `pk` int(11) NOT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`i`,`j`) USING BTREE,
   CONSTRAINT `fk_ij_unique_btree_ji` FOREIGN KEY (`i`, `j`) REFERENCES `self_ref_btree` (`j`, `i`)
@@ -108,9 +108,9 @@ REFERENCES self_ref(j, i)
 SHOW CREATE TABLE self_ref;
 Table	Create Table
 self_ref	CREATE TABLE `self_ref` (
-  `pk` int(11) NOT NULL,
-  `i` int(11) DEFAULT NULL,
-  `j` int(11) DEFAULT NULL,
+  `pk` int NOT NULL,
+  `i` int DEFAULT NULL,
+  `j` int DEFAULT NULL,
   PRIMARY KEY (`pk`),
   UNIQUE KEY `ijx` (`j`,`i`),
   KEY `fk_ij_diff_order_ji` (`i`,`j`),
@@ -474,10 +474,10 @@ CONSTRAINT e FOREIGN KEY f (fk4) REFERENCES t1 (id)
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
   KEY `fk1` (`fk1`),
   KEY `c` (`fk2`),
   KEY `d` (`fk3`),
@@ -508,16 +508,16 @@ FOREIGN KEY (fk3) REFERENCES parent (pk)) ENGINE=NDB;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
-  `fk5` int(11) DEFAULT NULL,
-  `fk6` int(11) DEFAULT NULL,
-  `fk7` int(11) DEFAULT NULL,
-  `fk8` int(11) DEFAULT NULL,
-  `fk9` int(11) DEFAULT NULL,
-  `fk10` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -538,16 +538,16 @@ ADD FOREIGN KEY (fk6) REFERENCES parent (pk);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
-  `fk5` int(11) DEFAULT NULL,
-  `fk6` int(11) DEFAULT NULL,
-  `fk7` int(11) DEFAULT NULL,
-  `fk8` int(11) DEFAULT NULL,
-  `fk9` int(11) DEFAULT NULL,
-  `fk10` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -577,16 +577,16 @@ ALTER TABLE child ADD FOREIGN KEY (fk8) REFERENCES parent (pk);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
-  `fk5` int(11) DEFAULT NULL,
-  `fk6` int(11) DEFAULT NULL,
-  `fk7` int(11) DEFAULT NULL,
-  `fk8` int(11) DEFAULT NULL,
-  `fk9` int(11) DEFAULT NULL,
-  `fk10` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -621,16 +621,16 @@ ALTER TABLE child DROP FOREIGN KEY child_fk_4;
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
-  `fk5` int(11) DEFAULT NULL,
-  `fk6` int(11) DEFAULT NULL,
-  `fk7` int(11) DEFAULT NULL,
-  `fk8` int(11) DEFAULT NULL,
-  `fk9` int(11) DEFAULT NULL,
-  `fk10` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -663,16 +663,16 @@ ALTER TABLE child ADD FOREIGN KEY (fk9) REFERENCES parent (pk);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
-  `fk5` int(11) DEFAULT NULL,
-  `fk6` int(11) DEFAULT NULL,
-  `fk7` int(11) DEFAULT NULL,
-  `fk8` int(11) DEFAULT NULL,
-  `fk9` int(11) DEFAULT NULL,
-  `fk10` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -709,16 +709,16 @@ ALTER TABLE child ADD FOREIGN KEY (fk10) REFERENCES parent (pk);
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
-  `fk5` int(11) DEFAULT NULL,
-  `fk6` int(11) DEFAULT NULL,
-  `fk7` int(11) DEFAULT NULL,
-  `fk8` int(11) DEFAULT NULL,
-  `fk9` int(11) DEFAULT NULL,
-  `fk10` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),
@@ -757,16 +757,16 @@ ERROR HY000: Cannot change table's storage engine because the table participates
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `fk1` int(11) DEFAULT NULL,
-  `fk2` int(11) DEFAULT NULL,
-  `fk3` int(11) DEFAULT NULL,
-  `fk4` int(11) DEFAULT NULL,
-  `fk5` int(11) DEFAULT NULL,
-  `fk6` int(11) DEFAULT NULL,
-  `fk7` int(11) DEFAULT NULL,
-  `fk8` int(11) DEFAULT NULL,
-  `fk9` int(11) DEFAULT NULL,
-  `fk10` int(11) DEFAULT NULL,
+  `fk1` int DEFAULT NULL,
+  `fk2` int DEFAULT NULL,
+  `fk3` int DEFAULT NULL,
+  `fk4` int DEFAULT NULL,
+  `fk5` int DEFAULT NULL,
+  `fk6` int DEFAULT NULL,
+  `fk7` int DEFAULT NULL,
+  `fk8` int DEFAULT NULL,
+  `fk9` int DEFAULT NULL,
+  `fk10` int DEFAULT NULL,
   KEY `c1` (`fk1`),
   KEY `fk2` (`fk2`),
   KEY `fk3` (`fk3`),

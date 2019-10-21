@@ -2,11 +2,11 @@ create table ibstd_39_j (a int not null, d varchar(15) not null, b varchar(198) 
 show create table ibstd_39_j;
 Table	Create Table
 ibstd_39_j	CREATE TABLE `ibstd_39_j` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `d` varchar(15) NOT NULL,
   `b` varchar(198) NOT NULL,
   `c` char(156) DEFAULT NULL,
-  `pkey` int(11) NOT NULL AUTO_INCREMENT,
+  `pkey` int NOT NULL AUTO_INCREMENT,
   `j` json DEFAULT NULL,
   `vjh` varchar(100) GENERATED ALWAYS AS (json_unquote(json_extract(`j`,_utf8mb4'$.hash'))) VIRTUAL,
   `vjha` varchar(100) GENERATED ALWAYS AS (json_unquote(json_extract(`j`,_utf8mb4'$.hash1[0]'))) VIRTUAL,

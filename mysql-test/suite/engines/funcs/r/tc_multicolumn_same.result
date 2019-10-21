@@ -25,11 +25,11 @@ m1
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
-  `c1` tinyint(4) DEFAULT NULL,
-  `c2` tinyint(4) NOT NULL,
-  `c3` tinyint(4) DEFAULT NULL,
-  `c4` tinyint(4) NOT NULL,
-  `c5` tinyint(4) NOT NULL,
+  `c1` tinyint DEFAULT NULL,
+  `c2` tinyint NOT NULL,
+  `c3` tinyint DEFAULT NULL,
+  `c4` tinyint NOT NULL,
+  `c5` tinyint NOT NULL,
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -43,11 +43,11 @@ m1
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
-  `c1` smallint(6) DEFAULT NULL,
-  `c2` smallint(6) NOT NULL,
-  `c3` smallint(6) DEFAULT NULL,
-  `c4` smallint(6) NOT NULL,
-  `c5` smallint(6) NOT NULL,
+  `c1` smallint DEFAULT NULL,
+  `c2` smallint NOT NULL,
+  `c3` smallint DEFAULT NULL,
+  `c4` smallint NOT NULL,
+  `c5` smallint NOT NULL,
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -61,11 +61,11 @@ m1
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
-  `c1` mediumint(9) DEFAULT NULL,
-  `c2` mediumint(9) NOT NULL,
-  `c3` mediumint(9) DEFAULT NULL,
-  `c4` mediumint(9) NOT NULL,
-  `c5` mediumint(9) NOT NULL,
+  `c1` mediumint DEFAULT NULL,
+  `c2` mediumint NOT NULL,
+  `c3` mediumint DEFAULT NULL,
+  `c4` mediumint NOT NULL,
+  `c5` mediumint NOT NULL,
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -79,11 +79,11 @@ m1
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) NOT NULL,
-  `c5` int(11) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int NOT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int NOT NULL,
+  `c5` int NOT NULL,
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -97,11 +97,11 @@ m1
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) NOT NULL,
-  `c5` int(11) NOT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int NOT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int NOT NULL,
+  `c5` int NOT NULL,
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -115,11 +115,11 @@ m1
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
-  `c1` bigint(20) DEFAULT NULL,
-  `c2` bigint(20) NOT NULL,
-  `c3` bigint(20) DEFAULT NULL,
-  `c4` bigint(20) NOT NULL,
-  `c5` bigint(20) NOT NULL,
+  `c1` bigint DEFAULT NULL,
+  `c2` bigint NOT NULL,
+  `c3` bigint DEFAULT NULL,
+  `c4` bigint NOT NULL,
+  `c5` bigint NOT NULL,
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

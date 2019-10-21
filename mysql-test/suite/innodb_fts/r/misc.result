@@ -14,7 +14,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `a` varchar(200) DEFAULT NULL,
   `b` text,
   PRIMARY KEY (`id`),
@@ -302,7 +302,7 @@ MATCH a,b AGAINST ('support') ;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(10) unsigned NOT NULL DEFAULT '0'
+  `id` int unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t2;
 id
@@ -314,7 +314,7 @@ MATCH a,b AGAINST("+support +collections" IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(10) unsigned NOT NULL DEFAULT '0'
+  `id` int unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t2;
 id
@@ -325,7 +325,7 @@ MATCH a,b AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(10) unsigned NOT NULL DEFAULT '0'
+  `id` int unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT id FROM t2;
 id
@@ -561,7 +561,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `a` varchar(200) DEFAULT NULL,
   `b` text,
   PRIMARY KEY (`id`),
@@ -969,7 +969,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `a` varchar(200) DEFAULT NULL,
   `b` text,
   PRIMARY KEY (`id`),

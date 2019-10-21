@@ -40,7 +40,7 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 2. ALTER TABLE ADD COLUMN [COPY] while clone in progress
@@ -66,8 +66,8 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -98,9 +98,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -131,9 +131,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -159,9 +159,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`),
   KEY `col3_idx` (`col3`)
@@ -188,9 +188,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`),
   KEY `col2_idx` (`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -216,9 +216,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;
@@ -248,9 +248,9 @@ SET DEBUG_SYNC = 'RESET';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) DEFAULT NULL,
-  `col3` int(11) DEFAULT NULL,
+  `col1` int NOT NULL,
+  `col2` int DEFAULT NULL,
+  `col3` int DEFAULT NULL,
   PRIMARY KEY (`col1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1 ORDER BY col1;

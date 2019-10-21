@@ -57,7 +57,7 @@ ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_text,title_varchar) WITH PARSER
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -330,7 +330,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -350,7 +350,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -371,7 +371,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -393,7 +393,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -416,7 +416,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -440,7 +440,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -676,7 +676,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -696,7 +696,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -712,7 +712,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -729,7 +729,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -747,7 +747,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -766,7 +766,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -786,7 +786,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -807,7 +807,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -829,7 +829,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1046,7 +1046,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1063,7 +1063,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1079,7 +1079,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1096,7 +1096,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1171,7 +1171,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1287,7 +1287,7 @@ ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_text,title_varchar) WITH PARSER
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1560,7 +1560,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1580,7 +1580,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1601,7 +1601,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1623,7 +1623,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1646,7 +1646,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1670,7 +1670,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1906,7 +1906,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1926,7 +1926,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1942,7 +1942,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1959,7 +1959,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1977,7 +1977,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -1996,7 +1996,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2016,7 +2016,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2037,7 +2037,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2059,7 +2059,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2276,7 +2276,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2293,7 +2293,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2309,7 +2309,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2326,7 +2326,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2401,7 +2401,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2517,7 +2517,7 @@ ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_text,title_varchar) WITH PARSER
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2790,7 +2790,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2810,7 +2810,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2831,7 +2831,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2853,7 +2853,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2876,7 +2876,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -2900,7 +2900,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3136,7 +3136,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3156,7 +3156,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3172,7 +3172,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3189,7 +3189,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3207,7 +3207,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3226,7 +3226,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3246,7 +3246,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3267,7 +3267,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3289,7 +3289,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3506,7 +3506,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3523,7 +3523,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3539,7 +3539,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3556,7 +3556,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3631,7 +3631,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -3747,7 +3747,7 @@ ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_text,title_varchar) WITH PARSER
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4020,7 +4020,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4040,7 +4040,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4061,7 +4061,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4083,7 +4083,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4106,7 +4106,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4130,7 +4130,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4366,7 +4366,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4386,7 +4386,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4402,7 +4402,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4419,7 +4419,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4437,7 +4437,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4456,7 +4456,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4476,7 +4476,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4497,7 +4497,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4519,7 +4519,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4736,7 +4736,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4753,7 +4753,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4769,7 +4769,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4786,7 +4786,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4861,7 +4861,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -4977,7 +4977,7 @@ ALTER TABLE articles_1 ADD FULLTEXT INDEX (title_text,title_varchar) WITH PARSER
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5250,7 +5250,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5270,7 +5270,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5291,7 +5291,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5313,7 +5313,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5336,7 +5336,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con8 (k1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5360,7 +5360,7 @@ ALTER TABLE articles ADD FULLTEXT INDEX con9 (e1) WITH PARSER ngram;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `seq` int(11) NOT NULL AUTO_INCREMENT,
+  `seq` int NOT NULL AUTO_INCREMENT,
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5596,7 +5596,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5616,7 +5616,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5632,7 +5632,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5649,7 +5649,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5667,7 +5667,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con4 (c3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5686,7 +5686,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con5 (c2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5706,7 +5706,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con6 (j2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5727,7 +5727,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con7 (j3) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5749,7 +5749,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con8 (행운을빈다) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5966,7 +5966,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5983,7 +5983,7 @@ Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -5999,7 +5999,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con2 (さようなら,j3) WITH PARSER ngra
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -6016,7 +6016,7 @@ ALTER TABLE 名字 ADD FULLTEXT INDEX con3 (k2) WITH PARSER ngram;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -6091,7 +6091,7 @@ RENAME TABLE tmp1 TO 名字;
 SHOW CREATE TABLE 名字;
 Table	Create Table
 名字	CREATE TABLE `名字` (
-  `seq` int(11) NOT NULL DEFAULT '0',
+  `seq` int NOT NULL DEFAULT '0',
   `c1` varchar(200) CHARACTER SET big5 COLLATE big5_chinese_ci DEFAULT NULL,
   `c2` char(200) CHARACTER SET gbk COLLATE gbk_chinese_ci DEFAULT NULL,
   `c3` char(200) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,

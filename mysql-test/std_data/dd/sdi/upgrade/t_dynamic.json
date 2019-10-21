@@ -48,7 +48,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "int(11)",
+                "column_type_utf8": "int",
                 "elements": [],
                 "collation_id": 8,
                 "is_explicit_collation": false

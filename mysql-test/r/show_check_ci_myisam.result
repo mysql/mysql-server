@@ -39,7 +39,7 @@ create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CH
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
@@ -47,7 +47,7 @@ alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
@@ -55,7 +55,7 @@ ALTER TABLE t1 AVG_ROW_LENGTH=0 CHECKSUM=0 COMMENT="" MIN_ROWS=0 MAX_ROWS=0 PACK
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -90,11 +90,11 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `type_bool` tinyint(1) NOT NULL DEFAULT '0',
-  `type_tiny` tinyint(4) NOT NULL AUTO_INCREMENT,
-  `type_short` smallint(3) DEFAULT NULL,
-  `type_mediumint` mediumint(9) DEFAULT NULL,
-  `type_bigint` bigint(20) DEFAULT NULL,
+  `type_bool` tinyint NOT NULL DEFAULT '0',
+  `type_tiny` tinyint NOT NULL AUTO_INCREMENT,
+  `type_short` smallint DEFAULT NULL,
+  `type_mediumint` mediumint DEFAULT NULL,
+  `type_bigint` bigint DEFAULT NULL,
   `type_decimal` decimal(5,2) DEFAULT NULL,
   `type_numeric` decimal(5,2) DEFAULT NULL,
   `empty_char` char(0) DEFAULT NULL,
@@ -124,7 +124,7 @@ CREATE TABLE t1 (i int, KEY (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -132,7 +132,7 @@ CREATE TABLE t1 (i int, KEY USING HASH (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`) USING HASH
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -140,7 +140,7 @@ CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -148,7 +148,7 @@ CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -156,7 +156,7 @@ CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -164,14 +164,14 @@ CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -179,14 +179,14 @@ CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -266,16 +266,16 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 show create table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Table	253	256	2	N	1	31	255
-def					Create Table	253	4096	445	N	1	31	255
+def					Create Table	253	4096	437	N	1	31	255
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `Codigo` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `Codigo` int unsigned NOT NULL AUTO_INCREMENT,
   `Nombre` varchar(255) DEFAULT NULL,
   `Telefono` varchar(255) DEFAULT NULL,
   `Observaciones` longtext,
   `Direccion` varchar(255) DEFAULT NULL,
   `Dni` varchar(255) DEFAULT NULL,
-  `CP` int(11) DEFAULT NULL,
+  `CP` int DEFAULT NULL,
   `Provincia` varchar(255) DEFAULT NULL,
   `Poblacion` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`Codigo`)

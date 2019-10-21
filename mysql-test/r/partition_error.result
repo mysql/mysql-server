@@ -760,7 +760,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -781,7 +781,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -801,7 +801,7 @@ Warning	1618	<INDEX DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `purchased` date DEFAULT NULL
 ) ENGINE=<curr_engine> DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
@@ -1795,7 +1795,7 @@ SUBPARTITION p2spSecond COMMENT "SubPartition comment in p2spSecond"));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 SUBPARTITION BY HASH (`a`)
@@ -1825,7 +1825,7 @@ SUBPARTITION p2spSecond COMMENT "SubPartition comment in p2spSecond"));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 SUBPARTITION BY HASH (`a`)
@@ -1860,7 +1860,7 @@ Warning	1793	Comment for table partition 'pMax' is too long (max = 1024)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `inx_a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)

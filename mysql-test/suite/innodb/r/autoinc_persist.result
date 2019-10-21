@@ -382,7 +382,7 @@ a
 SHOW CREATE TABLE t13;
 Table	Create Table
 t13	CREATE TABLE `t13` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1234 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t13 VALUES(0);
@@ -723,7 +723,7 @@ ALTER TABLE t3 AUTO_INCREMENT = 150;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0);
@@ -736,7 +736,7 @@ ALTER TABLE t3 AUTO_INCREMENT = 500;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=500 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0);
@@ -748,7 +748,7 @@ ALTER TABLE t3 AUTO_INCREMENT = 100;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0), (0);
@@ -764,7 +764,7 @@ ALTER TABLE t3 AUTO_INCREMENT = 120;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=221 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0);
@@ -776,7 +776,7 @@ ALTER TABLE t3 AUTO_INCREMENT = 120;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Kill and restart
@@ -801,7 +801,7 @@ a
 SHOW CREATE TABLE t_inplace;
 Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This will keep the autoinc counter
@@ -810,7 +810,7 @@ ALTER TABLE t_inplace AUTO_INCREMENT = 250, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t_inplace;
 Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should keep the autoinc counter as well
@@ -819,8 +819,8 @@ ALTER TABLE t_inplace ADD COLUMN b INT, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t_inplace;
 Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` smallint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_inplace WHERE a > 150;
@@ -839,8 +839,8 @@ ALTER TABLE t_inplace AUTO_INCREMENT = 180, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t_inplace;
 Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` smallint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should reset the autoinc counter to the next value of
@@ -851,7 +851,7 @@ ALTER TABLE t_inplace DROP COLUMN b, AUTO_INCREMENT = 50, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t_inplace;
 Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t_inplace VALUES(0), (0);
@@ -865,7 +865,7 @@ test.t_inplace	optimize	status	OK
 SHOW CREATE TABLE t_inplace;
 Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart
@@ -873,7 +873,7 @@ t_inplace	CREATE TABLE `t_inplace` (
 SHOW CREATE TABLE t_inplace;
 Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_inplace WHERE a >= 123;
@@ -898,7 +898,7 @@ a
 SHOW CREATE TABLE t_copy;
 Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This will keep the autoinc counter
@@ -907,7 +907,7 @@ ALTER TABLE t_copy AUTO_INCREMENT = 250, ALGORITHM = COPY;
 SHOW CREATE TABLE t_copy;
 Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should keep the autoinc counter as well
@@ -916,8 +916,8 @@ ALTER TABLE t_copy ADD COLUMN b INT, ALGORITHM = COPY;
 SHOW CREATE TABLE t_copy;
 Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` smallint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_copy WHERE a > 150;
@@ -936,8 +936,8 @@ ALTER TABLE t_copy AUTO_INCREMENT = 180, ALGORITHM = COPY;
 SHOW CREATE TABLE t_copy;
 Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` smallint NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should reset the autoinc counter to the next value of
@@ -948,7 +948,7 @@ ALTER TABLE t_copy DROP COLUMN b, AUTO_INCREMENT = 50, ALGORITHM = COPY;
 SHOW CREATE TABLE t_copy;
 Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t_copy VALUES(0), (0);
@@ -962,7 +962,7 @@ test.t_copy	optimize	status	OK
 SHOW CREATE TABLE t_copy;
 Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart
@@ -970,7 +970,7 @@ t_copy	CREATE TABLE `t_copy` (
 SHOW CREATE TABLE t_copy;
 Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
-  `a` smallint(6) NOT NULL AUTO_INCREMENT,
+  `a` smallint NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_copy WHERE a >= 123;
@@ -1193,16 +1193,16 @@ ALTER TABLE t1 CHANGE COLUMN b b INTEGER, ALGORITHM DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 AUTO_INCREMENT = 20, CHANGE COLUMN b b INT, ALGORITHM DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(NULL, 10);
@@ -1213,8 +1213,8 @@ ALTER TABLE t1 AUTO_INCREMENT = 10, CHANGE COLUMN b b INTEGER, ALGORITHM DEFAULT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(NULL, 12);

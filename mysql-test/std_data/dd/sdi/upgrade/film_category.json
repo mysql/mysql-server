@@ -48,7 +48,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "smallint(5) unsigned",
+                "column_type_utf8": "smallint unsigned",
                 "elements": [],
                 "collation_id": 8,
                 "is_explicit_collation": false
@@ -84,7 +84,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 2,
-                "column_type_utf8": "tinyint(3) unsigned",
+                "column_type_utf8": "tinyint unsigned",
                 "elements": [],
                 "collation_id": 8,
                 "is_explicit_collation": false

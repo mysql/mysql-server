@@ -27,7 +27,7 @@ INSERT INTO t1 SELECT * FROM tr;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -63,7 +63,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -103,7 +103,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -121,7 +121,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -158,7 +158,7 @@ INSERT INTO t1 SELECT * FROM tr;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -202,7 +202,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -237,7 +237,7 @@ Expect 6
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -283,7 +283,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -295,7 +295,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -325,7 +325,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -348,7 +348,7 @@ INSERT INTO t1 SELECT * FROM tr;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -381,7 +381,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -416,7 +416,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -427,7 +427,7 @@ PARTITIONS 8 */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -453,7 +453,7 @@ INSERT INTO t1 SELECT * FROM tr;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -486,7 +486,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -500,7 +500,7 @@ Expect 7
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -526,7 +526,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -542,7 +542,7 @@ Expect 9
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -566,7 +566,7 @@ INSERT INTO t1 SELECT * FROM tr;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -604,7 +604,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -623,7 +623,7 @@ Expect 7
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -661,7 +661,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -684,7 +684,7 @@ Expect 9
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -723,7 +723,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -741,7 +741,7 @@ INSERT INTO t1 VALUES (0, 'lava lamp', '2000-12-10');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -775,7 +775,7 @@ INSERT INTO t1 SELECT * FROM tr;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -816,7 +816,7 @@ LOWER(path)
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -824,7 +824,7 @@ tp	CREATE TABLE `tp` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -863,7 +863,7 @@ LOWER(path)
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -871,7 +871,7 @@ tp	CREATE TABLE `tp` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -908,7 +908,7 @@ INSERT INTO t1 SELECT * FROM tr;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -937,7 +937,7 @@ Expect 8
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -977,7 +977,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -1005,7 +1005,7 @@ DELETE FROM t1 WHERE id = 9;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -1046,7 +1046,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -1074,7 +1074,7 @@ INSERT INTO t1 VALUES
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -1118,7 +1118,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -1161,7 +1161,7 @@ LOWER(path)
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)
@@ -1183,7 +1183,7 @@ Expect 16
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(50) DEFAULT NULL,
   `purchased` date DEFAULT NULL,
   KEY `id` (`id`)

@@ -87,9 +87,9 @@ DROP TABLE IF EXISTS "t1";
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE "t1" (
-  "a b" int(11) NOT NULL,
-  "c""d" int(11) NOT NULL,
-  "e`f" int(11) NOT NULL,
+  "a b" int NOT NULL,
+  "c""d" int NOT NULL,
+  "e`f" int NOT NULL,
   PRIMARY KEY ("a b","c""d","e`f")
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -121,9 +121,9 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t1` (
-  `a b` int(11) NOT NULL,
-  `c"d` int(11) NOT NULL,
-  `e``f` int(11) NOT NULL,
+  `a b` int NOT NULL,
+  `c"d` int NOT NULL,
+  `e``f` int NOT NULL,
   PRIMARY KEY (`a b`,`c"d`,`e``f`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -217,7 +217,7 @@ DROP TABLE IF EXISTS "t1 test";
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE "t1 test" (
-  "a1" int(11) DEFAULT NULL
+  "a1" int DEFAULT NULL
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -246,7 +246,7 @@ DROP TABLE IF EXISTS "t2 test";
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE "t2 test" (
-  "a2" int(11) DEFAULT NULL
+  "a2" int DEFAULT NULL
 );
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -283,14 +283,14 @@ DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t2`,`t3`);
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -302,7 +302,7 @@ DROP TABLE IF EXISTS `t3`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t3` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -418,7 +418,7 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="BUG52792">
 	<table_structure name="t1">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
@@ -437,7 +437,7 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 	</row>
 	</table_data>
 	<table_structure name="t2">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t2">
@@ -471,12 +471,12 @@ END
 		</trigger>
 	</triggers>
 	<table_structure name="v1">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="v1" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<table_structure name="v2">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="v2" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<events>
@@ -539,7 +539,7 @@ END
 
  -->
 	<table_structure name="t1">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
@@ -569,7 +569,7 @@ END
 
  -->
 	<table_structure name="t2">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 <!-- 
@@ -614,7 +614,7 @@ END
 
  -->
 	<table_structure name="v1">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="v1" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
@@ -625,7 +625,7 @@ END
 
  -->
 	<table_structure name="v2">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="v2" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 <!-- 
@@ -694,7 +694,7 @@ GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="BUG52792">
 	<table_structure name="t1">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="t1" Engine="MyISAM" Version="10" Row_format="Dynamic" Rows="3" Avg_row_length="20" Data_length="60" Max_data_length="281474976710655" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
@@ -713,7 +713,7 @@ GRANT ALL PRIVILEGES ON BUG52792.* TO user1;
 	</row>
 	</table_data>
 	<table_structure name="t2">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="t2" Engine="MyISAM" Version="10" Row_format="Fixed" Rows="3" Avg_row_length="7" Data_length="21" Max_data_length="1970324836974591" Index_length="1024" Data_free="0" Auto_increment="1" Create_time="--TIME--" Update_time="--TIME--" Collation="utf8mb4_0900_ai_ci" Create_options="" Comment="" />
 	</table_structure>
 	<table_data name="t2">
@@ -747,12 +747,12 @@ END
 		</trigger>
 	</triggers>
 	<table_structure name="v1">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<field Field="c2" Type="varchar(20)" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="v1" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<table_structure name="v2">
-		<field Field="c1" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c1" Type="int" Null="YES" Key="" Extra="" Comment="" />
 		<options Name="v2" Create_time="--TIME--" Comment="VIEW" />
 	</table_structure>
 	<events>

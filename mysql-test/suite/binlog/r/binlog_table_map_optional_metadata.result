@@ -140,7 +140,7 @@ CREATE TABLE t1(`åäö表\a'``"` INT);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `åäö表\a'``"` int(11) DEFAULT NULL
+  `åäö表\a'``"` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(1);
 Matching lines are:

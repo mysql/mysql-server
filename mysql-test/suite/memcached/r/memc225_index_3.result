@@ -117,9 +117,9 @@ t1	CREATE TABLE `t1` (
   `c11` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   `c21` varchar(1024) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` bigint(20) unsigned DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` bigint unsigned DEFAULT NULL,
+  `c5` int DEFAULT NULL,
   PRIMARY KEY (`c11`),
   UNIQUE KEY `it1` (`c11`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

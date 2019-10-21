@@ -11,7 +11,7 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database testing_1
 binlog.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
-binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` FUNCTION `sf1`(a int) RETURNS int(11)
+binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` FUNCTION `sf1`(a int) RETURNS int
 return a+1
 binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a)
 binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(a int)
@@ -75,7 +75,7 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database testing_1
 binlog.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
-binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` FUNCTION `sf1`(a int) RETURNS int(11)
+binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` FUNCTION `sf1`(a int) RETURNS int
 return a+1
 binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a)
 binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(a int)
@@ -137,7 +137,7 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	create database testing_1
 binlog.000001	#	Query	#	#	use `testing_1`; create table t1 (a int)
-binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` FUNCTION `sf1`(a int) RETURNS int(11)
+binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` FUNCTION `sf1`(a int) RETURNS int
 return a+1
 binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` trigger tr1 before insert on t1 for each row insert into t2 values (2*new.a)
 binlog.000001	#	Query	#	#	use `testing_1`; CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(a int)

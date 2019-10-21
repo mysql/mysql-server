@@ -33,20 +33,20 @@ TABLE_SCHEMA	varchar(64)	NO		NULL
 TABLE_NAME	varchar(64)	NO		NULL	
 TABLE_TYPE	enum('BASE TABLE','VIEW','SYSTEM VIEW')	NO		NULL	
 ENGINE	varchar(64)	YES		NULL	
-VERSION	int(2)	YES		NULL	
+VERSION	int	YES		NULL	
 ROW_FORMAT	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')	YES		NULL	
-TABLE_ROWS	bigint(21) unsigned	YES		NULL	
-AVG_ROW_LENGTH	bigint(21) unsigned	YES		NULL	
-DATA_LENGTH	bigint(21) unsigned	YES		NULL	
-MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL	
-INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
-DATA_FREE	bigint(21) unsigned	YES		NULL	
-AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
+TABLE_ROWS	bigint unsigned	YES		NULL	
+AVG_ROW_LENGTH	bigint unsigned	YES		NULL	
+DATA_LENGTH	bigint unsigned	YES		NULL	
+MAX_DATA_LENGTH	bigint unsigned	YES		NULL	
+INDEX_LENGTH	bigint unsigned	YES		NULL	
+DATA_FREE	bigint unsigned	YES		NULL	
+AUTO_INCREMENT	bigint unsigned	YES		NULL	
 CREATE_TIME	timestamp	NO		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
-CHECKSUM	bigint(21)	YES		NULL	
+CHECKSUM	bigint	YES		NULL	
 CREATE_OPTIONS	varchar(256)	YES		NULL	
 TABLE_COMMENT	text	YES		NULL	
 SHOW CREATE TABLE information_schema.TABLES;
@@ -59,20 +59,20 @@ TABLE_SCHEMA	varchar(64)	NO		NULL
 TABLE_NAME	varchar(64)	NO		NULL	
 TABLE_TYPE	enum('BASE TABLE','VIEW','SYSTEM VIEW')	NO		NULL	
 ENGINE	varchar(64)	YES		NULL	
-VERSION	int(2)	YES		NULL	
+VERSION	int	YES		NULL	
 ROW_FORMAT	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')	YES		NULL	
-TABLE_ROWS	bigint(21) unsigned	YES		NULL	
-AVG_ROW_LENGTH	bigint(21) unsigned	YES		NULL	
-DATA_LENGTH	bigint(21) unsigned	YES		NULL	
-MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL	
-INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
-DATA_FREE	bigint(21) unsigned	YES		NULL	
-AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
+TABLE_ROWS	bigint unsigned	YES		NULL	
+AVG_ROW_LENGTH	bigint unsigned	YES		NULL	
+DATA_LENGTH	bigint unsigned	YES		NULL	
+MAX_DATA_LENGTH	bigint unsigned	YES		NULL	
+INDEX_LENGTH	bigint unsigned	YES		NULL	
+DATA_FREE	bigint unsigned	YES		NULL	
+AUTO_INCREMENT	bigint unsigned	YES		NULL	
 CREATE_TIME	timestamp	NO		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
-CHECKSUM	bigint(21)	YES		NULL	
+CHECKSUM	bigint	YES		NULL	
 CREATE_OPTIONS	varchar(256)	YES		NULL	
 TABLE_COMMENT	text	YES		NULL	
 SELECT table_catalog, table_schema, table_name

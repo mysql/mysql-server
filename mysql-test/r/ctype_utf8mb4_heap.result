@@ -2188,7 +2188,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `u_decimal` int(11) NOT NULL,
+  `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb4_encoding),utf8mb4_encoding FROM t1;
@@ -2210,7 +2210,7 @@ ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb4;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `u_decimal` int(11) NOT NULL,
+  `u_decimal` int NOT NULL,
   `utf8mb3_encoding` varchar(10) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
@@ -2224,7 +2224,7 @@ Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Pl
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `u_decimal` int(11) NOT NULL,
+  `u_decimal` int NOT NULL,
   `utf8mb3_encoding` varchar(10) NOT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
@@ -2236,7 +2236,7 @@ ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb3;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `u_decimal` int(11) NOT NULL,
+  `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
@@ -2257,7 +2257,7 @@ ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `u_decimal` int(11) NOT NULL,
+  `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
@@ -2278,7 +2278,7 @@ ALTER TABLE t2 MODIFY utf8mb3_encoding VARCHAR(10) CHARACTER SET utf8mb4;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `u_decimal` int(11) NOT NULL,
+  `u_decimal` int NOT NULL,
   `utf8mb3_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;

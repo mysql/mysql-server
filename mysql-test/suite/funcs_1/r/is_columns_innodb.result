@@ -607,47 +607,47 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAUL
 def	test	t1	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t1	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test	t1	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t1	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t1	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
-def	test	t1	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t1	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t10	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t10	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test	t10	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test	t10	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t10	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t10	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
-def	test	t10	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t10	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t11	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t11	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test	t11	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test	t11	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t11	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t11	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
-def	test	t11	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t11	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t2	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t2	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test	t2	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t2	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t2	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
-def	test	t2	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t2	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t3	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t3	f2	2	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
-def	test	t3	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t3	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t4	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t4	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test	t4	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test	t4	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t4	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t4	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
-def	test	t4	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t4	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t7	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t7	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test	t7	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test	t7	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t7	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t8	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test	t8	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test	t8	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test	t8	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	test	t9	f1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t8	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	test	t9	f1	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	t9	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
-def	test	t9	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test	t9	f3	3	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test	tb1	f1	1	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references			NULL
 def	test	tb1	f2	2	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_bin	char(0)			select,insert,update,references			NULL
 def	test	tb1	f3	3	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references			NULL
@@ -660,24 +660,24 @@ def	test	tb1	f9	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			sele
 def	test	tb1	f10	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references			NULL
 def	test	tb1	f11	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references			NULL
 def	test	tb1	f12	12	NULL	YES	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references			NULL
-def	test	tb1	f13	13	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(4)			select,insert,update,references			NULL
-def	test	tb1	f14	14	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references			NULL
+def	test	tb1	f13	13	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select,insert,update,references			NULL
+def	test	tb1	f14	14	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references			NULL
 def	test	tb1	f15	15	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb1	f16	16	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb1	f17	17	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)			select,insert,update,references			NULL
-def	test	tb1	f18	18	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references			NULL
+def	test	tb1	f17	17	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint			select,insert,update,references			NULL
+def	test	tb1	f18	18	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint unsigned			select,insert,update,references			NULL
 def	test	tb1	f19	19	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb1	f20	20	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb1	f21	21	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(9)			select,insert,update,references			NULL
-def	test	tb1	f22	22	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned			select,insert,update,references			NULL
+def	test	tb1	f21	21	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint			select,insert,update,references			NULL
+def	test	tb1	f22	22	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint unsigned			select,insert,update,references			NULL
 def	test	tb1	f23	23	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb1	f24	24	NULL	YES	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb1	f25	25	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	test	tb1	f26	26	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
+def	test	tb1	f25	25	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	test	tb1	f26	26	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
 def	test	tb1	f27	27	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb1	f28	28	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb1	f29	29	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references			NULL
-def	test	tb1	f30	30	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
+def	test	tb1	f29	29	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
+def	test	tb1	f30	30	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	test	tb1	f31	31	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb1	f32	32	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb1	f33	33	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
@@ -769,24 +769,24 @@ def	test	tb3	f126	9	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			se
 def	test	tb3	f127	10	NULL	YES	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references			NULL
 def	test	tb3	f128	11	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob			select,insert,update,references			NULL
 def	test	tb3	f129	12	0x05	NO	binary	1	1	NULL	NULL	NULL	NULL	NULL	binary(1)			select,insert,update,references			NULL
-def	test	tb3	f130	13	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(4)			select,insert,update,references			NULL
-def	test	tb3	f131	14	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references			NULL
+def	test	tb3	f130	13	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select,insert,update,references			NULL
+def	test	tb3	f131	14	99	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references			NULL
 def	test	tb3	f132	15	099	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb3	f133	16	099	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb3	f134	17	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(6)			select,insert,update,references			NULL
-def	test	tb3	f135	18	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references			NULL
+def	test	tb3	f134	17	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint			select,insert,update,references			NULL
+def	test	tb3	f135	18	999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint unsigned			select,insert,update,references			NULL
 def	test	tb3	f136	19	00999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb3	f137	20	00999	NO	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb3	f138	21	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(9)			select,insert,update,references			NULL
-def	test	tb3	f139	22	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned			select,insert,update,references			NULL
+def	test	tb3	f138	21	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint			select,insert,update,references			NULL
+def	test	tb3	f139	22	9999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint unsigned			select,insert,update,references			NULL
 def	test	tb3	f140	23	00009999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb3	f141	24	00009999	NO	mediumint	NULL	NULL	7	0	NULL	NULL	NULL	mediumint(8) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb3	f142	25	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
-def	test	tb3	f143	26	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
+def	test	tb3	f142	25	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	test	tb3	f143	26	99999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select,insert,update,references			NULL
 def	test	tb3	f144	27	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb3	f145	28	0000099999	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned zerofill			select,insert,update,references			NULL
-def	test	tb3	f146	29	999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references			NULL
-def	test	tb3	f147	30	999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
+def	test	tb3	f146	29	999999	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select,insert,update,references			NULL
+def	test	tb3	f147	30	999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references			NULL
 def	test	tb3	f148	31	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb3	f149	32	00000000000000999999	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned zerofill			select,insert,update,references			NULL
 def	test	tb3	f150	33	1000	NO	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0)			select,insert,update,references			NULL
@@ -927,9 +927,9 @@ def	test1	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	se
 def	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	test4	t6	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test4	t6	f4	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 def	test4	t6	f5	5	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
-def	test4	t6	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	test4	t6	f6	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -1013,47 +1013,47 @@ COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	C
 1.0000	test	t1	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t1	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test	t1	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test	t1	f4	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t1	f4	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t1	f5	char	25	25	latin1	latin1_swedish_ci	char(25)
-NULL	test	t1	f6	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t1	f6	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t10	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t10	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test	t10	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test	t10	f4	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t10	f4	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t10	f5	char	25	25	latin1	latin1_swedish_ci	char(25)
-NULL	test	t10	f6	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t10	f6	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t11	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t11	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test	t11	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test	t11	f4	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t11	f4	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t11	f5	char	25	25	latin1	latin1_swedish_ci	char(25)
-NULL	test	t11	f6	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t11	f6	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t2	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t2	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test	t2	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test	t2	f4	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t2	f4	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t2	f5	char	25	25	latin1	latin1_swedish_ci	char(25)
-NULL	test	t2	f6	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t2	f6	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t3	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t3	f2	char	20	20	latin1	latin1_swedish_ci	char(20)
-NULL	test	t3	f3	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t3	f3	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t4	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t4	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test	t4	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test	t4	f4	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t4	f4	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t4	f5	char	25	25	latin1	latin1_swedish_ci	char(25)
-NULL	test	t4	f6	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t4	f6	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t7	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t7	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test	t7	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test	t7	f4	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t7	f4	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t8	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test	t8	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test	t8	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test	t8	f4	int	NULL	NULL	NULL	NULL	int(11)
-NULL	test	t9	f1	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t8	f4	int	NULL	NULL	NULL	NULL	int
+NULL	test	t9	f1	int	NULL	NULL	NULL	NULL	int
 1.0000	test	t9	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
-NULL	test	t9	f3	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test	t9	f3	int	NULL	NULL	NULL	NULL	int
 NULL	test	tb1	f1	char	0	0	latin1	latin1_swedish_ci	char(0)
 NULL	test	tb1	f2	char	0	0	latin1	latin1_bin	char(0)
 NULL	test	tb1	f3	char	0	0	latin1	latin1_swedish_ci	char(0)
@@ -1066,24 +1066,24 @@ NULL	test	tb1	f3	char	0	0	latin1	latin1_swedish_ci	char(0)
 1.0000	test	tb1	f10	mediumblob	16777215	16777215	NULL	NULL	mediumblob
 1.0000	test	tb1	f11	longblob	4294967295	4294967295	NULL	NULL	longblob
 1.0000	test	tb1	f12	binary	1	1	NULL	NULL	binary(1)
-NULL	test	tb1	f13	tinyint	NULL	NULL	NULL	NULL	tinyint(4)
-NULL	test	tb1	f14	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned
+NULL	test	tb1	f13	tinyint	NULL	NULL	NULL	NULL	tinyint
+NULL	test	tb1	f14	tinyint	NULL	NULL	NULL	NULL	tinyint unsigned
 NULL	test	tb1	f15	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned zerofill
 NULL	test	tb1	f16	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned zerofill
-NULL	test	tb1	f17	smallint	NULL	NULL	NULL	NULL	smallint(6)
-NULL	test	tb1	f18	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
+NULL	test	tb1	f17	smallint	NULL	NULL	NULL	NULL	smallint
+NULL	test	tb1	f18	smallint	NULL	NULL	NULL	NULL	smallint unsigned
 NULL	test	tb1	f19	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned zerofill
 NULL	test	tb1	f20	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned zerofill
-NULL	test	tb1	f21	mediumint	NULL	NULL	NULL	NULL	mediumint(9)
-NULL	test	tb1	f22	mediumint	NULL	NULL	NULL	NULL	mediumint(8) unsigned
+NULL	test	tb1	f21	mediumint	NULL	NULL	NULL	NULL	mediumint
+NULL	test	tb1	f22	mediumint	NULL	NULL	NULL	NULL	mediumint unsigned
 NULL	test	tb1	f23	mediumint	NULL	NULL	NULL	NULL	mediumint(8) unsigned zerofill
 NULL	test	tb1	f24	mediumint	NULL	NULL	NULL	NULL	mediumint(8) unsigned zerofill
-NULL	test	tb1	f25	int	NULL	NULL	NULL	NULL	int(11)
-NULL	test	tb1	f26	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	test	tb1	f25	int	NULL	NULL	NULL	NULL	int
+NULL	test	tb1	f26	int	NULL	NULL	NULL	NULL	int unsigned
 NULL	test	tb1	f27	int	NULL	NULL	NULL	NULL	int(10) unsigned zerofill
 NULL	test	tb1	f28	int	NULL	NULL	NULL	NULL	int(10) unsigned zerofill
-NULL	test	tb1	f29	bigint	NULL	NULL	NULL	NULL	bigint(20)
-NULL	test	tb1	f30	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	test	tb1	f29	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	test	tb1	f30	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 NULL	test	tb1	f31	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned zerofill
 NULL	test	tb1	f32	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned zerofill
 NULL	test	tb1	f33	decimal	NULL	NULL	NULL	NULL	decimal(10,0)
@@ -1175,24 +1175,24 @@ NULL	test	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
 1.0000	test	tb3	f127	mediumblob	16777215	16777215	NULL	NULL	mediumblob
 1.0000	test	tb3	f128	longblob	4294967295	4294967295	NULL	NULL	longblob
 1.0000	test	tb3	f129	binary	1	1	NULL	NULL	binary(1)
-NULL	test	tb3	f130	tinyint	NULL	NULL	NULL	NULL	tinyint(4)
-NULL	test	tb3	f131	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned
+NULL	test	tb3	f130	tinyint	NULL	NULL	NULL	NULL	tinyint
+NULL	test	tb3	f131	tinyint	NULL	NULL	NULL	NULL	tinyint unsigned
 NULL	test	tb3	f132	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned zerofill
 NULL	test	tb3	f133	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned zerofill
-NULL	test	tb3	f134	smallint	NULL	NULL	NULL	NULL	smallint(6)
-NULL	test	tb3	f135	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
+NULL	test	tb3	f134	smallint	NULL	NULL	NULL	NULL	smallint
+NULL	test	tb3	f135	smallint	NULL	NULL	NULL	NULL	smallint unsigned
 NULL	test	tb3	f136	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned zerofill
 NULL	test	tb3	f137	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned zerofill
-NULL	test	tb3	f138	mediumint	NULL	NULL	NULL	NULL	mediumint(9)
-NULL	test	tb3	f139	mediumint	NULL	NULL	NULL	NULL	mediumint(8) unsigned
+NULL	test	tb3	f138	mediumint	NULL	NULL	NULL	NULL	mediumint
+NULL	test	tb3	f139	mediumint	NULL	NULL	NULL	NULL	mediumint unsigned
 NULL	test	tb3	f140	mediumint	NULL	NULL	NULL	NULL	mediumint(8) unsigned zerofill
 NULL	test	tb3	f141	mediumint	NULL	NULL	NULL	NULL	mediumint(8) unsigned zerofill
-NULL	test	tb3	f142	int	NULL	NULL	NULL	NULL	int(11)
-NULL	test	tb3	f143	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	test	tb3	f142	int	NULL	NULL	NULL	NULL	int
+NULL	test	tb3	f143	int	NULL	NULL	NULL	NULL	int unsigned
 NULL	test	tb3	f144	int	NULL	NULL	NULL	NULL	int(10) unsigned zerofill
 NULL	test	tb3	f145	int	NULL	NULL	NULL	NULL	int(10) unsigned zerofill
-NULL	test	tb3	f146	bigint	NULL	NULL	NULL	NULL	bigint(20)
-NULL	test	tb3	f147	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	test	tb3	f146	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	test	tb3	f147	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 NULL	test	tb3	f148	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned zerofill
 NULL	test	tb3	f149	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned zerofill
 NULL	test	tb3	f150	decimal	NULL	NULL	NULL	NULL	decimal(10,0)
@@ -1333,9 +1333,9 @@ NULL	test1	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
 1.0000	test4	t6	f1	char	20	20	latin1	latin1_swedish_ci	char(20)
 1.0000	test4	t6	f2	char	25	25	latin1	latin1_swedish_ci	char(25)
 NULL	test4	t6	f3	date	NULL	NULL	NULL	NULL	date
-NULL	test4	t6	f4	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test4	t6	f4	int	NULL	NULL	NULL	NULL	int
 1.0000	test4	t6	f5	char	25	25	latin1	latin1_swedish_ci	char(25)
-NULL	test4	t6	f6	int	NULL	NULL	NULL	NULL	int(11)
+NULL	test4	t6	f6	int	NULL	NULL	NULL	NULL	int
 SET sql_mode = default;
 DROP DATABASE test1;
 DROP DATABASE test4;

@@ -938,7 +938,7 @@ ERROR 42000: SHOW command denied to user 'mysqltest_1'@'localhost' for table 'v_
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE VIEW  mysqltest2.t_nn;
 ERROR HY000: 'mysqltest2.t_nn' is not VIEW
@@ -957,7 +957,7 @@ v_nn	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER 
 SHOW CREATE TABLE mysqltest2.t_nn;
 Table	Create Table
 t_nn	CREATE TABLE `t_nn` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE VIEW mysqltest2.t_nn;
 ERROR HY000: 'mysqltest2.t_nn' is not VIEW
@@ -1186,11 +1186,11 @@ t1
 ---> connection: bug27337_con2
 SHOW COLUMNS FROM mysqltest2.t2;
 Field	Type	Null	Key	Default	Extra
-c	int(11)	YES		NULL	
+c	int	YES		NULL	
 PREPARE stmt2 FROM 'SHOW COLUMNS FROM mysqltest2.t2';
 EXECUTE stmt2;
 Field	Type	Null	Key	Default	Extra
-c	int(11)	YES		NULL	
+c	int	YES		NULL	
 
 ---> connection: default
 REVOKE SELECT ON mysqltest1.t1 FROM mysqltest_1@localhost;
@@ -1832,7 +1832,7 @@ GRANT SELECT ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -1858,7 +1858,7 @@ GRANT INSERT ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -1884,7 +1884,7 @@ GRANT UPDATE ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -1910,7 +1910,7 @@ GRANT DELETE ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -1936,7 +1936,7 @@ GRANT CREATE ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -1962,7 +1962,7 @@ GRANT DROP ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -1988,7 +1988,7 @@ GRANT ALTER ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2014,7 +2014,7 @@ GRANT INDEX ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2040,7 +2040,7 @@ GRANT REFERENCES ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2066,7 +2066,7 @@ GRANT CREATE VIEW ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2092,7 +2092,7 @@ GRANT SHOW VIEW ON `mysqltest_db1`.* TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2118,7 +2118,7 @@ GRANT SELECT ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2144,7 +2144,7 @@ GRANT INSERT ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2170,7 +2170,7 @@ GRANT UPDATE ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2196,7 +2196,7 @@ GRANT DELETE ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2222,7 +2222,7 @@ GRANT CREATE ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2248,7 +2248,7 @@ GRANT DROP ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2274,7 +2274,7 @@ GRANT ALTER ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2300,7 +2300,7 @@ GRANT INDEX ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2326,7 +2326,7 @@ GRANT REFERENCES ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2352,7 +2352,7 @@ GRANT CREATE VIEW ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2378,7 +2378,7 @@ GRANT SHOW VIEW ON `mysqltest_db1`.`t1` TO `mysqltest_u1`@`localhost`
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 # connection: default
@@ -2777,7 +2777,7 @@ ERROR 42000: CREATE command denied to user 'untrusted8657'@'localhost' for table
 SHOW CREATE TABLE db8657.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP USER 'untrusted8657'@localhost;
 DROP DATABASE db8657;

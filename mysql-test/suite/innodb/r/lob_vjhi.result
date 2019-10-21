@@ -2,9 +2,9 @@ create table t1 (f1 int primary key, j json, vjhi int as (json_unquote(j->'$.Yea
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `j` json DEFAULT NULL,
-  `vjhi` int(11) GENERATED ALWAYS AS (json_unquote(json_extract(`j`,_utf8mb4'$.Year'))) VIRTUAL,
+  `vjhi` int GENERATED ALWAYS AS (json_unquote(json_extract(`j`,_utf8mb4'$.Year'))) VIRTUAL,
   PRIMARY KEY (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select f1, vjhi from t1 order by f1;

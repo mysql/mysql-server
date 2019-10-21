@@ -913,7 +913,7 @@ drop table t1;
 create table t1 (t int not null default 1, key (t)) engine=MyISAM;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-t	int(11)	NO	MUL	1	
+t	int	NO	MUL	1	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
@@ -1407,7 +1407,7 @@ create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 flush status;

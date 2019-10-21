@@ -619,13 +619,13 @@ CREATE TABLE `test`.`t1` (a integer) TABLESPACE `mytbsp`;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `test`.`t1`;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) /*!50100 TABLESPACE `mytbsp` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `test`.`t1`;
 DROP TABLESPACE `mytbsp`;

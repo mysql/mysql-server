@@ -56,7 +56,7 @@ def	test	t1_chk_1	test	t1	CHECK	YES
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
+  `f1` int DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (100);
@@ -168,7 +168,7 @@ ALTER TABLE test.t ENGINE = InnoDB;
 SHOW CREATE TABLE test.t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (-1) ENGINE = InnoDB,

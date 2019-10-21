@@ -13,8 +13,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b
@@ -37,8 +37,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b
@@ -65,8 +65,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b
@@ -84,8 +84,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b
@@ -114,8 +114,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -135,8 +135,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -156,8 +156,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
@@ -175,8 +175,8 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)

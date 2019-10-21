@@ -57,11 +57,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '10',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '10',
   PRIMARY KEY (`a`),
   KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -114,11 +114,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '30',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '30',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 /*!50100 PARTITION BY HASH (`a`)
@@ -235,10 +235,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT '100',
-  `d` int(11) DEFAULT '100',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT '100',
+  `d` int DEFAULT '100',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 /*!50100 PARTITION BY RANGE (`a`)
@@ -310,11 +310,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '30',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '30',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 /*!50100 PARTITION BY HASH (`a`)
@@ -379,11 +379,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '10',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '10',
   PRIMARY KEY (`a`),
   KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -436,11 +436,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '30',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '30',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 /*!50100 PARTITION BY HASH (`a`)
@@ -557,10 +557,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT '100',
-  `d` int(11) DEFAULT '100',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT '100',
+  `d` int DEFAULT '100',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 /*!50100 PARTITION BY RANGE (`a`)
@@ -632,11 +632,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '30',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '30',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 /*!50100 PARTITION BY HASH (`a`)
@@ -701,11 +701,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '10',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '10',
   PRIMARY KEY (`a`),
   KEY `c2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -758,11 +758,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '30',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '30',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 /*!50100 PARTITION BY HASH (`a`)
@@ -879,10 +879,10 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT '100',
-  `d` int(11) DEFAULT '100',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT '100',
+  `d` int DEFAULT '100',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 /*!50100 PARTITION BY RANGE (`a`)
@@ -954,11 +954,11 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c1` int(11) DEFAULT '10',
-  `c2` int(11) DEFAULT '20',
-  `c3` int(11) DEFAULT '30',
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c1` int DEFAULT '10',
+  `c2` int DEFAULT '20',
+  `c3` int DEFAULT '30',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 /*!50100 PARTITION BY HASH (`a`)

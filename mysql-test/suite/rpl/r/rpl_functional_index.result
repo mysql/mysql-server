@@ -30,8 +30,8 @@ SET SESSION debug="+d,show_hidden_columns";
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `col1` int DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -56,8 +56,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` wh
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `col1` int DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";
@@ -80,8 +80,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` wh
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) DEFAULT NULL,
-  `3bb8c14d415110ac3b3c55ce9108ae2d` int(11) GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
+  `col1` int DEFAULT NULL,
+  `3bb8c14d415110ac3b3c55ce9108ae2d` int GENERATED ALWAYS AS (abs(`col1`)) VIRTUAL,
   KEY `functional_index` ((abs(`col1`)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug="-d,show_hidden_columns";

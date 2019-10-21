@@ -30,13 +30,13 @@ p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 #
 # Test case to verify if ALTER routine statement is atomic/crash safe.
@@ -61,21 +61,21 @@ p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 # Binlog event for failed ALTER routine statement is not created.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 # Routines are altered and binlog event is written on a transaction commit.
 ALTER FUNCTION f comment "atomic DDL on routine";
 ALTER PROCEDURE p comment "atomic DDL on routine";
 SHOW CREATE FUNCTION f;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
     COMMENT 'atomic DDL on routine'
 return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE PROCEDURE p;
@@ -87,7 +87,7 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; ALTER FUNCTION f comment "atomic DDL on routine"
 binlog.000001	#	Query	#	#	use `test`; ALTER PROCEDURE p comment "atomic DDL on routine"
@@ -109,7 +109,7 @@ p	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+f	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
     COMMENT 'atomic DDL on routine'
 return 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 # Binlog event for failed drop routine statement is not created.
@@ -117,7 +117,7 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; ALTER FUNCTION f comment "atomic DDL on routine"
 binlog.000001	#	Query	#	#	use `test`; ALTER PROCEDURE p comment "atomic DDL on routine"
@@ -128,7 +128,7 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` PROCEDURE `p`()
 SELECT 1
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; ALTER FUNCTION f comment "atomic DDL on routine"
 binlog.000001	#	Query	#	#	use `test`; ALTER PROCEDURE p comment "atomic DDL on routine"
@@ -542,7 +542,7 @@ connection default;
 connection default;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
@@ -562,7 +562,7 @@ connection con1;
 connection con1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
@@ -577,7 +577,7 @@ connection con1;
 connection con1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
@@ -618,7 +618,7 @@ SET GLOBAL lock_wait_timeout= @orig_lock_wait_timeout;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
@@ -657,7 +657,7 @@ DROP VIEW v1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
@@ -666,7 +666,7 @@ binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1, v2
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
@@ -684,7 +684,7 @@ DROP FUNCTION f1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS SELECT f() as f1, v1.f2 FROM v1
@@ -693,12 +693,12 @@ binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1, v2
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f1
 binlog.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS SELECT 2 as f2
 binlog.000001	#	Query	#	#	use `test`; DROP VIEW v1
-binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int
 return 1
 binlog.000001	#	Query	#	#	use `test`; DROP FUNCTION f1
 #########################################################################

@@ -28,12 +28,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -44,12 +44,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -67,12 +67,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -83,12 +83,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -108,12 +108,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -124,12 +124,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -147,12 +147,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -163,12 +163,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -188,12 +188,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -204,12 +204,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -232,12 +232,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -248,12 +248,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -273,12 +273,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -291,12 +291,12 @@ Error	3829	This tablespace can't be encrypted, because one of table's schema has
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -316,12 +316,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -332,12 +332,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -358,12 +358,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1;
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -374,12 +374,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -399,12 +399,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1;
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -417,12 +417,12 @@ Error	3829	This tablespace can't be encrypted, because one of table's schema has
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -442,12 +442,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1;
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -458,12 +458,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -484,12 +484,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1;
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -500,12 +500,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -525,12 +525,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1;
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -543,12 +543,12 @@ Error	3829	This tablespace can't be encrypted, because one of table's schema has
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -568,12 +568,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1;
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -584,12 +584,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -616,12 +616,12 @@ Warning	3824	Creating an unencrypted table in a database with default encryption
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -632,12 +632,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -659,12 +659,12 @@ Warning	3824	Creating an unencrypted table in a database with default encryption
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -675,12 +675,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -704,12 +704,12 @@ Warning	3824	Creating an unencrypted table in a database with default encryption
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='n' */
 SET SESSION default_table_encryption=true;
 # Run ALTER TABLESPACE
@@ -720,12 +720,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -756,12 +756,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -772,12 +772,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -795,12 +795,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -811,12 +811,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -836,12 +836,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -852,12 +852,12 @@ Level	Code	Message
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -880,12 +880,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -899,12 +899,12 @@ Warning	3824	Creating an unencrypted table in a database with default encryption
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='N' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='N' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -924,12 +924,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -942,12 +942,12 @@ Error	3830	This tablespace can't be decrypted, because one of table's schema has
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;
@@ -967,12 +967,12 @@ CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='y';
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SET SESSION default_table_encryption=false;
 # Run ALTER TABLESPACE
@@ -986,12 +986,12 @@ Warning	3824	Creating an unencrypted table in a database with default encryption
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='N' */
 SHOW CREATE TABLE db1.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) DEFAULT NULL
+  `f1` int DEFAULT NULL
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='N' */
 SET GLOBAL table_encryption_privilege_check=false;
 SET SESSION default_table_encryption=false;

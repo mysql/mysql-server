@@ -3,19 +3,19 @@ drop table if exists bug21114_child;
 SHOW CREATE TABLE abs;
 Table	Create Table
 abs	CREATE TABLE `abs` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`col1`,`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE bug21114_child;
 Table	Create Table
 bug21114_child	CREATE TABLE `bug21114_child` (
-  `pk` int(11) NOT NULL,
-  `fk_col1` int(11) NOT NULL,
-  `fk_col2` int(11) NOT NULL,
-  `fk_col3` int(11) NOT NULL,
-  `fk_col4` int(11) NOT NULL,
+  `pk` int NOT NULL,
+  `fk_col1` int NOT NULL,
+  `fk_col2` int NOT NULL,
+  `fk_col3` int NOT NULL,
+  `fk_col4` int NOT NULL,
   KEY `fk_fct` (`fk_col1`,`fk_col2`),
   KEY `fk_fct_space` (`fk_col3`,`fk_col4`),
   CONSTRAINT `fk_fct` FOREIGN KEY (`fk_col1`, `fk_col2`) REFERENCES `abs` (`col1`, `col2`),
@@ -28,19 +28,19 @@ drop table if exists bug21114_child;
 SHOW CREATE TABLE field;
 Table	Create Table
 field	CREATE TABLE `field` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`col1`,`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE bug21114_child;
 Table	Create Table
 bug21114_child	CREATE TABLE `bug21114_child` (
-  `pk` int(11) NOT NULL,
-  `fk_col1` int(11) NOT NULL,
-  `fk_col2` int(11) NOT NULL,
-  `fk_col3` int(11) NOT NULL,
-  `fk_col4` int(11) NOT NULL,
+  `pk` int NOT NULL,
+  `fk_col1` int NOT NULL,
+  `fk_col2` int NOT NULL,
+  `fk_col3` int NOT NULL,
+  `fk_col4` int NOT NULL,
   KEY `fk_fct` (`fk_col1`,`fk_col2`),
   KEY `fk_fct_space` (`fk_col3`,`fk_col4`),
   CONSTRAINT `fk_fct` FOREIGN KEY (`fk_col1`, `fk_col2`) REFERENCES `field` (`col1`, `col2`),
@@ -53,19 +53,19 @@ drop table if exists bug21114_child;
 SHOW CREATE TABLE format;
 Table	Create Table
 format	CREATE TABLE `format` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`col1`,`col2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE bug21114_child;
 Table	Create Table
 bug21114_child	CREATE TABLE `bug21114_child` (
-  `pk` int(11) NOT NULL,
-  `fk_col1` int(11) NOT NULL,
-  `fk_col2` int(11) NOT NULL,
-  `fk_col3` int(11) NOT NULL,
-  `fk_col4` int(11) NOT NULL,
+  `pk` int NOT NULL,
+  `fk_col1` int NOT NULL,
+  `fk_col2` int NOT NULL,
+  `fk_col3` int NOT NULL,
+  `fk_col4` int NOT NULL,
   KEY `fk_fct` (`fk_col1`,`fk_col2`),
   KEY `fk_fct_space` (`fk_col3`,`fk_col4`),
   CONSTRAINT `fk_fct` FOREIGN KEY (`fk_col1`, `fk_col2`) REFERENCES `format` (`col1`, `col2`),

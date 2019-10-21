@@ -34,7 +34,7 @@ create spatial index idx on t1(c2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -45,7 +45,7 @@ SET DEBUG='-d,row_merge_ins_spatial_fail';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

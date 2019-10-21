@@ -19,29 +19,29 @@ SET @view='v2';
 # Verify view v2 columns information.
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v2	f2	int(11)
+v2	f2	int
 # View using only table t3 and view v2.
 CREATE VIEW v3 AS SELECT * FROM v2, t3;
 SET @view='v3';
 # Verify view v3 columns information.
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v3	f2	int(11)
-v3	f3	int(11)
+v3	f2	int
+v3	f3	int
 # View using stored function sf1.
 CREATE VIEW v4 AS SELECT sf1() AS sf;
 SET @view='v4';
 # Verify view v4 columns information.
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v4	sf	int(11)
+v4	sf	int
 # View using only view v4.
 create view v5 as select * from v4;
 SET @view='v5';
 # Verify view v5 columns information.
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v5	sf	int(11)
+v5	sf	int
 #
 # CASE 1 -  Add new column to the table t1. Verify view v1 column
 #           information.
@@ -51,7 +51,7 @@ ALTER TABLE t1 ADD f2 INT;
 SET @view='v1';
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v1	f1	int(11)
+v1	f1	int
 #
 #
 # 
@@ -79,7 +79,7 @@ SET @view='v3';
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
 v3	f2	char(100)
-v3	f3	int(11)
+v3	f3	int
 #
 #
 #
@@ -132,7 +132,7 @@ TABLE_NAME	TABLE_COMMENT
 v1	VIEW
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v1	f1	int(11)
+v1	f1	int
 #
 #
 #
@@ -173,15 +173,15 @@ TABLE_NAME	TABLE_COMMENT
 v2	VIEW
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v2	f2	int(11)
+v2	f2	int
 SET @view='v3';
 EXECUTE check_view_status USING @view;
 TABLE_NAME	TABLE_COMMENT
 v3	VIEW
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v3	f2	int(11)
-v3	f3	int(11)
+v3	f2	int
+v3	f3	int
 #
 #
 #
@@ -438,7 +438,7 @@ UNLOCK TABLES;
 SET @view='v1';
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v1	f1	int(11)
+v1	f1	int
 #
 #
 #
@@ -450,13 +450,13 @@ v1	f1	int(11)
 SET @view='v1';
 EXECUTE check_view_columns using @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v1	f1	int(11)
+v1	f1	int
 LOCK TABLE t1 WRITE;
 ALTER TABLE t1 CHANGE f1 f1 INT;
 UNLOCK TABLES;
 EXECUTE check_view_columns using @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v1	f1	int(11)
+v1	f1	int
 #
 #
 #
@@ -468,24 +468,24 @@ v1	f1	int(11)
 SET @view='v2';
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v2	f2	int(11)
+v2	f2	int
 SET @view='v3';
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v3	f2	int(11)
-v3	f3	int(11)
+v3	f2	int
+v3	f3	int
 LOCK TABLE t2 WRITE;
 ALTER TABLE t2 CHANGE f2 f2 INT;
 UNLOCK TABLES;
 SET @view='v2';
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v2	f2	int(11)
+v2	f2	int
 SET @view='v3';
 EXECUTE check_view_columns USING @view;
 TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
-v3	f2	int(11)
-v3	f3	int(11)
+v3	f2	int
+v3	f3	int
 #
 #
 #

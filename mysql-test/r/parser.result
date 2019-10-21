@@ -280,14 +280,14 @@ CREATE TABLE t1 (i INT KEY);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (i INT UNIQUE);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t3 (i INT UNIQUE KEY);
@@ -295,7 +295,7 @@ CREATE TABLE t3 (i INT UNIQUE KEY);
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3;
@@ -307,7 +307,7 @@ CREATE TABLE table_25930_a ( "blah" INT );
 CREATE TABLE table_25930_b SELECT "blah" - 1 FROM table_25930_a;
 desc table_25930_b;
 Field	Type	Null	Key	Default	Extra
-"blah" - 1	bigint(12)	YES		NULL	
+"blah" - 1	bigint	YES		NULL	
 DROP TABLE table_25930_a;
 DROP TABLE table_25930_b;
 SET @@sql_mode=@save_sql_mode;
@@ -2137,7 +2137,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TEMPORARY TABLE t1(a INT);
 SHOW COLUMNS FROM t1 WHERE FIELD='a';
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	NULL
+a	int	YES		NULL	NULL
 DROP TABLE t1;
 ALTER TABLE t1 RENAME TO ``.t1;
 ERROR 42000: Incorrect database name ''
@@ -2249,7 +2249,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=cp1251
 #
 # Explicit COLLATE:
@@ -2258,7 +2258,7 @@ ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT COLLATE cp1251_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_bin
 DROP DATABASE db1;
 #########################################################################
@@ -2280,7 +2280,7 @@ ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleanup:
 ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
@@ -2291,7 +2291,7 @@ ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 DROP DATABASE db2;
 #########################################################################
@@ -2316,7 +2316,7 @@ ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 #
 # Explicit COLLATE should result in utf8mb4_bin:
@@ -2325,7 +2325,7 @@ ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 #########################################################################
 #

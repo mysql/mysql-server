@@ -21,7 +21,7 @@ drop table t_create;
 show create table t_alter;
 Table	Create Table
 t_alter	CREATE TABLE `t_alter` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='new comment'
 alter table t_alter comment = '';
 select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
@@ -59,7 +59,7 @@ drop table t_create;
 show create table t_alter;
 Table	Create Table
 t_alter	CREATE TABLE `t_alter` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='new comment'
 alter table t_alter comment = '';
 set @@global.super_read_only = 1;
@@ -99,7 +99,7 @@ drop table t_create;
 show create table t_alter;
 Table	Create Table
 t_alter	CREATE TABLE `t_alter` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='new comment'
 alter table t_alter comment = '';
 set @@session.transaction_read_only = 1;
@@ -135,7 +135,7 @@ ERROR 42S02: Table 'test.t_create' doesn't exist
 show create table t_alter;
 Table	Create Table
 t_alter	CREATE TABLE `t_alter` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select @@innodb_read_only, @@transaction_read_only, @@read_only, @@super_read_only;
 @@innodb_read_only	@@transaction_read_only	@@read_only	@@super_read_only

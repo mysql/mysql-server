@@ -1101,24 +1101,24 @@ CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(1) NOT NULL DEFAULT '0',
-  `(SELECT 1)` int(1) NOT NULL DEFAULT '0'
+  `a` int NOT NULL DEFAULT '0',
+  `(SELECT 1)` int NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(1) NOT NULL DEFAULT '0',
-  `(SELECT a)` int(1) NOT NULL DEFAULT '0'
+  `a` int NOT NULL DEFAULT '0',
+  `(SELECT a)` int NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 charset utf8mb4 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(1) NOT NULL DEFAULT '0',
-  `(SELECT a+0)` int(3) NOT NULL DEFAULT '0'
+  `a` int NOT NULL DEFAULT '0',
+  `(SELECT a+0)` int NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 charset utf8mb4 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
@@ -1128,7 +1128,7 @@ a
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL DEFAULT '0'
+  `a` bigint NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int);

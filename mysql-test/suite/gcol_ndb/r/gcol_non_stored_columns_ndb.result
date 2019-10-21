@@ -89,8 +89,8 @@ ERROR HY000: 'Changing the STORED status' is not supported for generated columns
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 # Case 8. ALTER. Modify virtual non-stored -> virtual stored
@@ -100,8 +100,8 @@ ERROR HY000: 'Changing the STORED status' is not supported for generated columns
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 # Case 9. CREATE LIKE
@@ -139,7 +139,7 @@ b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   `c` varchar(5) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
@@ -161,7 +161,7 @@ b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   `c` char(5) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
@@ -181,8 +181,8 @@ a	c	b
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS (dayofyear(`b`)) VIRTUAL,
   `b` datetime DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
@@ -202,8 +202,8 @@ a	c	b
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (dayofyear(`b`)) STORED,
+  `a` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS (dayofyear(`b`)) STORED,
   `b` datetime DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
@@ -223,9 +223,9 @@ a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) STORED
+  `c` int GENERATED ALWAYS AS (week(`b`,1)) STORED
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 # Case 15. ALTER. Changing the expression of a virtual non-stored column.
@@ -244,9 +244,9 @@ a	b	c
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` datetime DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (week(`b`,1)) VIRTUAL
+  `c` int GENERATED ALWAYS AS (week(`b`,1)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
 DROP VIEW  IF EXISTS v1,v2;

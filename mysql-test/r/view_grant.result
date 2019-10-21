@@ -90,12 +90,12 @@ select c from mysqltest.v5;
 ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table 'v5'
 show columns from mysqltest.v1;
 Field	Type	Null	Key	Default	Extra
-c	bigint(12)	YES		NULL	
-d	bigint(12)	YES		NULL	
+c	bigint	YES		NULL	
+d	bigint	YES		NULL	
 show columns from mysqltest.v2;
 Field	Type	Null	Key	Default	Extra
-c	bigint(12)	YES		NULL	
-d	bigint(12)	YES		NULL	
+c	bigint	YES		NULL	
+d	bigint	YES		NULL	
 explain select c from mysqltest.v1;
 ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying table
 show create view mysqltest.v1;

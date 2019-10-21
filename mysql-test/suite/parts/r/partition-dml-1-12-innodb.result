@@ -9,8 +9,8 @@ PARTITION BY KEY() partitions 4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col_1_int` int(11) DEFAULT NULL,
-  `col_2_int` int(11) NOT NULL,
+  `col_1_int` int DEFAULT NULL,
+  `col_2_int` int NOT NULL,
   PRIMARY KEY (`col_2_int`),
   KEY `idx1` (`col_1_int`,`col_2_int`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

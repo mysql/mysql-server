@@ -27,8 +27,8 @@ ALTER TABLE `Table2` ADD CONSTRAINT fk1 FOREIGN KEY(c2) REFERENCES `Table1`(c1);
 SHOW CREATE TABLE `Table2`;
 Table	Table2
 Create Table	CREATE TABLE `Table2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `fk1` (`c2`),
   CONSTRAINT `fk1` FOREIGN KEY (`c2`) REFERENCES `Table1` (`c1`)
@@ -69,10 +69,10 @@ REFERENCES Customer(Id)
 SHOW CREATE TABLE Product_Order;
 Table	Product_Order
 Create Table	CREATE TABLE `Product_Order` (
-  `No` int(11) NOT NULL AUTO_INCREMENT,
-  `Product_Category` int(11) NOT NULL,
-  `Product_Id` int(11) NOT NULL,
-  `Customer_Id` int(11) NOT NULL,
+  `No` int NOT NULL AUTO_INCREMENT,
+  `Product_Category` int NOT NULL,
+  `Product_Id` int NOT NULL,
+  `Customer_Id` int NOT NULL,
   PRIMARY KEY (`No`),
   KEY `Product_Category` (`Product_Category`,`Product_Id`),
   KEY `Customer_Id` (`Customer_Id`),
@@ -82,15 +82,15 @@ Create Table	CREATE TABLE `Product_Order` (
 SHOW CREATE TABLE Product;
 Table	Product
 Create Table	CREATE TABLE `Product` (
-  `Category` int(11) NOT NULL,
-  `Id` int(11) NOT NULL,
+  `Category` int NOT NULL,
+  `Id` int NOT NULL,
   `Price` decimal(10,0) DEFAULT NULL,
   PRIMARY KEY (`Category`,`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE Customer;
 Table	Customer
 Create Table	CREATE TABLE `Customer` (
-  `Id` int(11) NOT NULL,
+  `Id` int NOT NULL,
   PRIMARY KEY (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS

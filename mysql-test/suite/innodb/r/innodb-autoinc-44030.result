@@ -19,7 +19,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `d1` int(11) NOT NULL AUTO_INCREMENT,
+  `d1` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`d1`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(null);

@@ -165,8 +165,8 @@ INSERT INTO t_nopk SELECT c1, c2 FROM t_innodb;
 SHOW CREATE TABLE t_nopk;
 Table	Create Table
 t_nopk	CREATE TABLE `t_nopk` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL
+  `c1` int NOT NULL,
+  `c2` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 EXPLAIN SELECT COUNT(*) FROM t_nopk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -201,8 +201,8 @@ CREATE INDEX c2_idx on t_nopk(c2);
 SHOW CREATE TABLE t_nopk;
 Table	Create Table
 t_nopk	CREATE TABLE `t_nopk` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   KEY `c2_idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 EXPLAIN SELECT COUNT(*) FROM t_nopk;

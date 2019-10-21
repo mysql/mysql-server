@@ -2,13 +2,13 @@ DESC sys.statements_with_sorting;
 Field	Type	Null	Key	Default	Extra
 query	longtext	YES		NULL	
 db	varchar(64)	YES		NULL	
-exec_count	bigint(20) unsigned	NO		NULL	
+exec_count	bigint unsigned	NO		NULL	
 total_latency	varchar(11)	YES		NULL	
-sort_merge_passes	bigint(20) unsigned	NO		NULL	
+sort_merge_passes	bigint unsigned	NO		NULL	
 avg_sort_merges	decimal(21,0)	NO		0	
-sorts_using_scans	bigint(20) unsigned	NO		NULL	
-sort_using_range	bigint(20) unsigned	NO		NULL	
-rows_sorted	bigint(20) unsigned	NO		NULL	
+sorts_using_scans	bigint unsigned	NO		NULL	
+sort_using_range	bigint unsigned	NO		NULL	
+rows_sorted	bigint unsigned	NO		NULL	
 avg_rows_sorted	decimal(21,0)	NO		0	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
@@ -18,13 +18,13 @@ DESC sys.x$statements_with_sorting;
 Field	Type	Null	Key	Default	Extra
 query	longtext	YES		NULL	
 db	varchar(64)	YES		NULL	
-exec_count	bigint(20) unsigned	NO		NULL	
-total_latency	bigint(20) unsigned	NO		NULL	
-sort_merge_passes	bigint(20) unsigned	NO		NULL	
+exec_count	bigint unsigned	NO		NULL	
+total_latency	bigint unsigned	NO		NULL	
+sort_merge_passes	bigint unsigned	NO		NULL	
 avg_sort_merges	decimal(21,0)	NO		0	
-sorts_using_scans	bigint(20) unsigned	NO		NULL	
-sort_using_range	bigint(20) unsigned	NO		NULL	
-rows_sorted	bigint(20) unsigned	NO		NULL	
+sorts_using_scans	bigint unsigned	NO		NULL	
+sort_using_range	bigint unsigned	NO		NULL	
+rows_sorted	bigint unsigned	NO		NULL	
 avg_rows_sorted	decimal(21,0)	NO		0	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	

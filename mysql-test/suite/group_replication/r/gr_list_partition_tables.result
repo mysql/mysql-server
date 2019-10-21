@@ -16,8 +16,8 @@ include/rpl_sync.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`id`)

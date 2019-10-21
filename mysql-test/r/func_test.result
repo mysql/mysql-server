@@ -360,7 +360,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `greatest(9223372036854775808, 9223372036854775808)` bigint(19) unsigned NOT NULL DEFAULT '0'
+  `greatest(9223372036854775808, 9223372036854775808)` bigint unsigned NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 #
@@ -462,7 +462,7 @@ GREATEST(_utf8mb4 x'c3a5', _binary '1') AS c64;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(2) NOT NULL DEFAULT '0',
+  `c1` bigint NOT NULL DEFAULT '0',
   `c2` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c3` double NOT NULL DEFAULT '0',
   `c4` varchar(1) NOT NULL DEFAULT '',
@@ -495,7 +495,7 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(2) NOT NULL DEFAULT '0',
+  `c1` int NOT NULL DEFAULT '0',
   `c2` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c3` double NOT NULL DEFAULT '0',
   `c4` varchar(1) NOT NULL DEFAULT '',
@@ -528,7 +528,7 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(2) NOT NULL DEFAULT '0',
+  `c1` int NOT NULL DEFAULT '0',
   `c2` decimal(2,1) NOT NULL DEFAULT '0.0',
   `c3` double NOT NULL DEFAULT '0',
   `c4` varchar(1) NOT NULL DEFAULT '',

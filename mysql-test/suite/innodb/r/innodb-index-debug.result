@@ -2,8 +2,8 @@ CREATE TABLE t1(c1 INT NOT NULL, c2 INT, PRIMARY KEY(c1)) Engine=InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
@@ -14,8 +14,8 @@ SET SESSION DEBUG=DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -97,7 +97,7 @@ COUNT(k1)	k2	k3
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k1` int(11) NOT NULL AUTO_INCREMENT,
+  `k1` int NOT NULL AUTO_INCREMENT,
   `k2` char(200) DEFAULT NULL,
   `k3` char(200) DEFAULT NULL,
   PRIMARY KEY (`k1`)

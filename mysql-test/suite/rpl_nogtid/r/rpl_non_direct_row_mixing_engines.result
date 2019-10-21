@@ -13652,8 +13652,8 @@ CREATE TABLE tt_xx_1 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13673,8 +13673,8 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_1`,`nt_xx_
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_1` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13698,8 +13698,8 @@ CREATE TABLE nt_xx_2 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_2` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13721,8 +13721,8 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_2` /* gene
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_2` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13748,8 +13748,8 @@ CREATE TABLE tt_xx_3 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13769,8 +13769,8 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_3`,`nt_xx_
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13794,8 +13794,8 @@ CREATE TABLE nt_xx_4 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13817,8 +13817,8 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_4` /* gene
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13844,8 +13844,8 @@ CREATE TABLE nt_xx_5 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13867,8 +13867,8 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_5` /* gene
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13894,8 +13894,8 @@ CREATE TABLE nt_xx_6 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13917,8 +13917,8 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS `tt_xx_6` /* gene
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -13942,8 +13942,8 @@ CREATE TABLE tt_xx_7 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -13957,8 +13957,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_7` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -14170,8 +14170,8 @@ CREATE TABLE tt_xx_8 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -14185,8 +14185,8 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_8` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=InnoDB
@@ -14398,8 +14398,8 @@ CREATE TABLE nt_xx_9 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FRO
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_9` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -14413,8 +14413,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_9` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -14662,8 +14662,8 @@ CREATE TABLE nt_xx_10 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FR
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_10` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM
@@ -14677,8 +14677,8 @@ master-bin.000001	#	Query	#	#	COMMIT
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_10` (
-  `trans_id` int(11) NOT NULL,
-  `stmt_id` int(11) NOT NULL,
+  `trans_id` int NOT NULL,
+  `stmt_id` int NOT NULL,
   `info` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`trans_id`,`stmt_id`)
 ) ENGINE=MyISAM

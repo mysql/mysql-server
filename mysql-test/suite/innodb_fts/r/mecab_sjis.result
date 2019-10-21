@@ -54,7 +54,7 @@ WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
-  `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
+  `page_id` int unsigned NOT NULL AUTO_INCREMENT,
   `page_title` varchar(255) CHARACTER SET sjis COLLATE sjis_japanese_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
@@ -164,7 +164,7 @@ WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
-  `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
+  `page_id` int unsigned NOT NULL AUTO_INCREMENT,
   `page_title` varchar(255) CHARACTER SET cp932 COLLATE cp932_japanese_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
