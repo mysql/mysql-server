@@ -1428,6 +1428,9 @@ void get_sp_access_map(
     const char *user, *host;
     if (!(user = grant_proc->user)) user = "";
     if (!(host = grant_proc->host.get_host())) host = "";
+    const char *acl_user_host, *acl_user_user;
+    if (!(acl_user_host = acl_user->host.get_host())) acl_user_host = "";
+    if (!(acl_user_user = acl_user->user)) acl_user_user = "";
 
     /*
       We do not make SHOW GRANTS case-sensitive here (like REVOKE),
@@ -1436,8 +1439,8 @@ void get_sp_access_map(
       would be wrong from a security point of view.
     */
 
-    if (!strcmp(acl_user->user, user) &&
-        !my_strcasecmp(system_charset_info, acl_user->host.get_host(), host)) {
+    if (!strcmp(acl_user_user, user) &&
+        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
       ulong proc_access = grant_proc->privs;
       if (proc_access != 0) {
         String key;
@@ -4490,6 +4493,7 @@ void get_privilege_access_maps(
   /* First we check the current users access control */
   // Get global access
   *access = acl_user->access;
+
   DBUG_PRINT("info", ("Global access for acl_user %s@%s is %lu", acl_user->user,
                       acl_user->host.get_host(), acl_user->access));
   // Get database access
