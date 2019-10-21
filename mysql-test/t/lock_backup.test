@@ -1,5 +1,5 @@
 --echo #
---echo # WL#9451 -- Backup Log
+--echo # WL#9451 -- Backup Lock
 --echo #
 
 CREATE TABLE t1 (a INT);
@@ -156,3 +156,47 @@ UNLOCK TABLES;
 DROP TABLE t1;
 
 UNLOCK INSTANCE;
+
+--echo #
+--echo # Bug#30226264 - flush tables with read lock fails with deadlock found
+--echo #
+
+CREATE DATABASE db1;
+use db1;
+CREATE TABLE t1 (a INT);
+
+--enable_connect_log
+
+--connect (con1, localhost, root,,)
+let $con1_id= `SELECT CONNECTION_ID()`;
+use db1;
+--connection default
+LOCK INSTANCE FOR BACKUP;
+
+--connection con1
+--send ALTER DATABASE db1 CHARACTER SET=latin1
+
+--connection default
+let $wait_condition=
+  SELECT count(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE state = "Waiting for backup lock" AND id = $con1_id;
+--source include/wait_condition.inc
+
+--echo # Without the patch the following statement would failed with
+--echo # ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+FLUSH TABLES t1 WITH READ LOCK;
+
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+
+--connection con1
+--echo # Reap result of ALTER DATABASE db1
+--reap
+
+--echo clean up
+DROP DATABASE db1;
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--disable_connect_log

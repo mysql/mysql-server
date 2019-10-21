@@ -1,5 +1,5 @@
 #
-# WL#9451 -- Backup Log
+# WL#9451 -- Backup Lock
 #
 CREATE TABLE t1 (a INT);
 connect  con1, localhost, root,,;
@@ -105,3 +105,27 @@ FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
 DROP TABLE t1;
 UNLOCK INSTANCE;
+#
+# Bug#30226264 - flush tables with read lock fails with deadlock found
+#
+CREATE DATABASE db1;
+use db1;
+CREATE TABLE t1 (a INT);
+connect  con1, localhost, root,,;
+use db1;
+connection default;
+LOCK INSTANCE FOR BACKUP;
+connection con1;
+ALTER DATABASE db1 CHARACTER SET=latin1;
+connection default;
+# Without the patch the following statement would failed with
+# ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+UNLOCK INSTANCE;
+connection con1;
+# Reap result of ALTER DATABASE db1
+clean up
+DROP DATABASE db1;
+disconnect con1;
+connection default;
