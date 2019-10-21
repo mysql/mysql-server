@@ -90,11 +90,23 @@ const Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
  */
 
 #ifdef VM_TRACE
-#if defined(_WIN32) || defined(MADV_DONTDUMP)
-/**
- * For Windows and Linux measures are taken not to dump the whole virtual
- * memory reserved but only those pages that are populated.
- * The linux support depends on having MADV_DONTDUMP defined.
+#if defined(_WIN32) || \
+    (defined(MADV_DONTDUMP) && \
+     defined(MAP_NORESERVE)) || \
+    defined(MAP_GUARD)
+/*
+ * Only activate use of do_virtual_alloc() if build platform allows reserving
+ * address space only without reserving space on swap nor include memory in
+ * core files dumped, since we start by trying to reserve 128TB of address
+ * space.
+ *
+ * For Windows one uses VirtualAlloc(MEM_RESERVE).
+ *
+ * On Linux and Solaris (since 11.4 SRU 12) one uses mmap(MAP_NORESERVE) and
+ * madvise(MADV_DONTDUMP).
+ *
+ * On FreeBSD one uses mmap(MAP_GUARD).
+ *
  * For other OS do_virtual_alloc should not be used since it will produce huge
  * core dumps if crashing.
  */
