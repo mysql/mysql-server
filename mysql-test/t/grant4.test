@@ -188,4 +188,14 @@ REVOKE abc ON *.* FROM testrole;
 DROP USER testuser@localhost;
 DROP USER testrole;
 
+--echo #
+--echo # Anonymous user fail to properly aggregate EXECUTE privilege.
+--echo #
+CREATE USER ''@'';
+GRANT EXECUTE ON PROCEDURE sys.table_exists TO ''@'';
+GRANT SELECT ON db1.* TO ''@'';
+SHOW GRANTS FOR ''@'';
+DROP USER ''@'';
+
 --echo # End of 8.0 tests
+

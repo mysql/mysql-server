@@ -165,4 +165,16 @@ Warnings:
 Warning	3929	Dynamic privilege 'ABC' is not registered with the server.
 DROP USER testuser@localhost;
 DROP USER testrole;
+#
+# Anonymous user fail to properly aggregate EXECUTE privilege.
+#
+CREATE USER ''@'';
+GRANT EXECUTE ON PROCEDURE sys.table_exists TO ''@'';
+GRANT SELECT ON db1.* TO ''@'';
+SHOW GRANTS FOR ''@'';
+Grants for @
+GRANT USAGE ON *.* TO ``@``
+GRANT SELECT ON `db1`.* TO ``@``
+GRANT EXECUTE ON PROCEDURE `sys`.`table_exists` TO ``@``
+DROP USER ''@'';
 # End of 8.0 tests
