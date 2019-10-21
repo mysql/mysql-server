@@ -764,3 +764,22 @@ EXPLAIN ANALYZE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c2 JOIN t3 ON t2.c2 > t3.
 ERROR 42000: This version of MySQL doesn't yet support 'EXPLAIN ANALYZE on this query'
 set optimizer_switch='block_nested_loop=off';
 DROP TABLE t1, t2, t3;
+#
+# Bug #30444266: EXPLAIN ANALYZE DOES NOT EXECUTE THE SUBQUERIES IN THE SELECT LIST
+#
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.f1 < t1.f1 ) FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=1.25 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=1)
+-> Select #2 (subquery in projection; dependent)
+    -> Aggregate: count(0)  (actual time=N.NNN..N.NNN rows=1 loops=10)
+        -> Filter: (inner_t1.f1 < t1.f1)  (cost=0.58 rows=3) (actual time=N.NNN..N.NNN rows=4 loops=10)
+            -> Table scan on inner_t1  (cost=0.58 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=10)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1;
