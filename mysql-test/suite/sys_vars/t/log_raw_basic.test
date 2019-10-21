@@ -1,0 +1,16 @@
+--echo # Bug 16636373 SERVER DOES NOT EXPOSE --LOG-RAW IN SHOW VARIABLES
+--echo # Expected value ON as opt file contains --log-raw option
+
+SHOW VARIABLES LIKE 'log_raw';
+
+SET GLOBAL log_raw=0;
+SHOW VARIABLES LIKE 'log_raw';
+
+SET GLOBAL log_raw=1;
+SHOW VARIABLES LIKE 'log_raw';
+
+SET GLOBAL log_raw=DEFAULT;
+SHOW VARIABLES LIKE 'log_raw';
+
+# setting it back to the value we were started with
+SET GLOBAL log_raw=ON;
