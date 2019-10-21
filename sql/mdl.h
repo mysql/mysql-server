@@ -358,6 +358,9 @@ struct MDL_key {
 
     Different types of objects exist in different namespaces
      - GLOBAL is used for the global read lock.
+     - BACKUP_LOCK is to block any operations that could cause
+       inconsistent backup. Such operations are most DDL statements,
+       and some administrative statements.
      - TABLESPACE is for tablespaces.
      - SCHEMA is for schemas (aka databases).
      - TABLE is for tables and views.
@@ -371,9 +374,6 @@ struct MDL_key {
      - SRID is for spatial reference systems
      - ACL_CACHE is for ACL caches
      - COLUMN_STATISTICS is for column statistics, such as histograms
-     - BACKUP_LOCK is to block any operations that could cause
-       inconsistent backup. Such operations are most DDL statements,
-       and some administrative statements.
      - RESOURCE_GROUPS is for resource groups.
      - FOREIGN_KEY is for foreign key names.
      - CHECK_CONSTRAINT is for check constraint names.
@@ -382,6 +382,7 @@ struct MDL_key {
   */
   enum enum_mdl_namespace {
     GLOBAL = 0,
+    BACKUP_LOCK,
     TABLESPACE,
     SCHEMA,
     TABLE,
@@ -395,7 +396,6 @@ struct MDL_key {
     SRID,
     ACL_CACHE,
     COLUMN_STATISTICS,
-    BACKUP_LOCK,
     RESOURCE_GROUPS,
     FOREIGN_KEY,
     CHECK_CONSTRAINT,

@@ -113,6 +113,7 @@ static void init_mdl_psi_keys(void) {
 
 PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for global read lock", 0, PSI_DOCUMENT_ME},
+    {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for tablespace metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for schema metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for table metadata lock", 0, PSI_DOCUMENT_ME},
@@ -126,7 +127,6 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
     {0, "Waiting for spatial reference system lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for acl cache lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for column statistics lock", 0, PSI_DOCUMENT_ME},
-    {0, "Waiting for backup lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for resource groups metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for foreign key metadata lock", 0, PSI_DOCUMENT_ME},
     {0, "Waiting for check constraint metadata lock", 0, PSI_DOCUMENT_ME}};
