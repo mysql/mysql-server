@@ -26,6 +26,7 @@
 #include "dim.h"
 #include "group_replication_metadata.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysqld_error.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
 #include "mysqlrouter/utils.h"
@@ -219,8 +220,8 @@ bool ClusterMetadata::update_router_version(
   auto connection = mysql_harness::DIM::instance().new_MySQLSession();
   if (!do_connect(*connection, rw_instance)) {
     log_warning(
-        "Updating the router version failed: Could not connect to the writable "
-        "cluster member");
+        "Updating the router version in metadata failed: Could not connect to "
+        "the writable cluster member");
 
     return false;
   }
@@ -245,8 +246,17 @@ bool ClusterMetadata::update_router_version(
   query << MYSQL_ROUTER_VERSION << router_id << sqlstring::end;
   try {
     connection->execute(query);
+  } catch (const MySQLSession::Error &e) {
+    if (e.code() == ER_TABLEACCESS_DENIED_ERROR) {
+      log_warning(
+          "Updating the router version in metadata failed: %s (%u)\n"
+          "Make sure to follow the correct steps to upgrade your metadata.\n"
+          "Run the dba.upgradeMetadata() then launch the new Router version "
+          "when prompted",
+          e.message().c_str(), e.code());
+    }
   } catch (const std::exception &e) {
-    log_warning("Updating the router version failed: %s", e.what());
+    log_warning("Updating the router version in metadata failed: %s", e.what());
   }
 
   transaction.commit();
@@ -263,8 +273,8 @@ bool ClusterMetadata::update_router_last_check_in(
   auto connection = mysql_harness::DIM::instance().new_MySQLSession();
   if (!do_connect(*connection, rw_instance)) {
     log_warning(
-        "Updating the router last_check_in failed: Could not connect to the "
-        "writable cluster member");
+        "Updating the router last_check_in in metadata failed: Could not "
+        "connect to the writable cluster member");
 
     return false;
   }
@@ -282,7 +292,8 @@ bool ClusterMetadata::update_router_last_check_in(
   try {
     connection->execute(query);
   } catch (const std::exception &e) {
-    log_warning("Updating the router last_check_in failed: %s", e.what());
+    log_warning("Updating the router last_check_in in metadata failed: %s",
+                e.what());
   }
 
   transaction.commit();

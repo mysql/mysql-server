@@ -681,8 +681,12 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
   SCOPED_TRACE(
       "// we expect the error trying to update the version in the log");
   const std::string log_content = router.get_full_logfile();
-  const std::string pattern = "Updating the router version failed: ";
-  ASSERT_TRUE(pattern_found(log_content, pattern));
+  const std::string pattern =
+      "Updating the router version in metadata failed:.*\n"
+      "Make sure to follow the correct steps to upgrade your metadata.\n"
+      "Run the dba.upgradeMetadata\\(\\) then launch the new Router version "
+      "when prompted";
+  ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
 
   SCOPED_TRACE(
       "// we expect that the router attempted to update the version only once, "
@@ -758,15 +762,6 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
       client.connect("127.0.0.1", router_port, "username", "password", "", ""))
       << router.get_full_logfile();
 
-  //  SCOPED_TRACE("// let the router run for about 5 ttl periods");
-  //  std::this_thread::sleep_for(500ms);
-
-  //  SCOPED_TRACE("// check how many times the metadata was queried thus far");
-  //  std::string server_globals =
-  //      MockServerRestClient(md_server_http_port).get_globals_as_json_string();
-  //  int metadata_upd_count = get_ttl_queries_count(server_globals);
-  //  EXPECT_GT(metadata_upd_count, 1) << router.get_full_logfile();
-
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
   auto globals = mock_GR_metadata_as_json("", {md_server_port});
   JsonAllocator allocator;
@@ -796,8 +791,8 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
       << router.get_full_logfile();
 
   SCOPED_TRACE(
-      "// Even tho the upgrade is in progress the existing connection should "
-      "still be active.");
+      "// Even though the upgrade is in progress the existing connection "
+      "should still be active.");
   auto result{client.query_one("select @@port")};
   EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
             md_server_port);
