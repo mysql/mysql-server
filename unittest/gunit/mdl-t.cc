@@ -3816,8 +3816,9 @@ class MDLHtonNotifyTest : public MDLTest {
 */
 
 TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
-  bool notify_or_not[MDL_key::NAMESPACE_END] = {
+  bool notify_or_not[] = {
       false,  // GLOBAL
+      false,  // BACKUP_LOCK
       true,   // TABLESPACE
       true,   // SCHEMA
       true,   // TABLE
@@ -3827,8 +3828,17 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
       true,   // EVENT
       false,  // COMMIT
       false,  // USER_LEVEL_LOCK
-      false   // LOCKING_SERVICE
+      false,  // LOCKING_SERVICE
+      false,  // SRID
+      false,  // ACL_CACHE
+      false,  // COLUMN_STATISTICS
+      false,  // RESOURCE_GROUPS
+      false,  // FOREIGN_KEY
+      false   // CHECK_CONSTRAINT
   };
+  static_assert(
+      sizeof(notify_or_not) == MDL_key::NAMESPACE_END,
+      "Initializer list for notify_or_not[] has the wrong number of elements!");
 
   for (uint i = 0; i < static_cast<uint>(MDL_key::NAMESPACE_END); i++) {
     MDL_request request;
