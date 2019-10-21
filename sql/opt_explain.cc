@@ -2141,8 +2141,8 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 }
 
 /**
-  A query result handler that does nothing. It is used during EXPLAIN ANALYZE,
-  to ignore the output of the query when it's being run.
+  A query result handler that outputs nothing. It is used during EXPLAIN
+  ANALYZE, to ignore the output of the query when it's being run.
  */
 class Query_result_null : public Query_result_interceptor {
  public:
@@ -2151,8 +2151,20 @@ class Query_result_null : public Query_result_interceptor {
   bool send_result_set_metadata(THD *, List<Item> &, uint) override {
     return false;
   }
-  bool send_data(THD *, List<Item> &) override { return false; }
+  bool send_data(THD *thd, List<Item> &items) override {
+    // Evaluate all the items, to make sure that any subqueries in SELECT lists
+    // are evaluated. We don't get their timings added to any parents, but at
+    // least we will have real row counts and times printed out.
+    for (Item &item : items) {
+      item.val_str(&m_str);
+      if (thd->is_error()) return true;
+    }
+    return false;
+  }
   bool send_eof(THD *) override { return false; }
+
+ private:
+  String m_str;
 };
 
 /**
