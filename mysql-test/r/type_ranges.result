@@ -58,20 +58,20 @@ Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'mediumblob_col' can't have a d
 Warning	1101	BLOB, TEXT, GEOMETRY or JSON column 'longblob_col' can't have a default value
 show full fields from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+auto	int unsigned	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
 string	char(10)	utf8mb4_0900_ai_ci	YES		hello		select,insert,update,references	
-tiny	tinyint(4)	NULL	NO	MUL	0		select,insert,update,references	
-short	smallint(6)	NULL	NO	MUL	1		select,insert,update,references	
-medium	mediumint(8)	NULL	NO	MUL	0		select,insert,update,references	
-long_int	int(11)	NULL	NO		0		select,insert,update,references	
-longlong	bigint(13)	NULL	NO	MUL	0		select,insert,update,references	
+tiny	tinyint	NULL	NO	MUL	0		select,insert,update,references	
+short	smallint	NULL	NO	MUL	1		select,insert,update,references	
+medium	mediumint	NULL	NO	MUL	0		select,insert,update,references	
+long_int	int	NULL	NO		0		select,insert,update,references	
+longlong	bigint	NULL	NO	MUL	0		select,insert,update,references	
 real_float	float(13,1)	NULL	NO	MUL	0.0		select,insert,update,references	
 real_double	double(16,4)	NULL	YES		NULL		select,insert,update,references	
-utiny	tinyint(3) unsigned	NULL	NO	MUL	0		select,insert,update,references	
+utiny	tinyint unsigned	NULL	NO	MUL	0		select,insert,update,references	
 ushort	smallint(5) unsigned zerofill	NULL	NO	MUL	00000		select,insert,update,references	
-umedium	mediumint(8) unsigned	NULL	NO	MUL	0		select,insert,update,references	
-ulong	int(11) unsigned	NULL	NO	MUL	0		select,insert,update,references	
-ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		select,insert,update,references	
+umedium	mediumint unsigned	NULL	NO	MUL	0		select,insert,update,references	
+ulong	int unsigned	NULL	NO	MUL	0		select,insert,update,references	
+ulonglong	bigint unsigned	NULL	NO	MUL	0		select,insert,update,references	
 time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references	
 date_field	date	NULL	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
@@ -239,20 +239,20 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 update t2 set string="changed" where auto=16;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	NULL	NO	MUL	NULL	auto_increment	select,insert,update,references	
+auto	int unsigned	NULL	NO	MUL	NULL	auto_increment	select,insert,update,references	
 string	char(10)	utf8mb4_0900_ai_ci	YES		newdefault		select,insert,update,references	
-tiny	tinyint(4)	NULL	NO	MUL	0		select,insert,update,references	
-short	smallint(6)	NULL	NO	MUL	NULL		select,insert,update,references	
-medium	mediumint(8)	NULL	NO	MUL	0		select,insert,update,references	
-long_int	int(11)	NULL	NO		0		select,insert,update,references	
-longlong	bigint(13)	NULL	NO	MUL	0		select,insert,update,references	
+tiny	tinyint	NULL	NO	MUL	0		select,insert,update,references	
+short	smallint	NULL	NO	MUL	NULL		select,insert,update,references	
+medium	mediumint	NULL	NO	MUL	0		select,insert,update,references	
+long_int	int	NULL	NO		0		select,insert,update,references	
+longlong	bigint	NULL	NO	MUL	0		select,insert,update,references	
 real_float	float(13,1)	NULL	NO	MUL	0.0		select,insert,update,references	
 real_double	double(16,4)	NULL	YES		NULL		select,insert,update,references	
-utiny	tinyint(3) unsigned	NULL	NO		0		select,insert,update,references	
+utiny	tinyint unsigned	NULL	NO		0		select,insert,update,references	
 ushort	smallint(5) unsigned zerofill	NULL	NO		00000		select,insert,update,references	
-umedium	mediumint(8) unsigned	NULL	NO	MUL	0		select,insert,update,references	
-ulong	int(11) unsigned	NULL	NO	MUL	0		select,insert,update,references	
-ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		select,insert,update,references	
+umedium	mediumint unsigned	NULL	NO	MUL	0		select,insert,update,references	
+ulong	int unsigned	NULL	NO	MUL	0		select,insert,update,references	
+ulonglong	bigint unsigned	NULL	NO	MUL	0		select,insert,update,references	
 time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references	
 date_field	char(10)	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
@@ -265,20 +265,20 @@ flags	set('one','two','tree')	utf8mb4_0900_ai_ci	NO				select,insert,update,refe
 new_field	char(10)	utf8mb4_0900_ai_ci	NO		new		select,insert,update,references	
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(5) unsigned	NULL	NO		0		select,insert,update,references	
+auto	int unsigned	NULL	NO		0		select,insert,update,references	
 string	char(10)	utf8mb4_0900_ai_ci	YES		newdefault		select,insert,update,references	
-tiny	tinyint(4)	NULL	NO		0		select,insert,update,references	
-short	smallint(6)	NULL	NO		NULL		select,insert,update,references	
-medium	mediumint(8)	NULL	NO		0		select,insert,update,references	
-long_int	int(11)	NULL	NO		0		select,insert,update,references	
-longlong	bigint(13)	NULL	NO		0		select,insert,update,references	
+tiny	tinyint	NULL	NO		0		select,insert,update,references	
+short	smallint	NULL	NO		NULL		select,insert,update,references	
+medium	mediumint	NULL	NO		0		select,insert,update,references	
+long_int	int	NULL	NO		0		select,insert,update,references	
+longlong	bigint	NULL	NO		0		select,insert,update,references	
 real_float	float(13,1)	NULL	NO		0.0		select,insert,update,references	
 real_double	double(16,4)	NULL	YES		NULL		select,insert,update,references	
-utiny	tinyint(3) unsigned	NULL	NO		0		select,insert,update,references	
+utiny	tinyint unsigned	NULL	NO		0		select,insert,update,references	
 ushort	smallint(5) unsigned zerofill	NULL	NO		00000		select,insert,update,references	
-umedium	mediumint(8) unsigned	NULL	NO		0		select,insert,update,references	
-ulong	int(11) unsigned	NULL	NO		0		select,insert,update,references	
-ulonglong	bigint(13) unsigned	NULL	NO		0		select,insert,update,references	
+umedium	mediumint unsigned	NULL	NO		0		select,insert,update,references	
+ulong	int unsigned	NULL	NO		0		select,insert,update,references	
+ulonglong	bigint unsigned	NULL	NO		0		select,insert,update,references	
 time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references	
 date_field	char(10)	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
@@ -299,8 +299,8 @@ drop table t2;
 create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(11) unsigned	NULL	NO	PRI	NULL		select,insert,update,references	
-t1	int(1)	NULL	NO		0		select,insert,update,references	
+auto	int unsigned	NULL	NO	PRI	NULL		select,insert,update,references	
+t1	int	NULL	NO		0		select,insert,update,references	
 t2	varchar(1)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
 t3	varchar(256)	utf8mb4_0900_ai_ci	NO				select,insert,update,references	
 t4	blob	NULL	NO		NULL		select,insert,update,references	
@@ -326,9 +326,9 @@ ERROR 42S21: Duplicate column name 'c'
 create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
 show full columns from t3;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-c1	int(11)	NULL	YES		NULL		select,insert,update,references	
-c2	int(11)	NULL	YES		NULL		select,insert,update,references	
-const	int(1)	NULL	NO		0		select,insert,update,references	
+c1	int	NULL	YES		NULL		select,insert,update,references	
+c2	int	NULL	YES		NULL		select,insert,update,references	
+const	int	NULL	NO		0		select,insert,update,references	
 drop table t1,t2,t3;
 create table t1 ( myfield INT NOT NULL, UNIQUE INDEX (myfield), unique (myfield), index(myfield));
 Warnings:

@@ -333,7 +333,7 @@ create view v1 as select a+1 from t1;
 create table t2 select * from v1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
-a+1	bigint(12)	YES		NULL	
+a+1	bigint	YES		NULL	
 select * from t2;
 a+1
 2
@@ -2867,11 +2867,11 @@ CREATE TABLE t1 (i int, j int);
 CREATE VIEW v1 AS SELECT COALESCE(i,j) FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-COALESCE(i,j)	bigint(11)	YES		NULL	
+COALESCE(i,j)	bigint	YES		NULL	
 CREATE TABLE t2 SELECT COALESCE(i,j) FROM t1;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-COALESCE(i,j)	int(11)	YES		NULL	
+COALESCE(i,j)	int	YES		NULL	
 DROP VIEW v1;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (s varchar(10));
@@ -3324,42 +3324,42 @@ ISNULL(d)
 from table_24532;
 describe view_24532_a;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int(1)	NO		0	
-a IS NOT TRUE	int(1)	NO		0	
-a IS FALSE	int(1)	NO		0	
-a IS NOT FALSE	int(1)	NO		0	
-a IS UNKNOWN	int(1)	NO		0	
-a IS NOT UNKNOWN	int(1)	NO		0	
-a is NULL	int(1)	NO		0	
-a IS NOT NULL	int(1)	NO		0	
-ISNULL(a)	int(1)	NO		0	
-b IS TRUE	int(1)	NO		0	
-b IS NOT TRUE	int(1)	NO		0	
-b IS FALSE	int(1)	NO		0	
-b IS NOT FALSE	int(1)	NO		0	
-b IS UNKNOWN	int(1)	NO		0	
-b IS NOT UNKNOWN	int(1)	NO		0	
-b is NULL	int(1)	NO		0	
-b IS NOT NULL	int(1)	NO		0	
-ISNULL(b)	int(1)	NO		0	
-c IS TRUE	int(1)	NO		0	
-c IS NOT TRUE	int(1)	NO		0	
-c IS FALSE	int(1)	NO		0	
-c IS NOT FALSE	int(1)	NO		0	
-c IS UNKNOWN	int(1)	NO		0	
-c IS NOT UNKNOWN	int(1)	NO		0	
-c is NULL	int(1)	NO		0	
-c IS NOT NULL	int(1)	NO		0	
-ISNULL(c)	int(1)	NO		0	
-d IS TRUE	int(1)	NO		0	
-d IS NOT TRUE	int(1)	NO		0	
-d IS FALSE	int(1)	NO		0	
-d IS NOT FALSE	int(1)	NO		0	
-d IS UNKNOWN	int(1)	NO		0	
-d IS NOT UNKNOWN	int(1)	NO		0	
-d is NULL	int(1)	NO		0	
-d IS NOT NULL	int(1)	NO		0	
-ISNULL(d)	int(1)	NO		0	
+a IS TRUE	int	NO		0	
+a IS NOT TRUE	int	NO		0	
+a IS FALSE	int	NO		0	
+a IS NOT FALSE	int	NO		0	
+a IS UNKNOWN	int	NO		0	
+a IS NOT UNKNOWN	int	NO		0	
+a is NULL	int	NO		0	
+a IS NOT NULL	int	NO		0	
+ISNULL(a)	int	NO		0	
+b IS TRUE	int	NO		0	
+b IS NOT TRUE	int	NO		0	
+b IS FALSE	int	NO		0	
+b IS NOT FALSE	int	NO		0	
+b IS UNKNOWN	int	NO		0	
+b IS NOT UNKNOWN	int	NO		0	
+b is NULL	int	NO		0	
+b IS NOT NULL	int	NO		0	
+ISNULL(b)	int	NO		0	
+c IS TRUE	int	NO		0	
+c IS NOT TRUE	int	NO		0	
+c IS FALSE	int	NO		0	
+c IS NOT FALSE	int	NO		0	
+c IS UNKNOWN	int	NO		0	
+c IS NOT UNKNOWN	int	NO		0	
+c is NULL	int	NO		0	
+c IS NOT NULL	int	NO		0	
+ISNULL(c)	int	NO		0	
+d IS TRUE	int	NO		0	
+d IS NOT TRUE	int	NO		0	
+d IS FALSE	int	NO		0	
+d IS NOT FALSE	int	NO		0	
+d IS UNKNOWN	int	NO		0	
+d IS NOT UNKNOWN	int	NO		0	
+d is NULL	int	NO		0	
+d IS NOT NULL	int	NO		0	
+ISNULL(d)	int	NO		0	
 create view view_24532_b as
 select
 a IS TRUE,
@@ -3373,14 +3373,14 @@ if(ifnull(a, 1), 1, 0) as old_isnotfalse
 from table_24532;
 describe view_24532_b;
 Field	Type	Null	Key	Default	Extra
-a IS TRUE	int(1)	NO		0	
-old_istrue	int(1)	NO		0	
-a IS NOT TRUE	int(1)	NO		0	
-old_isnottrue	int(1)	NO		0	
-a IS FALSE	int(1)	NO		0	
-old_isfalse	int(1)	NO		0	
-a IS NOT FALSE	int(1)	NO		0	
-old_isnotfalse	int(1)	NO		0	
+a IS TRUE	int	NO		0	
+old_istrue	int	NO		0	
+a IS NOT TRUE	int	NO		0	
+old_isnottrue	int	NO		0	
+a IS FALSE	int	NO		0	
+old_isfalse	int	NO		0	
+a IS NOT FALSE	int	NO		0	
+old_isnotfalse	int	NO		0	
 show create view view_24532_b;
 View	Create View	character_set_client	collation_connection
 view_24532_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_24532_b` AS select ((0 <> `table_24532`.`a`) is true) AS `a IS TRUE`,if(ifnull(`table_24532`.`a`,0),1,0) AS `old_istrue`,((0 <> `table_24532`.`a`) is not true) AS `a IS NOT TRUE`,if(ifnull(`table_24532`.`a`,0),0,1) AS `old_isnottrue`,((0 <> `table_24532`.`a`) is false) AS `a IS FALSE`,if(ifnull(`table_24532`.`a`,1),0,1) AS `old_isfalse`,((0 <> `table_24532`.`a`) is not false) AS `a IS NOT FALSE`,if(ifnull(`table_24532`.`a`,1),1,0) AS `old_isnotfalse` from `table_24532`	utf8mb4	utf8mb4_0900_ai_ci

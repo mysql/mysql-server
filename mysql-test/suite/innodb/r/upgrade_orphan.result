@@ -74,20 +74,20 @@ user	CREATE TABLE `user` (
   `ssl_cipher` blob NOT NULL,
   `x509_issuer` blob NOT NULL,
   `x509_subject` blob NOT NULL,
-  `max_questions` int(11) unsigned NOT NULL DEFAULT '0',
-  `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
-  `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
-  `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
+  `max_questions` int unsigned NOT NULL DEFAULT '0',
+  `max_updates` int unsigned NOT NULL DEFAULT '0',
+  `max_connections` int unsigned NOT NULL DEFAULT '0',
+  `max_user_connections` int unsigned NOT NULL DEFAULT '0',
   `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'caching_sha2_password',
   `authentication_string` text COLLATE utf8_bin,
   `password_expired` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `password_last_changed` timestamp NULL DEFAULT NULL,
-  `password_lifetime` smallint(5) unsigned DEFAULT NULL,
+  `password_lifetime` smallint unsigned DEFAULT NULL,
   `account_locked` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Create_role_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Drop_role_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
-  `Password_reuse_history` smallint(5) unsigned DEFAULT NULL,
-  `Password_reuse_time` smallint(5) unsigned DEFAULT NULL,
+  `Password_reuse_history` smallint unsigned DEFAULT NULL,
+  `Password_reuse_time` smallint unsigned DEFAULT NULL,
   `Password_require_current` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `User_attributes` json DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
@@ -98,9 +98,9 @@ innodb_table_stats	CREATE TABLE `innodb_table_stats` (
   `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `n_rows` bigint(20) unsigned NOT NULL,
-  `clustered_index_size` bigint(20) unsigned NOT NULL,
-  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  `n_rows` bigint unsigned NOT NULL,
+  `clustered_index_size` bigint unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint unsigned NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.innodb_index_stats;
@@ -111,8 +111,8 @@ innodb_index_stats	CREATE TABLE `innodb_index_stats` (
   `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
   `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `stat_value` bigint(20) unsigned NOT NULL,
-  `sample_size` bigint(20) unsigned DEFAULT NULL,
+  `stat_value` bigint unsigned NOT NULL,
+  `sample_size` bigint unsigned DEFAULT NULL,
   `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
@@ -127,34 +127,34 @@ table_name	199
 SHOW CREATE TABLE test.t_compressed;
 Table	Create Table
 t_compressed	CREATE TABLE `t_compressed` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 SHOW CREATE TABLE test.t_compressed2;
 Table	Create Table
 t_compressed2	CREATE TABLE `t_compressed2` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SHOW CREATE TABLE test.t_compressed3;
 Table	Create Table
 t_compressed3	CREATE TABLE `t_compressed3` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SHOW CREATE TABLE test.t_dynamic;
 Table	Create Table
 t_dynamic	CREATE TABLE `t_dynamic` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE test.t_index;
 Table	Create Table
 t_index	CREATE TABLE `t_index` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`) USING BTREE
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
@@ -179,7 +179,7 @@ SHOW CREATE TABLE test.jemp;
 Table	Create Table
 jemp	CREATE TABLE `jemp` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
+  `g` int GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL,
   KEY `i` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t_gen_stored_myisam;
@@ -199,7 +199,7 @@ SHOW CREATE TABLE test.jemp_myisam;
 Table	Create Table
 jemp_myisam	CREATE TABLE `jemp_myisam` (
   `c` json DEFAULT NULL,
-  `g` int(11) GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
+  `g` int GENERATED ALWAYS AS (json_extract(`c`,_utf8mb4'$.id')) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
@@ -271,13 +271,13 @@ view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL 
 SHOW CREATE TABLE tablespace.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(50) DEFAULT NULL
 ) /*!50100 TABLESPACE `tbsp1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 SHOW CREATE TABLE tablespace.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(50) DEFAULT NULL,
   `c` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`a`)
@@ -288,20 +288,20 @@ a	b	c
 SHOW CREATE TABLE tablespace.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) /*!50100 TABLESPACE `tbsp2` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Check for table with blackhole engine
 SHOW CREATE TABLE test.t_blackhole;
 Table	Create Table
 t_blackhole	CREATE TABLE `t_blackhole` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1
 # Check for table with special character in name
 SHOW CREATE TABLE `test`.`t_sc~!@#$%^&*(`;
 Table	Create Table
 t_sc~!@#$%^&*(	CREATE TABLE `t_sc~!@#$%^&*(` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Check for JSON types

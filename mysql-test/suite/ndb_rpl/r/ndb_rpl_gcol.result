@@ -20,9 +20,9 @@ gcol_str varchar(20) GENERATED ALWAYS AS (concat("User ", id))
 SHOW CREATE TABLE test_gcol_stored;
 Table	Create Table
 test_gcol_stored	CREATE TABLE `test_gcol_stored` (
-  `id` mediumint(9) NOT NULL,
-  `gcol_int` int(11) GENERATED ALWAYS AS ((100 + `id`)) STORED,
-  `misc` int(11) DEFAULT NULL,
+  `id` mediumint NOT NULL,
+  `gcol_int` int GENERATED ALWAYS AS ((100 + `id`)) STORED,
+  `misc` int DEFAULT NULL,
   `gcol_str` varchar(20) GENERATED ALWAYS AS (concat(_utf8mb4'User ',`id`)) STORED,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'

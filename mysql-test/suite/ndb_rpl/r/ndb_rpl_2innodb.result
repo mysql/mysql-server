@@ -26,13 +26,13 @@ y YEAR, t DATE,PRIMARY KEY(id));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -41,13 +41,13 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -99,13 +99,13 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL,
+  `total` bigint unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -115,13 +115,13 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL,
+  `total` bigint unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -186,13 +186,13 @@ PARTITION p5 VALUES LESS THAN MAXVALUE);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
@@ -208,13 +208,13 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
@@ -273,13 +273,13 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
@@ -296,13 +296,13 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
@@ -372,13 +372,13 @@ ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES IN (412));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -391,13 +391,13 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -452,13 +452,13 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -472,13 +472,13 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -542,13 +542,13 @@ PARTITIONS 4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
@@ -558,13 +558,13 @@ PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
@@ -618,13 +618,13 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
@@ -636,13 +636,13 @@ PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
@@ -704,13 +704,13 @@ PARTITIONS 4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -721,13 +721,13 @@ PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -780,13 +780,13 @@ ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(id, total);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL,
+  `total` bigint unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -798,13 +798,13 @@ PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL,
+  `total` bigint unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -857,13 +857,13 @@ ALTER TABLE t1 MODIFY vc TEXT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL,
+  `total` bigint unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -875,13 +875,13 @@ PARTITIONS 4 */
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` text,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL,
+  `total` bigint unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)

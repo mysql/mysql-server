@@ -2182,7 +2182,7 @@ show tables from test like "t?";
 Tables_in_test (t?)
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	int(11)	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
+auto	int	NULL	NO	PRI	NULL	auto_increment	select,insert,update,references	
 fld1	int(6) unsigned zerofill	NULL	NO	UNI	000000		select,insert,update,references	
 companynr	tinyint(2) unsigned zerofill	NULL	NO		00		select,insert,update,references	
 fld3	char(30)	utf8mb4_0900_ai_ci	NO	MUL			select,insert,update,references	

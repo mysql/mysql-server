@@ -98,7 +98,7 @@ create temporary table t1
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `f` float DEFAULT NULL,
   `c` char(100) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -382,7 +382,7 @@ Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
@@ -402,7 +402,7 @@ Level	Code	Message
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -422,7 +422,7 @@ Level	Code	Message
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -445,7 +445,7 @@ Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
@@ -470,7 +470,7 @@ Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
@@ -497,7 +497,7 @@ Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
@@ -520,7 +520,7 @@ Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=8
@@ -540,7 +540,7 @@ Level	Code	Message
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -571,7 +571,7 @@ Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
@@ -593,7 +593,7 @@ Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
@@ -615,7 +615,7 @@ Warning	NUMBER	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
@@ -633,7 +633,7 @@ Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
@@ -651,7 +651,7 @@ Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
@@ -689,7 +689,7 @@ Level	Code	Message
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -745,7 +745,7 @@ Level	Code	Message
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
@@ -798,7 +798,7 @@ ALTER TABLE t1 ROW_FORMAT = DYNAMIC;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 set innodb_strict_mode = OFF;
@@ -830,7 +830,7 @@ Error	NUMBER	Table storage engine for '#sql<temporary>' doesn't have this option
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
 set innodb_strict_mode = OFF;
@@ -841,7 +841,7 @@ Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`) KEY_BLOCK_SIZE=8
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 ALTER TABLE t1 ROW_FORMAT = DYNAMIC;
@@ -850,8 +850,8 @@ ALTER TABLE t1 ADD COLUMN j INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `i` int(11) NOT NULL,
-  `j` int(11) DEFAULT NULL,
+  `i` int NOT NULL,
+  `j` int DEFAULT NULL,
   PRIMARY KEY (`i`) KEY_BLOCK_SIZE=8
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1, space_id;
@@ -890,10 +890,10 @@ drop table t1;
 SHOW CREATE TABLE information_schema.innodb_temp_table_info;
 Table	Create Table
 INNODB_TEMP_TABLE_INFO	CREATE TEMPORARY TABLE `INNODB_TEMP_TABLE_INFO` (
-  `TABLE_ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `TABLE_ID` bigint unsigned NOT NULL DEFAULT '0',
   `NAME` varchar(64) DEFAULT NULL,
-  `N_COLS` int(11) unsigned NOT NULL DEFAULT '0',
-  `SPACE` int(11) unsigned NOT NULL DEFAULT '0'
+  `N_COLS` int unsigned NOT NULL DEFAULT '0',
+  `SPACE` int unsigned NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SELECT count(*) AS `Expect 0` FROM information_schema.innodb_temp_table_info;
 Expect 0

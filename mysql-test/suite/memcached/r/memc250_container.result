@@ -211,10 +211,10 @@ show create table test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` varchar(32) NOT NULL,
-  `c_new` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` bigint(20) unsigned DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
+  `c_new` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` bigint unsigned DEFAULT NULL,
+  `c5` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';

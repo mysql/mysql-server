@@ -178,7 +178,7 @@ create table t1 select round(1, 6);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `round(1, 6)` int(1) NOT NULL DEFAULT '0'
+  `round(1, 6)` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1;
 round(1, 6)
@@ -1447,15 +1447,15 @@ CREATE TABLE t1(a BIGINT UNSIGNED);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) unsigned DEFAULT NULL
+  `a` bigint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(18446744073709551615);
 CREATE TABLE t2 AS
 SELECT CEILING(a) AS c, FLOOR(a) AS f FROM t1;
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
-c	bigint(21) unsigned	YES		NULL	
-f	bigint(21) unsigned	YES		NULL	
+c	bigint unsigned	YES		NULL	
+f	bigint unsigned	YES		NULL	
 SELECT * FROM t2;
 c	f
 18446744073709551615	18446744073709551615
@@ -1466,8 +1466,8 @@ SELECT CEILING(18446744073709551615) AS c,
 FLOOR(18446744073709551615) AS f;
 DESCRIBE t;
 Field	Type	Null	Key	Default	Extra
-c	bigint(21) unsigned	NO		0	
-f	bigint(21) unsigned	NO		0	
+c	bigint unsigned	NO		0	
+f	bigint unsigned	NO		0	
 DROP TABLE t;
 # DECIMAL should resolve to DECIMAL when too big for BIGINT.
 CREATE TABLE t AS
@@ -1508,8 +1508,8 @@ SELECT CEILING(CAST(184467440737095516 AS DECIMAL(18, 0))) AS c,
 FLOOR(CAST(184467440737095516 AS DECIMAL(18, 0))) AS f;
 DESCRIBE t;
 Field	Type	Null	Key	Default	Extra
-c	bigint(21)	NO		0	
-f	bigint(21)	NO		0	
+c	bigint	NO		0	
+f	bigint	NO		0	
 SELECT * FROM t;
 c	f
 184467440737095516	184467440737095516
@@ -1519,8 +1519,8 @@ SELECT CEILING(CAST(-922337203685477580 AS DECIMAL(18, 0))) AS c,
 FLOOR(CAST(-922337203685477580 AS DECIMAL(18, 0))) AS f;
 DESCRIBE t;
 Field	Type	Null	Key	Default	Extra
-c	bigint(21)	NO		0	
-f	bigint(21)	NO		0	
+c	bigint	NO		0	
+f	bigint	NO		0	
 SELECT * FROM t;
 c	f
 -922337203685477580	-922337203685477580
@@ -1531,8 +1531,8 @@ SELECT CEILING(CAST(99999999999999999.9 AS DECIMAL(18, 1))) AS c,
 FLOOR(CAST(-99999999999999999.9 AS DECIMAL(18, 1))) AS f;
 DESCRIBE t;
 Field	Type	Null	Key	Default	Extra
-c	bigint(21)	NO		0	
-f	bigint(21)	NO		0	
+c	bigint	NO		0	
+f	bigint	NO		0	
 SELECT * FROM t;
 c	f
 100000000000000000	-100000000000000000

@@ -3116,7 +3116,7 @@ MAX(t4) + 1, MAX(t5) + 1, MAX(t6) + 1
 FROM t1;
 SHOW COLUMNS FROM t2;
 Field	Type	Null	Key	Default	Extra
-MAX(t0) + 1	int(9)	YES		NULL	
+MAX(t0) + 1	int	YES		NULL	
 MAX(t1) + 1	decimal(9,1)	YES		NULL	
 MAX(t2) + 1	decimal(10,2)	YES		NULL	
 MAX(t3) + 1	decimal(11,3)	YES		NULL	
@@ -3641,25 +3641,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` int(9) DEFAULT NULL,
+  `t0 + 1` int DEFAULT NULL,
   `t3 + 1` decimal(11,3) DEFAULT NULL,
   `t6 + 1` decimal(14,6) DEFAULT NULL,
-  `t0 - 1` int(9) DEFAULT NULL,
+  `t0 - 1` int DEFAULT NULL,
   `t3 - 1` decimal(11,3) DEFAULT NULL,
   `t6 - 1` decimal(14,6) DEFAULT NULL,
-  `t0 * 1` int(9) DEFAULT NULL,
+  `t0 * 1` int DEFAULT NULL,
   `t3 * 1` decimal(11,3) DEFAULT NULL,
   `t6 * 1` decimal(14,6) DEFAULT NULL,
   `t0 / 1` decimal(11,4) DEFAULT NULL,
   `t3 / 1` decimal(14,7) DEFAULT NULL,
   `t6 / 1` decimal(17,10) DEFAULT NULL,
-  `TIME'10:10:10' + 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' + 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' + 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' + 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
-  `TIME'10:10:10' - 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' - 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' - 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' - 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
-  `TIME'10:10:10' * 1` int(9) NOT NULL DEFAULT '0',
+  `TIME'10:10:10' * 1` int NOT NULL DEFAULT '0',
   `TIME'10:10:10.123' * 1` decimal(11,3) NOT NULL DEFAULT '0.000',
   `TIME'10:10:10.123456' * 1` decimal(14,6) NOT NULL DEFAULT '0.000000',
   `TIME'10:10:10' / 1` decimal(11,4) DEFAULT NULL,
@@ -8074,7 +8074,7 @@ MAX(t4) + 1, MAX(t5) + 1, MAX(t6) + 1
 FROM t1;
 SHOW COLUMNS FROM t2;
 Field	Type	Null	Key	Default	Extra
-MAX(t0) + 1	bigint(16)	YES		NULL	
+MAX(t0) + 1	bigint	YES		NULL	
 MAX(t1) + 1	decimal(16,1)	YES		NULL	
 MAX(t2) + 1	decimal(17,2)	YES		NULL	
 MAX(t3) + 1	decimal(18,3)	YES		NULL	
@@ -8533,25 +8533,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` bigint(16) DEFAULT NULL,
+  `t0 + 1` bigint DEFAULT NULL,
   `t3 + 1` decimal(18,3) DEFAULT NULL,
   `t6 + 1` decimal(21,6) DEFAULT NULL,
-  `t0 - 1` bigint(16) DEFAULT NULL,
+  `t0 - 1` bigint DEFAULT NULL,
   `t3 - 1` decimal(18,3) DEFAULT NULL,
   `t6 - 1` decimal(21,6) DEFAULT NULL,
-  `t0 * 1` bigint(16) DEFAULT NULL,
+  `t0 * 1` bigint DEFAULT NULL,
   `t3 * 1` decimal(18,3) DEFAULT NULL,
   `t6 * 1` decimal(21,6) DEFAULT NULL,
   `t0 / 1` decimal(18,4) DEFAULT NULL,
   `t3 / 1` decimal(21,7) DEFAULT NULL,
   `t6 / 1` decimal(24,10) DEFAULT NULL,
-  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,
@@ -13233,25 +13233,25 @@ FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `t0 + 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 + 1` bigint NOT NULL DEFAULT '0',
   `t3 + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `t0 - 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 - 1` bigint NOT NULL DEFAULT '0',
   `t3 - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `t0 * 1` bigint(16) NOT NULL DEFAULT '0',
+  `t0 * 1` bigint NOT NULL DEFAULT '0',
   `t3 * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `t6 * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `t0 / 1` decimal(18,4) DEFAULT NULL,
   `t3 / 1` decimal(21,7) DEFAULT NULL,
   `t6 / 1` decimal(24,10) DEFAULT NULL,
-  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' + 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' + 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' + 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' - 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' - 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' - 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
-  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint(16) NOT NULL DEFAULT '0',
+  `TIMESTAMP'2001-01-01 10:10:10' * 1` bigint NOT NULL DEFAULT '0',
   `TIMESTAMP'2001-01-01 10:10:10.123' * 1` decimal(18,3) NOT NULL DEFAULT '0.000',
   `TIMESTAMP'2001-01-01 10:10:10.123456' * 1` decimal(21,6) NOT NULL DEFAULT '0.000000',
   `TIMESTAMP'2001-01-01 10:10:10' / 1` decimal(18,4) DEFAULT NULL,

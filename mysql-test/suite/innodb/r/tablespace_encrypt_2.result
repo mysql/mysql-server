@@ -404,12 +404,12 @@ encrypt_ts	N
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 c1	char(100)	YES		NULL	
-c2	int(11)	YES		NULL	
+c2	int	YES		NULL	
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(100) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL
+  `c2` int DEFAULT NULL
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ###########
 # Cleanup #

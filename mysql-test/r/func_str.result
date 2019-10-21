@@ -2289,7 +2289,7 @@ CRC32(a)
 CREATE TABLE t2 SELECT CRC32(a) FROM t1;
 desc t2;
 Field	Type	Null	Key	Default	Extra
-CRC32(a)	int(10) unsigned	YES		NULL	
+CRC32(a)	int unsigned	YES		NULL	
 SELECT * FROM v1;
 C
 2212294583

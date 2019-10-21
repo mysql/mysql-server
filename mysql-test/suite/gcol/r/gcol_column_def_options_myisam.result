@@ -98,8 +98,8 @@ alter table t1 add column b int generated always as (a+1) stored key;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` + 1)) STORED NOT NULL,
   PRIMARY KEY (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add column c int generated always as (a+2) stored primary key;
@@ -113,26 +113,26 @@ create table t1 (a int, b int generated always as (a % 2) virtual comment 'my co
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	VIRTUAL GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a % 2) virtual);
 alter table t1 modify b int generated always as (a % 2) virtual comment 'my comment';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	VIRTUAL GENERATED
 insert into t1 (a) values (1);
 select * from t1;
 a	b
@@ -146,13 +146,13 @@ create table t2 like t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t2;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	VIRTUAL GENERATED
 insert into t2 (a) values (1);
 select * from t2;
 a	b
@@ -168,13 +168,13 @@ create table t1 (a int, b int generated always as (a % 2) stored);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	STORED GENERATED
 insert into t1 (a) values (1);
 select * from t1;
 a	b
@@ -190,8 +190,8 @@ create table t1 (a int, b int generated always as (a % 2) stored references t2(a
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int, b int generated always as (a % 2) virtual);
@@ -200,8 +200,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table t2;
@@ -223,51 +223,51 @@ create table t1 (a int, b int as (a % 2) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	VIRTUAL GENERATED
 drop table t1;
 create table t1 (a int, b int as (a % 2) stored);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	STORED GENERATED
 drop table t1;
 Default should be non-stored column
 create table t1 (a int, b int as (a % 2));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	VIRTUAL GENERATED
 drop table t1;
 Expression can be constant 
 create table t1 (a int, b int as (5 * 2));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((5 * 2)) VIRTUAL
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((5 * 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	VIRTUAL GENERATED
+a	int	YES		NULL	
+b	int	YES		NULL	VIRTUAL GENERATED
 drop table t1;
 Test generated columns referencing other generated columns
 create table t1 (a int unique, b int generated always as(-a) virtual, c int generated always as (b + 1) virtual);
@@ -334,8 +334,8 @@ INSERT INTO t1(a) VALUES(1),(3);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
   `c` varchar(12) GENERATED ALWAYS AS (_utf8mb4'aaaabb') STORED,
   `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -347,8 +347,8 @@ CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
   `c` varchar(12) GENERATED ALWAYS AS (_utf8mb4'aaaabb') STORED,
   `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -356,8 +356,8 @@ CREATE TABLE t3 AS SELECT * FROM t1;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   `c` varchar(12) DEFAULT NULL,
   `d` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -369,7 +369,7 @@ CREATE TABLE t4 AS SELECT b,c,d FROM t1;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `b` int(11) DEFAULT NULL,
+  `b` int DEFAULT NULL,
   `c` varchar(12) DEFAULT NULL,
   `d` blob
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -450,7 +450,7 @@ Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS (_utf8mb4'foo bar') VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -461,8 +461,8 @@ Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS (10) VIRTUAL
+  `i` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS (10) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Check for a charset mismatch processing:
@@ -562,9 +562,9 @@ b INT GENERATED ALWAYS AS (-a) VIRTUAL NULL,
 c INT GENERATED ALWAYS AS (a + b) STORED NULL);
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	int(11)	NULL	YES		NULL		#	
-b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	#	
-c	int(11)	NULL	YES		NULL	STORED GENERATED	#	
+a	int	NULL	YES		NULL		#	
+b	int	NULL	YES		NULL	VIRTUAL GENERATED	#	
+c	int	NULL	YES		NULL	STORED GENERATED	#	
 INSERT INTO t1 (a) VALUES (NULL), (1);
 SELECT * FROM t1;
 a	b	c

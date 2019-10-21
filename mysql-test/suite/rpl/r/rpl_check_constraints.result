@@ -9,7 +9,7 @@ CREATE TABLE t1 (f1 int primary key, CHECK(f1 < 100));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 100))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -18,7 +18,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 100))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -26,7 +26,7 @@ ALTER TABLE t1 ADD CONSTRAINT CHECK(f1 < 50);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t1_chk_1` CHECK ((`f1` < 100)),
   CONSTRAINT `t1_chk_2` CHECK ((`f1` < 50))

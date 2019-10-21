@@ -424,8 +424,8 @@ Warning	1812	InnoDB: Tablespace is missing for table test/t1.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT '1',
+  `c1` int NOT NULL,
+  `c2` int DEFAULT '1',
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
@@ -439,8 +439,8 @@ Error	1812	Tablespace is missing for table `test`.`t2`.
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c3` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
   FULLTEXT KEY `ct` (`ct`)
@@ -450,8 +450,8 @@ Warning	1814	InnoDB: Tablespace has been discarded for table 't3'
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT '1',
+  `c1` int NOT NULL,
+  `c2` int DEFAULT '1',
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
@@ -465,8 +465,8 @@ Error	1812	Tablespace is missing for table `test`.`t_.._a`.
 SHOW CREATE TABLE `t_.._b`;
 Table	Create Table
 t_.._b	CREATE TABLE `t_.._b` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT '1',
+  `c1` int NOT NULL,
+  `c2` int DEFAULT '1',
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)

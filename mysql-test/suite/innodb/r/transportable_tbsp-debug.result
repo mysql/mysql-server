@@ -468,8 +468,8 @@ UPDATE test_wl5522.t1 SET c4 = REPEAT("c4", 1024);
 SHOW CREATE TABLE test_wl5522.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL AUTO_INCREMENT,
-  `c2` bigint(20) DEFAULT NULL,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
+  `c2` bigint DEFAULT NULL,
   `c3` varchar(2048) DEFAULT NULL,
   `c4` varchar(2048) DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -723,8 +723,8 @@ SUM(c2)
 SHOW CREATE TABLE test_wl5522.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL AUTO_INCREMENT,
-  `c2` bigint(20) DEFAULT NULL,
+  `c1` bigint NOT NULL AUTO_INCREMENT,
+  `c2` bigint DEFAULT NULL,
   `c3` varchar(2048) DEFAULT NULL,
   `c4` varchar(2048) DEFAULT NULL,
   PRIMARY KEY (`c1`),

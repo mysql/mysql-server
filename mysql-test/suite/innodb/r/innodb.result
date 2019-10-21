@@ -1018,7 +1018,7 @@ drop table t1;
 create table t1 (t int not null default 1, key (t)) engine=innodb;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-t	int(11)	NO	MUL	1	
+t	int	NO	MUL	1	
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
@@ -1552,14 +1552,14 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `t1_id_fk` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1567,7 +1567,7 @@ create index id on t2 (id);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `id` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1577,7 +1577,7 @@ Warning	1831	Duplicate index 'id2' defined on the table 'test.t2'. This is depre
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `id` (`id`),
   KEY `id2` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1588,7 +1588,7 @@ ERROR HY000: Cannot drop index 'id': needed in a foreign key constraint
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   KEY `id` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1600,8 +1600,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   KEY `t1_id_fk` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1609,8 +1609,8 @@ create unique index id on t2 (id,id2);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`, `id2`) REFERENCES `t1` (`id`, `id2`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1622,8 +1622,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   KEY `t1_id_fk` (`id2`,`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
@@ -1636,8 +1636,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1649,8 +1649,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `id2` int NOT NULL,
   UNIQUE KEY `id` (`id`,`id2`),
   KEY `t1_id_fk` (`id2`,`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id2`, `id`) REFERENCES `t1` (`id`, `id2`)
@@ -1663,8 +1663,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id2` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `id` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1677,8 +1677,8 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id2` int NOT NULL,
   KEY `t1_id_fk` (`id`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1686,8 +1686,8 @@ alter table t2 add index id_test (id), add index id_test2 (id,id2);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `id2` int(11) NOT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id2` int NOT NULL,
   KEY `id_test` (`id`),
   KEY `id_test2` (`id`,`id2`),
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
@@ -1699,8 +1699,8 @@ create table t2 (a int auto_increment primary key, b int, index(b), foreign key 
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b_2` (`b`),
   KEY `b` (`b`),
@@ -1711,8 +1711,8 @@ create table t2 (a int auto_increment primary key, b int, foreign key (b) refere
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`id`),
@@ -2930,7 +2930,7 @@ ALTER TABLE t2 DROP FOREIGN KEY t2_ibfk_0;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `t2_ibfk_0` (`a`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2,t1;
@@ -2968,8 +2968,8 @@ references t2(c1) on delete cascade;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`),
   CONSTRAINT `c2_fk` FOREIGN KEY (`c2`) REFERENCES `t2` (`c1`) ON DELETE CASCADE
@@ -2978,8 +2978,8 @@ alter table t1 drop foreign key c2_fk;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` bigint(20) NOT NULL,
-  `c2` bigint(20) NOT NULL,
+  `c1` bigint NOT NULL,
+  `c2` bigint NOT NULL,
   PRIMARY KEY (`c1`),
   UNIQUE KEY `c2` (`c2`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3192,8 +3192,8 @@ DELETE CASCADE ON UPDATE CASCADE;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `f` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `f` int NOT NULL,
   PRIMARY KEY (`id`),
   KEY `f` (`f`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f`) REFERENCES `t1` (`f`) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -3231,7 +3231,7 @@ id
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (id int PRIMARY KEY) ENGINE=InnoDB;
@@ -3240,7 +3240,7 @@ ALTER TABLE t1 ADD CONSTRAINT t1_t2 FOREIGN KEY (id) REFERENCES t2(id);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   CONSTRAINT `t1_t2` FOREIGN KEY (`id`) REFERENCES `t2` (`id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=349 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3390,8 +3390,8 @@ c2 INT, INDEX idx(c2)) ENGINE=InnoDB;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3418,8 +3418,8 @@ COMMIT;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `idx` (`c2`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

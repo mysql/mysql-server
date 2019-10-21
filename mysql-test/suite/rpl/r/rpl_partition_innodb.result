@@ -57,11 +57,11 @@ Master byrange
 show create table test.byrange_tbl;
 Table	Create Table
 byrange_tbl	CREATE TABLE `byrange_tbl` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `dt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user` char(255) DEFAULT NULL,
   `uuidf` varbinary(255) DEFAULT NULL,
-  `fkid` int(11) DEFAULT NULL,
+  `fkid` int DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -71,11 +71,11 @@ byrange_tbl	CREATE TABLE `byrange_tbl` (
 show create table test.regular_tbl;
 Table	Create Table
 regular_tbl	CREATE TABLE `regular_tbl` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `dt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user` char(255) DEFAULT NULL,
   `uuidf` varbinary(255) DEFAULT NULL,
-  `fkid` int(11) DEFAULT NULL,
+  `fkid` int DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -100,11 +100,11 @@ include/sync_slave_sql_with_master.inc
 show create table test.byrange_tbl;
 Table	Create Table
 byrange_tbl	CREATE TABLE `byrange_tbl` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `dt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user` char(255) DEFAULT NULL,
   `uuidf` varbinary(255) DEFAULT NULL,
-  `fkid` int(11) DEFAULT NULL,
+  `fkid` int DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -114,11 +114,11 @@ byrange_tbl	CREATE TABLE `byrange_tbl` (
 show create table test.regular_tbl;
 Table	Create Table
 regular_tbl	CREATE TABLE `regular_tbl` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int NOT NULL AUTO_INCREMENT,
   `dt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user` char(255) DEFAULT NULL,
   `uuidf` varbinary(255) DEFAULT NULL,
-  `fkid` int(11) DEFAULT NULL,
+  `fkid` int DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

@@ -189,7 +189,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `geom` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -202,7 +202,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `geom` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)
@@ -270,7 +270,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `geom` geometry NOT NULL /*!80003 SRID 0 */,
   `geom1` geometry DEFAULT NULL,
   PRIMARY KEY (`id`),
@@ -320,7 +320,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `geom` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)

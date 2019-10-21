@@ -115,7 +115,7 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 show create table t_10;
 Table	Create Table
 t_10	CREATE TABLE `t_10` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`) USING BTREE
@@ -123,7 +123,7 @@ t_10	CREATE TABLE `t_10` (
 show create table tp  ;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`) USING BTREE
@@ -140,7 +140,7 @@ ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 show create table t_10;
 Table	Create Table
 t_10	CREATE TABLE `t_10` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`) USING BTREE
@@ -148,7 +148,7 @@ t_10	CREATE TABLE `t_10` (
 show create table tp  ;
 Table	Create Table
 tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`) USING BTREE

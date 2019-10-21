@@ -2068,7 +2068,7 @@ create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -2076,7 +2076,7 @@ create table t1 (a int not null, key `a` (a) key_block_size=2048);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=2048
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -2106,7 +2106,7 @@ Warning	1071	Specified key was too long; max key length is 1000 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096
@@ -2115,7 +2115,7 @@ alter table t1 key_block_size=2048;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096
@@ -2124,9 +2124,9 @@ alter table t1 add c int, add key (c);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096,
   KEY `c` (`c`)
@@ -2136,10 +2136,10 @@ alter table t1 add d int, add key (d);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096,
   KEY `c` (`c`) KEY_BLOCK_SIZE=2048,
@@ -2152,7 +2152,7 @@ Warning	1071	Specified key was too long; max key length is 1000 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(250))
@@ -2164,7 +2164,7 @@ Warning	1071	Specified key was too long; max key length is 1000 bytes
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`(250))
@@ -2174,8 +2174,8 @@ create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`) KEY_BLOCK_SIZE=8192
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=16384
@@ -2184,7 +2184,7 @@ create table t1 (a int not null, key `a` (a) key_block_size=512);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
@@ -2202,7 +2202,7 @@ create table t1 (a int not null, key `a` (a) key_block_size=1025);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=2048
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

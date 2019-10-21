@@ -11,35 +11,35 @@ CREATE TABLE gis_geometry (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 # Displaying the created spatial columns
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_linestring;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_linestring;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geometry	YES		NULL	
 # Inserting POINT Geometry Values 
 INSERT INTO gis_point VALUES
@@ -308,35 +308,35 @@ COUNT(DISTINCT(ST_ASTEXT(g)))
 # Displaying the created spatial columns
 SHOW FIELDS FROM gis_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	point	YES		NULL	
 SHOW FIELDS FROM gis_linestring;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	linestring	YES		NULL	
 SHOW FIELDS FROM gis_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	polygon	YES		NULL	
 SHOW FIELDS FROM gis_multi_point;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipoint	YES		NULL	
 SHOW FIELDS FROM gis_multi_linestring;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multilinestring	YES		NULL	
 SHOW FIELDS FROM gis_multi_polygon;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	multipolygon	YES		NULL	
 SHOW FIELDS FROM gis_geometrycollection;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geomcollection	YES		NULL	
 SHOW FIELDS FROM gis_geometry;
 Field	Type	Null	Key	Default	Extra
-fid	int(11)	NO	PRI	NULL	
+fid	int	NO	PRI	NULL	
 g	geometry	YES		NULL	
 # Analyzing the spatial objets
 ANALYZE TABLE gis_point;
@@ -534,7 +534,7 @@ INSERT INTO geom_index SELECT * FROM gis_geometry;
 SHOW CREATE TABLE geom_index;
 Table	Create Table
 geom_index	CREATE TABLE `geom_index` (
-  `fid` int(11) NOT NULL,
+  `fid` int NOT NULL,
   `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)

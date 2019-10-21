@@ -2473,8 +2473,8 @@ ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `clipid` int(11) NOT NULL,
-  `mos` tinyint(4) DEFAULT '0',
+  `clipid` int NOT NULL,
+  `mos` tinyint DEFAULT '0',
   `Tape` tinytext,
   PRIMARY KEY (`clipid`),
   KEY `tape` (`Tape`(85))
@@ -3655,7 +3655,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(1) CHARACTER SET utf8 DEFAULT NULL,
-  `c2` int(1) NOT NULL DEFAULT '0'
+  `c2` int NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @a2=1;
@@ -3670,7 +3670,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
-  `c2` bigint(20) DEFAULT NULL
+  `c2` bigint DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(@a1:=sqrt(1)));
@@ -5314,7 +5314,7 @@ create table t1 as select f1(1) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 as select concat(f1(1)) as c1;

@@ -6,25 +6,25 @@ trx_state	varchar(13)	NO
 trx_started	datetime	NO			
 trx_requested_lock_id	varchar(105)	YES			
 trx_wait_started	datetime	YES			
-trx_weight	bigint(21) unsigned	NO			
-trx_mysql_thread_id	bigint(21) unsigned	NO			
+trx_weight	bigint unsigned	NO			
+trx_mysql_thread_id	bigint unsigned	NO			
 trx_query	varchar(1024)	YES			
 trx_operation_state	varchar(64)	YES			
-trx_tables_in_use	bigint(21) unsigned	NO			
-trx_tables_locked	bigint(21) unsigned	NO			
-trx_lock_structs	bigint(21) unsigned	NO			
-trx_lock_memory_bytes	bigint(21) unsigned	NO			
-trx_rows_locked	bigint(21) unsigned	NO			
-trx_rows_modified	bigint(21) unsigned	NO			
-trx_concurrency_tickets	bigint(21) unsigned	NO			
+trx_tables_in_use	bigint unsigned	NO			
+trx_tables_locked	bigint unsigned	NO			
+trx_lock_structs	bigint unsigned	NO			
+trx_lock_memory_bytes	bigint unsigned	NO			
+trx_rows_locked	bigint unsigned	NO			
+trx_rows_modified	bigint unsigned	NO			
+trx_concurrency_tickets	bigint unsigned	NO			
 trx_isolation_level	varchar(16)	NO			
-trx_unique_checks	int(1)	NO			
-trx_foreign_key_checks	int(1)	NO			
+trx_unique_checks	int	NO			
+trx_foreign_key_checks	int	NO			
 trx_last_foreign_key_error	varchar(256)	YES			
-trx_adaptive_hash_latched	int(1)	NO			
-trx_adaptive_hash_timeout	bigint(21) unsigned	NO			
-trx_is_read_only	int(1)	NO			
-trx_autocommit_non_locking	int(1)	NO			
+trx_adaptive_hash_latched	int	NO			
+trx_adaptive_hash_timeout	bigint unsigned	NO			
+trx_is_read_only	int	NO			
+trx_autocommit_non_locking	int	NO			
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 c01 INT,

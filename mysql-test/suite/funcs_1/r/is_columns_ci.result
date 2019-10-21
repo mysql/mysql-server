@@ -32,15 +32,15 @@ TABLE_CATALOG	varchar(64)	YES		NULL
 TABLE_SCHEMA	varchar(64)	YES		NULL	
 TABLE_NAME	varchar(64)	YES		NULL	
 COLUMN_NAME	varchar(64)	YES		NULL	
-ORDINAL_POSITION	int(10) unsigned	NO		NULL	
+ORDINAL_POSITION	int unsigned	NO		NULL	
 COLUMN_DEFAULT	text	YES		NULL	
 IS_NULLABLE	varchar(3)	NO			
 DATA_TYPE	longtext	YES		NULL	
-CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
-CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
-NUMERIC_PRECISION	bigint(10) unsigned	YES		NULL	
-NUMERIC_SCALE	bigint(10) unsigned	YES		NULL	
-DATETIME_PRECISION	int(10) unsigned	YES		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint	YES		NULL	
+NUMERIC_PRECISION	bigint unsigned	YES		NULL	
+NUMERIC_SCALE	bigint unsigned	YES		NULL	
+DATETIME_PRECISION	int unsigned	YES		NULL	
 CHARACTER_SET_NAME	varchar(64)	YES		NULL	
 COLLATION_NAME	varchar(64)	YES		NULL	
 COLUMN_TYPE	mediumtext	NO		NULL	
@@ -49,7 +49,7 @@ EXTRA	varchar(256)	YES		NULL
 PRIVILEGES	varchar(154)	YES		NULL	
 COLUMN_COMMENT	text	NO		NULL	
 GENERATION_EXPRESSION	longtext	NO		NULL	
-SRS_ID	int(10) unsigned	YES		NULL	
+SRS_ID	int unsigned	YES		NULL	
 SHOW CREATE TABLE information_schema.COLUMNS;
 View	Create View	character_set_client	collation_connection
 COLUMNS	CREATE ALGORITHM=UNDEFINED DEFINER=`mysql.infoschema`@`localhost` SQL SECURITY DEFINER VIEW `information_schema`.`COLUMNS` AS select (`cat`.`name` collate utf8_tolower_ci) AS `TABLE_CATALOG`,(`sch`.`name` collate utf8_tolower_ci) AS `TABLE_SCHEMA`,(`tbl`.`name` collate utf8_tolower_ci) AS `TABLE_NAME`,(`col`.`name` collate utf8_tolower_ci) AS `COLUMN_NAME`,`col`.`ordinal_position` AS `ORDINAL_POSITION`,`col`.`default_value_utf8` AS `COLUMN_DEFAULT`,if((`col`.`is_nullable` = 1),'YES','NO') AS `IS_NULLABLE`,substring_index(substring_index(`col`.`column_type_utf8`,'(',1),' ',1) AS `DATA_TYPE`,internal_dd_char_length(`col`.`type`,`col`.`char_length`,`coll`.`name`,0) AS `CHARACTER_MAXIMUM_LENGTH`,internal_dd_char_length(`col`.`type`,`col`.`char_length`,`coll`.`name`,1) AS `CHARACTER_OCTET_LENGTH`,if((`col`.`numeric_precision` = 0),NULL,`col`.`numeric_precision`) AS `NUMERIC_PRECISION`,if(((`col`.`numeric_scale` = 0) and (`col`.`numeric_precision` = 0)),NULL,`col`.`numeric_scale`) AS `NUMERIC_SCALE`,`col`.`datetime_precision` AS `DATETIME_PRECISION`,(case `col`.`type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`cs`.`name`) else NULL end) AS `CHARACTER_SET_NAME`,(case `col`.`type` when 'MYSQL_TYPE_STRING' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_VAR_STRING' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_VARCHAR' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_TINY_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_MEDIUM_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_LONG_BLOB' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_ENUM' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) when 'MYSQL_TYPE_SET' then if((`cs`.`name` = 'binary'),NULL,`coll`.`name`) else NULL end) AS `COLLATION_NAME`,`col`.`column_type_utf8` AS `COLUMN_TYPE`,`col`.`column_key` AS `COLUMN_KEY`,internal_get_dd_column_extra((`col`.`generation_expression_utf8` is null),`col`.`is_virtual`,`col`.`is_auto_increment`,`col`.`update_option`,if(length(`col`.`default_option`),true,false),`col`.`options`) AS `EXTRA`,get_dd_column_privileges(`sch`.`name`,`tbl`.`name`,`col`.`name`) AS `PRIVILEGES`,ifnull(`col`.`comment`,'') AS `COLUMN_COMMENT`,ifnull(`col`.`generation_expression_utf8`,'') AS `GENERATION_EXPRESSION`,`col`.`srs_id` AS `SRS_ID` from (((((`mysql`.`columns` `col` join `mysql`.`tables` `tbl` on((`col`.`table_id` = `tbl`.`id`))) join `mysql`.`schemata` `sch` on((`tbl`.`schema_id` = `sch`.`id`))) join `mysql`.`catalogs` `cat` on((`cat`.`id` = `sch`.`catalog_id`))) join `mysql`.`collations` `coll` on((`col`.`collation_id` = `coll`.`id`))) join `mysql`.`character_sets` `cs` on((`coll`.`character_set_id` = `cs`.`id`))) where ((0 <> internal_get_view_warning_or_error(`sch`.`name`,`tbl`.`name`,`tbl`.`type`,`tbl`.`options`)) and (0 <> can_access_column(`sch`.`name`,`tbl`.`name`,`col`.`name`)) and (0 <> is_visible_dd_object(`tbl`.`hidden`,(`col`.`hidden` <> 'Visible'))))	utf8	utf8_general_ci
@@ -59,15 +59,15 @@ TABLE_CATALOG	varchar(64)	YES		NULL
 TABLE_SCHEMA	varchar(64)	YES		NULL	
 TABLE_NAME	varchar(64)	YES		NULL	
 COLUMN_NAME	varchar(64)	YES		NULL	
-ORDINAL_POSITION	int(10) unsigned	NO		NULL	
+ORDINAL_POSITION	int unsigned	NO		NULL	
 COLUMN_DEFAULT	text	YES		NULL	
 IS_NULLABLE	varchar(3)	NO			
 DATA_TYPE	longtext	YES		NULL	
-CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
-CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
-NUMERIC_PRECISION	bigint(10) unsigned	YES		NULL	
-NUMERIC_SCALE	bigint(10) unsigned	YES		NULL	
-DATETIME_PRECISION	int(10) unsigned	YES		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint	YES		NULL	
+NUMERIC_PRECISION	bigint unsigned	YES		NULL	
+NUMERIC_SCALE	bigint unsigned	YES		NULL	
+DATETIME_PRECISION	int unsigned	YES		NULL	
 CHARACTER_SET_NAME	varchar(64)	YES		NULL	
 COLLATION_NAME	varchar(64)	YES		NULL	
 COLUMN_TYPE	mediumtext	NO		NULL	
@@ -76,7 +76,7 @@ EXTRA	varchar(256)	YES		NULL
 PRIVILEGES	varchar(154)	YES		NULL	
 COLUMN_COMMENT	text	NO		NULL	
 GENERATION_EXPRESSION	longtext	NO		NULL	
-SRS_ID	int(10) unsigned	YES		NULL	
+SRS_ID	int unsigned	YES		NULL	
 SELECT table_catalog, table_schema, table_name, column_name
 FROM information_schema.columns WHERE table_catalog IS NULL OR table_catalog <> 'def';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
@@ -113,29 +113,29 @@ TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAUL
 def	db_datadict	t1	f1	1	NULL	YES	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	MUL		select,insert,update,references			NULL
 def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select,insert,update,references			NULL
 def	db_datadict	t1	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	db_datadict	t1	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI	auto_increment	select,insert,update,references			NULL
+def	db_datadict	t1	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PRI	auto_increment	select,insert,update,references			NULL
 def	db_datadict	t2	f1	1	NULL	NO	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	PRI		select,insert,update,references			NULL
 def	db_datadict	t2	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select,insert,update,references			NULL
 def	db_datadict	t2	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
-def	db_datadict	t2	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI		select,insert,update,references			NULL
-def	db_datadict	v1	f1	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select,insert,update,references			NULL
-def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select,insert,update,references			NULL
+def	db_datadict	t2	f4	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int	PRI		select,insert,update,references			NULL
+def	db_datadict	v1	f1	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 SHOW COLUMNS FROM db_datadict.t1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES	MUL	NULL	
 f2	text	YES		NULL	
 f3	date	YES		NULL	
-f4	int(11)	NO	PRI	NULL	auto_increment
+f4	int	NO	PRI	NULL	auto_increment
 SHOW COLUMNS FROM db_datadict.t2;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	NO	PRI	NULL	
 f2	text	YES		NULL	
 f3	date	YES		NULL	
-f4	int(11)	NO	PRI	NULL	
+f4	int	NO	PRI	NULL	
 SHOW COLUMNS FROM db_datadict.v1;
 Field	Type	Null	Key	Default	Extra
-f1	int(1)	NO		0	
-f2	int(1)	NO		0	
+f1	int	NO		0	
+f2	int	NO		0	
 # Establish connection testuser1 (user=testuser1)
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
@@ -143,7 +143,7 @@ ORDER BY table_schema, table_name, ordinal_position;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
 def	db_datadict	t1	f1	1	NULL	YES	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	MUL		select			NULL
 def	db_datadict	t1	f2	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	text			select			NULL
-def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select			NULL
+def	db_datadict	v1	f2	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 SHOW COLUMNS FROM db_datadict.t1;
 Field	Type	Null	Key	Default	Extra
 f1	char(10)	YES	MUL	NULL	
@@ -152,7 +152,7 @@ SHOW COLUMNS FROM db_datadict.t2;
 ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 't2'
 SHOW COLUMNS FROM db_datadict.v1;
 Field	Type	Null	Key	Default	Extra
-f2	int(1)	NO		0	
+f2	int	NO		0	
 # Establish connection testuser2 (user=testuser2)
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'db_datadict'
@@ -415,7 +415,7 @@ NUMERIC_SCALE	0
 DATETIME_PRECISION	NULL
 CHARACTER_SET_NAME	NULL
 COLLATION_NAME	NULL
-COLUMN_TYPE	int(1)
+COLUMN_TYPE	int
 COLUMN_KEY	
 EXTRA	
 PRIVILEGES	select,insert,update,references

@@ -8,7 +8,7 @@ PARTITIONS 5;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fld1` int(11) NOT NULL,
+  `fld1` int NOT NULL,
   PRIMARY KEY (`fld1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`fld1`)
@@ -19,7 +19,7 @@ ERROR 42000: The storage engine for the table doesn't support native partitionin
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `fld1` int(11) NOT NULL,
+  `fld1` int NOT NULL,
   PRIMARY KEY (`fld1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`fld1`)
@@ -75,7 +75,7 @@ test.t1	2653438147
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1
 /*!50100 PARTITION BY RANGE (`i`)
 (PARTITION p3 VALUES LESS THAN (3) ENGINE = InnoDB,
@@ -89,7 +89,7 @@ i INT
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
 CHECKSUM TABLE t1;
@@ -105,7 +105,7 @@ test.t1	2653438147
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
+  `i` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CHECKSUM=1
 DROP TABLE t1;
 #
@@ -567,7 +567,7 @@ ERROR 42000: Unknown storage engine 'x'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB) */
@@ -670,8 +670,8 @@ ERROR HY000: A UNIQUE INDEX must include all columns in the table's partitioning
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` bigint NOT NULL,
+  `b` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
@@ -1006,10 +1006,10 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -1022,10 +1022,10 @@ test.t1	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -1040,10 +1040,10 @@ test.t1	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -1058,10 +1058,10 @@ test.t1	optimize	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -1073,10 +1073,10 @@ ALTER TABLE t1 REBUILD PARTITION ALL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (`f4`)
@@ -1088,10 +1088,10 @@ ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f1` int unsigned NOT NULL AUTO_INCREMENT,
   `f2` mediumtext NOT NULL,
   `f3` char(100) NOT NULL,
-  `f4` tinyint(1) unsigned NOT NULL,
+  `f4` tinyint unsigned NOT NULL,
   `extracol` varchar(32) DEFAULT NULL,
   PRIMARY KEY (`f1`,`f4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1

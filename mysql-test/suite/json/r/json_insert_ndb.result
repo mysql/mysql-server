@@ -10,7 +10,7 @@ Warning	1478	Table storage engine 'ndbcluster' does not support the create optio
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `j` json DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 INSERT INTO t1 VALUES (0, NULL);

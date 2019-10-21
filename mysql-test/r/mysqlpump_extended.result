@@ -306,14 +306,14 @@ INSERT INTO t1 VALUES (x) ;|
 DROP DATABASE db1_extended;
 SHOW CREATE FUNCTION db1_extended.f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f1`() RETURNS int
 BEGIN
 SET NAMES 'big5';
 RETURN (SELECT COUNT(*) FROM t1);
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION db1_extended.f2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f2`() RETURNS int(11)
+f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`u1`@`localhost` FUNCTION `f2`() RETURNS int
 BEGIN
 DECLARE n int;
 DECLARE m int;
@@ -337,14 +337,14 @@ INSERT INTO t1 VALUES (x)	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP DATABASE db1_extended;
 SHOW CREATE FUNCTION db1_extended.f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int
 BEGIN
 SET NAMES 'big5';
 RETURN (SELECT COUNT(*) FROM t1);
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION db1_extended.f2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`() RETURNS int(11)
+f2	NO_AUTO_VALUE_ON_ZERO	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`() RETURNS int
 BEGIN
 DECLARE n int;
 DECLARE m int;

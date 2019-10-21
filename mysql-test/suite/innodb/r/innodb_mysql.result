@@ -612,7 +612,7 @@ alter table t1 comment '123';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='123'
 drop table t1;
 CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
@@ -1573,8 +1573,8 @@ CREATE TABLE t1 (f1 INTEGER PRIMARY KEY COMMENT 'My ID#', f2 INTEGER DEFAULT NUL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL COMMENT 'My ID#',
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL COMMENT 'My ID#',
+  `f2` int DEFAULT NULL,
   `f3` char(10) DEFAULT 'My ID#',
   PRIMARY KEY (`f1`),
   KEY `f2_ref` (`f2`),
@@ -1856,8 +1856,8 @@ FOREIGN KEY (c) REFERENCES t1 (a) ON UPDATE NO ACTION) engine=innodb;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
   PRIMARY KEY (`c`,`d`),
   CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
@@ -2987,7 +2987,7 @@ constraint x foreign key (FK) references t1 (PK)) engine=InnoDB;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `x` (`fk`),
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3164,8 +3164,8 @@ UNIQUE KEY (b(8) desc, a asc, d)) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `d` int NOT NULL,
   `b` text NOT NULL,
   `c` text,
   UNIQUE KEY `b` (`b`(8) DESC,`a`,`d`)

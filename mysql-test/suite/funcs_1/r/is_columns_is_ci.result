@@ -27,17 +27,17 @@ def	information_schema	APPLICABLE_ROLES	IS_MANDATORY	9		NO	varchar	3	9	NULL	NULL
 def	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	CHARACTER_SETS	DESCRIPTION	3	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(2048)			select			NULL
-def	information_schema	CHARACTER_SETS	MAXLEN	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	CHARACTER_SETS	MAXLEN	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	CHECK_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	CHECK_CONSTRAINTS	CONSTRAINT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	CHECK_CONSTRAINTS	CONSTRAINT_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	CHECK_CONSTRAINTS	CHECK_CLAUSE	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
 def	information_schema	COLLATIONS	COLLATION_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	COLLATIONS	CHARACTER_SET_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	COLLATIONS	ID	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select			NULL
+def	information_schema	COLLATIONS	ID	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
 def	information_schema	COLLATIONS	IS_DEFAULT	4		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	COLLATIONS	IS_COMPILED	5		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
-def	information_schema	COLLATIONS	SORTLEN	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	COLLATIONS	SORTLEN	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	COLLATIONS	PAD_ATTRIBUTE	7	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_bin	enum('PAD SPACE','NO PAD')			select			NULL
 def	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	CHARACTER_SET_NAME	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -45,15 +45,15 @@ def	information_schema	COLUMNS	TABLE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL
 def	information_schema	COLUMNS	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMNS	TABLE_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	COLUMNS	COLUMN_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	COLUMNS	ORDINAL_POSITION	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	COLUMNS	ORDINAL_POSITION	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	COLUMNS	COLUMN_DEFAULT	6	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	COLUMNS	IS_NULLABLE	7		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	COLUMNS	DATA_TYPE	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
-def	information_schema	COLUMNS	CHARACTER_MAXIMUM_LENGTH	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	COLUMNS	CHARACTER_OCTET_LENGTH	10	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(10) unsigned			select			NULL
-def	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(10) unsigned			select			NULL
-def	information_schema	COLUMNS	DATETIME_PRECISION	13	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	COLUMNS	CHARACTER_MAXIMUM_LENGTH	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	COLUMNS	CHARACTER_OCTET_LENGTH	10	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	COLUMNS	NUMERIC_PRECISION	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	COLUMNS	NUMERIC_SCALE	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	COLUMNS	DATETIME_PRECISION	13	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	COLUMNS	CHARACTER_SET_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	COLUMNS	COLLATION_NAME	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	COLUMNS	COLUMN_TYPE	16	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_bin	mediumtext			select			NULL
@@ -62,7 +62,7 @@ def	information_schema	COLUMNS	EXTRA	18	NULL	YES	varchar	256	768	NULL	NULL	NULL	
 def	information_schema	COLUMNS	PRIVILEGES	19	NULL	YES	varchar	154	462	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(154)			select			NULL
 def	information_schema	COLUMNS	COLUMN_COMMENT	20	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	COLUMNS	GENERATION_EXPRESSION	21	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
-def	information_schema	COLUMNS	SRS_ID	22	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	COLUMNS	SRS_ID	22	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	COLUMN_PRIVILEGES	GRANTEE	1		NO	varchar	97	292	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(292)			select			NULL
 def	information_schema	COLUMN_PRIVILEGES	TABLE_CATALOG	2		NO	varchar	170	512	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select			NULL
 def	information_schema	COLUMN_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -104,11 +104,11 @@ def	information_schema	EVENTS	CREATED	17	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0
 def	information_schema	EVENTS	LAST_ALTERED	18	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
 def	information_schema	EVENTS	LAST_EXECUTED	19	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	EVENTS	EVENT_COMMENT	20	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
-def	information_schema	EVENTS	ORIGINATOR	21	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	EVENTS	ORIGINATOR	21	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	EVENTS	CHARACTER_SET_CLIENT	22	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	EVENTS	COLLATION_CONNECTION	23	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	EVENTS	DATABASE_COLLATION	24	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	FILES	FILE_ID	1	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	FILES	FILE_ID	1	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	FILES	FILE_NAME	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	FILES	FILE_TYPE	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	TABLESPACE_NAME	4	NULL	NO	varchar	268	804	NULL	NULL	NULL	utf8	utf8_bin	varchar(268)			select			NULL
@@ -116,30 +116,30 @@ def	information_schema	FILES	TABLE_CATALOG	5		NO	char	0	0	NULL	NULL	NULL	utf8	ut
 def	information_schema	FILES	TABLE_SCHEMA	6	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TABLE_NAME	7	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	LOGFILE_GROUP_NAME	8	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-def	information_schema	FILES	LOGFILE_GROUP_NUMBER	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	FILES	LOGFILE_GROUP_NUMBER	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	FILES	ENGINE	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	FILES	FULLTEXT_KEYS	11	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	DELETED_ROWS	12	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	UPDATE_COUNT	13	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	FILES	FREE_EXTENTS	14	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	TOTAL_EXTENTS	15	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	EXTENT_SIZE	16	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	INITIAL_SIZE	17	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	MAXIMUM_SIZE	18	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	FILES	AUTOEXTEND_SIZE	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	FILES	FREE_EXTENTS	14	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	FILES	TOTAL_EXTENTS	15	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	FILES	EXTENT_SIZE	16	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	FILES	INITIAL_SIZE	17	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	FILES	MAXIMUM_SIZE	18	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	FILES	AUTOEXTEND_SIZE	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	FILES	CREATION_TIME	20	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	LAST_UPDATE_TIME	21	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	LAST_ACCESS_TIME	22	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	RECOVER_TIME	23	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TRANSACTION_COUNTER	24	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	FILES	VERSION	25	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	FILES	VERSION	25	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	FILES	ROW_FORMAT	26	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	TABLE_ROWS	27	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	AVG_ROW_LENGTH	28	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	DATA_LENGTH	29	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	MAX_DATA_LENGTH	30	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	INDEX_LENGTH	31	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
-def	information_schema	FILES	DATA_FREE	32	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	FILES	DATA_FREE	32	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	FILES	CREATE_TIME	33	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	UPDATE_TIME	34	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	CHECK_TIME	35	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
@@ -147,7 +147,7 @@ def	information_schema	FILES	CHECKSUM	36	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL
 def	information_schema	FILES	STATUS	37	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	FILES	EXTRA	38	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	29	87	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(29)			select			NULL
-def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select			NULL
+def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -155,27 +155,27 @@ def	information_schema	KEY_COLUMN_USAGE	TABLE_CATALOG	4	NULL	YES	varchar	64	192	
 def	information_schema	KEY_COLUMN_USAGE	TABLE_SCHEMA	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	TABLE_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	COLUMN_NAME	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	KEY_COLUMN_USAGE	ORDINAL_POSITION	8	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
-def	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	KEY_COLUMN_USAGE	ORDINAL_POSITION	8	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
+def	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	10	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_NAME	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	REFERENCED_COLUMN_NAME	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	QUERY	1		NO	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	TRACE	2		NO	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
-def	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	3		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int(20)			select			NULL
-def	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	4		NO	tinyint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	tinyint(1)			select			NULL
+def	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	3		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int			select			NULL
+def	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	4		NO	tinyint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	tinyint			select			NULL
 def	information_schema	PARAMETERS	SPECIFIC_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	SPECIFIC_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	SPECIFIC_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	PARAMETERS	ORDINAL_POSITION	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(11) unsigned			select			NULL
+def	information_schema	PARAMETERS	ORDINAL_POSITION	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
 def	information_schema	PARAMETERS	PARAMETER_MODE	5	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_bin	varchar(5)			select			NULL
 def	information_schema	PARAMETERS	PARAMETER_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	DATA_TYPE	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
-def	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
-def	information_schema	PARAMETERS	NUMERIC_SCALE	11	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(10)			select			NULL
-def	information_schema	PARAMETERS	DATETIME_PRECISION	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
+def	information_schema	PARAMETERS	NUMERIC_SCALE	11	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	PARAMETERS	DATETIME_PRECISION	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	PARAMETERS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	DTD_IDENTIFIER	15	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_bin	mediumtext			select			NULL
@@ -185,23 +185,23 @@ def	information_schema	PARTITIONS	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NU
 def	information_schema	PARTITIONS	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARTITIONS	PARTITION_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARTITIONS	SUBPARTITION_NAME	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	PARTITIONS	PARTITION_ORDINAL_POSITION	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(6) unsigned			select			NULL
-def	information_schema	PARTITIONS	SUBPARTITION_ORDINAL_POSITION	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(6) unsigned			select			NULL
+def	information_schema	PARTITIONS	PARTITION_ORDINAL_POSITION	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
+def	information_schema	PARTITIONS	SUBPARTITION_ORDINAL_POSITION	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	PARTITIONS	PARTITION_METHOD	8	NULL	YES	varchar	13	39	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(13)			select			NULL
 def	information_schema	PARTITIONS	SUBPARTITION_METHOD	9	NULL	YES	varchar	13	39	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(13)			select			NULL
 def	information_schema	PARTITIONS	PARTITION_EXPRESSION	10	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
 def	information_schema	PARTITIONS	SUBPARTITION_EXPRESSION	11	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
 def	information_schema	PARTITIONS	PARTITION_DESCRIPTION	12	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
-def	information_schema	PARTITIONS	TABLE_ROWS	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	PARTITIONS	AVG_ROW_LENGTH	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	PARTITIONS	DATA_LENGTH	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	PARTITIONS	MAX_DATA_LENGTH	16	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	PARTITIONS	INDEX_LENGTH	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	PARTITIONS	DATA_FREE	18	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	PARTITIONS	TABLE_ROWS	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	PARTITIONS	AVG_ROW_LENGTH	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	PARTITIONS	DATA_LENGTH	15	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	PARTITIONS	MAX_DATA_LENGTH	16	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	PARTITIONS	INDEX_LENGTH	17	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	PARTITIONS	DATA_FREE	18	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
 def	information_schema	PARTITIONS	CREATE_TIME	19	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
 def	information_schema	PARTITIONS	UPDATE_TIME	20	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	PARTITIONS	CHECK_TIME	21	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
-def	information_schema	PARTITIONS	CHECKSUM	22	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	PARTITIONS	CHECKSUM	22	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	PARTITIONS	PARTITION_COMMENT	23	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	PARTITIONS	NODEGROUP	24	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	PARTITIONS	TABLESPACE_NAME	25	NULL	YES	varchar	268	804	NULL	NULL	NULL	utf8	utf8_bin	varchar(268)			select			NULL
@@ -216,12 +216,12 @@ def	information_schema	PLUGINS	PLUGIN_AUTHOR	8		YES	varchar	21	64	NULL	NULL	NULL
 def	information_schema	PLUGINS	PLUGIN_DESCRIPTION	9		YES	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
 def	information_schema	PLUGINS	PLUGIN_LICENSE	10		YES	varchar	26	80	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select			NULL
 def	information_schema	PLUGINS	LOAD_OPTION	11		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	PROCESSLIST	ID	1		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	PROCESSLIST	ID	1		NO	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
 def	information_schema	PROCESSLIST	USER	2		NO	varchar	10	32	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select			NULL
 def	information_schema	PROCESSLIST	HOST	3		NO	varchar	87	261	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(261)			select			NULL
 def	information_schema	PROCESSLIST	DB	4		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PROCESSLIST	COMMAND	5		NO	varchar	5	16	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(16)			select			NULL
-def	information_schema	PROCESSLIST	TIME	6		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int(7)			select			NULL
+def	information_schema	PROCESSLIST	TIME	6		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int			select			NULL
 def	information_schema	PROCESSLIST	STATE	7		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PROCESSLIST	INFO	8		YES	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
 def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -237,9 +237,9 @@ def	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10	NULL	NO	varchar	64	
 def	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_TYPE	2	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bin	enum('SYSTEM','USER')			select			NULL
-def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	3	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select			NULL
+def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	3	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
 def	information_schema	RESOURCE_GROUPS	VCPU_IDS	4	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select			NULL
-def	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select			NULL
+def	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	ROLE_COLUMN_GRANTS	GRANTOR	1	NULL	YES	varchar	97	291	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(97)			select			NULL
 def	information_schema	ROLE_COLUMN_GRANTS	GRANTOR_HOST	2	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	ROLE_COLUMN_GRANTS	GRANTEE	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)			select			NULL
@@ -277,11 +277,11 @@ def	information_schema	ROUTINES	ROUTINE_SCHEMA	3	NULL	YES	varchar	64	192	NULL	NU
 def	information_schema	ROUTINES	ROUTINE_NAME	4	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	ROUTINES	ROUTINE_TYPE	5	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')			select			NULL
 def	information_schema	ROUTINES	DATA_TYPE	6	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
-def	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	7	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	ROUTINES	NUMERIC_PRECISION	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
-def	information_schema	ROUTINES	NUMERIC_SCALE	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
-def	information_schema	ROUTINES	DATETIME_PRECISION	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	7	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	ROUTINES	NUMERIC_PRECISION	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
+def	information_schema	ROUTINES	NUMERIC_SCALE	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
+def	information_schema	ROUTINES	DATETIME_PRECISION	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	ROUTINES	CHARACTER_SET_NAME	12	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	ROUTINES	COLLATION_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	ROUTINES	DTD_IDENTIFIER	14	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
@@ -316,14 +316,14 @@ def	information_schema	SCHEMA_PRIVILEGES	IS_GRANTABLE	5		NO	varchar	1	3	NULL	NUL
 def	information_schema	STATISTICS	TABLE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	TABLE_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	STATISTICS	NON_UNIQUE	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select			NULL
+def	information_schema	STATISTICS	NON_UNIQUE	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	STATISTICS	INDEX_SCHEMA	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	INDEX_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	STATISTICS	SEQ_IN_INDEX	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	STATISTICS	SEQ_IN_INDEX	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	STATISTICS	COLUMN_NAME	8	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	COLLATION	9	NULL	YES	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1)			select			NULL
-def	information_schema	STATISTICS	CARDINALITY	10	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
-def	information_schema	STATISTICS	SUB_PART	11	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	STATISTICS	CARDINALITY	10	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
+def	information_schema	STATISTICS	SUB_PART	11	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	STATISTICS	PACKED	12	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	STATISTICS	NULLABLE	13		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	STATISTICS	INDEX_TYPE	14		NO	varchar	11	33	NULL	NULL	NULL	utf8	utf8_bin	varchar(11)			select			NULL
@@ -336,12 +336,12 @@ def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_SCHEMA	2	NULL	YES	varchar	64	19
 def	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	ST_GEOMETRY_COLUMNS	COLUMN_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	ST_GEOMETRY_COLUMNS	SRS_NAME	5	NULL	YES	varchar	80	240	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select			NULL
-def	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	7	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME	1	NULL	NO	varchar	80	240	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select			NULL
-def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	5	NULL	NO	varchar	4096	12288	NULL	NULL	NULL	utf8	utf8_bin	varchar(4096)			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	6	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
 def	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	1	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
@@ -353,30 +353,30 @@ def	information_schema	TABLES	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	N
 def	information_schema	TABLES	TABLE_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TABLES	TABLE_TYPE	4	NULL	NO	enum	11	33	NULL	NULL	NULL	utf8	utf8_bin	enum('BASE TABLE','VIEW','SYSTEM VIEW')			select			NULL
 def	information_schema	TABLES	ENGINE	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLES	VERSION	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(2)			select			NULL
+def	information_schema	TABLES	VERSION	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	TABLES	ROW_FORMAT	7	NULL	YES	enum	10	30	NULL	NULL	NULL	utf8	utf8_bin	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')			select			NULL
-def	information_schema	TABLES	TABLE_ROWS	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLES	AVG_ROW_LENGTH	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLES	DATA_LENGTH	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLES	MAX_DATA_LENGTH	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLES	INDEX_LENGTH	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLES	DATA_FREE	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLES	AUTO_INCREMENT	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLES	TABLE_ROWS	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLES	AVG_ROW_LENGTH	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLES	DATA_LENGTH	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLES	MAX_DATA_LENGTH	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLES	INDEX_LENGTH	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLES	DATA_FREE	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLES	AUTO_INCREMENT	14	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select			NULL
 def	information_schema	TABLES	CREATE_TIME	15	NULL	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select			NULL
 def	information_schema	TABLES	UPDATE_TIME	16	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	TABLES	CHECK_TIME	17	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select			NULL
 def	information_schema	TABLES	TABLE_COLLATION	18	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLES	CHECKSUM	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
+def	information_schema	TABLES	CHECKSUM	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint			select			NULL
 def	information_schema	TABLES	CREATE_OPTIONS	20	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	TABLES	TABLE_COMMENT	21	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select			NULL
 def	information_schema	TABLESPACES	TABLESPACE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLESPACES	ENGINE	2		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLESPACES	TABLESPACE_TYPE	3		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLESPACES	LOGFILE_GROUP_NAME	4		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	TABLESPACES	EXTENT_SIZE	5		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLESPACES	AUTOEXTEND_SIZE	6		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLESPACES	MAXIMUM_SIZE	7		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
-def	information_schema	TABLESPACES	NODEGROUP_ID	8		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint(21) unsigned			select			NULL
+def	information_schema	TABLESPACES	EXTENT_SIZE	5		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLESPACES	AUTOEXTEND_SIZE	6		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLESPACES	MAXIMUM_SIZE	7		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
+def	information_schema	TABLESPACES	NODEGROUP_ID	8		YES	bigint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	bigint unsigned			select			NULL
 def	information_schema	TABLESPACES	TABLESPACE_COMMENT	9		YES	varchar	682	2048	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(2048)			select			NULL
 def	information_schema	TABLE_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -398,7 +398,7 @@ def	information_schema	TRIGGERS	EVENT_MANIPULATION	4	NULL	NO	enum	6	18	NULL	NULL
 def	information_schema	TRIGGERS	EVENT_OBJECT_CATALOG	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	TRIGGERS	ACTION_ORDER	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
+def	information_schema	TRIGGERS	ACTION_ORDER	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int unsigned			select			NULL
 def	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
 def	information_schema	TRIGGERS	ACTION_ORIENTATION	11		NO	varchar	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
@@ -545,17 +545,17 @@ COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	C
 3.0000	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	CHARACTER_SETS	DEFAULT_COLLATE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	CHARACTER_SETS	DESCRIPTION	varchar	2048	6144	utf8	utf8_general_ci	varchar(2048)
-NULL	information_schema	CHARACTER_SETS	MAXLEN	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	CHARACTER_SETS	MAXLEN	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	CHECK_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	CHECK_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	CHECK_CONSTRAINTS	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 1.0000	information_schema	CHECK_CONSTRAINTS	CHECK_CLAUSE	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 3.0000	information_schema	COLLATIONS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	COLLATIONS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	COLLATIONS	ID	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+NULL	information_schema	COLLATIONS	ID	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 3.0000	information_schema	COLLATIONS	IS_DEFAULT	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	COLLATIONS	IS_COMPILED	varchar	3	9	utf8	utf8_general_ci	varchar(3)
-NULL	information_schema	COLLATIONS	SORTLEN	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	COLLATIONS	SORTLEN	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	COLLATIONS	PAD_ATTRIBUTE	enum	9	27	utf8	utf8_bin	enum('PAD SPACE','NO PAD')
 3.0000	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -563,15 +563,15 @@ NULL	information_schema	COLLATIONS	SORTLEN	int	NULL	NULL	NULL	NULL	int(10) unsig
 3.0000	information_schema	COLUMNS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	COLUMNS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	COLUMNS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
-NULL	information_schema	COLUMNS	ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	COLUMNS	ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	information_schema	COLUMNS	COLUMN_DEFAULT	text	65535	65535	utf8	utf8_bin	text
 3.0000	information_schema	COLUMNS	IS_NULLABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 1.0000	information_schema	COLUMNS	DATA_TYPE	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
-NULL	information_schema	COLUMNS	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	COLUMNS	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	COLUMNS	NUMERIC_PRECISION	bigint	NULL	NULL	NULL	NULL	bigint(10) unsigned
-NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(10) unsigned
-NULL	information_schema	COLUMNS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	COLUMNS	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	COLUMNS	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	COLUMNS	NUMERIC_PRECISION	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	COLUMNS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	COLUMNS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	COLUMNS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	COLUMNS	COLUMN_TYPE	mediumtext	16777215	16777215	utf8	utf8_bin	mediumtext
@@ -580,7 +580,7 @@ NULL	information_schema	COLUMNS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(1
 3.0000	information_schema	COLUMNS	PRIVILEGES	varchar	154	462	utf8	utf8_general_ci	varchar(154)
 1.0000	information_schema	COLUMNS	COLUMN_COMMENT	text	65535	65535	utf8	utf8_bin	text
 1.0000	information_schema	COLUMNS	GENERATION_EXPRESSION	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
-NULL	information_schema	COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int unsigned
 3.0103	information_schema	COLUMN_PRIVILEGES	GRANTEE	varchar	97	292	utf8	utf8_general_ci	varchar(292)
 3.0118	information_schema	COLUMN_PRIVILEGES	TABLE_CATALOG	varchar	170	512	utf8	utf8_general_ci	varchar(512)
 3.0476	information_schema	COLUMN_PRIVILEGES	TABLE_SCHEMA	varchar	21	64	utf8	utf8_general_ci	varchar(64)
@@ -622,11 +622,11 @@ NULL	information_schema	EVENTS	CREATED	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	information_schema	EVENTS	LAST_ALTERED	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	information_schema	EVENTS	LAST_EXECUTED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	EVENTS	EVENT_COMMENT	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
-NULL	information_schema	EVENTS	ORIGINATOR	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	EVENTS	ORIGINATOR	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	EVENTS	CHARACTER_SET_CLIENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	EVENTS	COLLATION_CONNECTION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	EVENTS	DATABASE_COLLATION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint
 1.0000	information_schema	FILES	FILE_NAME	text	65535	65535	utf8	utf8_bin	text
 3.0000	information_schema	FILES	FILE_TYPE	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	FILES	TABLESPACE_NAME	varchar	268	804	utf8	utf8_bin	varchar(268)
@@ -634,30 +634,30 @@ NULL	information_schema	FILES	TABLE_CATALOG	char	0	0	utf8	utf8_general_ci	char(0
 NULL	information_schema	FILES	TABLE_SCHEMA	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TABLE_NAME	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	LOGFILE_GROUP_NAME	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-NULL	information_schema	FILES	LOGFILE_GROUP_NUMBER	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	LOGFILE_GROUP_NUMBER	bigint	NULL	NULL	NULL	NULL	bigint
 3.0000	information_schema	FILES	ENGINE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	FILES	FULLTEXT_KEYS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	DELETED_ROWS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	UPDATE_COUNT	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	FILES	FREE_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	FILES	TOTAL_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	FILES	EXTENT_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	FILES	INITIAL_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	FILES	MAXIMUM_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	FILES	AUTOEXTEND_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	FREE_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	FILES	TOTAL_EXTENTS	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	FILES	EXTENT_SIZE	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	FILES	INITIAL_SIZE	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	FILES	MAXIMUM_SIZE	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	FILES	AUTOEXTEND_SIZE	bigint	NULL	NULL	NULL	NULL	bigint
 NULL	information_schema	FILES	CREATION_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	LAST_UPDATE_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	LAST_ACCESS_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	RECOVER_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TRANSACTION_COUNTER	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	FILES	VERSION	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	VERSION	bigint	NULL	NULL	NULL	NULL	bigint
 3.0000	information_schema	FILES	ROW_FORMAT	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 NULL	information_schema	FILES	TABLE_ROWS	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	AVG_ROW_LENGTH	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	DATA_LENGTH	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	MAX_DATA_LENGTH	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	INDEX_LENGTH	binary	0	0	NULL	NULL	binary(0)
-NULL	information_schema	FILES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	FILES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint
 NULL	information_schema	FILES	CREATE_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	UPDATE_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	CHECK_TIME	binary	0	0	NULL	NULL	binary(0)
@@ -665,7 +665,7 @@ NULL	information_schema	FILES	CHECKSUM	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	STATUS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	FILES	EXTRA	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	KEYWORDS	WORD	varchar	29	87	utf8	utf8_general_ci	varchar(29)
-NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
@@ -673,27 +673,27 @@ NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int(11)
 3.0000	information_schema	KEY_COLUMN_USAGE	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
-NULL	information_schema	KEY_COLUMN_USAGE	ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	KEY_COLUMN_USAGE	ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int unsigned
+NULL	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	KEY_COLUMN_USAGE	REFERENCED_COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	OPTIMIZER_TRACE	QUERY	varchar	21845	65535	utf8	utf8_general_ci	varchar(65535)
 3.0000	information_schema	OPTIMIZER_TRACE	TRACE	varchar	21845	65535	utf8	utf8_general_ci	varchar(65535)
-NULL	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	int	NULL	NULL	NULL	NULL	int(20)
-NULL	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
+NULL	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	int	NULL	NULL	NULL	NULL	int
+NULL	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	tinyint	NULL	NULL	NULL	NULL	tinyint
 3.0000	information_schema	PARAMETERS	SPECIFIC_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	PARAMETERS	SPECIFIC_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	PARAMETERS	SPECIFIC_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	PARAMETERS	ORDINAL_POSITION	bigint	NULL	NULL	NULL	NULL	bigint(11) unsigned
+NULL	information_schema	PARAMETERS	ORDINAL_POSITION	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 3.0000	information_schema	PARAMETERS	PARAMETER_MODE	varchar	5	15	utf8	utf8_bin	varchar(5)
 3.0000	information_schema	PARAMETERS	PARAMETER_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	PARAMETERS	DATA_TYPE	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
-NULL	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	information_schema	PARAMETERS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(10)
-NULL	information_schema	PARAMETERS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int unsigned
+NULL	information_schema	PARAMETERS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	PARAMETERS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	PARAMETERS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PARAMETERS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	PARAMETERS	DTD_IDENTIFIER	mediumtext	16777215	16777215	utf8	utf8_bin	mediumtext
@@ -703,23 +703,23 @@ NULL	information_schema	PARAMETERS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	in
 3.0000	information_schema	PARTITIONS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	PARTITIONS	PARTITION_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	PARTITIONS	SUBPARTITION_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
-NULL	information_schema	PARTITIONS	PARTITION_ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int(6) unsigned
-NULL	information_schema	PARTITIONS	SUBPARTITION_ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int(6) unsigned
+NULL	information_schema	PARTITIONS	PARTITION_ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int unsigned
+NULL	information_schema	PARTITIONS	SUBPARTITION_ORDINAL_POSITION	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	PARTITIONS	PARTITION_METHOD	varchar	13	39	utf8	utf8_general_ci	varchar(13)
 3.0000	information_schema	PARTITIONS	SUBPARTITION_METHOD	varchar	13	39	utf8	utf8_general_ci	varchar(13)
 3.0000	information_schema	PARTITIONS	PARTITION_EXPRESSION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 3.0000	information_schema	PARTITIONS	SUBPARTITION_EXPRESSION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 1.0000	information_schema	PARTITIONS	PARTITION_DESCRIPTION	text	65535	65535	utf8	utf8_bin	text
-NULL	information_schema	PARTITIONS	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	PARTITIONS	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	PARTITIONS	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	PARTITIONS	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	PARTITIONS	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	PARTITIONS	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	PARTITIONS	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	PARTITIONS	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	PARTITIONS	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	PARTITIONS	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	PARTITIONS	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	PARTITIONS	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 NULL	information_schema	PARTITIONS	CREATE_TIME	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	information_schema	PARTITIONS	UPDATE_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	PARTITIONS	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint
 1.0000	information_schema	PARTITIONS	PARTITION_COMMENT	text	65535	65535	utf8	utf8_bin	text
 3.0000	information_schema	PARTITIONS	NODEGROUP	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	PARTITIONS	TABLESPACE_NAME	varchar	268	804	utf8	utf8_bin	varchar(268)
@@ -734,12 +734,12 @@ NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21
 3.0000	information_schema	PLUGINS	PLUGIN_DESCRIPTION	varchar	21845	65535	utf8	utf8_general_ci	varchar(65535)
 3.0769	information_schema	PLUGINS	PLUGIN_LICENSE	varchar	26	80	utf8	utf8_general_ci	varchar(80)
 3.0476	information_schema	PLUGINS	LOAD_OPTION	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 3.2000	information_schema	PROCESSLIST	USER	varchar	10	32	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	PROCESSLIST	HOST	varchar	87	261	utf8	utf8_general_ci	varchar(261)
 3.0476	information_schema	PROCESSLIST	DB	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.2000	information_schema	PROCESSLIST	COMMAND	varchar	5	16	utf8	utf8_general_ci	varchar(16)
-NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
+NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int
 3.0476	information_schema	PROCESSLIST	STATE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PROCESSLIST	INFO	varchar	21845	65535	utf8	utf8_general_ci	varchar(65535)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
@@ -755,9 +755,9 @@ NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int(7)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_TYPE	enum	6	18	utf8	utf8_bin	enum('SYSTEM','USER')
-NULL	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
+NULL	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	tinyint	NULL	NULL	NULL	NULL	tinyint
 1.0000	information_schema	RESOURCE_GROUPS	VCPU_IDS	blob	65535	65535	NULL	NULL	blob
-NULL	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	int	NULL	NULL	NULL	NULL	int(11)
+NULL	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	ROLE_COLUMN_GRANTS	GRANTOR	varchar	97	291	utf8	utf8_general_ci	varchar(97)
 3.0000	information_schema	ROLE_COLUMN_GRANTS	GRANTOR_HOST	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	ROLE_COLUMN_GRANTS	GRANTEE	char	32	96	utf8	utf8_bin	char(32)
@@ -795,11 +795,11 @@ NULL	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	int	NULL	NULL	NULL	NULL	
 3.0000	information_schema	ROUTINES	ROUTINE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	ROUTINE_TYPE	enum	9	27	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')
 1.0000	information_schema	ROUTINES	DATA_TYPE	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
-NULL	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	ROUTINES	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	information_schema	ROUTINES	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	information_schema	ROUTINES	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	ROUTINES	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	ROUTINES	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	ROUTINES	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int unsigned
+NULL	information_schema	ROUTINES	NUMERIC_SCALE	int	NULL	NULL	NULL	NULL	int unsigned
+NULL	information_schema	ROUTINES	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	ROUTINES	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	ROUTINES	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	ROUTINES	DTD_IDENTIFIER	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
@@ -834,14 +834,14 @@ NULL	information_schema	SCHEMATA	SQL_PATH	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	STATISTICS	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
-NULL	information_schema	STATISTICS	NON_UNIQUE	int	NULL	NULL	NULL	NULL	int(1)
+NULL	information_schema	STATISTICS	NON_UNIQUE	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	STATISTICS	INDEX_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	INDEX_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
-NULL	information_schema	STATISTICS	SEQ_IN_INDEX	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	STATISTICS	SEQ_IN_INDEX	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	STATISTICS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	COLLATION	varchar	1	3	utf8	utf8_general_ci	varchar(1)
-NULL	information_schema	STATISTICS	CARDINALITY	bigint	NULL	NULL	NULL	NULL	bigint(21)
-NULL	information_schema	STATISTICS	SUB_PART	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	STATISTICS	CARDINALITY	bigint	NULL	NULL	NULL	NULL	bigint
+NULL	information_schema	STATISTICS	SUB_PART	bigint	NULL	NULL	NULL	NULL	bigint
 NULL	information_schema	STATISTICS	PACKED	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	STATISTICS	NULLABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	STATISTICS	INDEX_TYPE	varchar	11	33	utf8	utf8_bin	varchar(11)
@@ -854,12 +854,12 @@ NULL	information_schema	STATISTICS	PACKED	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	ST_GEOMETRY_COLUMNS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	ST_GEOMETRY_COLUMNS	COLUMN_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	ST_GEOMETRY_COLUMNS	SRS_NAME	varchar	80	240	utf8	utf8_general_ci	varchar(80)
-NULL	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	ST_GEOMETRY_COLUMNS	SRS_ID	int	NULL	NULL	NULL	NULL	int unsigned
 1.0000	information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME	varchar	80	240	utf8	utf8_general_ci	varchar(80)
-NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	int	NULL	NULL	NULL	NULL	int unsigned
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	varchar	4096	12288	utf8	utf8_bin	varchar(4096)
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 3.0000	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
@@ -871,30 +871,30 @@ NULL	information_schema	ST_UNITS_OF_MEASURE	CONVERSION_FACTOR	double	NULL	NULL	N
 3.0000	information_schema	TABLES	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLES	TABLE_TYPE	enum	11	33	utf8	utf8_bin	enum('BASE TABLE','VIEW','SYSTEM VIEW')
 3.0000	information_schema	TABLES	ENGINE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	TABLES	VERSION	int	NULL	NULL	NULL	NULL	int(2)
+NULL	information_schema	TABLES	VERSION	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	TABLES	ROW_FORMAT	enum	10	30	utf8	utf8_bin	enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged')
-NULL	information_schema	TABLES	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLES	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLES	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLES	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLES	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLES	AUTO_INCREMENT	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLES	TABLE_ROWS	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLES	AVG_ROW_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLES	DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLES	MAX_DATA_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLES	INDEX_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLES	DATA_FREE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLES	AUTO_INCREMENT	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 NULL	information_schema	TABLES	CREATE_TIME	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	information_schema	TABLES	UPDATE_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	information_schema	TABLES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	TABLES	TABLE_COLLATION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
+NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint
 3.0000	information_schema	TABLES	CREATE_OPTIONS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 1.0000	information_schema	TABLES	TABLE_COMMENT	text	65535	65535	utf8	utf8_general_ci	text
 3.0476	information_schema	TABLESPACES	TABLESPACE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	TABLESPACES	ENGINE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	TABLESPACES	TABLESPACE_TYPE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	TABLESPACES	LOGFILE_GROUP_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	TABLESPACES	EXTENT_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLESPACES	AUTOEXTEND_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLESPACES	MAXIMUM_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	TABLESPACES	NODEGROUP_ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	TABLESPACES	EXTENT_SIZE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLESPACES	AUTOEXTEND_SIZE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLESPACES	MAXIMUM_SIZE	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+NULL	information_schema	TABLESPACES	NODEGROUP_ID	bigint	NULL	NULL	NULL	NULL	bigint unsigned
 3.0029	information_schema	TABLESPACES	TABLESPACE_COMMENT	varchar	682	2048	utf8	utf8_general_ci	varchar(2048)
 3.0000	information_schema	TABLE_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
@@ -916,7 +916,7 @@ NULL	information_schema	TABLESPACES	NODEGROUP_ID	bigint	NULL	NULL	NULL	NULL	bigi
 3.0000	information_schema	TRIGGERS	EVENT_OBJECT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	varchar	64	192	utf8	utf8_bin	varchar(64)
-NULL	information_schema	TRIGGERS	ACTION_ORDER	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	information_schema	TRIGGERS	ACTION_ORDER	int	NULL	NULL	NULL	NULL	int unsigned
 NULL	information_schema	TRIGGERS	ACTION_CONDITION	binary	0	0	NULL	NULL	binary(0)
 1.0000	information_schema	TRIGGERS	ACTION_STATEMENT	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
 3.0000	information_schema	TRIGGERS	ACTION_ORIENTATION	varchar	3	9	utf8	utf8_general_ci	varchar(3)

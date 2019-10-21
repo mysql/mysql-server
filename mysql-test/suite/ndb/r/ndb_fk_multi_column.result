@@ -64,9 +64,9 @@ constraint fkt2ab foreign key (a,b) references t1(a,b)
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   UNIQUE KEY `uniquet2a` (`a`),
   KEY `fkt2ab` (`a`,`b`),
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`, `b`) REFERENCES `t1` (`a`, `b`)
@@ -78,9 +78,9 @@ alter table t2 add constraint uniquet2a unique (a);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   UNIQUE KEY `uniquet2a` (`a`),
   KEY `fkt2ab` (`a`,`b`),
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`, `b`) REFERENCES `t1` (`a`, `b`)
@@ -91,9 +91,9 @@ alter table t2 add constraint uniquet2ab unique (a,b);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   UNIQUE KEY `uniquet2a` (`a`),
   UNIQUE KEY `uniquet2ab` (`a`,`b`),
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`, `b`) REFERENCES `t1` (`a`, `b`)
@@ -108,9 +108,9 @@ alter table t2 add constraint fkt2abc foreign key (a,b,c) references t1(a,b,c);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   UNIQUE KEY `uniquet2a` (`a`),
   UNIQUE KEY `uniquet2ab` (`a`,`b`),
   KEY `fkt2abc` (`a`,`b`,`c`),

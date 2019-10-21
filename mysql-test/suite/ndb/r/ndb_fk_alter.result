@@ -16,9 +16,9 @@ alter table child algorithm=inplace, add constraint fk3 foreign key (c) referenc
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -30,9 +30,9 @@ alter table child algorithm=inplace, drop foreign key fk1;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -43,9 +43,9 @@ alter table child algorithm=inplace, drop foreign key fk2;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -55,9 +55,9 @@ alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL AUTO_INCREMENT,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`)
@@ -173,8 +173,8 @@ ENGINE = NDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) NOT NULL,
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
@@ -183,8 +183,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
@@ -194,8 +194,8 @@ ALTER TABLE t1 PARTITION BY KEY ();
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) NOT NULL,
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
@@ -206,8 +206,8 @@ ALTER TABLE t1 PARTITION BY KEY (col1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) NOT NULL,
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
@@ -218,8 +218,8 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) NOT NULL,
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
@@ -229,8 +229,8 @@ ALTER TABLE t2 PARTITION BY KEY ();
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
@@ -241,8 +241,8 @@ ALTER TABLE t2 PARTITION BY KEY (col1);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
@@ -253,8 +253,8 @@ ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
@@ -271,8 +271,8 @@ ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field bein
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) NOT NULL,
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
@@ -281,8 +281,8 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
   `col3` varchar(35) DEFAULT NULL,
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),

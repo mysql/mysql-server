@@ -372,15 +372,15 @@ use db1;
 show create table tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 show create table tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(20) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `d` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`)
@@ -481,7 +481,7 @@ use db1;
 show create table tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 select * from tab2 order by a;
@@ -512,15 +512,15 @@ use db2;
 show create table tab1;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 show create table tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(20) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `d` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`)

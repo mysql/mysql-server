@@ -12,7 +12,7 @@ Field	Type	Null	Key	Default	Extra
 event_class	varchar(128)	YES		NULL	
 total	decimal(42,0)	YES		NULL	
 total_latency	decimal(42,0)	YES		NULL	
-min_latency	bigint(20) unsigned	YES		NULL	
+min_latency	bigint unsigned	YES		NULL	
 avg_latency	decimal(46,4)	NO		0.0000	
-max_latency	bigint(20) unsigned	YES		NULL	
+max_latency	bigint unsigned	YES		NULL	
 SELECT * FROM sys.x$wait_classes_global_by_latency;

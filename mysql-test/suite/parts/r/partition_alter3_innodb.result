@@ -442,8 +442,8 @@ SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -466,8 +466,8 @@ ALTER TABLE t1 PARTITION BY KEY(f_int1);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -492,8 +492,8 @@ ALTER TABLE t1 ADD PARTITION (PARTITION part1, PARTITION part7);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -518,8 +518,8 @@ ALTER TABLE t1 ADD PARTITION (PARTITION part2);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -546,8 +546,8 @@ ALTER TABLE t1 ADD PARTITION PARTITIONS 4;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -589,8 +589,8 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -622,8 +622,8 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -653,8 +653,8 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -682,8 +682,8 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -709,8 +709,8 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -734,8 +734,8 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -757,8 +757,8 @@ ALTER TABLE t1 COALESCE PARTITION 1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
@@ -782,8 +782,8 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f_int1` int(11) DEFAULT NULL,
-  `f_int2` int(11) DEFAULT NULL,
+  `f_int1` int DEFAULT NULL,
+  `f_int2` int DEFAULT NULL,
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL

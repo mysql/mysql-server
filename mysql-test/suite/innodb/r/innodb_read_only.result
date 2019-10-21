@@ -4,8 +4,8 @@ INSERT INTO WL6445.t1 VALUES(0,0),(1,1),(2,2);
 SHOW CREATE TABLE WL6445.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   KEY `sec_idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL innodb_fast_shutdown = 0;
@@ -40,8 +40,8 @@ ERROR HY000: Storage engine can't drop table 'WL6445.t1'
 SHOW CREATE TABLE WL6445.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
   KEY `sec_idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart

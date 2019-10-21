@@ -123,7 +123,7 @@ Warning	1071	Specified key was too long; max key length is 768 bytes
 show create table worklog5743_2;
 Table	Create Table
 worklog5743_2	CREATE TABLE `worklog5743_2` (
-  `a1` int(11) DEFAULT NULL,
+  `a1` int DEFAULT NULL,
   `a2` text NOT NULL,
   KEY `idx1` (`a2`(768))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2
@@ -158,7 +158,7 @@ Warning	1071	Specified key was too long; max key length is 768 bytes
 show create table worklog5743_4;
 Table	Create Table
 worklog5743_4	CREATE TABLE `worklog5743_4` (
-  `a1` int(11) DEFAULT NULL,
+  `a1` int DEFAULT NULL,
   `a2` text NOT NULL,
   KEY `idx1` (`a2`(768))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=4

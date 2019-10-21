@@ -218,13 +218,13 @@ UNIQUE i1idx (i1),
 UNIQUE i2idx (i2)) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-i1	int(11)	NO	PRI	NULL	
-i2	int(11)	NO	UNI	NULL	
+i1	int	NO	PRI	NULL	
+i2	int	NO	UNI	NULL	
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i1` int(11) NOT NULL,
-  `i2` int(11) NOT NULL,
+  `i1` int NOT NULL,
+  `i2` int NOT NULL,
   UNIQUE KEY `i1idx` (`i1`),
   UNIQUE KEY `i2idx` (`i2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -257,25 +257,25 @@ drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null unique);
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
+a	int	NO	PRI	NULL	
 b	varchar(20)	NO	UNI	NULL	
 drop table t1;
 create table t1 (a int not null primary key, b int not null unique);
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
-b	int(11)	NO	UNI	NULL	
+a	int	NO	PRI	NULL	
+b	int	NO	UNI	NULL	
 drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null, unique (b(10)));
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
+a	int	NO	PRI	NULL	
 b	varchar(20)	NO	UNI	NULL	
 drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null, c varchar(20) not null, unique(b(10),c(10)));
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	PRI	NULL	
+a	int	NO	PRI	NULL	
 b	varchar(20)	NO	MUL	NULL	
 c	varchar(20)	NO		NULL	
 drop table t1;
@@ -297,7 +297,7 @@ Warning	1831	Duplicate index 'i1' defined on the table 'test.t1'. This is deprec
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(12) NOT NULL,
   `c3` varchar(123) NOT NULL,
   `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -336,7 +336,7 @@ ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` char(12) NOT NULL,
   `c3` varchar(123) NOT NULL,
   `c4` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -393,13 +393,13 @@ b char(10) not null, unique key bb(b(1)),
 c char(4) not null, unique key cc(c)) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	MUL	NULL	
+a	int	NO	MUL	NULL	
 b	char(10)	NO	UNI	NULL	
 c	char(4)	NO	PRI	NULL	
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(10) NOT NULL,
   `c` char(4) NOT NULL,
   UNIQUE KEY `cc` (`c`),
@@ -412,19 +412,19 @@ b char(10) not null, unique key bb(b(1)),
 c char(4) not null) charset utf8mb4;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	MUL	NULL	
+a	int	NO	MUL	NULL	
 b	char(10)	NO	UNI	NULL	
 c	char(4)	NO		NULL	
 alter table t1 add unique key cc(c);
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO	MUL	NULL	
+a	int	NO	MUL	NULL	
 b	char(10)	NO	UNI	NULL	
 c	char(4)	NO	PRI	NULL	
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(10) NOT NULL,
   `c` char(4) NOT NULL,
   UNIQUE KEY `cc` (`c`),
@@ -465,13 +465,13 @@ create table th (k int, index (k)) charset utf8mb4 engine=heap;
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
@@ -490,16 +490,16 @@ alter table th add column l int, add index (l);
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -526,7 +526,7 @@ ERROR 42000: The storage engine for the table doesn't support GEOMETRY
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   `p` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`)
@@ -546,7 +546,7 @@ alter table ti add column q point not null SRID 0, add spatial index (q);
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   `p` point NOT NULL /*!80003 SRID 0 */,
   `q` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
@@ -570,7 +570,7 @@ ERROR HY000: The used table type doesn't support FULLTEXT indexes
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   `v` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`)
@@ -587,7 +587,7 @@ alter table ti add column w varchar(255), add fulltext index (w);
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   `v` varchar(255) DEFAULT NULL,
   `w` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`pk`),
@@ -612,13 +612,13 @@ create table th (k int, index using btree (k)) charset utf8mb4 engine=heap;
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
@@ -639,16 +639,16 @@ alter table th add column l int, add index using hash (l);
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING HASH
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -675,7 +675,7 @@ Note	3502	This storage engine does not support the HASH index algorithm, storage
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
@@ -694,8 +694,8 @@ Note	3502	This storage engine does not support the HASH index algorithm, storage
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -714,7 +714,7 @@ create table t1 (k int, index (k)) charset utf8mb4 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
@@ -728,7 +728,7 @@ alter table t1 engine= heap;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # But in I_S.STATISTICS we see that algorithm has changed.
@@ -746,7 +746,7 @@ create table t1 (k int, index using btree (k)) charset utf8mb4 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
@@ -760,7 +760,7 @@ alter table t1 engine= heap;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In I_S.STATISTICS we also see that algorithm is the same
@@ -779,7 +779,7 @@ create table t1 (k int, index using hash (k)) charset utf8mb4 engine=heap;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`) USING HASH
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
@@ -795,7 +795,7 @@ Note	3502	This storage engine does not support the HASH index algorithm, storage
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In I_S.STATISTICS we see that algorithm has changed.

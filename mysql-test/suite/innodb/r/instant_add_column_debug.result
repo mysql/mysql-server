@@ -27,9 +27,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT '10',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `d` int DEFAULT '10',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT * FROM t1;
@@ -68,9 +68,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT '10',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `d` int DEFAULT '10',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT * FROM t1;
@@ -109,9 +109,9 @@ test.t1	check	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT '10',
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `d` int DEFAULT '10',
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT * FROM t1;

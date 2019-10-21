@@ -36,9 +36,9 @@
 -- *************************** 1. row ***************************
 --        Table: rkey
 -- Create Table: CREATE TABLE `rkey` (
---   `i` int(11) NOT NULL,
---   `j` int(11) DEFAULT NULL,
---   `k` int(11) DEFAULT NULL,
+--   `i` int NOT NULL,
+--   `j` int DEFAULT NULL,
+--   `k` int DEFAULT NULL,
 --   PRIMARY KEY (`i`),
 --   KEY `j` (`j`),
 --   KEY `j_2` (`j`,`k`)

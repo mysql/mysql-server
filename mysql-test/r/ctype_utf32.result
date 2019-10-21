@@ -637,7 +637,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `status` enum('active','passive') CHARACTER SET utf32 COLLATE utf32_general_ci NOT NULL DEFAULT 'passive',
-  `a` int(11) NOT NULL
+  `a` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 End of 4.1 tests

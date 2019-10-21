@@ -49,8 +49,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) NOT NULL
+  `f1` int NOT NULL,
+  `f2` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (5,6),(7,8);
 SELECT * FROM t1;
@@ -88,8 +88,8 @@ f1	f2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) NOT NULL
+  `f1` int NOT NULL,
+  `f2` int NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL) ENGINE=InnoDB;
@@ -117,9 +117,9 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(150) DEFAULT NULL,
-  `c` int(11) NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;

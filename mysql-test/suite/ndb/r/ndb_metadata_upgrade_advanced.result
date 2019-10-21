@@ -11,8 +11,8 @@ t3
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(10) unsigned NOT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int unsigned NOT NULL,
   `c3` float DEFAULT NULL,
   `c4` varchar(255) DEFAULT NULL,
   `c5` time DEFAULT NULL,
@@ -37,8 +37,8 @@ DROP TABLE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  `c1` int NOT NULL,
+  `c2` int GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t2;
@@ -54,7 +54,7 @@ DROP TABLE t4;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` varchar(100) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -72,8 +72,8 @@ DROP TABLE t3;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
-  `c2` int(10) unsigned NOT NULL,
+  `c1` int NOT NULL AUTO_INCREMENT,
+  `c2` int unsigned NOT NULL,
   `c3` float DEFAULT NULL,
   `c4` varchar(255) DEFAULT NULL,
   `c5` time DEFAULT NULL,
@@ -98,8 +98,8 @@ DROP TABLE t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  `c1` int NOT NULL,
+  `c2` int GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * FROM t2;
@@ -108,8 +108,8 @@ c1	c2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
+  `c1` int NOT NULL,
+  `c2` int GENERATED ALWAYS AS ((`c1` * `c1`)) VIRTUAL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 ALTER TABLE t2 RENAME t4;
@@ -122,7 +122,7 @@ DROP TABLE t4;
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` varchar(100) DEFAULT NULL,
   `c3` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -160,7 +160,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1

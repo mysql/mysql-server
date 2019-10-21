@@ -208,7 +208,7 @@ Warning	1292	Truncated incorrect BINARY value: 'x'099999999999999999999999999999
 create table t1 select 0x9999 + 0;
 desc t1;
 Field	Type	Null	Key	Default	Extra
-0x9999 + 0	int(3) unsigned	NO		0	
+0x9999 + 0	int unsigned	NO		0	
 select * from t1;
 0x9999 + 0
 39321

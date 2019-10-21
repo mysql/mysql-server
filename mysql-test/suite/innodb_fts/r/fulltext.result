@@ -267,7 +267,7 @@ t2	1	tix	1	inhalt	NULL	3	NULL	NULL	YES	FULLTEXT			YES	NULL
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `ticket` int(11) DEFAULT NULL,
+  `ticket` int DEFAULT NULL,
   `inhalt` text,
   KEY `tig` (`ticket`),
   FULLTEXT KEY `tix` (`inhalt`)

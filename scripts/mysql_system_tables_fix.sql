@@ -148,9 +148,9 @@ UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv
 #  for some users.
 
 ALTER TABLE user
-ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
-ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
-ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
+ADD max_questions int NOT NULL DEFAULT 0 AFTER x509_subject,
+ADD max_updates   int unsigned NOT NULL DEFAULT 0 AFTER max_questions,
+ADD max_connections int unsigned NOT NULL DEFAULT 0 AFTER max_updates;
 
 #
 # Update proxies_priv definition.
@@ -169,7 +169,7 @@ ALTER TABLE db
 ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 
-alter table user change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
+alter table user change max_questions max_questions int unsigned DEFAULT 0  NOT NULL;
 
 
 alter table db comment='Database privileges';
@@ -243,7 +243,7 @@ ALTER TABLE general_log
   MODIFY command_type VARCHAR(64) NOT NULL,
   MODIFY argument MEDIUMBLOB NOT NULL;
 ALTER TABLE general_log
-  MODIFY thread_id BIGINT(21) UNSIGNED NOT NULL;
+  MODIFY thread_id BIGINT UNSIGNED NOT NULL;
 SET GLOBAL general_log = @old_log_state;
 
 SET @old_log_state = @@global.slow_query_log;
@@ -263,7 +263,7 @@ ALTER TABLE slow_log
 ALTER TABLE slow_log
   ADD COLUMN thread_id INTEGER NOT NULL AFTER sql_text;
 ALTER TABLE slow_log
-  MODIFY thread_id BIGINT(21) UNSIGNED NOT NULL;
+  MODIFY thread_id BIGINT UNSIGNED NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
 SET @@session.sql_require_primary_key = @old_sql_require_primary_key;
@@ -337,7 +337,7 @@ UPDATE db SET Create_routine_priv=Create_priv, Alter_routine_priv=Alter_priv, Ex
 #
 # Add max_user_connections resource limit
 #
-ALTER TABLE user ADD max_user_connections int(11) unsigned DEFAULT '0' NOT NULL AFTER max_connections;
+ALTER TABLE user ADD max_user_connections int unsigned DEFAULT '0' NOT NULL AFTER max_connections;
 
 #
 # user.Create_user_priv

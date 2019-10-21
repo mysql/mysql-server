@@ -20,10 +20,10 @@ insert into mysqltest_db1.t_column_priv_only (a) VALUES (1);
 ** Should succeed because we have privileges (any) on at least one of the columns.
 select column_name as 'Field',column_type as 'Type',is_nullable as 'Null',column_key as 'Key',column_default as 'Default',extra as 'Extra' from information_schema.columns where table_schema='mysqltest_db1' and table_name='t_column_priv_only';
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 show columns from mysqltest_db1.t_column_priv_only;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 ** SHOW COLUMNS
 ** Should fail because there are no privileges on any column combination.
 show columns from mysqltest_db1.t_no_priv;
@@ -51,8 +51,8 @@ ERROR 42000: SHOW command denied to user 'mysqltest_u1'@'localhost' for table 't
 ** Success because we got some privileges on the table (SELECT_ACL)
 show columns from mysqltest_db1.t_select_priv;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES		NULL	
+a	int	YES		NULL	
+b	int	YES		NULL	
 
 ** CREATE TABLE ... LIKE ... require SELECT privleges and will SUCCEED.
 drop table if exists test.t_duplicated;
@@ -63,8 +63,8 @@ drop table test.t_duplicated;
 show create table mysqltest_db1.t_select_priv;
 Table	Create Table
 t_select_priv	CREATE TABLE `t_select_priv` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ** SHOW CREATE TABLE will fail if there is no grants at all:

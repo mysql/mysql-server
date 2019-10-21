@@ -2718,7 +2718,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `name` varchar(10) COLLATE utf16_swedish_ci DEFAULT NULL,
-  `level` smallint(5) unsigned DEFAULT NULL
+  `level` smallint unsigned DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf16 COLLATE=utf16_swedish_ci
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;

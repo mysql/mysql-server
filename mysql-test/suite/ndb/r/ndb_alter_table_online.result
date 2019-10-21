@@ -733,7 +733,7 @@ Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed i
 SHOW CREATE TABLE categorylinks;
 Table	Create Table
 categorylinks	CREATE TABLE `categorylinks` (
-  `cl_from` int(10) unsigned NOT NULL DEFAULT '0',
+  `cl_from` int unsigned NOT NULL DEFAULT '0',
   `cl_to` varbinary(255) NOT NULL DEFAULT '',
   `cl_sortkey` varbinary(230) NOT NULL DEFAULT '',
   `cl_timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

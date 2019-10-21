@@ -732,11 +732,11 @@ alter table t1 add key (a,b,d,e);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
   `c` tinyblob NOT NULL,
-  `d` int(11) NOT NULL,
-  `e` int(11) DEFAULT NULL,
+  `d` int NOT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`(255),`d`),
   KEY `a` (`a`,`b`,`d`,`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

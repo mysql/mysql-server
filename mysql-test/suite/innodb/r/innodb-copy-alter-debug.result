@@ -34,10 +34,10 @@ ERROR HY000: Lost connection to MySQL server during query
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10384 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CHECK TABLE t;
@@ -64,7 +64,7 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text,
   `c` text,
   FULLTEXT KEY `b` (`b`),
@@ -85,7 +85,7 @@ a	b	c
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` text,
   `c` text,
   FULLTEXT KEY `b` (`b`),

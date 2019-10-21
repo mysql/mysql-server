@@ -745,7 +745,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` timestamp NOT NULL,
   `c2` timestamp NOT NULL DEFAULT '2001-01-01 01:01:01',
-  `c3` int(11) NOT NULL DEFAULT '42'
+  `c3` int NOT NULL DEFAULT '42'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (NULL, DEFAULT, DEFAULT);
 ERROR 23000: Column 'c1' cannot be null
@@ -786,16 +786,16 @@ t4_not_null TIMESTAMP NOT NULL);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dummy` int(11) DEFAULT NULL,
-  `i1_null_const` int(11) DEFAULT '42',
+  `dummy` int DEFAULT NULL,
+  `i1_null_const` int DEFAULT '42',
   `t1_null_now` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `t1_null_const` timestamp NULL DEFAULT '2001-01-01 03:03:03',
-  `i2_not_null_const` int(11) NOT NULL DEFAULT '42',
+  `i2_not_null_const` int NOT NULL DEFAULT '42',
   `t2_not_null_now` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `t2_not_null_const` timestamp NOT NULL DEFAULT '2001-01-01 03:03:03',
-  `i3_null` int(11) DEFAULT NULL,
+  `i3_null` int DEFAULT NULL,
   `t3_null` timestamp NULL DEFAULT NULL,
-  `i4_not_null` int(11) NOT NULL,
+  `i4_not_null` int NOT NULL,
   `t4_not_null` timestamp NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -812,7 +812,7 @@ ALTER TABLE t2 ADD COLUMN c TIMESTAMP;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` timestamp NULL DEFAULT NULL,
   `c` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -820,7 +820,7 @@ ALTER TABLE t2 ADD COLUMN d TIMESTAMP;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` timestamp NULL DEFAULT NULL,
   `c` timestamp NULL DEFAULT NULL,
   `d` timestamp NULL DEFAULT NULL

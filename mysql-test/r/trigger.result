@@ -831,7 +831,7 @@ mysqltest	t1_bi	mysqltest	t1	set @a:=new.id
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL
+  `id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop trigger test.t1_bi;
 ERROR HY000: Trigger does not exist

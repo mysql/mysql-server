@@ -1921,6 +1921,15 @@ static void append_zerofill_and_unsigned(const Field_num *field, String *res) {
   if (field->zerofill) res->append(STRING_WITH_LEN(" zerofill"));
 }
 
+/// Writes an integer type specification to a string.
+static void integer_sql_type(const Field_num *field, const char *type_name,
+                             String *res) {
+  res->length(0);
+  res->append(type_name);
+  if (field->zerofill) res->append_parenthesized(field->field_length);
+  append_zerofill_and_unsigned(field, res);
+}
+
 void Field::make_send_field(Send_field *field) const {
   if (orig_table && orig_table->s->db.str && *orig_table->s->db.str) {
     field->db_name = orig_table->s->db.str;
@@ -3315,10 +3324,7 @@ size_t Field_tiny::make_sort_key(uchar *to,
 }
 
 void Field_tiny::sql_type(String &res) const {
-  const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
-                                "tinyint(%d)", (int)field_length));
-  append_zerofill_and_unsigned(this, &res);
+  integer_sql_type(this, "tinyint", &res);
 }
 
 /****************************************************************************
@@ -3504,10 +3510,7 @@ size_t Field_short::make_sort_key(uchar *to,
 }
 
 void Field_short::sql_type(String &res) const {
-  const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
-                                "smallint(%d)", (int)field_length));
-  append_zerofill_and_unsigned(this, &res);
+  integer_sql_type(this, "smallint", &res);
 }
 
 /****************************************************************************
@@ -3657,10 +3660,7 @@ size_t Field_medium::make_sort_key(uchar *to,
 }
 
 void Field_medium::sql_type(String &res) const {
-  const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
-                                "mediumint(%d)", (int)field_length));
-  append_zerofill_and_unsigned(this, &res);
+  integer_sql_type(this, "mediumint", &res);
 }
 
 /****************************************************************************
@@ -3859,10 +3859,7 @@ size_t Field_long::make_sort_key(uchar *to,
 }
 
 void Field_long::sql_type(String &res) const {
-  const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "int(%d)",
-                                (int)field_length));
-  append_zerofill_and_unsigned(this, &res);
+  integer_sql_type(this, "int", &res);
 }
 
 /****************************************************************************
@@ -4032,10 +4029,7 @@ size_t Field_longlong::make_sort_key(uchar *to, size_t length) const {
 }
 
 void Field_longlong::sql_type(String &res) const {
-  const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
-                                "bigint(%d)", (int)field_length));
-  append_zerofill_and_unsigned(this, &res);
+  integer_sql_type(this, "bigint", &res);
 }
 
 /*

@@ -33,12 +33,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i2` (`c`),
   KEY `i3` (`d`),
@@ -106,12 +106,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i1` (`b`),
   KEY `i3` (`d`),
@@ -196,12 +196,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `bb` (`b`),
   KEY `i2` (`c`),
@@ -298,12 +298,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i2` (`c`),
   KEY `i3` (`d`),
@@ -397,12 +397,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i1` (`b`),
   KEY `dd` (`d`),
@@ -464,12 +464,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i2` (`b`),
   KEY `i3` (`d`),
@@ -551,12 +551,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i1` (`b`),
   KEY `i3` (`c`),
@@ -632,12 +632,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i2` (`c`),
   KEY `bb` (`d`),
@@ -713,12 +713,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `bb` (`b`),
   KEY `i2` (`c`),
@@ -779,12 +779,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `x` (`b`),
   KEY `i2` (`c`),
@@ -849,12 +849,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i8` (`b`),
   KEY `i2` (`c`),
@@ -919,12 +919,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i9` (`b`),
   KEY `i2` (`c`),
@@ -1000,12 +1000,12 @@ ERROR 42000: Key 'i1' doesn't exist in table 't'
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
+  `f` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `i1` (`b`),
   KEY `i2` (`c`),
@@ -1062,10 +1062,10 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
   PRIMARY KEY (`c2`),
   KEY `x` (`c3`),
   KEY `i2` (`c4`)
@@ -1103,10 +1103,10 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` int DEFAULT NULL,
   PRIMARY KEY (`c2`),
   KEY `x` (`c3`),
   KEY `y` (`c4`)
@@ -1153,9 +1153,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `x` (`c2`),
   KEY `i2` (`c3`)

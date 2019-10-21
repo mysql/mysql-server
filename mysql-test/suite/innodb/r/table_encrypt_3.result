@@ -29,8 +29,8 @@ SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
@@ -48,8 +48,8 @@ SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c7`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
@@ -100,7 +100,7 @@ CREATE TABLE tde_db.t_encrypt_1(c1 INT, c2 char(20),c3 BLOB) ENGINE = InnoDB;
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(20) DEFAULT NULL,
   `c3` blob
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
@@ -242,11 +242,11 @@ end|
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=DYNAMIC ");
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -295,11 +295,11 @@ c2	c4	c5	c6	ST_AsText(c7)
 100	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -326,11 +326,11 @@ COUNT(*)
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPACT ");
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -379,11 +379,11 @@ c2	c4	c5	c6	ST_AsText(c7)
 100	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -410,11 +410,11 @@ COUNT(*)
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=REDUNDANT ");
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -463,11 +463,11 @@ c2	c4	c5	c6	ST_AsText(c7)
 100	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -494,11 +494,11 @@ COUNT(*)
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPRESSED " );
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -547,11 +547,11 @@ c2	c4	c5	c6	ST_AsText(c7)
 100	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -578,11 +578,11 @@ COUNT(*)
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=4 ");
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -631,11 +631,11 @@ c2	c4	c5	c6	ST_AsText(c7)
 100	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -665,11 +665,11 @@ CREATE TABLE tde_db.t_encrypt  (c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,c3 VA
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   PRIMARY KEY (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 /*!50100 PARTITION BY RANGE (`c2`)
@@ -752,11 +752,11 @@ c2	c4	c5	c6
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` varchar(255) DEFAULT NULL,
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   PRIMARY KEY (`c2`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 /*!50100 PARTITION BY RANGE (`c2`)
@@ -844,11 +844,11 @@ end|
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL,
+  `c2` int NOT NULL,
   `c3` char(255) DEFAULT 'No text',
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
@@ -1053,7 +1053,7 @@ CREATE TABLE tde_db.t_encrypt(c1 INT, c2 char(20), c3 BLOB) ENCRYPTION="Y" ENGIN
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` char(20) DEFAULT NULL,
   `c3` blob
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
@@ -1187,7 +1187,7 @@ CREATE TABLE tde_db.t_encrypt1(c11 INT , c22 char(100), c33 BLOB , FULLTEXT INDE
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c1` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` int NOT NULL AUTO_INCREMENT,
   `c2` char(100) DEFAULT NULL,
   `c3` blob,
   PRIMARY KEY (`c1`),

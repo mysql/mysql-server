@@ -398,7 +398,7 @@ a	LENGTH(b)	b=LEFT(REPEAT(d,100*a), 65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` blob NOT NULL,
   `c` text NOT NULL,
   `d` text NOT NULL,

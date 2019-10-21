@@ -17,7 +17,7 @@ Waiting for started
 show create table test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   PRIMARY KEY (`i`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table test.t1;

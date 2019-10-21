@@ -22,7 +22,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `vc` varchar(10) DEFAULT NULL,
   `j` json DEFAULT NULL,
   `b` blob,
@@ -115,7 +115,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `vc` varchar(10) DEFAULT NULL,
   `j` json DEFAULT NULL,
   `b` blob,
@@ -208,7 +208,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `vc` varchar(10) DEFAULT NULL,
   `j` json DEFAULT NULL,
   `b` blob,
@@ -233,7 +233,7 @@ include/sync_slave_sql_with_master.inc
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `vc` varchar(10) DEFAULT NULL,
   `j` json DEFAULT NULL,
   `b` blob,
@@ -245,7 +245,7 @@ ALTER TABLE t1 SECONDARY_ENGINE=NADA;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `vc` varchar(10) DEFAULT NULL,
   `j` json DEFAULT NULL,
   `b` blob,
@@ -257,7 +257,7 @@ ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `pk` int NOT NULL AUTO_INCREMENT,
   `vc` varchar(10) DEFAULT NULL,
   `j` json DEFAULT NULL,
   `b` blob,

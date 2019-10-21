@@ -10,34 +10,34 @@ include/stop_slave.inc
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
-  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
+  `Number_of_lines` int unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
   `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
-  `Relay_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
+  `Relay_log_pos` bigint unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
-  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
-  `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
-  `Number_of_workers` int(10) unsigned NOT NULL,
-  `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
+  `Master_log_pos` bigint unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
+  `Sql_delay` int NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  `Number_of_workers` int unsigned NOT NULL,
+  `Id` int unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
-  `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
+  `Require_row_format` tinyint NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
-  `Id` int(10) unsigned NOT NULL,
+  `Id` int unsigned NOT NULL,
   `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Relay_log_pos` bigint(20) unsigned NOT NULL,
+  `Relay_log_pos` bigint unsigned NOT NULL,
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Master_log_pos` bigint(20) unsigned NOT NULL,
+  `Master_log_pos` bigint unsigned NOT NULL,
   `Checkpoint_relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Checkpoint_relay_log_pos` bigint(20) unsigned NOT NULL,
+  `Checkpoint_relay_log_pos` bigint unsigned NOT NULL,
   `Checkpoint_master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Checkpoint_master_log_pos` bigint(20) unsigned NOT NULL,
-  `Checkpoint_seqno` int(10) unsigned NOT NULL,
-  `Checkpoint_group_size` int(10) unsigned NOT NULL,
+  `Checkpoint_master_log_pos` bigint unsigned NOT NULL,
+  `Checkpoint_seqno` int unsigned NOT NULL,
+  `Checkpoint_group_size` int unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
@@ -47,34 +47,34 @@ ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
-  `Number_of_lines` int(10) unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
+  `Number_of_lines` int unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
   `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
-  `Relay_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
+  `Relay_log_pos` bigint unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
-  `Master_log_pos` bigint(20) unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
-  `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
-  `Number_of_workers` int(10) unsigned NOT NULL,
-  `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
+  `Master_log_pos` bigint unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
+  `Sql_delay` int NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  `Number_of_workers` int unsigned NOT NULL,
+  `Id` int unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
-  `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
+  `Require_row_format` tinyint NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
-  `Id` int(10) unsigned NOT NULL,
+  `Id` int unsigned NOT NULL,
   `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Relay_log_pos` bigint(20) unsigned NOT NULL,
+  `Relay_log_pos` bigint unsigned NOT NULL,
   `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Master_log_pos` bigint(20) unsigned NOT NULL,
+  `Master_log_pos` bigint unsigned NOT NULL,
   `Checkpoint_relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Checkpoint_relay_log_pos` bigint(20) unsigned NOT NULL,
+  `Checkpoint_relay_log_pos` bigint unsigned NOT NULL,
   `Checkpoint_master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `Checkpoint_master_log_pos` bigint(20) unsigned NOT NULL,
-  `Checkpoint_seqno` int(10) unsigned NOT NULL,
-  `Checkpoint_group_size` int(10) unsigned NOT NULL,
+  `Checkpoint_master_log_pos` bigint unsigned NOT NULL,
+  `Checkpoint_seqno` int unsigned NOT NULL,
+  `Checkpoint_group_size` int unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)

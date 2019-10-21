@@ -14,7 +14,7 @@ sql_mode
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `pseudo` varchar(35) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   `email` varchar(60) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`a`),
@@ -27,7 +27,7 @@ sql_mode	ANSI_QUOTES
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "a" int(11) NOT NULL AUTO_INCREMENT,
+  "a" int NOT NULL AUTO_INCREMENT,
   "pseudo" varchar(35) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   "email" varchar(60) CHARACTER SET latin2 COLLATE latin2_general_ci NOT NULL DEFAULT '',
   PRIMARY KEY ("a"),
@@ -66,7 +66,7 @@ f2 timestamp not null default current_timestamp on update current_timestamp);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (
-  "f1" int(11) NOT NULL AUTO_INCREMENT,
+  "f1" int NOT NULL AUTO_INCREMENT,
   "f2" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY ("f1")
 )
@@ -337,23 +337,23 @@ SET @@SQL_MODE='';
 create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
+foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int
 return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SET @@SQL_MODE='ANSI_QUOTES';
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int(11)
+foo		CREATE DEFINER=`root`@`localhost` FUNCTION `foo`() RETURNS int
 return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop function `foo`;
 create function `foo` () returns int return 5;
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
+foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int
 return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SET @@SQL_MODE='';
 show create function `foo`;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int(11)
+foo	ANSI_QUOTES	CREATE DEFINER="root"@"localhost" FUNCTION "foo"() RETURNS int
 return 5	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop function `foo`;
 SET @@SQL_MODE='';

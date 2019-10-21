@@ -722,7 +722,7 @@ NULL
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `it2` tinyint(4) DEFAULT NULL
+  `it2` tinyint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT it2 from t2 UNION select i from t2;
@@ -733,7 +733,7 @@ it2
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `it2` int(11) NOT NULL DEFAULT '0'
+  `it2` int NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 SELECT i from t2 UNION select f from t2;
@@ -932,7 +932,7 @@ select * from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `1` bigint(2) NOT NULL DEFAULT '0'
+  `1` bigint NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;
@@ -1279,7 +1279,7 @@ order by f2, a1;
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
 f2	date	YES		NULL	
-a1	int(11)	YES		NULL	
+a1	int	YES		NULL	
 drop table t1, t2;
 create table t1 (f1 int);
 create table t2 (f1 int, f2 int ,f3 date);
@@ -1665,11 +1665,11 @@ INSERT INTO t1 VALUES (1), (2), (3);
 CREATE TABLE t2 SELECT * FROM (SELECT NULL) a UNION SELECT a FROM t1;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-NULL	int(11)	YES		NULL	
+NULL	int	YES		NULL	
 CREATE TABLE t3 SELECT a FROM t1 UNION SELECT * FROM (SELECT NULL) a;
 DESC t3;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 CREATE TABLE t4 SELECT NULL;
 DESC t4;
 Field	Type	Null	Key	Default	Extra
@@ -1682,7 +1682,7 @@ CREATE TABLE t6
 SELECT * FROM (SELECT * FROM (SELECT NULL)a) b UNION SELECT a FROM t1;
 DESC t6;
 Field	Type	Null	Key	Default	Extra
-NULL	int(11)	YES		NULL	
+NULL	int	YES		NULL	
 DROP TABLE t1, t2, t3, t4, t5, t6;
 CREATE TABLE t1 (f FLOAT(9,6));
 Warnings:
@@ -2912,25 +2912,25 @@ CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-a	bigint(4)	YES		NULL	
-b	bigint(11)	YES		NULL	
-c	bigint(20)	YES		NULL	
-1	bigint(2)	NO		0	
-My_exp_1	bigint(2)	NO		0	
-My_exp_1_1	bigint(2)	NO		0	
+a	bigint	YES		NULL	
+b	bigint	YES		NULL	
+c	bigint	YES		NULL	
+1	bigint	NO		0	
+My_exp_1	bigint	NO		0	
+My_exp_1_1	bigint	NO		0	
 DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
-1	int(1)	NO		0	
-My_exp_1	int(1)	NO		0	
-My_exp_1_1	int(1)	NO		0	
--1	int(2)	NO		0	
-My_exp_-1	int(2)	NO		0	
-My_exp_1_-1	int(2)	NO		0	
+1	int	NO		0	
+My_exp_1	int	NO		0	
+My_exp_1_1	int	NO		0	
+-1	int	NO		0	
+My_exp_-1	int	NO		0	
+My_exp_1_-1	int	NO		0	
 DESCRIBE v3;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(4)	YES		NULL	
-b	int(11)	YES		NULL	
-c	bigint(20)	YES		NULL	
+a	tinyint	YES		NULL	
+b	int	YES		NULL	
+c	bigint	YES		NULL	
 DROP TABLE t1;
 DROP VIEW v1,v2,v3;
 # End of test for Bug#11747567
@@ -2969,11 +2969,11 @@ g1 geometry NOT NULL
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i1` int(11) NOT NULL,
-  `i2` int(11) NOT NULL DEFAULT '1234',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT '5678',
+  `i1` int NOT NULL,
+  `i2` int NOT NULL DEFAULT '1234',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT '5678',
   `d1` date NOT NULL,
   `d2` date NOT NULL DEFAULT '2018-01-25',
   `d3` date DEFAULT NULL,
@@ -2991,11 +2991,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL,
-  `i2` int(11) NOT NULL DEFAULT '1234',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT '5678',
+  `i1` int NOT NULL,
+  `i2` int NOT NULL DEFAULT '1234',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT '5678',
   `d1` date NOT NULL,
   `d2` date NOT NULL DEFAULT '2018-01-25',
   `d3` date DEFAULT NULL,
@@ -3011,11 +3011,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL DEFAULT '0000-00-00',
   `d2` date NOT NULL DEFAULT '0000-00-00',
   `d3` date DEFAULT NULL,
@@ -3031,11 +3031,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL DEFAULT '0000-00-00',
   `d2` date NOT NULL DEFAULT '0000-00-00',
   `d3` date DEFAULT NULL,
@@ -3062,11 +3062,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL,
-  `i2` int(11) NOT NULL DEFAULT '1234',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT '5678',
+  `i1` int NOT NULL,
+  `i2` int NOT NULL DEFAULT '1234',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT '5678',
   `d1` date NOT NULL,
   `d2` date NOT NULL DEFAULT '2018-01-25',
   `d3` date DEFAULT NULL,
@@ -3082,11 +3082,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL,
   `d2` date NOT NULL,
   `d3` date DEFAULT NULL,
@@ -3102,11 +3102,11 @@ SELECT * FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
-  `i1` int(11) NOT NULL DEFAULT '0',
-  `i2` int(11) NOT NULL DEFAULT '0',
-  `i3` int(11) DEFAULT NULL,
-  `i4` int(11) DEFAULT NULL,
-  `i5` int(11) DEFAULT NULL,
+  `i1` int NOT NULL DEFAULT '0',
+  `i2` int NOT NULL DEFAULT '0',
+  `i3` int DEFAULT NULL,
+  `i4` int DEFAULT NULL,
+  `i5` int DEFAULT NULL,
   `d1` date NOT NULL,
   `d2` date NOT NULL,
   `d3` date DEFAULT NULL,

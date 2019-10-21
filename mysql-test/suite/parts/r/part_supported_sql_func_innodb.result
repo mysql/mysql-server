@@ -613,8 +613,8 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
-  `col1` int(11) DEFAULT NULL
+  `colint` int DEFAULT NULL,
+  `col1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
 SUBPARTITION BY HASH (abs(`col1`))
@@ -2298,8 +2298,8 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
-  `col1` int(11) DEFAULT NULL
+  `colint` int DEFAULT NULL,
+  `col1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
 SUBPARTITION BY HASH ((`col1` % 10))
@@ -3636,7 +3636,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -4141,7 +4141,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -4646,7 +4646,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -5163,7 +5163,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -5670,7 +5670,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -6177,7 +6177,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` time DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -6690,7 +6690,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` time DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -7189,7 +7189,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` time DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -7708,7 +7708,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` time DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -8227,7 +8227,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -8740,7 +8740,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -9251,7 +9251,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` time DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -9768,7 +9768,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -10277,7 +10277,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)
@@ -10790,7 +10790,7 @@ partition p5 values in (51,52,53,54,55,56,57,58,59,60)
 show create table t55;
 Table	Create Table
 t55	CREATE TABLE `t55` (
-  `colint` int(11) DEFAULT NULL,
+  `colint` int DEFAULT NULL,
   `col1` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`colint`)

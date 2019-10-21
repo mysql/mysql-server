@@ -1,17 +1,17 @@
 show create table performance_schema.events_stages_history_long;
 Table	Create Table
 events_stages_history_long	CREATE TABLE `events_stages_history_long` (
-  `THREAD_ID` bigint(20) unsigned NOT NULL,
-  `EVENT_ID` bigint(20) unsigned NOT NULL,
-  `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `THREAD_ID` bigint unsigned NOT NULL,
+  `EVENT_ID` bigint unsigned NOT NULL,
+  `END_EVENT_ID` bigint unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `SOURCE` varchar(64) DEFAULT NULL,
-  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
-  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
-  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
-  `WORK_COMPLETED` bigint(20) unsigned DEFAULT NULL,
-  `WORK_ESTIMATED` bigint(20) unsigned DEFAULT NULL,
-  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_START` bigint unsigned DEFAULT NULL,
+  `TIMER_END` bigint unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint unsigned DEFAULT NULL,
+  `WORK_COMPLETED` bigint unsigned DEFAULT NULL,
+  `WORK_ESTIMATED` bigint unsigned DEFAULT NULL,
+  `NESTING_EVENT_ID` bigint unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from INFORMATION_SCHEMA.STATISTICS

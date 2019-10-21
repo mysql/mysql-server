@@ -115,7 +115,7 @@ Tables_in_xtest
 books
 0 rows affected
 Field	Type	Null	Key	Default	Extra
-it_is_not_collection	int(11)	YES		null	NULL
+it_is_not_collection	int	YES		null	NULL
 0 rows affected
 closing session temp
 Mysqlx.Ok {

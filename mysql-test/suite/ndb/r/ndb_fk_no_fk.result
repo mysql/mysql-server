@@ -131,9 +131,9 @@ constraint fk6 foreign key(c) references t4 (b)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -154,9 +154,9 @@ index(c)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -171,9 +171,9 @@ set @@ndb_show_foreign_key_mock_tables= 1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -738,8 +738,8 @@ alter table t2 rename t3;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `pk1` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `b` (`b`),
   CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`)
@@ -786,8 +786,8 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `pk1` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
   CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`)
@@ -858,8 +858,8 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `pk1` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
   CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`)
@@ -892,11 +892,11 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
-  `e` int(11) DEFAULT NULL,
+  `pk1` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
   KEY `fk2` (`c`),

@@ -145,8 +145,8 @@ ROLLBACK;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `a` int unsigned NOT NULL,
+  `b` int unsigned DEFAULT NULL,
   `c` char(19) DEFAULT NULL,
   `d` varchar(255) DEFAULT NULL,
   `e` char(255) DEFAULT NULL,
@@ -162,8 +162,8 @@ a	b	c	d	e
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(10) unsigned NOT NULL,
-  `b` int(10) unsigned DEFAULT NULL,
+  `a` int unsigned NOT NULL,
+  `b` int unsigned DEFAULT NULL,
   `c` char(19) DEFAULT NULL,
   `d` varchar(255) DEFAULT NULL,
   `e` char(255) DEFAULT NULL,

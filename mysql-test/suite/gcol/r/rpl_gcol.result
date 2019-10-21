@@ -8,8 +8,8 @@ create table t1 (a int, b int generated always as (a+1) virtual);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1,default);
 insert into t1 values (2,default);

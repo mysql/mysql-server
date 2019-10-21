@@ -5,17 +5,17 @@ epoch end position information
 show create table mysql.ndb_binlog_index;
 Table	Create Table
 ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
-  `Position` bigint(20) unsigned NOT NULL,
+  `Position` bigint unsigned NOT NULL,
   `File` varchar(255) NOT NULL,
-  `epoch` bigint(20) unsigned NOT NULL,
-  `inserts` int(10) unsigned NOT NULL,
-  `updates` int(10) unsigned NOT NULL,
-  `deletes` int(10) unsigned NOT NULL,
-  `schemaops` int(10) unsigned NOT NULL,
-  `orig_server_id` int(10) unsigned NOT NULL,
-  `orig_epoch` bigint(20) unsigned NOT NULL,
-  `gci` int(10) unsigned NOT NULL,
-  `next_position` bigint(20) unsigned NOT NULL,
+  `epoch` bigint unsigned NOT NULL,
+  `inserts` int unsigned NOT NULL,
+  `updates` int unsigned NOT NULL,
+  `deletes` int unsigned NOT NULL,
+  `schemaops` int unsigned NOT NULL,
+  `orig_server_id` int unsigned NOT NULL,
+  `orig_epoch` bigint unsigned NOT NULL,
+  `gci` int unsigned NOT NULL,
+  `next_position` bigint unsigned NOT NULL,
   `next_file` varchar(255) NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
@@ -148,16 +148,16 @@ reset master;
 show create table mysql.ndb_binlog_index;
 Table	Create Table
 ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
-  `Position` bigint(20) unsigned NOT NULL,
+  `Position` bigint unsigned NOT NULL,
   `File` varchar(255) NOT NULL,
-  `epoch` bigint(20) unsigned NOT NULL,
-  `inserts` int(10) unsigned NOT NULL,
-  `updates` int(10) unsigned NOT NULL,
-  `deletes` int(10) unsigned NOT NULL,
-  `schemaops` int(10) unsigned NOT NULL,
-  `orig_server_id` int(10) unsigned NOT NULL,
-  `orig_epoch` bigint(20) unsigned NOT NULL,
-  `gci` int(10) unsigned NOT NULL,
+  `epoch` bigint unsigned NOT NULL,
+  `inserts` int unsigned NOT NULL,
+  `updates` int unsigned NOT NULL,
+  `deletes` int unsigned NOT NULL,
+  `schemaops` int unsigned NOT NULL,
+  `orig_server_id` int unsigned NOT NULL,
+  `orig_epoch` bigint unsigned NOT NULL,
+  `gci` int unsigned NOT NULL,
   PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 mysql.ndb_binlog_index has next_file column? 0

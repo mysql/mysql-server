@@ -13,6 +13,6 @@ host	varchar(255)	YES		NULL
 current_count_used	decimal(41,0)	YES		NULL	
 current_allocated	decimal(41,0)	YES		NULL	
 current_avg_alloc	decimal(45,4)	NO		0.0000	
-current_max_alloc	bigint(20)	YES		NULL	
+current_max_alloc	bigint	YES		NULL	
 total_allocated	decimal(42,0)	YES		NULL	
 SELECT * FROM sys.x$memory_by_host_by_current_bytes;

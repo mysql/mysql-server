@@ -13,13 +13,13 @@ alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -29,13 +29,13 @@ alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -63,13 +63,13 @@ alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -97,13 +97,13 @@ alter table t1 engine=memory;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -131,13 +131,13 @@ alter table t1 engine=memory;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -147,13 +147,13 @@ alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -181,13 +181,13 @@ alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -215,13 +215,13 @@ alter table t1 engine=memory;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -249,13 +249,13 @@ alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -265,13 +265,13 @@ alter table t1 engine=myisam;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -299,13 +299,13 @@ alter table t1 engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
@@ -333,13 +333,13 @@ alter table t1 engine=memory;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` mediumint(9) NOT NULL,
+  `id` mediumint NOT NULL,
   `b1` bit(8) DEFAULT NULL,
   `vc` varchar(255) DEFAULT NULL,
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned DEFAULT NULL,
+  `total` bigint unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)

@@ -54,7 +54,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION parta ENGINE = InnoDB,
@@ -82,7 +82,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION parta ENGINE = InnoDB,
@@ -110,7 +110,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION parta ENGINE = InnoDB,
@@ -125,7 +125,7 @@ a
 SHOW CREATE TABLE TableB;
 Table	Create Table
 TableB	CREATE TABLE `TableB` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT PARTITION_NAME, IF(TABLE_ROWS, 'YES', 'NO') AS HAVE_TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA ='MySQL_Test_DB' AND TABLE_NAME = 'TableA';
 PARTITION_NAME	HAVE_TABLE_ROWS
@@ -154,7 +154,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION parta ENGINE = InnoDB,
@@ -190,7 +190,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = InnoDB,
@@ -269,7 +269,7 @@ RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
 (PARTITION parta ENGINE = InnoDB,
@@ -296,7 +296,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleaning up after KEY PARTITIONING test
 DROP TABLE TableA;
@@ -362,7 +362,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 (PARTITION parta ENGINE = InnoDB,
@@ -390,7 +390,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 (PARTITION parta ENGINE = InnoDB,
@@ -426,7 +426,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 (PARTITION partB COMMENT = 'Previusly named parta' ENGINE = InnoDB,
@@ -505,7 +505,7 @@ RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 (PARTITION parta ENGINE = InnoDB,
@@ -532,7 +532,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleaning up after HASH PARTITIONING test
 DROP TABLE TableA;
@@ -587,7 +587,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = InnoDB,
@@ -618,7 +618,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = InnoDB,
@@ -656,7 +656,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = InnoDB,
@@ -736,7 +736,7 @@ RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION parta VALUES LESS THAN (4) ENGINE = InnoDB,
@@ -763,7 +763,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleaning up after RANGE PARTITIONING test
 DROP TABLE TableA;
@@ -818,7 +818,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION parta VALUES IN (1,8,9) ENGINE = InnoDB,
@@ -849,7 +849,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION parta VALUES IN (1,8,9) ENGINE = InnoDB,
@@ -887,7 +887,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION Partc VALUES IN (1,7) COMMENT = 'Mix 1 of old parta and Partc' ENGINE = InnoDB,
@@ -959,7 +959,7 @@ RENAME TABLE tableA to TableA;
 SHOW CREATE TABLE tablea;
 Table	Create Table
 tablea	CREATE TABLE `tablea` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
 (PARTITION parta VALUES IN (1,8,9) ENGINE = InnoDB,
@@ -983,7 +983,7 @@ a
 SHOW CREATE TABLE TableA;
 Table	Create Table
 TableA	CREATE TABLE `TableA` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleaning up after LIST PARTITIONING test
 DROP TABLE TableA;
@@ -1000,7 +1000,7 @@ INSERT INTO t1 VALUES (NULL, "First"), (NULL, "Second"), (999, "Last in LT1000")
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL AUTO_INCREMENT,
+  `a` bigint NOT NULL AUTO_INCREMENT,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2002 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

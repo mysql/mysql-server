@@ -49,8 +49,8 @@ c3	c2	1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT '1',
+  `c1` int NOT NULL,
+  `c2` int DEFAULT '1',
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
@@ -59,8 +59,8 @@ ALTER TABLE t1 ALTER c2 DROP DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11),
+  `c1` int NOT NULL,
+  `c2` int,
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
@@ -219,8 +219,8 @@ test/t1	test/t3
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c3` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c3`)
@@ -228,9 +228,9 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE t1c;
 Table	Create Table
 t1c	CREATE TABLE `t1c` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   KEY `c3` (`c3`),
@@ -253,8 +253,8 @@ t3.ibd
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) NOT NULL,
-  `1234567890123456789012345678901234567890123456789012345678901234` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `1234567890123456789012345678901234567890123456789012345678901234` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`1234567890123456789012345678901234567890123456789012345678901234`)
@@ -310,8 +310,8 @@ test/t1	test/t2
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) NOT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c3` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c3`)
@@ -364,9 +364,9 @@ ERROR 42000: Can't DROP 'ẗ1C2'; check that column/key exists
 SHOW CREATE TABLE t1c;
 Table	Create Table
 t1c	CREATE TABLE `t1c` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   KEY `c3` (`c3`),
@@ -379,9 +379,9 @@ SET foreign_key_checks=1;
 SHOW CREATE TABLE t1c;
 Table	Create Table
 t1c	CREATE TABLE `t1c` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   KEY `c3` (`c3`),
@@ -433,9 +433,9 @@ SET foreign_key_checks=1;
 SHOW CREATE TABLE t1c;
 Table	Create Table
 t1c	CREATE TABLE `t1c` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   KEY `c3` (`c3`),
@@ -471,9 +471,9 @@ t1p.ibd
 SHOW CREATE TABLE t1c;
 Table	Create Table
 t1c	CREATE TABLE `t1c` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   KEY `c3` (`c3`),
@@ -507,9 +507,9 @@ t1p.ibd
 SHOW CREATE TABLE t1c;
 Table	Create Table
 t1c	CREATE TABLE `t1c` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  `c3` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c3` (`c3`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -594,8 +594,8 @@ FOR_COL_NAME	REF_COL_NAME	POS
 SHOW CREATE TABLE tt;
 Table	Create Table
 tt	CREATE TABLE `tt` (
-  `pk` int(11) NOT NULL,
-  `c2` int(11) DEFAULT '42',
+  `pk` int NOT NULL,
+  `c2` int DEFAULT '42',
   `ct` text,
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `ct` (`ct`)
@@ -766,8 +766,8 @@ tt.ibd
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c2` int(11) NOT NULL,
-  `ct` int(11) DEFAULT NULL,
+  `c2` int NOT NULL,
+  `ct` int DEFAULT NULL,
   `c1` text,
   PRIMARY KEY (`c2`),
   FULLTEXT KEY `ct` (`c1`)
@@ -809,8 +809,8 @@ tt.ibd
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
   FULLTEXT KEY `ct` (`ct`)
@@ -855,8 +855,8 @@ tt.ibd
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c1` int(11) NOT NULL,
-  `c4` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c4` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c4` (`c4`),
@@ -933,8 +933,8 @@ tt.ibd
 SHOW CREATE TABLE t1n;
 Table	Create Table
 t1n	CREATE TABLE `t1n` (
-  `c1` int(11) NOT NULL,
-  `c11` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c11` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`c1`),
   KEY `c11` (`c11`),
@@ -1008,8 +1008,8 @@ pos
 SHOW CREATE TABLE t1o;
 Table	Create Table
 t1o	CREATE TABLE `t1o` (
-  `FTS_DOC_ID` bigint(20) unsigned NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `FTS_DOC_ID` bigint unsigned NOT NULL,
+  `c2` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`FTS_DOC_ID`),
   FULLTEXT KEY `ct` (`ct`)
@@ -1039,8 +1039,8 @@ tt.ibd
 SHOW CREATE TABLE t1o;
 Table	Create Table
 t1o	CREATE TABLE `t1o` (
-  `foo_id` bigint(20) unsigned NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `foo_id` bigint unsigned NOT NULL,
+  `c2` int DEFAULT NULL,
   `ct` text,
   PRIMARY KEY (`foo_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

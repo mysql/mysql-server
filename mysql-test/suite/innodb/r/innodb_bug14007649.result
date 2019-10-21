@@ -7,9 +7,9 @@ key i2 (f2)) engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `rowid` int(11) DEFAULT NULL,
-  `f1` int(11) DEFAULT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `rowid` int DEFAULT NULL,
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
   KEY `i1` (`f1`,`f2`),
   KEY `i2` (`f2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

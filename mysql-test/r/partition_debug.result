@@ -43,9 +43,9 @@ t1_normal_table	IDX_F2	3
 SHOW CREATE TABLE t1_normal_table;
 Table	Create Table
 t1_normal_table	CREATE TABLE `t1_normal_table` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `IDX_F3` (`f3`),
   KEY `IDX_F2` (`f2`)
@@ -65,9 +65,9 @@ t1_part_table	p1	IDX_F3	3
 SHOW CREATE TABLE t1_part_table;
 Table	Create Table
 t1_part_table	CREATE TABLE `t1_part_table` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `IDX_F2` (`f2`),
   KEY `IDX_F3` (`f3`)
@@ -86,9 +86,9 @@ t1_normal_table	IDX_F2	3
 SHOW CREATE TABLE t1_normal_table;
 Table	Create Table
 t1_normal_table	CREATE TABLE `t1_normal_table` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `IDX_F3` (`f3`),
   KEY `IDX_F2` (`f2`)
@@ -108,9 +108,9 @@ t1_part_table	p1	IDX_F3	3
 SHOW CREATE TABLE t1_part_table;
 Table	Create Table
 t1_part_table	CREATE TABLE `t1_part_table` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
-  `f3` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `IDX_F2` (`f2`),
   KEY `IDX_F3` (`f3`)

@@ -10,7 +10,7 @@ DESC sys.x$latest_file_io;
 Field	Type	Null	Key	Default	Extra
 thread	varchar(316)	YES		NULL	
 file	varchar(512)	YES		NULL	
-latency	bigint(20) unsigned	YES		NULL	
+latency	bigint unsigned	YES		NULL	
 operation	varchar(32)	NO		NULL	
-requested	bigint(20)	YES		NULL	
+requested	bigint	YES		NULL	
 SELECT * FROM sys.x$latest_file_io;

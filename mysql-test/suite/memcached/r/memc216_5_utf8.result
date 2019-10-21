@@ -33,9 +33,9 @@ t1	CREATE TABLE `t1` (
   `c23` varchar(40) DEFAULT NULL,
   `c24` varchar(40) DEFAULT NULL,
   `c25` varchar(40) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` bigint(20) unsigned DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` bigint unsigned DEFAULT NULL,
+  `c5` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;
@@ -99,9 +99,9 @@ t1	CREATE TABLE `t1` (
   `c23` char(40) DEFAULT NULL,
   `c24` char(40) DEFAULT NULL,
   `c25` char(40) DEFAULT NULL,
-  `c3` int(11) DEFAULT NULL,
-  `c4` bigint(20) unsigned DEFAULT NULL,
-  `c5` int(11) DEFAULT NULL,
+  `c3` int DEFAULT NULL,
+  `c4` bigint unsigned DEFAULT NULL,
+  `c5` int DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 SELECT c1,c2,c21,c22,c23,c24,c25 FROM t1;

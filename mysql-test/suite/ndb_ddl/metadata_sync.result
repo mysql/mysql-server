@@ -190,14 +190,14 @@ t2_ndb
 SHOW CREATE TABLE t1_ndb;
 Table	Create Table
 t1_ndb	CREATE TABLE `t1_ndb` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SHOW CREATE TABLE t2_ndb;
 Table	Create Table
 t2_ndb	CREATE TABLE `t2_ndb` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -219,14 +219,14 @@ t2_ndb
 SHOW CREATE TABLE t1_ndb;
 Table	Create Table
 t1_ndb	CREATE TABLE `t1_ndb` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SHOW CREATE TABLE t2_ndb;
 Table	Create Table
 t2_ndb	CREATE TABLE `t2_ndb` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'

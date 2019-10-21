@@ -30,15 +30,15 @@ Normal restore
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int DEFAULT NULL,
+  `d` int DEFAULT NULL,
   `e` varchar(200) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `f` int DEFAULT NULL,
   `g` char(20) DEFAULT NULL,
   `h` text,
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 select * from t1 order by a;
@@ -65,15 +65,15 @@ alter table t1 change cc c bigint;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` bigint(20) DEFAULT NULL,
-  `d` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` bigint DEFAULT NULL,
+  `d` int DEFAULT NULL,
   `e` varchar(200) DEFAULT NULL,
-  `f` int(11) DEFAULT NULL,
+  `f` int DEFAULT NULL,
   `g` char(20) DEFAULT NULL,
   `h` text,
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 Retry with --promote-attributes

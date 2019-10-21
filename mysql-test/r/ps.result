@@ -1171,14 +1171,14 @@ FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
 EXECUTE st_19182;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-j	int(11)	YES	MUL	NULL	
-i	int(11)	YES	MUL	NULL	
+j	int	YES	MUL	NULL	
+i	int	YES	MUL	NULL	
 DROP TABLE t2;
 EXECUTE st_19182;
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-j	int(11)	YES	MUL	NULL	
-i	int(11)	YES	MUL	NULL	
+j	int	YES	MUL	NULL	
+i	int	YES	MUL	NULL	
 DEALLOCATE PREPARE st_19182;
 DROP TABLE t2, t1;
 drop database if exists mysqltest;
@@ -1585,12 +1585,12 @@ i
 execute stmt_alter;
 show columns from mysqltest_long_database_name_to_thrash_heap.t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
-b	int(11)	YES		NULL	
+i	int	YES		NULL	
+b	int	YES		NULL	
 execute stmt_alter1;
 show columns from mysqltest_long_database_name_to_thrash_heap.t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 execute stmt_analyze;
 Table	Op	Msg_type	Msg_text
 mysqltest_long_database_name_to_thrash_heap.t1	analyze	status	OK
@@ -1720,19 +1720,19 @@ prepare s_6895 from "alter table t1 drop column b";
 execute s_6895;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 drop table t1;
 create table t1 (a int, b int);
 execute s_6895;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 drop table t1;
 create table t1 (a int, b int);
 execute s_6895;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 deallocate prepare s_6895;
 drop table t1;
 create table t1 (i int primary key auto_increment) comment='comment for table t1';
@@ -1742,7 +1742,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='comment for table t1'
 flush tables;
@@ -1752,7 +1752,7 @@ execute stmt;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `i` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='comment for table t1'
 deallocate prepare stmt;
@@ -2432,15 +2432,15 @@ create function a() returns int return 42+13;
 create procedure proc_1(a char(2)) show create function a;
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 call proc_1("bb");
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create function a; return 1; end|
@@ -2452,15 +2452,15 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show create function a";
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 execute abc;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int(11)
+a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `a`() RETURNS int
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop function a;
@@ -2469,21 +2469,21 @@ create procedure proc_1() show create table tab1;
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -2498,21 +2498,21 @@ prepare abc from "show create table tab1";
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3161,7 +3161,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 127;
 @a	@a = 127
@@ -3179,7 +3179,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 32767;
 @a	@a = 32767
@@ -3197,7 +3197,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 8388607;
 @a	@a = 8388607
@@ -3215,7 +3215,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 2147483647;
 @a	@a = 2147483647
@@ -3233,7 +3233,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 9223372036854775807;
 @a	@a = 9223372036854775807
@@ -3251,7 +3251,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = b'10100100101';
 @a	@a = b'10100100101'
@@ -3341,7 +3341,7 @@ CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
 SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
-  `c1` bigint(20) DEFAULT NULL
+  `c1` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 2010;
 @a	@a = 2010

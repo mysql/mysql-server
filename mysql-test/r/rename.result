@@ -414,7 +414,7 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `fk` int(11) DEFAULT NULL,
+  `fk` int DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t4` (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

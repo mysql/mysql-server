@@ -7842,8 +7842,8 @@ create table t2 (id int, a int, primary key(id), key(a)) charset utf8mb4 as sele
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL,
-  `a` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `a` (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

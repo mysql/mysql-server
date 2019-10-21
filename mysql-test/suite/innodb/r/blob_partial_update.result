@@ -430,7 +430,7 @@ Pattern "LOB partial update" not found
 # Check JSON functions does not work on BLOB type
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `j1` blob,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -444,7 +444,7 @@ ERROR HY000: The value specified for generated column 'c2' in table 'tab2' is no
 # Check partial update with partition table
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `j1` json DEFAULT NULL,
   `j2` json DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

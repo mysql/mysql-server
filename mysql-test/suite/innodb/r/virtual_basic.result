@@ -401,8 +401,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -574,15 +574,15 @@ ALTER TABLE t1 CHANGE COLUMN extra col6 INT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `col1` int(11) NOT NULL,
-  `col2` int(11) NOT NULL,
-  `col3` int(11) NOT NULL,
-  `col4` int(11) DEFAULT NULL,
-  `col5` int(11) GENERATED ALWAYS AS ((`col2` % `col3`)) VIRTUAL,
-  `col7` int(11) GENERATED ALWAYS AS ((`col5` * `col5`)) VIRTUAL,
-  `col8` int(11) GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
+  `col1` int NOT NULL,
+  `col2` int NOT NULL,
+  `col3` int NOT NULL,
+  `col4` int DEFAULT NULL,
+  `col5` int GENERATED ALWAYS AS ((`col2` % `col3`)) VIRTUAL,
+  `col7` int GENERATED ALWAYS AS ((`col5` * `col5`)) VIRTUAL,
+  `col8` int GENERATED ALWAYS AS ((`col5` % `col5`)) VIRTUAL,
   `col9` text,
-  `col6` int(11) DEFAULT NULL,
+  `col6` int DEFAULT NULL,
   UNIQUE KEY `uidx` (`col5`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
@@ -804,8 +804,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -856,8 +856,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -908,8 +908,8 @@ t	CREATE TABLE `t` (
   `b` varchar(3000) DEFAULT NULL,
   `c` varchar(14000) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL,
   `d` varchar(5000) GENERATED ALWAYS AS (`b`) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (10) VIRTUAL,
-  `h` int(11) NOT NULL,
+  `e` int GENERATED ALWAYS AS (10) VIRTUAL,
+  `h` int NOT NULL,
   PRIMARY KEY (`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
@@ -1049,9 +1049,9 @@ Warning	1831	Duplicate index 'pk' defined on the table 'test.t'. This is depreca
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `col_int_nokey` int(11) DEFAULT NULL,
-  `col_int` int(11) GENERATED ALWAYS AS ((`col_int_nokey` + `col_int_nokey`)) STORED NOT NULL,
-  `col_int_key` int(11) GENERATED ALWAYS AS ((`col_int` + `col_int_nokey`)) VIRTUAL NOT NULL,
+  `col_int_nokey` int DEFAULT NULL,
+  `col_int` int GENERATED ALWAYS AS ((`col_int_nokey` + `col_int_nokey`)) STORED NOT NULL,
+  `col_int_key` int GENERATED ALWAYS AS ((`col_int` + `col_int_nokey`)) VIRTUAL NOT NULL,
   `col_date_nokey` date DEFAULT NULL,
   `col_date` date GENERATED ALWAYS AS ((`col_date_nokey` + interval 30 day)) STORED NOT NULL,
   `col_date_key` date GENERATED ALWAYS AS ((`col_date` + interval 30 day)) VIRTUAL NOT NULL,
@@ -1190,10 +1190,10 @@ ALTER TABLE t1 CHANGE  d d INT GENERATED ALWAYS AS(a+b) FIRST;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `d` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `h` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
@@ -1535,10 +1535,10 @@ NULL
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `d` int(11) GENERATED ALWAYS AS (((`a` + `b`) + `b`)) VIRTUAL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `d` int GENERATED ALWAYS AS (((`a` + `b`) + `b`)) VIRTUAL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
   KEY `idx` (`d`),
   KEY `idx2` (`e`,`d`)
@@ -1552,11 +1552,11 @@ Warning	1831	Duplicate index 'idx' defined on the table 'test.t'. This is deprec
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx` (`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1564,11 +1564,11 @@ ALTER TABLE t ADD INDEX idx4(c, e), ADD COLUMN x VARCHAR(10) GENERATED ALWAYS AS
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`)
@@ -1580,15 +1580,15 @@ ALTER TABLE t ADD INDEX (x), ADD COLUMN k INT, ALGORITHM=INPLACE, LOCK=NONE;
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
-  `i` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
+  `i` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`)
@@ -1599,16 +1599,16 @@ ALTER TABLE t ADD COLUMN l INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (l), ALGORI
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `e` int GENERATED ALWAYS AS (`a`) VIRTUAL,
   `h` varchar(10) DEFAULT NULL,
-  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
-  `i` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
-  `j` int(11) DEFAULT NULL,
-  `k` int(11) DEFAULT NULL,
-  `l` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `i` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  `j` int DEFAULT NULL,
+  `k` int DEFAULT NULL,
+  `l` int GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
   KEY `idx2` (`e`),
   KEY `idx4` (`c`,`e`),
   KEY `x` (`x`),

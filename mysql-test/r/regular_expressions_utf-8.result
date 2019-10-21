@@ -912,8 +912,8 @@ regexp_substr( repeat('a', 513), 'a' ) AS f;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(21) NOT NULL DEFAULT '0',
-  `b` int(1) NOT NULL DEFAULT '0',
+  `a` bigint NOT NULL DEFAULT '0',
+  `b` int NOT NULL DEFAULT '0',
   `c` longtext CHARACTER SET latin1,
   `d` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `e` varchar(512) CHARACTER SET latin1 DEFAULT NULL,

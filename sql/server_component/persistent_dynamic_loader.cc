@@ -86,11 +86,9 @@ enum enum_component_table_field {
 };
 
 static const TABLE_FIELD_TYPE component_table_fields[CT_FIELD_COUNT] = {
-    {{STRING_WITH_LEN("component_id")},
-     {STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
+    {{STRING_WITH_LEN("component_id")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("component_group_id")},
-     {STRING_WITH_LEN("int(10)")},
+     {STRING_WITH_LEN("int")},
      {NULL, 0}},
     {{STRING_WITH_LEN("component_urn")},
      {STRING_WITH_LEN("text")},

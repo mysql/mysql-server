@@ -18,9 +18,9 @@ index(c)) engine = ndb;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -31,9 +31,9 @@ references mydb0.parent(a);
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -45,9 +45,9 @@ references mydb0.parent(a);
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -59,9 +59,9 @@ alter table child algorithm=copy, drop foreign key fk2;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -72,9 +72,9 @@ alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -84,9 +84,9 @@ alter table mydb0.parent algorithm=copy, rename mydb1.parent;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -96,9 +96,9 @@ alter table mydb1.parent algorithm=inplace, rename mydb0.parent;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -111,9 +111,9 @@ use mydb1;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -127,9 +127,9 @@ use mydb1;
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),

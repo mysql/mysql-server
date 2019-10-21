@@ -69,7 +69,7 @@ ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n', ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #  general [encrypted] => file-per-table [encrypted]
@@ -79,7 +79,7 @@ ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y', ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 #-------------------------------------------------------
 #  general [unencrypted] => file-per-table [unencrypted]
@@ -88,26 +88,26 @@ CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #  general [unencrypted] => file-per-table [encrypted]
 DROP TABLE t1;
@@ -115,7 +115,7 @@ CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y', ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
@@ -123,7 +123,7 @@ ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y', ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 #  general [unencrypted] => file-per-table [unencrypted]
 DROP TABLE t1;
@@ -131,26 +131,26 @@ CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n', ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n', ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #-------------------------------------------------------
 #  file-per-table [unencrypted] => general [encrypted]
@@ -159,27 +159,27 @@ CREATE TABLE t1 (c int) ENCRYPTION='n';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (c int) ENCRYPTION='n';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 #  file-per-table [encrypted] => general [encrypted]
 DROP TABLE t1;
@@ -187,7 +187,7 @@ CREATE TABLE t1 (c int) ENCRYPTION='y';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=INPLACE;
 DROP TABLE t1;
@@ -195,13 +195,13 @@ CREATE TABLE t1 (c int) ENCRYPTION='y';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 #  file-per-table [encrypted] => general [unencrypted]
 DROP TABLE t1;
@@ -209,7 +209,7 @@ CREATE TABLE t1 (c int) ENCRYPTION='y';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
 ALTER TABLE t1 TABLESPACE=unencrypt_ts ENCRYPTION='N', ALGORITHM=INPLACE;
 ERROR HY000: Source tablespace is encrypted but target tablespace is not.
@@ -221,26 +221,26 @@ CREATE TABLE t1 (c int) ENCRYPTION='n';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=unencrypt_ts, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (c int) ENCRYPTION='n';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 TABLESPACE=unencrypt_ts, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL
+  `c` int DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #-------------------------------------------------------
@@ -255,14 +255,14 @@ ALTER TABLE t1 ADD c2 char(10), TABLESPACE=encrypt_ts1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `encrypt_ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 ALTER TABLE t1 ADD INDEX (c), TABLESPACE=encrypt_ts;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`)
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
@@ -272,14 +272,14 @@ ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX (c), TABLESPACE=unencrypt_ts;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`)
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -287,7 +287,7 @@ ALTER TABLE t1 ADD INDEX (c2), TABLESPACE=encrypt_ts ENCRYPTION='Y';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`),
   KEY `c2` (`c2`)
@@ -301,14 +301,14 @@ ALTER TABLE t1 ADD c2 char(10), TABLESPACE=encrypt_ts1 ENCRYPTION='Y', ALGORITHM
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `encrypt_ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 ALTER TABLE t1 ADD INDEX (c), TABLESPACE=encrypt_ts, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`)
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
@@ -318,14 +318,14 @@ ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts1, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX (c), TABLESPACE=unencrypt_ts, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`)
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -334,7 +334,7 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`)
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -347,14 +347,14 @@ ALTER TABLE t1 ADD c2 char(10), TABLESPACE=encrypt_ts1, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `encrypt_ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 ALTER TABLE t1 ADD INDEX (c), TABLESPACE=encrypt_ts, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`)
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
@@ -364,14 +364,14 @@ ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts1, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL
 ) /*!50100 TABLESPACE `unencrypt_ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD INDEX (c), TABLESPACE=unencrypt_ts, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`)
 ) /*!50100 TABLESPACE `unencrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -379,7 +379,7 @@ ALTER TABLE t1 ADD INDEX (c2), TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=C
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` int(11) DEFAULT NULL,
+  `c` int DEFAULT NULL,
   `c2` char(10) DEFAULT NULL,
   KEY `c` (`c`),
   KEY `c2` (`c2`)
@@ -519,7 +519,7 @@ PARTITION P2 VALUES LESS THAN (30) TABLESPACE=innodb_file_per_table);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `name` varchar(50) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`id`)
@@ -557,7 +557,7 @@ PARTITION p4 VALUES LESS THAN (50));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   `name` varchar(50) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`id`)

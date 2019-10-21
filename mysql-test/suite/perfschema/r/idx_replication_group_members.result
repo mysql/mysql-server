@@ -4,7 +4,7 @@ replication_group_members	CREATE TABLE `replication_group_members` (
   `CHANNEL_NAME` char(64) NOT NULL,
   `MEMBER_ID` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `MEMBER_HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL,
-  `MEMBER_PORT` int(11) DEFAULT NULL,
+  `MEMBER_PORT` int DEFAULT NULL,
   `MEMBER_STATE` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `MEMBER_ROLE` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `MEMBER_VERSION` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL

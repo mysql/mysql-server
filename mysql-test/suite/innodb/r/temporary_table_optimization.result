@@ -2,10 +2,10 @@ create temporary table t1 (i int) engine = innodb;
 show create table information_schema.innodb_temp_table_info;
 Table	Create Table
 INNODB_TEMP_TABLE_INFO	CREATE TEMPORARY TABLE `INNODB_TEMP_TABLE_INFO` (
-  `TABLE_ID` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `TABLE_ID` bigint unsigned NOT NULL DEFAULT '0',
   `NAME` varchar(64) DEFAULT NULL,
-  `N_COLS` int(11) unsigned NOT NULL DEFAULT '0',
-  `SPACE` int(11) unsigned NOT NULL DEFAULT '0'
+  `N_COLS` int unsigned NOT NULL DEFAULT '0',
+  `SPACE` int unsigned NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 select count(*) from information_schema.innodb_temp_table_info;
 count(*)
@@ -191,7 +191,7 @@ alter table t1 drop column t1_f;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `t1_i` int(11) DEFAULT NULL,
+  `t1_i` int DEFAULT NULL,
   `t1_c` char(10) DEFAULT NULL,
   UNIQUE KEY `pri_index` (`t1_i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

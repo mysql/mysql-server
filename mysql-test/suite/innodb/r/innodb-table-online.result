@@ -37,8 +37,8 @@ ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -65,8 +65,8 @@ Warning	1831	Duplicate index 'c2_2' defined on the table 'test.t1'. This is depr
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
@@ -76,8 +76,8 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Dropping a primary key 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
@@ -102,8 +102,8 @@ ROLLBACK;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   UNIQUE KEY `c2` (`c2`),
   UNIQUE KEY `c2_2` (`c2`)
@@ -165,8 +165,8 @@ test.t1	analyze	status	OK
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
   `c3` text NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -331,8 +331,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c22f` int(11) NOT NULL,
-  `c1` int(11) NOT NULL,
+  `c22f` int NOT NULL,
+  `c1` int NOT NULL,
   `c3` text NOT NULL,
   `c4` varchar(6) NOT NULL DEFAULT 'Online',
   PRIMARY KEY (`c1`,`c22f`,`c4`(5))

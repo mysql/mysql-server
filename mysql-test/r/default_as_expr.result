@@ -286,7 +286,7 @@ CREATE TABLE t(i INT, b TINYBLOB  DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `b` tinyblob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(254, DEFAULT);
@@ -340,7 +340,7 @@ CREATE TABLE t(i BIGINT, b MEDIUMBLOB  DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` bigint(20) DEFAULT NULL,
+  `i` bigint DEFAULT NULL,
   `b` mediumblob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(16777214, DEFAULT);
@@ -394,7 +394,7 @@ CREATE TABLE t(i INT, b BLOB DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `b` blob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(65534, DEFAULT);
@@ -448,7 +448,7 @@ CREATE TABLE t(i BIGINT, b LONGBLOB  DEFAULT (repeat('b', i)));
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `i` bigint(20) DEFAULT NULL,
+  `i` bigint DEFAULT NULL,
   `b` longblob DEFAULT (repeat(_utf8mb4'b',`i`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t values(4294967295, DEFAULT);
@@ -528,7 +528,7 @@ ON UPDATE NOW());
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 1 minute)) ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(a) VALUES (5);
@@ -545,7 +545,7 @@ CREATE TABLE t1 (a INT, b TIMESTAMP NOT NULL DEFAULT (TIMESTAMPADD(MINUTE, 1,'20
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` timestamp NOT NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 1 minute))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1(a) values (1);
@@ -554,7 +554,7 @@ CREATE TABLE t1 (a INT, c TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 5,'2003-01-02'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `c` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 5 minute))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1(a) VALUES (5),(6);
@@ -562,7 +562,7 @@ ALTER TABLE t1 ADD COLUMN d TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 10,'2003-01-
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `c` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 5 minute)),
   `d` timestamp NULL DEFAULT ((_utf8mb4'2003-01-03' + interval 10 minute)) ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -588,7 +588,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
@@ -604,9 +604,9 @@ DROP TABLE t1;
 CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)), j INT GENERATED ALWAYS AS (i*2));
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
-j	int(11)	YES		NULL	VIRTUAL GENERATED
+j	int	YES		NULL	VIRTUAL GENERATED
 INSERT INTO t1(i) VALUES (1);
 INSERT INTO t1(i, b) VALUES (2, DEFAULT);
 INSERT INTO t1(i, b) VALUES (3, "some string");
@@ -1068,8 +1068,8 @@ ALTER TABLE pk_t1 ADD COLUMN
 SHOW CREATE TABLE pk_t1;
 Table	Create Table
 pk_t1	CREATE TABLE `pk_t1` (
-  `i` int(11) NOT NULL,
-  `id` int(11) NOT NULL DEFAULT ((10 + `i`)),
+  `i` int NOT NULL,
+  `id` int NOT NULL DEFAULT ((10 + `i`)),
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO pk_t1(i) VALUES (5);

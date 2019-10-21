@@ -111,14 +111,14 @@ t3	NULL
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `t1_ref` int(11) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `t1_ref` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `t1_ref` (`t1_ref`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_ref`) REFERENCES `t1` (`a`) ON DELETE RESTRICT ON UPDATE RESTRICT
@@ -126,8 +126,8 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE test.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) DEFAULT NULL,
-  `t1_ref` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
+  `t1_ref` int DEFAULT NULL,
   KEY `t1_ref` (`t1_ref`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`t1_ref`) REFERENCES `t1` (`a`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
@@ -165,14 +165,14 @@ t3	NULL
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `t1_ref` int(11) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `t1_ref` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `t1_ref` (`t1_ref`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_ref`) REFERENCES `t1` (`a`) ON DELETE RESTRICT ON UPDATE RESTRICT
@@ -180,8 +180,8 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE test.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `id` int(11) DEFAULT NULL,
-  `t1_ref` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
+  `t1_ref` int DEFAULT NULL,
   KEY `t1_ref` (`t1_ref`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`t1_ref`) REFERENCES `t1` (`a`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1

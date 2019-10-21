@@ -37,7 +37,7 @@ node_id	block_number	block_instance	pool_name	used_ok	total	high_ok	entry_size	c
 SHOW CREATE TABLE ndb$tables;
 Table	Create Table
 ndb$tables	CREATE TABLE `ndb$tables` (
-  `table_id` int(10) unsigned DEFAULT NULL,
+  `table_id` int unsigned DEFAULT NULL,
   `table_name` varchar(512) DEFAULT NULL,
   `comment` varchar(512) DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='metadata for tables available through ndbinfo'
@@ -323,11 +323,11 @@ count(*) >= 20
 show create table ndb$test;
 Table	Create Table
 ndb$test	CREATE TABLE `ndb$test` (
-  `node_id` int(10) unsigned DEFAULT NULL,
-  `block_number` int(10) unsigned DEFAULT NULL,
-  `block_instance` int(10) unsigned DEFAULT NULL,
-  `counter` int(10) unsigned DEFAULT NULL,
-  `counter2` bigint(20) unsigned DEFAULT NULL
+  `node_id` int unsigned DEFAULT NULL,
+  `block_number` int unsigned DEFAULT NULL,
+  `block_instance` int unsigned DEFAULT NULL,
+  `counter` int unsigned DEFAULT NULL,
+  `counter2` bigint unsigned DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing'
 ## 1) More columns in NDB -> allowed, with warning
 DROP TABLE ndb$test;
@@ -476,10 +476,10 @@ node_id
 
 desc threadblocks;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
 block_name	varchar(512)	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
 select distinct block_name from threadblocks order by 1;
 block_name
 BACKUP
@@ -507,59 +507,59 @@ TRPMAN
 TSMAN
 desc threadstat;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
 thr_nm	varchar(512)	YES		NULL	
-c_loop	bigint(20) unsigned	YES		NULL	
-c_exec	bigint(20) unsigned	YES		NULL	
-c_wait	bigint(20) unsigned	YES		NULL	
-c_l_sent_prioa	bigint(20) unsigned	YES		NULL	
-c_l_sent_priob	bigint(20) unsigned	YES		NULL	
-c_r_sent_prioa	bigint(20) unsigned	YES		NULL	
-c_r_sent_priob	bigint(20) unsigned	YES		NULL	
-os_tid	bigint(20) unsigned	YES		NULL	
-os_now	bigint(20) unsigned	YES		NULL	
-os_ru_utime	bigint(20) unsigned	YES		NULL	
-os_ru_stime	bigint(20) unsigned	YES		NULL	
-os_ru_minflt	bigint(20) unsigned	YES		NULL	
-os_ru_majflt	bigint(20) unsigned	YES		NULL	
-os_ru_nvcsw	bigint(20) unsigned	YES		NULL	
-os_ru_nivcsw	bigint(20) unsigned	YES		NULL	
+c_loop	bigint unsigned	YES		NULL	
+c_exec	bigint unsigned	YES		NULL	
+c_wait	bigint unsigned	YES		NULL	
+c_l_sent_prioa	bigint unsigned	YES		NULL	
+c_l_sent_priob	bigint unsigned	YES		NULL	
+c_r_sent_prioa	bigint unsigned	YES		NULL	
+c_r_sent_priob	bigint unsigned	YES		NULL	
+os_tid	bigint unsigned	YES		NULL	
+os_now	bigint unsigned	YES		NULL	
+os_ru_utime	bigint unsigned	YES		NULL	
+os_ru_stime	bigint unsigned	YES		NULL	
+os_ru_minflt	bigint unsigned	YES		NULL	
+os_ru_majflt	bigint unsigned	YES		NULL	
+os_ru_nvcsw	bigint unsigned	YES		NULL	
+os_ru_nivcsw	bigint unsigned	YES		NULL	
 select count(*) > 0 block_name from threadstat;
 block_name
 1
 
 desc disk_write_speed_aggregate;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-backup_lcp_speed_last_sec	bigint(20) unsigned	YES		NULL	
-redo_speed_last_sec	bigint(20) unsigned	YES		NULL	
-backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-std_dev_backup_lcp_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-std_dev_redo_speed_last_10sec	bigint(20) unsigned	YES		NULL	
-backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-std_dev_backup_lcp_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-std_dev_redo_speed_last_60sec	bigint(20) unsigned	YES		NULL	
-slowdowns_due_to_io_lag	bigint(20) unsigned	YES		NULL	
-slowdowns_due_to_high_cpu	bigint(20) unsigned	YES		NULL	
-disk_write_speed_set_to_min	bigint(20) unsigned	YES		NULL	
-current_target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
+backup_lcp_speed_last_sec	bigint unsigned	YES		NULL	
+redo_speed_last_sec	bigint unsigned	YES		NULL	
+backup_lcp_speed_last_10sec	bigint unsigned	YES		NULL	
+redo_speed_last_10sec	bigint unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_10sec	bigint unsigned	YES		NULL	
+std_dev_redo_speed_last_10sec	bigint unsigned	YES		NULL	
+backup_lcp_speed_last_60sec	bigint unsigned	YES		NULL	
+redo_speed_last_60sec	bigint unsigned	YES		NULL	
+std_dev_backup_lcp_speed_last_60sec	bigint unsigned	YES		NULL	
+std_dev_redo_speed_last_60sec	bigint unsigned	YES		NULL	
+slowdowns_due_to_io_lag	bigint unsigned	YES		NULL	
+slowdowns_due_to_high_cpu	bigint unsigned	YES		NULL	
+disk_write_speed_set_to_min	bigint unsigned	YES		NULL	
+current_target_disk_write_speed	bigint unsigned	YES		NULL	
 select count(*) from disk_write_speed_aggregate;
 count(*)
 8
 
 desc disk_write_speed_base;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
-millis_ago	bigint(20) unsigned	YES		NULL	
-millis_passed	bigint(20) unsigned	YES		NULL	
-backup_lcp_bytes_written	bigint(20) unsigned	YES		NULL	
-redo_bytes_written	bigint(20) unsigned	YES		NULL	
-target_disk_write_speed	bigint(20) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
+millis_ago	bigint unsigned	YES		NULL	
+millis_passed	bigint unsigned	YES		NULL	
+backup_lcp_bytes_written	bigint unsigned	YES		NULL	
+redo_bytes_written	bigint unsigned	YES		NULL	
+target_disk_write_speed	bigint unsigned	YES		NULL	
 select node_id from disk_write_speed_base group by node_id, thr_no;
 node_id
 1
@@ -577,48 +577,48 @@ count(*)
 
 desc restart_info;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
 node_restart_status	varchar(512)	YES		NULL	
-node_restart_status_int	int(10) unsigned	YES		NULL	
-secs_to_complete_node_failure	int(10) unsigned	YES		NULL	
-secs_to_allocate_node_id	int(10) unsigned	YES		NULL	
-secs_to_include_in_heartbeat_protocol	int(10) unsigned	YES		NULL	
-secs_until_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
-secs_wait_for_ndbcntr_master	int(10) unsigned	YES		NULL	
-secs_to_get_start_permitted	int(10) unsigned	YES		NULL	
-secs_to_wait_for_lcp_for_copy_meta_data	int(10) unsigned	YES		NULL	
-secs_to_copy_meta_data	int(10) unsigned	YES		NULL	
-secs_to_include_node	int(10) unsigned	YES		NULL	
-secs_starting_node_to_request_local_recovery	int(10) unsigned	YES		NULL	
-secs_for_local_recovery	int(10) unsigned	YES		NULL	
-secs_restore_fragments	int(10) unsigned	YES		NULL	
-secs_undo_disk_data	int(10) unsigned	YES		NULL	
-secs_exec_redo_log	int(10) unsigned	YES		NULL	
-secs_index_rebuild	int(10) unsigned	YES		NULL	
-secs_to_synchronize_starting_node	int(10) unsigned	YES		NULL	
-secs_wait_lcp_for_restart	int(10) unsigned	YES		NULL	
-secs_wait_subscription_handover	int(10) unsigned	YES		NULL	
-total_restart_secs	int(10) unsigned	YES		NULL	
+node_restart_status_int	int unsigned	YES		NULL	
+secs_to_complete_node_failure	int unsigned	YES		NULL	
+secs_to_allocate_node_id	int unsigned	YES		NULL	
+secs_to_include_in_heartbeat_protocol	int unsigned	YES		NULL	
+secs_until_wait_for_ndbcntr_master	int unsigned	YES		NULL	
+secs_wait_for_ndbcntr_master	int unsigned	YES		NULL	
+secs_to_get_start_permitted	int unsigned	YES		NULL	
+secs_to_wait_for_lcp_for_copy_meta_data	int unsigned	YES		NULL	
+secs_to_copy_meta_data	int unsigned	YES		NULL	
+secs_to_include_node	int unsigned	YES		NULL	
+secs_starting_node_to_request_local_recovery	int unsigned	YES		NULL	
+secs_for_local_recovery	int unsigned	YES		NULL	
+secs_restore_fragments	int unsigned	YES		NULL	
+secs_undo_disk_data	int unsigned	YES		NULL	
+secs_exec_redo_log	int unsigned	YES		NULL	
+secs_index_rebuild	int unsigned	YES		NULL	
+secs_to_synchronize_starting_node	int unsigned	YES		NULL	
+secs_wait_lcp_for_restart	int unsigned	YES		NULL	
+secs_wait_subscription_handover	int unsigned	YES		NULL	
+total_restart_secs	int unsigned	YES		NULL	
 select * from restart_info where node_restart_status <> 'Restart completed';
 node_id	node_restart_status	node_restart_status_int	secs_to_complete_node_failure	secs_to_allocate_node_id	secs_to_include_in_heartbeat_protocol	secs_until_wait_for_ndbcntr_master	secs_wait_for_ndbcntr_master	secs_to_get_start_permitted	secs_to_wait_for_lcp_for_copy_meta_data	secs_to_copy_meta_data	secs_to_include_node	secs_starting_node_to_request_local_recovery	secs_for_local_recovery	secs_restore_fragments	secs_undo_disk_data	secs_exec_redo_log	secs_index_rebuild	secs_to_synchronize_starting_node	secs_wait_lcp_for_restart	secs_wait_subscription_handover	total_restart_secs
 
 desc tc_time_track_stats;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-block_number	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-comm_node_id	int(10) unsigned	YES		NULL	
-upper_bound	bigint(20) unsigned	YES		NULL	
-scans	bigint(20) unsigned	YES		NULL	
-scan_errors	bigint(20) unsigned	YES		NULL	
-scan_fragments	bigint(20) unsigned	YES		NULL	
-scan_fragment_errors	bigint(20) unsigned	YES		NULL	
-transactions	bigint(20) unsigned	YES		NULL	
-transaction_errors	bigint(20) unsigned	YES		NULL	
-read_key_ops	bigint(20) unsigned	YES		NULL	
-write_key_ops	bigint(20) unsigned	YES		NULL	
-index_key_ops	bigint(20) unsigned	YES		NULL	
-key_op_errors	bigint(20) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+block_number	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+comm_node_id	int unsigned	YES		NULL	
+upper_bound	bigint unsigned	YES		NULL	
+scans	bigint unsigned	YES		NULL	
+scan_errors	bigint unsigned	YES		NULL	
+scan_fragments	bigint unsigned	YES		NULL	
+scan_fragment_errors	bigint unsigned	YES		NULL	
+transactions	bigint unsigned	YES		NULL	
+transaction_errors	bigint unsigned	YES		NULL	
+read_key_ops	bigint unsigned	YES		NULL	
+write_key_ops	bigint unsigned	YES		NULL	
+index_key_ops	bigint unsigned	YES		NULL	
+key_op_errors	bigint unsigned	YES		NULL	
 select distinct node_id from tc_time_track_stats;
 node_id
 1
@@ -626,63 +626,63 @@ node_id
 
 desc threads;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-thr_no	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+thr_no	int unsigned	YES		NULL	
 thread_name	varchar(512)	YES		NULL	
 thread_description	varchar(512)	YES		NULL	
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 state	varchar(256)	YES		NULL	
-count_operations	int(10) unsigned	YES		NULL	
-outstanding_operations	int(10) unsigned	YES		NULL	
-inactive_seconds	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
+count_operations	int unsigned	YES		NULL	
+outstanding_operations	int unsigned	YES		NULL	
+inactive_seconds	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
 desc server_transactions;
 Field	Type	Null	Key	Default	Extra
-mysql_connection_id	bigint(21) unsigned	NO		0	
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+mysql_connection_id	bigint unsigned	NO		0	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 state	varchar(256)	YES		NULL	
-count_operations	int(10) unsigned	YES		NULL	
-outstanding_operations	int(10) unsigned	YES		NULL	
-inactive_seconds	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
+count_operations	int unsigned	YES		NULL	
+outstanding_operations	int unsigned	YES		NULL	
+inactive_seconds	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
 desc cluster_operations;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 operation_type	varchar(9)	NO			
 state	varchar(256)	YES		NULL	
-tableid	int(10) unsigned	YES		NULL	
-fragmentid	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
-tc_node_id	bigint(21) unsigned	YES		NULL	
-tc_block_no	bigint(21) unsigned	YES		NULL	
-tc_block_instance	bigint(21) unsigned	YES		NULL	
+tableid	int unsigned	YES		NULL	
+fragmentid	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
+tc_node_id	bigint unsigned	YES		NULL	
+tc_block_no	bigint unsigned	YES		NULL	
+tc_block_instance	bigint unsigned	YES		NULL	
 desc server_operations;
 Field	Type	Null	Key	Default	Extra
-mysql_connection_id	bigint(21) unsigned	NO		0	
-node_id	int(10) unsigned	YES		NULL	
-block_instance	int(10) unsigned	YES		NULL	
-transid	bigint(22) unsigned	YES		NULL	
+mysql_connection_id	bigint unsigned	NO		0	
+node_id	int unsigned	YES		NULL	
+block_instance	int unsigned	YES		NULL	
+transid	bigint unsigned	YES		NULL	
 operation_type	varchar(9)	NO			
 state	varchar(256)	YES		NULL	
-tableid	int(10) unsigned	YES		NULL	
-fragmentid	int(10) unsigned	YES		NULL	
-client_node_id	bigint(21) unsigned	YES		NULL	
-client_block_ref	bigint(21) unsigned	YES		NULL	
-tc_node_id	bigint(21) unsigned	YES		NULL	
-tc_block_no	bigint(21) unsigned	YES		NULL	
-tc_block_instance	bigint(21) unsigned	YES		NULL	
+tableid	int unsigned	YES		NULL	
+fragmentid	int unsigned	YES		NULL	
+client_node_id	bigint unsigned	YES		NULL	
+client_block_ref	bigint unsigned	YES		NULL	
+tc_node_id	bigint unsigned	YES		NULL	
+tc_block_no	bigint unsigned	YES		NULL	
+tc_block_instance	bigint unsigned	YES		NULL	
 
 select count(*) > 0 from table_distribution_status;
 count(*) > 0
@@ -705,105 +705,105 @@ count(*) > 0
 
 desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
 tab_copy_status	varchar(20)	NO			
 tab_update_status	varchar(23)	NO			
 tab_lcp_status	varchar(15)	NO			
 tab_status	varchar(13)	NO			
 tab_storage	varchar(13)	NO			
-tab_partitions	int(10) unsigned	YES		NULL	
-tab_fragments	int(10) unsigned	YES		NULL	
-current_scan_count	int(10) unsigned	YES		NULL	
-scan_count_wait	int(10) unsigned	YES		NULL	
-is_reorg_ongoing	int(10) unsigned	YES		NULL	
+tab_partitions	int unsigned	YES		NULL	
+tab_fragments	int unsigned	YES		NULL	
+current_scan_count	int unsigned	YES		NULL	
+scan_count_wait	int unsigned	YES		NULL	
+is_reorg_ongoing	int unsigned	YES		NULL	
 desc table_fragments;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-partition_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-partition_order	int(10) unsigned	YES		NULL	
-log_part_id	int(10) unsigned	YES		NULL	
-no_of_replicas	int(10) unsigned	YES		NULL	
-current_primary	int(10) unsigned	YES		NULL	
-preferred_primary	int(10) unsigned	YES		NULL	
-current_first_backup	int(10) unsigned	YES		NULL	
-current_second_backup	int(10) unsigned	YES		NULL	
-current_third_backup	int(10) unsigned	YES		NULL	
-num_alive_replicas	int(10) unsigned	YES		NULL	
-num_dead_replicas	int(10) unsigned	YES		NULL	
-num_lcp_replicas	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+partition_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+partition_order	int unsigned	YES		NULL	
+log_part_id	int unsigned	YES		NULL	
+no_of_replicas	int unsigned	YES		NULL	
+current_primary	int unsigned	YES		NULL	
+preferred_primary	int unsigned	YES		NULL	
+current_first_backup	int unsigned	YES		NULL	
+current_second_backup	int unsigned	YES		NULL	
+current_third_backup	int unsigned	YES		NULL	
+num_alive_replicas	int unsigned	YES		NULL	
+num_dead_replicas	int unsigned	YES		NULL	
+num_lcp_replicas	int unsigned	YES		NULL	
 desc table_replicas;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-initial_gci	int(10) unsigned	YES		NULL	
-replica_node_id	int(10) unsigned	YES		NULL	
-is_lcp_ongoing	int(10) unsigned	YES		NULL	
-num_crashed_replicas	int(10) unsigned	YES		NULL	
-last_max_gci_started	int(10) unsigned	YES		NULL	
-last_max_gci_completed	int(10) unsigned	YES		NULL	
-last_lcp_id	int(10) unsigned	YES		NULL	
-prev_lcp_id	int(10) unsigned	YES		NULL	
-prev_max_gci_started	int(10) unsigned	YES		NULL	
-prev_max_gci_completed	int(10) unsigned	YES		NULL	
-last_create_gci	int(10) unsigned	YES		NULL	
-last_replica_gci	int(10) unsigned	YES		NULL	
-is_replica_alive	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+initial_gci	int unsigned	YES		NULL	
+replica_node_id	int unsigned	YES		NULL	
+is_lcp_ongoing	int unsigned	YES		NULL	
+num_crashed_replicas	int unsigned	YES		NULL	
+last_max_gci_started	int unsigned	YES		NULL	
+last_max_gci_completed	int unsigned	YES		NULL	
+last_lcp_id	int unsigned	YES		NULL	
+prev_lcp_id	int unsigned	YES		NULL	
+prev_max_gci_started	int unsigned	YES		NULL	
+prev_max_gci_completed	int unsigned	YES		NULL	
+last_create_gci	int unsigned	YES		NULL	
+last_replica_gci	int unsigned	YES		NULL	
+is_replica_alive	int unsigned	YES		NULL	
 
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$table_distribution_status_all;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-tab_copy_status	int(10) unsigned	YES		NULL	
-tab_update_status	int(10) unsigned	YES		NULL	
-tab_lcp_status	int(10) unsigned	YES		NULL	
-tab_status	int(10) unsigned	YES		NULL	
-tab_storage	int(10) unsigned	YES		NULL	
-tab_type	int(10) unsigned	YES		NULL	
-tab_partitions	int(10) unsigned	YES		NULL	
-tab_fragments	int(10) unsigned	YES		NULL	
-current_scan_count	int(10) unsigned	YES		NULL	
-scan_count_wait	int(10) unsigned	YES		NULL	
-is_reorg_ongoing	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+tab_copy_status	int unsigned	YES		NULL	
+tab_update_status	int unsigned	YES		NULL	
+tab_lcp_status	int unsigned	YES		NULL	
+tab_status	int unsigned	YES		NULL	
+tab_storage	int unsigned	YES		NULL	
+tab_type	int unsigned	YES		NULL	
+tab_partitions	int unsigned	YES		NULL	
+tab_fragments	int unsigned	YES		NULL	
+current_scan_count	int unsigned	YES		NULL	
+scan_count_wait	int unsigned	YES		NULL	
+is_reorg_ongoing	int unsigned	YES		NULL	
 desc ndb$table_fragments_all;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-partition_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-partition_order	int(10) unsigned	YES		NULL	
-log_part_id	int(10) unsigned	YES		NULL	
-no_of_replicas	int(10) unsigned	YES		NULL	
-current_primary	int(10) unsigned	YES		NULL	
-preferred_primary	int(10) unsigned	YES		NULL	
-current_first_backup	int(10) unsigned	YES		NULL	
-current_second_backup	int(10) unsigned	YES		NULL	
-current_third_backup	int(10) unsigned	YES		NULL	
-num_alive_replicas	int(10) unsigned	YES		NULL	
-num_dead_replicas	int(10) unsigned	YES		NULL	
-num_lcp_replicas	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+partition_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+partition_order	int unsigned	YES		NULL	
+log_part_id	int unsigned	YES		NULL	
+no_of_replicas	int unsigned	YES		NULL	
+current_primary	int unsigned	YES		NULL	
+preferred_primary	int unsigned	YES		NULL	
+current_first_backup	int unsigned	YES		NULL	
+current_second_backup	int unsigned	YES		NULL	
+current_third_backup	int unsigned	YES		NULL	
+num_alive_replicas	int unsigned	YES		NULL	
+num_dead_replicas	int unsigned	YES		NULL	
+num_lcp_replicas	int unsigned	YES		NULL	
 desc ndb$table_replicas_all;
 Field	Type	Null	Key	Default	Extra
-node_id	int(10) unsigned	YES		NULL	
-table_id	int(10) unsigned	YES		NULL	
-fragment_id	int(10) unsigned	YES		NULL	
-initial_gci	int(10) unsigned	YES		NULL	
-replica_node_id	int(10) unsigned	YES		NULL	
-is_lcp_ongoing	int(10) unsigned	YES		NULL	
-num_crashed_replicas	int(10) unsigned	YES		NULL	
-last_max_gci_started	int(10) unsigned	YES		NULL	
-last_max_gci_completed	int(10) unsigned	YES		NULL	
-last_lcp_id	int(10) unsigned	YES		NULL	
-prev_lcp_id	int(10) unsigned	YES		NULL	
-prev_max_gci_started	int(10) unsigned	YES		NULL	
-prev_max_gci_completed	int(10) unsigned	YES		NULL	
-last_create_gci	int(10) unsigned	YES		NULL	
-last_replica_gci	int(10) unsigned	YES		NULL	
-is_replica_alive	int(10) unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+table_id	int unsigned	YES		NULL	
+fragment_id	int unsigned	YES		NULL	
+initial_gci	int unsigned	YES		NULL	
+replica_node_id	int unsigned	YES		NULL	
+is_lcp_ongoing	int unsigned	YES		NULL	
+num_crashed_replicas	int unsigned	YES		NULL	
+last_max_gci_started	int unsigned	YES		NULL	
+last_max_gci_completed	int unsigned	YES		NULL	
+last_lcp_id	int unsigned	YES		NULL	
+prev_lcp_id	int unsigned	YES		NULL	
+prev_max_gci_started	int unsigned	YES		NULL	
+prev_max_gci_completed	int unsigned	YES		NULL	
+last_create_gci	int unsigned	YES		NULL	
+last_replica_gci	int unsigned	YES		NULL	
+is_replica_alive	int unsigned	YES		NULL	
 set @@ndbinfo_show_hidden=default;
 
 create table t1 (a int primary key) engine = ndb;
@@ -907,7 +907,7 @@ CREATE VIEW view_on_table_which_does_not_exist_in_ndb AS
 SHOW CREATE TABLE ndb$does_not_exist_in_ndb;
 Table	Create Table
 ndb$does_not_exist_in_ndb	CREATE TABLE `ndb$does_not_exist_in_ndb` (
-  `node_id` int(11) DEFAULT NULL,
+  `node_id` int DEFAULT NULL,
   `message` varchar(255) DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1
 
@@ -1680,12 +1680,12 @@ node_id	DataMemory
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$processes;
 Field	Type	Null	Key	Default	Extra
-reporting_node_id	int(10) unsigned	YES		NULL	
-node_id	int(10) unsigned	YES		NULL	
-node_type	int(10) unsigned	YES		NULL	
+reporting_node_id	int unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+node_type	int unsigned	YES		NULL	
 node_version	varchar(512)	YES		NULL	
-process_id	int(10) unsigned	YES		NULL	
-angel_process_id	int(10) unsigned	YES		NULL	
+process_id	int unsigned	YES		NULL	
+angel_process_id	int unsigned	YES		NULL	
 process_name	varchar(512)	YES		NULL	
 service_URI	varchar(512)	YES		NULL	
 set @@ndbinfo_show_hidden=default;
@@ -1744,9 +1744,9 @@ node_id	node_type	process_name	proc_id	angel_proc_id	monitor_proc_id
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$config_nodes;
 Field	Type	Null	Key	Default	Extra
-reporting_node_id	int(10) unsigned	YES		NULL	
-node_id	int(10) unsigned	YES		NULL	
-node_type	int(10) unsigned	YES		NULL	
+reporting_node_id	int unsigned	YES		NULL	
+node_id	int unsigned	YES		NULL	
+node_type	int unsigned	YES		NULL	
 node_hostname	varchar(512)	YES		NULL	
 set @@ndbinfo_show_hidden=default;
 select view_definition, is_updatable, security_type

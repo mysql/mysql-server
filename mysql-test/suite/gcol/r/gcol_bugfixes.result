@@ -931,9 +931,9 @@ CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 1) STORED);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `gcol` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `gcol` int GENERATED ALWAYS AS ((`a` + 1)) STORED
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a, b) VALUES (1, 2);
 SELECT * FROM t1;
@@ -948,9 +948,9 @@ ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) DEFAULT NULL,
-  `a` int(11) DEFAULT NULL,
-  `gcol` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED
+  `b` int DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `gcol` int GENERATED ALWAYS AS ((`a` + 1)) STORED
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Check that generated column value reflect the fact that columns
 # were swapped.
@@ -966,9 +966,9 @@ ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 3, MODIFY gcol INT AS (a 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `b` int(11) DEFAULT NULL,
-  `gcol` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED,
-  `a` int(11) DEFAULT '3'
+  `b` int DEFAULT NULL,
+  `gcol` int GENERATED ALWAYS AS ((`a` + 1)) STORED,
+  `a` int DEFAULT '3'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Check that generated column value reflect the fact that column
 # was replaced.

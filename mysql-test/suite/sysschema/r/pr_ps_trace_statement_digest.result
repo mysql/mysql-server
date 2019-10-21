@@ -10,8 +10,8 @@ SET @digest.select = (SELECT DIGEST FROM performance_schema.events_statements_hi
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(11) NOT NULL,
-  `val` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `val` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @digest.show = (SELECT DIGEST FROM performance_schema.events_statements_history WHERE THREAD_ID = @threadid AND SQL_TEXT LIKE 'SHOW CREATE TABLE test.t1');

@@ -765,9 +765,9 @@ CREATE VIEW v1 AS
 SELECT a, LENGTH(a), COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
 DESC v1;
 Field	Type	Null	Key	Default	Extra
-a	bigint(11)	YES		NULL	
-LENGTH(a)	bigint(10)	YES		NULL	
-COUNT(*)	bigint(21)	NO		0	
+a	bigint	YES		NULL	
+LENGTH(a)	bigint	YES		NULL	
+COUNT(*)	bigint	NO		0	
 SELECT * FROM v1;
 a	LENGTH(a)	COUNT(*)
 1	1	1

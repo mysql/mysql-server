@@ -3361,7 +3361,7 @@ unlock tables;
 # Switching to connection 'default'.
 # Reaping SHOW FIELDS ...
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 drop table t2;
 # Switching to connection 'con46044_2'.
 lock tables t1 write;

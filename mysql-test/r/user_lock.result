@@ -595,11 +595,11 @@ RELEASE_ALL_LOCKS() AS ra, IS_USED_LOCK('test') AS isu,
 IS_FREE_LOCK('test') AS isf;
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-g	int(1)	YES		NULL	
-r	int(1)	YES		NULL	
-ra	bigint(21) unsigned	NO		0	
-isu	bigint(21) unsigned	YES		NULL	
-isf	int(1)	YES		NULL	
+g	int	YES		NULL	
+r	int	YES		NULL	
+ra	bigint unsigned	NO		0	
+isu	bigint unsigned	YES		NULL	
+isf	int	YES		NULL	
 DROP TABLE t1;
 # FT-14: Check the handling of user-level lock related function parameters.
 # FT-14.1: Lock names with NULL or "" assigned.

@@ -156,9 +156,9 @@ CREATE TABLE test.t6 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(220) NOT
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(150) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -167,9 +167,9 @@ PARTITIONS 4 */
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) /*!50100 TABLESPACE `table_space2` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -179,9 +179,9 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE test.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(202) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) /*!50100 TABLESPACE `table_space2` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -192,9 +192,9 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE test.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(180) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -203,9 +203,9 @@ PARTITIONS 2 */
 SHOW CREATE TABLE test.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -215,9 +215,9 @@ t5	CREATE TABLE `t5` (
 SHOW CREATE TABLE test.t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(220) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -332,9 +332,9 @@ SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(150) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster AUTO_INCREMENT=251 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -343,9 +343,9 @@ PARTITIONS 4 */
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) /*!50100 TABLESPACE `table_space2` STORAGE DISK */ ENGINE=ndbcluster AUTO_INCREMENT=251 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -355,9 +355,9 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE test.t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(202) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) /*!50100 TABLESPACE `table_space2` STORAGE DISK */ ENGINE=ndbcluster AUTO_INCREMENT=251 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -368,9 +368,9 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE test.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(180) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=251 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -379,9 +379,9 @@ PARTITIONS 2 */
 SHOW CREATE TABLE test.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` text NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=251 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -391,9 +391,9 @@ t5	CREATE TABLE `t5` (
 SHOW CREATE TABLE test.t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `pk1` mediumint(9) NOT NULL AUTO_INCREMENT,
+  `pk1` mediumint NOT NULL AUTO_INCREMENT,
   `c2` varchar(220) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c3` int NOT NULL,
   `c4` bit(1) NOT NULL,
   PRIMARY KEY (`pk1`,`c3`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=251 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'

@@ -19,8 +19,8 @@ SET DEBUG = '-d,ib_rename_column_error';
 SHOW CREATE TABLE t1ć;
 Table	Create Table
 t1ć	CREATE TABLE `t1ć` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `①` (`c2`)

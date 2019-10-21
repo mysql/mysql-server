@@ -7,9 +7,9 @@ SET SESSION information_schema_stats_expiry=0;
 #
 select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
 TABLE_NAME	DATA_TYPE	COLUMN_TYPE
-COLUMNS	bigint	bigint(10) unsigned
-PARAMETERS	int	int(10) unsigned
-ROUTINES	int	int(10) unsigned
+COLUMNS	bigint	bigint unsigned
+PARAMETERS	int	int unsigned
+ROUTINES	int	int unsigned
 show variables where variable_name like "skip_show_database";
 Variable_name	Value
 skip_show_database	OFF
@@ -196,7 +196,7 @@ t5	InnoDB	10	Dynamic	1	#	#	#	#	0	11	#	#	NULL	utf8mb4_0900_ai_ci	NULL
 v1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 show full columns from t3 like "a%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-a	int(11)	NULL	YES	MUL	NULL		select,insert,update,references	
+a	int	NULL	YES	MUL	NULL		select,insert,update,references	
 show full columns from mysql.db like "Insert%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 Insert_priv	enum('N','Y')	utf8_general_ci	NO		N		select,insert,update,references	
@@ -206,10 +206,10 @@ c	varchar(64)	utf8_bin	YES		NULL		select,insert,update,references
 select * from information_schema.COLUMNS where table_name="t1"
 and column_name= "a" order by table_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
-def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+def	mysqltest	t1	a	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select,insert,update,references			NULL
 show columns from mysqltest.t1 where field like "%a%";
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 create view mysqltest.v1 (c) as select a from mysqltest.t1;
 grant select (a) on mysqltest.t1 to mysqltest_2@localhost;
 grant select on mysqltest.v1 to mysqltest_3;
@@ -219,7 +219,7 @@ TABLE_NAME	COLUMN_NAME	PRIVILEGES
 t1	a	select
 show columns from mysqltest.t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 select table_name, column_name, privileges from information_schema.columns
 where table_schema = 'mysqltest' and table_name = 'v1' order by table_name, column_name;
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
@@ -294,7 +294,7 @@ end|
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 PARAMETER_STYLE	SQL_DATA_ACCESS	DTD_IDENTIFIER
-SQL	CONTAINS SQL	int(11)
+SQL	CONTAINS SQL	int
 SQL	CONTAINS SQL	NULL
 show procedure status where db='test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
@@ -351,7 +351,7 @@ Function	sql_mode	Create Function	character_set_client	collation_connection	Data
 sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create function sub2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sub2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
+sub2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int
 return i+1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show function status like "sub2";
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
@@ -474,7 +474,7 @@ Warning	1831	Duplicate index 'key_2' defined on the table 'test.t1'. This is dep
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
@@ -574,7 +574,7 @@ t1	CREATE TABLE `t1` (
   `CHARACTER_SET_NAME` varchar(64) NOT NULL,
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL,
   `DESCRIPTION` varchar(2048) NOT NULL,
-  `MAXLEN` int(10) unsigned NOT NULL
+  `MAXLEN` int unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
 create view v1 as select * from information_schema.TABLES;
@@ -596,7 +596,7 @@ c	float(5,2)	NULL	NULL	5	2
 d	decimal(6,4)	NULL	NULL	6	4
 e	float	NULL	NULL	12	NULL
 f	decimal(6,3)	NULL	NULL	6	3
-g	int(11)	NULL	NULL	10	0
+g	int	NULL	NULL	10	0
 h	double(10,3)	NULL	NULL	10	3
 i	double	NULL	NULL	22	NULL
 drop table t1;
@@ -1056,8 +1056,8 @@ b	NULL
 use test;
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	NO		NULL	
-b	int(11)	YES		NULL	
+a	int	NO		NULL	
+b	int	YES		NULL	
 drop table t1;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (b int);
@@ -1079,7 +1079,7 @@ database()
 NULL
 show fields from test.v1;
 Field	Type	Null	Key	Default	Extra
-c	int(11)	YES		NULL	
+c	int	YES		NULL	
 drop view v1;
 drop table t1;
 alter database information_schema;
@@ -1129,10 +1129,10 @@ drop view v1;
 create temporary table t1(f1 int, index(f1));
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-f1	int(11)	YES	MUL	NULL	NULL
+f1	int	YES	MUL	NULL	NULL
 describe t1;
 Field	Type	Null	Key	Default	Extra
-f1	int(11)	YES	MUL	NULL	NULL
+f1	int	YES	MUL	NULL	NULL
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t1	1	f1	1	f1	A	0	NULL	NULL	YES	BTREE			YES	NULL
@@ -1222,7 +1222,7 @@ p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR
 SET @a= 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int
 RETURN @a + 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
@@ -1386,7 +1386,7 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-b	int(11)	YES		NULL	
+b	int	YES		NULL	
 select column_name from information_schema.columns where table_name='t1' order by column_name;
 COLUMN_NAME
 b
@@ -1423,8 +1423,8 @@ f1	varchar(50)	YES		NULL
 f2	varchar(50)	NO		NULL	
 f3	varchar(50)	YES			
 f4	varchar(50)	YES		NULL	
-f5	bigint(20)	NO		NULL	
-f6	bigint(20)	NO		10	
+f5	bigint	NO		NULL	
+f6	bigint	NO		10	
 f7	datetime	NO		NULL	
 f8	datetime	YES		2006-01-01 00:00:00	
 drop table t1;
@@ -1708,7 +1708,7 @@ create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
 select * from information_schema.parameters where specific_schema='test';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
 def	test	f1	0	NULL	NULL	char	10	40	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)	FUNCTION
-def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	FUNCTION
+def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	NULL	int	FUNCTION
 def	test	f1	2	IN	p2	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime	FUNCTION
 def	test	f1	3	IN	p3	decimal	NULL	NULL	10	2	NULL	NULL	NULL	decimal(10,2)	FUNCTION
 def	test	p1	1	IN	p1	float	NULL	NULL	8	5	NULL	NULL	NULL	float(8,5)	PROCEDURE
@@ -2155,8 +2155,8 @@ c6	NO	point	NULL
 c7	NO	geometry	NULL	MUL
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
-c1	int(11)	YES		NULL	
-c2	int(11)	YES	MUL	NULL	
+c1	int	YES		NULL	
+c2	int	YES	MUL	NULL	
 c3	char(255)	YES	MUL	NULL	
 c4	char(255)	YES	MUL	NULL	
 c5	char(255)	YES		NULL	
@@ -2374,7 +2374,7 @@ CREATE TABLE t1 (a INT);
 SET SESSION optimizer_switch='derived_merge=off';
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
+a	int	YES		NULL	
 SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1;
 #

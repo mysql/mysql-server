@@ -8,7 +8,7 @@ USE ndb_ddl_test;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   `c` datetime DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -18,11 +18,11 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
-  `e` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`c`,`b`,`a`,`d`),
   KEY `d` (`d`),
   KEY `c` (`c`)
@@ -31,11 +31,11 @@ RENAME TABLE t2 to t2_temp_name, t5 to t2, t2_temp_name to t5;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
-  `e` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`c`,`b`,`a`,`d`),
   KEY `d` (`d`),
   KEY `c` (`c`)
@@ -43,7 +43,7 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   `c` datetime DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -57,11 +57,11 @@ ERROR 42S01: Table 't2' already exists
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
-  `d` int(11) NOT NULL,
-  `e` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
+  `d` int NOT NULL,
+  `e` int DEFAULT NULL,
   PRIMARY KEY (`c`,`b`,`a`,`d`),
   KEY `d` (`d`),
   KEY `c` (`c`)
@@ -69,7 +69,7 @@ t2	CREATE TABLE `t2` (
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   `c` datetime DEFAULT NULL,
   PRIMARY KEY (`a`),

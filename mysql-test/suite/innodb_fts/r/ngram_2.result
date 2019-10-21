@@ -10,7 +10,7 @@ ALTER TABLE t1 ADD FULLTEXT INDEX ft_title (title);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `content` text,
   PRIMARY KEY (`id`),
@@ -39,7 +39,7 @@ ALTER TABLE t1 ADD FULLTEXT INDEX ft_title (title) WITH PARSER ngram;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `content` text,
   PRIMARY KEY (`id`),

@@ -16,9 +16,9 @@ alter table child add constraint fk3 foreign key (c) references parent(a);
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -32,9 +32,9 @@ alter table child add constraint fk6 foreign key (c) references parent(b);
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -81,9 +81,9 @@ constraint fk6 foreign key(c) references parent (b)
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
@@ -112,7 +112,7 @@ insert into child  values(1), (2), (3);
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #Now create a foreign key dependency
@@ -124,7 +124,7 @@ ERROR HY000: Cannot change table's storage engine because the table participates
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #Repeat same with truncate
@@ -134,7 +134,7 @@ ERROR HY000: Cannot change table's storage engine because the table participates
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #Repeat same test for dropping FK
@@ -144,7 +144,7 @@ alter table parent engine = innodb;
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `id` int(11) DEFAULT NULL,
+  `id` int DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #Cleanup
@@ -200,9 +200,9 @@ alter table child  add constraint fk_c2 foreign key (b) references parent(a);
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   UNIQUE KEY `a` (`a`),
   KEY `b_key` (`b`),
   KEY `c_key` (`c`),
@@ -213,8 +213,8 @@ parent	CREATE TABLE `parent` (
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
   KEY `a_key` (`a`),
   KEY `b_key` (`b`),
   CONSTRAINT `fk_c1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`),

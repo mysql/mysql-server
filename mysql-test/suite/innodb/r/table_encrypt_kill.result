@@ -106,11 +106,11 @@ end|
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
-  `c2` int(11) NOT NULL AUTO_INCREMENT,
+  `c2` int NOT NULL AUTO_INCREMENT,
   `c3` char(255) DEFAULT 'No text',
   `c4` json DEFAULT NULL,
-  `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
-  `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
+  `c5` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
+  `c6` int GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)

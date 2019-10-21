@@ -32,12 +32,12 @@ include/gtid_step_assert.inc [count=2., only_count=0]
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/rpl_sync.inc
@@ -45,12 +45,12 @@ include/rpl_sync.inc
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
@@ -70,12 +70,12 @@ include/gtid_step_assert.inc [count=1, only_count=0]
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/rpl_sync.inc
@@ -83,12 +83,12 @@ include/rpl_sync.inc
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
-  `pk` int(11) NOT NULL,
+  `pk` int NOT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ---- Clean up ----

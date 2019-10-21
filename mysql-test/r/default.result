@@ -128,7 +128,7 @@ Warnings:
 Warning	1364	Field 'd' doesn't have a default value
 desc bug20691;
 Field	Type	Null	Key	Default	Extra
-i	int(11)	YES		NULL	
+i	int	YES		NULL	
 d	datetime	NO		NULL	
 dn	datetime	NO		0000-00-00 00:00:00	
 insert into bug20691 values (3, DEFAULT, DEFAULT), (3, '1975-07-10 07:10:03', '1978-01-13 14:08:51'), (3, DEFAULT, DEFAULT);

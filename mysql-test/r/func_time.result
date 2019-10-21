@@ -957,10 +957,10 @@ sec_to_time(1) + 0, from_unixtime(1) + 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `now() - now()` bigint(16) NOT NULL DEFAULT '0',
-  `curtime() - curtime()` int(9) NOT NULL DEFAULT '0',
-  `sec_to_time(1) + 0` int(9) DEFAULT NULL,
-  `from_unixtime(1) + 0` bigint(16) DEFAULT NULL
+  `now() - now()` bigint NOT NULL DEFAULT '0',
+  `curtime() - curtime()` int NOT NULL DEFAULT '0',
+  `sec_to_time(1) + 0` int DEFAULT NULL,
+  `from_unixtime(1) + 0` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SELECT SEC_TO_TIME(3300000);
@@ -1840,7 +1840,7 @@ CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `IF(0, coalesce(NULL), now(0)) + 0` bigint(16) DEFAULT NULL
+  `IF(0, coalesce(NULL), now(0)) + 0` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #

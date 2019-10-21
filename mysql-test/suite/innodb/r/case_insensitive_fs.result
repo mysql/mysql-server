@@ -16,7 +16,7 @@ CREATE TABLE t1(c1 INT) DATA DIRECTORY='MYSQL_TMP_DIR/Known_Dir';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/Known_Dir/'
 # Create a general tablespace in a known directory.
 CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQL_TMP_DIR/Known_Dir/ts1.ibd';
@@ -43,14 +43,14 @@ CREATE TABLE t2(c1 INT) DATA DIRECTORY='MYSQL_TMP_DIR/KNOWN_DIR';
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/KNOWN_DIR/'
 # Create an inplicit tablespace using LOWER case for a MIXED case folder.
 CREATE TABLE t3(c1 INT) DATA DIRECTORY='MYSQL_TMP_DIR/known_dir';
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `c1` int(11) DEFAULT NULL
+  `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/known_dir/'
 # Create a general tablespace using UPPER case for a MIXED case folder.
 CREATE TABLESPACE ts2 ADD DATAFILE 'MYSQL_TMP_DIR/KNOWN_DIR/ts2.ibd';

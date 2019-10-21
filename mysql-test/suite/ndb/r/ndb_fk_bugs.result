@@ -375,7 +375,7 @@ alter table t1 modify column b enum('a','b') not null;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` enum('a','b') NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
@@ -478,9 +478,9 @@ constraint fk1 foreign key (b) references t1 (a)
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`) USING HASH,
   KEY `xbc` (`b`,`c`),
   CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
@@ -502,9 +502,9 @@ constraint fk1 foreign key (c) references t1 (a)
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`) USING HASH,
   KEY `xbc` (`b`,`c`),
   KEY `fk1` (`c`),
@@ -536,9 +536,9 @@ constraint fk1 foreign key (c) references t1 (a)
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`) USING HASH,
   UNIQUE KEY `xbc` (`b`,`c`) USING HASH,
   KEY `fk1` (`c`),
@@ -622,9 +622,9 @@ ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
@@ -640,9 +640,9 @@ ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
@@ -667,9 +667,9 @@ ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
@@ -685,9 +685,9 @@ ERROR 42000: Can't DROP 'nosuchfk'; check that column/key exists
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `xb` (`b`),
   KEY `xc` (`c`),
@@ -751,14 +751,14 @@ drop table t4, t3;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`),
   CONSTRAINT `myfk2` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`),
   CONSTRAINT `myfk4` FOREIGN KEY (`a`) REFERENCES `t3` (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
@@ -849,9 +849,9 @@ alter table t2 add constraint uniquet2c unique (c);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `uniquet2a` (`a`),
   UNIQUE KEY `uniquet2b` (`b`),

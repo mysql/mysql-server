@@ -10,27 +10,27 @@ create table t1 (a int, b int generated always as (a*2) stored unique);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES	UNI	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored, unique (b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   UNIQUE KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	UNI	NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES	UNI	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add unique key (b);
@@ -45,27 +45,27 @@ create table t1 (a int, b int generated always as (a*2) stored, index (b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES		NULL	
-b	int(11)	YES	MUL	NULL	STORED GENERATED
+a	int	YES		NULL	
+b	int	YES	MUL	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored, index (a,b));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` * 2)) STORED,
+  `a` int DEFAULT NULL,
+  `b` int GENERATED ALWAYS AS ((`a` * 2)) STORED,
   KEY `a` (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	int(11)	YES	MUL	NULL	
-b	int(11)	YES		NULL	STORED GENERATED
+a	int	YES	MUL	NULL	
+b	int	YES		NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add index (b);

@@ -92,9 +92,7 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
      {STRING_WITH_LEN("char(93)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{STRING_WITH_LEN("interval_value")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+    {{STRING_WITH_LEN("interval_value")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("interval_field")},
      {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
@@ -136,7 +134,7 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("time_zone")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("latin1")}},
@@ -170,9 +168,7 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
      {STRING_WITH_LEN("char(77)")},
      {STRING_WITH_LEN("utf8")}},
     {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{STRING_WITH_LEN("interval_value")},
-     {STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
+    {{STRING_WITH_LEN("interval_value")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("interval_field")},
      {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
@@ -214,7 +210,7 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
     {{STRING_WITH_LEN("comment")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("utf8")}},
-    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int")}, {NULL, 0}},
     {{STRING_WITH_LEN("time_zone")},
      {STRING_WITH_LEN("char(64)")},
      {STRING_WITH_LEN("latin1")}},

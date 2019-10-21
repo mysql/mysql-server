@@ -87,8 +87,8 @@ test.table_part_1	check	status	OK
 SHOW CREATE TABLE table_part_1;
 Table	Create Table
 table_part_1	CREATE TABLE `table_part_1` (
-  `id` int(11) NOT NULL,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`),
@@ -117,8 +117,8 @@ test.table_part_sub_1	check	status	OK
 SHOW CREATE TABLE table_part_sub_1;
 Table	Create Table
 table_part_sub_1	CREATE TABLE `table_part_sub_1` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),
@@ -152,8 +152,8 @@ test.table_part_sub_2	check	status	OK
 SHOW CREATE TABLE table_part_sub_2;
 Table	Create Table
 table_part_sub_2	CREATE TABLE `table_part_sub_2` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),
@@ -191,8 +191,8 @@ test.table_part_\_special_/_sub_?_3	check	status	OK
 SHOW CREATE TABLE `table_part_\_special_/_sub_?_3`;
 Table	Create Table
 table_part_\_special_/_sub_?_3	CREATE TABLE `table_part_\_special_/_sub_?_3` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),
@@ -230,8 +230,8 @@ test.table_part_2	check	status	OK
 SHOW CREATE TABLE table_part_2;
 Table	Create Table
 table_part_2	CREATE TABLE `table_part_2` (
-  `id` int(11) NOT NULL,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`),
@@ -836,8 +836,8 @@ ALTER TABLE table_part_1 COALESCE PARTITION 2;
 SHOW CREATE TABLE table_part_1;
 Table	Create Table
 table_part_1	CREATE TABLE `table_part_1` (
-  `id` int(11) NOT NULL,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`),
@@ -881,8 +881,8 @@ ALTER TABLE table_part_sub_2 RENAME renamed_table;;
 SHOW CREATE TABLE renamed_table;
 Table	Create Table
 renamed_table	CREATE TABLE `renamed_table` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),
@@ -1084,8 +1084,8 @@ test.table_part_1	check	status	OK
 SHOW CREATE TABLE table_part_1;
 Table	Create Table
 table_part_1	CREATE TABLE `table_part_1` (
-  `id` int(11) NOT NULL,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`),
@@ -1114,8 +1114,8 @@ test.table_part_sub_1	check	status	OK
 SHOW CREATE TABLE table_part_sub_1;
 Table	Create Table
 table_part_sub_1	CREATE TABLE `table_part_sub_1` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),
@@ -1149,8 +1149,8 @@ test.table_part_sub_2	check	status	OK
 SHOW CREATE TABLE table_part_sub_2;
 Table	Create Table
 table_part_sub_2	CREATE TABLE `table_part_sub_2` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),
@@ -1188,8 +1188,8 @@ test.table_part_\_special_/_sub_?_3	check	status	OK
 SHOW CREATE TABLE `table_part_\_special_/_sub_?_3`;
 Table	Create Table
 table_part_\_special_/_sub_?_3	CREATE TABLE `table_part_\_special_/_sub_?_3` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),
@@ -1227,8 +1227,8 @@ test.table_part_2	check	status	OK
 SHOW CREATE TABLE table_part_2;
 Table	Create Table
 table_part_2	CREATE TABLE `table_part_2` (
-  `id` int(11) NOT NULL,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`),
@@ -1833,8 +1833,8 @@ ALTER TABLE table_part_1 COALESCE PARTITION 2;
 SHOW CREATE TABLE table_part_1;
 Table	Create Table
 table_part_1	CREATE TABLE `table_part_1` (
-  `id` int(11) NOT NULL,
-  `value` int(11) DEFAULT NULL,
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`),
@@ -1878,8 +1878,8 @@ ALTER TABLE table_part_sub_2 RENAME renamed_table;;
 SHOW CREATE TABLE renamed_table;
 Table	Create Table
 renamed_table	CREATE TABLE `renamed_table` (
-  `id` int(11) NOT NULL,
-  `value` int(11) NOT NULL,
+  `id` int NOT NULL,
+  `value` int NOT NULL,
   `name` varchar(32) DEFAULT NULL,
   `data` blob,
   PRIMARY KEY (`id`,`value`),

@@ -2,17 +2,17 @@ DESC sys.schema_table_lock_waits;
 Field	Type	Null	Key	Default	Extra
 object_schema	varchar(64)	YES		NULL	
 object_name	varchar(64)	YES		NULL	
-waiting_thread_id	bigint(20) unsigned	NO		NULL	
-waiting_pid	bigint(20) unsigned	YES		NULL	
+waiting_thread_id	bigint unsigned	NO		NULL	
+waiting_pid	bigint unsigned	YES		NULL	
 waiting_account	text	YES		NULL	
 waiting_lock_type	varchar(32)	NO		NULL	
 waiting_lock_duration	varchar(32)	NO		NULL	
 waiting_query	longtext	YES		NULL	
-waiting_query_secs	bigint(20)	YES		NULL	
-waiting_query_rows_affected	bigint(20) unsigned	YES		NULL	
-waiting_query_rows_examined	bigint(20) unsigned	YES		NULL	
-blocking_thread_id	bigint(20) unsigned	NO		NULL	
-blocking_pid	bigint(20) unsigned	YES		NULL	
+waiting_query_secs	bigint	YES		NULL	
+waiting_query_rows_affected	bigint unsigned	YES		NULL	
+waiting_query_rows_examined	bigint unsigned	YES		NULL	
+blocking_thread_id	bigint unsigned	NO		NULL	
+blocking_pid	bigint unsigned	YES		NULL	
 blocking_account	text	YES		NULL	
 blocking_lock_type	varchar(32)	NO		NULL	
 blocking_lock_duration	varchar(32)	NO		NULL	
@@ -23,17 +23,17 @@ DESC sys.x$schema_table_lock_waits;
 Field	Type	Null	Key	Default	Extra
 object_schema	varchar(64)	YES		NULL	
 object_name	varchar(64)	YES		NULL	
-waiting_thread_id	bigint(20) unsigned	NO		NULL	
-waiting_pid	bigint(20) unsigned	YES		NULL	
+waiting_thread_id	bigint unsigned	NO		NULL	
+waiting_pid	bigint unsigned	YES		NULL	
 waiting_account	text	YES		NULL	
 waiting_lock_type	varchar(32)	NO		NULL	
 waiting_lock_duration	varchar(32)	NO		NULL	
 waiting_query	longtext	YES		NULL	
-waiting_query_secs	bigint(20)	YES		NULL	
-waiting_query_rows_affected	bigint(20) unsigned	YES		NULL	
-waiting_query_rows_examined	bigint(20) unsigned	YES		NULL	
-blocking_thread_id	bigint(20) unsigned	NO		NULL	
-blocking_pid	bigint(20) unsigned	YES		NULL	
+waiting_query_secs	bigint	YES		NULL	
+waiting_query_rows_affected	bigint unsigned	YES		NULL	
+waiting_query_rows_examined	bigint unsigned	YES		NULL	
+blocking_thread_id	bigint unsigned	NO		NULL	
+blocking_pid	bigint unsigned	YES		NULL	
 blocking_account	text	YES		NULL	
 blocking_lock_type	varchar(32)	NO		NULL	
 blocking_lock_duration	varchar(32)	NO		NULL	

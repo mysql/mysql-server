@@ -24,14 +24,14 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
@@ -56,13 +56,13 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   PRIMARY KEY (`a`)
 ) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1

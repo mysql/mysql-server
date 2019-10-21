@@ -145,7 +145,7 @@ FULLTEXT `idx` (title,body)
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`),
@@ -241,7 +241,7 @@ ALTER TABLE articles DROP INDEX idx;
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`)
@@ -435,7 +435,7 @@ FULLTEXT `idx` (title,body)
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`),
@@ -546,7 +546,7 @@ FULLTEXT `idx` (title,body)
 SHOW CREATE TABLE articles;
 Table	Create Table
 articles	CREATE TABLE `articles` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
   `title` varchar(200) DEFAULT NULL,
   `body` text,
   PRIMARY KEY (`id`),

@@ -7,15 +7,15 @@ foreign key (f2) references t1(f1) on update cascade) engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f2` blob,
   PRIMARY KEY (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`) ON UPDATE CASCADE
@@ -70,16 +70,16 @@ foreign key (f2) references t1(f2) on update cascade) engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `k1` (`f2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f2`) ON UPDATE CASCADE
@@ -128,14 +128,14 @@ foreign key (f1) references t2(f1) on update cascade) engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f2` blob,
   PRIMARY KEY (`f1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f2` blob,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`) ON UPDATE CASCADE
@@ -143,7 +143,7 @@ t2	CREATE TABLE `t2` (
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f2` blob,
   PRIMARY KEY (`f1`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`) ON UPDATE CASCADE
@@ -215,16 +215,16 @@ foreign key (f2) references t2(f2) on update cascade) engine=innodb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `k1` (`f2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f2`) ON UPDATE CASCADE
@@ -232,8 +232,8 @@ t2	CREATE TABLE `t2` (
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `f1` int(11) NOT NULL,
-  `f2` int(11) DEFAULT NULL,
+  `f1` int NOT NULL,
+  `f2` int DEFAULT NULL,
   PRIMARY KEY (`f1`),
   KEY `f2` (`f2`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f2`) ON UPDATE CASCADE

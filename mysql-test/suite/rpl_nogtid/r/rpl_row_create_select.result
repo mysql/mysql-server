@@ -16,7 +16,7 @@ Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(21) DEFAULT NULL
+  `a` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 AS SELECT CONVERT(REPEAT('A', 255) USING UCS2) DIV 1 AS a;
 Warnings:
@@ -24,7 +24,7 @@ Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bigint(21) DEFAULT NULL
+  `a` bigint DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #After the patch, no error is reported.
 DROP TABLE t1;

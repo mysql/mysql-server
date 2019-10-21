@@ -284,7 +284,7 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
 desc t1;
 Field	Type	Null	Key	Default	Extra
-a	bigint(20)	YES	MUL	NULL	
+a	bigint	YES	MUL	NULL	
 b	char(10)	YES		NULL	
 c	decimal(10,2)	YES		NULL	
 alter table t1 add d decimal(15,5);
@@ -373,14 +373,14 @@ CREATE INDEX i1 ON t1(a);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   KEY `i1` (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
 DROP INDEX i1 ON t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
 DROP TABLE t1;
 DROP TABLE IF EXISTS bug24219;
@@ -524,13 +524,13 @@ alter table t2 algorithm=inplace, rename key k to kk;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `kk` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `kk` (`i`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # So by default in-place algorithm should be chosen.
@@ -544,13 +544,13 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `kkk` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `kkk` (`i`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Copy algorithm should work as well.
@@ -559,13 +559,13 @@ alter table t2 algorithm=copy, rename key kkk to kkkk;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `kkkk` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   KEY `kkkk` (`i`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # When renaming is combined with other in-place operation
@@ -575,13 +575,13 @@ alter table t2 algorithm=inplace, rename key kkkk to k, alter column i set defau
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT '100',
+  `i` int DEFAULT '100',
   KEY `k` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT '100',
+  `i` int DEFAULT '100',
   KEY `k` (`i`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Combining with non-inplace operation results in the whole ALTER
@@ -852,8 +852,8 @@ ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) DEFAULT NULL,
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `w` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -864,7 +864,7 @@ CREATE TABLE t2(a INT, b VARCHAR(30), c FLOAT) ENGINE=MyIsam;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(30) DEFAULT NULL,
   `c` float DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -873,7 +873,7 @@ ALTER TABLE t2 RENAME COLUMN a TO d, RENAME COLUMN b TO e, RENAME COLUMN c to f;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `d` int(11) DEFAULT NULL,
+  `d` int DEFAULT NULL,
   `e` varchar(30) DEFAULT NULL,
   `f` float DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -887,7 +887,7 @@ ALTER TABLE t2 RENAME COLUMN d TO g;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `g` int(11) DEFAULT NULL,
+  `g` int DEFAULT NULL,
   `e` varchar(30) DEFAULT NULL,
   `f` float DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -918,7 +918,7 @@ ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 10, ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT '10',
+  `i` int DEFAULT '10',
   `j` enum('a','b') DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -926,7 +926,7 @@ ALTER TABLE t1 ALTER COLUMN i DROP DEFAULT, ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11),
+  `i` int,
   `j` enum('a','b') DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -934,7 +934,7 @@ ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e'), ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11),
+  `i` int,
   `j` enum('a','b','c','d','e') DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -942,7 +942,7 @@ ALTER TABLE t1 CHANGE COLUMN i k INT, ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   `j` enum('a','b','c','d','e') DEFAULT NULL,
   KEY `i` (`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -950,7 +950,7 @@ ALTER TABLE t1 RENAME INDEX i TO k, ALGORITHM=INSTANT;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   `j` enum('a','b','c','d','e') DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -958,7 +958,7 @@ ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   `j` enum('a','b','c','d','e') DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -970,7 +970,7 @@ ALTER TABLE t2 RENAME TO t1, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT NULL,
+  `k` int DEFAULT NULL,
   `j` enum('a','b','c','d','e') DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -978,7 +978,7 @@ ALTER TABLE t1 ALTER COLUMN k SET DEFAULT 11, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11) DEFAULT '11',
+  `k` int DEFAULT '11',
   `j` enum('a','b','c','d','e') DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -986,7 +986,7 @@ ALTER TABLE t1 ALTER COLUMN k DROP DEFAULT, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11),
+  `k` int,
   `j` enum('a','b','c','d','e') DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -994,7 +994,7 @@ ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e', 'f', 'g'), ALGORITH
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `k` int(11),
+  `k` int,
   `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
   KEY `k` (`k`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1002,7 +1002,7 @@ ALTER TABLE t1 CHANGE COLUMN k i INT, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
   KEY `k` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -1010,7 +1010,7 @@ ALTER TABLE t1 RENAME INDEX k TO i, ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
+  `i` int DEFAULT NULL,
   `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
   KEY `i` (`i`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

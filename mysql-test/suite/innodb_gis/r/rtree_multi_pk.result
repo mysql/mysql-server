@@ -148,7 +148,7 @@ alter table t1 add primary key(i), algorithm=inplace;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL,
+  `i` int NOT NULL,
   `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`i`),
   SPATIAL KEY `idx` (`g`),

@@ -75,10 +75,10 @@ insert into test.pfs_published_schema
 
 insert into test.pfs_published_schema
  values("MySQL 8.0.19",
-        "4798ceb6ff726a991858cc5553a1f7c32d03740770dd6d1eb3b1780da52b435d");
+        "f58dba20c4234c34cedfcacd3b9a295dcac77a09b79d5f41d5f740878f272d4d");
 
 create table test.pfs_check_table
-  (id int(11) NOT NULL AUTO_INCREMENT,
+  (id int NOT NULL AUTO_INCREMENT,
    t text NOT NULL,
    row_hash varchar(64) default null,
    PRIMARY KEY (id));
@@ -88,7 +88,7 @@ delimiter $$;
 create procedure test.pfs_check_proc()
 begin
   declare whole_schema longtext;
-  declare max_length int(11);
+  declare max_length int;
   declare found_signature varchar(64);
   declare found_version varchar(20);
 

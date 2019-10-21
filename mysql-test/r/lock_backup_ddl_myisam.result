@@ -19,7 +19,7 @@ CREATE TABLE testtable_2 (c1 int, c2 varchar(10)) ENGINE=MyISAM;
 SHOW CREATE TABLE testtable_2;
 Table	Create Table
 testtable_2	CREATE TABLE `testtable_2` (
-  `c1` int(11) DEFAULT NULL,
+  `c1` int DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 connection default;

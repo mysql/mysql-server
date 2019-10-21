@@ -49,7 +49,7 @@ Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varbinary(32)	NO	PRI	null	STORED GENERATED
 _json_schema	json	YES		null	VIRTUAL GENERATED
-nothing	int(11)	YES		null	
+nothing	int	YES		null	
 0 rows affected
 name	type
 books	TABLE

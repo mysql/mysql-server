@@ -32,10 +32,10 @@ id	store_name	parts	store_id
 SHOW CREATE TABLE emp;
 Table	Create Table
 emp	CREATE TABLE `emp` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
-  `store_id` int(11) DEFAULT NULL
+  `store_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`store_id`)
 SUBPARTITION BY HASH (`store_id`)
@@ -106,10 +106,10 @@ id	store_name	parts	store_id
 SHOW CREATE TABLE emp;
 Table	Create Table
 emp	CREATE TABLE `emp` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `store_name` varchar(30) DEFAULT NULL,
   `parts` varchar(30) DEFAULT NULL,
-  `store_id` int(11) DEFAULT NULL
+  `store_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`store_id`)
 SUBPARTITION BY HASH (`store_id`)
@@ -193,7 +193,7 @@ a
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
@@ -205,7 +205,7 @@ PARTITION p10 VALUES LESS THAN MAXVALUE);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
+  `a` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
@@ -278,7 +278,7 @@ PARTITION p2 VALUES LESS THAN(100) (SUBPARTITION sp20, SUBPARTITION sp211, SUBPA
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
-  `a` int(11) NOT NULL,
+  `a` int NOT NULL,
   `b` varchar(55) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

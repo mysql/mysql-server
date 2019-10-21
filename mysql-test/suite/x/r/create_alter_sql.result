@@ -191,7 +191,7 @@ Records: 1  Duplicates: 0  Warnings: 0
 RUN SHOW CREATE TABLE t2
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) DEFAULT NULL,
+  `col1` int DEFAULT NULL,
   `col2` double(7,4) DEFAULT NULL,
   `col3` decimal(7,4) DEFAULT NULL,
   `col4` varchar(20) DEFAULT NULL,
@@ -240,7 +240,7 @@ Records: 1  Duplicates: 0  Warnings: 0
 RUN SHOW CREATE TABLE t2
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `col1` int(11) NOT NULL,
+  `col1` int NOT NULL,
   `col2` double(7,4) DEFAULT NULL,
   `col3` decimal(7,4) DEFAULT NULL,
   `col4` varchar(20) DEFAULT NULL,

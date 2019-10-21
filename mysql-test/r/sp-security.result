@@ -338,7 +338,7 @@ grant execute on procedure db_bug14533.bug14533_1 to user_bug14533@localhost;
 grant execute on procedure db_bug14533.bug14533_2 to user_bug14533@localhost;
 call db_bug14533.bug14533_1();
 Field	Type	Null	Key	Default	Extra
-id	int(11)	YES		NULL	
+id	int	YES		NULL	
 call db_bug14533.bug14533_2();
 id
 desc db_bug14533.t1;
@@ -392,11 +392,11 @@ wl2897_p3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ER
 SELECT 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-wl2897_f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int(11)
+wl2897_f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_2`@`localhost` FUNCTION `wl2897_f1`() RETURNS int
 RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SHOW CREATE FUNCTION wl2897_f3;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-wl2897_f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int(11)
+wl2897_f3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`a @ b @ c`@`localhost` FUNCTION `wl2897_f3`() RETURNS int
 RETURN 3	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 DROP USER mysqltest_1@localhost;
 DROP USER mysqltest_2@localhost;

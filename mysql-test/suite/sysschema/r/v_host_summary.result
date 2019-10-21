@@ -9,7 +9,7 @@ file_ios	decimal(64,0)	YES		NULL
 file_io_latency	varchar(11)	YES		NULL	
 current_connections	decimal(41,0)	YES		NULL	
 total_connections	decimal(41,0)	YES		NULL	
-unique_users	bigint(21)	NO		0	
+unique_users	bigint	NO		0	
 current_memory	varchar(11)	YES		NULL	
 total_memory_allocated	varchar(11)	YES		NULL	
 SELECT * FROM sys.host_summary;
@@ -24,7 +24,7 @@ file_ios	decimal(64,0)	YES		NULL
 file_io_latency	decimal(64,0)	YES		NULL	
 current_connections	decimal(41,0)	YES		NULL	
 total_connections	decimal(41,0)	YES		NULL	
-unique_users	bigint(21)	NO		0	
+unique_users	bigint	NO		0	
 current_memory	decimal(63,0)	YES		NULL	
 total_memory_allocated	decimal(64,0)	YES		NULL	
 SELECT * FROM sys.x$host_summary;

@@ -73,8 +73,8 @@ t1	CREATE TABLE `t1` (
   `nullif(1.1, 1.2)` decimal(2,1) DEFAULT NULL,
   `nullif(1.1, 0.11e1)` decimal(2,1) DEFAULT NULL,
   `nullif(1.0, 1)` decimal(2,1) DEFAULT NULL,
-  `nullif(1, 1.0)` int(1) DEFAULT NULL,
-  `nullif(1, 1.1)` int(1) DEFAULT NULL
+  `nullif(1, 1.0)` int DEFAULT NULL,
+  `nullif(1, 1.1)` int DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a decimal(4,2));

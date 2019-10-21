@@ -4,7 +4,7 @@ create table t1 (a bigint, primary key (a)) engine=ndb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 drop table t1;
@@ -13,7 +13,7 @@ comment="junk";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1 junk'
 create table t2 (a bigint, primary key (a)) engine=ndb
@@ -21,7 +21,7 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
 drop table t2;
@@ -30,7 +30,7 @@ comment="before NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM after";
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='before NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM after'
 create table t3 (a bigint, primary key (a)) engine=ndb
@@ -38,7 +38,7 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
 create table t4 (a bigint, primary key (a)) engine=ndb
@@ -46,7 +46,7 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
 create table t5 (a bigint, primary key (a)) engine=ndb
@@ -54,7 +54,7 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
 -- t1 --
@@ -208,7 +208,7 @@ create table t1 (a bigint, primary key (a)) engine=ndb;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
 drop table t1;
@@ -217,7 +217,7 @@ comment="junk";
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1 junk'
 create table t2 (a bigint, primary key (a)) engine=ndb
@@ -225,7 +225,7 @@ comment="before NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM after";
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='before NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_LDM after'
 create table t5 (a bigint, primary key (a)) engine=ndb
@@ -233,7 +233,7 @@ comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `a` bigint(20) NOT NULL,
+  `a` bigint NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
 drop table t1, t2, t5;

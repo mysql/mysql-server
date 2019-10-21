@@ -55,8 +55,8 @@ Table	Create Table
 general_log	CREATE TABLE `general_log` (
   `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `user_host` mediumtext NOT NULL,
-  `thread_id` bigint(21) unsigned NOT NULL,
-  `server_id` int(10) unsigned NOT NULL,
+  `thread_id` bigint unsigned NOT NULL,
+  `server_id` int unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
@@ -64,8 +64,8 @@ show fields from mysql.general_log;
 Field	Type	Null	Key	Default	Extra
 event_time	timestamp(6)	NO		CURRENT_TIMESTAMP(6)	DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)
 user_host	mediumtext	NO		NULL	
-thread_id	bigint(21) unsigned	NO		NULL	
-server_id	int(10) unsigned	NO		NULL	
+thread_id	bigint unsigned	NO		NULL	
+server_id	int unsigned	NO		NULL	
 command_type	varchar(64)	NO		NULL	
 argument	mediumblob	NO		NULL	
 show create table mysql.slow_log;
@@ -75,14 +75,14 @@ slow_log	CREATE TABLE `slow_log` (
   `user_host` mediumtext NOT NULL,
   `query_time` time(6) NOT NULL,
   `lock_time` time(6) NOT NULL,
-  `rows_sent` int(11) NOT NULL,
-  `rows_examined` int(11) NOT NULL,
+  `rows_sent` int NOT NULL,
+  `rows_examined` int NOT NULL,
   `db` varchar(512) NOT NULL,
-  `last_insert_id` int(11) NOT NULL,
-  `insert_id` int(11) NOT NULL,
-  `server_id` int(10) unsigned NOT NULL,
+  `last_insert_id` int NOT NULL,
+  `insert_id` int NOT NULL,
+  `server_id` int unsigned NOT NULL,
   `sql_text` mediumblob NOT NULL,
-  `thread_id` bigint(21) unsigned NOT NULL
+  `thread_id` bigint unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show fields from mysql.slow_log;
 Field	Type	Null	Key	Default	Extra
@@ -90,14 +90,14 @@ start_time	timestamp(6)	NO		CURRENT_TIMESTAMP(6)	DEFAULT_GENERATED on update CUR
 user_host	mediumtext	NO		NULL	
 query_time	time(6)	NO		NULL	
 lock_time	time(6)	NO		NULL	
-rows_sent	int(11)	NO		NULL	
-rows_examined	int(11)	NO		NULL	
+rows_sent	int	NO		NULL	
+rows_examined	int	NO		NULL	
 db	varchar(512)	NO		NULL	
-last_insert_id	int(11)	NO		NULL	
-insert_id	int(11)	NO		NULL	
-server_id	int(10) unsigned	NO		NULL	
+last_insert_id	int	NO		NULL	
+insert_id	int	NO		NULL	
+server_id	int unsigned	NO		NULL	
 sql_text	mediumblob	NO		NULL	
-thread_id	bigint(21) unsigned	NO		NULL	
+thread_id	bigint unsigned	NO		NULL	
 flush logs;
 flush tables;
 SET GLOBAL GENERAL_LOG=ON;
