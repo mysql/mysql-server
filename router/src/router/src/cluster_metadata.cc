@@ -149,50 +149,48 @@ static void update_router_info_v1(const uint32_t router_id,
                                   const std::string &ro_endpoint,
                                   const std::string &rw_x_endpoint,
                                   const std::string &ro_x_endpoint,
+                                  const std::string &username,
                                   MySQLSession *mysql) {
   sqlstring query(
       "UPDATE mysql_innodb_cluster_metadata.routers"
       " SET attributes = "
-      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes IS NULL, '{}', "
-      "attributes),"
-      "    '$.RWEndpoint', ?),"
-      "    '$.ROEndpoint', ?),"
-      "    '$.RWXEndpoint', ?),"
-      "    '$.ROXEndpoint', ?)"
-      " WHERE router_id = ?");
-
-  query << rw_endpoint;
-  query << ro_endpoint;
-  query << rw_x_endpoint;
-  query << ro_x_endpoint;
-  query << router_id << sqlstring::end;
-
-  mysql->execute(query);
-}
-
-static void update_router_info_v2(const uint32_t router_id,
-                                  const std::string &cluster_id,
-                                  const std::string &rw_endpoint,
-                                  const std::string &ro_endpoint,
-                                  const std::string &rw_x_endpoint,
-                                  const std::string &ro_x_endpoint,
-                                  MySQLSession *mysql) {
-  sqlstring query(
-      "UPDATE mysql_innodb_cluster_metadata.v2_routers"
-      " SET attributes = "
-      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes IS NULL, '{}', "
+      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes IS NULL, "
+      "'{}', "
       "attributes),"
       "    '$.RWEndpoint', ?),"
       "    '$.ROEndpoint', ?),"
       "    '$.RWXEndpoint', ?),"
       "    '$.ROXEndpoint', ?),"
+      "    '$.MetadataUser', ?)"
+      " WHERE router_id = ?");
+
+  query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint;
+  query << username;
+  query << router_id << sqlstring::end;
+
+  mysql->execute(query);
+}
+
+static void update_router_info_v2(
+    const uint32_t router_id, const std::string &cluster_id,
+    const std::string &rw_endpoint, const std::string &ro_endpoint,
+    const std::string &rw_x_endpoint, const std::string &ro_x_endpoint,
+    const std::string &username, MySQLSession *mysql) {
+  sqlstring query(
+      "UPDATE mysql_innodb_cluster_metadata.v2_routers"
+      " SET attributes = "
+      "   JSON_SET(JSON_SET(JSON_SET(JSON_SET(JSON_SET(IF(attributes IS NULL, "
+      "'{}', attributes),"
+      "    '$.RWEndpoint', ?),"
+      "    '$.ROEndpoint', ?),"
+      "    '$.RWXEndpoint', ?),"
+      "    '$.ROXEndpoint', ?),"
+      "    '$.MetadataUser', ?),"
       " version = ?, cluster_id = ?"
       " WHERE router_id = ?");
 
-  query << rw_endpoint;
-  query << ro_endpoint;
-  query << rw_x_endpoint;
-  query << ro_x_endpoint;
+  query << rw_endpoint << ro_endpoint << rw_x_endpoint << ro_x_endpoint;
+  query << username;
   query << MYSQL_ROUTER_VERSION << cluster_id << router_id << sqlstring::end;
 
   mysql->execute(query);
@@ -203,9 +201,10 @@ void ClusterMetadataGRV1::update_router_info(const uint32_t router_id,
                                              const std::string &rw_endpoint,
                                              const std::string &ro_endpoint,
                                              const std::string &rw_x_endpoint,
-                                             const std::string &ro_x_endpoint) {
+                                             const std::string &ro_x_endpoint,
+                                             const std::string &username) {
   update_router_info_v1(router_id, rw_endpoint, ro_endpoint, rw_x_endpoint,
-                        ro_x_endpoint, mysql_);
+                        ro_x_endpoint, username, mysql_);
 }
 
 void ClusterMetadataGRV2::update_router_info(const uint32_t router_id,
@@ -213,9 +212,10 @@ void ClusterMetadataGRV2::update_router_info(const uint32_t router_id,
                                              const std::string &rw_endpoint,
                                              const std::string &ro_endpoint,
                                              const std::string &rw_x_endpoint,
-                                             const std::string &ro_x_endpoint) {
+                                             const std::string &ro_x_endpoint,
+                                             const std::string &username) {
   update_router_info_v2(router_id, cluster_id, rw_endpoint, ro_endpoint,
-                        rw_x_endpoint, ro_x_endpoint, mysql_);
+                        rw_x_endpoint, ro_x_endpoint, username, mysql_);
 }
 
 void ClusterMetadataAR::update_router_info(const uint32_t router_id,
@@ -223,9 +223,10 @@ void ClusterMetadataAR::update_router_info(const uint32_t router_id,
                                            const std::string &rw_endpoint,
                                            const std::string &ro_endpoint,
                                            const std::string &rw_x_endpoint,
-                                           const std::string &ro_x_endpoint) {
+                                           const std::string &ro_x_endpoint,
+                                           const std::string &username) {
   update_router_info_v2(router_id, cluster_id, rw_endpoint, ro_endpoint,
-                        rw_x_endpoint, ro_x_endpoint, mysql_);
+                        rw_x_endpoint, ro_x_endpoint, username, mysql_);
 }
 
 static uint32_t register_router_v1(

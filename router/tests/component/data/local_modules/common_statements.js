@@ -568,13 +568,21 @@ exports.get = function get(stmt_key, options) {
 
     router_update_routers_in_metadata_v1:
     {
-      "stmt_regex": "^UPDATE mysql_innodb_cluster_metadata\\.routers.*",
+      "stmt_regex": "^UPDATE mysql_innodb_cluster_metadata\\.routers SET attributes =    "
+            + "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    "
+            + "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    "
+            + "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', 'mysql_router.*'\\) "
+            + "WHERE router_id = .*",
       "ok": {}
     },
 
     router_update_routers_in_metadata:
     {
-      "stmt_regex": "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers.*",
+      "stmt_regex": "^UPDATE mysql_innodb_cluster_metadata\\.v2_routers SET attributes =    "
+            + "JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(IF\\(attributes IS NULL, '\\{\\}', attributes\\),    "
+            + "'\\$\\.RWEndpoint', '.*'\\),    '\\$\\.ROEndpoint', '.*'\\),    '\\$\\.RWXEndpoint', '.*'\\),    "
+            + "'\\$\\.ROXEndpoint', '.*'\\),    '\\$.MetadataUser', '.*'\\), version = '.*', cluster_id = '.*' "
+            + "WHERE router_id = .*",
       "ok": {}
     },
 

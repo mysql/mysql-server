@@ -1613,7 +1613,7 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
   const std::string rw_x_endpoint = str(options.rw_x_endpoint);
   const std::string ro_x_endpoint = str(options.ro_x_endpoint);
   metadata_->update_router_info(router_id, cluster_id, rw_endpoint, ro_endpoint,
-                                rw_x_endpoint, ro_x_endpoint);
+                                rw_x_endpoint, ro_x_endpoint, username);
 
   transaction.commit();
 
