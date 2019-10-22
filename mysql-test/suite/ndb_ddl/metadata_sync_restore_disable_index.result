@@ -59,9 +59,9 @@ t2
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
-  `b` int(11) NOT NULL,
-  `c` int(11) NOT NULL,
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `ib` (`b`),
   KEY `ic` (`c`)
@@ -77,7 +77,7 @@ a	b	c
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` int(11) DEFAULT NULL,
+  `a` int DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM t2;
@@ -88,7 +88,7 @@ a	b
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM parent;
@@ -98,8 +98,8 @@ c1
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) DEFAULT NULL,
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `xc2` (`c2`),
   CONSTRAINT `child_fk_1` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE

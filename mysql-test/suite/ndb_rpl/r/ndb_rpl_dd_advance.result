@@ -59,9 +59,9 @@ ALTER TABLE t1 ADD INDEX (c5);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -73,9 +73,9 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -94,9 +94,9 @@ ALTER TABLE t2 RENAME t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
@@ -107,9 +107,9 @@ t1	CREATE TABLE `t1` (
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `c2` int(11) NOT NULL,
-  `c3` int(11) NOT NULL,
+  `c1` int NOT NULL,
+  `c2` int NOT NULL,
+  `c3` int NOT NULL,
   `c4` timestamp NULL DEFAULT NULL,
   `c5` double DEFAULT NULL,
   PRIMARY KEY (`c1`),
