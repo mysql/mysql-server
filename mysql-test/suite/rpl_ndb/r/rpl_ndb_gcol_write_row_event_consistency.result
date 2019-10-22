@@ -24,10 +24,10 @@ welcome varchar(64) GENERATED ALWAYS AS (CONCAT("Welcome ", name, ", your nick i
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(20) NOT NULL,
   `nick` varchar(20) NOT NULL DEFAULT '',
-  `state` int(11) DEFAULT '0',
+  `state` int DEFAULT '0',
   `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
   `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
   PRIMARY KEY (`id`)
@@ -109,10 +109,10 @@ welcome varchar(64) GENERATED ALWAYS AS (CONCAT("Welcome ", name, ", your nick i
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(20) NOT NULL,
   `nick` varchar(20) NOT NULL DEFAULT '',
-  `state` int(11) DEFAULT '0',
+  `state` int DEFAULT '0',
   `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
   `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
   PRIMARY KEY (`id`)
@@ -194,10 +194,10 @@ welcome varchar(64) GENERATED ALWAYS AS (CONCAT("Welcome ", name, ", your nick i
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `name` varchar(20) NOT NULL,
   `nick` varchar(20) NOT NULL DEFAULT '',
-  `state` int(11) DEFAULT '0',
+  `state` int DEFAULT '0',
   `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
   `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
   PRIMARY KEY (`id`)

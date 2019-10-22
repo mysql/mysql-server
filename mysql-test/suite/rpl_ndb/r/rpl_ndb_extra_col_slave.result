@@ -483,7 +483,7 @@ INSERT INTO t16 () VALUES(4,1.00,'Replication Rocks',@b1,'Omer');
 SHOW CREATE TABLE t16;
 Table	Create Table
 t16	CREATE TABLE `t16` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` decimal(8,2) DEFAULT NULL,
   `c3` text,
   `c4` blob,
@@ -496,12 +496,12 @@ PARTITIONS 4 */
 SHOW CREATE TABLE t16;
 Table	Create Table
 t16	CREATE TABLE `t16` (
-  `c1` int(11) NOT NULL,
+  `c1` int NOT NULL,
   `c2` decimal(8,2) DEFAULT NULL,
   `c3` text,
   `c4` blob,
   `c5` char(5) DEFAULT NULL,
-  `c6` int(11) DEFAULT '1',
+  `c6` int DEFAULT '1',
   `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`c1`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
