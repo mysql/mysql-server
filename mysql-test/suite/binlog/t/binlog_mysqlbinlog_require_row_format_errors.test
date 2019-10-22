@@ -15,7 +15,8 @@
 #
 # ==== Implementation ====
 #
-#  0. Add suppressions for the test.
+#  0. Execute a RESET MASTER to clean old binary logs
+#     Add suppressions for the test.
 #     Create a test include.
 #  1. Log a DML transaction using statement based logging (T1)
 #  1.1 Check mysqlbinlog errors out
@@ -40,8 +41,12 @@
 --source include/have_binlog_format_statement.inc
 
 --echo #
---echo # 0. Add suppressions for the test.
+--echo # 0. Execute a RESET MASTER to clean old binary logs
+--echo #    Add suppressions for the test.
 --echo #    Create a test include.
+
+# Clean any old binlogs
+RESET MASTER;
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
