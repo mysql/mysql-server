@@ -5953,7 +5953,7 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
 
-  const int nodeCount = restarter.getNumDbNodes();
+  const unsigned nodeCount = restarter.getNumDbNodes();
   
   if (nodeCount < 4)
   {
@@ -5991,7 +5991,7 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
     sequentially for each node. Finally, the master should decide that
     it cannot form a viable cluster and stop itself.
    */
-  for (int i = 0; i < nodeCount; i++)
+  for (unsigned i = 0; i < nodeCount; i++)
   {
     if (restarter.getDbNodeId(i) != masterId)
     {
@@ -6055,9 +6055,17 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     g_info << "Mgmd event: " << buff << endl;
-    if (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).seconds() > 100)
+
+    /**
+     * Assume default heartbeatIntervalDbDb (= 5 seconds).
+     * After missing four heartbeat intervals in a row, a node is declared dead.
+     * Thus, the maximum time for discovering a failure through the heartbeat mechanism
+     * is five times the heartbeat interval = 25 seconds.
+     */
+    if (NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).seconds() > (25 * nodeCount))
     {
-      g_err << "Waited 100 seconds for master to restart." << endl;
+      g_err << "Waited " << (25 * nodeCount)
+            << " seconds for master to restart." << endl;
       return NDBT_FAILED;
     }
   }
@@ -6067,7 +6075,7 @@ int runIsolateMaster(NDBT_Context* ctx, NDBT_Step* step)
     unblocked automatically as it restarts.
   */
 
-  for (int i = 0; i < nodeCount; i++)
+  for (unsigned i = 0; i < nodeCount; i++)
   {
     if (restarter.getDbNodeId(i) != masterId)
     {
