@@ -769,6 +769,9 @@ DROP TABLE t1, t2, t3;
 #
 CREATE TABLE t1 ( f1 INTEGER );
 INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.f1 < t1.f1 ) FROM t1;
 EXPLAIN
 -> Table scan on t1  (cost=1.25 rows=10) (actual time=N.NNN..N.NNN rows=10 loops=1)
