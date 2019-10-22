@@ -60,6 +60,9 @@ class Ndb_util_table {
                  bool hidden, bool create_events = true);
   ~Ndb_util_table();
 
+  const class THD *get_thd() const;
+  Ndb *get_ndb() const;
+
   bool check_column_exist(const char *name) const;
 
   bool check_column_varbinary(const char *name) const;
@@ -91,11 +94,29 @@ class Ndb_util_table {
   bool create_table_in_NDB(const NdbDictionary::Table &new_table) const;
   bool drop_table_in_NDB(const NdbDictionary::Table &old_table) const;
 
-  virtual bool define_indexes(const NdbDictionary::Table &table,
-                              unsigned int mysql_version) const;
-  bool create_index(const NdbDictionary::Table &,
-                    const NdbDictionary::Index &) const;
-  bool create_primary_ordered_index(const NdbDictionary::Table &) const;
+  virtual bool define_indexes(unsigned int mysql_version) const;
+  bool create_index(const NdbDictionary::Index &) const;
+  bool create_primary_ordered_index() const;
+
+  /**
+    @brief Code to be executed before upgrading the table.
+
+    @note  The derived class has to override this method if it wants to
+           execute code before upgrading the table.
+
+    @return true on success.
+   */
+  virtual bool pre_upgrade() const { return true; }
+
+  /**
+    @brief Code to be executed after installing the table.
+
+    @note  The derived class has to override this method if it wants to
+           execute code after installing the table.
+
+    @return true on success.
+   */
+  virtual bool post_install() const { return true; }
 
   /**
      @brief Drop the events related to this table from NDB
@@ -116,9 +137,9 @@ class Ndb_util_table {
      @param column_name  Column name
      @param src          String to be packed
      @param dst [out]    Packed string
-     @return true if successful, false if not
   */
-  bool pack_varbinary(const char *column_name, const char *src, char *dst);
+  void pack_varbinary(const char *column_name, const char *src,
+                      char *dst) const;
 
   /**
      @brief Unpack the string
@@ -128,7 +149,17 @@ class Ndb_util_table {
      @param packed_str   String to be unpacked
      @return Unpacked string which is empty on failure
   */
-  std::string unpack_varbinary(const char *column_name, const char *packed_str);
+  std::string unpack_varbinary(const char *column_name,
+                               const char *packed_str) const;
+
+  /**
+     @brief Unpack a non nullable blob column
+     @param ndb_blob_handle     The NDB Blob handle
+     @param blob_value [out]    Extracted string
+     @return true if successful, false if not
+   */
+  static bool unpack_blob_not_null(NdbBlob *ndb_blob_handle,
+                                   std::string *blob_value);
 
  public:
   /**
@@ -146,9 +177,10 @@ class Ndb_util_table {
 
   /**
     @brief Open the table definition from NDB
+    @param reload_table  Boolean flag. Reload the table definition if true.
     @return true if table definition could be opened
    */
-  bool open();
+  bool open(bool reload_table = false);
 
   /**
      @brief Check if actual table definition in NDB matches the expected.
@@ -185,10 +217,10 @@ class Ndb_util_table {
   const NdbDictionary::Table *get_table() const;
 
   /**
-     @brief Create table in NDB
-     @return true if table was created sucessfully
+     @brief Create table in NDB and open it
+     @return true if table was created successfully
    */
-  bool create() const;
+  bool create(bool is_upgrade = false);
 
   /**
      @brief Check if table need to be upgraded
@@ -197,10 +229,10 @@ class Ndb_util_table {
   virtual bool need_upgrade() const = 0;
 
   /**
-     @brief Upgrade table in NDB
-     @return true if table was upgraded sucessfully
+     @brief Upgrade table in NDB and open it
+     @return true if table was upgraded successfully
    */
-  bool upgrade() const;
+  bool upgrade();
 
   /**
      @brief Create DDL for creating the table definition

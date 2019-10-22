@@ -1,0 +1,24 @@
+--source include/have_debug.inc
+
+# Connect to all
+--source connect.inc
+
+--echo #
+--echo # Bug#30402362 FAILURE TO WRITE THE SCHEMA OPERATION INTO THE NDB_SCHEMA TABLE CRASHES MYSQLD
+--echo #
+
+# Set debug to fail the write of schema operation into ndb_schema table
+set GLOBAL debug="+d,ndb_schema_write_fail";
+
+# Suppress the warning that will be logged
+call mtr.add_suppression("Failed to write the schema op into the ndb_schema table");
+
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE t1(
+ a INT PRIMARY KEY
+) ENGINE NDB;
+
+SHOW WARNINGS;
+
+# Clear debug setup
+set GLOBAL debug="-d,ndb_schema_write_fail";

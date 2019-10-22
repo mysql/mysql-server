@@ -48,6 +48,7 @@
 #include "storage/ndb/plugin/ndb_dd_upgrade_table.h"
 #include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_schema_dist_table.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
@@ -1400,6 +1401,60 @@ bool Ndb_dd_client::drop_logfile_group(const char *logfile_group_name,
   }
 
   if (m_client->drop(existing)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool Ndb_dd_client::get_schema_uuid(dd::String_type *value) const {
+  DBUG_TRACE;
+
+  // Schema UUID will be stored in ndb_schema table definition in DD
+  const dd::Table *table = nullptr;
+  if (m_client->acquire(Ndb_schema_dist_table::DB_NAME.c_str(),
+                        Ndb_schema_dist_table::TABLE_NAME.c_str(), &table)) {
+    DBUG_ASSERT(false);
+    return false;
+  }
+
+  if (table == nullptr) {
+    // Table doesn't exists. This is OK as it might happen
+    // if the function is called before ndb_schema is created.
+    return true;
+  }
+
+  if (!ndb_dd_table_get_schema_uuid(table, value)) {
+    // Table has invalid Schema UUID
+    return false;
+  }
+
+  return true;
+}
+
+bool Ndb_dd_client::update_schema_uuid(const char *value) const {
+  DBUG_TRACE;
+
+  // Schema UUID should be updated in ndb_schema table definition in DD
+  dd::Table *table = nullptr;
+  if (m_client->acquire_for_modification(
+          Ndb_schema_dist_table::DB_NAME.c_str(),
+          Ndb_schema_dist_table::TABLE_NAME.c_str(), &table)) {
+    DBUG_ASSERT(false);
+    return false;
+  }
+
+  if (table == nullptr) {
+    // Table does not exist in DD
+    DBUG_ASSERT(false);
+    return false;
+  }
+
+  // Set the schema uuid value to the table object
+  ndb_dd_table_set_schema_uuid(table, value);
+
+  if (m_client->update(table)) {
+    DBUG_ASSERT(false);
     return false;
   }
 

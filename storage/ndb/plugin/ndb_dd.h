@@ -51,4 +51,8 @@ bool ndb_dd_has_local_tables_in_schema(THD *thd, const char *schema_name,
 
 const std::string ndb_dd_fs_name_case(const dd::String_type &name);
 
+bool ndb_dd_get_schema_uuid(THD *thd, dd::String_type *schema_uuid);
+
+bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid);
+
 #endif

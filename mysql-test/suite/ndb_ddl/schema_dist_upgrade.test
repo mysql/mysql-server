@@ -38,6 +38,19 @@ while($i)
 }
 connection default;
 
+# Verify that all the mysqlds detected this as a proper initial start
+--let $assert_select= Detected an initial system start
+--let $assert_only_after= NDB Binlog: Detected server start
+--let $assert_count= 1
+let $i = $NUM_MYSQLDS;
+while($i)
+{
+  --let $assert_text= Detect initial start in MySQL Server $i
+  --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.$i.1.err
+  --source include/assert_grep.inc
+  --dec $i
+}
+
 # 2) Check that DDL works without the "schema_op_id" column
 CREATE TABLE t1(
   pk int not null,
@@ -64,6 +77,14 @@ let $mysqld_name=mysqld.1.1;
 
 # Check that variable is on after mysqld restart
 select @@ndb_schema_dist_upgrade_allowed;
+
+# Verify that the binlog setup detected this upgrade as a normal restart
+--let $assert_text= Detect normal system restart in MySQL Server 1
+--let $assert_select= Detected a normal system restart
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_only_after= NDB Binlog: Detected server start
+--let $assert_count= 1
+--source include/assert_grep.inc
 
 # Supress warning which occurs when restarting
 --disable_query_log ONCE
@@ -96,6 +117,15 @@ while($i > 1)
 
   # Wait until not readonly after binlog thread restart
   --source include/ndb_not_readonly.inc
+
+  # Verify that this was detected as a normal restart
+  --let $assert_text= Detect normal system restart in MySQL Server $i
+  --let $assert_select= Detected a normal system restart
+  --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.$i.1.err
+  --let $assert_only_after= NDB Binlog: Detected server start
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+
   CREATE TABLE t1(
     pk int not null,
     a varchar(37) not null

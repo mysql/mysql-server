@@ -27,6 +27,10 @@
 
 #include <sstream>
 
+#include "sql/item_strfunc.h"
+#include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_retry.h"
+#include "storage/ndb/plugin/ndb_schema_dist.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 const std::string Ndb_schema_dist_table::DB_NAME = "mysql";
@@ -37,6 +41,7 @@ const char *Ndb_schema_dist_table::COL_NAME = "name";
 const char *Ndb_schema_dist_table::COL_QUERY = "query";
 const char *Ndb_schema_dist_table::COL_ID = "id";
 const char *Ndb_schema_dist_table::COL_VERSION = "version";
+std::string Ndb_schema_dist_table::old_ndb_schema_uuid = "";
 static const char *COL_SLOCK = "slock";
 static const char *COL_NODEID = "node_id";
 static const char *COL_EPOCH = "epoch";
@@ -50,6 +55,9 @@ static const char *COL_SCHEMA_OP_ID = "schema_op_id";
 // upgrade
 static constexpr int IDENTIFIER_LENGTH = 255;
 static constexpr int LEGACY_IDENTIFIER_LENGTH = 63;
+
+static const char *SCHEMA_UUID_KEY = "schema_uuid";
+static const uint16 SCHEMA_UUID_VALUE_LENGTH = UUID_LENGTH;
 
 Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb *thd_ndb)
     : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, true) {}
@@ -368,4 +376,218 @@ int Ndb_schema_dist_table::get_slock_bytes() const {
 bool Ndb_schema_dist_table::have_schema_op_id_column() const {
   const NdbDictionary::Table *ndb_tab = get_table();
   return ndb_tab->getColumn(COL_SCHEMA_OP_ID);
+}
+
+// Helper functions to read and write properties into the query column of
+// the schema UUID tuple. The properties are written in the form of
+// "key1=value1;key2=value2;"
+static std::string map_extract_key_value_string(
+    const std::map<std::string, std::string> &kv_map) {
+  std::string key_value_str;
+  std::for_each(kv_map.begin(), kv_map.end(),
+                [&](std::pair<std::string, std::string> entry) -> void {
+                  key_value_str.append(entry.first);
+                  key_value_str.append("=");
+                  key_value_str.append(entry.second);
+                  key_value_str.append(";");
+                });
+  return key_value_str;
+}
+
+static std::string key_value_str_get_value(const std::string &kv_str,
+                                           const char *key) {
+  std::istringstream kv_ss(kv_str);
+  std::string kv_pair;
+  while (std::getline(kv_ss, kv_pair, ';')) {
+    int key_length = kv_pair.find('=');
+    DBUG_ASSERT(key_length > 0);
+    if (kv_pair.substr(0, key_length).compare(key) == 0) {
+      return kv_pair.substr(key_length + 1);
+    }
+  }
+  return "";
+}
+
+bool Ndb_schema_dist_table::get_schema_uuid(std::string *schema_uuid) const {
+  DBUG_TRACE;
+  const NdbDictionary::Table *ndb_table = get_table();
+
+  // Pack the table and db names to be used during read into table
+  char db_name_buf[FN_REFLEN];
+  char table_name_buf[FN_REFLEN];
+  pack_varbinary(COL_DB, DB_NAME.c_str(), db_name_buf);
+  pack_varbinary(COL_NAME, TABLE_NAME.c_str(), table_name_buf);
+  std::string query_col_value;
+
+  // Lambda read function to execute using ndb_trans_retry()
+  std::function<const NdbError *(NdbTransaction *)> read_ndb_schema_func =
+      [&](NdbTransaction *trans) -> const NdbError * {
+    DBUG_TRACE;
+    NdbOperation *read_op = trans->getNdbOperation(ndb_table);
+    if (read_op == nullptr) return &trans->getNdbError();
+
+    // Define read operation based on 'db_name, table_name' key
+    if (read_op->readTuple() != 0 || read_op->equal(COL_DB, db_name_buf) != 0 ||
+        read_op->equal(COL_NAME, table_name_buf) != 0) {
+      return &read_op->getNdbError();
+    }
+
+    // Setup read for the query column value.
+    NdbBlob *query_blob_handle = read_op->getBlobHandle(COL_QUERY);
+    if (!query_blob_handle) {
+      return &read_op->getNdbError();
+    }
+
+    if (trans->execute(NdbTransaction::NoCommit,
+                       NdbOperation::DefaultAbortOption,
+                       1 /* force send */) != 0) {
+      // Execute failed.
+      return &trans->getNdbError();
+    }
+
+    // Transaction execute succeeded. Check the operation for errors
+    const NdbError &read_op_error = read_op->getNdbError();
+    if (read_op_error.code == 0) {
+      // The tuple exists. Read the value from query blob and return
+      if (!unpack_blob_not_null(query_blob_handle, &query_col_value)) {
+        return &query_blob_handle->getNdbError();
+      }
+      return nullptr;
+    } else if (read_op_error.classification ==
+               NdbError::Classification::NoDataFound) {
+      // The tuple doesn't exist.
+      ndb_log_verbose(19, "The schema UUID tuple doesn't exist");
+      return nullptr;
+    } else {
+      // Operation failed with an unexpected error
+      return &read_op_error;
+    }
+  };
+
+  NdbError ndb_err;
+  if (!ndb_trans_retry(get_ndb(), get_thd(), ndb_err, read_ndb_schema_func)) {
+    push_warning("Failed to read the schema UUID tuple: %s(%d).",
+                 ndb_err.message, ndb_err.code);
+    return false;
+  }
+
+  if (query_col_value.size() == 0) {
+    // Schema UUID is not present
+    ndb_log_info("Schema UUID not present in ndb_schema table");
+    return true;
+  }
+
+  // The tuple with Schema UUID exists. It is stored as a key value
+  // pair of form "schema_uuid=<UUID>;". Extract the value and return.
+  schema_uuid->assign(
+      key_value_str_get_value(query_col_value, SCHEMA_UUID_KEY));
+  DBUG_ASSERT(schema_uuid->size() == SCHEMA_UUID_VALUE_LENGTH);
+  ndb_log_verbose(19, "Schema UUID read from NDB : %s", schema_uuid->c_str());
+  return true;
+}
+
+bool Ndb_schema_dist_table::update_schema_uuid_in_NDB(
+    const std::string &schema_uuid) const {
+  DBUG_TRACE;
+
+  const NdbDictionary::Table *ndb_table = get_table();
+  DBUG_ASSERT(ndb_table != nullptr);
+
+  // Store the UUID as a key value pair of form "schema_uuid=<UUID>;"
+  std::map<std::string, std::string> ndb_schema_props;
+  ndb_schema_props.insert({SCHEMA_UUID_KEY, schema_uuid.c_str()});
+  const std::string ndb_schema_props_str =
+      map_extract_key_value_string(ndb_schema_props);
+
+  // Pack db and table_name
+  char db_buf[FN_REFLEN];
+  char name_buf[FN_REFLEN];
+  pack_varbinary(COL_DB, DB_NAME.c_str(), db_buf);
+  pack_varbinary(COL_NAME, TABLE_NAME.c_str(), name_buf);
+
+  // Function for writing row to ndb_schema
+  std::function<const NdbError *(NdbTransaction *)> write_schema_op_func =
+      [&](NdbTransaction *trans) -> const NdbError * {
+    DBUG_TRACE;
+
+    NdbOperation *op = trans->getNdbOperation(ndb_table);
+    if (op == nullptr) return &trans->getNdbError();
+
+    // Buffer with zeroes for slock
+    std::vector<char> slock_zeroes;
+    slock_zeroes.assign(get_slock_bytes(), 0);
+    const char *slock_buf = slock_zeroes.data();
+
+    const Uint64 log_epoch = 0;
+    if (op->writeTuple() != 0 || op->equal(COL_DB, db_buf) != 0 ||
+        op->equal(COL_NAME, name_buf) != 0 ||
+        op->setValue(COL_SLOCK, slock_buf) != 0 ||
+        op->setValue(COL_NODEID, 0) != 0 ||
+        op->setValue(COL_EPOCH, log_epoch) != 0 ||
+        op->setValue(COL_ID, 0) != 0 || op->setValue(COL_VERSION, 0) != 0 ||
+        op->setValue(COL_TYPE, SOT_CREATE_TABLE) != 0 ||
+        op->setAnyValue(0) != 0)
+      return &op->getNdbError();
+
+    if (have_schema_op_id_column() && op->setValue(COL_SCHEMA_OP_ID, 0) != 0)
+      return &op->getNdbError();
+
+    NdbBlob *ndb_blob = op->getBlobHandle(COL_QUERY);
+    if (ndb_blob == nullptr) return &op->getNdbError();
+
+    if (ndb_blob->setValue(ndb_schema_props_str.c_str(),
+                           ndb_schema_props_str.length()) != 0)
+      return &ndb_blob->getNdbError();
+
+    if (trans->execute(NdbTransaction::Commit, NdbOperation::DefaultAbortOption,
+                       1 /* force send */) != 0) {
+      return &trans->getNdbError();
+    }
+
+    return nullptr;
+  };
+
+  NdbError ndb_err;
+  if (!ndb_trans_retry(get_ndb(), get_thd(), ndb_err, write_schema_op_func)) {
+    push_warning(
+        "Failed to update schema UUID in 'mysql.ndb_schema' table. Code : %d. "
+        "Error : %s",
+        ndb_err.code, ndb_err.message);
+    return false;
+  }
+
+  return true;
+}
+
+bool Ndb_schema_dist_table::pre_upgrade() const {
+  // During upgrade, the schema UUID need not be regenerated.
+  // Save it for restoring it later after upgrade
+  if (!get_schema_uuid(&old_ndb_schema_uuid)) return false;
+  return true;
+}
+
+bool Ndb_schema_dist_table::post_install() const {
+  DBUG_TRACE;
+
+  std::string schema_uuid;
+  if (old_ndb_schema_uuid.empty()) {
+    // The table was just created
+    // Generate a new schema uuid for the table
+    String schema_uuid_buf;
+    mysql_generate_uuid(&schema_uuid_buf);
+    schema_uuid.assign(schema_uuid_buf.ptr(), schema_uuid_buf.length());
+    ndb_log_verbose(19, "Generated new schema UUID : %s", schema_uuid.c_str());
+  } else {
+    // The table was just upgraded
+    // Restore the old schema UUID
+    schema_uuid = std::move(old_ndb_schema_uuid);
+    ndb_log_verbose(19, "Restoring schema UUID : %s after upgrade",
+                    schema_uuid.c_str());
+  }
+
+  // Update the UUID in the ndb_schema_table
+  if (!update_schema_uuid_in_NDB(schema_uuid)) {
+    return false;
+  }
+  return true;
 }

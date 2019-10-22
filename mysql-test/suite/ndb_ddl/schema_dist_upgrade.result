@@ -3,6 +3,12 @@ select @@ndb_schema_dist_upgrade_allowed;
 0
 set @@ndb_schema_dist_upgrade_allowed = true;
 ERROR HY000: Variable 'ndb_schema_dist_upgrade_allowed' is a read only variable
+include/assert_grep.inc [Detect initial start in MySQL Server 6]
+include/assert_grep.inc [Detect initial start in MySQL Server 5]
+include/assert_grep.inc [Detect initial start in MySQL Server 4]
+include/assert_grep.inc [Detect initial start in MySQL Server 3]
+include/assert_grep.inc [Detect initial start in MySQL Server 2]
+include/assert_grep.inc [Detect initial start in MySQL Server 1]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -28,6 +34,7 @@ Warning	1296	[mysql.ndb_schema] Could not find expected column 'schema_op_id'
 select @@ndb_schema_dist_upgrade_allowed;
 @@ndb_schema_dist_upgrade_allowed
 1
+include/assert_grep.inc [Detect normal system restart in MySQL Server 1]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -40,6 +47,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld6
+include/assert_grep.inc [Detect normal system restart in MySQL Server 6]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -52,6 +60,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld5
+include/assert_grep.inc [Detect normal system restart in MySQL Server 5]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -64,6 +73,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld4
+include/assert_grep.inc [Detect normal system restart in MySQL Server 4]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -76,6 +86,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld3
+include/assert_grep.inc [Detect normal system restart in MySQL Server 3]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -88,6 +99,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld2
+include/assert_grep.inc [Detect normal system restart in MySQL Server 2]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null

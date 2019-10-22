@@ -168,8 +168,8 @@ bool Ndb_schema_result_table::drop_events_in_NDB() const {
   return true;
 }
 
-bool Ndb_schema_result_table::pack_message(const char *message, char *buf) {
-  return pack_varbinary(Ndb_schema_result_table::COL_MESSAGE, message, buf);
+void Ndb_schema_result_table::pack_message(const char *message, char *buf) {
+  pack_varbinary(Ndb_schema_result_table::COL_MESSAGE, message, buf);
 }
 
 std::string Ndb_schema_result_table::unpack_message(

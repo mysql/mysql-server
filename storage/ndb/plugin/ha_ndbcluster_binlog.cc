@@ -1194,11 +1194,19 @@ class Ndb_binlog_setup {
     return true;  // OK
   }
 
-  bool remove_deleted_ndb_tables_from_dd() {
-    ndb_log_verbose(50, "Looking for deleted tables...");
+  /**
+     @brief Remove all deleted NDB tables from DD by comparing them against
+            a list of tables in NDB. Optionally during an initial start/restart
+            remove all NDB tables from DD.
+     @param initial_restart   Boolean flag. When true, it denotes that the NDB
+                              has been started/restarted with initial option.
+     @return true on success, false otherwise.
+   */
+  bool remove_deleted_ndb_tables_from_dd(bool initial_restart) {
+    DBUG_TRACE;
+    ndb_log_verbose(50, "Looking to remove deleted tables from NDB...");
 
     Ndb_dd_client dd_client(m_thd);
-
     // Fetch list of schemas in DD
     std::vector<std::string> schema_names;
     if (!dd_client.fetch_schema_names(&schema_names)) {
@@ -1208,8 +1216,8 @@ class Ndb_binlog_setup {
 
     ndb_log_verbose(50, "Found %zu databases in DD", schema_names.size());
 
-    // Iterate over each schema and remove deleted NDB tables
-    // from the DD one by one
+    // Iterate over each schema and
+    // remove all or deleted NDB tables from the DD one by one
     for (const auto &name : schema_names) {
       const char *schema_name = name.c_str();
       // Lock the schema in DD
@@ -1220,8 +1228,7 @@ class Ndb_binlog_setup {
 
       ndb_log_verbose(50, "Fetching list of NDB tables");
 
-      // Fetch list of NDB tables in DD, also acquire MDL lock on
-      // table names
+      // Fetch list of NDB tables in DD, also acquire MDL lock on table names
       std::unordered_set<std::string> ndb_tables_in_DD;
       if (!dd_client.get_ndb_table_names_in_schema(schema_name,
                                                    &ndb_tables_in_DD)) {
@@ -1232,27 +1239,10 @@ class Ndb_binlog_setup {
       ndb_log_verbose(50, "Found %zu NDB tables in DD",
                       ndb_tables_in_DD.size());
 
-      // Fetch list of NDB tables in NDB
-      std::unordered_set<std::string> ndb_tables_in_NDB;
-      Ndb *ndb = get_thd_ndb(m_thd)->ndb;
-      if (!ndb_get_table_names_in_schema(ndb->getDictionary(), schema_name,
-                                         &ndb_tables_in_NDB)) {
-        log_NDB_error(ndb->getDictionary()->getNdbError());
-        ndb_log_error(
-            "Failed to get list of NDB tables in schema '%s' from "
-            "NDB",
-            schema_name);
-        return false;
-      }
-
-      ndb_log_verbose(50, "Found %zu NDB tables in NDB Dictionary",
-                      ndb_tables_in_NDB.size());
-
-      // Iterate over all NDB tables found in DD. If they
-      // don't exist in NDB anymore, then remove the table
-      // from DD
-      for (const auto &ndb_table_name : ndb_tables_in_DD) {
-        if (ndb_tables_in_NDB.find(ndb_table_name) == ndb_tables_in_NDB.end()) {
+      if (unlikely(initial_restart)) {
+        // This is an initial start/restart
+        // Remove all NDB tables in the schema
+        for (const auto &ndb_table_name : ndb_tables_in_DD) {
           ndb_log_info("Removing table '%s.%s'", schema_name,
                        ndb_table_name.c_str());
           if (!remove_table_from_dd(schema_name, ndb_table_name.c_str())) {
@@ -1261,10 +1251,43 @@ class Ndb_binlog_setup {
             return false;
           }
         }
+      } else {
+        // This is not an initial start/restart
+        // Fetch list of NDB tables in NDB
+        Ndb *ndb = get_thd_ndb(m_thd)->ndb;
+        std::unordered_set<std::string> ndb_tables_in_NDB;
+        if (!ndb_get_table_names_in_schema(ndb->getDictionary(), schema_name,
+                                           &ndb_tables_in_NDB)) {
+          log_NDB_error(ndb->getDictionary()->getNdbError());
+          ndb_log_error(
+              "Failed to get list of NDB tables in schema '%s' from "
+              "NDB",
+              schema_name);
+          return false;
+        }
+
+        ndb_log_verbose(
+            50, "Found %zu NDB tables in schema '%s' in the NDB Dictionary",
+            ndb_tables_in_NDB.size(), schema_name);
+
+        // Iterate over all NDB tables found in DD. If they don't
+        // exist in NDB anymore, then remove the table from DD
+        for (const auto &ndb_table_name : ndb_tables_in_DD) {
+          if (ndb_tables_in_NDB.find(ndb_table_name) ==
+              ndb_tables_in_NDB.end()) {
+            ndb_log_info("Removing table '%s.%s'", schema_name,
+                         ndb_table_name.c_str());
+            if (!remove_table_from_dd(schema_name, ndb_table_name.c_str())) {
+              ndb_log_error("Failed to remove table '%s.%s' from DD",
+                            schema_name, ndb_table_name.c_str());
+              return false;
+            }
+          }
+        }
       }
     }
 
-    ndb_log_verbose(50, "Done looking for deleted tables!");
+    ndb_log_verbose(50, "Done removing deleted NDB tables from DD!");
 
     return true;
   }
@@ -2034,6 +2057,44 @@ class Ndb_binlog_setup {
     return true;
   }
 
+  /**
+     @brief Detect if this is an initial restart by comparing
+            the schema UUID from DD with the one in NDB.
+            If they differ, then this is a initial restart.
+     @param dd_schema_uuid       Schema UUID retrieved from the DD.
+     @param ndb_schema_uuid      Schema UUID retrieved from NDB.
+
+     @return true if this is a initial start/restart. false otherwise.
+   */
+  bool detect_initial_restart(const dd::String_type &dd_schema_uuid,
+                              const std::string &ndb_schema_uuid) {
+    DBUG_TRACE;
+
+    if (dd_schema_uuid.empty()) {
+      // DD didn't have any schema UUID previously.
+      // This is either an initial start (or) an upgrade from
+      // a version which does not have the schema UUID implemented.
+      // Such upgrades are considered as initial starts to keep this code
+      // simple and due to the fact that the upgrade is probably being done
+      // from a 5.x or a non GA 8.0.x versions to a 8.0.x cluster GA version.
+      ndb_log_info("Detected an initial system start");
+      return true;
+    }
+
+    if (dd_schema_uuid.compare(ndb_schema_uuid.c_str()) == 0) {
+      // Schema UUID is the same.
+      // This is either a normal system restart or an upgrade.
+      // Any upgrade from versions having schema UUID to another
+      // newer version will be handled here.
+      ndb_log_info("Detected a normal system restart");
+      return false;
+    }
+
+    // Schema UUID doesn't match. This is an initial system restart.
+    ndb_log_info("Detected an initial system restart");
+    return true;
+  }
+
   Ndb_binlog_setup(const Ndb_binlog_setup &) = delete;
   Ndb_binlog_setup operator=(const Ndb_binlog_setup &) = delete;
 
@@ -2072,14 +2133,18 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    // Remove deleted NDB tables
-    if (!remove_deleted_ndb_tables_from_dd()) {
-      return false;
-    }
-
     /* Give additional 'binlog_setup rights' to this Thd_ndb */
     Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
     thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
+
+    // If the ndb_schema table gets upgraded, it will reinstall
+    // the table in DD and will delete the current schema UUID.
+    // So, save the schema UUID of DD before trying to upgrade the table.
+    dd::String_type dd_schema_uuid_old;
+    if (!ndb_dd_get_schema_uuid(m_thd, &dd_schema_uuid_old)) {
+      ndb_log_warning("Failed to read the schema UUID of DD");
+      return false;
+    }
 
     Ndb_schema_dist_table schema_dist_table(thd_ndb);
     if (!schema_dist_table.create_or_upgrade(
@@ -2096,6 +2161,27 @@ class Ndb_binlog_setup {
       DBUG_SET("-d,ndb_binlog_setup_incomplete");
       // Test handling of setup failing to complete *after* created 'ndb_schema'
       ndb_log_info("Simulate 'ndb_binlog_setup_incomplete' -> return error");
+      return false;
+    }
+
+    // Retrieve the new schema UUID from NDB
+    std::string ndb_schema_uuid;
+    if (!schema_dist_table.get_schema_uuid(&ndb_schema_uuid)) return false;
+
+    // Check if this is a initial restart/start
+    bool initial_system_restart =
+        detect_initial_restart(dd_schema_uuid_old, ndb_schema_uuid);
+
+    // If initial start/restart, update the schema UUID in DD
+    if (initial_system_restart &&
+        !ndb_dd_update_schema_uuid(m_thd, ndb_schema_uuid)) {
+      ndb_log_warning("Failed to update schema uuid in DD.");
+      return false;
+    }
+
+    // Remove tables deleted in NDB or
+    // all NDB tables if this is an initial start/restart
+    if (!remove_deleted_ndb_tables_from_dd(initial_system_restart)) {
       return false;
     }
 
@@ -2279,9 +2365,13 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
   const uint32 own_nodeid = g_ndb_cluster_connection->node_id();
 
   // Write schema operation to the table
-  if (!write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
+  if (DBUG_EVALUATE_IF("ndb_schema_write_fail", true, false) ||
+      !write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
                               ndb_table_id, ndb_table_version, own_nodeid, type,
                               ndb_schema_object->schema_op_id(), anyvalue)) {
+    ndb_schema_object->fail_schema_op(Ndb_schema_dist::NDB_TRANS_FAILURE,
+                                      "Failed to write schema operation");
+    ndb_log_warning("Failed to write the schema op into the ndb_schema table");
     return false;
   }
 
@@ -3263,13 +3353,7 @@ class Ndb_schema_event_handler {
     const uint32 participant_nodeid = own_nodeid();
     const uint32 result = m_schema_op_result.result();
     char message_buf[255];
-    if (!schema_result_table.pack_message(m_schema_op_result.message(),
-                                          message_buf)) {
-      ndb_log_warning(
-          "Failed to pack result for schema operation involving '%s.%s'",
-          schema->db, schema->name);
-      return false;
-    }
+    schema_result_table.pack_message(m_schema_op_result.message(), message_buf);
 
     // Function for inserting row with result in ndb_schema_result
     std::function<const NdbError *(NdbTransaction *)>

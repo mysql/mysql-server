@@ -227,6 +227,8 @@ class Thd_ndb {
 
   bool is_slave_thread(void) const { return m_slave_thread; }
 
+  const THD *get_thd() const { return m_thd; }
+
   /*
     @brief Push a warning message onto THD's condition stack.
            Using default error code.

@@ -59,7 +59,7 @@ class Ndb_schema_result_table : public Ndb_util_table {
 
   std::string define_table_dd() const override;
 
-  bool pack_message(const char *message, char *buf);
+  void pack_message(const char *message, char *buf);
 
   std::string unpack_message(const std::string &packed_message);
 };

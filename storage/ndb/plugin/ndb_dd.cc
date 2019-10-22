@@ -41,6 +41,7 @@
 #include "storage/ndb/plugin/ndb_dd_sdi.h"
 #include "storage/ndb/plugin/ndb_dd_table.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
+#include "storage/ndb/plugin/ndb_schema_dist_table.h"
 
 bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
                        const char *schema_name_str, dd::sdi_t &sdi) {
@@ -177,4 +178,52 @@ const std::string ndb_dd_fs_name_case(const dd::String_type &name) {
   const std::string lc_name =
       dd::Object_table_definition_impl::fs_name_case(name, name_buf);
   return lc_name;
+}
+
+bool ndb_dd_get_schema_uuid(THD *thd, dd::String_type *dd_schema_uuid) {
+  DBUG_TRACE;
+  Ndb_dd_client dd_client(thd);
+
+  const char *schema_name = Ndb_schema_dist_table::DB_NAME.c_str();
+  const char *table_name = Ndb_schema_dist_table::TABLE_NAME.c_str();
+
+  // Lock the table for reading schema uuid
+  if (!dd_client.mdl_lock_table(schema_name, table_name)) {
+    DBUG_PRINT("error",
+               ("Failed to lock `%s.%s` in DD.", schema_name, table_name));
+    return false;
+  }
+
+  // Retrieve the schema uuid stored in the ndb_schema table in DD
+  if (!dd_client.get_schema_uuid(dd_schema_uuid)) {
+    DBUG_PRINT("error", ("Failed to read schema UUID from DD"));
+    return false;
+  }
+
+  return true;
+}
+
+bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid) {
+  DBUG_TRACE;
+  Ndb_dd_client dd_client(thd);
+
+  const char *schema_name = Ndb_schema_dist_table::DB_NAME.c_str();
+  const char *table_name = Ndb_schema_dist_table::TABLE_NAME.c_str();
+
+  // Acquire exclusive locks on the table
+  if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
+    DBUG_PRINT("error", ("Failed to acquire exclusive lock `%s.%s` in DD.",
+                         schema_name, table_name));
+    return false;
+  }
+
+  // Update the schema UUID in DD
+  if (!dd_client.update_schema_uuid(ndb_schema_uuid.c_str())) {
+    DBUG_PRINT("error", ("Failed to update schema uuid in DD."));
+    return false;
+  }
+
+  // Commit the change into DD and return
+  dd_client.commit();
+  return true;
 }

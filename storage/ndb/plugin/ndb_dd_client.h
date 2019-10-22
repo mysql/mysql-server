@@ -221,6 +221,8 @@ class Ndb_dd_client {
                          const char *undo_file_name);
   bool drop_logfile_group(const char *logfile_group_name,
                           bool fail_if_not_exists = true);
+  bool get_schema_uuid(dd::String_type *value) const;
+  bool update_schema_uuid(const char *value) const;
 };
 
 #endif

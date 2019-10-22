@@ -36,6 +36,14 @@ class Ndb_table_guard {
   const NdbDictionary::Table *m_ndbtab{nullptr};
   int m_invalidate{0};
 
+  void deinit() {
+    DBUG_PRINT("info",
+               ("m_ndbtab: %p  m_invalidate: %d", m_ndbtab, m_invalidate));
+    m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
+    m_ndbtab = nullptr;
+    m_invalidate = 0;
+  }
+
  public:
   Ndb_table_guard(NdbDictionary::Dictionary *dict) : m_dict(dict) {}
   Ndb_table_guard(NdbDictionary::Dictionary *dict, const char *tabname)
@@ -58,22 +66,26 @@ class Ndb_table_guard {
   ~Ndb_table_guard() {
     DBUG_TRACE;
     if (m_ndbtab) {
-      DBUG_PRINT("info",
-                 ("m_ndbtab: %p  m_invalidate: %d", m_ndbtab, m_invalidate));
-      m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
-      m_ndbtab = NULL;
-      m_invalidate = 0;
+      deinit();
     }
     return;
   }
   void init(const char *tabname) {
     DBUG_TRACE;
     /* Don't allow init() if already initialized */
-    DBUG_ASSERT(m_ndbtab == NULL);
+    DBUG_ASSERT(m_ndbtab == nullptr);
     m_ndbtab = m_dict->getTableGlobal(tabname);
     m_invalidate = 0;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     return;
+  }
+  void reinit() {
+    DBUG_TRACE;
+    /* Don't allow reinit() if not initialized already */
+    DBUG_ASSERT(m_ndbtab != nullptr);
+    std::string table_name(m_ndbtab->getName());
+    deinit();
+    init(table_name.c_str());
   }
   const NdbDictionary::Table *get_table() const { return m_ndbtab; }
   void invalidate() { m_invalidate = 1; }

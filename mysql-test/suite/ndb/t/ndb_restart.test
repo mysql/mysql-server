@@ -48,6 +48,19 @@ insert into t1 values (3, 4);
 # Wait for mysqld to reconnect
 --source include/ndb_not_readonly.inc
 
+--echo # verify that the mysqld detected the restart
+--let $assert_text= Detect normal restart in MySQL Server 1
+--let $assert_select= Detected a normal system restart
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_only_after= NDB Binlog: Detected server start
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Detect normal restart in MySQL Server 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+--let $assert_count= 1
+--source include/assert_grep.inc
+
 # Check table is still there
 select * from t1 order by a;
 insert into t1 values (4, 5);
@@ -71,6 +84,19 @@ insert into t1 values (4, 5);
 
 # Wait for mysqld to reconnect
 --source include/ndb_not_readonly.inc
+
+--echo # verify that the mysqld detected the initial restart
+--let $assert_text= Detect initial restart in MySQL Server 1
+--let $assert_select= Detected an initial system restart
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let $assert_only_after= NDB Binlog: Detected server start
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--let $assert_text= Detect initial restart in MySQL Server 2
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.1.err
+--let $assert_count= 1
+--source include/assert_grep.inc
 
 # Check table is gone
 --error ER_NO_SUCH_TABLE
