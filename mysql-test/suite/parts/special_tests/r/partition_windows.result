@@ -20,9 +20,9 @@ INSERT INTO t1 VALUES (NULL, "third", 3);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `c1` int unsigned NOT NULL AUTO_INCREMENT,
   `c2` varchar(30) NOT NULL,
-  `c3` smallint(5) unsigned DEFAULT NULL,
+  `c3` smallint unsigned DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
@@ -34,9 +34,9 @@ INSERT INTO t1 VALUES (NULL, "last", 4);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `c1` int unsigned NOT NULL AUTO_INCREMENT,
   `c2` varchar(30) NOT NULL,
-  `c3` smallint(5) unsigned DEFAULT NULL,
+  `c3` smallint unsigned DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`c1`)
