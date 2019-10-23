@@ -1655,10 +1655,9 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
   NDBDICT *dict = ndb->getDictionary();
   setDbName(ndb, src_db);
   Ndb_table_guard srctab(dict, src_tab);
-  if (srctab.get_table() == 0) {
-    /**
-     * when doign alter table engine=ndb this can happen
-     */
+  if (srctab.get_table() == nullptr) {
+    // This is a `ALTER TABLE .. ENGINE=NDB` query.
+    // srctab exists in a different engine.
     return 0;
   }
 
@@ -1669,169 +1668,139 @@ int ha_ndbcluster::copy_fk_for_offline_alter(THD *thd, Ndb *ndb,
   }
 
   setDbName(ndb, src_db);
-  NDBDICT::List obj_list;
-  if (dict->listDependentObjects(obj_list, *srctab.get_table()) != 0) {
+  Ndb_fk_list srctab_fk_list;
+  if (!retrieve_foreign_key_list_from_ndb(dict, srctab.get_table(),
+                                          &srctab_fk_list)) {
     ERR_RETURN(dict->getNdbError());
   }
 
-  for (unsigned i = 0; i < obj_list.count; i++) {
-    if (obj_list.elements[i].type == NdbDictionary::Object::ForeignKey) {
-      NdbDictionary::ForeignKey fk;
-      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0) {
-        // should never happen
-        DBUG_ASSERT(false);
-        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ALTER_INFO,
-                            "INTERNAL ERROR: Could not find foreign key '%s'",
-                            obj_list.elements[i].name);
-        ERR_RETURN(dict->getNdbError());
-      }
+  for (NdbDictionary::ForeignKey &fk : srctab_fk_list) {
+    // Extract FK name
+    char fk_name_buffer[FN_LEN + 1];
+    const char *fk_name = fk_split_name(fk_name_buffer, fk.getName());
 
-      {
-        /**
-         * Check if it should be copied
+    // Extract child name
+    char child_db_name[FN_LEN + 1];
+    const char *child_table_name =
+        fk_split_name(child_db_name, fk.getChildTable());
+
+    // Check if this FK needs to be copied
+    bool found = false;
+    for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list) {
+      if (drop_item->type != Alter_drop::FOREIGN_KEY) continue;
+      if (ndb_fk_casecmp(drop_item->name, fk_name) != 0) continue;
+      if (strcmp(child_db_name, src_db) == 0 &&
+          strcmp(child_table_name, src_tab) == 0) {
+        found = true;
+        break;
+      }
+    }
+    if (found) {
+      // FK is on drop list. Skip copying.
+      continue;
+    }
+
+    // flags for CreateForeignKey
+    int create_fk_flags = 0;
+
+    // Extract parent name
+    char parent_db_name[FN_LEN + 1];
+    const char *parent_table_name =
+        fk_split_name(parent_db_name, fk.getParentTable());
+
+    // Update parent table references and indexes
+    // if the table being altered is the parent
+    if (strcmp(parent_table_name, src_tab) == 0 &&
+        strcmp(parent_db_name, src_db) == 0) {
+      // The src_tab is the parent
+      const NDBCOL *cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+      for (unsigned j = 0; j < fk.getParentColumnCount(); j++) {
+        const int parent_col_index = fk.getParentColumnNo(j);
+        const NDBCOL *orgcol = srctab.get_table()->getColumn(parent_col_index);
+        cols[j] = dsttab.get_table()->getColumn(orgcol->getName());
+      }
+      cols[fk.getParentColumnCount()] = 0;
+      if (fk.getParentIndex() != 0) {
+        const char *parent_index_name =
+            fk_split_name(parent_db_name, fk.getParentIndex(), true);
+        const NDBINDEX *idx =
+            dict->getIndexGlobal(parent_index_name, *dsttab.get_table());
+        if (idx == 0) {
+          ERR_RETURN(dict->getNdbError());
+        }
+        fk.setParent(*dsttab.get_table(), idx, cols);
+        dict->removeIndexGlobal(*idx, 0);
+      } else {
+        /*
+          The parent column was previously the primary key.
+          Make sure it still is a primary key as implicit pks
+          might change during the alter. If not, get a better
+          matching index.
          */
-        char db_and_name[FN_LEN + 1];
-        const char *name =
-            fk_split_name(db_and_name, obj_list.elements[i].name);
-
-        bool found = false;
-        for (const Alter_drop *drop_item : thd->lex->alter_info->drop_list) {
-          if (drop_item->type != Alter_drop::FOREIGN_KEY) continue;
-          if (ndb_fk_casecmp(drop_item->name, name) != 0) continue;
-
-          char child_db_and_name[FN_LEN + 1];
-          const char *child_name =
-              fk_split_name(child_db_and_name, fk.getChildTable());
-          if (strcmp(child_db_and_name, src_db) == 0 &&
-              strcmp(child_name, src_tab) == 0) {
-            found = true;
-            break;
-          }
+        bool parent_primary = false;
+        const NDBINDEX *idx =
+            find_matching_index(dict, dsttab.get_table(), cols, parent_primary);
+        if (!parent_primary && idx == 0) {
+          my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
+                   dsttab.get_table()->getName());
+          return HA_ERR_CANNOT_ADD_FOREIGN;
         }
-        if (found) {
-          /**
-           * Item is on drop list...
-           *   don't copy it
-           */
-          continue;
-        }
-      }
-
-      {
-        char db_and_name[FN_LEN + 1];
-        const char *name = fk_split_name(db_and_name, fk.getParentTable());
-        setDbName(ndb, db_and_name);
-        Ndb_table_guard org_parent(dict, name);
-        if (org_parent.get_table() == 0) {
-          ERR_RETURN(dict->getNdbError());
-        }
-      }
-
-      {
-        char db_and_name[FN_LEN + 1];
-        const char *name = fk_split_name(db_and_name, fk.getChildTable());
-        setDbName(ndb, db_and_name);
-        Ndb_table_guard org_child(dict, name);
-        if (org_child.get_table() == 0) {
-          ERR_RETURN(dict->getNdbError());
-        }
+        fk.setParent(*dsttab.get_table(), idx, cols);
       }
 
       /**
-       * flags for CreateForeignKey
+       * We're parent, and this is an offline alter table.
+       * This foreign key being created cannot be verified
+       * as the parent won't have any rows now. The new parent
+       * will be populated later during copy data between tables.
+       *
+       * However, iff the FK is consistent when this alter starts,
+       * it should remain consistent since mysql does not
+       * allow the alter to modify the columns referenced
        */
-      int flags = 0;
+      create_fk_flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
+    }
 
-      char db_and_name[FN_LEN + 1];
-      const char *name = fk_split_name(db_and_name, fk.getParentTable());
-      if (strcmp(name, src_tab) == 0 && strcmp(db_and_name, src_db) == 0) {
-        /**
-         * We used to be parent...
-         */
-        const NDBCOL *cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
-        for (unsigned j = 0; j < fk.getParentColumnCount(); j++) {
-          const int parent_col_index = fk.getParentColumnNo(j);
-          const NDBCOL *orgcol =
-              srctab.get_table()->getColumn(parent_col_index);
-          cols[j] = dsttab.get_table()->getColumn(orgcol->getName());
+    // Update child table references and indexes
+    // if the table being altered is the child
+    if (strcmp(child_table_name, src_tab) == 0 &&
+        strcmp(child_db_name, src_db) == 0) {
+      const NDBCOL *cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+      for (unsigned j = 0; j < fk.getChildColumnCount(); j++) {
+        const int child_col_index = fk.getChildColumnNo(j);
+        const NDBCOL *orgcol = srctab.get_table()->getColumn(child_col_index);
+        cols[j] = dsttab.get_table()->getColumn(orgcol->getName());
+      }
+      cols[fk.getChildColumnCount()] = 0;
+      if (fk.getChildIndex() != 0) {
+        bool child_primary_key = false;
+        const NDBINDEX *idx = find_matching_index(dict, dsttab.get_table(),
+                                                  cols, child_primary_key);
+        if (!child_primary_key && idx == 0) {
+          ERR_RETURN(dict->getNdbError());
         }
-        cols[fk.getParentColumnCount()] = 0;
-        if (fk.getParentIndex() != 0) {
-          name = fk_split_name(db_and_name, fk.getParentIndex(), true);
-          setDbName(ndb, db_and_name);
-          const NDBINDEX *idx = dict->getIndexGlobal(name, *dsttab.get_table());
-          if (idx == 0) {
-            ERR_RETURN(dict->getNdbError());
-          }
-          fk.setParent(*dsttab.get_table(), idx, cols);
-          dict->removeIndexGlobal(*idx, 0);
-        } else {
-          /*
-            The parent column was previously the primary key.
-            Make sure it still is a primary key as implicit pks
-            might change during the alter. If not, get a better
-            matching index.
-           */
-          bool parent_primary = false;
-          const NDBINDEX *idx = find_matching_index(dict, dsttab.get_table(),
-                                                    cols, parent_primary);
-          if (!parent_primary && idx == 0) {
-            my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
-                     dsttab.get_table()->getName());
-            return HA_ERR_CANNOT_ADD_FOREIGN;
-          }
-          fk.setParent(*dsttab.get_table(), idx, cols);
-        }
-
-        /**
-         * We're parent, and this is offline alter table
-         *   then we can't verify that FK cause the new parent will
-         *   be populated later during copy data between tables
-         *
-         * However, iff FK is consistent when this alter starts,
-         *   it should remain consistent since mysql does not
-         *   allow the alter to modify the columns referenced
-         */
-        flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
+        fk.setChild(*dsttab.get_table(), idx, cols);
+        if (idx) dict->removeIndexGlobal(*idx, 0);
       } else {
-        name = fk_split_name(db_and_name, fk.getChildTable());
-        assert(strcmp(name, src_tab) == 0 && strcmp(db_and_name, src_db) == 0);
-        const NDBCOL *cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
-        for (unsigned j = 0; j < fk.getChildColumnCount(); j++) {
-          const int child_col_index = fk.getChildColumnNo(j);
-          const NDBCOL *orgcol = srctab.get_table()->getColumn(child_col_index);
-          cols[j] = dsttab.get_table()->getColumn(orgcol->getName());
-        }
-        cols[fk.getChildColumnCount()] = 0;
-        if (fk.getChildIndex() != 0) {
-          name = fk_split_name(db_and_name, fk.getChildIndex(), true);
-          setDbName(ndb, db_and_name);
-          bool child_primary_key = false;
-          const NDBINDEX *idx = find_matching_index(dict, dsttab.get_table(),
-                                                    cols, child_primary_key);
-          if (!child_primary_key && idx == 0) {
-            ERR_RETURN(dict->getNdbError());
-          }
-          fk.setChild(*dsttab.get_table(), idx, cols);
-          if (idx) dict->removeIndexGlobal(*idx, 0);
-        } else {
-          fk.setChild(*dsttab.get_table(), 0, cols);
-        }
+        fk.setChild(*dsttab.get_table(), 0, cols);
       }
+    }
 
-      char new_name[FN_LEN + 1];
-      name = fk_split_name(db_and_name, fk.getName());
-      snprintf(new_name, sizeof(new_name), "%s", name);
-      fk.setName(new_name);
-      setDbName(ndb, db_and_name);
+    // FK's name will have the fully qualified internal name.
+    // Reset it to the actual FK name.
+    fk.setName(fk_name);
 
-      if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
-        flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
-      }
-      NdbDictionary::ObjectId objid;
-      if (dict->createForeignKey(fk, &objid, flags) != 0) {
-        ERR_RETURN(dict->getNdbError());
-      }
+    // The foreign key is on this table (i.e.) this is the child and
+    // the foreign key should be consistent even during COPY ALTER.
+    // So by default we verify them unless the user has explicitly
+    // turned off the foreign key checks variable which might mean that
+    // they were never consistent to begin with.
+    if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) {
+      create_fk_flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
+    }
+    NdbDictionary::ObjectId objid;
+    if (dict->createForeignKey(fk, &objid, create_fk_flags) != 0) {
+      ERR_RETURN(dict->getNdbError());
     }
   }
   return 0;

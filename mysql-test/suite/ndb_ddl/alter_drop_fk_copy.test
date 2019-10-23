@@ -1,0 +1,7 @@
+#
+# Test ALTER DROP FOREIGN KEY .. ALGORITHM = COPY
+#
+
+let algorithm=copy;
+
+--source alter_drop_fk.inc
