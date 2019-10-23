@@ -2117,7 +2117,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         Check if the selected key will reject matches on NULL values.
       */
       if (!keyuse->null_rejecting && keyuse->val->maybe_null &&
-          keyinfo->key_part[part_no].field->maybe_null()) {
+          (keyinfo->key_part[part_no].field->real_maybe_null() ||
+           table->is_nullable())) {
         null_rejecting_key = false;
       }
       key_buff += keyinfo->key_part[part_no].store_length;
@@ -2167,7 +2168,8 @@ class store_key_field final : public store_key {
     // If from_field is nullable but we cannot store null, make
     // to_field temporary nullable so we can check in copy_inner()
     // if we end up with an illegal null value.
-    if (!to_field->real_maybe_null() && from_field->maybe_null())
+    if (!to_field->real_maybe_null() &&
+        (from_field->real_maybe_null() || from_field->table->is_nullable()))
       to_field->set_tmp_nullable();
     m_copy_field.set(to_field, from_field, false);
   }

@@ -2568,7 +2568,7 @@ bool ha_ndbcluster::check_index_fields_not_null(KEY *key_info) const {
 
   for (; key_part != end; key_part++) {
     Field *field = key_part->field;
-    if (field->maybe_null()) return true;
+    if (field->real_maybe_null()) return true;
   }
 
   return false;
@@ -8243,7 +8243,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       return HA_ERR_UNSUPPORTED;
   }
   // Set nullable and pk
-  col.setNullable(field->maybe_null());
+  col.setNullable(field->real_maybe_null());
   col.setPrimaryKey(field->flags & PRI_KEY_FLAG);
   if ((field->flags & FIELD_IN_PART_FUNC_FLAG) != 0) {
     col.setPartitionKey(true);
@@ -14805,7 +14805,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
   }
 
   // Check if nullable change
-  if (new_field->maybe_null() != old_field->maybe_null()) {
+  if (new_field->real_maybe_null() != old_field->real_maybe_null()) {
     return inplace_unsupported(ha_alter_info,
                                "Altering if field is nullable is "
                                "not supported");

@@ -974,7 +974,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage() {
         table->s->db_low_byte_first) {
       return false;
     }
-    if (key_part->field->maybe_null()) {
+    if (key_part->field->real_maybe_null() || table->is_nullable()) {
       return false;
       /*
         If this is changed so that embedded keys may contain nullable
@@ -1252,8 +1252,7 @@ uint JOIN_CACHE::write_record_data(uchar *link, bool *is_full) {
   /* Now put the values of the remaining fields as soon as they are not nulls */
   copy_end = field_descr + fields;
   for (; copy < copy_end; copy++) {
-    Field *field = copy->field;
-    if (field && field->maybe_null() && field->is_null()) {
+    if (copy->field && copy->field->is_null()) {
       /* Do not copy a field if its value is null */
       if (copy->referenced_field_no) copy->offset = 0;
       continue;
@@ -1563,8 +1562,7 @@ void JOIN_CACHE::read_some_flag_fields() {
 uint JOIN_CACHE::read_record_field(CACHE_FIELD *copy, bool blob_in_rec_buff) {
   uint len;
   /* Do not copy the field if its value is null */
-  if (copy->field && copy->field->maybe_null() && copy->field->is_null())
-    return 0;
+  if (copy->field && copy->field->is_null()) return 0;
   if (copy->type == CACHE_BLOB) {
     Field_blob *blob_field = (Field_blob *)copy->field;
     /*

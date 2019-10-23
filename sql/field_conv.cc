@@ -602,7 +602,7 @@ Copy_field::Copy_field(MEM_ROOT *mem_root, Item_field *item) : Copy_field() {
 
   // Clone the from field as it will be modified and used as to field.
   m_from_field = from->clone(mem_root);
-  if (from->maybe_null()) {
+  if (from->real_maybe_null()) {
     // We need to allocate one extra byte for null handling.
     uchar *ptr = mem_root->ArrayAlloc<uchar>(from->pack_length() + 1);
     from->move_field(ptr + 1, ptr, 1);
@@ -636,7 +636,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
 
   m_do_copy2 = get_copy_func(save);
 
-  if (m_from_field->maybe_null()) {
+  if (m_from_field->real_maybe_null() || m_from_field->table->is_nullable()) {
     if (m_to_field->real_maybe_null() || m_to_field->is_tmp_nullable())
       m_do_copy = do_copy_null;
     else if (m_to_field->type() == MYSQL_TYPE_TIMESTAMP)
@@ -678,7 +678,8 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
        m_from_field->table->s->db_low_byte_first);
   if (m_to_field->type() == MYSQL_TYPE_GEOMETRY) {
     if (m_from_field->type() != MYSQL_TYPE_GEOMETRY ||
-        m_to_field->maybe_null() != m_from_field->maybe_null())
+        m_to_field->real_maybe_null() != m_from_field->real_maybe_null() ||
+        m_to_field->table->is_nullable() != m_from_field->table->is_nullable())
       return do_conv_blob;
 
     const Field_geom *to_geom = down_cast<const Field_geom *>(m_to_field);

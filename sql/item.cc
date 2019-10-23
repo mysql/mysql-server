@@ -2352,7 +2352,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field) {
 }
 
 bool Item_ident_for_show::fix_fields(THD *, Item **) {
-  maybe_null = field->maybe_null();
+  maybe_null = field->real_maybe_null();
   decimals = field->decimals();
   unsigned_flag = field->flags & UNSIGNED_FLAG;
   collation.set(field->charset(), field->derivation(), field->repertoire());
@@ -2546,7 +2546,8 @@ void Item_field::set_field(Field *field_par) {
   DBUG_ASSERT(!table_ref || table_ref->table == field_par->table);
 
   field = result_field = field_par;  // for easy coding with fields
-  maybe_null = field->maybe_null() || field->is_tmp_nullable();
+  maybe_null = field->real_maybe_null() || field->is_tmp_nullable() ||
+               field->table->is_nullable();
   decimals = field->decimals();
   table_name = *field_par->table_name;
   field_name = field_par->field_name;

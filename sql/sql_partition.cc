@@ -2673,7 +2673,7 @@ static void copy_to_part_field_buffers(Field **ptr, uchar **field_bufs,
   while ((field = *(ptr++))) {
     *restore_ptr = field->ptr;
     restore_ptr++;
-    if (!field->maybe_null() || !field->is_null()) {
+    if (!field->is_null()) {
       const CHARSET_INFO *cs = field->charset();
       uint max_len = field->pack_length();
       uint data_len = field->data_length();

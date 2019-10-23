@@ -6518,31 +6518,6 @@ size_t Field_string::get_key_image(uchar *buff, size_t length,
   return bytes;
 }
 
-Field *Field_string::new_field(MEM_ROOT *root, TABLE *new_table,
-                               bool keep_type) const {
-  Field *field;
-  if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
-    field = Field::new_field(root, new_table, keep_type);
-  else if ((field = new (*THR_MALLOC)
-                Field_varstring(field_length, maybe_null(), field_name,
-                                new_table->s, charset()))) {
-    /*
-      Old VARCHAR field which should be modified to a VARCHAR on copy
-      This is done to ensure that ALTER TABLE will convert old VARCHAR fields
-      to now VARCHAR fields.
-    */
-    field->init(new_table);
-    /*
-      Normally orig_table is different from table only if field was created
-      via ::new_field.  Here we alter the type of field, so ::new_field is
-      not applicable. But we still need to preserve the original field
-      metadata for the client-server protocol.
-    */
-    field->orig_table = orig_table;
-  }
-  return field;
-}
-
 /****************************************************************************
   VARCHAR type
   Data in field->ptr is stored as:
@@ -10071,10 +10046,6 @@ void Field::set_default() {
     evaluate_insert_default_function();
   else
     copy_data(table->default_values_offset());
-}
-
-bool Field::maybe_null() const {
-  return real_maybe_null() || table->is_nullable();
 }
 
 uint Field::null_offset() const { return null_offset(table->record[0]); }

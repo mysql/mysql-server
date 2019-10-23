@@ -1305,8 +1305,8 @@ size_t make_sortkey_from_field(const Field *field, Nullable<size_t> dst_length,
                                uchar *to, uchar *to_end, bool *maybe_null) {
   bool is_varlen = !dst_length.has_value();
 
-  *maybe_null = field->maybe_null();
-  if (field->maybe_null()) {
+  *maybe_null = field->real_maybe_null() || field->table->is_nullable();
+  if (*maybe_null) {
     if (write_uint8_overflows(field->is_null() ? 0 : 1, to_end, &to))
       return UINT_MAX;
     if (field->is_null()) {
@@ -2202,7 +2202,8 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
         sortorder->length = 0xFFFFFFFFu;
       }
 
-      sortorder->maybe_null = field->maybe_null();
+      sortorder->maybe_null =
+          field->real_maybe_null() || field->table->is_nullable();
       sortorder->field_type = field->type();
       is_string_type = field->result_type() == STRING_RESULT &&
                        !is_temporal_type(field->type());
@@ -2369,10 +2370,10 @@ Addon_fields *Filesort::get_addon_fields(
     total_length += field_length;
 
     const enum_field_types field_type = field->type();
-    if (field->maybe_null() || field_type == MYSQL_TYPE_STRING ||
+    if (field->real_maybe_null() || field_type == MYSQL_TYPE_STRING ||
         field_type == MYSQL_TYPE_VARCHAR || field_type == MYSQL_TYPE_VAR_STRING)
       packable_length += field_length;
-    if (field->maybe_null()) null_fields++;
+    if (field->real_maybe_null()) null_fields++;
     num_fields++;
   }
   if (0 == num_fields) return nullptr;
@@ -2417,7 +2418,7 @@ Addon_fields *Filesort::get_addon_fields(
 
     addonf->field = field;
     addonf->offset = length;
-    if (field->maybe_null()) {
+    if (field->real_maybe_null()) {
       addonf->null_offset = null_fields / 8;
       addonf->null_bit = 1 << (null_fields & 7);
       null_fields++;

@@ -1345,7 +1345,6 @@ class Field {
     m_check_for_truncated_fields_saved = check_for_truncated_fields;
   }
 
-  bool maybe_null() const;
   /// @return true if this field is NULL-able, false otherwise.
   bool real_maybe_null() const { return m_null_ptr != nullptr; }
 
@@ -3540,8 +3539,6 @@ class Field_string : public Field_longstr {
   bool has_charset() const final override {
     return charset() == &my_charset_bin ? false : true;
   }
-  Field *new_field(MEM_ROOT *root, TABLE *new_table,
-                   bool keep_type) const final override;
   Field_string *clone(MEM_ROOT *mem_root) const final override {
     DBUG_ASSERT(real_type() == MYSQL_TYPE_STRING);
     return new (mem_root) Field_string(*this);
@@ -4031,7 +4028,9 @@ class Field_geom final : public Field_blob {
   type_conversion_status reset() final override {
     type_conversion_status res = Field_blob::reset();
     if (res != TYPE_OK) return res;
-    return maybe_null() ? TYPE_OK : TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+    return (real_maybe_null() || table->is_nullable())
+               ? TYPE_OK
+               : TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
 
   geometry_type get_geometry_type() const final override { return geom_type; }

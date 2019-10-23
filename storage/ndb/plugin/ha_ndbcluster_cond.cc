@@ -1655,9 +1655,9 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
         }
       }
 
-      const bool field1_maybe_null = field1->get_field()->maybe_null();
+      const bool field1_maybe_null = field1->get_field()->real_maybe_null();
       const bool field2_maybe_null =
-          field2 && field2->get_field()->maybe_null();
+          field2 && field2->get_field()->real_maybe_null();
       bool added_null_check = false;
 
       if (field1_maybe_null || field2_maybe_null) {
