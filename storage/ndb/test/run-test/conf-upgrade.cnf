@@ -43,7 +43,7 @@ protocol=tcp
 [cluster_config.2node]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
-ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+ndbapi= CHOOSE_host1,,
 
 NoOfReplicas = 2
 DataMemory = 400M
@@ -71,7 +71,7 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.2node8thr]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3
-ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+ndbapi= CHOOSE_host1,,
 
 NoOfReplicas = 2
 IndexMemory = 100M
@@ -100,7 +100,7 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.4node]
 ndb_mgmd = CHOOSE_host1
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
-ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+ndbapi= CHOOSE_host1,,
 
 NoOfReplicas = 2
 IndexMemory = 100M
@@ -130,7 +130,7 @@ TimeBetweenWatchDogCheckInitial=60000
 [cluster_config.2node2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host6
 ndbd = CHOOSE_host2,CHOOSE_host3
-ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+ndbapi= CHOOSE_host1,,
 
 NoOfReplicas = 2
 IndexMemory = 50M
@@ -149,7 +149,7 @@ Checksum=1
 [cluster_config.2node8thr2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host6
 ndbd = CHOOSE_host2,CHOOSE_host3
-ndbapi= CHOOSE_host1,CHOOSE_host4,CHOOSE_host5
+ndbapi= CHOOSE_host1,,
 
 NoOfReplicas = 2
 IndexMemory = 50M
@@ -169,7 +169,7 @@ Checksum=1
 [cluster_config.4node2mgm]
 ndb_mgmd = CHOOSE_host1,CHOOSE_host8
 ndbd = CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5
-ndbapi= CHOOSE_host1,CHOOSE_host6,CHOOSE_host7
+ndbapi= CHOOSE_host1,,
 
 NoOfReplicas = 2
 IndexMemory = 50M
