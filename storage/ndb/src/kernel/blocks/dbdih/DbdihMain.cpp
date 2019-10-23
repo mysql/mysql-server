@@ -9814,8 +9814,7 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
      * lying around since this will block any future restarts in
      * this node group.
      *
-     * TODO:
-     * We should make take over be parallelised within one node
+     * We could perform take over in parallel within one node
      * group. There is really nothing preventing multiple nodes
      * to copy different fragments to a starting node in case
      * we have more than 2 replicas.
@@ -9837,18 +9836,30 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
       NGPtr.i = nodePtr.p->nodeGroup;
       if (NGPtr.i != ZNIL)
       {
-        jam();
         ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
 
         if (NGPtr.p->activeTakeOver == 0)
         {
+          jam();
           ndbrequire(NGPtr.p->activeTakeOverCount == 0);
+        }
+        else if (NGPtr.p->activeTakeOver == startingNode)
+        {
+          jam();
+          NGPtr.p->activeTakeOver = 0;
+          NGPtr.p->activeTakeOverCount = 0;
         }
         else
         {
-          ndbrequire(NGPtr.p->activeTakeOver == startingNode);
-          NGPtr.p->activeTakeOver = 0;
-          NGPtr.p->activeTakeOverCount = 0;
+          jam();
+          /**
+           * We arrive here for instance when a takeover is completed
+           * after waiting for LCP and a new takeover has already started
+           * of another node in the same node group. In this case our
+           * node is not the active node being taken over, we are only
+           * passively waiting for the LCP to complete before we can
+           * proceed with our recovery.
+           */
         }
       }
     }
