@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3813,8 +3813,9 @@ class MDLHtonNotifyTest : public MDLTest {
 */
 
 TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
-  bool notify_or_not[MDL_key::NAMESPACE_END] = {
+  bool notify_or_not[] = {
       false,  // GLOBAL
+      false,  // BACKUP_LOCK
       true,   // TABLESPACE
       true,   // SCHEMA
       true,   // TABLE
@@ -3824,8 +3825,17 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
       true,   // EVENT
       false,  // COMMIT
       false,  // USER_LEVEL_LOCK
-      false   // LOCKING_SERVICE
+      false,  // LOCKING_SERVICE
+      false,  // SRID
+      false,  // ACL_CACHE
+      false,  // COLUMN_STATISTICS
+      false,  // RESOURCE_GROUPS
+      false,  // FOREIGN_KEY
+      false   // CHECK_CONSTRAINT
   };
+  static_assert(
+      sizeof(notify_or_not) == MDL_key::NAMESPACE_END,
+      "Initializer list for notify_or_not[] has the wrong number of elements!");
 
   for (uint i = 0; i < static_cast<uint>(MDL_key::NAMESPACE_END); i++) {
     MDL_request request;
