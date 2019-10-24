@@ -586,7 +586,6 @@ static void ndbcluster_binlog_log_query(handlerton *, THD *thd,
 static void ndbcluster_acl_notify(THD *thd,
                                   const Acl_change_notification *notice) {
   DBUG_TRACE;
-  const std::string &query = notice->get_query();
 
   if (!check_ndb_in_thd(thd)) {
     ndb_log_error("Privilege distribution failed to seize thd_ndb");
@@ -600,48 +599,46 @@ static void ndbcluster_acl_notify(THD *thd,
     return;
   }
 
-  {
-    ndb_log_verbose(9, "ACL considering: %s", query.c_str());
-    std::string user_list;
-    bool dist_use_db = false;   // Prepend "use [db];" to statement
-    bool dist_refresh = false;  // All participants must refresh their caches
-    Ndb_stored_grants::Strategy strategy =
-        Ndb_stored_grants::handle_local_acl_change(thd, notice, &user_list,
-                                                   &dist_use_db, &dist_refresh);
+  const std::string &query = notice->get_query_for_logging();
+  ndb_log_verbose(9, "ACL considering: %s", query.c_str());
+  std::string user_list;
+  bool dist_use_db = false;   // Prepend "use [db];" to statement
+  bool dist_refresh = false;  // All participants must refresh their caches
+  Ndb_stored_grants::Strategy strategy =
+      Ndb_stored_grants::handle_local_acl_change(thd, notice, &user_list,
+                                                 &dist_use_db, &dist_refresh);
 
-    Ndb_schema_dist_client schema_dist_client(thd);
+  Ndb_schema_dist_client schema_dist_client(thd);
 
-    if (strategy == Ndb_stored_grants::Strategy::ERROR) {
-      ndb_log_error("Not distributing ACL change after error.");
-      return;
-    }
-
-    if (strategy == Ndb_stored_grants::Strategy::NONE) {
-      ndb_log_verbose(9, "ACL change distribution: NONE");
-      return;
-    }
-
-    const unsigned int &node_id = g_ndb_cluster_connection->node_id();
-    if (!schema_dist_client.prepare_acl_change(node_id)) {
-      ndb_log_error("Failed to distribute '%s' (Failed prepare)",
-                    query.c_str());
-      return;
-    }
-
-    if (strategy == Ndb_stored_grants::Strategy::SNAPSHOT) {
-      ndb_log_verbose(9, "ACL change distribution: SNAPSHOT");
-      if (!schema_dist_client.acl_notify(user_list))
-        ndb_log_error("Failed to distribute '%s' (SNAPSHOT)", query.c_str());
-      return;
-    }
-
-    DBUG_ASSERT(strategy == Ndb_stored_grants::Strategy::STATEMENT);
-    ndb_log_verbose(9, "ACL change distribution: STATEMENT");
-    if (!schema_dist_client.acl_notify(
-            dist_use_db ? notice->get_db().c_str() : nullptr, query.c_str(),
-            query.length(), dist_refresh))
-      ndb_log_error("Failed to distribute '%s' (STATEMENT)", query.c_str());
+  if (strategy == Ndb_stored_grants::Strategy::ERROR) {
+    ndb_log_error("Not distributing ACL change after error.");
+    return;
   }
+
+  if (strategy == Ndb_stored_grants::Strategy::NONE) {
+    ndb_log_verbose(9, "ACL change distribution: NONE");
+    return;
+  }
+
+  const unsigned int &node_id = g_ndb_cluster_connection->node_id();
+  if (!schema_dist_client.prepare_acl_change(node_id)) {
+    ndb_log_error("Failed to distribute '%s' (Failed prepare)", query.c_str());
+    return;
+  }
+
+  if (strategy == Ndb_stored_grants::Strategy::SNAPSHOT) {
+    ndb_log_verbose(9, "ACL change distribution: SNAPSHOT");
+    if (!schema_dist_client.acl_notify(user_list))
+      ndb_log_error("Failed to distribute '%s' (SNAPSHOT)", query.c_str());
+    return;
+  }
+
+  DBUG_ASSERT(strategy == Ndb_stored_grants::Strategy::STATEMENT);
+  ndb_log_verbose(9, "ACL change distribution: STATEMENT");
+  if (!schema_dist_client.acl_notify(
+          dist_use_db ? notice->get_db().c_str() : nullptr, query.c_str(),
+          query.length(), dist_refresh))
+    ndb_log_error("Failed to distribute '%s' (STATEMENT)", query.c_str());
 }
 
 /*
