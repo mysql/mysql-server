@@ -260,11 +260,53 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   DBUG_PRINT("info",("server port: %d, isMgmConnection: %d",
                      m_s_port, isMgmConnection));
 
-  // Send "hello"
-  DBUG_PRINT("info", ("Sending own nodeid: %d and transporter type: %d",
-                      localNodeId, m_type));
+  /**
+   * Send "hello"
+   *
+   * We can add more optional parameters here, so long as the
+   * receiver can safely ignore them, and the string does
+   * not get longer than the max size allowed by supported
+   * receivers - see below.
+   *
+   * Currently have
+   *   nodeId      0..255   :  3 chars
+   *   space                :  1 char
+   *   type          0..4   :  1 char
+   *   space                :  1 char
+   *   nodeId      0..255   :  3 chars
+   *   ------------------------------
+   *   total                :  9 chars
+   */
+  char helloBuf[256];
+  const int helloLen = BaseString::snprintf(helloBuf, sizeof(helloBuf),
+                                            "%d %d %d",
+                                            localNodeId,
+                                            m_type,
+                                            remoteNodeId);
+  if (helloLen < 0)
+  {
+    DBUG_PRINT("error", ("Failed to buffer hello %d", helloLen));
+    DBUG_RETURN(false);
+  }
+  /**
+   * Received in TransporterRegistry::connect_server()
+   * with tight limit up to 8.0.20.
+   * When servers older than 8.0.20 are no longer supported
+   * the higher limit can be used.
+   */
+  const int OldMaxHandshakeBytesLimit = 23; /* 24 - 1 for \n */
+  if (unlikely(helloLen > OldMaxHandshakeBytesLimit))
+  {
+    /* Cannot send this many bytes to older versions */
+    ndbout_c("Failed handshake string length %u : \"%s\"",
+             helloLen, helloBuf);
+    abort();
+  }
+
+  DBUG_PRINT("info", ("Sending hello : %s", helloBuf));
+
   SocketOutputStream s_output(sockfd);
-  if (s_output.println("%d %d", localNodeId, m_type) < 0)
+  if (s_output.println("%s", helloBuf) < 0)
   {
     DBUG_PRINT("error", ("Send of 'hello' failed"));
     ndb_socket_close(sockfd);

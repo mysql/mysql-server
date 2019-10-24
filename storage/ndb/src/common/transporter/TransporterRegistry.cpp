@@ -122,9 +122,17 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
   BaseString msg;
   bool close_with_reset = true;
-  if (!m_transporter_registry->connect_server(sockfd, msg, close_with_reset))
+  bool log_failure = false;
+  if (!m_transporter_registry->connect_server(sockfd,
+                                              msg,
+                                              close_with_reset,
+                                              log_failure))
   {
     ndb_socket_close_with_reset(sockfd, close_with_reset);
+    if (log_failure)
+    {
+      g_eventLogger->warning("TR : %s", msg.c_str());
+    }
     DBUG_RETURN(0);
   }
 
@@ -416,47 +424,67 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 bool
 TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
                                     BaseString & msg,
-                                    bool& close_with_reset) const
+                                    bool& close_with_reset,
+                                    bool& log_failure) const
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
-  // Read "hello" that consists of node id and transporter
-  // type from client
+  log_failure = true;
+
+  // Read "hello" that consists of node id and other info
+  // from client
   SocketInputStream s_input(sockfd);
-  char buf[11+1+11+1]; // <int> <int>
+  char buf[256]; // <int> <int> <int> <..expansion..>
   if (s_input.gets(buf, sizeof(buf)) == 0) {
-    msg.assfmt("line: %u : Failed to get nodeid from client", __LINE__);
-    DBUG_PRINT("error", ("Failed to read 'hello' from client"));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "read 'hello' from client");
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
   int nodeId, remote_transporter_type= -1;
-  int r= sscanf(buf, "%d %d", &nodeId, &remote_transporter_type);
+  int serverNodeId = -1;
+  int r= sscanf(buf, "%d %d %d",
+                &nodeId,
+                &remote_transporter_type,
+                &serverNodeId);
   switch (r) {
+  case 3:
+    /* Latest version client */
+    break;
   case 2:
+    /* Older client, sending just nodeid and transporter type */
     break;
   case 1:
     // we're running version prior to 4.1.9
     // ok, but with no checks on transporter configuration compatability
     break;
   default:
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
-                         (int)sizeof(buf), buf));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "parse 'hello' from client.  >%s<", buf);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d",
-		      nodeId, remote_transporter_type));
+  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d "
+                      "server nodeid %d",
+                      nodeId,
+                      remote_transporter_type,
+                      serverNodeId));
 
 
   // Check that nodeid is in range before accessing the arrays
   if (nodeId < 0 ||
       nodeId >= (int)maxTransporters)
   {
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Out of range nodeId: %d from client",
-                         nodeId));
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u out of range", nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
@@ -464,22 +492,60 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   Transporter *t= theTransporters[nodeId];
   if (t == 0)
   {
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<, node: %u",
-               __LINE__, buf, nodeId);
-    DBUG_PRINT("error", ("No transporter available for node id %d", nodeId));
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u is undefined.",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
+  }
+
+  // Check transporter type
+  if (remote_transporter_type != -1 &&
+      remote_transporter_type != t->m_type)
+  {
+    msg.assfmt("Connection attempt from client node %u failed as transporter "
+               "type %u is not as expected %u.",
+               nodeId,
+               remote_transporter_type,
+               t->m_type);
+    DBUG_RETURN(false);
+  }
+
+  // Check that the serverNodeId is correct
+  if (serverNodeId != -1)
+  {
+    /* Check that incoming connection was meant for us */
+    if (serverNodeId != t->getLocalNodeId())
+    {
+      /* Strange, log it */
+      msg.assfmt("Ignored connection attempt as client "
+                 "node %u attempting to connect to node %u, "
+                 "but this is node %u.",
+                 nodeId,
+                 serverNodeId,
+                 t->getLocalNodeId());
+      DBUG_PRINT("error", ("%s", msg.c_str()));
+      DBUG_RETURN(false);
+    }
   }
 
   // Check that the transporter should be connecting
   if (performStates[nodeId] != TransporterRegistry::CONNECTING)
   {
-    msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
-               __LINE__, nodeId,
-               getPerformStateString(nodeId),
+    msg.assfmt("Ignored connection attempt as this node "
+               "is not expecting a connection from node %u. "
+               "State %u",
+               nodeId,
                performStates[nodeId]);
 
-    DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
-                         nodeId));
+    DBUG_PRINT("error", ("%s", msg.c_str()));
+
+    /**
+     * This is expected if the transporter state is DISCONNECTED,
+     * otherwise it's a bit strange
+     */
+    log_failure = (performStates[nodeId] != TransporterRegistry::DISCONNECTED);
 
     // Avoid TIME_WAIT on server by requesting client to close connection
     SocketOutputStream s_output(sockfd);
@@ -504,23 +570,17 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     DBUG_RETURN(false);
   }
 
-  // Check transporter type
-  if (remote_transporter_type != -1 &&
-      remote_transporter_type != t->m_type)
-  {
-    g_eventLogger->error("Connection from node: %d uses different transporter "
-                         "type: %d, expected type: %d",
-                         nodeId, remote_transporter_type, t->m_type);
-    DBUG_RETURN(false);
-  }
+
 
   // Send reply to client
   SocketOutputStream s_output(sockfd);
   if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
-    msg.assfmt("line: %u : Failed to reply to connecting socket (node: %u)",
-               __LINE__, nodeId);
-    DBUG_PRINT("error", ("Send of reply failed"));
+    /* Strange, log it */
+    msg.assfmt("Connection attempt failed due to error sending "
+               "reply to client node %u",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
