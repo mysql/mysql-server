@@ -539,7 +539,7 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     if (page_cur_is_after_last(cur)) {
       mem_heap_empty(heap);
 
-      if (!move_to_next_node(pcursor, mtr)) {
+      if (!move_to_next_node(pcursor, mtr) || is_error_set()) {
         break;
       }
       m_first_rec = true;
@@ -770,8 +770,6 @@ page_cur_t Parallel_reader::Scan_ctx::start_range(
     if (page_rec_is_infimum(page_cur_get_rec(&page_cursor))) {
       page_cur_move_to_next(&page_cursor);
     }
-
-    ut_a(!page_cur_is_after_last(&page_cursor));
 
     return (page_cursor);
   }
@@ -1056,7 +1054,6 @@ void Parallel_reader::read_ahead_worker(page_no_t n_pages) {
 
       if (trx_is_interrupted(scan_ctx->m_trx)) {
         set_error_state(DB_INTERRUPTED);
-        break;
       }
 
       ut_a(scan_ctx->m_config.m_read_ahead);
