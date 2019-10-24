@@ -718,6 +718,12 @@ class Parallel_reader::Ctx {
   @return DB_SUCCESS or error code. */
   dberr_t split() MY_ATTRIBUTE((warn_unused_result));
 
+  /** @return true if in error state. */
+  bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_scan_ctx->m_reader->m_err.load(std::memory_order_relaxed) !=
+            DB_SUCCESS);
+  }
+
  private:
   /** Context ID. */
   size_t m_id{std::numeric_limits<size_t>::max()};
