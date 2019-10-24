@@ -4905,7 +4905,8 @@ MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd,
 {
   DBUG_ENTER("MgmtSrvr::transporter_connect");
   TransporterRegistry* tr= theFacade->get_registry();
-  if (!tr->connect_server(sockfd, msg, close_with_reset))
+  bool dummy_log_failure = false;
+  if (!tr->connect_server(sockfd, msg, close_with_reset, dummy_log_failure))
     DBUG_RETURN(false);
 
   /**

@@ -222,12 +222,14 @@ public:
      @param close_with_reset allows the function to indicate to the caller
                              how the socket should be closed when function
                              returns false
+     @param log_failure      whether a failure to connect is log-worthy
 
      @returns false on failure and true on success
   */
   bool connect_server(NDB_SOCKET_TYPE sockfd,
                       BaseString& msg,
-                      bool& close_with_reset);
+                      bool& close_with_reset,
+                      bool& log_failure);
 
   bool connect_client(NdbMgmHandle *h);
 

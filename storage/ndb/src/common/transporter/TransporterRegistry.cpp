@@ -125,10 +125,18 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 
   BaseString msg;
   bool close_with_reset = true;
-  if (!m_transporter_registry->connect_server(sockfd, msg, close_with_reset))
+  bool log_failure = false;
+  if (!m_transporter_registry->connect_server(sockfd,
+                                              msg,
+                                              close_with_reset,
+                                              log_failure))
   {
     DEBUG_FPRINTF((stderr, "New session failed in connect_server\n"));
     ndb_socket_close_with_reset(sockfd, close_with_reset);
+    if (log_failure)
+    {
+      g_eventLogger->warning("TR : %s", msg.c_str());
+    }
     DBUG_RETURN(0);
   }
 
@@ -456,57 +464,79 @@ TransporterRegistry::init(TransporterReceiveHandle& recvhandle)
 bool
 TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
                                     BaseString & msg,
-                                    bool& close_with_reset)
+                                    bool& close_with_reset,
+                                    bool& log_failure)
 {
   DBUG_ENTER("TransporterRegistry::connect_server(sockfd)");
 
-  // Read "hello" that consists of node id and transporter
-  // type from client
+  log_failure = true;
+
+  // Read "hello" that consists of node id and other info
+  // from client
   SocketInputStream s_input(sockfd);
-  char buf[11+1+11+1+11+1]; // <int> <int> <int>
+  char buf[256]; // <int> <int> <int> <int> <..expansion..>
   if (s_input.gets(buf, sizeof(buf)) == 0) {
-    msg.assfmt("line: %u : Failed to get nodeid from client", __LINE__);
-    DBUG_PRINT("error", ("Failed to read 'hello' from client"));
-    DEBUG_FPRINTF((stderr, "Failed to read 'hello' from client\n"));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "read 'hello' from client");
+    DBUG_PRINT("error", ("%s", msg.c_str()));
+    DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
   int nodeId;
   int remote_transporter_type;
-  int multi_transporter_instance = 0;
-  int r= sscanf(buf, "%d %d %d",
+  int serverNodeId = -1;
+  int multi_transporter_instance = -1;
+  int r= sscanf(buf, "%d %d %d %d",
                 &nodeId,
                 &remote_transporter_type,
+                &serverNodeId,
                 &multi_transporter_instance);
   switch (r) {
+  case 4:
+    /* Latest version client */
+    break;
   case 3:
+    /* Older client, sending just nodeid, transporter type, serverNodeId */
+    break;
   case 2:
+    /* Older client, sending just nodeid and transporter type */
     break;
   default:
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
-                         (int)sizeof(buf), buf));
-    DEBUG_FPRINTF((stderr, "Failed to parse 'hello' from client, buf: '%.*s'",
-                           (int)sizeof(buf), buf));
+    /* Could be spurious connection, need not log */
+    log_failure = false;
+    msg.assfmt("Ignored connection attempt as failed to "
+               "parse 'hello' from client.  >%s<", buf);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
+    DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d",
-		      nodeId, remote_transporter_type));
+  DBUG_PRINT("info", ("Client hello, nodeId: %d transporter type: %d "
+                      "server nodeid %d instance %d",
+		      nodeId,
+                      remote_transporter_type,
+                      serverNodeId,
+                      multi_transporter_instance));
   /*
-  DEBUG_FPRINTF((stderr, "Client hello, nodeId: %d transporter type: %d\n",
-		         nodeId, remote_transporter_type));
+  DEBUG_FPRINTF((stderr, "Client hello, nodeId: %d transporter type: %d "
+                         "server nodeid %d instance %d",
+		         nodeId,
+                         remote_transporter_type,
+                         serverNodeId,
+                         multi_transporter_instace));
   */
 
   // Check that nodeid is in range before accessing the arrays
   if (nodeId < 0 ||
       nodeId > (int)MAX_NODES)
   {
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-    DBUG_PRINT("error", ("Out of range nodeId: %d from client",
-                         nodeId));
-    DEBUG_FPRINTF((stderr, "Out of range nodeId: %d from client\n",
-                           nodeId));
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u out of range", nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
@@ -516,32 +546,57 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   if (t == 0)
   {
     unlockMultiTransporters();
-    msg.assfmt("line: %u : Incorrect reply from client: >%s<, node: %u",
-               __LINE__, buf, nodeId);
-    DBUG_PRINT("error", ("No transporter available for node id %d", nodeId));
-    DEBUG_FPRINTF((stderr, "No transporter available for node id %d\n",
-                          nodeId));
+    /* Strange, log it */
+    msg.assfmt("Ignored connection attempt as client "
+               "nodeid %u is undefined.",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
+  }
+
+  // Check transporter type
+  if (remote_transporter_type != -1 &&
+      remote_transporter_type != t->m_type)
+  {
+    /* Strange, log it */
+    msg.assfmt("Connection attempt from client node %u failed as transporter "
+               "type %u is not as expected %u.",
+               nodeId,
+               remote_transporter_type,
+               t->m_type);
+    DBUG_RETURN(false);
+  }
+
+  // Check that the serverNodeId is correct
+  if (serverNodeId != -1)
+  {
+    /* Check that incoming connection was meant for us */
+    if (serverNodeId != t->getLocalNodeId())
+    {
+      unlockMultiTransporters();
+      /* Strange, log it */
+      msg.assfmt("Ignored connection attempt as client "
+                 "node %u attempting to connect to node %u, "
+                 "but this is node %u.",
+                 nodeId,
+                 serverNodeId,
+                 t->getLocalNodeId());
+      DBUG_PRINT("error", ("%s", msg.c_str()));
+      DBUG_RETURN(false);
+    }
   }
 
   bool correct_state = false;
   Multi_Transporter *multi_trp =
     get_node_multi_transporter(nodeId);
-  if (multi_trp && r == 3)
+  if (multi_trp &&
+      multi_transporter_instance > 0)
   {
-    DEBUG_FPRINTF((stderr, "connect_server multi trp, node %u\n",
-                   t->getRemoteNodeId()));
-    if (multi_transporter_instance == 0)
-    {
-      unlockMultiTransporters();
-      msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-      DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
-                           (int)sizeof(buf), buf));
-      DEBUG_FPRINTF((stderr, "Failed to parse 'hello' from client,"
-                             " buf: '%.*s'\n",
-                             (int)sizeof(buf), buf));
-      DBUG_RETURN(false);
-    }
+    /* Specific path for non-zero multi transporter instances */
+    DEBUG_FPRINTF((stderr, "connect_server multi trp, node %u instance %u\n",
+                   t->getRemoteNodeId(),
+                   multi_transporter_instance));
+
     if (performStates[nodeId] == TransporterRegistry::CONNECTED)
     {
       /**
@@ -562,40 +617,80 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
           multi_trp->get_inactive_transporter(multi_transporter_instance - 1);
         if (!inst_trp->isConnected())
         {
+          /**
+           * Continue connection setup with
+           * multi-transporter specific instance
+           */
           correct_state = true;
           t = inst_trp;
         }
         else
         {
-          DEBUG_FPRINTF((stderr, "Multi transporter instance %u already"
-                                 " connected\n",
-                                 multi_transporter_instance));
+          /* Strange, log it */
+          msg.assfmt("Ignored connection attempt from node %u as multi "
+                     "transporter instance %u already connected.",
+                     nodeId,
+                     multi_transporter_instance);
         }
       }
       else
       {
-        DEBUG_FPRINTF((stderr, "Incorrect multi transporter instance %u\n",
-                               multi_transporter_instance));
+        /* Strange, log it */
+        msg.assfmt("Ignored connection attempt from node %u as multi "
+                   "transporter instance %u is not in range.",
+                   nodeId,
+                   multi_transporter_instance);
       }
     }
   }
   else
   {
-    if (multi_transporter_instance != 0 || r != 2)
-    {
-      unlockMultiTransporters();
-      msg.assfmt("line: %u : Incorrect reply from client: >%s<", __LINE__, buf);
-      DBUG_PRINT("error", ("Failed to parse 'hello' from client, buf: '%.*s'",
-                           (int)sizeof(buf), buf));
-      DEBUG_FPRINTF((stderr, "Failed to parse 'hello' from client, buf:"
-                             " '%.*s'\n",
-                             (int)sizeof(buf), buf));
-      DBUG_RETURN(false);
-    }
     /**
-     * Normal connection setup requires state to be in CONNECTING, in this
-     * case multi_transporter_instance must be set to 0 since it isn't sent
-     * in the protocol.
+     * Normal connection setup
+     * Sub cases :
+     *   Normal setup from recent version  : multi = 0, instance = 0
+     *   Normal setup from old version     : multi = 0, instance = -1
+     *   Normal setup for multi instance 0 : multi = 1, instance = 0
+     *
+     * Not supported :
+     *   multi = 1, instance > 0  : Handled above
+     *   multi = 1, instance < 0  : Do not enable multi transporters before upgrade
+     *   multi = 0, instance > 0  : Invalid
+     */
+    if (!multi_trp)
+    {
+      if (multi_transporter_instance > 0)
+      {
+        unlockMultiTransporters();
+        /* Strange, log it */
+        msg.assfmt("Ignored connection attempt from node %u as multi "
+                   "transporter instance %d specified for non multi-transporter",
+                   nodeId, multi_transporter_instance);
+        DBUG_RETURN(false);
+      }
+    }
+    else
+    {
+      /* multi_trp */
+      if (multi_transporter_instance == 0)
+      {
+        /* Continue connection setup with specific instance 0 */
+        require(multi_trp->get_num_active_transporters() == 1);
+        t = multi_trp->get_active_transporter(0);
+      }
+      else
+      {
+        unlockMultiTransporters();
+        /* Strange, log it */
+        msg.assfmt("Ignored connection attempt from node %u as multi "
+                   "transporter instance %d specified",
+                   nodeId, multi_transporter_instance);
+        DBUG_RETURN(false);
+      }
+    }
+
+    /**
+     * Normal connection setup requires state to be in CONNECTING
      */
     if (performStates[nodeId] == TransporterRegistry::CONNECTING)
     {
@@ -603,31 +698,31 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     }
     else
     {
-      DEBUG_FPRINTF((stderr, "Wrong state: performStates[%u] = %u, r = %u\n",
-                    nodeId,
-                    performStates[nodeId],
-                    r));
-    }
-    if (multi_trp)
-    {
-      require(multi_trp->get_num_active_transporters() == 1);
-      t = multi_trp->get_active_transporter(0);
+      msg.assfmt("Ignored connection attempt as this node "
+                 "is not expecting a connection from node %u. "
+                 "State %u",
+                 nodeId,
+                 performStates[nodeId]);
+
+      /**
+       * This is expected if the transporter state is DISCONNECTED,
+       * otherwise it's a bit strange
+       */
+      log_failure = (performStates[nodeId] != TransporterRegistry::DISCONNECTED);
+
+      DEBUG_FPRINTF((stderr, "%s", msg.c_str()));
     }
   }
   unlockMultiTransporters();
+
   // Check that the transporter should be connecting
   if (!correct_state)
   {
-    msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
-               __LINE__, nodeId,
-               getPerformStateString(nodeId),
-               performStates[nodeId]);
-
-    DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
-                         nodeId));
+    DBUG_PRINT("error", ("Transporter for node id %d in wrong state %s",
+                         nodeId, msg.c_str()));
     /*
-    DEBUG_FPRINTF((stderr, "Transporter for node id %d in wrong state\n",
-                           nodeId));
+    DEBUG_FPRINTF((stderr, "Transporter for node id %d in wrong state %s\n",
+                           nodeId, msg.c_str()));
     */
 
     // Avoid TIME_WAIT on server by requesting client to close connection
@@ -653,24 +748,15 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
     DBUG_RETURN(false);
   }
 
-  // Check transporter type
-  if (remote_transporter_type != -1 &&
-      remote_transporter_type != t->m_type)
-  {
-    g_eventLogger->error("Connection from node: %d uses different transporter "
-                         "type: %d, expected type: %d",
-                         nodeId, remote_transporter_type, t->m_type);
-    DBUG_RETURN(false);
-  }
-
   // Send reply to client
   SocketOutputStream s_output(sockfd);
   if (s_output.println("%d %d", t->getLocalNodeId(), t->m_type) < 0)
   {
-    msg.assfmt("line: %u : Failed to reply to connecting socket (node: %u)",
-               __LINE__, nodeId);
-    DBUG_PRINT("error", ("Send of reply failed"));
-    DEBUG_FPRINTF((stderr, "Send of reply failed\n"));
+    /* Strange, log it */
+    msg.assfmt("Connection attempt failed due to error sending "
+               "reply to client node %u",
+               nodeId);
+    DBUG_PRINT("error", ("%s", msg.c_str()));
     DBUG_RETURN(false);
   }
 
