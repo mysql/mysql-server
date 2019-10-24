@@ -4452,6 +4452,15 @@ dberr_t row_mysql_parallel_select_count_star(
 
   auto err = success ? reader.run() : DB_ERROR;
 
+  if (err == DB_OUT_OF_RESOURCES) {
+    ib::warn(ER_INNODB_OUT_OF_RESOURCES)
+        << "Resource not available to create threads for parallel scan."
+        << " Falling back to single thread mode.";
+
+    reader.fallback_to_single_threaded_mode();
+    err = reader.run();
+  }
+
   if (err == DB_SUCCESS) {
     Counter::for_each(n_recs, [=](const Counter::Type n) {
       if (n > 0) {
@@ -4596,6 +4605,15 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
     prev_tuples.resize(max_threads);
     prev_blocks.resize(max_threads);
 
+    err = reader.run();
+  }
+
+  if (err == DB_OUT_OF_RESOURCES) {
+    ib::warn(ER_INNODB_OUT_OF_RESOURCES)
+      << "Resource not available to create threads for parallel scan."
+      << " Falling back to single thread mode.";
+
+    reader.fallback_to_single_threaded_mode();
     err = reader.run();
   }
 

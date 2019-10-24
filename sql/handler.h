@@ -4465,11 +4465,9 @@ class handler {
   /**
     End of the parallel scan.
     @param[in]      scan_ctx      A scan context created by parallel_scan_init.
-    @return error code
-    @retval 0 on success
   */
-  virtual int parallel_scan_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
-    return (0);
+  virtual void parallel_scan_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
+    return;
   }
 
   /**

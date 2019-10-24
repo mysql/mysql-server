@@ -1239,11 +1239,10 @@ int ha_innobase::parallel_scan(void *scan_ctx, void **thread_ctxs,
   return (convert_error_code_to_mysql(err, 0, ha_thd()));
 }
 
-int ha_innobase::parallel_scan_end(void *parallel_scan_ctx) {
+void ha_innobase::parallel_scan_end(void *parallel_scan_ctx) {
   Parallel_reader_adapter *parallel_reader =
       static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
   UT_DELETE(parallel_reader);
-  return 0;
 }
 
 /** Alter the table structure in-place with operations
@@ -9807,10 +9806,9 @@ int ha_innopart::parallel_scan(void *scan_ctx, void **thread_ctxs,
   return (convert_error_code_to_mysql(err, 0, ha_thd()));
 }
 
-int ha_innopart::parallel_scan_end(void *parallel_scan_ctx) {
+void ha_innopart::parallel_scan_end(void *parallel_scan_ctx) {
   auto adapter = static_cast<Parallel_reader_adapter *>(parallel_scan_ctx);
   UT_DELETE(adapter);
-  return 0;
 }
 
 /** Check if supported inplace alter table.

@@ -503,6 +503,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Btree level limit exceeded");
     case DB_END_SAMPLE_READ:
       return ("Sample reader has been requested to stop sampling");
+    case DB_OUT_OF_RESOURCES:
+      return ("System has run out of resources");
 
     case DB_ERROR_UNSET:;
       /* Fall through. */

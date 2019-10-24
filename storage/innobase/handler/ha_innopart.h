@@ -577,10 +577,8 @@ class ha_innopart : public ha_innobase,
   /** Run the parallel read of data.
   @param[in]      parallel_scan_ctx a scan context created by
                                     parallel_scan_init
-  @return error code
-  @retval 0 on success
   */
-  int parallel_scan_end(void *parallel_scan_ctx) override;
+  void parallel_scan_end(void *parallel_scan_ctx) override;
 
  private:
   /** Pointer to Ha_innopart_share on the TABLE_SHARE. */

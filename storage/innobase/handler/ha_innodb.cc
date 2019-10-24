@@ -15685,7 +15685,6 @@ int ha_innobase::records(ha_rows *num_rows) /*!< out: number of rows */
       /* No other error besides the three below is returned from
       row_scan_index_for_mysql(). Make a debug catch. */
       *num_rows = HA_POS_ERROR;
-      ut_ad(0);
       return -1;
   }
 

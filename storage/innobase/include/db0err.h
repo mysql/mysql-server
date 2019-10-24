@@ -185,6 +185,8 @@ enum dberr_t {
   DB_BTREE_LEVEL_LIMIT_EXCEEDED,
   /* Schema mismatch between the metadata and data being imported. */
   DB_SCHEMA_MISMATCH,
+  /** System has run out of resources. */
+  DB_OUT_OF_RESOURCES,
 
   /* The following are partial failure codes */
 

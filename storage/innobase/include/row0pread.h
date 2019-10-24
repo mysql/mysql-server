@@ -211,6 +211,13 @@ class Parallel_reader {
     ut_a(active >= n_threads);
   }
 
+  /** Fallback to single threaded mode in case of out of resource
+  issue where extra threads cannot be spawned. */
+  void fallback_to_single_threaded_mode() {
+    m_single_threaded_mode = true;
+    reset_error_state();
+  }
+
   /** Add scan context.
   @param[in,out]  trx         Covering transaction.
   @param[in]      config      Scan condfiguration.
@@ -275,6 +282,9 @@ class Parallel_reader {
   Parallel_reader &operator=(const Parallel_reader &) = delete;
 
  private:
+  /** Reset error state. */
+  void reset_error_state() { m_err = DB_SUCCESS; }
+
   /** Release unused threads back to the pool.
   @param[in] unused_threads     Number of threads to "release". */
   void release_unused_threads(size_t unused_threads) {
@@ -317,8 +327,9 @@ class Parallel_reader {
   @param[in] n_pages            Read ahead batch size. */
   void read_ahead_worker(page_no_t n_pages);
 
-  /** Start the read ahead worker threads. */
-  void read_ahead();
+  /** Start the read ahead worker threads.
+  @return error code */
+  dberr_t read_ahead();
 
  private:
   /** Read ahead request. */
@@ -363,8 +374,15 @@ class Parallel_reader {
   /** Scan contexts. */
   Scan_ctxs m_scan_ctxs{};
 
+  /** True if we fallback to single threaded mode in case of out of resource
+  issue where extra threads cannot be spawned. */
+  bool m_single_threaded_mode{false};
+
   /** For signalling worker threads about events. */
   os_event_t m_event{};
+
+  /** Value returned by previous call of os_event_reset() on m_event. */
+  uint64_t m_sig_count;
 
   /** Counter for allocating scan context IDs. */
   size_t m_scan_ctx_id{};

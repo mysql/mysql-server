@@ -182,6 +182,7 @@ Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
 
   m_event = os_event_create("Parallel reader");
+  m_sig_count = os_event_reset(m_event);
 }
 
 Parallel_reader::Scan_ctx::Scan_ctx(Parallel_reader *reader, size_t id,
@@ -484,7 +485,7 @@ bool Parallel_reader::Ctx::move_to_next_node(PCursor *pcursor, mtr_t *mtr) {
   auto err = pcursor->move_to_next_block(const_cast<dict_index_t *>(index()));
 
   if (err != DB_SUCCESS) {
-    ut_ad(err == DB_END_OF_INDEX);
+    ut_a(err == DB_END_OF_INDEX);
     return (false);
   }
 
@@ -629,6 +630,12 @@ void Parallel_reader::worker(size_t thread_id) {
   if (m_start_callback) {
     err = m_start_callback(thread_id);
   }
+
+  /* Wait for all the threads to be spawned as it's possible that we could
+  abort the operation if there are not enough resources to spawn all the
+  threads. */
+  constexpr auto FOREVER = OS_SYNC_INFINITE_TIME;
+  os_event_wait_time_low(m_event, FOREVER, m_sig_count);
 
   for (;;) {
     size_t n_completed = 0;
@@ -1077,22 +1084,31 @@ void Parallel_reader::read_ahead_worker(page_no_t n_pages) {
   }
 }
 
-void Parallel_reader::read_ahead() {
+dberr_t Parallel_reader::read_ahead() {
   ut_a(!m_scan_ctxs.empty());
 
   auto n_read_ahead_threads =
       std::min(m_scan_ctxs.size(), MAX_READ_AHEAD_THREADS);
 
+  dberr_t err{DB_SUCCESS};
+
   for (size_t i = 0; i < n_read_ahead_threads; ++i) {
-    m_read_ahead_threads.emplace_back(os_thread_create(
-        parallel_read_ahead_thread_key, &Parallel_reader::read_ahead_worker,
-        this, FSP_EXTENT_SIZE));
-    m_read_ahead_threads.back().start();
+    try {
+      m_read_ahead_threads.emplace_back(os_thread_create(
+          parallel_read_ahead_thread_key, &Parallel_reader::read_ahead_worker,
+          this, FSP_EXTENT_SIZE));
+      m_read_ahead_threads.back().start();
+    } catch (...) {
+      err = DB_OUT_OF_RESOURCES;
+      break;
+    }
   }
 
-  if (m_sync) {
+  if (m_sync && err == DB_SUCCESS) {
     read_ahead_worker(FSP_EXTENT_SIZE);
   }
+
+  return (err);
 }
 
 void Parallel_reader::parallel_read() {
@@ -1102,16 +1118,35 @@ void Parallel_reader::parallel_read() {
     return;
   }
 
-  for (size_t i = 0; i < m_max_threads; ++i) {
-    m_parallel_read_threads.emplace_back(os_thread_create(
-        parallel_read_thread_key, &Parallel_reader::worker, this, i));
-    m_parallel_read_threads.back().start();
+  if (m_single_threaded_mode) {
+    worker(0);
+    return;
   }
+
+  dberr_t err{DB_SUCCESS};
+
+  for (size_t i = 0; i < m_max_threads; ++i) {
+    try {
+      m_parallel_read_threads.emplace_back(os_thread_create(
+          parallel_read_thread_key, &Parallel_reader::worker, this, i));
+      m_parallel_read_threads.back().start();
+    } catch (...) {
+      err = DB_OUT_OF_RESOURCES;
+      /* Set the global error state to tell the worker threads to exit. */
+      set_error_state(err);
+      break;
+    }
+  }
+
+  DBUG_EXECUTE_IF("innodb_pread_thread_OOR", err = DB_OUT_OF_RESOURCES;
+                  set_error_state(err););
 
   os_event_set(m_event);
 
-  /* Start the read ahead threads. */
-  read_ahead();
+  if (err == DB_SUCCESS) {
+    /* Start the read ahead threads. */
+    read_ahead();
+  }
 
   /* Don't wait for the threads to finish if the read is not synchronous. */
   if (!m_sync) {

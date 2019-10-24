@@ -453,10 +453,8 @@ class ha_innobase : public handler {
                     Reader::Load_fn load_fn, Reader::End_fn end_fn) override;
 
   /** End of the parallel scan.
-  @param[in]      scan_ctx      A scan context created by parallel_scan_init.
-  @return error code
-  @retval 0 on success */
-  int parallel_scan_end(void *scan_ctx) override;
+  @param[in]      scan_ctx      A scan context created by parallel_scan_init. */
+  void parallel_scan_end(void *scan_ctx) override;
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
