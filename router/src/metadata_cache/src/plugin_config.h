@@ -65,10 +65,10 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
                                  section, "use_gr_notifications", 0, 1) == 1),
         cluster_type(get_cluster_type(section)),
         router_id(get_uint_option<uint32_t>(section, "router_id")) {
-    if (cluster_type == mysqlrouter::ClusterType::AR_V2 &&
+    if (cluster_type == mysqlrouter::ClusterType::RS_V2 &&
         section->has("use_gr_notifications")) {
       throw std::invalid_argument(
-          "option 'use_gr_notifications' is not valid for cluster type 'ar'");
+          "option 'use_gr_notifications' is not valid for cluster type 'rs'");
     }
   }
 
@@ -104,15 +104,15 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   /** @brief  Id of the router in the metadata. */
   const unsigned int router_id;
 
-  /** @brief Gets (Replication Group ID for GR cluster or cluster_id for Async
-   * Replicaset cluster) if preset in the dynamic configuration.
+  /** @brief Gets (Replication Group ID for GR cluster or cluster_id for
+   * ReplicaSet cluster) if preset in the dynamic configuration.
    *
    * @note  If there is no dynamic configuration (backward compatibility) it
    * returns empty string.
    */
   std::string get_cluster_type_specific_id() const;
 
-  /** @brief Gets last know Async Replicaset metadata view_id stored in the
+  /** @brief Gets last know ReplicaSet cluster metadata view_id stored in the
    * dynamic state file . */
   unsigned get_view_id() const;
 

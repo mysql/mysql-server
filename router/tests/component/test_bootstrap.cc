@@ -217,12 +217,12 @@ void CommonBootstrapTest::bootstrap_failover(
     for (auto &mock_server : mock_servers) {
       std::get<0>(mock_server).get_full_output();
     }
-    const std::string cluster_type_name =
-        cluster_type == ClusterType::AR_V2 ? "Async Replicaset" : "InnoDB";
-    EXPECT_THAT(lines,
-                ::testing::Contains("# MySQL Router configured for the " +
-                                    cluster_type_name + " cluster '" +
-                                    cluster_name + "'"))
+    const std::string cluster_type_name = cluster_type == ClusterType::RS_V2
+                                              ? "InnoDB ReplicaSet"
+                                              : "InnoDB Cluster";
+    EXPECT_THAT(lines, ::testing::Contains(
+                           "# MySQL Router configured for the " +
+                           cluster_type_name + " '" + cluster_name + "'"))
         << "router:" << router.get_full_output() << std::endl
         << mock_servers;
 
@@ -321,7 +321,7 @@ protocol=x)";
 
   const char *expected_config_ar_part1 =
       R"([metadata_cache:mycluster]
-cluster_type=ar
+cluster_type=rs
 router_id=1)";
   // we skip user as it is random and would require regex matching which would
   // require tons of escaping
@@ -359,11 +359,11 @@ routing_strategy=round-robin-with-fallback
 protocol=x)";
 
   const std::string config_file_expected1 =
-      GetParam().cluster_type == ClusterType::AR_V2 ? expected_config_ar_part1
+      GetParam().cluster_type == ClusterType::RS_V2 ? expected_config_ar_part1
                                                     : expected_config_gr_part1;
 
   const std::string config_file_expected2 =
-      GetParam().cluster_type == ClusterType::AR_V2 ? expected_config_ar_part2
+      GetParam().cluster_type == ClusterType::RS_V2 ? expected_config_ar_part2
                                                     : expected_config_gr_part2;
 
   const std::string config_file_str = get_file_output(config_file);
@@ -381,7 +381,7 @@ INSTANTIATE_TEST_CASE_P(
     BootstrapOkTest, RouterBootstrapOkTest,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::AR_V2, "ar", "bootstrap_ar.js", "", ""},
+        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
         BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
                            "", ""}),
     get_test_description);
@@ -434,7 +434,7 @@ INSTANTIATE_TEST_CASE_P(
     BootstrapUserIsCurrentUser, RouterBootstrapUserIsCurrentUser,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::AR_V2, "ar", "bootstrap_ar.js", "", ""},
+        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
         BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
                            "", ""}),
     get_test_description);
@@ -489,7 +489,7 @@ INSTANTIATE_TEST_CASE_P(
     BootstrapOnlySockets, RouterBootstrapOnlySockets,
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr", "bootstrap_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::AR_V2, "ar", "bootstrap_ar.js", "", ""},
+        BootstrapTestParam{ClusterType::RS_V2, "ar", "bootstrap_ar.js", "", ""},
         BootstrapTestParam{ClusterType::GR_V1, "gr_v1", "bootstrap_gr_v1.js",
                            "", ""}),
     get_test_description);
@@ -546,7 +546,7 @@ TEST_F(CommonBootstrapTest, BootstrapErrorOnFirstQuery) {
 
   // check that it failed as expected
   bootstrap_failover(
-      mock_servers, ClusterType::AR_V2, {}, EXIT_FAILURE,
+      mock_servers, ClusterType::RS_V2, {}, EXIT_FAILURE,
       {"Error executing MySQL query", "Some unexpected error occured"}, 10s);
 }
 
@@ -608,7 +608,7 @@ INSTANTIATE_TEST_CASE_P(
         BootstrapTestParam{ClusterType::GR_V2, "gr",
                            "bootstrap_failover_super_read_only_1_gr.js",
                            "bootstrap_gr.js", ""},
-        BootstrapTestParam{ClusterType::AR_V2, "ar",
+        BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
                            "bootstrap_ar.js", ""},
         BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
@@ -676,7 +676,7 @@ INSTANTIATE_TEST_CASE_P(
         BootstrapTestParam{ClusterType::GR_V2, "gr",
                            "bootstrap_failover_super_read_only_1_gr.js",
                            "bootstrap_gr.js", ""},
-        BootstrapTestParam{ClusterType::AR_V2, "ar",
+        BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js",
                            "bootstrap_ar.js", ""},
         BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
@@ -731,7 +731,7 @@ INSTANTIATE_TEST_CASE_P(
         BootstrapTestParam{ClusterType::GR_V2, "gr",
                            "bootstrap_failover_super_read_only_1_gr.js", "",
                            ""},
-        BootstrapTestParam{ClusterType::AR_V2, "ar",
+        BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_super_read_only_1_ar.js", "",
                            ""},
         BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
@@ -786,7 +786,7 @@ INSTANTIATE_TEST_CASE_P(
             "bootstrap_failover_super_read_only_dead_2nd_1_gr.js",
             "bootstrap_failover_reconfigure_ok.js", ""},
         BootstrapTestParam{
-            ClusterType::AR_V2, "ar",
+            ClusterType::RS_V2, "ar",
             "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
             "bootstrap_failover_reconfigure_ok.js", ""},
         BootstrapTestParam{
@@ -840,7 +840,7 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(
         BootstrapTestParam{ClusterType::GR_V2, "gr",
                            "bootstrap_failover_at_grant_gr.js", "", ""},
-        BootstrapTestParam{ClusterType::AR_V2, "ar",
+        BootstrapTestParam{ClusterType::RS_V2, "ar",
                            "bootstrap_failover_at_grant_ar.js", "", ""},
         BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
                            "bootstrap_failover_at_grant_gr_v1.js", "", ""}),
@@ -929,7 +929,7 @@ INSTANTIATE_TEST_CASE_P(
             "bootstrap_failover_at_crash.js",
             "bootstrap_failover_reconfigure_ok.js"},
         BootstrapTestParam{
-            ClusterType::AR_V2, "ar",
+            ClusterType::RS_V2, "ar",
             "bootstrap_failover_super_read_only_dead_2nd_1_ar.js",
             "bootstrap_failover_at_crash.js",
             "bootstrap_failover_reconfigure_ok.js"},
@@ -1984,7 +1984,7 @@ class AccountReuseTestBase : public CommonBootstrapTest {
   }
 };
 /*static*/ const std::string AccountReuseTestBase::kBootstrapSuccessMsg =
-    "MySQL Router configured for the InnoDB cluster 'test'";
+    "MySQL Router configured for the InnoDB Cluster 'test'";
 /*static*/ const std::string AccountReuseTestBase::kUndoCreateUserSuccessMsg =
     "- New accounts cleaned up successfully";
 /*static*/ const std::string AccountReuseTestBase::kAccountUser = "some_user";
@@ -5707,7 +5707,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
     // check if the bootstraping was successful
     EXPECT_TRUE(router.expect_output(
-        "MySQL Router configured for the InnoDB cluster 'test'", false, 5s))
+        "MySQL Router configured for the InnoDB Cluster 'test'", false, 5s))
         << "router: " << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
 
@@ -5848,7 +5848,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
     // check if the bootstraping was successful
     EXPECT_TRUE(
         router.expect_output("MySQL Router configured for the "
-                             "InnoDB cluster 'mycluster'"))
+                             "InnoDB Cluster 'mycluster'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
     check_exit_code(router, EXIT_SUCCESS);
@@ -6313,7 +6313,7 @@ TEST_F(ErrorReportTest,
 /**
  * @test
  *       verify that using --conf-use-gr-notifications creates proper error when
- * the cluster type is AsyncReplicaset.
+ * the cluster type is ReplicaSet.
  */
 TEST_F(ErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
   TempDirectory bootstrap_directory;

@@ -68,7 +68,7 @@ constexpr MetadataSchemaVersion kRequiredBootstrapSchemaVersion[]{{1, 0, 0},
 constexpr MetadataSchemaVersion kRequiredRoutingMetadataSchemaVersion[]{
     {1, 0, 0}, {2, 0, 0}};
 
-// Version that introduced views and support for Async Replicaset cluster type
+// Version that introduced views and support for ReplicaSet cluster type
 constexpr MetadataSchemaVersion kNewMetadataVersion{2, 0, 0};
 
 // Version that will be is set while the metadata is being updated
@@ -108,7 +108,7 @@ std::string to_string(const mysqlrouter::MetadataSchemaVersion (&version)[N]) {
 enum class ClusterType {
   GR_V1, /* based on Group Replication (metadata 1.x) */
   GR_V2, /* based on Group Replication (metadata 2.x) */
-  AR_V2  /* Async Replicaset (metadata 2.x) */
+  RS_V2  /* ReplicaSet (metadata 2.x) */
 };
 
 ClusterType get_cluster_type(const MetadataSchemaVersion &schema_version,

@@ -155,14 +155,14 @@ MetadataCachePluginConfig::get_metadata_servers(
 mysqlrouter::ClusterType MetadataCachePluginConfig::get_cluster_type(
     const mysql_harness::ConfigSection *section) {
   std::string value = get_option_string(section, "cluster_type");
-  if (value == "ar") {
-    return mysqlrouter::ClusterType::AR_V2;
+  if (value == "rs") {
+    return mysqlrouter::ClusterType::RS_V2;
   } else if (value == "gr") {
     return mysqlrouter::ClusterType::GR_V2;
   }
 
   throw invalid_argument(get_log_prefix("cluster_type") + " is incorrect '" +
-                         value + "', expected 'ar' or 'gr'");
+                         value + "', expected 'rs' or 'gr'");
 }
 
 std::unique_ptr<ClusterMetadataDynamicState>

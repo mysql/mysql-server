@@ -31,7 +31,7 @@ std::shared_ptr<MetaData> meta_data;
 /**
  * Create an instance of the mock metadata.
  * @param cluster_type type of the cluster the metadata cache object will
- *                     represent (GR or Async Replicaset)
+ *                     represent (GR or ReplicaSet)
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
  * @param connect_timeout The time after which trying to connect to the
@@ -46,7 +46,7 @@ std::shared_ptr<MetaData> meta_data;
  *                                  additional trigger for metadata refresh
  *                                  (only available for GR cluster type)
  * @param view_id last known view_id of the cluster metadata (only relevant
- *                for Async Replicaset cluster)
+ *                for ReplicaSet cluster)
  */
 std::shared_ptr<MetaData> get_instance(
     mysqlrouter::ClusterType /*cluster_type*/, const std::string &user,

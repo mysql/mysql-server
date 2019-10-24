@@ -187,8 +187,7 @@ class METADATA_API ReplicasetStateListenerInterface {
    * @param instances allowed nodes
    * @param md_servers_reachable true if metadata changed, false if metadata
    * unavailable
-   * @param view_id current metadata view_id in case of Async Replicaset
-   * cluster
+   * @param view_id current metadata view_id in case of ReplicaSet cluster
    */
   virtual void notify(const LookupResult &instances,
                       const bool md_servers_reachable,
@@ -269,10 +268,10 @@ class METADATA_API MetadataCacheAPIBase
    * initialized.
    *
    * @param cluster_type type of the cluster the metadata cache object will
-   *                     represent (GR or Async Replicaset)
+   *                     represent (GR or ReplicaSet)
    * @param router_id id of the router in the cluster metadata
    * @param cluster_type_specific_id (id of the replication group for GR,
-   *                                 cluster_id for Async Replicaset)
+   *                                 cluster_id for ReplicaSet)
    * @param metadata_servers The list of cluster metadata servers
    * @param user_credentials MySQL Metadata username and password
    * @param ttl The time to live for the cached data
@@ -288,7 +287,7 @@ class METADATA_API MetadataCacheAPIBase
    *                                  additional trigger for metadata refresh
    *                                  (only available for GR cluster type)
    * @param view_id last known view_id of the cluster metadata (only relevant
-   *                for Async Replicaset cluster)
+   *                for ReplicaSet cluster)
    *
    */
   virtual void cache_init(

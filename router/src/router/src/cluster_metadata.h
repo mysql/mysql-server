@@ -93,7 +93,8 @@ class ClusterMetadata {
                                   const std::string &rw_endpoint,
                                   const std::string &ro_endpoint,
                                   const std::string &rw_x_endpoint,
-                                  const std::string &ro_x_endpoint) = 0;
+                                  const std::string &ro_x_endpoint,
+                                  const std::string &username) = 0;
 
   virtual std::vector<std::string> get_routing_mode_queries(
       const std::string &cluster_name) = 0;
@@ -115,7 +116,7 @@ class ClusterMetadata {
   virtual void require_metadata_is_ok();
 
   /** @brief Verify that host is a valid cluster member (either Group
-   * Replication or Async Replications)
+   * Replication or ReplicaSet cluster)
    *
    * @throws MySQLSession::Error
    * @throws std::runtime_error
@@ -184,7 +185,8 @@ class ClusterMetadataGRV1 : public ClusterMetadataGR {
                           const std::string &rw_endpoint,
                           const std::string &ro_endpoint,
                           const std::string &rw_x_endpoint,
-                          const std::string &ro_x_endpoint) override;
+                          const std::string &ro_x_endpoint,
+                          const std::string &username) override;
 
   uint32_t register_router(const std::string &router_name, const bool overwrite,
                            const std::string &hostname_override = "") override;
@@ -223,7 +225,8 @@ class ClusterMetadataGRV2 : public ClusterMetadataGR {
                           const std::string &rw_endpoint,
                           const std::string &ro_endpoint,
                           const std::string &rw_x_endpoint,
-                          const std::string &ro_x_endpoint) override;
+                          const std::string &ro_x_endpoint,
+                          const std::string &username) override;
 
   uint32_t register_router(const std::string &router_name, const bool overwrite,
                            const std::string &hostname_override = "") override;
@@ -246,11 +249,11 @@ class ClusterMetadataAR : public ClusterMetadata {
   virtual ~ClusterMetadataAR() override = default;
 
   mysqlrouter::ClusterType get_type() override {
-    return mysqlrouter::ClusterType::AR_V2;
+    return mysqlrouter::ClusterType::RS_V2;
   }
 
   void require_cluster_is_ok() override {
-    // Nothing specific to check for Async Replicaset cluster
+    // Nothing specific to check for ReplicaSet cluster
   }
 
   ClusterInfo fetch_metadata_servers() override;
@@ -270,7 +273,8 @@ class ClusterMetadataAR : public ClusterMetadata {
                           const std::string &rw_endpoint,
                           const std::string &ro_endpoint,
                           const std::string &rw_x_endpoint,
-                          const std::string &ro_x_endpoint) override;
+                          const std::string &ro_x_endpoint,
+                          const std::string &username) override;
 
   uint32_t register_router(const std::string &router_name, const bool overwrite,
                            const std::string &hostname_override = "") override;

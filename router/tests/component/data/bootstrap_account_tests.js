@@ -110,6 +110,7 @@ console.log(inst() + "----- JS INIT END -----\n\n");
         console.log(inst() + "UNKNOWN QUERY:\n%s\n\n", stmt);
         console.log(inst() + "CUSTOM QUERIES:\n%s\n\n" , JSON.stringify(mysqld.global.custom_responses));
         console.log(inst() + "COMMON RESPONSES:\n%s\n\n" , JSON.stringify(common_responses));
+        console.log(inst() + "COMMON REGEX RESPONSES:\n%s\n\n" , JSON.stringify(common_responses_regex));
         console.log(inst() + "ENTIRE GLOBAL:\n%s\n\n" , JSON.stringify(mysqld.global));
       }
       return common_stmts.unknown_statement_response(stmt);

@@ -46,7 +46,7 @@ class ClusterMetadataDynamicState {
    *
    * @param base_config pointer to the global dynamic state base object that
    * should be used to read and write metadata cache section.
-   * @param cluster_type type of the cluster (GR or Async Replicaset)
+   * @param cluster_type type of the cluster (GR or ReplicaSet)
    */
   ClusterMetadataDynamicState(mysql_harness::DynamicState *base_config,
                               mysqlrouter::ClusterType cluster_type);
@@ -111,18 +111,18 @@ class ClusterMetadataDynamicState {
   std::vector<std::string> get_metadata_servers() const;
 
   /**
-   * @brief Sets the new value for the last known metadata view_id of the Async
-   * Replicaset cluster.
+   * @brief Sets the new value for the last known metadata view_id of the
+   * ReplicaSet cluster.
    *
-   * @param view_id last known metadata view_id of the Async Replicaset cluster
+   * @param view_id last known metadata view_id of the ReplicaSet cluster
    */
   void set_view_id(const unsigned view_id);
 
   /**
    * @brief Reads the current value of the last known metadata view_id of the
-   * Async Replicaset cluster from the state object.
+   * ReplicaSet cluster from the state object.
    *
-   * @return last known metadata view_id of the Async Replicaset cluster
+   * @return last known metadata view_id of the ReplicaSet cluster
    */
   unsigned get_view_id() const;
 

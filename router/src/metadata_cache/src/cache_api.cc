@@ -70,10 +70,10 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * Initialize the metadata cache.
  *
  * @param cluster_type type of the cluster the metadata cache object will
- * represent (GR or Async Replicaset)
+ * represent (GR or ReplicaSet)
  * @param router_id id of the router in the cluster metadata
  * @param cluster_type_specific_id (id of the replication group for GR,
- * cluster_id for Async Replicaset)
+ * cluster_id for ReplicaSet)
  * @param metadata_servers The list of cluster metadata servers
  * @param user_credentials The user name and password used to connect to the
  * metadata servers.
@@ -90,7 +90,7 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  *                             trigger for metadata refresh (only available for
  *                             GR cluster type)
  * @param view_id last known view_id of the cluster metadata (only relevant
- *                for Async Replicaset cluster)
+ *                for ReplicaSet cluster)
  */
 void MetadataCacheAPI::cache_init(
     const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
@@ -103,7 +103,7 @@ void MetadataCacheAPI::cache_init(
     const unsigned view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
-  if (cluster_type == mysqlrouter::ClusterType::AR_V2) {
+  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
     g_metadata_cache.reset(new ARMetadataCache(
         router_id, cluster_type_specific_id, metadata_servers,
         get_instance(cluster_type, user_credentials.username,

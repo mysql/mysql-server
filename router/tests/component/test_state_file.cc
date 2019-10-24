@@ -84,7 +84,7 @@ class StateFileTest : public RouterComponentTest {
       ClusterType cluster_type = ClusterType::GR_V2) {
     auto ttl_str = std::to_string(std::chrono::duration<double>(ttl).count());
     const std::string cluster_type_str =
-        (cluster_type == ClusterType::AR_V2) ? "ar" : "gr";
+        (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
 
     return "[metadata_cache:test]\n"
            "cluster_type=" +
@@ -396,7 +396,7 @@ INSTANTIATE_TEST_CASE_P(
                                          ClusterType::GR_V2},
                       StateFileTestParam{"ar_v2",
                                          "metadata_dynamic_nodes_v2_ar.js",
-                                         ClusterType::AR_V2}),
+                                         ClusterType::RS_V2}),
     get_test_description);
 
 class StateFileMetadataServersInaccessibleTest
@@ -499,7 +499,7 @@ INSTANTIATE_TEST_CASE_P(
                                          ClusterType::GR_V2},
                       StateFileTestParam{"ar_v2",
                                          "metadata_dynamic_nodes_v2_ar.js",
-                                         ClusterType::AR_V2}),
+                                         ClusterType::RS_V2}),
     get_test_description);
 
 class StateFileGroupReplicationIdDiffersTest
@@ -611,7 +611,7 @@ INSTANTIATE_TEST_CASE_P(
                                          ClusterType::GR_V2},
                       StateFileTestParam{"ar_v2",
                                          "metadata_dynamic_nodes_v2_ar.js",
-                                         ClusterType::AR_V2}),
+                                         ClusterType::RS_V2}),
     get_test_description);
 
 class StateFileSplitBrainScenarioTest
@@ -1008,7 +1008,7 @@ INSTANTIATE_TEST_CASE_P(
             // clang-format on
             {"Unsupported state file version, "
              "expected: 1.0.0, found: 2.0.0"}, true, "", false,
-             ClusterType::AR_V2},
+             ClusterType::RS_V2},
 
         // minor version does not match
         StateFileSchemaTestParams{            // clang-format off

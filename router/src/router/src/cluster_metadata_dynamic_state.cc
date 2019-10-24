@@ -81,8 +81,8 @@ void ClusterMetadataDynamicState::save_section() {
   }
   section.AddMember("cluster-metadata-servers", metadata_servers, allocator);
 
-  // if this is AsyncReplicaset write view_id
-  if (cluster_type_ == ClusterType::AR_V2) {
+  // if this is ReplicaSet cluster write view_id
+  if (cluster_type_ == ClusterType::RS_V2) {
     val.SetUint(view_id_);
     section.AddMember("view-id", val, allocator);
   }

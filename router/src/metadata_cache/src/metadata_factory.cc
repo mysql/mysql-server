@@ -33,7 +33,7 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  * Return an instance of cluster metadata.
  *
  * @param cluster_type type of the cluster the metadata cache object will
- * represent (GR or Async Replicaset)
+ * represent (GR or ReplicaSet)
  * @param user The user name used to authenticate to the metadata server.
  * @param password The password used to authenticate to the metadata server.
  * @param connect_timeout The time after which trying to connect to the
@@ -49,14 +49,14 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  *                                  additional trigger for metadata refresh
  *                                  (only available for GR cluster type)
  * @param view_id last known view_id of the cluster metadata (only relevant
- *                for Async Replicaset cluster)
+ *                for ReplicaSet cluster)
  */
 std::shared_ptr<MetaData> get_instance(
     const mysqlrouter::ClusterType cluster_type, const std::string &user,
     const std::string &password, int connect_timeout, int read_timeout,
     int connection_attempts, const mysqlrouter::SSLOptions &ssl_options,
     const bool use_cluster_notifications, const unsigned view_id) {
-  if (cluster_type == mysqlrouter::ClusterType::AR_V2) {
+  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
     meta_data.reset(new ARClusterMetadata(user, password, connect_timeout,
                                           read_timeout, connection_attempts,
                                           ssl_options, view_id));

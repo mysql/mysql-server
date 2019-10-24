@@ -30,8 +30,8 @@
 
 /** @class ARClusterMetadata
  *
- * The `ARClusterMetadata` class encapsulates a connection to the Async
- * Replicaset Cluster metadata server.
+ * The `ARClusterMetadata` class encapsulates a connection to the ReplicaSet
+ * Cluster metadata server.
  *
  */
 class METADATA_API ARClusterMetadata : public ClusterMetadata {
@@ -70,7 +70,7 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
 
   /** @brief Returns replicasets defined in the metadata server
    *
-   * Only to satisfy the API, not used for the Async Replicaset cluster
+   * Only to satisfy the API, not used for the ReplicaSet cluster
    *
    * @throws logic_error
    */
@@ -98,7 +98,7 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
   /** @brief Returns cluster type this object is suppsed to handle
    */
   mysqlrouter::ClusterType get_cluster_type() override {
-    return mysqlrouter::ClusterType::AR_V2;
+    return mysqlrouter::ClusterType::RS_V2;
   }
 
   void setup_notifications_listener(

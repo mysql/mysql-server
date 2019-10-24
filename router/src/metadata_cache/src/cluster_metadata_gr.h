@@ -81,7 +81,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
 
   /** @brief Returns replicasets defined in the metadata server
    *
-   * Only to satisfy the API, not used for the Async Replicaset cluster
+   * Only to satisfy the API, not used for the ReplicaSet Cluster
    *
    * @throws logic_error
    */
