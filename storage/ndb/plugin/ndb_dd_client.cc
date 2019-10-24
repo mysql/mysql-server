@@ -829,7 +829,10 @@ bool Ndb_dd_client::fetch_all_schemas(
   }
 
   for (const dd::Schema *schema : schemas_list) {
-    schemas.insert(std::make_pair(schema->name().c_str(), schema));
+    // Convert the schema name to lower case on platforms that have
+    // lower_case_table_names set to 2
+    const std::string schema_name = ndb_dd_fs_name_case(schema->name());
+    schemas.insert(std::make_pair(schema_name.c_str(), schema));
   }
   return true;
 }
@@ -843,7 +846,10 @@ bool Ndb_dd_client::fetch_schema_names(std::vector<std::string> *names) {
   }
 
   for (const dd::Schema *schema : schemas) {
-    names->push_back(schema->name().c_str());
+    // Convert the schema name to lower case on platforms that have
+    // lower_case_table_names set to 2
+    const std::string schema_name = ndb_dd_fs_name_case(schema->name());
+    names->push_back(schema_name.c_str());
   }
   return true;
 }

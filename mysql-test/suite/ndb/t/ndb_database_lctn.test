@@ -1,0 +1,36 @@
+--source include/have_multi_ndb.inc
+
+#
+# Bug#30192373 MYSQLD CRASH IN BINLOG SETUP DUE TO LCTN IN MAC
+# This bug was specific to Mac machines where lower_case_table_names
+# is 2 by default. Required metadata locks were previously
+# acquired using the wrong case which eventually resulted in a
+# debug assert failing down the line owing to missing MDL on
+# the correct (lower case key) objects
+#
+
+# Create a database with upper case name
+CREATE DATABASE DB1;
+ALTER DATABASE DB1
+  CHARACTER SET latin1;
+USE DB1;
+CREATE TABLE t1(
+  id INT PRIMARY KEY
+) ENGINE NDB;
+
+# Trigger schema synchronization by restarting the MySQL server
+--connection server1
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+# Check if the database and table exist
+# Case of the database name differs according to platform
+--replace_result db1 DB1
+SHOW DATABASES;
+USE DB1;
+--replace_result Tables_in_db1 Tables_in_DB1
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+
+# Clean up
+DROP DATABASE DB1;
