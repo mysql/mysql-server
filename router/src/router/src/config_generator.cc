@@ -603,9 +603,10 @@ void ConfigGenerator::bootstrap_system_deployment(
   std::unique_ptr<void, std::function<void(void *)>> create_user_undo(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
-  bootstrap_deployment(*config_files[0], *config_files[1], config_file_path,
-                       state_file_path, router_name, options,
-                       multivalue_options, default_paths, false, auto_clean);
+  const std::string bootstrap_report_text = bootstrap_deployment(
+      *config_files[0], *config_files[1], config_file_path, state_file_path,
+      router_name, options, multivalue_options, default_paths, false,
+      auto_clean);
 
   for (size_t i = 0; i < config_files.size(); ++i) {
     config_files[i]->close();
@@ -645,6 +646,7 @@ void ConfigGenerator::bootstrap_system_deployment(
   }
   auto_clean.clear();
   create_user_undo.release();
+  out_stream_ << bootstrap_report_text;
 }
 
 // throws std::system_error
@@ -793,11 +795,11 @@ void ConfigGenerator::bootstrap_directory_deployment(
   std::unique_ptr<void, std::function<void(void *)>> create_user_undo(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
-  bootstrap_deployment(*config_files[0], *config_files[1],
-                       config_files_names[0], config_files_names[1],
-                       router_name, options, multivalue_options, default_paths,
-                       true,
-                       auto_clean);  // throws std::runtime_error, ?
+  const std::string bootstrap_report_text = bootstrap_deployment(
+      *config_files[0], *config_files[1], config_files_names[0],
+      config_files_names[1], router_name, options, multivalue_options,
+      default_paths, true,
+      auto_clean);  // throws std::runtime_error, ?
 
   for (size_t i = 0; i < config_files_names.size(); ++i) {
     auto &config_file = config_files[i];
@@ -876,6 +878,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
 
   auto_clean.clear();
   create_user_undo.release();
+  out_stream_ << bootstrap_report_text;
 }
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
@@ -1294,7 +1297,7 @@ static std::string map_get(
   return (it != user_options.end()) ? it->second : def_value;
 }
 
-void ConfigGenerator::bootstrap_deployment(
+std::string ConfigGenerator::bootstrap_deployment(
     std::ostream &config_file, std::ostream &state_file,
     const mysql_harness::Path &config_file_path,
     const mysql_harness::Path &state_file_path, const std::string &router_name,
@@ -1385,14 +1388,17 @@ void ConfigGenerator::bootstrap_deployment(
                   state_file_path.str());
   }
 
+  // return bootstrap report (several lines of human-readable text) if desired
   if (!quiet) {
     const std::string cluster_type_name =
         metadata_->get_type() == ClusterType::RS_V2 ? "InnoDB ReplicaSet"
                                                     : "InnoDB Cluster";
-    print_report(config_file_path.str(), router_name,
-                 cluster_info.metadata_cluster_name, cluster_type_name,
-                 map_get(user_options, "report-host", "localhost"),
-                 !directory_deployment, options);
+    return get_bootstrap_report_text(
+        config_file_path.str(), router_name, cluster_info.metadata_cluster_name,
+        cluster_type_name, map_get(user_options, "report-host", "localhost"),
+        !directory_deployment, options);
+  } else {
+    return "";
   }
 }
 
@@ -2036,13 +2042,11 @@ void ConfigGenerator::print_bootstrap_start_msg(
               << std::endl;
 }
 
-void ConfigGenerator::print_report(const std::string &config_file_name,
-                                   const std::string &router_name,
-                                   const std::string &metadata_cluster,
-                                   const std::string &cluster_type_name,
-                                   const std::string &hostname,
-                                   bool is_system_deployment,
-                                   const Options &options) {
+std::string ConfigGenerator::get_bootstrap_report_text(
+    const std::string &config_file_name, const std::string &router_name,
+    const std::string &metadata_cluster, const std::string &cluster_type_name,
+    const std::string &hostname, bool is_system_deployment,
+    const Options &options) {
   constexpr const char kPromptPrefix[]{
 #ifdef _WIN32
       "> "
@@ -2051,79 +2055,81 @@ void ConfigGenerator::print_report(const std::string &config_file_name,
 #endif
   };
 
-  out_stream_ << "\n"
-              << Vt100::foreground(Vt100::Color::Green) << "# MySQL Router "
-              << ((router_name.empty() || router_name == kSystemRouterName)
-                      ? ""
-                      : "'" + router_name + "' ")
-              << "configured for the " << cluster_type_name << " '"
-              << metadata_cluster.c_str() << "'"
-              << Vt100::render(Vt100::Render::ForegroundDefault) << "\n"
-              << std::endl;
+  std::stringstream ss;
 
-  out_stream_ << "After this MySQL Router has been started with the generated "
-                 "configuration"
-              << "\n"
-              << std::endl;
+  ss << "\n"
+     << Vt100::foreground(Vt100::Color::Green) << "# MySQL Router "
+     << ((router_name.empty() || router_name == kSystemRouterName)
+             ? ""
+             : "'" + router_name + "' ")
+     << "configured for the " << cluster_type_name << " '"
+     << metadata_cluster.c_str() << "'"
+     << Vt100::render(Vt100::Render::ForegroundDefault) << "\n"
+     << std::endl;
+
+  ss << "After this MySQL Router has been started with the generated "
+        "configuration"
+     << "\n"
+     << std::endl;
 #ifdef _WIN32
   if (is_system_deployment) {
-    out_stream_ << "    " << kPromptPrefix << "net start mysqlrouter"
-                << "\n"
-                << "or" << std::endl;
+    ss << "    " << kPromptPrefix << "net start mysqlrouter"
+       << "\n"
+       << "or" << std::endl;
   }
 #else
   if (is_system_deployment) {
-    out_stream_ << "    " << kPromptPrefix << "/etc/init.d/mysqlrouter restart"
-                << "\n"
-                << "or" << std::endl;
+    ss << "    " << kPromptPrefix << "/etc/init.d/mysqlrouter restart"
+       << "\n"
+       << "or" << std::endl;
     if (Path("/bin/systemctl").exists()) {
-      out_stream_ << "    " << kPromptPrefix << "systemctl start mysqlrouter"
-                  << "\n"
-                  << "or" << std::endl;
+      ss << "    " << kPromptPrefix << "systemctl start mysqlrouter"
+         << "\n"
+         << "or" << std::endl;
     }
   }
 #endif
-  out_stream_ << "    " << kPromptPrefix << g_program_name << " -c "
-              << config_file_name << "\n\n"
-              << "the cluster '" << metadata_cluster
-              << "' can be reached by connecting to:\n"
-              << std::endl;
+  ss << "    " << kPromptPrefix << g_program_name << " -c " << config_file_name
+     << "\n\n"
+     << "the cluster '" << metadata_cluster
+     << "' can be reached by connecting to:\n"
+     << std::endl;
 
-  auto dump_sockets = [this, &hostname](const std::string &section,
-                                        const std::string &socketsdir,
-                                        const Options::Endpoint &rw_endpoint,
-                                        const Options::Endpoint &ro_endpoint) {
+  auto dump_sockets = [&ss, &hostname](const std::string &section,
+                                       const std::string &socketsdir,
+                                       const Options::Endpoint &rw_endpoint,
+                                       const Options::Endpoint &ro_endpoint) {
     if (rw_endpoint || ro_endpoint) {
-      out_stream_ << "## " << section << "\n\n";
+      ss << "## " << section << "\n\n";
       if (rw_endpoint) {
-        out_stream_ << "- Read/Write Connections: ";
+        ss << "- Read/Write Connections: ";
         if (rw_endpoint.port > 0) {
-          out_stream_ << hostname << ":" << rw_endpoint.port;
+          ss << hostname << ":" << rw_endpoint.port;
         }
         if (!rw_endpoint.socket.empty()) {
           if (rw_endpoint.port > 0) {
-            out_stream_ << ", ";
+            ss << ", ";
           }
-          out_stream_ << socketsdir << "/" << rw_endpoint.socket;
+          ss << socketsdir << "/" << rw_endpoint.socket;
         }
-        out_stream_ << std::endl;
+        ss << std::endl;
       }
 
       if (ro_endpoint) {
-        out_stream_ << "- Read/Only Connections:  ";
+        ss << "- Read/Only Connections:  ";
         if (ro_endpoint.port > 0) {
-          out_stream_ << hostname << ":" << ro_endpoint.port;
+          ss << hostname << ":" << ro_endpoint.port;
         }
         if (!ro_endpoint.socket.empty()) {
           if (ro_endpoint.port > 0) {
-            out_stream_ << ", ";
+            ss << ", ";
           }
-          out_stream_ << socketsdir << "/" << ro_endpoint.socket;
+          ss << socketsdir << "/" << ro_endpoint.socket;
         }
 
-        out_stream_ << std::endl;
+        ss << std::endl;
       }
-      out_stream_ << std::endl;
+      ss << std::endl;
     }
   };
 
@@ -2131,6 +2137,8 @@ void ConfigGenerator::print_report(const std::string &config_file_name,
                options.rw_endpoint, options.ro_endpoint);
   dump_sockets("MySQL X protocol", options.socketsdir, options.rw_x_endpoint,
                options.ro_x_endpoint);
+
+  return ss.str();
 }
 
 /**

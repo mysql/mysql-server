@@ -262,7 +262,8 @@ class ConfigGenerator {
       const std::string &script_path,
       const std::map<std::string, std::string> &options);
 
-  void bootstrap_deployment(
+  // returns bootstrap report (several lines of human-readable text) if desired
+  std::string bootstrap_deployment(
       std::ostream &config_file, std::ostream &state_file,
       const mysql_harness::Path &config_file_path,
       const mysql_harness::Path &state_file_path, const std::string &name,
@@ -290,12 +291,13 @@ class ConfigGenerator {
   void print_bootstrap_start_msg(uint32_t router_id, bool directory_deployment,
                                  const mysql_harness::Path &config_file_path);
 
-  void print_report(const std::string &config_file_name,
-                    const std::string &router_name,
-                    const std::string &metadata_cluster,
-                    const std::string &cluster_type_name,
-                    const std::string &hostname, bool is_system_deployment,
-                    const Options &options);
+  std::string get_bootstrap_report_text(const std::string &config_file_name,
+                                        const std::string &router_name,
+                                        const std::string &metadata_cluster,
+                                        const std::string &cluster_type_name,
+                                        const std::string &hostname,
+                                        bool is_system_deployment,
+                                        const Options &options);
 
   void set_log_file_permissions(
       const std::map<std::string, std::string> &default_paths,

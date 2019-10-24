@@ -942,6 +942,79 @@ INSTANTIATE_TEST_CASE_P(
 
 /**
  * @test
+ * This test proves that bootstrap will not print out the success message
+ * ("MySQL Router configured for the InnoDB cluster 'mycluster'" and many lines
+ *  that follow it) until entire bootstrap succeeds.
+ *
+ * At the time of writing, the last operation that bootstrap performs is
+ * writing a config file and backing up the old one.  Therefore we use that
+ * as the basis of assessing the above expectation is met.
+ */
+TEST_F(RouterBootstrapTest,
+       bootstrap_report_not_shown_until_bootstrap_succeeds) {
+  TempDirectory bootstrap_directory;
+
+  // create config files
+  const Path bs_dir(bootstrap_directory.name());
+  const std::string config_file = bs_dir.join("mysqlrouter.conf").str();
+  const std::string config_bak_file = bs_dir.join("mysqlrouter.conf.bak").str();
+  {
+    std::ofstream f1(config_file);
+    std::ofstream f2(config_bak_file);
+
+    // contents must be different, otherwise a backup will not be attempted
+    f1 << "[DEFAULT]\nkey1=val1\n";
+    f2 << "[DEFAULT]\nkey2=val2\n";
+  }
+
+  // make config backup file RO to trigger the error
+#ifdef _WIN32
+  EXPECT_EQ(_chmod(config_bak_file.c_str(), S_IREAD), 0);
+#else
+  EXPECT_EQ(chmod(config_bak_file.c_str(), S_IRUSR), 0);
+#endif
+
+  // launch mock server and wait for it to start accepting connections
+  const uint16_t server_port = port_pool_.get_next_available();
+  const std::string json_stmts =
+      get_data_dir()
+          .join("bootstrap_report_host.js")
+          .str();  // we piggy back on existing .js to avoid creating a new one
+  auto &server_mock =
+      launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(server_mock, server_port));
+
+  // launch the router in bootstrap mode
+  const std::vector<std::string> cmdline = {
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+      bootstrap_directory.name(), "--report-host", "host.foo.bar"};
+  auto &router = launch_router(cmdline, EXIT_FAILURE);
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ",
+                           kRootPassword + "\n"s);
+
+  // expect config write error
+  EXPECT_TRUE(
+      router.expect_output("Error: Could not create file "
+                           "'.*/mysqlrouter.conf.bak'",
+                           true))
+      << router.get_full_output() << std::endl
+      << "server: " << server_mock.get_full_output();
+
+  // expect that the bootstrap success message (bootstrap report) is not
+  // displayed
+  EXPECT_FALSE(
+      router.expect_output("MySQL Router configured for the "
+                           "InnoDB cluster 'mycluster'"))
+      << router.get_full_output() << std::endl
+      << "server: " << server_mock.get_full_output();
+
+  server_mock.kill();
+}
+
+/**
+ * @test
  *        verify connection times at bootstrap can be configured
  */
 TEST_F(RouterBootstrapTest,
