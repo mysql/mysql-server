@@ -128,14 +128,18 @@ bool ndb_dd_update_schema_version(THD *thd, const char *schema_name,
                        counter, node_id));
 
   Ndb_dd_client dd_client(thd);
+  /* Convert the schema name to lower case on platforms that have
+     lower_case_table_names set to 2 */
+  const std::string dd_schema_name = ndb_dd_fs_name_case(schema_name);
 
-  if (!dd_client.mdl_lock_schema_exclusive(schema_name)) {
+  if (!dd_client.mdl_lock_schema_exclusive(dd_schema_name.c_str())) {
     DBUG_PRINT("error", ("Failed to acquire exclusive lock on schema '%s'",
                          schema_name));
     return false;
   }
 
-  if (!dd_client.update_schema_version(schema_name, counter, node_id)) {
+  if (!dd_client.update_schema_version(dd_schema_name.c_str(), counter,
+                                       node_id)) {
     return false;
   }
 
@@ -155,17 +159,20 @@ bool ndb_dd_has_local_tables_in_schema(THD *thd, const char *schema_name,
              ("Checking if schema '%s' has local tables", schema_name));
 
   Ndb_dd_client dd_client(thd);
+  /* Convert the schema name to lower case on platforms that have
+     lower_case_table_names set to 2 */
+  const std::string dd_schema_name = ndb_dd_fs_name_case(schema_name);
 
   /* Lock the schema in DD */
-  if (!dd_client.mdl_lock_schema(schema_name)) {
-    DBUG_PRINT("error", ("Failed to MDL lock schema : '%s'", schema_name));
+  if (!dd_client.mdl_lock_schema(dd_schema_name.c_str())) {
+    DBUG_PRINT("error", ("Failed to acquire MDL on schema '%s'", schema_name));
     return false;
   }
 
   /* Check if there are any local tables */
-  if (!dd_client.have_local_tables_in_schema(schema_name,
+  if (!dd_client.have_local_tables_in_schema(dd_schema_name.c_str(),
                                              &tables_exist_in_database)) {
-    DBUG_PRINT("error", ("Failed to check if the Schema '%s' has any tables",
+    DBUG_PRINT("error", ("Failed to check if the schema '%s' has local tables",
                          schema_name));
     return false;
   }

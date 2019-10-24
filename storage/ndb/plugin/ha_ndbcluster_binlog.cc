@@ -1011,7 +1011,11 @@ class Ndb_binlog_setup {
       bool db_exists_in_DD = false;
       bool tables_exist_in_database = false;
       unsigned int schema_counter = 0, schema_node_id = 0;
-      auto it = databases_in_DD.find(db_name);
+      /* Convert the database name to lower case on platforms that have
+         lower_case_table_names set to 2. In such situations, upper case
+         names are stored in lower case in NDB Dictionary */
+      const std::string ndb_db_name = ndb_dd_fs_name_case(db_name.c_str());
+      auto it = databases_in_DD.find(ndb_db_name);
       if (it != databases_in_DD.end()) {
         db_exists_in_DD = true;
 
@@ -1036,7 +1040,7 @@ class Ndb_binlog_setup {
 
       /* Check if the database has tables in NDB. */
       tables_exist_in_database |=
-          (databases_in_NDB.find(db_name) != databases_in_NDB.end());
+          (databases_in_NDB.find(ndb_db_name) != databases_in_NDB.end());
 
       /* Handle the relevant DDL based on the
          existence of the database in DD and NDB*/
@@ -1095,7 +1099,7 @@ class Ndb_binlog_setup {
           }
 
           /* Remove the database name from the NDB list */
-          databases_in_NDB.erase(db_name);
+          databases_in_NDB.erase(ndb_db_name);
 
         } break;
         case SCHEMA_DDL_ALTER: {
@@ -1126,7 +1130,7 @@ class Ndb_binlog_setup {
           }
 
           /* Remove the database name from the NDB list */
-          databases_in_NDB.erase(db_name);
+          databases_in_NDB.erase(ndb_db_name);
 
         } break;
         case SCHEMA_DDL_DROP: {
@@ -1155,7 +1159,7 @@ class Ndb_binlog_setup {
             }
 
             /* Remove the database name from the NDB list */
-            databases_in_NDB.erase(db_name);
+            databases_in_NDB.erase(ndb_db_name);
           }
         } break;
         default:
