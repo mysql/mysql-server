@@ -170,6 +170,12 @@ UNLOCK TABLES;
 --let $group_replication_expected_uuid=$server1_uuid
 --source include/gr_wait_primary_member_uuid.inc
 
+# A member is first reported as primary and only then super_read_only
+# and read_only are unset, so we need to also wait until the primary
+# is writable.
+--let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+--source include/wait_condition_or_abort.inc
+
 --echo
 --echo # 13. Clean up
 
