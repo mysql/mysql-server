@@ -44,7 +44,6 @@
 #include "my_compare.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
-#include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "myisampack.h"
 #include "sql/create_field.h"
@@ -7551,12 +7550,6 @@ Field_json *Field_json::clone(MEM_ROOT *mem_root) const {
   return new (mem_root) Field_json(*this);
 }
 
-/// Create a shallow clone of this field.
-Field_json *Field_json::clone() const {
-  DBUG_ASSERT(type() == MYSQL_TYPE_JSON);
-  return new (*THR_MALLOC) Field_json(*this);
-}
-
 /**
   Check if a new field is compatible with this one.
   @param new_field  the new field
@@ -9782,10 +9775,6 @@ uint32 Field_typed_array::key_length() const {
 Field_typed_array *Field_typed_array::clone(MEM_ROOT *mem_root) const {
   DBUG_ASSERT(is_array());
   return new (mem_root) Field_typed_array(*this);
-}
-
-Field_typed_array *Field_typed_array::clone() const {
-  return clone(*THR_MALLOC);
 }
 
 Item_result Field_typed_array::result_type() const {

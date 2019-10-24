@@ -187,7 +187,7 @@ TEST_F(FieldTest, FieldTimef) {
   EXPECT_EQ(&my_charset_bin, field->sort_charset());
 
   // Test clone
-  Field *copy = field->clone();
+  Field *copy = field->clone(thd()->mem_root);
   EXPECT_EQ(field->decimals(), copy->decimals());
   EXPECT_EQ(field->type(), copy->type());
   EXPECT_DOUBLE_EQ(field->val_real(), copy->val_real());

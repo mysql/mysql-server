@@ -8000,7 +8000,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
     return true;
   }
 
-  def_field = field_arg->field->clone();
+  def_field = field_arg->field->clone(thd->mem_root);
   if (def_field == nullptr) return true;
 
   def_field->move_field_offset(def_field->table->default_values_offset());
@@ -8116,8 +8116,8 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
 
   if (field_arg->field->table->insert_values &&
       thd->lex->in_update_value_clause) {
-    Field *def_field = field_arg->field->clone();
-    if (!def_field) return true;
+    Field *def_field = field_arg->field->clone(thd->mem_root);
+    if (def_field == nullptr) return true;
 
     def_field->move_field_offset((ptrdiff_t)(def_field->table->insert_values -
                                              def_field->table->record[0]));
