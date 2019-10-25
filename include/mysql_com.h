@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -617,6 +617,7 @@ ulong STDCALL net_field_length_checked(uchar **packet, ulong max_length);
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);
 unsigned int net_length_size(ulonglong num);
+unsigned int net_field_length_size(const unsigned char *pos);
 #endif
 
 #ifdef __cplusplus
