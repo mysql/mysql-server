@@ -126,7 +126,7 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
   new_field->orig_table = org_field->table;
   new_field->field_name = name;
   new_field->flags |= (org_field->flags & NO_DEFAULT_VALUE_FLAG);
-  if (org_field->real_maybe_null() || org_field->table->is_nullable() ||
+  if (org_field->is_nullable() || org_field->table->is_nullable() ||
       (item && item->maybe_null))
     new_field->flags &= ~NOT_NULL_FLAG;  // Because of outer join
   if (org_field->type() == FIELD_TYPE_DOUBLE)
@@ -308,7 +308,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         create_tmp_field_from_field() can't be used for tmp field creation.
       */
       if (item_field->maybe_null &&
-          !(item_field->field->real_maybe_null() ||
+          !(item_field->field->is_nullable() ||
             item_field->field->table->is_nullable())) {
         result = create_tmp_field_from_item(item_field, table);
       } else if (table_cant_handle_bit_fields &&

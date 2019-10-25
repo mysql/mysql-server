@@ -84,7 +84,7 @@ Column::Column(const unsigned char *mysql_row,
               std::numeric_limits<decltype(m_user_data_offset)>::max());
   m_user_data_offset = static_cast<decltype(m_user_data_offset)>(data_offset);
 
-  m_nullable = mysql_field.real_maybe_null();
+  m_nullable = mysql_field.is_nullable();
   m_null_bitmask = mysql_field.null_bit;
 
   if (m_nullable) {

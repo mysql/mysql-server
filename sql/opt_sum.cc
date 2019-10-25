@@ -175,8 +175,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
          Check if case 1 from above holds. If it does, we should read
          the skipped tuple.
       */
-      if (item_field->field->real_maybe_null() &&
-          ref->key_buff[prefix_len] == 1 &&
+      if (item_field->field->is_nullable() && ref->key_buff[prefix_len] == 1 &&
           /*
             Last keypart (i.e. the argument to MIN) is set to NULL by
             find_key_for_maxmin only if all other keyparts are bound
@@ -186,7 +185,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
           */
           (error == HA_ERR_KEY_NOT_FOUND ||
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len))) {
-        DBUG_ASSERT(item_field->field->real_maybe_null());
+        DBUG_ASSERT(item_field->field->is_nullable());
         error = table->file->ha_index_read_map(
             table->record[0], ref->key_buff,
             make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
@@ -870,7 +869,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
         If we have a non-nullable index, we cannot use it,
         since set_null will be ignored, and we will compare uninitialized data.
       */
-      if (!part->field->real_maybe_null()) return false;
+      if (!part->field->is_nullable()) return false;
       part->field->set_null();
       *key_ptr = (uchar)1;
     } else {

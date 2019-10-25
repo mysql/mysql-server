@@ -226,7 +226,7 @@ inline bool create_table_check_doc_id_col(THD *thd, const TABLE *form,
     if (innobase_strcasecmp(field->field_name, FTS_DOC_ID_COL_NAME) == 0) {
       /* Note the name is case sensitive due to
       our internal query parser */
-      if (col_type == DATA_INT && !field->real_maybe_null() &&
+      if (col_type == DATA_INT && !field->is_nullable() &&
           col_len == sizeof(doc_id_t) &&
           (strcmp(field->field_name, FTS_DOC_ID_COL_NAME) == 0)) {
         *doc_id_col = i;

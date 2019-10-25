@@ -406,7 +406,7 @@ bool Group_check::is_fd_on_source(Item *item) {
             if (item3->type() != Item::FIELD_ITEM) continue;
             if (static_cast<Item_field *>(item3)->field == key_field &&
                 // Not a nullable column, or can be treated as not nullable
-                (!key_field->real_maybe_null() ||
+                (!key_field->is_nullable() ||
                  item3->marker == Item::MARKER_FUNC_DEP_NOT_NULL)) {
               key_field_in_fd = true;
               break;

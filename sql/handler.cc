@@ -8573,7 +8573,7 @@ std::string table_definition(const char *table_name, const TABLE *mysql_table) {
     def += "` ";
     def.append(type.ptr(), type.length());
 
-    if (!field->real_maybe_null()) {
+    if (!field->is_nullable()) {
       def += " not null";
     }
   }
@@ -8796,7 +8796,7 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
     bool is_null = false;
     field->ptr = const_cast<uchar *>(indexed_cells + key_len_so_far);
 
-    if (field->real_maybe_null()) {
+    if (field->is_nullable()) {
       if (field->ptr[0] != '\0') {
         is_null = true;
       } else {

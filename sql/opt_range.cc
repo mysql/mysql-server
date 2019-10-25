@@ -86,7 +86,7 @@
 
     keypart_data: [isnull_byte] keypart-value-bytes
 
-  If a keypart may have a NULL value (key_part->field->real_maybe_null() can
+  If a keypart may have a NULL value (key_part->field->is_nullable() can
   be used to check this), then the first byte is a NULL indicator with the
   following valid values:
     1  - keypart has NULL value.
@@ -689,7 +689,7 @@ class SEL_ARG {
   */
   uint8 part{0};
 
-  bool maybe_null() const { return field->real_maybe_null(); }
+  bool maybe_null() const { return field->is_nullable(); }
 
   /**
     The rtree index interval to scan, undefined unless
@@ -2434,7 +2434,7 @@ static int sel_cmp(Field *field, uchar *a, uchar *b, uint8 a_flag,
   if (b_flag & (NO_MIN_RANGE | NO_MAX_RANGE))
     return (b_flag & NO_MIN_RANGE) ? 1 : -1;
 
-  if (field->real_maybe_null())  // If null is part of key
+  if (field->is_nullable())  // If null is part of key
   {
     if (*a != *b) {
       return *a ? -1 : 1;
@@ -3913,7 +3913,7 @@ void store_key_image_to_rec(Field *field, uchar *ptr, uint len) {
   /* Do the same as print_key_value() does */
   my_bitmap_map *old_map;
 
-  if (field->real_maybe_null()) {
+  if (field->is_nullable()) {
     if (*ptr) {
       field->set_null();
       return;
@@ -7483,7 +7483,7 @@ static void debug_print_tree(SEL_ROOT *origin) {
 static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
                              Field *field, KEY_PART *key_part,
                              Item_func::Functype type, Item *value) {
-  uint maybe_null = (uint)field->real_maybe_null();
+  const size_t null_bytes = field->is_nullable() ? 1 : 0;
   bool optimize_range;
   SEL_ROOT *tree = nullptr;
   MEM_ROOT *alloc = param->mem_root;
@@ -7510,7 +7510,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
         join if the predicate is IS NULL.
       */
       goto end;
-    if (!maybe_null)  // NOT NULL column
+    if (!field->is_nullable())  // NOT NULL column
     {
       if (type == Item_func::ISNULL_FUNC)
         tree =
@@ -7580,7 +7580,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     uchar *min_str, *max_str;
     String tmp(buff1, sizeof(buff1), value->collation.collation), *res;
     size_t length, offset, min_length, max_length;
-    size_t field_length = field->pack_length() + maybe_null;
+    size_t field_length = field->pack_length() + null_bytes;
 
     if (!optimize_range) goto end;
     if (!(res = value->val_str(&tmp))) {
@@ -7600,10 +7600,10 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     if (field->cmp_type() != STRING_RESULT)
       goto end;  // Can only optimize strings
 
-    offset = maybe_null;
+    offset = null_bytes;
     length = key_part->store_length;
 
-    if (length != key_part->length + maybe_null) {
+    if (length != key_part->length + null_bytes) {
       /* key packed with length prefix */
       offset += HA_KEY_BLOB_LENGTH;
       field_length = length - HA_KEY_BLOB_LENGTH;
@@ -7621,14 +7621,14 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     if (!(min_str = (uchar *)alloc->Alloc(length * 2))) goto end;
 
     max_str = min_str + length;
-    if (maybe_null) max_str[0] = min_str[0] = 0;
+    if (field->is_nullable()) max_str[0] = min_str[0] = 0;
 
     Item_func_like *like_func = down_cast<Item_func_like *>(param->cond);
 
     // We can only optimize with LIKE if the escape string is known.
     if (!like_func->escape_is_evaluated()) goto end;
 
-    field_length -= maybe_null;
+    field_length -= null_bytes;
     like_error = my_like_range(
         field->charset(), res->ptr(), res->length(), like_func->escape,
         wild_one, wild_many, field_length, (char *)min_str + offset,
@@ -7636,10 +7636,10 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     if (like_error)  // Can't optimize with LIKE
       goto end;
 
-    if (offset != maybe_null)  // BLOB or VARCHAR
+    if (offset != null_bytes)  // BLOB or VARCHAR
     {
-      int2store(min_str + maybe_null, static_cast<uint16>(min_length));
-      int2store(max_str + maybe_null, static_cast<uint16>(max_length));
+      int2store(min_str + null_bytes, static_cast<uint16>(min_length));
+      int2store(max_str + null_bytes, static_cast<uint16>(max_length));
     }
     SEL_ARG *root = new (alloc)
         SEL_ARG(field, min_str, max_str, !(key_part->flag & HA_REVERSE_SORT));
@@ -7691,8 +7691,9 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
 
   str = (uchar *)alloc->Alloc(key_part->store_length + 1);
   if (!str) goto end;
-  if (maybe_null) *str = (uchar)field->is_real_null();  // Set to 1 if null
-  field->get_key_image(str + maybe_null, key_part->length,
+  if (field->is_nullable())
+    *str = (uchar)field->is_real_null();  // Set to 1 if null
+  field->get_key_image(str + null_bytes, key_part->length,
                        key_part->image_type);
   SEL_ARG *root;
   root =
@@ -7741,7 +7742,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
             (type == Item_func::LE_FUNC && cmp_value > 0))
           tree->root->max_flag = NEAR_MAX;
       }
-      if (!maybe_null)
+      if (!field->is_nullable())
         tree->root->min_flag = NO_MIN_RANGE; /* From start */
       else {                                 // > NULL
         if (!(tree->root->min_value = static_cast<uchar *>(
@@ -13309,7 +13310,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_key_stat() {
       }
     }
   } else if (have_min && min_max_arg_part &&
-             min_max_arg_part->field->real_maybe_null()) {
+             min_max_arg_part->field->is_nullable()) {
     /*
       If a MIN argument value is NULL, we can quickly determine
       that we're in the beginning of the next group, because NULLs
@@ -15323,7 +15324,7 @@ static void print_key_value(String *out, const KEY_PART_INFO *key_part,
 
   if (field->flags & BLOB_FLAG) {
     // Byte 0 of a nullable key is the null-byte. If set, key is NULL.
-    if (field->real_maybe_null() && *key)
+    if (field->is_nullable() && *key)
       out->append(STRING_WITH_LEN("NULL"));
     else
       (field->type() == MYSQL_TYPE_GEOMETRY)
@@ -15334,7 +15335,7 @@ static void print_key_value(String *out, const KEY_PART_INFO *key_part,
 
   uint store_length = key_part->store_length;
 
-  if (field->real_maybe_null()) {
+  if (field->is_nullable()) {
     /*
       Byte 0 of key is the null-byte. If set, key is NULL.
       Otherwise, print the key value starting immediately after the
@@ -15698,7 +15699,7 @@ static void print_multiple_key_values(KEY_PART *key_part, const uchar *key,
     Field *field = key_part->field;
     store_length = key_part->store_length;
 
-    if (field->real_maybe_null()) {
+    if (field->is_nullable()) {
       if (*key) {
         if (fwrite("NULL", sizeof(char), 4, DBUG_FILE) != 4) {
           goto restore_col_map;

@@ -13828,7 +13828,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       */
       if (def->sql_type == MYSQL_TYPE_GEOMETRY &&
           (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
-          field->type() != MYSQL_TYPE_GEOMETRY && field->real_maybe_null() &&
+          field->type() != MYSQL_TYPE_GEOMETRY && field->is_nullable() &&
           !thd->is_strict_mode() && !def->is_gcol()) {
         alter_ctx->error_if_not_empty |=
             Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;

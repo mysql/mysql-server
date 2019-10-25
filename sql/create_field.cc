@@ -69,7 +69,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       is_explicit_collation(false),
       geom_type(Field::GEOM_GEOMETRY),
       field(old_field),
-      maybe_null(old_field->real_maybe_null()),
+      maybe_null(old_field->is_nullable()),
       is_zerofill(false),  // Init to avoid UBSAN warnings
       is_unsigned(false),  // Init to avoid UBSAN warnings
       treat_bit_as_char(

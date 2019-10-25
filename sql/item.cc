@@ -2352,7 +2352,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field) {
 }
 
 bool Item_ident_for_show::fix_fields(THD *, Item **) {
-  maybe_null = field->real_maybe_null();
+  maybe_null = field->is_nullable();
   decimals = field->decimals();
   unsigned_flag = field->flags & UNSIGNED_FLAG;
   collation.set(field->charset(), field->derivation(), field->repertoire());
@@ -2546,7 +2546,7 @@ void Item_field::set_field(Field *field_par) {
   DBUG_ASSERT(!table_ref || table_ref->table == field_par->table);
 
   field = result_field = field_par;  // for easy coding with fields
-  maybe_null = field->real_maybe_null() || field->is_tmp_nullable() ||
+  maybe_null = field->is_nullable() || field->is_tmp_nullable() ||
                field->table->is_nullable();
   decimals = field->decimals();
   table_name = *field_par->table_name;
@@ -9460,7 +9460,7 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
   if (field == nullptr) return nullptr;
 
   if (strict && is_temporal_type_with_date(field->type()) &&
-      !field->real_maybe_null()) {
+      !field->is_nullable()) {
     /*
       This function is used for CREATE SELECT UNION [ALL] ... , and, if
       expression is non-nullable, the resulting column is declared

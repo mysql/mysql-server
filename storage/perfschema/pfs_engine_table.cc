@@ -1235,7 +1235,7 @@ ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
     DBUG_ASSERT(m_remaining_key_part_info->type == KT);                  \
     DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);   \
     isnull = false;                                                      \
-    if (m_remaining_key_part_info->field->real_maybe_null()) {           \
+    if (m_remaining_key_part_info->field->is_nullable()) {               \
       if (m_remaining_key[0]) {                                          \
         isnull = true;                                                   \
       }                                                                  \
@@ -1318,7 +1318,7 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     size_t length_offset = 0;
     size_t data_offset = 2;
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
+    if (m_remaining_key_part_info->field->is_nullable()) {
       DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;
@@ -1375,7 +1375,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
     size_t length_offset = 0;
     size_t data_offset = 0;
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
+    if (m_remaining_key_part_info->field->is_nullable()) {
       DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;

@@ -288,7 +288,7 @@ Key_use *Optimize_table_order::find_best_ref(
 
         if (keypart != FT_KEYPART) {
           const bool keyinfo_maybe_null =
-              keyinfo->key_part[keypart].field->real_maybe_null() ||
+              keyinfo->key_part[keypart].field->is_nullable() ||
               tab->table()->is_nullable();
           if (keyuse->null_rejecting || !keyuse->val->maybe_null ||
               !keyinfo_maybe_null)

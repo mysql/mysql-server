@@ -1640,7 +1640,7 @@ Field::Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
       m_default_val_expr(nullptr)
 
 {
-  flags = real_maybe_null() ? 0 : NOT_NULL_FLAG;
+  flags = is_nullable() ? 0 : NOT_NULL_FLAG;
   comment.str = "";
   comment.length = 0;
   field_index = 0;
@@ -1663,7 +1663,7 @@ type_conversion_status Field::check_constraints(int mysql_errno) {
 
   DBUG_ASSERT(!is_tmp_nullable());
 
-  if (real_maybe_null()) return TYPE_OK;  // If the field is nullable, we're Ok.
+  if (is_nullable()) return TYPE_OK;  // If the field is nullable, we're Ok.
 
   if (!m_is_tmp_null) return TYPE_OK;  // If the field was not NULL, we're Ok.
 
@@ -1699,7 +1699,7 @@ type_conversion_status Field::check_constraints(int mysql_errno) {
                        and table->record[0]
 */
 void Field::set_null(ptrdiff_t row_offset) {
-  if (real_maybe_null()) {
+  if (is_nullable()) {
     DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[row_offset] |= null_bit;
   } else if (is_tmp_nullable()) {
@@ -1714,7 +1714,7 @@ void Field::set_null(ptrdiff_t row_offset) {
                        and table->record[0]
 */
 void Field::set_notnull(ptrdiff_t row_offset) {
-  if (real_maybe_null()) {
+  if (is_nullable()) {
     DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[row_offset] &= (uchar)~null_bit;
   } else if (is_tmp_nullable()) {
@@ -1741,7 +1741,7 @@ void Field::hash(ulong *nr, ulong *nr2) const {
 void Field::copy_data(ptrdiff_t src_record_offset) {
   memcpy(ptr, ptr + src_record_offset, pack_length());
 
-  if (real_maybe_null()) {
+  if (is_nullable()) {
     // Set to NULL if the source record is NULL, otherwise set to NOT-NULL.
     DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[0] = (m_null_ptr[0] & ~null_bit) |
@@ -9923,7 +9923,7 @@ void Field_typed_array::init(TABLE *table_arg) {
       Field::GEOM_GEOMETRY,  // geom type
       Field::NONE,           // auto_flags
       nullptr,               // itervals aren't supported in array
-      field_name, real_maybe_null(),
+      field_name, is_nullable(),
       false,  // zerofill is meaningless with JSON
       unsigned_flag, m_elt_decimals,
       false,  // treat_bit_as_char

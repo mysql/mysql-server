@@ -768,8 +768,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                             thd->get_stmt_da()->current_row_for_condition());
-        if (field->type() == FIELD_TYPE_TIMESTAMP &&
-            !field->real_maybe_null()) {
+        if (field->type() == FIELD_TYPE_TIMESTAMP && !field->is_nullable()) {
           // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
           Item_func_now_local::store_in(field);
         }
@@ -920,8 +919,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
                      thd->get_stmt_da()->current_row_for_condition());
             return true;
           }
-          if (!field->real_maybe_null() &&
-              field->type() == FIELD_TYPE_TIMESTAMP) {
+          if (!field->is_nullable() && field->type() == FIELD_TYPE_TIMESTAMP) {
             // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
             Item_func_now_local::store_in(field);
           } else {
@@ -979,8 +977,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
                      thd->get_stmt_da()->current_row_for_condition());
             return true;
           }
-          if (field->type() == FIELD_TYPE_TIMESTAMP &&
-              !field->real_maybe_null())
+          if (field->type() == FIELD_TYPE_TIMESTAMP && !field->is_nullable())
             // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
             Item_func_now_local::store_in(field);
           /*
@@ -1136,7 +1133,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
           field->set_null();
           if (field == table->next_number_field)
             table->autoinc_field_has_explicit_non_null_value = true;
-          if (!field->real_maybe_null()) {
+          if (!field->is_nullable()) {
             if (field->type() == FIELD_TYPE_TIMESTAMP)
               // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
               Item_func_now_local::store_in(field);

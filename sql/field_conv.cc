@@ -79,7 +79,7 @@ static void do_field_eq(Copy_field *, const Field *from_field,
 }
 
 static void set_to_is_null(Field *to_field, bool is_null) {
-  if (to_field->real_maybe_null() || to_field->is_tmp_nullable()) {
+  if (to_field->is_nullable() || to_field->is_tmp_nullable()) {
     if (is_null) {
       to_field->set_null();
     } else {
@@ -109,7 +109,7 @@ static void do_field_to_null_str(Copy_field *, const Field *from_field,
 }
 
 type_conversion_status set_field_to_null(Field *field) {
-  if (field->real_maybe_null() || field->is_tmp_nullable()) {
+  if (field->is_nullable() || field->is_tmp_nullable()) {
     field->set_null();
     field->reset();
     return TYPE_OK;
@@ -170,7 +170,7 @@ type_conversion_status set_field_to_null(Field *field) {
 
 type_conversion_status set_field_to_null_with_conversions(Field *field,
                                                           bool no_conversions) {
-  if (field->real_maybe_null()) {
+  if (field->is_nullable()) {
     field->set_null();
     field->reset();
     return TYPE_OK;
@@ -602,7 +602,7 @@ Copy_field::Copy_field(MEM_ROOT *mem_root, Item_field *item) : Copy_field() {
 
   // Clone the from field as it will be modified and used as to field.
   m_from_field = from->clone(mem_root);
-  if (from->real_maybe_null()) {
+  if (from->is_nullable()) {
     // We need to allocate one extra byte for null handling.
     uchar *ptr = mem_root->ArrayAlloc<uchar>(from->pack_length() + 1);
     from->move_field(ptr + 1, ptr, 1);
@@ -636,8 +636,8 @@ void Copy_field::set(Field *to, Field *from, bool save) {
 
   m_do_copy2 = get_copy_func(save);
 
-  if (m_from_field->real_maybe_null() || m_from_field->table->is_nullable()) {
-    if (m_to_field->real_maybe_null() || m_to_field->is_tmp_nullable())
+  if (m_from_field->is_nullable() || m_from_field->table->is_nullable()) {
+    if (m_to_field->is_nullable() || m_to_field->is_tmp_nullable())
       m_do_copy = do_copy_null;
     else if (m_to_field->type() == MYSQL_TYPE_TIMESTAMP)
       m_do_copy = do_copy_timestamp;  // Automatic timestamp
@@ -645,7 +645,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
       m_do_copy = do_copy_next_number;
     else
       m_do_copy = do_copy_not_null;
-  } else if (m_to_field->real_maybe_null()) {
+  } else if (m_to_field->is_nullable()) {
     m_do_copy = do_copy_maybe_null;
   } else {
     m_do_copy = m_do_copy2;
@@ -678,7 +678,7 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
        m_from_field->table->s->db_low_byte_first);
   if (m_to_field->type() == MYSQL_TYPE_GEOMETRY) {
     if (m_from_field->type() != MYSQL_TYPE_GEOMETRY ||
-        m_to_field->real_maybe_null() != m_from_field->real_maybe_null() ||
+        m_to_field->is_nullable() != m_from_field->is_nullable() ||
         m_to_field->table->is_nullable() != m_from_field->table->is_nullable())
       return do_conv_blob;
 

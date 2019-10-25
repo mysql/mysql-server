@@ -687,7 +687,7 @@ void KEY_PART_INFO::init_from_field(Field *fld) {
   store_length = length;
   key_part_flag = 0;
 
-  if (field->real_maybe_null()) store_length += HA_KEY_NULL_LENGTH;
+  if (field->is_nullable()) store_length += HA_KEY_NULL_LENGTH;
   if (field->type() == MYSQL_TYPE_BLOB ||
       field->real_type() == MYSQL_TYPE_VARCHAR ||
       field->type() == MYSQL_TYPE_GEOMETRY) {
@@ -2033,12 +2033,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
             is equal to the BLOB column max size, then we can promote
             it to primary key.
           */
-          if (!table_field->real_maybe_null() &&
+          if (!table_field->is_nullable() &&
               table_field->type() == MYSQL_TYPE_BLOB &&
               table_field->field_length == key_part[i].length)
             continue;
 
-          if (table_field->real_maybe_null() ||
+          if (table_field->is_nullable() ||
               table_field->key_length() != key_part[i].length)
 
           {
@@ -2060,7 +2060,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         }
         field = key_part->field = share->field[key_part->fieldnr - 1];
         key_part->type = field->key_type();
-        if (field->real_maybe_null()) {
+        if (field->is_nullable()) {
           key_part->null_offset = field->null_offset(share->default_values);
           key_part->null_bit = field->null_bit;
           key_part->store_length += HA_KEY_NULL_LENGTH;

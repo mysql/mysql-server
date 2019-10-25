@@ -6211,7 +6211,7 @@ static void innobase_vcol_build_templ(const TABLE *table,
     templ->rec_field_no = templ->clust_rec_field_no;
   }
 
-  if (field->real_maybe_null()) {
+  if (field->is_nullable()) {
     templ->mysql_null_byte_offset = field->null_offset();
 
     templ->mysql_null_bit_mask = (ulint)field->null_bit;
@@ -7765,7 +7765,7 @@ static mysql_row_templ_t *build_template_field(
     }
   }
 
-  if (field->real_maybe_null()) {
+  if (field->is_nullable()) {
     templ->mysql_null_byte_offset = field->null_offset();
 
     templ->mysql_null_bit_mask = (ulint)field->null_bit;
@@ -8891,7 +8891,7 @@ static dberr_t calc_row_difference(
       }
     }
 
-    if (field->real_maybe_null()) {
+    if (field->is_nullable()) {
       if (field->is_null_in_record(old_row)) {
         o_len = UNIV_SQL_NULL;
       }
@@ -10899,7 +10899,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
       goto err_col;
     }
 
-    nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+    nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
     binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
 
     charset_no = 0;

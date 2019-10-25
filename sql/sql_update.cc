@@ -173,7 +173,7 @@ bool compare_records(const TABLE *table) {
     for (Field **ptr = table->field; *ptr != nullptr; ptr++) {
       Field *field = *ptr;
       if (bitmap_is_set(table->write_set, field->field_index)) {
-        if (field->real_maybe_null()) {
+        if (field->is_nullable()) {
           uchar null_byte_index = field->null_offset();
 
           if (((table->record[0][null_byte_index]) & field->null_bit) !=

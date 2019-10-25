@@ -722,7 +722,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       DBUG_ASSERT(pack_ptr != nullptr);
 
       if (null_bits.get()) {
-        if (f->real_maybe_null()) {
+        if (f->is_nullable()) {
           DBUG_PRINT("debug", ("Was NULL"));
           /**
             Calling reset just in case one is unpacking on top a

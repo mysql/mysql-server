@@ -1084,8 +1084,7 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
           def_value->append(def_val.ptr(), def_val.length());
       } else if (quoted)
         def_value->append(STRING_WITH_LEN("''"));
-    } else if (field->real_maybe_null() && quoted &&
-               field_type != FIELD_TYPE_BLOB)
+    } else if (field->is_nullable() && quoted && field_type != FIELD_TYPE_BLOB)
       def_value->append(STRING_WITH_LEN("NULL"));  // Null as default
     else
       return false;

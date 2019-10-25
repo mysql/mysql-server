@@ -10417,7 +10417,7 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
 
   memset(m_null_bits, 0, num_null_bytes);
   Bit_writer bit_writer{this->m_null_bits};
-  for (auto field : this->m_fields) bit_writer.set(field->real_maybe_null());
+  for (auto field : this->m_fields) bit_writer.set(field->is_nullable());
   /*
     Marking event to require sequential execution in MTS
     if the query might have updated FK-referenced db.

@@ -1741,7 +1741,7 @@ void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
     ulint charset_no;
     ulint mtype = get_innobase_type_from_mysql_type(&unsigned_type, field);
 
-    nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+    nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
 
     binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
 
@@ -2968,7 +2968,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     ulint charset_no;
     ulint mtype = get_innobase_type_from_mysql_type(&unsigned_type, field);
 
-    nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+    nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
 
     /* Convert non nullable fields in FTS AUX tables as nullable.
     This is because in 5.7, we created FTS AUX tables clustered

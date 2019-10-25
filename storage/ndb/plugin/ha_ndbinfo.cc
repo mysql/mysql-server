@@ -345,7 +345,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     const Field *field = table->field[i];
 
     // Check if field is NULLable
-    if (const_cast<Field *>(field)->real_maybe_null() == false) {
+    if (const_cast<Field *>(field)->is_nullable() == false) {
       // Only NULLable fields supported
       warn_incompatible(ndb_tab, true, "column '%s' is NOT NULL",
                         field->field_name);

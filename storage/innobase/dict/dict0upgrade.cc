@@ -251,7 +251,7 @@ static bool dd_upgrade_match_single_col(const Field *field,
     failure = true;
   }
 
-  ulint nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
+  ulint nulls_allowed = field->is_nullable() ? 0 : DATA_NOT_NULL;
   ulint binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
   ulint charset_no = 0;
 

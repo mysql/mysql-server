@@ -1509,7 +1509,7 @@ int ha_tina::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
     check columns
   */
   for (Field **field = table_arg->s->field; *field; field++) {
-    if ((*field)->real_maybe_null()) {
+    if ((*field)->is_nullable()) {
       my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "nullable columns");
       return HA_ERR_UNSUPPORTED;
     }

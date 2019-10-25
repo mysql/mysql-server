@@ -2266,7 +2266,7 @@ static void ndb_set_record_specification(
   DBUG_ASSERT(ndb_column);
   spec->column = ndb_column;
   spec->offset = Uint32(table->field[field_no]->ptr - table->record[0]);
-  if (table->field[field_no]->real_maybe_null()) {
+  if (table->field[field_no]->is_nullable()) {
     spec->nullbit_byte_offset = Uint32(table->field[field_no]->null_offset());
     spec->nullbit_bit_in_byte =
         null_bit_mask_to_bit_number(table->field[field_no]->null_bit);
@@ -2568,7 +2568,7 @@ bool ha_ndbcluster::check_index_fields_not_null(KEY *key_info) const {
 
   for (; key_part != end; key_part++) {
     Field *field = key_part->field;
-    if (field->real_maybe_null()) return true;
+    if (field->is_nullable()) return true;
   }
 
   return false;
@@ -8243,7 +8243,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       return HA_ERR_UNSUPPORTED;
   }
   // Set nullable and pk
-  col.setNullable(field->real_maybe_null());
+  col.setNullable(field->is_nullable());
   col.setPrimaryKey(field->flags & PRI_KEY_FLAG);
   if ((field->flags & FIELD_IN_PART_FUNC_FLAG) != 0) {
     col.setPartitionKey(true);
@@ -14805,7 +14805,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
   }
 
   // Check if nullable change
-  if (new_field->real_maybe_null() != old_field->real_maybe_null()) {
+  if (new_field->is_nullable() != old_field->is_nullable()) {
     return inplace_unsupported(ha_alter_info,
                                "Altering if field is nullable is "
                                "not supported");

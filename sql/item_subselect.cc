@@ -3401,7 +3401,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
     Field *field = tmp_table->visible_field_ptr()[part_no];
-    const bool nullable = field->real_maybe_null();
+    const bool nullable = field->is_nullable();
     tab->ref().items[part_no] = item_in->left_expr->element_index(part_no);
 
     if (!(right_col_item = new Item_field(thd, context, field)) ||

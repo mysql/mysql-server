@@ -311,7 +311,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       keydef[i].seg[j].bit_pos = 0;
       keydef[i].seg[j].language = field->charset_for_protocol()->number;
 
-      if (field->real_maybe_null()) {
+      if (field->is_nullable()) {
         keydef[i].seg[j].null_bit = field->null_bit;
         keydef[i].seg[j].null_pos = field->null_offset();
       } else {
@@ -382,7 +382,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                               found->type() == MYSQL_TYPE_VAR_STRING
                           ? FIELD_SKIP_ENDSPACE
                           : FIELD_SKIP_PRESPACE);
-    if (found->real_maybe_null()) {
+    if (found->is_nullable()) {
       recinfo_pos->null_bit = found->null_bit;
       recinfo_pos->null_pos = found->null_offset();
     } else {

@@ -2003,7 +2003,7 @@ void innobase_rec_to_mysql(struct TABLE *table, /*!< in/out: MySQL table */
 
     /* Assign the NULL flag */
     if (ilen == UNIV_SQL_NULL) {
-      ut_ad(field->real_maybe_null());
+      ut_ad(field->is_nullable());
       goto null_field;
     }
 
@@ -2494,7 +2494,7 @@ bool innobase_fts_check_doc_id_col(
     if (strcmp(field->field_name, FTS_DOC_ID_COL_NAME)) {
       my_error(ER_WRONG_COLUMN_NAME, MYF(0), field->field_name);
     } else if (field->type() != MYSQL_TYPE_LONGLONG ||
-               field->pack_length() != 8 || field->real_maybe_null() ||
+               field->pack_length() != 8 || field->is_nullable() ||
                !(field->flags & UNSIGNED_FLAG) || innobase_is_v_fld(field)) {
       my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0), field->field_name);
     } else {
@@ -3503,7 +3503,7 @@ static bool prepare_inplace_add_virtual(Alter_inplace_info *ha_alter_info,
     }
     field_type = (ulint)field->type();
 
-    if (!field->real_maybe_null()) {
+    if (!field->is_nullable()) {
       field_type |= DATA_NOT_NULL;
     }
 
@@ -3635,7 +3635,7 @@ static bool prepare_inplace_drop_virtual(Alter_inplace_info *ha_alter_info,
 
     field_type = (ulint)field->type();
 
-    if (!field->real_maybe_null()) {
+    if (!field->is_nullable()) {
       field_type |= DATA_NOT_NULL;
     }
 
@@ -4463,7 +4463,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       fits in two bytes */
       ut_a(field_type <= MAX_CHAR_COLL_NUM);
 
-      if (!field->real_maybe_null()) {
+      if (!field->is_nullable()) {
         field_type |= DATA_NOT_NULL;
       }
 

@@ -5456,7 +5456,7 @@ static uint32 store_tuple_to_record(Field **pfield, uint32 *store_length_array,
   uchar *loc_value;
   while (value < value_end) {
     loc_value = value;
-    if ((*pfield)->real_maybe_null()) {
+    if ((*pfield)->is_nullable()) {
       if (*loc_value)
         (*pfield)->set_null();
       else
@@ -5780,7 +5780,7 @@ static int get_part_iter_for_interval_via_mapping(
     Find minimum: Do special handling if the interval has left bound in form
      " NULL <= X ":
   */
-  if (field->real_maybe_null() && part_info->has_null_value &&
+  if (field->is_nullable() && part_info->has_null_value &&
       !(flags & (NO_MIN_RANGE | NEAR_MIN)) && *min_value) {
     part_iter->ret_null_part = part_iter->ret_null_part_orig = true;
     part_iter->part_nums.start = part_iter->part_nums.cur = 0;
@@ -5926,7 +5926,7 @@ static int get_part_iter_for_interval_via_walking(
   }
 
   /* Handle the "t.field IS NULL" interval, it is a special case */
-  if (field->real_maybe_null() && !(flags & (NO_MIN_RANGE | NO_MAX_RANGE)) &&
+  if (field->is_nullable() && !(flags & (NO_MIN_RANGE | NO_MAX_RANGE)) &&
       *min_value && *max_value) {
     /*
       We don't have a part_iter->get_next() function that would find which
@@ -5954,7 +5954,7 @@ static int get_part_iter_for_interval_via_walking(
     return 0; /* No partitions match */
   }
 
-  if ((field->real_maybe_null() &&
+  if ((field->is_nullable() &&
        ((!(flags & NO_MIN_RANGE) && *min_value) ||    // NULL <? X
         (!(flags & NO_MAX_RANGE) && *max_value))) ||  // X <? NULL
       (flags & (NO_MIN_RANGE | NO_MAX_RANGE)))        // -inf at any bound
@@ -6131,7 +6131,7 @@ uint get_partition_field_store_length(Field *field) {
   uint store_length;
 
   store_length = field->key_length();
-  if (field->real_maybe_null()) store_length += HA_KEY_NULL_LENGTH;
+  if (field->is_nullable()) store_length += HA_KEY_NULL_LENGTH;
   if (field->real_type() == MYSQL_TYPE_VARCHAR)
     store_length += HA_KEY_BLOB_LENGTH;
   return store_length;

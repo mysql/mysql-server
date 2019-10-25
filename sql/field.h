@@ -1287,7 +1287,7 @@ class Field {
       have a valid m_null_ptr, and this pointer must be checked before
       TABLE::has_null_row().
     */
-    if (real_maybe_null()) return (m_null_ptr[row_offset] & null_bit);
+    if (is_nullable()) return (m_null_ptr[row_offset] & null_bit);
 
     if (is_tmp_nullable()) return m_is_tmp_null;
 
@@ -1306,7 +1306,7 @@ class Field {
               false if the Field has value NOT NULL.
   */
   bool is_real_null(ptrdiff_t row_offset = 0) const {
-    if (real_maybe_null()) return (m_null_ptr[row_offset] & null_bit);
+    if (is_nullable()) return (m_null_ptr[row_offset] & null_bit);
 
     if (is_tmp_nullable()) return m_is_tmp_null;
 
@@ -1321,7 +1321,7 @@ class Field {
                for thois Field.
   */
   bool is_null_in_record(const uchar *record) const {
-    if (real_maybe_null()) return (record[null_offset()] & null_bit);
+    if (is_nullable()) return (record[null_offset()] & null_bit);
 
     return is_tmp_nullable() ? m_is_tmp_null : false;
   }
@@ -1346,7 +1346,7 @@ class Field {
   }
 
   /// @return true if this field is NULL-able, false otherwise.
-  bool real_maybe_null() const { return m_null_ptr != nullptr; }
+  bool is_nullable() const { return m_null_ptr != nullptr; }
 
   uint null_offset(const uchar *record) const {
     return (uint)(m_null_ptr - record);
@@ -1432,7 +1432,7 @@ class Field {
 
   virtual void move_field_offset(ptrdiff_t ptr_diff) {
     ptr += ptr_diff;
-    if (real_maybe_null()) m_null_ptr += ptr_diff;
+    if (is_nullable()) m_null_ptr += ptr_diff;
   }
 
   virtual void get_image(uchar *buff, size_t length,
@@ -4028,7 +4028,7 @@ class Field_geom final : public Field_blob {
   type_conversion_status reset() final override {
     type_conversion_status res = Field_blob::reset();
     if (res != TYPE_OK) return res;
-    return (real_maybe_null() || table->is_nullable())
+    return (is_nullable() || table->is_nullable())
                ? TYPE_OK
                : TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }

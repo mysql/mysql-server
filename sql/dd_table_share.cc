@@ -238,12 +238,11 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
     is equal to the BLOB column max size, then we can promote
     it to primary key.
    */
-  if (!table_field->real_maybe_null() &&
-      table_field->type() == MYSQL_TYPE_BLOB &&
+  if (!table_field->is_nullable() && table_field->type() == MYSQL_TYPE_BLOB &&
       table_field->field_length == key_part->length)
     return true;
 
-  if (table_field->real_maybe_null() ||
+  if (table_field->is_nullable() ||
       table_field->key_length() != key_part->length)
     return false;
 
@@ -372,7 +371,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
         Field *field = key_part->field;
 
         key_part->type = field->key_type();
-        if (field->real_maybe_null()) {
+        if (field->is_nullable()) {
           key_part->null_offset = field->null_offset(share->default_values);
           key_part->null_bit = field->null_bit;
           key_part->store_length += HA_KEY_NULL_LENGTH;

@@ -3539,9 +3539,9 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
     /* As (NULL=NULL) != TRUE we can't just remove the predicate f=f */
     if (left_field->eq(right_field)) /* f = f */
     {
-      *simple_equality = !(
-          (left_field->real_maybe_null() || left_field->table->is_nullable()) &&
-          !left_item_equal);
+      *simple_equality =
+          !((left_field->is_nullable() || left_field->table->is_nullable()) &&
+            !left_item_equal);
       return false;
     }
 
@@ -6253,7 +6253,7 @@ static bool find_eq_ref_candidate(TABLE_LIST *tl, table_map sj_inner_tables) {
               columns where a duplicate row is possible with NULL values.
             */
             if (keyuse->null_rejecting || !keyuse->val->maybe_null ||
-                !keyinfo->key_part[keyuse->keypart].field->real_maybe_null())
+                !keyinfo->key_part[keyuse->keypart].field->is_nullable())
               bound_parts |= (key_part_map)1 << keyuse->keypart;
           }
           keyuse++;
@@ -6753,7 +6753,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
   if (!(field->flags & PART_KEY_FLAG)) {
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
-        !tl->table->is_nullable() || field->real_maybe_null())
+        !tl->table->is_nullable() || field->is_nullable())
       return false;  // Not a key. Skip it
     exists_optimize = KEY_OPTIMIZE_EXISTS;
     DBUG_ASSERT(num_values == 1);
@@ -6768,7 +6768,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
     if (!optimizable) return false;
     if (!(usable_tables & tl->map())) {
       if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
-          !tl->table->is_nullable() || field->real_maybe_null())
+          !tl->table->is_nullable() || field->is_nullable())
         return false;  // Can't use left join optimize
       exists_optimize = KEY_OPTIMIZE_EXISTS;
     } else {
@@ -6899,7 +6899,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
       ((cond->functype() == Item_func::EQ_FUNC) ||
        (cond->functype() == Item_func::MULT_EQUAL_FUNC)) &&
       (real->type() == Item::FIELD_ITEM) &&
-      (down_cast<Item_field *>(real)->field->real_maybe_null() ||
+      (down_cast<Item_field *>(real)->field->is_nullable() ||
        down_cast<Item_field *>(real)->field->table->is_nullable());
 
   /* Store possible eq field */
@@ -7971,7 +7971,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
     for (Key_field *fld = field; fld != end; fld++) {
       /* Mark that we can optimize LEFT JOIN */
       if (fld->val->type() == Item::NULL_ITEM &&
-          !fld->item_field->field->real_maybe_null()) {
+          !fld->item_field->field->is_nullable()) {
         /*
           Example:
           SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
@@ -10135,8 +10135,7 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
       for (key_part = keyinfo->key_part,
           key_part_end = key_part + keyinfo->user_defined_key_parts;
            key_part < key_part_end; key_part++) {
-        if (key_part->field->real_maybe_null() ||
-            !find_func(key_part->field, data))
+        if (key_part->field->is_nullable() || !find_func(key_part->field, data))
           break;
       }
       if (key_part == key_part_end) return true;

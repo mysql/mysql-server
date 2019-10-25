@@ -974,7 +974,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage() {
         table->s->db_low_byte_first) {
       return false;
     }
-    if (key_part->field->real_maybe_null() || table->is_nullable()) {
+    if (key_part->field->is_nullable() || table->is_nullable()) {
       return false;
       /*
         If this is changed so that embedded keys may contain nullable

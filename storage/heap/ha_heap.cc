@@ -610,7 +610,7 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         seg->charset = &my_charset_bin;
       else
         seg->charset = field->charset_for_protocol();
-      if (field->real_maybe_null()) {
+      if (field->is_nullable()) {
         seg->null_bit = field->null_bit;
         seg->null_pos = field->null_offset();
       } else {
