@@ -2764,11 +2764,12 @@ Field_new_decimal::Field_new_decimal(uchar *ptr_arg, uint32 len_arg,
   bin_size = my_decimal_get_binary_size(precision, dec);
 }
 
-Field_new_decimal::Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
+Field_new_decimal::Field_new_decimal(uint32 len_arg, bool is_nullable_arg,
                                      const char *name, uint8 dec_arg,
                                      bool unsigned_arg)
-    : Field_num(nullptr, len_arg, maybe_null_arg ? &dummy_null_buffer : nullptr,
-                0, NONE, name, dec_arg, false, unsigned_arg) {
+    : Field_num(nullptr, len_arg,
+                is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE, name,
+                dec_arg, false, unsigned_arg) {
   precision =
       std::min(my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg),
                uint(DECIMAL_MAX_PRECISION));
@@ -4993,10 +4994,10 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32, uchar *null_ptr_arg,
   flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
 }
 
-Field_timestamp::Field_timestamp(bool maybe_null_arg,
+Field_timestamp::Field_timestamp(bool is_nullable_arg,
                                  const char *field_name_arg)
     : Field_temporal_with_date_and_time(
-          nullptr, maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+          nullptr, is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE,
           field_name_arg, 0) {
   init_timestamp_flags();
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
@@ -5147,10 +5148,10 @@ Field_timestampf::Field_timestampf(uchar *ptr_arg, uchar *null_ptr_arg,
   init_timestamp_flags();
 }
 
-Field_timestampf::Field_timestampf(bool maybe_null_arg,
+Field_timestampf::Field_timestampf(bool is_nullable_arg,
                                    const char *field_name_arg, uint8 dec_arg)
     : Field_temporal_with_date_and_timef(
-          nullptr, maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+          nullptr, is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE,
           field_name_arg, dec_arg) {
   if (auto_flags & ON_UPDATE_NOW) flags |= ON_UPDATE_NOW_FLAG;
 }
@@ -9225,7 +9226,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
                   enum_field_types field_type,
                   const CHARSET_INFO *field_charset,
                   Field::geometry_type geom_type, uchar auto_flags,
-                  TYPELIB *interval, const char *field_name, bool maybe_null,
+                  TYPELIB *interval, const char *field_name, bool is_nullable,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
                   Nullable<gis::srid_t> srid, bool is_array) {
@@ -9236,14 +9237,14 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
   if (field_type == MYSQL_TYPE_BIT && !treat_bit_as_char) {
     bit_ptr = null_pos;
     bit_offset = null_bit;
-    if (maybe_null)  // if null field
+    if (is_nullable)  // if null field
     {
       bit_ptr += (null_bit == 7);  // shift bit_ptr and bit_offset
       bit_offset = (bit_offset + 1) & 7;
     }
   }
 
-  if (!maybe_null) {
+  if (!is_nullable) {
     null_pos = nullptr;
     null_bit = 0;
   } else {
@@ -10233,11 +10234,11 @@ Field_varstring::Field_varstring(uchar *ptr_arg, uint32 len_arg,
   }
 }
 
-Field_varstring::Field_varstring(uint32 len_arg, bool maybe_null_arg,
+Field_varstring::Field_varstring(uint32 len_arg, bool is_nullable_arg,
                                  const char *field_name_arg, TABLE_SHARE *share,
                                  const CHARSET_INFO *cs)
     : Field_longstr(nullptr, len_arg,
-                    maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                    is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE,
                     field_name_arg, cs),
       length_bytes(len_arg < 256 ? 1 : 2) {
   if (share != nullptr) {
