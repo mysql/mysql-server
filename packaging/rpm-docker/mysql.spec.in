@@ -89,6 +89,7 @@ BuildRequires:  libcurl-devel
 %endif
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
+BuildRequires:  openldap-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
@@ -239,8 +240,6 @@ done
 
 #  Remove test plugins, please keep alphabetical order
 for p in \
-         authentication_ldap_sasl.so \
-         authentication_ldap_simple.so \
          auth.so \
          auth_test_plugin.so \
          component_example_component1.so \
@@ -450,6 +449,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysqlbackup
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
