@@ -816,6 +816,8 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
       size_t length_msg_member =
           (size_t)net_field_length_ll_safe(mysql, &pos, length, &is_error);
       if (is_error) return;
+      if (!buffer_check_remaining(mysql, pos, length, length_msg_member))
+        return;
       mysql->info = (length_msg_member ? (char *)pos : nullptr);
       pos += (length_msg_member);
 
