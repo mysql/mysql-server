@@ -113,3 +113,34 @@ REFERENCED_TABLE_NAME	Customer
 DROP TABLE Product_Order;
 DROP TABLE Product;
 DROP TABLE Customer;
+#
+# Bug#29957361: TABLE NOT IN THE SHOW TABLES WITH LOWER_CASE_TABLE_NAMES=2
+#
+CREATE DATABASE my_db;
+USE my_db;
+CREATE TABLE UPPERCASE_MYISAM (a INT) ENGINE=MYISAM;
+CREATE TABLE lowercase_myisam (a INT) ENGINE=MYISAM;
+CREATE TABLE UPPERCASE_INNODB (a INT) ENGINE=InnoDB;
+CREATE TABLE lowercase_innodb (a INT) ENGINE=InnoDB;
+SHOW TABLES;
+Tables_in_my_db
+UPPERCASE_INNODB
+UPPERCASE_MYISAM
+lowercase_innodb
+lowercase_myisam
+CREATE USER 'test_user'@'localhost';
+GRANT SELECT ON my_db.UPPERCASE_MYISAM TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.lowercase_myisam TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.UPPERCASE_INNODB TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.lowercase_innodb TO 'test_user'@'localhost';
+USE my_db;
+# Without the patch, tables with uppercase table names were not displayed.
+SHOW TABLES;
+Tables_in_my_db
+UPPERCASE_INNODB
+UPPERCASE_MYISAM
+lowercase_innodb
+lowercase_myisam
+DROP USER 'test_user'@'localhost';
+DROP DATABASE my_db;
+USE test;
