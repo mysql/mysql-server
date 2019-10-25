@@ -8070,6 +8070,9 @@ static bool check_table_and_trigger_access(Item **args, bool check_trigger_acl,
   TABLE_LIST table_list;
   table_list.db = schema_name_ptr->ptr();
   table_list.db_length = schema_name_ptr->length();
+  if (lower_case_table_names == 2) {
+    my_casedn_str(files_charset_info, table_name_ptr->ptr());
+  }
   table_list.table_name = table_name_ptr->ptr();
   table_list.table_name_length = table_name_ptr->length();
   table_list.grant.privilege = db_access;
