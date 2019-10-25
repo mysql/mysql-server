@@ -133,7 +133,7 @@ class Create_field {
     Initialized based on flags and other members at prepare_create_field()/
     init_for_tmp_table() stage.
   */
-  bool maybe_null;
+  bool is_nullable;
   bool is_zerofill;
   bool is_unsigned;
 
@@ -182,7 +182,7 @@ class Create_field {
       : after(nullptr),
         is_explicit_collation(false),
         geom_type(Field::GEOM_GEOMETRY),
-        maybe_null(false),
+        is_nullable(false),
         is_zerofill(false),
         is_unsigned(false),
         /*
@@ -207,7 +207,7 @@ class Create_field {
 
   /* Init for a tmp table field. To be extended if need be. */
   void init_for_tmp_table(enum_field_types sql_type_arg, uint32 max_length,
-                          uint32 decimals, bool maybe_null, bool is_unsigned,
+                          uint32 decimals, bool is_nullable, bool is_unsigned,
                           uint pack_length_override,
                           const char *field_name = "");
 

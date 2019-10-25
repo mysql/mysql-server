@@ -566,7 +566,7 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     if (get_field_datetime_precision(&field, &value) == false)
       col_obj->set_datetime_precision(value);
 
-    col_obj->set_nullable(field.maybe_null);
+    col_obj->set_nullable(field.is_nullable);
 
     col_obj->set_unsigned(field.is_unsigned);
 

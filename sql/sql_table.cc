@@ -3715,7 +3715,7 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
   DBUG_TRACE;
   DBUG_ASSERT(sql_field->charset);
 
-  sql_field->maybe_null = true;
+  sql_field->is_nullable = true;
   sql_field->is_zerofill = false;
   sql_field->is_unsigned = false;
 
@@ -3791,7 +3791,7 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
       break;
   }
 
-  if (sql_field->flags & NOT_NULL_FLAG) sql_field->maybe_null = false;
+  if (sql_field->flags & NOT_NULL_FLAG) sql_field->is_nullable = false;
   // Array fields are JSON fields, so override pack length
   sql_field->pack_length_override =
       sql_field->is_array ? (4 + portable_sizeof_char_ptr) : 0;
@@ -4757,7 +4757,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       if (key->type == KEYTYPE_PRIMARY) {
         /* Implicitly set primary key fields to NOT NULL for ISO conf. */
         sql_field->flags |= NOT_NULL_FLAG;
-        sql_field->maybe_null = false;
+        sql_field->is_nullable = false;
         create_info->null_bits--;
       } else {
         key_info->flags |= HA_NULL_PART_KEY;
@@ -7181,7 +7181,7 @@ bool Item_field::replace_field_processor(uchar *arg) {
 
   unsigned_flag = (create_field->sql_type == MYSQL_TYPE_BIT ||
                    (field->flags & UNSIGNED_FLAG));
-  maybe_null = create_field->maybe_null;
+  maybe_null = create_field->is_nullable;
   field->field_length = max_length;
   return false;
 }

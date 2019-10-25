@@ -69,7 +69,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       is_explicit_collation(false),
       geom_type(Field::GEOM_GEOMETRY),
       field(old_field),
-      maybe_null(old_field->is_nullable()),
+      is_nullable(old_field->is_nullable()),
       is_zerofill(false),  // Init to avoid UBSAN warnings
       is_unsigned(false),  // Init to avoid UBSAN warnings
       treat_bit_as_char(
@@ -213,7 +213,7 @@ bool Create_field::init(
     charset = fld_charset;
 
   auto_flags = Field::NONE;
-  maybe_null = !(fld_type_modifier & NOT_NULL_FLAG);
+  is_nullable = !(fld_type_modifier & NOT_NULL_FLAG);
   this->hidden = hidden;
   is_array = is_array_arg;
 
@@ -571,7 +571,8 @@ bool Create_field::init(
 */
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
-                                      bool maybe_null_arg, bool is_unsigned_arg,
+                                      bool is_nullable_arg,
+                                      bool is_unsigned_arg,
                                       uint pack_length_override_arg,
                                       const char *fld_name) {
   DBUG_TRACE;
@@ -613,7 +614,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
       break;
   }
 
-  maybe_null = maybe_null_arg;
+  is_nullable = is_nullable_arg;
 
   is_zerofill = false;
   is_unsigned = is_unsigned_arg;

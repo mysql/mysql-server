@@ -3414,7 +3414,7 @@ sp_fdparam:
               MYSQL_YYABORT;
             }
             spvar->field_def.field_name= spvar->name.str;
-            spvar->field_def.maybe_null= true;
+            spvar->field_def.is_nullable= true;
           }
         ;
 
@@ -3475,7 +3475,7 @@ sp_pdparam:
               MYSQL_YYABORT;
             }
             spvar->field_def.field_name= spvar->name.str;
-            spvar->field_def.maybe_null= true;
+            spvar->field_def.is_nullable= true;
           }
         ;
 
@@ -3603,7 +3603,7 @@ sp_decl:
                 MYSQL_YYABORT;
 
               spvar->field_def.field_name= spvar->name.str;
-              spvar->field_def.maybe_null= true;
+              spvar->field_def.is_nullable= true;
 
               /* The last instruction is responsible for freeing LEX. */
 

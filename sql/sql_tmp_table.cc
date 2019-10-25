@@ -1852,7 +1852,7 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
   uint idx = 0;
   while ((cdef = it++)) {
     *reg_field =
-        cdef->maybe_null
+        cdef->is_nullable
             ? make_field(*cdef, share, nullptr,
                          pointer_cast<uchar *>(const_cast<char *>("")), 1)
             : make_field(*cdef, share);
