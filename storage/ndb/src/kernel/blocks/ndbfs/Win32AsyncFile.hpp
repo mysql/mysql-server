@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,6 @@ public:
   virtual int writeBuffer(const char * buf, size_t size, off_t offset);
 
 private:
-  int extendfile(Request* request);
   void createDirectories();
 
   HANDLE hFile;
