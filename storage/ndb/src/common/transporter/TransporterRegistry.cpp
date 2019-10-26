@@ -555,9 +555,10 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   }
 
   // Check transporter type
-  if (remote_transporter_type != -1 &&
-      remote_transporter_type != t->m_type)
+  if (remote_transporter_type != t->m_type &&
+      t->m_type != tt_Multi_TRANSPORTER) // Checked later
   {
+    unlockMultiTransporters();
     /* Strange, log it */
     msg.assfmt("Connection attempt from client node %u failed as transporter "
                "type %u is not as expected %u.",
@@ -615,22 +616,38 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
       {
         Transporter *inst_trp =
           multi_trp->get_inactive_transporter(multi_transporter_instance - 1);
-        if (!inst_trp->isConnected())
+
+        /* Check type now that we have the actual instance */
+        if (remote_transporter_type == inst_trp->m_type)
         {
-          /**
-           * Continue connection setup with
-           * multi-transporter specific instance
-           */
-          correct_state = true;
-          t = inst_trp;
+          if (!inst_trp->isConnected())
+          {
+            /**
+             * Continue connection setup with
+             * multi-transporter specific instance
+             */
+            correct_state = true;
+            t = inst_trp;
+          }
+          else
+          {
+            /* Strange, log it */
+            msg.assfmt("Ignored connection attempt from node %u as multi "
+                       "transporter instance %u already connected.",
+                       nodeId,
+                       multi_transporter_instance);
+          }
         }
         else
         {
           /* Strange, log it */
-          msg.assfmt("Ignored connection attempt from node %u as multi "
-                     "transporter instance %u already connected.",
+          msg.assfmt("Ignored multi transporter connection attempt "
+                     "from node %u instance %u as transporter "
+                     "type %u is not as expected %u",
                      nodeId,
-                     multi_transporter_instance);
+                     multi_transporter_instance,
+                     remote_transporter_type,
+                     inst_trp->m_type);
         }
       }
       else
