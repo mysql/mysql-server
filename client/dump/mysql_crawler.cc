@@ -318,14 +318,6 @@ void Mysql_crawler::enumerate_views(const Database &db) {
          view_it != check_view.end(); ++view_it) {
       const Mysql::Tools::Base::Mysql_query_runner::Row &is_view = **view_it;
       if (is_view[0] == "1") {
-        /* Check if view dependent objects exists */
-        if (runner->run_query(
-                std::string("LOCK TABLES ") +
-                this->get_quoted_object_full_name(db.get_name(), table_name) +
-                " READ") != 0)
-          return;
-        else
-          runner->run_query(std::string("UNLOCK TABLES"));
         View *view =
             new View(this->generate_new_object_id(), table_name, db.get_name(),
                      this->get_create_statement(runner, db.get_name(),
