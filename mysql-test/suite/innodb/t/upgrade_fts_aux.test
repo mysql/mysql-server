@@ -2,6 +2,7 @@
 # Bug#29906115 RENAME OF FTS AUXILARY TABLES DURING UPGRADE COULD FAIL
 ##################################################################################
 
+--source include/big_test.inc
 --source include/not_valgrind.inc
 
 --echo #
@@ -23,7 +24,7 @@ let $DATADIR1 = $MYSQL_TMP_DIR/data57_fts_aux;
 
 --echo # Restart the server with the unzipped datadir
 --replace_result $DATADIR1 DATADIR
---let $wait_counter=8000
+--let $wait_counter=20000
 --let $restart_parameters = restart: --datadir=$DATADIR1 --innodb_page_size=16k
 --source include/start_mysqld.inc
 
