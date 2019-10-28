@@ -583,33 +583,6 @@ DROP TABLE m1, t1;
 --echo # End of 6.0 tests.
 --echo #
 
-
---echo #
---echo # Bug#29836204:  P_S TABLE ACCESS HANGS WHILE IN LOCK TABLES MODE
---echo #
-
-SET @saved_show_compatibility_56= @@global.show_compatibility_56;
---echo # Ensures that the P_S is used for the SHOW command.
-SET GLOBAL show_compatibility_56= OFF;
-CREATE TABLE t1(fld1 int) ENGINE=MYISAM;
-LOCK TABLE t1 WRITE;
-ALTER TABLE t1 DISABLE KEYS;
-
---echo # Without patch, the SHOW command hangs.
-SHOW SESSION VARIABLES LIKE 'FOREIGN_KEY_CHECKS';
-
---echo # Wihout patch, the SELECT from P_S hangs.
-SELECT * FROM performance_schema.global_variables WHERE variable_name="read_only";
-
---echo # Test added for coverage (Querying from I_S)
-SET GLOBAL show_compatibility_56= @saved_show_compatibility_56;
-SHOW SESSION VARIABLES LIKE 'FOREIGN_KEY_CHECKS';
-
---echo # Clean up.
-UNLOCK TABLES;
-DROP TABLE t1;
-
-
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
