@@ -51,3 +51,28 @@ SELECT (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2);
 set global SHOW_COMPATIBILITY_56=1;
 disconnect con1;
 DROP TABLE t1;
+#
+# Bug#29836204:  P_S TABLE ACCESS HANGS WHILE IN LOCK TABLES MODE
+#
+SET @saved_show_compatibility_56= @@global.show_compatibility_56;
+# Ensures that the P_S is used for the SHOW command.
+SET GLOBAL show_compatibility_56= OFF;
+CREATE TABLE t1(fld1 int) ENGINE=MYISAM;
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DISABLE KEYS;
+# Without patch, the SHOW command hangs.
+SHOW SESSION VARIABLES LIKE 'FOREIGN_KEY_CHECKS';
+Variable_name	Value
+foreign_key_checks	ON
+# Wihout patch, the SELECT from P_S hangs.
+SELECT * FROM performance_schema.global_variables WHERE variable_name="read_only";
+VARIABLE_NAME	VARIABLE_VALUE
+read_only	OFF
+# Test added for coverage (Querying from I_S)
+SET GLOBAL show_compatibility_56= @saved_show_compatibility_56;
+SHOW SESSION VARIABLES LIKE 'FOREIGN_KEY_CHECKS';
+Variable_name	Value
+foreign_key_checks	ON
+# Clean up.
+UNLOCK TABLES;
+DROP TABLE t1;
