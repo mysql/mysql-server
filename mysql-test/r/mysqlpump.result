@@ -456,3 +456,30 @@ master_info_repository	FILE
 SHOW VARIABLES LIKE "relay_log_info_repository";
 Variable_name	Value
 relay_log_info_repository	FILE
+#
+# Bug #27096081: MYSQLPUMP VALIDATES ALL DATABASE OBJECTS BY
+#                IGNORING --INCLUDE_DATABASES OPTION
+#
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1(id INT);
+INSERT INTO t1 SELECT 1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t2(id INT);
+INSERT INTO t2 SELECT 1;
+CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+GRANT ALL ON *.* TO 'u1'@'%';
+FLUSH PRIVILEGES;
+USE db2;
+CREATE VIEW v2 AS SELECT * FROM t2;
+SHOW CREATE VIEW v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`u1`@`%` SQL SECURITY DEFINER VIEW `v2` AS select `t2`.`id` AS `id` from `t2`	latin1	latin1_swedish_ci
+DROP USER 'u1'@'%';
+FLUSH PRIVILEGES;
+CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+DROP USER 'u1'@'%';
+DROP DATABASE db1;
+DROP DATABASE db2;
