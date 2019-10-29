@@ -9211,7 +9211,7 @@ int runNodeFailLcpStall(NDBT_Context* ctx, NDBT_Step* step)
   NdbSleep_MilliSleep(10000);
 
   ndbout_c("Getting Master to kill other when Master LCP complete %u", master);
-  restarter.insertErrorInNode(master, 7178);
+  restarter.insertError2InNode(master, 7178, other);
 
   ndbout_c("Releasing scans in node %u", other);
   restarter.insertErrorInNode(other, 0);
