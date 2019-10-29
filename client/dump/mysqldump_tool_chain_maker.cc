@@ -32,6 +32,7 @@
 #include "mysqldump_tool_chain_maker_options.h"
 #include <boost/algorithm/string.hpp>
 #include "view.h"
+#include "m_ctype.h"
 
 using namespace Mysql::Tools::Dump;
 
@@ -64,9 +65,12 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
     View dependency check is moved post filteration. This will ensure that
     only filtered out views will be checked for their dependecies. This
     allows mysqlpump to dump a database even when there exsits an invalid
-    view in another database which user is not interested to dump.
+    view in another database which user is not interested to dump. I_S views
+    are skipped from this check.
   */
-  if (object && (dynamic_cast<View*>(object) != NULL))
+  if (object && (dynamic_cast<View*>(object) != NULL) &&
+      my_strcasecmp(&my_charset_latin1, object->get_schema().c_str(),
+                    INFORMATION_SCHEMA_DB_NAME))
   {
      Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
      /* Check if view dependent objects exists */
@@ -76,6 +80,7 @@ I_object_reader* Mysqldump_tool_chain_maker::create_chain(
        return NULL;
      else
        runner->run_query(std::string("UNLOCK TABLES"));
+     delete runner;
   }
 
   if (m_main_object_reader == NULL)
