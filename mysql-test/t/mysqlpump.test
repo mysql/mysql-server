@@ -225,7 +225,7 @@ FLUSH PRIVILEGES;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
---error 169
+--error 23, 42, 169, 1449
 --exec $MYSQL_PUMP --include-databases=db2 --log-error-file=$MYSQLTEST_VARDIR/log/bug27096081.log > $MYSQLTEST_VARDIR/tmp/bug27096081.sql
 
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/log/bug27096081.log
