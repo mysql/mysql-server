@@ -4063,14 +4063,14 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   ref_item_array[el] = order_item;
   /*
     If the order_item is a SUM_FUNC_ITEM, when fix_fields is called
-    ref_by is set to order->item which is the address of order_item.
+    referenced_by is set to order->item which is the address of order_item.
     But this needs to be address of order_item in the all_fields list.
     As a result, when it gets replaced with Item_aggregate_ref
     object in Item::split_sum_func2, we will be able to retrieve the
     newly created object.
   */
   if (order_item->type() == Item::SUM_FUNC_ITEM)
-    ((Item_sum *)order_item)->ref_by[0] = all_fields.head_ref();
+    ((Item_sum *)order_item)->referenced_by[0] = all_fields.head_ref();
 
   /*
     Currently, we assume that this assertion holds. If it turns out

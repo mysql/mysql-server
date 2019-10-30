@@ -1913,21 +1913,21 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
       If 'expr' is a function which has SUM as one of its arguments, the
       SELECT list and HAVING access 'expr' through two different pointers, but
       there's only one 'expr' Item, which accesses SUM through one pointer, so
-      there's a single ref_by pointer to remember, we use ref_by[0].
-      But if 'expr' is directly the SUM, with no Item in between, then there
-      are two places where 'expr' should be replaced: the iterator in the
-      SELECT list, and the 'ref-to-expr' in HAVING above. So we have to
-      document those 2 places in ref_by[0] and ref_by[1].
+      there's a single referenced_by pointer to remember, we use
+      referenced_by[0]. But if 'expr' is directly the SUM, with no Item in
+      between, then there are two places where 'expr' should be replaced: the
+      iterator in the SELECT list, and the 'ref-to-expr' in HAVING above. So we
+      have to document those 2 places in referenced_by[0] and referenced_by[1].
     */
     Item *selected = select->base_ref_items[0];
     if (selected->type() == SUM_FUNC_ITEM) {
       Item_sum *selected_sum = static_cast<Item_sum *>(selected);
-      if (!selected_sum->ref_by[0])
-        selected_sum->ref_by[0] = ref_null->ref;
+      if (!selected_sum->referenced_by[0])
+        selected_sum->referenced_by[0] = ref_null->ref;
       else {
         // Slot 0 already occupied, use 1.
-        DBUG_ASSERT(!selected_sum->ref_by[1]);
-        selected_sum->ref_by[1] = ref_null->ref;
+        DBUG_ASSERT(!selected_sum->referenced_by[1]);
+        selected_sum->referenced_by[1] = ref_null->ref;
       }
     }
     if (!abort_on_null && left_expr->maybe_null) {

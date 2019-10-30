@@ -1840,7 +1840,7 @@ class Item_aggregate_ref : public Item_ref {
   @param ref_item_array  Pointer to array of reference fields
   @param fields          All fields in select
   @param ref             Pointer to item. If nullptr, get it from
-                         Item_sum::ref_by[].
+                         Item_sum::referenced_by[].
   @param skip_registered <=> function be must skipped for registered SUM items
 
     All found SUM items are added FIRST in the fields list and
@@ -1853,11 +1853,11 @@ class Item_aggregate_ref : public Item_ref {
       - split_sum_func() is called when an aggregate is part of a bigger
         expression, example: '1+max()'.
 
-      - an Item_sum has ref_by[0]!=nullptr when it is a group aggregate located
-        in a subquery but aggregating in a more outer query.
+      - an Item_sum has referenced_by[0]!=nullptr when it is a group aggregate
+        located in a subquery but aggregating in a more outer query.
 
-      - this ref_by is necessary because for such aggregates, there are two
-        phases:
+      - this referenced_by is necessary because for such aggregates, there are
+        two phases:
 
          - fix_fields() is called by the subquery, which puts the item into the
            outer SELECT_LEX::inner_sum_func_list.
@@ -1866,11 +1866,11 @@ class Item_aggregate_ref : public Item_ref {
            replaces the aggregate with an Item_ref, so it needs to correct the
            pointer-to-aggregate held by the '+' item; so it needs access to the
            pointer; this is possible because fix_fields() has stored the
-           address of this pointer into ref_by[0].
+           address of this pointer into referenced_by[0].
 
       - So when we call split_sum_func for any aggregate, if we are in the
         subquery, we do not want to modify the outer-aggregated aggregates, and
-        as those are detectable because they have ref_by[0]!=0: we pass
+        as those are detectable because they have referenced_by[0]!=0: we pass
         'skip_registered=true'.
 
       - On the other hand, if we are in the outer query and scan
@@ -1879,10 +1879,11 @@ class Item_aggregate_ref : public Item_ref {
 
       - Finally, if the subquery was transformed with IN-to-EXISTS, a new
         HAVING condition may have been added, which contains an Item_ref to the
-        same Item_sum; that makes a second pointer, ref_by[1], to remember.
+        same Item_sum; that makes a second pointer, referenced_by[1],
+        to remember.
         @todo rename skip_registered to some name which better evokes
         "outer-ness" of the item; subquery_none exercises this function
-        (Bug#11762); and rename ref_by too, as it's set only for
+        (Bug#11762); and rename referenced_by too, as it's set only for
         outer-aggregated items.
 
   Examples of 1):
@@ -1930,9 +1931,9 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                            List<Item> &fields, Item **ref,
                            bool skip_registered) {
   DBUG_TRACE;
-  /* An item of type Item_sum  is registered <=> ref_by[0] != 0 */
+  /* An item of type Item_sum  is registered <=> referenced_by[0] != 0 */
   if (type() == SUM_FUNC_ITEM && skip_registered &&
-      ((Item_sum *)this)->ref_by[0])
+      (down_cast<Item_sum *>(this))->referenced_by[0])
     return;
 
   // 'sum_func' means a group aggregate function
@@ -1999,10 +2000,10 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     fields.push_front(this);
     if (ref == nullptr) {
       DBUG_ASSERT(is_sum_func);
-      // Let 'ref' be the two elements of ref_by[].
-      if ((ref = static_cast<Item_sum *>(this)->ref_by[1]))
+      // Let 'ref' be the two elements of referenced_by[].
+      if ((ref = static_cast<Item_sum *>(this)->referenced_by[1]))
         thd->change_item_tree(ref, item_ref);
-      ref = ((Item_sum *)this)->ref_by[0];
+      ref = ((Item_sum *)this)->referenced_by[0];
       DBUG_ASSERT(ref);
     }
     thd->change_item_tree(ref, item_ref);

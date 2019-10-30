@@ -466,9 +466,9 @@ class Item_sum : public Item_result_field {
     block; none, or just the first or both cells may be non-zero. They are
     filled with references to the group aggregate (for example if it is the
     argument of a function; it is then a pointer to that function's args[i]
-    pointer). "ref_by" stands for "referenced by".
+    pointer).
   */
-  Item **ref_by[2];
+  Item **referenced_by[2];
   Item_sum *next_sum;     ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;  ///< the containing set function if any
   SELECT_LEX *base_select;  ///< query block where function is placed

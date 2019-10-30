@@ -177,13 +177,13 @@ bool Item_sum::init_sum_func_check(THD *thd) {
   // @todo: When resolving once, move following code to constructor
   base_select = thd->lex->current_select();
   aggr_select = nullptr;  // Aggregation query block is undetermined yet
-  ref_by[0] = nullptr;
+  referenced_by[0] = nullptr;
   /*
-    Leave ref_by[1] unchanged as in execution of PS, in-to-exists is not
-    re-done, so ref_by[1] isn't set again. So keep it as it was in
+    Leave referenced_by[1] unchanged as in execution of PS, in-to-exists is not
+    re-done, so referenced_by[1] isn't set again. So keep it as it was in
     preparation.
   */
-  if (thd->lex->current_select()->first_execution) ref_by[1] = nullptr;
+  if (thd->lex->current_select()->first_execution) referenced_by[1] = nullptr;
   max_aggr_level = -1;
   max_sum_func_level = -1;
   used_tables_cache = 0;
@@ -304,7 +304,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
   }
 
   if (aggr_select != base_select) {
-    ref_by[0] = ref;
+    referenced_by[0] = ref;
     /*
       Add the set function to the list inner_sum_func_list for the
       aggregating query block.
