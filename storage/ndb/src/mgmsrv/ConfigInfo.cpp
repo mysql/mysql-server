@@ -2067,7 +2067,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "20",                    /* Default */
-    "0",                     /* Min */
+    "1",                     /* Min */
     STR_VALUE(MAX_INT_RNIL)  /* Max */
   },
 
@@ -2081,7 +2081,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "3",                     /* Default */
-    "0",                     /* Min */
+    "1",                     /* Min */
     STR_VALUE(MAX_INT_RNIL)  /* Max */
   },
 
