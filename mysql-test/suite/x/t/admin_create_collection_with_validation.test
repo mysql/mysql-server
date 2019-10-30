@@ -176,6 +176,7 @@ callmacro Insert_value_to_collection	%TEST_COLL%
 -->echo # I.4
 stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options": {
   "validation": {
+    "level": "STRICT",
     "schema": {"description": "t`y\\p\"e o`b`\\\\c\"\"t"}
   }
 }};
@@ -241,7 +242,7 @@ stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options"
   }
 }};
 -->recvresult
--->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Assert_is_enforced	%TEST_COLL%	NO
 -->callmacro Drop_test_collection
 
 -->echo
@@ -253,7 +254,7 @@ stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options"
   }
 }};
 -->recvresult
--->callmacro Assert_is_enforced	%TEST_COLL%	YES
+-->callmacro Assert_is_enforced	%TEST_COLL%	NO
 -->callmacro Drop_test_collection
 
 -->echo
@@ -322,7 +323,7 @@ stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options": {
     "foo": "bar", "baz": ""
   }
 }};
--->recverror ER_X_CMD_NUM_ARGUMENTS
+-->recverror ER_X_CMD_INVALID_ARGUMENT
 
 
 -->echo
@@ -333,7 +334,7 @@ stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options": {
     "foo": "bar", "level": "off"
   }
 }};
--->recverror ER_X_CMD_NUM_ARGUMENTS
+-->recverror ER_X_CMD_INVALID_ARGUMENT
 
 -->echo
 -->echo #

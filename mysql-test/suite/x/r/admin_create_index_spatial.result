@@ -51,7 +51,7 @@ spatial1	CREATE TABLE `spatial1` (
   `$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B` geometry GENERATED ALWAYS AS (st_geomfromgeojson(json_extract(`doc`,_utf8mb4'$.first'),1,4326)) STORED NOT NULL /*!80003 SRID 4326 */,
   PRIMARY KEY (`_id`),
   SPATIAL KEY `one` (`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`),
-  CONSTRAINT `$val_strict_BC152A14972B95B2FBEE160AF396AF2E56657864` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_BC152A14972B95B2FBEE160AF396AF2E56657864` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 ### Columns of spatial1

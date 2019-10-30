@@ -46,7 +46,7 @@ Got expected error: Table 'xtest.test_coll' doesn't exist (code 1146)
 
 command ok
 Result
-{ "validation": { "level": "strict", "schema": {"type":"object"} } }
+{ "validation": { "level": "off", "schema": {"type":"object"} } }
 command ok
 RUN DROP TABLE IF EXISTS xtest.test_coll
 
@@ -57,7 +57,7 @@ RUN DROP TABLE IF EXISTS xtest.test_coll
 
 command ok
 Result
-{ "validation": { "level": "strict", "schema": {"description":"test"} } }
+{ "validation": { "level": "off", "schema": {"description":"test"} } }
 command ok
 RUN DROP TABLE IF EXISTS xtest.test_coll
 
@@ -79,7 +79,7 @@ RUN DROP TABLE IF EXISTS xtest.test_coll
 
 command ok
 Result
-{ "validation": { "level": "strict", "schema": {"description":"t`y\\\\p"e o`b`\\\\\\\\c""t"} } }
+{ "validation": { "level": "off", "schema": {"description":"t`y\\\\p"e o`b`\\\\\\\\c""t"} } }
 command ok
 RUN DROP TABLE IF EXISTS xtest.test_coll
 
@@ -120,7 +120,7 @@ active session is now 'temp'
 command ok
 Verify [Status variable "Mysqlx_stmt_get_collection_options" needs to have a value of 0]
 Result
-{ "validation": { "level": "strict", "schema": {"type":"object"} } }
+{ "validation": { "level": "off", "schema": {"type":"object"} } }
 command ok
 Verify [Status variable "Mysqlx_stmt_get_collection_options" needs to have a value of 1]
 Got expected error:
@@ -133,7 +133,7 @@ Mysqlx.Error {
 
 Verify [Status variable "Mysqlx_stmt_get_collection_options" needs to have a value of 2]
 Result
-{ "validation": { "level": "strict", "schema": {"type":"object"} } }
+{ "validation": { "level": "off", "schema": {"type":"object"} } }
 command ok
 Verify [Status variable "Mysqlx_stmt_get_collection_options" needs to have a value of 3]
 

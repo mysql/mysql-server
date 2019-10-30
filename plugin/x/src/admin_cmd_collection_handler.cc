@@ -25,11 +25,12 @@
 #include "plugin/x/src/admin_cmd_collection_handler.h"
 
 #include <algorithm>
+#include <vector>
 
-#include "my_rapidjson_size_t.h"
+#include "my_rapidjson_size_t.h"  // NOLINT(build/include_subdir)
 
-#include <rapidjson/schema.h>
-#include <rapidjson/stringbuffer.h>
+#include <rapidjson/schema.h>        // NOLINT(build/include_order)
+#include <rapidjson/stringbuffer.h>  // NOLINT(build/include_order)
 
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
@@ -53,15 +54,38 @@ Admin_command_collection_handler::Admin_command_collection_handler(
     iface::Session *session, const char *const mysqlx_namespace)
     : m_session(session), k_mysqlx_namespace(mysqlx_namespace) {}
 
+namespace {
+iface::Admin_command_arguments::Any create_default_schema_validation() {
+  iface::Admin_command_arguments::Any any;
+  any.set_type(::Mysqlx::Datatypes::Any::OBJECT);
+  auto type_fld = any.mutable_obj()->add_fld();
+  type_fld->set_key("type");
+  auto details_any = type_fld->mutable_value();
+  details_any->set_type(::Mysqlx::Datatypes::Any::SCALAR);
+  auto scalar = details_any->mutable_scalar();
+  scalar->set_type(::Mysqlx::Datatypes::Scalar::V_STRING);
+  scalar->mutable_v_string()->set_value("object");
+  return any;
+}
+
+iface::Admin_command_arguments::Object create_default_validation_obj() {
+  iface::Admin_command_arguments::Object obj;
+  auto schema_fld = obj.add_fld();
+  schema_fld->set_key("schema");
+  *schema_fld->mutable_value() = create_default_schema_validation();
+  return obj;
+}
+
+}  // namespace
+
 ngs::Error_code Admin_command_collection_handler::create_collection_impl(
     iface::Sql_session *da, const std::string &schema, const std::string &name,
     const Command_arguments::Object &validation) const {
   std::string validation_schema;
   bool is_enforced = true;
   auto validation_arg = Admin_command_arguments_object(validation);
-  ngs::Error_code error = get_validation_info(
-      validation_arg, &validation_schema, Argument_appearance::k_obligatory,
-      &is_enforced, Argument_appearance::k_optional);
+  ngs::Error_code error =
+      get_validation_info(validation_arg, &validation_schema, &is_enforced);
   if (error) return error;
 
   error = check_schema(validation_schema);
@@ -98,8 +122,7 @@ ngs::Error_code Admin_command_collection_handler::create_collection(
 
   std::string schema;
   std::string collection;
-  ::Mysqlx::Datatypes::Object options;
-  auto validation = create_default_validation_obj();
+  Admin_command_arguments_object::Object options;
   ngs::Error_code error =
       args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
           .string_arg({"name"}, &collection, Argument_appearance::k_obligatory)
@@ -108,11 +131,14 @@ ngs::Error_code Admin_command_collection_handler::create_collection(
   if (error) return error;
 
   auto options_arg = Admin_command_arguments_object(options);
+  auto validation = create_default_validation_obj();
   error = options_arg
               .object_arg({"validation"}, &validation,
                           Argument_appearance::k_optional)
               .end();
   if (error) return error;
+
+  if (validation.fld_size() == 0) validation = create_default_validation_obj();
 
   if (schema.empty()) return ngs::Error(ER_X_BAD_SCHEMA, "Invalid schema");
   if (collection.empty())
@@ -216,12 +242,10 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
         "Arguments value used under \"validation\" must be an object with at"
         " least one field");
 
-  ngs::Error_code error = get_validation_info(
-      validation_arg, &validation_schema, Argument_appearance::k_optional,
-      &is_enforced, Argument_appearance::k_optional);
+  ngs::Error_code error =
+      get_validation_info(validation_arg, &validation_schema, &is_enforced);
 
-  if (!validation_schema.empty())
-    error = check_schema(validation_schema);
+  if (!validation_schema.empty()) error = check_schema(validation_schema);
 
   if (error) return error;
 
@@ -240,11 +264,10 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
     qb.put(" MODIFY COLUMN _json_schema JSON GENERATED ALWAYS AS ('")
         .put(validation_schema)
         .put("') VIRTUAL");
-  else if (validation_elements[0] == "level") {
+  else if (validation_elements[0] == "level")
     qb.put(" ALTER CHECK ")
         .put(constraint_name)
         .put(is_enforced ? " ENFORCED" : " NOT ENFORCED");
-  }
 
   const ngs::PFS_string &tmp(qb.get());
   log_debug("ModifyCollectionOptions: %s", tmp.c_str());
@@ -252,40 +275,43 @@ ngs::Error_code Admin_command_collection_handler::modify_collection_validation(
   error = m_session->data_context().execute(tmp.c_str(), tmp.length(), &rset);
   if (error.error == ER_CHECK_CONSTRAINT_VIOLATED) {
     return get_detailed_validation_error(m_session->data_context());
-  }
-  // Check if modification was not performed on an old type of collection
-  // (without validation), if so then modify the collection and add a validation
-  else if (error.error == ER_CHECK_CONSTRAINT_NOT_FOUND ||
-           error.error == ER_BAD_FIELD_ERROR) {
-    std::string new_schema;
-    if (std::find(std::begin(validation_elements),
-                  std::end(validation_elements),
-                  "schema") == std::end(validation_elements)) {
-      new_schema = "{\"type\":\"object\"}";
-    } else {
-      new_schema = validation_schema;
+  } else {
+    // Check if modification was not performed on an old type of collection
+    // (without validation), if so then modify the collection and add a
+    // validation
+    if (error.error == ER_CHECK_CONSTRAINT_NOT_FOUND ||
+        error.error == ER_BAD_FIELD_ERROR) {
+      std::string new_schema;
+      if (std::find(std::begin(validation_elements),
+                    std::end(validation_elements),
+                    "schema") == std::end(validation_elements)) {
+        new_schema = "{\"type\":\"object\"}";
+      } else {
+        new_schema = validation_schema;
+      }
+
+      Query_string_builder qb;
+      qb.put("ALTER TABLE ")
+          .quote_identifier(schema)
+          .dot()
+          .quote_identifier(collection)
+          .put(" ADD COLUMN _json_schema JSON GENERATED ALWAYS AS ('")
+          .put(new_schema)
+          .put("') VIRTUAL, ADD CONSTRAINT ")
+          .put(constraint_name)
+          .put(" CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ")
+          .put(is_enforced ? "ENFORCED" : "NOT ENFORCED");
+
+      const ngs::PFS_string &tmp(qb.get());
+      log_debug("ModifyCollectionOptions: %s", tmp.c_str());
+      Empty_resultset rset;
+      error =
+          m_session->data_context().execute(tmp.c_str(), tmp.length(), &rset);
+      if (error.error == ER_CHECK_CONSTRAINT_VIOLATED)
+        return get_detailed_validation_error(m_session->data_context());
+    } else if (error) {
+      return error;
     }
-
-    Query_string_builder qb;
-    qb.put("ALTER TABLE ")
-        .quote_identifier(schema)
-        .dot()
-        .quote_identifier(collection)
-        .put(" ADD COLUMN _json_schema JSON GENERATED ALWAYS AS ('")
-        .put(new_schema)
-        .put("') VIRTUAL, ADD CONSTRAINT ")
-        .put(constraint_name)
-        .put(" CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ")
-        .put(is_enforced ? "ENFORCED" : "NOT ENFORCED");
-
-    const ngs::PFS_string &tmp(qb.get());
-    log_debug("ModifyCollectionOptions: %s", tmp.c_str());
-    Empty_resultset rset;
-    error = m_session->data_context().execute(tmp.c_str(), tmp.length(), &rset);
-    if (error.error == ER_CHECK_CONSTRAINT_VIOLATED)
-      return get_detailed_validation_error(m_session->data_context());
-  } else if (error) {
-    return error;
   }
   return ngs::Success();
 }
@@ -487,7 +513,7 @@ bool Admin_command_collection_handler::is_collection(const std::string &schema,
           static_cast<uint64_t>(result.size()));
       return false;
     }
-    long cnt = 0, doc = 0, id = 0, gen = 0, schema = 0;
+    int64_t cnt = 0, doc = 0, id = 0, gen = 0, schema = 0;
     result.get(&cnt, &doc, &id, &gen, &schema);
     return doc == 1 && id == 1 && (cnt == gen + doc + id + schema);
   } catch (const ngs::Error_code &DEBUG_VAR(e)) {
@@ -501,61 +527,49 @@ bool Admin_command_collection_handler::is_collection(const std::string &schema,
 
 ngs::Error_code Admin_command_collection_handler::get_validation_info(
     Admin_command_arguments_object &validation,
-    std::string *out_validation_schema,
-    Command_arguments::Appearance_type schema_appearance, bool *out_enforce,
-    Command_arguments::Appearance_type level_appearance) const {
-  std::string validation_level;
-  ::Mysqlx::Datatypes::Any validation_schema_obj;
-  ngs::Error_code error =
-      validation.any_arg({"schema"}, &validation_schema_obj, schema_appearance)
-          .string_arg({"level"}, &validation_level, level_appearance)
-          .end();
+    std::string *out_validation_schema, bool *out_enforce) const {
+  static const char *k_level_strict = "STRICT";
+  static const char *k_level_off = "OFF";
+
+  std::string validation_level = k_level_off;
+  ::Mysqlx::Datatypes::Any validation_schema =
+      create_default_schema_validation();
+
+  ngs::Error_code error = validation
+                              .any_arg({"schema"}, &validation_schema,
+                                       Argument_appearance::k_optional)
+                              .string_arg({"level"}, &validation_level,
+                                          Argument_appearance::k_optional)
+                              .end();
   if (error) return error;
 
   validation_level = to_upper(validation_level);
-  if (!validation_level.empty() && validation_level != "OFF" &&
-      validation_level != "STRICT")
+  if (!validation_level.empty() && validation_level != k_level_off &&
+      validation_level != k_level_strict)
     return ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
                       "Invalid validation.level argument. Allowed values are "
                       "'OFF' and 'STRICT'");
-  *out_enforce = validation_level != "OFF";
+  *out_enforce = validation_level != k_level_off;
 
-  if (validation_schema_obj.has_obj()) {
+  if (validation_schema.has_obj()) {
     try {
       Query_string_builder qb;
-      generate_json(&qb, validation_schema_obj);
+      generate_json(&qb, validation_schema);
       *out_validation_schema = qb.get().c_str();
     } catch (const ngs::Error_code &e) {
       return e;
     }
-  } else if (validation_schema_obj.has_scalar()) {
-    *out_validation_schema = validation_schema_obj.scalar().v_string().value();
+  } else if (validation_schema.has_scalar()) {
+    *out_validation_schema = validation_schema.scalar().v_string().value();
   }
   return ngs::Success();
-}
-
-iface::Admin_command_arguments::Object
-Admin_command_collection_handler::create_default_validation_obj() const {
-  iface::Admin_command_arguments::Object obj;
-  auto schema_fld = obj.add_fld();
-  schema_fld->set_key("schema");
-  auto schema_any = schema_fld->mutable_value();
-  schema_any->set_type(::Mysqlx::Datatypes::Any::OBJECT);
-  auto validation_details_fld = schema_any->mutable_obj()->add_fld();
-  validation_details_fld->set_key("type");
-  auto details_any = validation_details_fld->mutable_value();
-  details_any->set_type(::Mysqlx::Datatypes::Any::SCALAR);
-  auto scalar = details_any->mutable_scalar();
-  scalar->set_type(::Mysqlx::Datatypes::Scalar::V_STRING);
-  scalar->mutable_v_string()->set_value("object");
-  return obj;
 }
 
 std::string Admin_command_collection_handler::generate_constraint_name(
     const std::string &collection_name) const {
   const bool is_table_names_case_sensitive =
-      get_system_variable<long>(&m_session->data_context(),
-                                "lower_case_table_names") == 0l;
+      get_system_variable<int64_t>(&m_session->data_context(),
+                                   "lower_case_table_names") == 0l;
 
   const auto name = is_table_names_case_sensitive ? collection_name
                                                   : to_lower(collection_name);

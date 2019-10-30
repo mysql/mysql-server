@@ -55,11 +55,7 @@ class Admin_command_collection_handler {
 
   ngs::Error_code get_validation_info(
       Admin_command_arguments_object &validation,
-      std::string *out_validation_schema,
-      Command_arguments::Appearance_type schema_appearance, bool *out_enforce,
-      Command_arguments::Appearance_type level_appearance) const;
-
-  iface::Admin_command_arguments::Object create_default_validation_obj() const;
+      std::string *out_validation_schema, bool *out_enforce) const;
 
   std::string generate_constraint_name(const std::string &coll_name) const;
 

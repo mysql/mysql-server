@@ -229,8 +229,11 @@ TEST_P(Admin_command_handler_check_validation,
       Any::Object{SCHEMA,
                   COLLECTION_NAME,
                   {"options", Any::Object{{"validation", Any::Object{}}}}});
-  ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
-                    ((*command).*GetParam())(m_args.get()));
+  EXPECT_CALL(mock_data_context,
+              execute(StrEq("SELECT @@lower_case_table_names"), _, _));
+  EXPECT_CALL(mock_data_context,
+              execute_sql(HasSubstr("CREATE TABLE `xtest`.`test_coll`"), _, _));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, ((*command).*GetParam())(m_args.get()));
 }
 
 TEST_P(Admin_command_handler_check_validation,

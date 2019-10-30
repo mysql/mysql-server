@@ -107,7 +107,7 @@ class Admin_command_arguments_object : public iface::Admin_command_arguments {
   const bool m_is_object;
   const Object &m_object;
   ngs::Error_code m_error;
-  int m_args_consumed;
+  int32_t m_args_consumed{0};
   std::vector<std::shared_ptr<Admin_command_arguments_object>> m_sub_objects;
   std::string m_path;
   std::vector<std::string> m_allowed_keys;
