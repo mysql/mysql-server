@@ -866,8 +866,7 @@ static bool substitute_gc_expression(Item_func **expr, Item **value,
     // generated columns as well, but that is delayed to a later fix since the
     // impact might be quite large.
     if (!(field->is_field_for_functional_index() &&
-          field->type() == MYSQL_TYPE_VARCHAR &&
-          (*expr)->data_type() == MYSQL_TYPE_VARCHAR &&
+          field->match_collation_to_optimize_range() &&
           (*expr)->collation.collation != field->charset())) {
       item_field = get_gc_for_expr(expr, field, type);
       if (item_field != nullptr) break;
