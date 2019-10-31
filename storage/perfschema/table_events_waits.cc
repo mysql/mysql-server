@@ -351,7 +351,8 @@ int table_events_waits_common::make_socket_object_columns(
                                     safe_socket->m_addr_len);
 
     /* Convert port number to a string (length includes ':') */
-    size_t port_len = int10_to_str(port, (port_str + 1), 10) - port_str + 1;
+    const size_t port_len =
+        longlong10_to_str(port, (port_str + 1), 10) - port_str + 1;
 
     /* OBJECT NAME */
     m_row.m_object_name_length = ip_len + port_len;

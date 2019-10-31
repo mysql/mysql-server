@@ -590,7 +590,7 @@ CHARSET_INFO *get_charset(uint cs_number, myf flags) {
     char index_file[FN_REFLEN + sizeof(MY_CHARSET_INDEX)], cs_string[23];
     my_stpcpy(get_charsets_dir(index_file), MY_CHARSET_INDEX);
     cs_string[0] = '#';
-    int10_to_str(cs_number, cs_string + 1, 10);
+    longlong10_to_str(cs_number, cs_string + 1, 10);
     my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_string, index_file);
   }
   return cs;

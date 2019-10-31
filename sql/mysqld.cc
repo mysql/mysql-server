@@ -7267,10 +7267,10 @@ int mysqld_main(int argc, char **argv) {
       application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
     */
 
-    int10_to_str((int)GetCurrentProcessId(),
-                 my_stpcpy(shutdown_event_name, "MYSQLShutdown"), 10);
-    int10_to_str((int)GetCurrentProcessId(),
-                 my_stpcpy(restart_event_name, "MYSQLRestart"), 10);
+    longlong10_to_str(GetCurrentProcessId(),
+                      my_stpcpy(shutdown_event_name, "MYSQLShutdown"), 10);
+    longlong10_to_str(GetCurrentProcessId(),
+                      my_stpcpy(restart_event_name, "MYSQLRestart"), 10);
   }
 
   /* Must be initialized early for comparison of service name */
@@ -10351,7 +10351,7 @@ static bool create_pid_file() {
   if ((file = mysql_file_create(key_file_pid, pidfile_name, 0664,
                                 O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0) {
     char buff[MAX_BIGINT_WIDTH + 1], *end;
-    end = int10_to_str((long)getpid(), buff, 10);
+    end = longlong10_to_str(getpid(), buff, -10);
     *end++ = '\n';
     if (!mysql_file_write(file, (uchar *)buff, (uint)(end - buff),
                           MYF(MY_WME | MY_NABP))) {

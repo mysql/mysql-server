@@ -957,11 +957,11 @@ void _db_pop_() {
       listp = listp->next_link;                      \
     }                                                \
   } while (0)
-#define int_to_buf(i)         \
-  do {                        \
-    char b[50];               \
-    int10_to_str((i), b, 10); \
-    str_to_buf(b);            \
+#define int_to_buf(i)              \
+  do {                             \
+    char b[50];                    \
+    longlong10_to_str((i), b, 10); \
+    str_to_buf(b);                 \
   } while (0)
 #define colon_to_buf                    \
   do {                                  \

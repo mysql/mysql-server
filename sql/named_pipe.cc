@@ -234,7 +234,7 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
   DWORD dwRes = SetEntriesInAcl(1, &ea, pOldDACL, &pNewDACL);
   if (ERROR_SUCCESS != dwRes) {
     char num_buff[20];
-    int10_to_str(dwRes, num_buff, 10);
+    longlong10_to_str(dwRes, num_buff, 10);
     log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                 LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
                 "SetEntriesInAcl to add group permissions failed", num_buff);
@@ -331,7 +331,7 @@ HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES **ppsec_attr,
                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
                     sizeof(last_error_msg) / sizeof(TCHAR), NULL);
       char num_buff[20];
-      int10_to_str(last_error_num, num_buff, 10);
+      longlong10_to_str(last_error_num, num_buff, 10);
 
       log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                   LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE, last_error_msg,

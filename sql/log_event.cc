@@ -678,7 +678,7 @@ static char *slave_load_file_stem(char *buf, uint file_id, int event_server_id,
   buf = strend(buf);
   int appended_length = sprintf(buf, "%s-%d-", server_uuid, event_server_id);
   buf += appended_length;
-  res = int10_to_str(file_id, buf, 10);
+  res = longlong10_to_str(file_id, buf, 10);
   my_stpcpy(res, ext);  // Add extension last
   return res;           // Pointer to extension
 }
@@ -4182,8 +4182,8 @@ void Query_log_event::print_query_header(
       my_b_printf(file, "use %s%s\n", quoted_id, print_event_info->delimiter);
   }
 
-  end = int10_to_str((long)common_header->when.tv_sec,
-                     my_stpcpy(buff, "SET TIMESTAMP="), 10);
+  end = longlong10_to_str(common_header->when.tv_sec,
+                          my_stpcpy(buff, "SET TIMESTAMP="), 10);
   if (common_header->when.tv_usec)
     end += sprintf(end, ".%06d", (int)common_header->when.tv_usec);
   end = my_stpcpy(end, print_event_info->delimiter);
@@ -4660,7 +4660,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         CHARSET_INFO *cs;
         if (!(cs = get_charset(charset_database_number, MYF(0)))) {
           char buf[20];
-          int10_to_str((int)charset_database_number, buf, -10);
+          longlong10_to_str(charset_database_number, buf, 10);
           my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
           goto compare_errors;
         }
@@ -4671,7 +4671,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         CHARSET_INFO *cs;
         if (!(cs = get_charset(default_collation_for_utf8mb4_number, MYF(0)))) {
           char buf[20];
-          int10_to_str((int)default_collation_for_utf8mb4_number, buf, -10);
+          longlong10_to_str(default_collation_for_utf8mb4_number, buf, 10);
           my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
           goto compare_errors;
         }
@@ -5288,7 +5288,7 @@ int Format_description_log_event::pack_info(Protocol *protocol) {
   pos = my_stpcpy(buf, "Server ver: ");
   pos = my_stpcpy(pos, server_version);
   pos = my_stpcpy(pos, ", Binlog ver: ");
-  pos = int10_to_str(binlog_version, pos, 10);
+  pos = longlong10_to_str(binlog_version, pos, 10);
   protocol->store_string(buf, (uint)(pos - buf), &my_charset_bin);
   return 0;
 }
@@ -5843,9 +5843,9 @@ Log_event::enum_skip_reason Intvar_log_event::do_shall_skip(
 int Rand_log_event::pack_info(Protocol *protocol) {
   char buf1[256], *pos;
   pos = my_stpcpy(buf1, "rand_seed1=");
-  pos = int10_to_str((long)seed1, pos, 10);
+  pos = longlong10_to_str(seed1, pos, 10);
   pos = my_stpcpy(pos, ",rand_seed2=");
-  pos = int10_to_str((long)seed2, pos, 10);
+  pos = longlong10_to_str(seed2, pos, 10);
   protocol->store_string(buf1, (uint)(pos - buf1), &my_charset_bin);
   return 0;
 }
@@ -7294,7 +7294,7 @@ int Execute_load_query_log_event::pack_info(Protocol *protocol) {
     pos += q_len;
   }
   pos = my_stpcpy(pos, " ;file_id=");
-  pos = int10_to_str((long)file_id, pos, 10);
+  pos = longlong10_to_str(file_id, pos, 10);
   protocol->store_string(buf, pos - buf, &my_charset_bin);
   my_free(buf);
   return 0;

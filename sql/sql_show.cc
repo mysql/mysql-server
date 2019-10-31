@@ -2614,19 +2614,19 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONG_STATUS:
       value = (char *)status_var + reinterpret_cast<size_t>(value);
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const ulong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_LONG:
       /* the difference lies in refresh_status() */
     case SHOW_LONG_NOFLUSH:
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const ulong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_SIGNED_LONG:
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, -10);
+      end = longlong10_to_str(*pointer_cast<const long *>(value), buff, -10);
       value_charset = system_charset_info;
       break;
 
@@ -2665,14 +2665,12 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_INT:
-      end = int10_to_str(
-          static_cast<long>(*pointer_cast<const uint32 *>(value)), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const uint32 *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_SIGNED_INT:
-      end = int10_to_str(static_cast<long>(*pointer_cast<const int32 *>(value)),
-                         buff, -10);
+      end = longlong10_to_str(*pointer_cast<const int32 *>(value), buff, -10);
       value_charset = system_charset_info;
       break;
 
@@ -2712,7 +2710,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_KEY_CACHE_LONG:
       value = (char *)dflt_key_cache + reinterpret_cast<size_t>(value);
-      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
+      end = longlong10_to_str(*pointer_cast<const ulong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 

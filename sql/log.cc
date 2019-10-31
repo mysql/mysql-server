@@ -824,7 +824,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     This ensures logs can be used to replicate queries accurately.
   */
   end = my_stpcpy(end, ",timestamp=");
-  end = int10_to_str((long)(query_start_utime / 1000000), end, 10);
+  end = longlong10_to_str(query_start_utime / 1000000, end, 10);
 
   if (end != buff) {
     *end++ = ';';

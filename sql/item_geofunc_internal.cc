@@ -61,7 +61,7 @@ bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type) {
   DBUG_ASSERT(srid != 0);
 
   char id_str[11];  // uint32 => max 10 digits + \0
-  int10_to_str(srid, id_str, 10);
+  longlong10_to_str(srid, id_str, 10);
 
   MDL_request mdl_request;
   mdl_request.init_with_source(MDL_key::SRID, "", id_str, lock_type,

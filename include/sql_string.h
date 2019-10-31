@@ -29,6 +29,7 @@
   See in particular the comment on String before you use anything from here.
 */
 
+#include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
 #include <new>
@@ -494,7 +495,7 @@ class String {
   bool append_longlong(longlong val);
   bool append_with_prefill(const char *s, size_t arg_length, size_t full_length,
                            char fill_char);
-  bool append_parenthesized(long nr, int radix = 10);
+  bool append_parenthesized(int64_t nr);
   /**
     Search for a substring.
 

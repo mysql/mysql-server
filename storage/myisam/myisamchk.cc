@@ -1375,7 +1375,7 @@ static void descript(MI_CHECK *param, MI_INFO *info, char *name) {
         }
       }
       if (buff[0] == ',') my_stpcpy(buff, buff + 2);
-      int10_to_str((long)share->rec[field].length, length, 10);
+      longlong10_to_str(share->rec[field].length, length, 10);
       null_bit[0] = null_pos[0] = 0;
       if (share->rec[field].null_bit) {
         sprintf(null_bit, "%d", share->rec[field].null_bit);

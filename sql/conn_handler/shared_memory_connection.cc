@@ -217,7 +217,7 @@ Channel_info *Shared_mem_listener::listen_for_connection_event() {
   if (connection_events_loop_aborted()) return NULL;
 
   char connect_number_char[22];
-  char *p = int10_to_str(m_connect_number, connect_number_char, 10);
+  char *p = longlong10_to_str(m_connect_number, connect_number_char, -10);
 
   /*
     The name of event and file-mapping events create agree next rule:

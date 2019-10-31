@@ -1263,22 +1263,22 @@ static void nice_time(ulong sec, char *buff) {
   if (sec >= 3600L * 24) {
     tmp = sec / (3600L * 24);
     sec -= 3600L * 24 * tmp;
-    buff = int10_to_str(tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600L) {
     tmp = sec / 3600L;
     sec -= 3600L * tmp;
-    buff = int10_to_str(tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60) {
     tmp = sec / 60;
     sec -= 60 * tmp;
-    buff = int10_to_str(tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, " min ");
   }
-  my_stpcpy(int10_to_str(sec, buff, 10), " sec");
+  my_stpcpy(longlong10_to_str(sec, buff, 10), " sec");
 }
 
 static void print_header(MYSQL_RES *result) {
@@ -1425,7 +1425,7 @@ static void truncate_names() {
       if (*truncated_var_names[j] == *ptr) sfx++;
 
     truncated_var_names[i][0] = *ptr; /* Copy first var char */
-    int10_to_str(sfx, truncated_var_names[i] + 1, 10);
+    longlong10_to_str(sfx, truncated_var_names[i] + 1, 10);
     printf(" %-*s|", MAX_TRUNC_LENGTH + 1, truncated_var_names[i]);
     printf(" %-*s|\n", max_val_length + 1, llstr(last_values[i], buff));
   }

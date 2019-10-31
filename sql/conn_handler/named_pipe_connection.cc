@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -229,7 +229,7 @@ bool Named_pipe_listener::update_named_pipe_full_access_group(
                         DACL_SECURITY_INFORMATION, NULL, NULL, pdacl, NULL);
     if (res != ERROR_SUCCESS) {
       char num_buff[20];
-      int10_to_str(res, num_buff, 10);
+      longlong10_to_str(res, num_buff, 10);
       log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                   LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
                   "SetSecurityInfo failed to update DACL on named pipe",

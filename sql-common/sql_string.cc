@@ -546,14 +546,9 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs) {
   Used in various pieces of SHOW related code.
 
   @param nr     Number
-  @param radix  Radix, optional parameter, 10 by default.
 */
-bool String::append_parenthesized(long nr, int radix) {
-  char buff[64], *end;
-  buff[0] = '(';
-  end = int10_to_str(nr, buff + 1, radix);
-  *end++ = ')';
-  return append(buff, (uint)(end - buff));
+bool String::append_parenthesized(int64_t nr) {
+  return append('(') || append_longlong(nr) || append(')');
 }
 
 bool String::append_with_prefill(const char *s, size_t arg_length,
@@ -693,15 +688,13 @@ void qs_append(double d, size_t len, String *str) {
 }
 
 void qs_append(int i, String *str) {
-  char *buff = &((*str)[str->length()]);
-  char *end = int10_to_str(i, buff, -10);
-  str->length(str->length() + (int)(end - buff));
+  char *end = longlong10_to_str(i, str->ptr() + str->length(), -10);
+  str->length(end - str->ptr());
 }
 
 void qs_append(uint i, String *str) {
-  char *buff = &((*str)[str->length()]);
-  char *end = int10_to_str(i, buff, 10);
-  str->length(str->length() + (int)(end - buff));
+  char *end = longlong10_to_str(i, str->ptr() + str->length(), 10);
+  str->length(end - str->ptr());
 }
 
 /*

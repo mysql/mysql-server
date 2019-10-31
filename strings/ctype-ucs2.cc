@@ -42,8 +42,8 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_sys.h"
+#include "template_utils.h"
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT
@@ -865,16 +865,14 @@ static size_t my_vsnprintf_mb2(char *dst, size_t n, const char *fmt,
       continue;
     } else if (*fmt == 'd' || *fmt == 'u') /* Integer parameter */
     {
-      int iarg;
       char nbuf[16];
       char *pbuf = nbuf;
 
       if ((size_t)(end - dst) < 32) break;
-      iarg = va_arg(ap, int);
       if (*fmt == 'd')
-        int10_to_str((long)iarg, nbuf, -10);
+        longlong10_to_str(va_arg(ap, int), nbuf, -10);
       else
-        int10_to_str((long)(uint)iarg, nbuf, 10);
+        longlong10_to_str(va_arg(ap, unsigned), nbuf, 10);
 
       for (; pbuf[0]; pbuf++) {
         *dst++ = '\0';
@@ -1926,16 +1924,14 @@ static size_t my_vsnprintf_utf32(char *dst, size_t n, const char *fmt,
       continue;
     } else if (*fmt == 'd' || *fmt == 'u') /* Integer parameter */
     {
-      int iarg;
       char nbuf[16];
       char *pbuf = nbuf;
 
       if ((size_t)(end - dst) < 64) break;
-      iarg = va_arg(ap, int);
       if (*fmt == 'd')
-        int10_to_str((long)iarg, nbuf, -10);
+        longlong10_to_str(va_arg(ap, int), nbuf, -10);
       else
-        int10_to_str((long)(uint)iarg, nbuf, 10);
+        longlong10_to_str(va_arg(ap, unsigned), nbuf, 10);
 
       for (; pbuf[0]; pbuf++) {
         *dst++ = '\0';
