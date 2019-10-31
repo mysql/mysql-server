@@ -465,6 +465,9 @@ bool Rpl_applier_reader::purge_applied_logs() {
     controlled manner, until the next rotate.
 */
 void Rpl_applier_reader::disable_relay_log_space_limit_if_needed() {
+  // Skip the test if the flag is already true to avoid deadlocks
+  if (m_rli->sql_force_rotate_relay && m_rli->ignore_log_space_limit) return;
+
   mysql_mutex_lock(&m_rli->log_space_lock);
 
   /*
