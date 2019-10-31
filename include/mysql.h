@@ -369,13 +369,13 @@ typedef struct MYSQL_RES {
   @sa mysql_binlog_close()
 */
 typedef struct MYSQL_RPL {
-  size_t file_name_length; /** Length of the 'file_name' or 0     */
-  const char *file_name;   /** Filename of the binary log to read */
-  uint64_t start_position; /** Position in the binary log to      */
-                           /*  start reading from                 */
-  unsigned int server_id;  /** Server ID to use when identifying  */
-                           /*  with the master                    */
-  unsigned int flags;      /** Flags, e.g. MYSQL_RPL_GTID         */
+  size_t file_name_length; /**< Length of the 'file_name' or 0     */
+  const char *file_name;   /**< Filename of the binary log to read */
+  uint64_t start_position; /**< Position in the binary log to
+                               start reading from                  */
+  unsigned int server_id;  /**< Server ID to use when identifying
+                               with the master                     */
+  unsigned int flags;      /**< Flags, e.g. MYSQL_RPL_GTID         */
 
   /** Size of gtid set data              */
   size_t gtid_set_encoded_size;
@@ -383,12 +383,12 @@ typedef struct MYSQL_RPL {
   /*  from @sa mysql_binlog_open() to    */
   /*  fill command packet gtid set       */
   void (*fix_gtid_set)(struct MYSQL_RPL *rpl, unsigned char *packet_gtid_set);
-  void *gtid_set_arg; /** GTID set data or an argument for   */
-                      /*  fix_gtid_set() callback function   */
+  void *gtid_set_arg; /**< GTID set data or an argument for
+                          fix_gtid_set() callback function   */
 
-  unsigned long size;          /** Size of the packet returned by     */
-                               /*  mysql_binlog_fetch()               */
-  const unsigned char *buffer; /** Pointer to returned data           */
+  unsigned long size;          /**< Size of the packet returned by
+                                   mysql_binlog_fetch()               */
+  const unsigned char *buffer; /**< Pointer to returned data          */
 } MYSQL_RPL;
 
 /*
