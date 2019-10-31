@@ -3260,16 +3260,17 @@ bool Protocol_classic::store_string(const char *from, size_t length,
 /**
   Stores an integer in the protocol buffer for the text protocol.
 
-  @param to_string the function that converts the integer to a string
-  @param zerofill  the length up to which the value should be zero-padded
-  @param packet    the destination buffer
+  @param value          the integer value to convert to a string
+  @param unsigned_flag  true if the integer is unsigned
+  @param zerofill       the length up to which the value should be zero-padded
+  @param packet         the destination buffer
   @return false on success, true on error
 */
-template <typename ToString>
-static bool store_integer(ToString to_string, uint32 zerofill, String *packet) {
+static bool store_integer(int64 value, bool unsigned_flag, uint32 zerofill,
+                          String *packet) {
   if (zerofill != 0) {
     char buff[MY_INT64_NUM_DECIMAL_DIGITS + 1];
-    const char *end = to_string(buff);
+    const char *end = longlong10_to_str(value, buff, unsigned_flag ? 10 : -10);
     const size_t int_length = end - buff;
     return net_store_zero_padded_data(buff, int_length, zerofill, packet);
   }
@@ -3279,7 +3280,7 @@ static bool store_integer(ToString to_string, uint32 zerofill, String *packet) {
   char *pos = packet->prep_append(MY_INT64_NUM_DECIMAL_DIGITS + 2,
                                   PACKET_BUFFER_EXTRA_ALLOC);
   if (pos == nullptr) return true;
-  const char *end = to_string(pos + 1);
+  const char *end = longlong10_to_str(value, pos + 1, unsigned_flag ? 10 : -10);
   *pos = end - (pos + 1);  // Set the length byte.
   packet->length(end - packet->ptr());
   return false;
@@ -3290,8 +3291,7 @@ bool Protocol_text::store_tiny(longlong from, uint32 zerofill) {
   DBUG_ASSERT(send_metadata || field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_TINY);
   field_pos++;
-  return store_integer([from](char *to) { return int10_to_str(from, to, -10); },
-                       zerofill, packet);
+  return store_integer(from, false, zerofill, packet);
 }
 
 bool Protocol_text::store_short(longlong from, uint32 zerofill) {
@@ -3300,8 +3300,7 @@ bool Protocol_text::store_short(longlong from, uint32 zerofill) {
               field_types[field_pos] == MYSQL_TYPE_YEAR ||
               field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
-  return store_integer([from](char *to) { return int10_to_str(from, to, -10); },
-                       zerofill, packet);
+  return store_integer(from, false, zerofill, packet);
 }
 
 bool Protocol_text::store_long(longlong from, uint32 zerofill) {
@@ -3310,9 +3309,7 @@ bool Protocol_text::store_long(longlong from, uint32 zerofill) {
               field_types[field_pos] == MYSQL_TYPE_INT24 ||
               field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
-  return store_integer(
-      [from](char *to) { return int10_to_str(from, to, from < 0 ? -10 : 10); },
-      zerofill, packet);
+  return store_integer(from, from >= 0, zerofill, packet);
 }
 
 bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
@@ -3321,11 +3318,7 @@ bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
   DBUG_ASSERT(send_metadata || field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_LONGLONG);
   field_pos++;
-  return store_integer(
-      [from, unsigned_flag](char *to) {
-        return longlong10_to_str(from, to, unsigned_flag ? 10 : -10);
-      },
-      zerofill, packet);
+  return store_integer(from, unsigned_flag, zerofill, packet);
 }
 
 bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {

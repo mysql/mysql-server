@@ -1418,7 +1418,7 @@ static void print_slave_skip_errors(void) {
     for (errnum = 0; errnum < MAX_SLAVE_ERROR; errnum++) {
       if (bitmap_is_set(&slave_error_mask, errnum)) {
         if (buff + MIN_ROOM >= bend) break; /* purecov: tested */
-        buff = int10_to_str(errnum, buff, 10);
+        buff = longlong10_to_str(errnum, buff, -10);
         *buff++ = ',';
       }
     }

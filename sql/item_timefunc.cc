@@ -557,7 +557,7 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
           break;
         case 'D':
           if (type == MYSQL_TIMESTAMP_TIME) return true;
-          length = (uint)(int10_to_str(l_time->day, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->day, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 1, '0');
           if (l_time->day >= 10 && l_time->day <= 19)
             str->append(STRING_WITH_LEN("th"));
@@ -579,47 +579,46 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
           }
           break;
         case 'Y':
-          length = (uint)(int10_to_str(l_time->year, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->year, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 4, '0');
           break;
         case 'y':
-          length =
-              (uint)(int10_to_str(l_time->year % 100, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->year % 100, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
           break;
         case 'm':
-          length = (uint)(int10_to_str(l_time->month, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->month, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
           break;
         case 'c':
-          length = (uint)(int10_to_str(l_time->month, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->month, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 1, '0');
           break;
         case 'd':
-          length = (uint)(int10_to_str(l_time->day, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->day, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
           break;
         case 'e':
-          length = (uint)(int10_to_str(l_time->day, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->day, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 1, '0');
           break;
         case 'f':
           length =
-              (uint)(int10_to_str(l_time->second_part, intbuff, 10) - intbuff);
+              longlong10_to_str(l_time->second_part, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 6, '0');
           break;
         case 'H':
-          length = (uint)(int10_to_str(l_time->hour, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->hour, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
           break;
         case 'h':
         case 'I':
           hours_i = (l_time->hour % 24 + 11) % 12 + 1;
-          length = (uint)(int10_to_str(hours_i, intbuff, 10) - intbuff);
+          length = longlong10_to_str(hours_i, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
           break;
         case 'i': /* minutes */
-          length = (uint)(int10_to_str(l_time->minute, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->minute, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
           break;
         case 'j': {
@@ -630,16 +629,16 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
                      calc_daynr(l_time->year, 1, 1) + 1;
           if (diff < 0) radix = -10;
 
-          length = (uint)(int10_to_str(diff, intbuff, radix) - intbuff);
+          length = longlong10_to_str(diff, intbuff, radix) - intbuff;
           str->append_with_prefill(intbuff, length, 3, '0');
         } break;
         case 'k':
-          length = (uint)(int10_to_str(l_time->hour, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->hour, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 1, '0');
           break;
         case 'l':
           hours_i = (l_time->hour % 24 + 11) % 12 + 1;
-          length = (uint)(int10_to_str(hours_i, intbuff, 10) - intbuff);
+          length = longlong10_to_str(hours_i, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 1, '0');
           break;
         case 'p':
@@ -656,7 +655,7 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
           break;
         case 'S':
         case 's':
-          length = (uint)(int10_to_str(l_time->second, intbuff, 10) - intbuff);
+          length = longlong10_to_str(l_time->second, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
           break;
         case 'T':
@@ -669,26 +668,26 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
           uint year;
           if (type == MYSQL_TIMESTAMP_TIME) return true;
           length =
-              (uint)(int10_to_str(calc_week(*l_time,
-                                            (*ptr) == 'U' ? WEEK_FIRST_WEEKDAY
-                                                          : WEEK_MONDAY_FIRST,
-                                            &year),
-                                  intbuff, 10) -
-                     intbuff);
+              longlong10_to_str(calc_week(*l_time,
+                                          (*ptr) == 'U' ? WEEK_FIRST_WEEKDAY
+                                                        : WEEK_MONDAY_FIRST,
+                                          &year),
+                                intbuff, 10) -
+              intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
         } break;
         case 'v':
         case 'V': {
           uint year;
           if (type == MYSQL_TIMESTAMP_TIME) return true;
-          length = (uint)(
-              int10_to_str(
+          length =
+              longlong10_to_str(
                   calc_week(*l_time,
                             ((*ptr) == 'V' ? (WEEK_YEAR | WEEK_FIRST_WEEKDAY)
                                            : (WEEK_YEAR | WEEK_MONDAY_FIRST)),
                             &year),
                   intbuff, 10) -
-              intbuff);
+              intbuff;
           str->append_with_prefill(intbuff, length, 2, '0');
         } break;
         case 'x':
@@ -699,7 +698,7 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
                           ((*ptr) == 'X' ? WEEK_YEAR | WEEK_FIRST_WEEKDAY
                                          : WEEK_YEAR | WEEK_MONDAY_FIRST),
                           &year);
-          length = (uint)(int10_to_str(year, intbuff, 10) - intbuff);
+          length = longlong10_to_str(year, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 4, '0');
         } break;
         case 'w':
@@ -707,7 +706,7 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
             return true;
           weekday = calc_weekday(
               calc_daynr(l_time->year, l_time->month, l_time->day), true);
-          length = (uint)(int10_to_str(weekday, intbuff, 10) - intbuff);
+          length = longlong10_to_str(weekday, intbuff, 10) - intbuff;
           str->append_with_prefill(intbuff, length, 1, '0');
           break;
 

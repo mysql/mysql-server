@@ -25,10 +25,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <iterator>
-#include <type_traits>
 
 #include "integer_digits.h"
 #include "m_string.h"  // IWYU pragma: keep
@@ -47,7 +47,7 @@ const char _dig_vec_lower[] = "0123456789abcdefghijklmnopqrstuvwxyz";
   and nothing will be changed in this case.
 
   For conversion to decimal representation (radix is -10 or 10) one should use
-  the optimized #int10_to_str() and #longlong10_to_str() functions instead.
+  the optimized #longlong10_to_str() function instead.
 
   @param val the value to convert
   @param dst the buffer where the string representation should be stored
@@ -86,60 +86,6 @@ char *ll2str(int64_t val, char *dst, int radix, bool upcase) {
 }
 
 /**
-  Converts integer to its string representation in decimal notation.
-
-  This is a generic version which can be called either as #int10_to_str() (for
-  long int) or as #longlong10_to_str() (for int64_t). It is optimized for the
-  normal case of radix 10/-10. It takes only the sign of radix parameter into
-  account and not its absolute value.
-
-  @param val the value to convert
-  @param dst the buffer where the string representation should be stored
-  @param radix 10 if val is unsigned, -10 if val is signed
-
-  @return pointer to the ending NUL character
-*/
-template <typename T>
-static char *integer_to_string_base10(T val, char *dst, int radix) {
-  static_assert(std::is_integral<T>::value && std::is_signed<T>::value,
-                "The input value should be a signed integer.");
-
-  using Unsigned_T = std::make_unsigned_t<T>;
-
-  Unsigned_T uval = static_cast<Unsigned_T>(val);
-
-  if (radix < 0) /* -10 */
-  {
-    if (val < 0) {
-      *dst++ = '-';
-      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
-      uval = Unsigned_T{0} - uval;
-    }
-  }
-
-  const int digits = count_digits(uval);
-  char *end = write_digits(uval, digits, dst);
-  *end = '\0';
-  return end;
-}
-
-/**
-  Converts a long integer to its string representation in decimal notation.
-
-  It is optimized for the normal case of radix 10/-10. It takes only the sign of
-  radix parameter into account and not its absolute value.
-
-  @param val the value to convert
-  @param dst the buffer where the string representation should be stored
-  @param radix 10 if val is unsigned, -10 if val is signed
-
-  @return pointer to the ending NUL character
-*/
-char *int10_to_str(long int val, char *dst, int radix) {
-  return integer_to_string_base10(val, dst, radix);
-}
-
-/**
   Converts a 64-bit integer to its string representation in decimal notation.
 
   It is optimized for the normal case of radix 10/-10. It takes only the sign of
@@ -152,5 +98,20 @@ char *int10_to_str(long int val, char *dst, int radix) {
   @return pointer to the ending NUL character
 */
 char *longlong10_to_str(int64_t val, char *dst, int radix) {
-  return integer_to_string_base10(val, dst, radix);
+  assert(radix == 10 || radix == -10);
+
+  uint64_t uval = static_cast<uint64_t>(val);
+
+  if (radix < 0) /* -10 */
+  {
+    if (val < 0) {
+      *dst++ = '-';
+      /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
+      uval = uint64_t{0} - uval;
+    }
+  }
+
+  char *end = write_digits(uval, count_digits(uval), dst);
+  *end = '\0';
+  return end;
 }

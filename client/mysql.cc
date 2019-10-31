@@ -3311,7 +3311,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
     if ((warnings = mysql_warning_count(&mysql)) && !batchmode) {
       *pos++ = ',';
       *pos++ = ' ';
-      pos = int10_to_str(warnings, pos, 10);
+      pos = longlong10_to_str(warnings, pos, 10);
       pos = my_stpcpy(pos, " warning");
       if (warnings != 1) *pos++ = 's';
     }
@@ -4994,19 +4994,19 @@ static void nice_time(double sec, char *buff, bool part_second) {
   if (sec >= 3600.0 * 24) {
     tmp = (ulong)floor(sec / (3600.0 * 24));
     sec -= 3600.0 * 24 * tmp;
-    buff = int10_to_str((long)tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, tmp > 1 ? " days " : " day ");
   }
   if (sec >= 3600.0) {
     tmp = (ulong)floor(sec / 3600.0);
     sec -= 3600.0 * tmp;
-    buff = int10_to_str((long)tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, tmp > 1 ? " hours " : " hour ");
   }
   if (sec >= 60.0) {
     tmp = (ulong)floor(sec / 60.0);
     sec -= 60.0 * tmp;
-    buff = int10_to_str((long)tmp, buff, 10);
+    buff = longlong10_to_str(tmp, buff, 10);
     buff = my_stpcpy(buff, " min ");
   }
   if (part_second)
@@ -5174,9 +5174,7 @@ static const char *construct_prompt() {
 }
 
 static void add_int_to_prompt(int toadd) {
-  char buffer[16];
-  int10_to_str(toadd, buffer, 10);
-  processed_prompt.append(buffer);
+  processed_prompt.append_longlong(toadd);
 }
 
 static void init_username() {

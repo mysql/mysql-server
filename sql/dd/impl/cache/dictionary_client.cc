@@ -310,7 +310,7 @@ class MDL_checker {
     DBUG_ASSERT(srs->id() <= UINT_MAX32);
 
     char id_str[11];  // uint32 => max 10 digits + \0
-    int10_to_str(static_cast<long>(srs->id()), id_str, 10);
+    longlong10_to_str(srs->id(), id_str, 10);
 
     return thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SRID, "",
                                                         id_str, lock_type);

@@ -1664,23 +1664,14 @@ err:
 
 void Item_typecast_decimal::print(const THD *thd, String *str,
                                   enum_query_type query_type) const {
-  char len_buf[20 * 3 + 1];
-  char *end;
-
   uint precision =
       my_decimal_length_to_precision(max_length, decimals, unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as decimal("));
-
-  end = int10_to_str(precision, len_buf, 10);
-  str->append(len_buf, (uint32)(end - len_buf));
-
+  str->append_ulonglong(precision);
   str->append(',');
-
-  end = int10_to_str(decimals, len_buf, 10);
-  str->append(len_buf, (uint32)(end - len_buf));
-
+  str->append_ulonglong(decimals);
   str->append(')');
   str->append(')');
 }

@@ -279,7 +279,6 @@ static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
 #define MY_GCVT_MAX_FIELD_WIDTH \
   (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT))
 
-char *int10_to_str(long val, char *dst, int radix);
 const char *str2int(const char *src, int radix, long lower, long upper,
                     long *val);
 longlong my_strtoll10(const char *nptr, const char **endptr, int *error);

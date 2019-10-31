@@ -9666,7 +9666,7 @@ static const char *make_unique_key_name(const char *field_name, KEY *start,
   */
   for (uint i = 2; i < 100; i++) {
     *buff_end = '_';
-    int10_to_str(i, buff_end + 1, 10);
+    longlong10_to_str(i, buff_end + 1, 10);
     if (!check_if_keyname_exists(buff, start, end)) return sql_strdup(buff);
   }
   return "not_specified";  // Should never happen

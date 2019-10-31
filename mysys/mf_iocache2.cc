@@ -37,13 +37,11 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "template_utils.h"
 
 /*
@@ -363,15 +361,13 @@ size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list args) {
       if (my_b_write(info, (uchar *)par, precision)) goto err;
     } else if (*fmt == 'd' || *fmt == 'u') /* Integer parameter */
     {
-      int iarg;
       size_t length2;
       char buff[32];
 
-      iarg = va_arg(args, int);
       if (*fmt == 'd')
-        length2 = (size_t)(int10_to_str((long)iarg, buff, -10) - buff);
+        length2 = longlong10_to_str(va_arg(args, int), buff, -10) - buff;
       else
-        length2 = (uint)(int10_to_str((long)(uint)iarg, buff, 10) - buff);
+        length2 = longlong10_to_str(va_arg(args, unsigned), buff, 10) - buff;
 
       /* minimum width padding */
       if (minimum_width > length2) {
@@ -393,15 +389,13 @@ size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list args) {
     } else if ((*fmt == 'l' && fmt[1] == 'd') || fmt[1] == 'u')
     /* long parameter */
     {
-      long iarg;
       size_t length2;
       char buff[32];
-
-      iarg = va_arg(args, long);
       if (*++fmt == 'd')
-        length2 = (size_t)(int10_to_str(iarg, buff, -10) - buff);
+        length2 = longlong10_to_str(va_arg(args, long), buff, -10) - buff;
       else
-        length2 = (size_t)(int10_to_str(iarg, buff, 10) - buff);
+        length2 =
+            longlong10_to_str(va_arg(args, unsigned long), buff, 10) - buff;
       out_length += length2;
       if (my_b_write(info, (uchar *)buff, length2)) goto err;
     } else if (fmt[0] == 'l' && fmt[1] == 'l' && fmt[2] == 'u') {
