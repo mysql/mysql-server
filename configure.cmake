@@ -232,7 +232,9 @@ CHECK_INCLUDE_FILES (sys/param.h HAVE_SYS_PARAM_H) # Used by NDB/libevent
 CHECK_INCLUDE_FILES (fnmatch.h HAVE_FNMATCH_H)
 CHECK_INCLUDE_FILES (sys/un.h HAVE_SYS_UN_H)
 CHECK_INCLUDE_FILES (vis.h HAVE_VIS_H) # Used by libedit
-CHECK_INCLUDE_FILES (sasl/sasl.h HAVE_SASL_SASL_H) # Used by memcached
+# Cyrus SASL 2.1.26 on Solaris 11.4 has a bug that requires sys/types.h
+# to be included before checking if sasl/sasl.h exists
+CHECK_INCLUDE_FILES ("sys/types.h;sasl/sasl.h" HAVE_SASL_SASL_H)
 
 # For libevent
 CHECK_INCLUDE_FILES(sys/devpoll.h HAVE_DEVPOLL)
