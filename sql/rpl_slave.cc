@@ -150,6 +150,9 @@
 #include "sql_common.h"  // end_server
 #include "sql_string.h"
 #include "typelib.h"
+#ifndef DBUG_OFF
+#include "rpl_debug_points.h"
+#endif
 
 struct mysql_cond_t;
 struct mysql_mutex_t;
@@ -824,11 +827,9 @@ bool stop_slave_cmd(THD *thd) {
   channel_map.unlock();
 
   DBUG_EXECUTE_IF("stop_slave_dont_release_backup_lock", {
-    const char signal[] = "now SIGNAL slave_acquired_backup_lock";
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(signal)));
-    const char wait_for[] = "now WAIT_FOR tried_to_lock_instance_for_backup";
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(wait_for)));
+    rpl_slave_debug_point(DBUG_RPL_S_STOP_SLAVE_BACKUP_LOCK, thd);
   });
+
   return res;
 }
 
@@ -1607,10 +1608,8 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
   if (thread_mask & (SLAVE_IO | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating IO thread"));
     mi->abort_slave = true;
-    DBUG_EXECUTE_IF("pause_after_queue_event", {
-      const char act[] = "now SIGNAL reached_stopping_io_thread";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-    };);
+    DBUG_EXECUTE_IF("pause_after_queue_event",
+                    { rpl_slave_debug_point(DBUG_RPL_S_PAUSE_QUEUE_EV); });
     /*
       If the I/O thread is running and waiting for disk space,
       the signal above will not make it to stop.
@@ -1631,10 +1630,8 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     if (io_waiting_disk_space && !force_io_stop) {
       LogErr(WARNING_LEVEL, ER_STOP_SLAVE_IO_THREAD_DISK_SPACE,
              mi->get_channel());
-      DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space", {
-        const char act[] = "now SIGNAL reached_stopping_io_thread";
-        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-      };);
+      DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
+                      { rpl_slave_debug_point(DBUG_RPL_S_IO_WAIT_FOR_SPACE); });
     }
 
     if ((error = terminate_slave_thread(
@@ -2361,17 +2358,11 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
     return 0;
   };);
 
-  DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID", {
-    const char act[] = "now wait_for signal.get_master_uuid";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
+  DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
+                  { rpl_slave_debug_point(DBUG_RPL_S_BEFORE_MASTER_UUID); };);
 
-  DBUG_EXECUTE_IF("dbug.simulate_busy_io", {
-    const char act[] = "now signal Reached wait_for signal.got_stop_slave";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
+  DBUG_EXECUTE_IF("dbug.simulate_busy_io",
+                  { rpl_slave_debug_point(DBUG_RPL_S_SIMULATE_BUSY_IO); };);
 #ifndef DBUG_OFF
   DBUG_EXECUTE_IF("dbug.simulate_no_such_var_server_uuid", {
     query_buf[strlen(query_buf) - 1] = '_';  // currupt the last char
@@ -2545,11 +2536,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   */
 
   DBUG_EXECUTE_IF("dbug.before_get_UNIX_TIMESTAMP", {
-    const char act[] =
-        "now "
-        "wait_for signal.get_unix_timestamp";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    rpl_slave_debug_point(DBUG_RPL_S_BEFORE_UNIX_TIMESTAMP);
   };);
 
   master_res = nullptr;
@@ -2589,13 +2576,8 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
-  DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID", {
-    const char act[] =
-        "now "
-        "wait_for signal.get_server_id";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
+  DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID",
+                  { rpl_slave_debug_point(DBUG_RPL_S_BEFORE_SERVER_ID); };);
   master_res = nullptr;
   master_row = nullptr;
   DBUG_EXECUTE_IF("get_master_server_id.ER_NET_READ_INTERRUPTED", {
@@ -2944,6 +2926,9 @@ static bool wait_for_relay_log_space(Relay_log_info *rli) {
     }
 #endif
     if (rli->sql_force_rotate_relay) {
+      DBUG_EXECUTE_IF("rpl_before_forced_rotate", {
+        rpl_slave_debug_point(DBUG_RPL_S_BEFORE_FORCED_ROTATE);
+      });
       rotate_relay_log(mi, true, true, false);
       rli->sql_force_rotate_relay = false;
     }
@@ -4856,19 +4841,13 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
 
       DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event", {
         if (ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-          const char act[] =
-              "now signal signal.reached wait_for signal.done_sbm_calculation";
-          DBUG_ASSERT(opt_debug_sync_timeout > 0);
-          DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+          rpl_slave_debug_point(DBUG_RPL_S_SBM_AFTER_PREVIOUS_GTID_EV, thd);
         }
       };);
       DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event", {
         if (ev->get_type_code() == binary_log::ROTATE_EVENT &&
             ev->is_artificial_event()) {
-          const char act[] =
-              "now signal signal.reached wait_for signal.done_sbm_calculation";
-          DBUG_ASSERT(opt_debug_sync_timeout > 0);
-          DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+          rpl_slave_debug_point(DBUG_RPL_S_SBM_AFTER_FAKE_ROTATE_EV, thd);
         }
       };);
       /*
@@ -4972,16 +4951,11 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
             rli->retried_trans++;
             mysql_mutex_unlock(&rli->data_lock);
 #ifndef DBUG_OFF
-            if (rli->trans_retries == 2 || rli->trans_retries == 6) {
+            if (rli->trans_retries == 2 || rli->trans_retries == 6)
               DBUG_EXECUTE_IF("rpl_ps_tables_worker_retry", {
-                char const act[] =
-                    "now SIGNAL signal.rpl_ps_tables_worker_retry_pause "
-                    "WAIT_FOR signal.rpl_ps_tables_worker_retry_continue";
-                DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                DBUG_ASSERT(
-                    !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                rpl_slave_debug_point(DBUG_RPL_S_PS_TABLE_WORKER_RETRY);
               };);
-            }
+
 #endif
             DBUG_PRINT("info", ("Slave retries transaction "
                                 "rli->trans_retries: %lu",
@@ -5268,11 +5242,7 @@ extern "C" void *handle_slave_io(void *arg) {
     }
 
     DBUG_EXECUTE_IF("dbug.before_get_running_status_yes", {
-      const char act[] =
-          "now "
-          "wait_for signal.io_thread_let_running";
-      DBUG_ASSERT(opt_debug_sync_timeout > 0);
-      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      rpl_slave_debug_point(DBUG_RPL_S_BEFORE_RUNNING_STATUS, thd);
     };);
     DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event", {
       /* Fake that thread started 3 minutes ago */
@@ -5447,12 +5417,7 @@ reading event"))
         if (mi->is_queueing_trx()) {
           was_in_trx = true;
           DBUG_EXECUTE_IF("rpl_ps_tables_queue", {
-            const char act[] =
-                "now SIGNAL signal.rpl_ps_tables_queue_before "
-                "WAIT_FOR signal.rpl_ps_tables_queue_finish";
-            DBUG_ASSERT(opt_debug_sync_timeout > 0);
-            DBUG_ASSERT(
-                !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+            rpl_slave_debug_point(DBUG_RPL_S_PS_TABLE_QUEUE);
           };);
         }
 #endif
@@ -5465,14 +5430,8 @@ reading event"))
         }
 #ifndef DBUG_OFF
         if (was_in_trx && !mi->is_queueing_trx()) {
-          DBUG_EXECUTE_IF("rpl_ps_tables", {
-            const char act[] =
-                "now SIGNAL signal.rpl_ps_tables_queue_after_finish "
-                "WAIT_FOR signal.rpl_ps_tables_queue_continue";
-            DBUG_ASSERT(opt_debug_sync_timeout > 0);
-            DBUG_ASSERT(
-                !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-          };);
+          DBUG_EXECUTE_IF("rpl_ps_tables",
+                          { rpl_slave_debug_point(DBUG_RPL_S_PS_TABLES); };);
         }
 #endif
         if (RUN_HOOK(binlog_relay_io, after_queue_event,
@@ -5498,11 +5457,7 @@ reading event"))
           execution.
         */
         DBUG_EXECUTE_IF("pause_after_queue_event", {
-          const char act[] =
-              "now SIGNAL reached_after_queue_event "
-              "WAIT_FOR continue_after_queue_event";
-          DBUG_ASSERT(
-              !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+          rpl_slave_debug_point(DBUG_RPL_S_PAUSE_AFTER_QUEUE_EV);
         };);
 
         /*
@@ -5528,6 +5483,11 @@ ignore_log_space_limit=%d",
         }
 #endif
 
+        DBUG_EXECUTE_IF("rpl_set_relay_log_limits", {
+          rli->log_space_limit = 10;
+          rli->log_space_total = 20;
+        };);
+
         if (rli->log_space_limit &&
             rli->log_space_limit < rli->log_space_total &&
             !rli->ignore_log_space_limit)
@@ -5537,13 +5497,8 @@ ignore_log_space_limit=%d",
             goto err;
           }
         DBUG_EXECUTE_IF("flush_after_reading_user_var_event", {
-          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT) {
-            const char act[] =
-                "now signal Reached wait_for signal.flush_complete_continue";
-            DBUG_ASSERT(opt_debug_sync_timeout > 0);
-            DBUG_ASSERT(
-                !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-          }
+          if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
+            rpl_slave_debug_point(DBUG_RPL_S_FLUSH_AFTER_USERV_EV);
         });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_gtid_log_event",
@@ -5600,10 +5555,7 @@ ignore_log_space_limit=%d",
       signal to continue to shutdown the IO thread.
     */
     DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
-      const char act[] =
-          "now SIGNAL reached_stopping_io_thread "
-          "WAIT_FOR continue_to_stop_io_thread";
-      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      rpl_slave_debug_point(DBUG_RPL_S_PAUSE_AFTER_IO_STOP, thd);
     };);
     thd->reset_query();
     thd->reset_db(NULL_CSTR);
@@ -6200,8 +6152,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
     if (!rli->gaq->count_done(rli)) return false;
   }
   DBUG_EXECUTE_IF("mts_checkpoint", {
-    const char act[] = "now signal mts_checkpoint_start";
-    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd, STRING_WITH_LEN(act)));
+    rpl_slave_debug_point(DBUG_RPL_S_MTS_CHECKPOINT_START, rli->info_thd);
   };);
 #endif
 
@@ -6317,8 +6268,7 @@ end:
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)) DBUG_SUICIDE();
   DBUG_EXECUTE_IF("mts_checkpoint", {
-    const char act[] = "now signal mts_checkpoint_end";
-    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd, STRING_WITH_LEN(act)));
+    rpl_slave_debug_point(DBUG_RPL_S_MTS_CHECKPOINT_END, rli->info_thd);
   };);
 #endif
   set_timespec_nsec(&rli->last_clock, 0);
@@ -7057,10 +7007,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       signal to continue to shutdown the SQL thread.
     */
     DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
-      const char act[] =
-          "now SIGNAL reached_stopping_sql_thread "
-          "WAIT_FOR continue_to_stop_sql_thread";
-      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      rpl_slave_debug_point(DBUG_RPL_S_AFTER_SQL_STOP, thd);
     };);
 
     THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
@@ -7085,6 +7032,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     mysql_cond_broadcast(&rli->data_cond);
     mysql_mutex_unlock(&rli->data_lock);
     rli->ignore_log_space_limit = false; /* don't need any lock */
+    rli->sql_force_rotate_relay = false;
     /* we die so won't remember charset - re-update them on next thread start */
     rli->cached_charset_invalidate();
     rli->save_temporary_tables = thd->temporary_tables;
@@ -7263,12 +7211,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     Pause the IO thread execution and wait for 'continue_queuing_event'
     signal to continue IO thread execution.
   */
-  DBUG_EXECUTE_IF("pause_on_queuing_event", {
-    const char act[] =
-        "now SIGNAL reached_queuing_event "
-        "WAIT_FOR continue_queuing_event";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  };);
+  DBUG_EXECUTE_IF("pause_on_queuing_event",
+                  { rpl_slave_debug_point(DBUG_RPL_S_PAUSE_QUEUING); };);
 
   /*
     FD_queue checksum alg description does not apply in a case of
@@ -7580,13 +7524,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         DBUG_ASSERT(memcmp(const_cast<char *>(mi->get_master_log_name()),
                            hb.get_log_ident(), hb.get_ident_len()) == 0);
 
-        DBUG_EXECUTE_IF("reached_heart_beat_queue_event", {
-          const char act[] =
-              "now SIGNAL check_slave_master_info WAIT_FOR "
-              "proceed_write_rotate";
-          DBUG_ASSERT(
-              !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-        };);
+        DBUG_EXECUTE_IF("reached_heart_beat_queue_event",
+                        { rpl_slave_debug_point(DBUG_RPL_S_HEARTBEAT_EV); };);
         mi->set_master_log_pos(hb.common_header->log_pos);
 
         /*

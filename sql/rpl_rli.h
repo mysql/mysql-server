@@ -813,14 +813,14 @@ class Relay_log_info : public Rpl_info {
     temporarily forget about the constraint.
   */
   ulonglong log_space_limit, log_space_total;
-  bool ignore_log_space_limit;
+  std::atomic<bool> ignore_log_space_limit;
 
   /*
     Used by the SQL thread to instructs the IO thread to rotate
     the logs when the SQL thread needs to purge to release some
     disk space.
    */
-  bool sql_force_rotate_relay;
+  std::atomic<bool> sql_force_rotate_relay;
 
   time_t last_master_timestamp;
 
