@@ -199,6 +199,11 @@ ENDIF()
 #
 INCLUDE (CheckIncludeFiles)
 
+IF(FREEBSD)
+  # On FreeBSD some includes, e.g. sasl/sasl.h, is in /usr/local/include
+  LIST(APPEND CMAKE_REQUIRED_INCLUDES "/usr/local/include")
+ENDIF()
+
 CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
