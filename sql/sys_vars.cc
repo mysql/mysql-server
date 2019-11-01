@@ -2743,10 +2743,12 @@ static Sys_var_ulong Sys_max_seeks_for_key(
     VALID_RANGE(1, ULONG_MAX), DEFAULT(ULONG_MAX), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_max_length_for_sort_data(
-    "max_length_for_sort_data", "Max number of bytes in sorted records",
+    "max_length_for_sort_data",
+    "This variable is deprecated and will be removed in a future release.",
     HINT_UPDATEABLE SESSION_VAR(max_length_for_sort_data),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(4, 8192 * 1024L), DEFAULT(4096),
-    BLOCK_SIZE(1));
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_max_points_in_geometry(
     "max_points_in_geometry", "Maximum number of points in a geometry",

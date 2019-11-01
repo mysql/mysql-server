@@ -624,7 +624,8 @@ The following options may be given as the first argument:
  --max-join-size=#   Joins that are probably going to read more than
  max_join_size records return an error
  --max-length-for-sort-data=# 
- Max number of bytes in sorted records
+ This variable is deprecated and will be removed in a
+ future release.
  --max-points-in-geometry[=#] 
  Maximum number of points in a geometry
  --max-prepared-stmt-count=# 

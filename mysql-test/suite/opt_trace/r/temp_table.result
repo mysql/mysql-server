@@ -2,6 +2,8 @@ SET optimizer_trace_max_mem_size=1048576;
 SET optimizer_trace="enabled=on,one_line=off";
 SET end_markers_in_json="on";
 SET max_length_for_sort_data=1024;
+Warnings:
+Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
 CREATE TABLE tmp (
 pk INT PRIMARY KEY AUTO_INCREMENT,
 col1 CHAR (1)
@@ -1333,3 +1335,5 @@ DROP TABLE t1;
 #
 SET SESSION internal_tmp_mem_storage_engine=default;
 SET max_length_for_sort_data=DEFAULT;
+Warnings:
+Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
