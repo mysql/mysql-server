@@ -813,6 +813,13 @@ for this page size.
 @return an associated page_size_shift if valid, 0 if invalid. */
 inline ulong page_size_validate(ulong page_size);
 
+/** This function checks if the page in which record is present is a
+non-leaf node of a spatial index.
+param[in]       rec     Btree record
+param[in]       index   index
+@return TRUE if ok */
+bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index);
+
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE UNIV_INLINE_ORIGINAL

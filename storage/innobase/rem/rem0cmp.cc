@@ -40,7 +40,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "handler0alter.h"
 #include "rem0cmp.h"
 #include "srv0srv.h"
-
 namespace dd {
 class Spatial_reference_system;
 }
@@ -993,7 +992,8 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
 
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
-                           const dict_index_t *index, bool nulls_unequal,
+                           const dict_index_t *index,
+                           bool spatial_index_non_leaf, bool nulls_unequal,
                            ulint *matched_fields, bool cmp_btree_recs) {
   ut_ad(rec1 != nullptr);
   ut_ad(rec2 != nullptr);
@@ -1024,7 +1024,9 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
 
   for (i = 0; i < rec1_n_fields && i < rec2_n_fields; ++i) {
     /* If this is node-ptr records then avoid comparing node-ptr
-    field. Only key field needs to be compared. */
+    field. Only key field needs to be compared. In case of a
+    spatial index we need to compare the node-ptr for a non-leaf
+    page */
     if (i == dict_index_get_n_unique_in_tree(index)) {
       *matched_fields = i;
       return (0);
@@ -1039,6 +1041,15 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
       mtype = DATA_BINARY;
       prtype = 0;
       is_asc = true;
+    } else if ((i == 1) && spatial_index_non_leaf) {
+      /* When the page is non-leaf spatial index page we should
+      not depend upon the dictionary information because the
+      page doesn't hold any primary key information.The spatial
+      non-leaf has only two fields MBR and page number to child
+      node.*/
+      mtype = DATA_SYS_CHILD;
+      prtype = 0;
+      is_asc = true;
     } else {
       auto col = index->get_col(i);
       const auto field = index->get_field(i);
@@ -1046,13 +1057,13 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
       mtype = col->mtype;
       prtype = col->prtype;
       is_asc = field->is_ascending;
+    }
 
-      /* If the index is spatial index, we mark the
-      prtype of the first field as MBR field. */
-      if (i == 0 && dict_index_is_spatial(index)) {
-        ut_ad(DATA_GEOMETRY_MTYPE(mtype));
-        prtype |= DATA_GIS_MBR;
-      }
+    /* If the index is spatial index, we mark the
+    prtype of the first field as MBR field. */
+    if (i == 0 && dict_index_is_spatial(index)) {
+      ut_ad(DATA_GEOMETRY_MTYPE(mtype));
+      prtype |= DATA_GIS_MBR;
     }
 
     /* We should never encounter an externally stored field.

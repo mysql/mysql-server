@@ -100,12 +100,14 @@ int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
 UNIV_INLINE
 int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
                 const ulint *offsets2, const dict_index_t *index,
-                ulint *matched_fields, bool cmp_btree_recs) {
+                bool spatial_index_non_leaf, ulint *matched_fields,
+                bool cmp_btree_recs) {
   ulint match_f;
   int ret;
 
-  ret = cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index, false,
-                               &match_f, cmp_btree_recs);
+  ret = cmp_rec_rec_with_match(rec1, rec2, offsets1, offsets2, index,
+                               spatial_index_non_leaf, false, &match_f,
+                               cmp_btree_recs);
 
   if (matched_fields != NULL) {
     *matched_fields = match_f;

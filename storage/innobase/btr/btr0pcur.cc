@@ -198,7 +198,8 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
 
         offsets2 = rec_get_offsets(rec, index, nullptr, m_old_n_fields, &heap);
 
-        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index, nullptr,
+        ut_ad(!cmp_rec_rec(m_old_rec, rec, offsets1, offsets2, index,
+                           page_is_spatial_non_leaf(rec, index), nullptr,
                            false));
         mem_heap_free(heap);
 #endif /* UNIV_DEBUG */

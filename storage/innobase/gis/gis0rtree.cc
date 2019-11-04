@@ -1341,7 +1341,8 @@ void rtr_page_copy_rec_list_end_no_locks(
       offsets2 =
           rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED, &heap);
       cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec, offsets1, offsets2, index,
-                                   FALSE, &cur_matched_fields);
+                                   page_is_spatial_non_leaf(cur1_rec, index),
+                                   false, &cur_matched_fields);
       if (cmp < 0) {
         page_cur_move_to_prev(&page_cur);
         break;
@@ -1451,7 +1452,8 @@ void rtr_page_copy_rec_list_start_no_locks(
       offsets2 =
           rec_get_offsets(cur_rec, index, offsets2, ULINT_UNDEFINED, &heap);
       cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec, offsets1, offsets2, index,
-                                   FALSE, &cur_matched_fields);
+                                   page_is_spatial_non_leaf(cur1_rec, index),
+                                   false, &cur_matched_fields);
       if (cmp < 0) {
         page_cur_move_to_prev(&page_cur);
         cur_rec = page_cur_get_rec(&page_cur);
