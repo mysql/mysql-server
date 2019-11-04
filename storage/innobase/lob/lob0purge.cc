@@ -449,8 +449,10 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   page_type_t page_type =
       first_page_t::get_page_type(index, page_id, page_size);
 
-  if (page_type == FIL_PAGE_TYPE_ZBLOB || page_type == FIL_PAGE_TYPE_BLOB ||
-      page_type == FIL_PAGE_SDI_BLOB || page_type == FIL_PAGE_SDI_ZBLOB) {
+  if (page_type == FIL_PAGE_TYPE_ZBLOB ||
+      page_type == FIL_PAGE_TYPE_ZBLOB2 || /* Partially purged ZBLOB */
+      page_type == FIL_PAGE_TYPE_BLOB || page_type == FIL_PAGE_SDI_BLOB ||
+      page_type == FIL_PAGE_SDI_ZBLOB) {
     lob::Deleter free_blob(*ctx);
     free_blob.destroy();
     return;
