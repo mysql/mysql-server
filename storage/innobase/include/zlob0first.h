@@ -331,27 +331,33 @@ struct z_first_page_t {
 
   /** Free all the z_frag_page_t pages. All the z_frag_page_t pages are
   singly linked to each other.  The head of the list is maintained in the
-  first page. */
-  void free_all_frag_node_pages();
+  first page.
+  @return the number of pages freed. */
+  size_t free_all_frag_node_pages();
 
-  /** Free all the index pages. */
-  void free_all_index_pages();
+  /** Free all the index pages.
+  @return the number of pages freed. */
+  size_t free_all_index_pages();
 
-  /** Free all the fragment pages. */
-  void free_all_frag_pages();
+  /** Free all the fragment pages.
+  @return the number of pages freed. */
+  size_t free_all_frag_pages();
 
  private:
   /** Free all the fragment pages when the next page of the first LOB page IS
-   * NOT USED to link the fragment pages. */
-  void free_all_frag_pages_old();
+   * NOT USED to link the fragment pages.
+  @return the number of pages freed. */
+  size_t free_all_frag_pages_old();
 
   /** Free all the fragment pages when the next page of the first LOB page IS
-   * USED to link the fragment pages. */
-  void free_all_frag_pages_new();
+   * USED to link the fragment pages.
+  @return the number of pages freed. */
+  size_t free_all_frag_pages_new();
 
  public:
-  /** Free all the data pages. */
-  void free_all_data_pages();
+  /** Free all the data pages.
+  @return the number of pages freed. */
+  size_t free_all_data_pages();
 
   /** All the frag node pages are singled linked with each other, and the
   first page contains the link to one frag node page. Get that frag node
@@ -558,17 +564,30 @@ struct z_first_page_t {
   @param[out]	entry	the entry to be loaded.*/
   void load_entry_x(fil_addr_t &addr, z_index_entry_t &entry);
 
-  /** Destroy the given ZLOB.  It frees all the pages of the given LOB,
-  including its first page.
-  @param[in]	index		the clustered index containing LOB.
-  @param[in]	first_page_no	first page number of LOB. */
-  static void destroy(dict_index_t *index, page_no_t first_page_no);
-
-  /** Free all the pages of the zlob. */
-  void destroy();
+  /** Free all the pages of the zlob.
+  @return the total number of pages freed. */
+  size_t destroy();
 
 #ifdef UNIV_DEBUG
-  bool validate();
+ private:
+  /** Validate the LOB.  This is a costly function.  We need to avoid using
+  this directly, instead call z_first_page_t::validate().
+  @return true if valid, false otherwise. */
+  bool validate_low();
+
+ public:
+  /** Validate the LOB.
+  @return true if valid, false otherwise. */
+  bool validate() {
+    static const uint32_t FREQ = 50;
+    static std::atomic<uint32_t> n{0};
+
+    bool valid = true;
+    if (++n % FREQ == 0) {
+      valid = validate_low();
+    }
+    return (valid);
+  }
 #endif /* UNIV_DEBUG */
 
   /** Get the buffer block of the first page of LOB.

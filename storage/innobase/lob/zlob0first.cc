@@ -333,7 +333,8 @@ std::ostream &z_first_page_t::print(std::ostream &out) const {
 /** Free all the z_frag_page_t pages. All the z_frag_page_t pages are
 singly linked to each other.  The head of the list is maintained in the
 first page. */
-void z_first_page_t::free_all_frag_node_pages() {
+size_t z_first_page_t::free_all_frag_node_pages() {
+  size_t n_pages_freed = 0;
   mtr_t local_mtr;
   mtr_start(&local_mtr);
   local_mtr.set_log_mode(m_mtr->get_log_mode());
@@ -351,14 +352,18 @@ void z_first_page_t::free_all_frag_node_pages() {
     page_no_t next_page = frag_node_page.get_next_page_no();
     set_frag_node_page_no(next_page);
     frag_node_page.dealloc();
+    n_pages_freed++;
 
     restart_mtr(&local_mtr);
   }
   mtr_commit(&local_mtr);
+
+  return (n_pages_freed);
 }
 
 /** Free all the index pages. */
-void z_first_page_t::free_all_index_pages() {
+size_t z_first_page_t::free_all_index_pages() {
+  size_t n_pages_freed = 0;
   mtr_t local_mtr;
   mtr_start(&local_mtr);
   local_mtr.set_log_mode(m_mtr->get_log_mode());
@@ -374,9 +379,11 @@ void z_first_page_t::free_all_index_pages() {
     page_no_t next_page = index_page.get_next_page_no();
     set_index_page_no(next_page);
     index_page.dealloc();
+    n_pages_freed++;
     restart_mtr(&local_mtr);
   }
   mtr_commit(&local_mtr);
+  return (n_pages_freed);
 }
 
 ulint z_first_page_t::size_of_index_entries() const {
@@ -433,25 +440,6 @@ buf_block_t *z_first_page_t::load_x(const page_id_t &page_id,
   return (m_block);
 }
 
-/** Destroy the given ZLOB.  It frees all the pages of the given LOB,
-including its first page.
-@param[in]	index		the clustered index containing LOB.
-@param[in]	first_page_no	first page number of LOB. */
-void z_first_page_t::destroy(dict_index_t *index, page_no_t first_page_no) {
-  mtr_t mtr;
-  z_first_page_t first_page(&mtr, index);
-  const space_id_t space = dict_index_get_space(index);
-  const page_size_t page_size = dict_table_page_size(index->table);
-  const page_id_t first_page_id(space, first_page_no);
-
-  mtr_start(&mtr);
-  first_page.load_x(first_page_id, page_size);
-  first_page.free_all_frag_node_pages();
-  first_page.free_all_index_pages();
-  first_page.dealloc();
-  mtr_commit(&mtr);
-}
-
 /** Increment the LOB version by 1. */
 uint32_t z_first_page_t::incr_lob_version() {
   ut_ad(m_mtr != nullptr);
@@ -484,7 +472,8 @@ void z_first_page_t::mark_cannot_be_partially_updated(trx_t *trx) {
   set_last_trx_undo_no(undo_no);
 }
 
-void z_first_page_t::free_all_data_pages() {
+size_t z_first_page_t::free_all_data_pages() {
+  size_t n_pages_freed = 0;
   mtr_t local_mtr;
   mtr_start(&local_mtr);
   local_mtr.set_log_mode(m_mtr->get_log_mode());
@@ -498,7 +487,7 @@ void z_first_page_t::free_all_data_pages() {
   while (!fil_addr_is_null(node_loc)) {
     flst_node_t *node = addr2ptr_x(node_loc, &local_mtr);
     cur_entry.reset(node);
-    cur_entry.free_data_pages(&local_mtr);
+    n_pages_freed += cur_entry.free_data_pages(&local_mtr);
 
     flst_base_node_t *vers = cur_entry.get_versions_list();
     fil_addr_t ver_loc = flst_get_first(vers, &local_mtr);
@@ -506,7 +495,7 @@ void z_first_page_t::free_all_data_pages() {
     while (!fil_addr_is_null(ver_loc)) {
       flst_node_t *ver_node = addr2ptr_x(ver_loc, &local_mtr);
       z_index_entry_t vers_entry(ver_node, &local_mtr, m_index);
-      vers_entry.free_data_pages(&local_mtr);
+      n_pages_freed += vers_entry.free_data_pages(&local_mtr);
       ver_loc = vers_entry.get_next();
 
       restart_mtr(&local_mtr);
@@ -519,10 +508,12 @@ void z_first_page_t::free_all_data_pages() {
     restart_mtr(&local_mtr);
   }
   mtr_commit(&local_mtr);
+
+  return (n_pages_freed);
 }
 
 #ifdef UNIV_DEBUG
-bool z_first_page_t::validate() {
+bool z_first_page_t::validate_low() {
   mtr_t local_mtr;
   mtr_start(&local_mtr);
   local_mtr.set_log_mode(m_mtr->get_log_mode());
@@ -579,7 +570,8 @@ void z_first_page_t::import(trx_id_t trx_id) {
   }
 }
 
-void z_first_page_t::free_all_frag_pages_old() {
+size_t z_first_page_t::free_all_frag_pages_old() {
+  size_t n_pages_freed = 0;
   mtr_t local_mtr;
   mtr_start(&local_mtr);
   local_mtr.set_log_mode(m_mtr->get_log_mode());
@@ -620,22 +612,27 @@ void z_first_page_t::free_all_frag_pages_old() {
 
       /* Free the fragment page. */
       entry.free_frag_page(&local_mtr, m_index);
+      n_pages_freed++;
       restart_mtr(&local_mtr);
     }
   }
 
   mtr_commit(&local_mtr);
+  return (n_pages_freed);
 }
 
-void z_first_page_t::free_all_frag_pages() {
+size_t z_first_page_t::free_all_frag_pages() {
+  size_t n_pages_freed = 0;
   if (get_frag_page_no() == 0) {
-    free_all_frag_pages_old();
+    n_pages_freed = free_all_frag_pages_old();
   } else {
-    free_all_frag_pages_new();
+    n_pages_freed = free_all_frag_pages_new();
   }
+  return (n_pages_freed);
 }
 
-void z_first_page_t::free_all_frag_pages_new() {
+size_t z_first_page_t::free_all_frag_pages_new() {
+  size_t n_pages_freed = 0;
   mtr_t local_mtr;
   mtr_start(&local_mtr);
   local_mtr.set_log_mode(m_mtr->get_log_mode());
@@ -651,17 +648,22 @@ void z_first_page_t::free_all_frag_pages_new() {
     page_no_t next_page = frag_page.get_next_page_no();
     set_frag_page_no(&local_mtr, next_page);
     frag_page.dealloc();
+    n_pages_freed++;
     restart_mtr(&local_mtr);
   }
   mtr_commit(&local_mtr);
+  return (n_pages_freed);
 }
 
-void z_first_page_t::destroy() {
-  free_all_data_pages();
-  free_all_frag_pages();
-  free_all_frag_node_pages();
-  free_all_index_pages();
+size_t z_first_page_t::destroy() {
+  size_t n_pages_freed = 0;
+  n_pages_freed += free_all_data_pages();
+  n_pages_freed += free_all_frag_pages();
+  n_pages_freed += free_all_frag_node_pages();
+  n_pages_freed += free_all_index_pages();
   dealloc();
+  n_pages_freed++;
+  return (n_pages_freed);
 }
 
 #ifdef UNIV_DEBUG
