@@ -4836,6 +4836,8 @@ bool Item_func_in::resolve_type(THD *thd) {
     */
     if (thd->is_error()) return true;
 
+    if (thd->lex->is_view_context_analysis()) return false;
+
     have_null = array->fill(args + 1, arg_count - 1);
 
   } else {
