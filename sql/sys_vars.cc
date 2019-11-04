@@ -5433,6 +5433,13 @@ static Sys_var_bool Sys_general_log(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_general_log_state));
 
+static Sys_var_bool Sys_log_raw(
+    "log_raw",
+    "Log to general log before any rewriting of the query. For use in "
+    "debugging, not production as sensitive information may be logged.",
+    GLOBAL_VAR(opt_general_log_raw), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static bool fix_slow_log_state(sys_var *, THD *thd, enum_var_type) {
   bool new_state = opt_slow_log, res = false;
 

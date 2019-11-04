@@ -236,7 +236,7 @@ void MYSQLerror(YYLTYPE *location, THD *thd, Parse_tree_root **, const char *s)
   if (strcmp(s, "syntax error") == 0) {
     thd->syntax_error_at(*location);
   } else if (strcmp(s, "memory exhausted") == 0) {
-    my_error(ER_OOM, MYF(0));
+    my_error(ER_DA_OOM, MYF(0));
   } else {
     // Find omitted error messages in the generated file (sql_yacc.cc) and fix:
     DBUG_ASSERT(false);
@@ -2931,7 +2931,7 @@ srs_attributes:
           {
             $$ = NEW_PTN Sql_cmd_srs_attributes();
             if (!$$)
-              MYSQL_YYABORT_ERROR(ER_OOM, MYF(0)); /* purecov: inspected */
+              MYSQL_YYABORT_ERROR(ER_DA_OOM, MYF(0)); /* purecov: inspected */
           }
         | srs_attributes NAME_SYM TEXT_STRING_sys_nonewline
           {
