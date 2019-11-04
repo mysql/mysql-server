@@ -195,6 +195,7 @@ int cmp_rec_rec_simple(
 @param[in] offsets1 rec_get_offsets(rec1, index)
 @param[in] offsets2 rec_get_offsets(rec2, index)
 @param[in] index B-tree index
+@param[in] spatial_index_non_leaf true if record is in spatial non leaf page
 @param[in] nulls_unequal true if this is for index cardinality
 statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
@@ -207,17 +208,19 @@ within the first field not completely matched
 @retval positive if rec2 is greater than rec2 */
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
                            const ulint *offsets1, const ulint *offsets2,
-                           const dict_index_t *index, bool nulls_unequal,
+                           const dict_index_t *index,
+                           bool spatial_index_non_leaf, bool nulls_unequal,
                            ulint *matched_fields, bool cmp_btree_recs = true);
 
 /** Compare two B-tree records.
 Only the common first fields are compared, and externally stored field
 are treated as equal.
-@param[in]	rec1		B-tree record
-@param[in]	rec2		B-tree record
-@param[in]	offsets1	rec_get_offsets(rec1, index)
-@param[in]	offsets2	rec_get_offsets(rec2, index)
-@param[in]	index		B-tree index
+@param[in]	rec1			B-tree record
+@param[in]	rec2			B-tree record
+@param[in]	offsets1		rec_get_offsets(rec1, index)
+@param[in]	offsets2		rec_get_offsets(rec2, index)
+@param[in]	index			B-tree index
+@param[in]	spatial_index_non_leaf  true if spatial index non leaf records
 @param[out]	matched_fields	number of completely matched fields
 within the first field not completely matched
 @param[in]  cmp_btree_recs  true if the both the records are b-tree records
@@ -226,7 +229,8 @@ respectively */
 UNIV_INLINE
 int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
                 const ulint *offsets2, const dict_index_t *index,
-                ulint *matched_fields = nullptr, bool cmp_btree_recs = true);
+                bool spatial_index_non_leaf, ulint *matched_fields = nullptr,
+                bool cmp_btree_recs = true);
 
 /** Compare two data fields.
 @param[in] dfield1 data field

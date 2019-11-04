@@ -4294,7 +4294,7 @@ loop:
     across pages, so skip the record compare verification for
     now. Will enhanced in special R-Tree index validation scheme */
     if (!dict_index_is_spatial(index) &&
-        cmp_rec_rec(rec, right_rec, offsets, offsets2, index) >= 0) {
+        cmp_rec_rec(rec, right_rec, offsets, offsets2, index, false) >= 0) {
       btr_validate_report2(index, level, block, right_block);
 
       fputs(

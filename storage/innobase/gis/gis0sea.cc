@@ -1184,8 +1184,8 @@ static bool rtr_cur_restore_position(
           REC_INFO_MIN_REC_FLAG) {
         ut_ad(rec_get_info_bits(rec, comp) & REC_INFO_MIN_REC_FLAG);
       } else {
-        ut_ad(
-            !cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2, index));
+        ut_ad(!cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2, index,
+                           page_is_spatial_non_leaf(rec, index)));
       }
 
       mem_heap_free(heap);
@@ -1251,8 +1251,8 @@ search_again:
         (rec_get_info_bits(rec, comp) & REC_INFO_MIN_REC_FLAG)) {
       r_cursor->m_pos_state = BTR_PCUR_IS_POSITIONED;
       ret = true;
-    } else if (!cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2,
-                            index)) {
+    } else if (!cmp_rec_rec(r_cursor->m_old_rec, rec, offsets1, offsets2, index,
+                            page_is_spatial_non_leaf(rec, index))) {
       r_cursor->m_pos_state = BTR_PCUR_IS_POSITIONED;
       ret = true;
     }
@@ -1742,7 +1742,7 @@ bool rtr_cur_search_with_match(
                                 &heap);
 
       ut_ad(cmp_rec_rec(test_rec.r_rec, last_match_rec, offsets2, offsets,
-                        index) == 0);
+                        index, false) == 0);
 #endif /* UNIV_DEBUG */
       /* Pop the last match record and position on it */
       match_rec->matched_recs->pop_back();

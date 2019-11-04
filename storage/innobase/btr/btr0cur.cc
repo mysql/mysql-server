@@ -1439,6 +1439,7 @@ retry_page_get:
         offsets2 =
             rec_get_offsets(first_rec, index, offsets2, ULINT_UNDEFINED, &heap);
         cmp_rec_rec_with_match(node_ptr, first_rec, offsets, offsets2, index,
+                               page_is_spatial_non_leaf(first_rec, index),
                                FALSE, &matched_fields);
 
         if (matched_fields >= rec_offs_n_fields(offsets) - 1) {
@@ -1453,6 +1454,7 @@ retry_page_get:
           offsets2 = rec_get_offsets(last_rec, index, offsets2, ULINT_UNDEFINED,
                                      &heap);
           cmp_rec_rec_with_match(node_ptr, last_rec, offsets, offsets2, index,
+                                 page_is_spatial_non_leaf(last_rec, index),
                                  FALSE, &matched_fields);
           if (matched_fields >= rec_offs_n_fields(offsets) - 1) {
             detected_same_key_root = true;
@@ -5598,7 +5600,8 @@ bool btr_estimate_number_of_different_key_vals(
                                          ULINT_UNDEFINED, &heap);
 
       cmp_rec_rec_with_match(rec, next_rec, offsets_rec, offsets_next_rec,
-                             index, stats_null_not_equal, &matched_fields);
+                             index, page_is_spatial_non_leaf(next_rec, index),
+                             stats_null_not_equal, &matched_fields);
 
       for (j = matched_fields; j < n_cols; j++) {
         /* We add one if this index record has

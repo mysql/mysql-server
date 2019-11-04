@@ -2116,6 +2116,15 @@ func_exit:
   return (ret);
 }
 
+/** This function checks if the page in which record is present is a
+non-leaf node of a spatial index.
+param[in]	rec	Btree record
+param[in]	index	index
+@return TRUE if ok */
+bool page_is_spatial_non_leaf(const rec_t *rec, dict_index_t *index) {
+  return (dict_index_is_spatial(index) && !page_is_leaf(page_align(rec)));
+}
+
 /** This function checks the consistency of an index page.
  @return true if ok */
 ibool page_validate(
@@ -2232,7 +2241,8 @@ ibool page_validate(
 #ifndef UNIV_HOTBACKUP
     /* Check that the records are in the ascending order */
     if (count >= PAGE_HEAP_NO_USER_LOW && !page_rec_is_supremum(rec)) {
-      int ret = cmp_rec_rec(rec, old_rec, offsets, old_offsets, index);
+      int ret = cmp_rec_rec(rec, old_rec, offsets, old_offsets, index,
+                            page_is_spatial_non_leaf(rec, index));
 
       /* For spatial index, on nonleaf leavel, we
       allow recs to be equal. */

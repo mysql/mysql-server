@@ -915,7 +915,7 @@ static void dict_stats_analyze_index_level(
           rec_get_offsets(prev_rec, index, prev_rec_offsets, n_uniq, &heap);
 
       cmp_rec_rec_with_match(rec, prev_rec, rec_offsets, prev_rec_offsets,
-                             index, FALSE, &matched_fields);
+                             index, false, false, &matched_fields);
 
       for (i = matched_fields; i < n_uniq; i++) {
         if (n_diff_boundaries != nullptr) {
@@ -1136,7 +1136,7 @@ ulint *dict_stats_scan_page(const rec_t **out_rec, ulint *offsets1,
     /* check whether rec != next_rec when looking at
     the first n_prefix fields */
     cmp_rec_rec_with_match(rec, next_rec, offsets_rec, offsets_next_rec, index,
-                           FALSE, &matched_fields);
+                           false, false, &matched_fields);
 
     if (matched_fields < n_prefix) {
       /* rec != next_rec, => rec is non-boring */
