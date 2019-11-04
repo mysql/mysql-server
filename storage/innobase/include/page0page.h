@@ -1172,6 +1172,16 @@ page_warn_strict_checksum(
 	srv_checksum_algorithm_t	page_checksum,
 	const page_id_t&		page_id);
 
+/** This function checks if the page in which record is present is a
+non-leaf node of a spatial index.
+param[in]       rec     Btree record
+param[in]       index   index
+@return TRUE if ok */
+bool page_is_spatial_non_leaf(
+/*==========================*/
+	const rec_t* rec,/*!< in: Btree record */
+	dict_index_t* index);/*!< in: index */
+
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL

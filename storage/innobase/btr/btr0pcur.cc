@@ -321,7 +321,7 @@ btr_pcur_restore_position_func(
 
 				ut_ad(!cmp_rec_rec(cursor->old_rec,
 						   rec, offsets1, offsets2,
-						   index));
+						   index,page_is_spatial_non_leaf(rec, index)));
 				mem_heap_free(heap);
 #endif /* UNIV_DEBUG */
 				return(TRUE);
