@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -78,13 +78,15 @@ cmp_rec_rec(
 	const ulint*		offsets1,
 	const ulint*		offsets2,
 	const dict_index_t*	index,
+	bool			spatial_index_non_leaf,
 	ulint*			matched_fields)
 {
 	ulint	match_f;
 	int	ret;
 
 	ret = cmp_rec_rec_with_match(
-		rec1, rec2, offsets1, offsets2, index, false, &match_f);
+		rec1, rec2, offsets1, offsets2, index,
+		spatial_index_non_leaf ,false, &match_f);
 
 	if (matched_fields != NULL) {
 		*matched_fields = match_f;

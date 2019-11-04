@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1120,6 +1120,7 @@ cmp_rec_rec_simple(
 @param[in] offsets1 rec_get_offsets(rec1, index)
 @param[in] offsets2 rec_get_offsets(rec2, index)
 @param[in] index B-tree index
+@param[in] spatial_index_non_leaf true if record present in spatial index non leaf
 @param[in] nulls_unequal true if this is for index cardinality
 statistics estimation, and innodb_stats_method=nulls_unequal
 or innodb_stats_method=nulls_ignored
@@ -1136,6 +1137,7 @@ cmp_rec_rec_with_match(
 	const ulint*		offsets1,
 	const ulint*		offsets2,
 	const dict_index_t*	index,
+	bool			spatial_index_non_leaf,
 	bool			nulls_unequal,
 	ulint*			matched_fields)
 {
@@ -1196,12 +1198,22 @@ cmp_rec_rec_with_match(
 			mtype = DATA_BINARY;
 			prtype = 0;
 		} else {
-			const dict_col_t*	col;
+			/* When the page is non-leaf spatial index page
+			we should not depend upon the dictionary information because the
+			page doesnt hold any primary key information. The non leaf node
+			of a spatial index has only two fields 1)MBR 2)page number of
+			child node. */
 
-			col	= dict_index_get_nth_col(index, cur_field);
-
-			mtype = col->mtype;
-			prtype = col->prtype;
+			if ((cur_field == 1) && spatial_index_non_leaf) {
+				ut_ad(dict_index_is_spatial(index));
+				mtype = DATA_SYS_CHILD;
+				prtype = 0;
+			} else {
+				const dict_col_t* col;
+				col= dict_index_get_nth_col(index, cur_field);
+				mtype = col->mtype;
+				prtype = col->prtype;
+			}
 
 			/* If the index is spatial index, we mark the
 			prtype of the first field as MBR field. */
