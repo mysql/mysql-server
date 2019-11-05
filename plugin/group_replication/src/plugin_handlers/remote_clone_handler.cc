@@ -406,6 +406,14 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
   // The stop process will leave the group
   if (get_server_shutdown_status()) return 0;
 
+  Replication_thread_api applier_channel("group_replication_applier");
+  if (!critical_error && !applier_channel.is_applier_thread_running() &&
+      applier_channel.start_threads(false, true, NULL, false)) {
+    abort_plugin_process(
+        "The plugin was not able to start the group_replication_applier "
+        "channel.");
+    return 1;
+  }
   // If it failed to (re)connect to the server or the set read only query
   if (!sql_command_interface->is_session_valid() ||
       sql_command_interface->set_super_read_only()) {
@@ -627,6 +635,10 @@ void Remote_clone_handler::gr_clone_debug_point() {
         "signal.gr_clone_thd_continue";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
+  DBUG_EXECUTE_IF("gr_clone_before_applier_stop", {
+    const char act[] = "now wait_for applier_stopped";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 }
 #endif /* DBUG_OFF */
 
@@ -636,18 +648,21 @@ void Remote_clone_handler::gr_clone_debug_point() {
   std::string username;
   std::string password;
   Replication_thread_api recovery_channel("group_replication_recovery");
+  Replication_thread_api applier_channel("group_replication_applier");
   bool empty_donor_list = false;
   bool critical_error = false;
   int number_attempts = 0;
   int number_servers = 0;
 
   // Initialize the MySQL thread infrastructure.
-  m_clone_thd = new THD;
+  THD *thd = new THD;
+  m_clone_thd = thd;
   my_thread_init();
-  m_clone_thd->set_new_thread_id();
-  m_clone_thd->thread_stack = reinterpret_cast<const char *>(&m_clone_thd);
-  m_clone_thd->store_globals();
-  global_thd_manager_add_thd(m_clone_thd);
+  thd->set_new_thread_id();
+  thd->thread_stack = reinterpret_cast<const char *>(&thd);
+  thd->store_globals();
+  thd->security_context()->skip_grants();
+  global_thd_manager_add_thd(thd);
 
   Plugin_stage_monitor_handler stage_handler;
   if (stage_handler.initialize_stage_monitor()) {
@@ -724,6 +739,22 @@ void Remote_clone_handler::gr_clone_debug_point() {
       goto thd_end;
       /* purecov: end */
     }
+
+#ifndef DBUG_OFF
+  gr_clone_debug_point();
+#endif /* DBUG_OFF */
+  // Ignore any channel stop error and confirm channel is stopped or not.
+  // Since we will clone next.
+  applier_channel.stop_threads(false, true);
+  if (applier_channel.is_applier_thread_running()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CLONE_PROCESS_PREPARE_ERROR,
+                 "The plugin was not able to stop the "
+                 "group_replication_applier channel.");
+    error = 1;
+    goto thd_end;
+    /* purecov: end */
+  }
 
   number_attempts = 1;
   mysql_mutex_lock(&m_donor_list_lock);
@@ -823,10 +854,11 @@ thd_end:
   stage_handler.terminate_stage_monitor();
 
   mysql_mutex_lock(&m_run_lock);
-  m_clone_thd->release_resources();
-  global_thd_manager_remove_thd(m_clone_thd);
-  delete m_clone_thd;
+  thd->release_resources();
+  global_thd_manager_remove_thd(thd);
+  delete thd;
   m_clone_thd = nullptr;
+  thd = nullptr;
   m_clone_process_thd_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);

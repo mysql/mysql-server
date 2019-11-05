@@ -158,6 +158,11 @@ Log_event *Rpl_applier_reader::read_next_event() {
   */
   mysql_mutex_assert_owner(&m_rli->data_lock);
 
+  DBUG_EXECUTE_IF("block_applier_updates", {
+    const char act[] =
+        "now SIGNAL applier_read_blocked WAIT_FOR resume_applier_read";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
   DBUG_EXECUTE_IF("force_sql_thread_error", return nullptr;);
 
   if (m_reading_active_log &&
