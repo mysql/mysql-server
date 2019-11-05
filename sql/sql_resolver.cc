@@ -2106,6 +2106,68 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
 }
 
 /**
+  Fix used tables information for a subquery after query transformations.
+  This is for transformations where the subquery remains a subquery - it is
+  not merged, it merely moves up by effect of a transformation on a containing
+  query block.
+  Most actions here involve re-resolving information for conditions
+  and items belonging to the subquery.
+  If the subquery contains an outer reference into removed_select or
+  parent_select, the relevant information is updated by
+  Item_ident::fix_after_pullout().
+*/
+void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
+                                        SELECT_LEX *removed_select)
+
+{
+  // Go through all query specification objects of the subquery and re-resolve
+  // all relevant expressions belonging to them.
+  for (SELECT_LEX *sel = first_select(); sel; sel = sel->next_select()) {
+    sel->fix_after_pullout(parent_select, removed_select);
+  }
+  // @todo figure out if we need to do it for fake_select_lex too.
+}
+
+/// @see SELECT_LEX_UNIT::fix_after_pullout
+void SELECT_LEX::fix_after_pullout(SELECT_LEX *parent_select,
+                                   SELECT_LEX *removed_select) {
+  if (where_cond())
+    where_cond()->fix_after_pullout(parent_select, removed_select);
+
+  /*
+    User-created join conditions cannot have any outer reference, but
+    derived table merging changes WHERE to a join condition, which thus can
+    have an outer reference. So we have to call fix_after_pullout() on join
+    conditions. The reference may also be located in a derived table used by
+    this subquery. fix_tables_after_pullout() will handle the two cases.
+    table_adjust is 0 because we're not merging these tables up;
+    lateral_deps_tables is unused as the unit's m_lateral_deps will contain
+    necessary information for callers (see fix_tables_after_pullout()).
+  */
+  table_map unused;
+  for (TABLE_LIST *tr : top_join_list) {
+    fix_tables_after_pullout(parent_select, removed_select, tr,
+                             /*table_adjust=*/0,
+                             /*lateral_dep_tables=*/&unused);
+  }
+
+  if (having_cond())
+    having_cond()->fix_after_pullout(parent_select, removed_select);
+
+  List_iterator<Item> li(item_list);
+  Item *item;
+  while ((item = li++)) item->fix_after_pullout(parent_select, removed_select);
+
+  /* Re-resolve ORDER BY and GROUP BY fields */
+
+  for (ORDER *order = order_list.first; order; order = order->next)
+    (*order->item)->fix_after_pullout(parent_select, removed_select);
+
+  for (ORDER *group = group_list.first; group; group = group->next)
+    (*group->item)->fix_after_pullout(parent_select, removed_select);
+}
+
+/**
  Remove SJ outer/inner expressions.
 
  @param nested_join         join nest

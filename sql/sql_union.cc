@@ -1868,54 +1868,6 @@ bool SELECT_LEX_UNIT::mixed_union_operators() const {
   return union_distinct && union_distinct->next_select();
 }
 
-/**
-  Fix used tables information for a subquery after query transformations.
-  Most actions here involve re-resolving information for conditions
-  and items belonging to the subquery.
-  Notice that the usage information from underlying expressions is not
-  propagated to the subquery's predicate/table, as it belongs to inner layers
-  of the query operator structure.
-  However, when underlying expressions contain outer references into
-  a select_lex on this level, the relevant information must be updated
-  when these expressions are resolved.
-*/
-void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
-                                        SELECT_LEX *removed_select)
-
-{
-  /*
-    Go through all query specification objects of the subquery and re-resolve
-    all relevant expressions belonging to them.
-    Item_ident::fix_after_pullout() will update used_tables for the Item_ident
-    and also for its containing subqueries.
-  */
-  for (SELECT_LEX *sel = first_select(); sel; sel = sel->next_select()) {
-    if (sel->where_cond())
-      sel->where_cond()->fix_after_pullout(parent_select, removed_select);
-
-    if (sel->having_cond())
-      sel->having_cond()->fix_after_pullout(parent_select, removed_select);
-
-    List_iterator<Item> li(sel->item_list);
-    Item *item;
-    while ((item = li++))
-      item->fix_after_pullout(parent_select, removed_select);
-
-    /*
-      No need to call fix_after_pullout() for outer-join conditions, as these
-      cannot have outer references.
-    */
-
-    /* Re-resolve ORDER BY and GROUP BY fields */
-
-    for (ORDER *order = sel->order_list.first; order; order = order->next)
-      (*order->item)->fix_after_pullout(parent_select, removed_select);
-
-    for (ORDER *group = sel->group_list.first; group; group = group->next)
-      (*group->item)->fix_after_pullout(parent_select, removed_select);
-  }
-}
-
 bool SELECT_LEX_UNIT::walk(Item_processor processor, enum_walk walk,
                            uchar *arg) {
   for (auto select = first_select(); select != nullptr;
