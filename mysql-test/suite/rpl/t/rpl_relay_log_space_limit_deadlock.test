@@ -23,6 +23,7 @@
 # Bug#29842426: MUTEX DEADLOCK BETWEEN LOG_SPACE_LOCK AND LOCK_BINLOG_END_POS
 #
 
+--source include/have_debug_sync.inc
 # this issue only happened on MTS
 --source include/only_mts_slave_parallel_workers.inc
 --source include/master-slave.inc
