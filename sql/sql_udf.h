@@ -72,9 +72,11 @@ struct Udf_args_extension {
   the extension attributes of return value.
 */
 struct Udf_return_value_extension {
-  Udf_return_value_extension(const CHARSET_INFO *charset_info = nullptr)
-      : charset_info(charset_info) {}
+  Udf_return_value_extension(const CHARSET_INFO *charset_info = nullptr,
+                             Item_result result_type = INVALID_RESULT)
+      : charset_info(charset_info), result_type(result_type) {}
   const CHARSET_INFO *charset_info;
+  Item_result result_type;
 };
 
 class udf_handler {

@@ -41,6 +41,11 @@ DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::argument_set,
                     unsigned int index, void *in_value)) {
   DBUG_ASSERT(udf_args && udf_args->extension && in_value &&
               index < udf_args->arg_count);
+
+  if (*(udf_args->arg_type) != Item_result::STRING_RESULT) {
+    my_error(ER_DA_UDF_INVALID_ARGUMENT_TO_SET_CHARSET, MYF(0));
+    return true;
+  }
   auto *char_set_name = pointer_cast<const char *>(in_value);
   auto *x = pointer_cast<Udf_args_extension *>(udf_args->extension);
   if (!my_strcasecmp(system_charset_info, consts::charset.c_str(),
@@ -70,6 +75,10 @@ DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::result_set,
                     void *in_value)) {
   DBUG_ASSERT(udf_init && udf_init->extension && in_value);
   auto *x = pointer_cast<Udf_return_value_extension *>(udf_init->extension);
+  if (x->result_type != Item_result::STRING_RESULT) {
+    my_error(ER_DA_UDF_INVALID_RETURN_TYPE_TO_SET_CHARSET, MYF(0));
+    return true;
+  }
   auto *char_set_name = pointer_cast<char *>(in_value);
   if (!my_strcasecmp(system_charset_info, consts::charset.c_str(),
                      extension_type)) {

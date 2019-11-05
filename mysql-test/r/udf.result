@@ -248,6 +248,10 @@ select distinct avgcost(sum,price) from t1 order by avgcost(sum,price);
 avgcost(sum,price)
 NULL
 drop table t1;
+myfunc_int(20)
+20
+myfunc_double(20)
+49.00
 DROP FUNCTION metaphon;
 DROP FUNCTION myfunc_double;
 DROP FUNCTION myfunc_nonexist;

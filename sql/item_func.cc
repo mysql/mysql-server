@@ -3897,7 +3897,7 @@ udf_handler::udf_handler(udf_func *udf_arg)
       is_null(0),
       initialized(false),
       m_args_extension(),
-      m_return_value_extension(&my_charset_bin),
+      m_return_value_extension(&my_charset_bin, result_type()),
       not_original(false) {}
 
 udf_handler::~udf_handler() {
@@ -4098,8 +4098,13 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     if (!initid.const_item && used_tables_cache == 0)
       used_tables_cache = RAND_TABLE_BIT;
     func->decimals = min<uint>(initid.decimals, DECIMAL_NOT_SPECIFIED);
-    func->set_data_type_string(func->max_length,
-                               m_return_value_extension.charset_info);
+    /*
+      For UDFs of type string, override character set and collation from
+      return value extension specification.
+    */
+    if (result_type() == STRING_RESULT)
+      func->set_data_type_string(func->max_length,
+                                 m_return_value_extension.charset_info);
   }
   initialized = true;
   /*

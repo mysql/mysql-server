@@ -26,5 +26,10 @@ latin1
 SELECT CHARSET(group_replication_switch_to_multi_primary_mode());
 CHARSET(group_replication_switch_to_multi_primary_mode())
 latin1
+group_replication_get_write_concurrency()
+10
+SELECT CHARSET(group_replication_get_write_concurrency());
+CHARSET(group_replication_get_write_concurrency())
+binary
 ###############################################################################
 include/group_replication_end.inc

@@ -39,6 +39,10 @@ SELECT CHARSET(group_replication_set_write_concurrency(15));
 
 # Check the charset returned by the UDF
 SELECT CHARSET(group_replication_switch_to_multi_primary_mode());
+# Check that UDF returns value in decimal since it returns INT
+--exec $MYSQL --binary-as-hex=TRUE -e "SELECT group_replication_get_write_concurrency()"
+# Character set of the return value
+SELECT CHARSET(group_replication_get_write_concurrency());
 --echo ###############################################################################
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1
