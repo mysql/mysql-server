@@ -248,6 +248,13 @@ select distinct avgcost(sum,price) from t1 order by avgcost(sum,price);
 drop table t1;
 
 #
+# Bug#30499132 UDF'S RETURNING STRING EVEN THOUGH RETURN TYPE IS NON-STRING
+#
+
+--exec $MYSQL --binary-as-hex=TRUE -e "SELECT myfunc_int(20)";
+--exec $MYSQL --binary-as-hex=TRUE -e "SELECT myfunc_double(20)";
+
+#
 # Drop the example functions from udf_example
 #
 
