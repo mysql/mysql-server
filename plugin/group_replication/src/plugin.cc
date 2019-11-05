@@ -1550,6 +1550,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   log_bs = nullptr;
   if (init_logging_service_for_plugin(&lv.reg_srv, &log_bi, &log_bs)) return 1;
 
+  if (Charset_service::init(lv.reg_srv)) return 1;
+
 // Register all PSI keys at the time plugin init
 #ifdef HAVE_PSI_INTERFACE
   register_all_group_replication_psi_keys();
@@ -1778,6 +1780,8 @@ int plugin_group_replication_deinit(void *p) {
   lv.online_wait_mutex = nullptr;
 
   lv.plugin_info_ptr = nullptr;
+
+  Charset_service::deinit(lv.reg_srv);
 
   deinit_logging_service_for_plugin(&lv.reg_srv, &log_bi, &log_bs);
 

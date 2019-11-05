@@ -92,7 +92,7 @@ udf_descriptor get_write_concurrency_udf() {
 const char *const value_outside_domain_str =
     "Argument must be between %" PRIu32 " and %" PRIu32 ".";
 
-static bool group_replication_set_write_concurrency_init(UDF_INIT *,
+static bool group_replication_set_write_concurrency_init(UDF_INIT *initid,
                                                          UDF_ARGS *args,
                                                          char *message) {
   bool constexpr failure = true;
@@ -154,6 +154,8 @@ static bool group_replication_set_write_concurrency_init(UDF_INIT *,
       goto end;
     }
   }
+  if (Charset_service::set_return_value_charset(initid)) goto end;
+
   result = success;
   udf_counter.succeeded();
 end:

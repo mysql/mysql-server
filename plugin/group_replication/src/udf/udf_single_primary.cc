@@ -162,6 +162,10 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
     return true;
   }
 
+  if (Charset_service::set_return_value_charset(init_id) ||
+      Charset_service::set_args_charset(args))
+    return true;
+
   init_id->maybe_null = false;
   udf_counter.succeeded();
   return false;
@@ -312,6 +316,9 @@ static bool group_replication_switch_to_single_primary_mode_init(
       }
     }
   }
+  if (Charset_service::set_return_value_charset(initid) ||
+      Charset_service::set_args_charset(args))
+    return true;
 
   initid->maybe_null = false;
   udf_counter.succeeded();
