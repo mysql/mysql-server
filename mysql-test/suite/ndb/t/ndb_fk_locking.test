@@ -57,33 +57,36 @@ rollback;
 alter table child drop foreign key fkname;
 
 #
-# But if you use no action instead of restrict
-#   it works fine
+# But if you use noaction instead of restrict
+# the fk constraints are checked only during the commit phase.
 #
 alter table child add constraint fkname foreign key (parent_id) references parent (id);
 
 connection con1;
-START TRANSACTION; # session1
+START TRANSACTION; # session1 - transaction T1
 
 connection con2;
-START TRANSACTION; # session2
+START TRANSACTION; # session2 - transaction T2
 
-# session1
 connection con1;
 UPDATE child SET parent_id = 5 WHERE parent_id = 4;
 
-#session2
 connection con2;
 UPDATE parent SET bogus_column = 'new!' WHERE id = 4;
 
-#session2
 connection con2;
 UPDATE parent SET bogus_column = 'new!' WHERE id = 5;
 
 connection con1;
+--echo # Commit now tries to acquire a SimpleRead lock on the parent table row
+--echo # to verify the FK constraint. But since T2 already has the exclusive
+--echo # lock on the same parent table row, this commit should fail.
+--error ER_LOCK_WAIT_TIMEOUT
 commit;
 
 connection con2;
+--echo # Now T2's commit should be able to get locks on child table row
+--echo # as T1 has ended and locks on child table have been released.
 commit;
 
 drop table child, parent;
@@ -101,5 +104,103 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1, 1);
 DELETE FROM t1 WHERE id = 1;
-
 drop table t1;
+
+
+--echo #
+--echo # Bug#22180583 - Incorrect locking of FK Child table scan check.
+--echo #
+
+--echo # Create parent and child tables with fks
+create table parent(
+  id int primary key
+)engine = ndb;
+
+create table child(
+  id int primary key auto_increment,
+  ref_oi int,
+  ref_uk int unique key,
+  foreign key fk1(ref_oi) references parent(id),
+  foreign key fk2(ref_uk) references parent(id)
+)engine = ndb;
+
+insert into parent values (1);
+
+--echo Test 1: Test FK locking with ordered index on child column
+
+--echo # Transaction T1 inserts child row
+connection con1;
+start transaction;
+insert into child(ref_oi) values(1);
+
+--echo # Delete parent from parallel transaction T2.
+--echo # This should fail because T2 tries to take a SimpleRead on child row.
+--echo # T2 cannot acquire lock because T1 has not yet unlocked child row.
+connection con2;
+--error 1205
+delete from parent where id = 1;
+connection con1;
+commit;
+
+--echo # Show that FK reference intact
+select * from parent;
+select * from child;
+
+delete from child;
+
+--echo Test 2: Test FK locking with unique index on child column
+
+--echo # Transaction T1 inserts child row with delayed commit (error insert 5012)
+start transaction;
+insert into child(ref_uk) values(1);
+
+--echo # Delete parent from parallel transaction T2.
+connection con2;
+--error 1205
+delete from parent where id = 1;
+connection con1;
+commit;
+
+--echo # Show that FK reference intact
+select * from parent;
+select * from child;
+
+drop table child, parent;
+
+#--echo # Test takes too long, so commented out
+#--echo # Test 3: Run INSERT(child)/DELETE(parent) load
+#--echo #
+#
+#--echo # Check for orphaned child rows with concurrent queries
+#--echo # Run multiple concurrent INSERT(child) + DELETE(parent)
+#--echo # to interleave parent deletion and child insertion ops
+#
+#--echo # Create parent and child tables
+#create table parent (
+#  id int primary key
+#) engine=ndb;
+#
+#create table child (
+#  id int primary key,
+#  ref int
+#) engine=ndb;
+#
+#--echo # Create FK on ref referencing parent's id.
+#alter table child add constraint fkref foreign key (ref) references parent (id) on update restrict on delete restrict;
+#
+#--source suite/ndb/t/ndb_fk_parallel_locking.inc
+#
+#--echo # Now create a key on the child column and repeat the tests
+#create index ordered_idx on child(ref);
+#delete from child;
+#delete from parent;
+#--source suite/ndb/t/ndb_fk_parallel_locking.inc
+#
+#create unique index unique_idx on child(ref);
+#delete from child;
+#delete from parent;
+#--source suite/ndb/t/ndb_fk_parallel_locking.inc
+#
+#--echo # Cleanup tables
+#drop table child;
+#drop table parent;
