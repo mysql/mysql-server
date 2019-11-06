@@ -20510,10 +20510,6 @@ Dbtc::fk_readFromChildTable(Signal* signal,
     return;
   }
 
-  /**
-   * Access child does never need lock...
-   *   as parent is read with lock
-   */
   Uint16 flags = TcConnectRecord::SOF_TRIGGER;
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   Uint32 gsn = GSN_TCKEYREQ;
@@ -20531,8 +20527,21 @@ Dbtc::fk_readFromChildTable(Signal* signal,
     if (!transPtr->p->isExecutingDeferredTriggers())
       regApiPtr->currSavePointId = opRecord->savePointId+1;
 
-    flags |= TcConnectRecord::SOF_FK_READ_COMMITTED;
+   /*
+    * Foreign key triggers =
+    *     on DELETE/UPDATE(parent) -> READ/SCAN(child) with lock
+    *     on INSERT/UPDATE(child)  -> READ(parent) with lock
+    *
+    * FK checks require a consistent read of 2 or more rows, which
+    * require row locks in Ndb.  The most lightweight row locks available
+    * are SimpleRead which takes a shared row lock for the duration of the
+    * read at LDM.
+    *
+    * Minimal lock mode for correctness = SimpleRead(parent)+SimpleRead(child)
+    */
     TcKeyReq::setSimpleFlag(tcKeyRequestInfo, 1);
+    /* Read child row using SimpleRead lock */
+    TcKeyReq::setDirtyFlag(tcKeyRequestInfo, 0);
   }
   else
   {
@@ -20828,10 +20837,10 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   ScanTabReq::setNoDiskFlag(ri, 1);
   if (op == ZREAD)
   {
+    /* Scan child table using SimpleRead lock */
     ScanTabReq::setScanBatch(ri, 1);
     ScanTabReq::setLockMode(ri, 0);
     ScanTabReq::setHoldLockFlag(ri, 0);
-    ScanTabReq::setReadCommittedFlag(ri, 1);
     ScanTabReq::setKeyinfoFlag(ri, 0);
   }
   else
@@ -20839,9 +20848,9 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
     ScanTabReq::setScanBatch(ri, 16);
     ScanTabReq::setLockMode(ri, 1);
     ScanTabReq::setHoldLockFlag(ri, 1);
-    ScanTabReq::setReadCommittedFlag(ri, 0);
     ScanTabReq::setKeyinfoFlag(ri, 1);
   }
+  ScanTabReq::setReadCommittedFlag(ri, 0);
   ScanTabReq::setDistributionKeyFlag(ri, 0);
   ScanTabReq::setViaSPJFlag(ri, 0);
   ScanTabReq::setPassAllConfsFlag(ri, 0);
@@ -21678,11 +21687,9 @@ Dbtc::fk_readFromParentTable(Signal* signal,
       transPtr->p->isExecutingDeferredTriggers())
   {
     jam();
-    /**
-     * We don't need any locks here
-     */
-    flags |= TcConnectRecord::SOF_FK_READ_COMMITTED;
+    /* Read parent row using SimpleRead locking */
     TcKeyReq::setSimpleFlag(tcKeyRequestInfo, 1);
+    TcKeyReq::setDirtyFlag(tcKeyRequestInfo, 0);
   }
 
   TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);

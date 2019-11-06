@@ -31,7 +31,13 @@ START TRANSACTION;
 UPDATE child SET parent_id = 5 WHERE parent_id = 4;
 UPDATE parent SET bogus_column = 'new!' WHERE id = 4;
 UPDATE parent SET bogus_column = 'new!' WHERE id = 5;
+# Commit now tries to acquire a SimpleRead lock on the parent table row
+# to verify the FK constraint. But since T2 already has the exclusive
+# lock on the same parent table row, this commit should fail.
 commit;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Now T2's commit should be able to get locks on child table row
+# as T1 has ended and locks on child table have been released.
 commit;
 drop table child, parent;
 CREATE TABLE t1 (
@@ -47,3 +53,52 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 INSERT INTO t1 VALUES (1, 1);
 DELETE FROM t1 WHERE id = 1;
 drop table t1;
+#
+# Bug#22180583 - Incorrect locking of FK Child table scan check.
+#
+# Create parent and child tables with fks
+create table parent(
+id int primary key
+)engine = ndb;
+create table child(
+id int primary key auto_increment,
+ref_oi int,
+ref_uk int unique key,
+foreign key fk1(ref_oi) references parent(id),
+foreign key fk2(ref_uk) references parent(id)
+)engine = ndb;
+insert into parent values (1);
+Test 1: Test FK locking with ordered index on child column
+# Transaction T1 inserts child row
+start transaction;
+insert into child(ref_oi) values(1);
+# Delete parent from parallel transaction T2.
+# This should fail because T2 tries to take a SimpleRead on child row.
+# T2 cannot acquire lock because T1 has not yet unlocked child row.
+delete from parent where id = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+# Show that FK reference intact
+select * from parent;
+id
+1
+select * from child;
+id	ref_oi	ref_uk
+1	1	NULL
+delete from child;
+Test 2: Test FK locking with unique index on child column
+# Transaction T1 inserts child row with delayed commit (error insert 5012)
+start transaction;
+insert into child(ref_uk) values(1);
+# Delete parent from parallel transaction T2.
+delete from parent where id = 1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+# Show that FK reference intact
+select * from parent;
+id
+1
+select * from child;
+id	ref_oi	ref_uk
+2	NULL	1
+drop table child, parent;
