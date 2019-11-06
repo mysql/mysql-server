@@ -120,9 +120,15 @@ public:
   int getMasterNodeId();
   int getNextMasterNodeId(int nodeId);
   int getNodeGroup(int nodeId);
-  int getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_ptr = NULL);
+  int getNodeGroups(Vector<int>& node_groups,
+                    int * max_alive_replicas_ptr = nullptr);
+  int getNumNodeGroups();
+  int getNumReplicas();
+  int getMaxConcurrentNodeFailures();
+  int getMaxFailedNodes();
   int getRandomNodeSameNodeGroup(int nodeId, int randomNumber);
   int getRandomNodeOtherNodeGroup(int nodeId, int randomNumber);
+  int getRandomNodePreferOtherNodeGroup(int nodeId, int randomNumber);
   int getRandomNotMasterNodeId(int randomNumber);
 
   int getMasterNodeVersion(int& version);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,12 +35,15 @@
  * For example:
  *  Node restart:         Restart one node in the cluster.
  *  System restart:       Restart all nodes in the cluster.
- *  Node crash:           Crash one node in the middle of execution and bring it up again.
- *  Multiple node crash:  Crash multiple nodes with a few seconds or milliseconds delay between.
- *  Initial node restart: Restart one node in the cluster without a filesystem on disk.
+ *  Node crash:           Crash one node in the middle of execution and bring
+                          it up again.
+ *  Multiple node crash:  Crash multiple nodes with a few seconds or
+                          milliseconds delay between.
+ *  Initial node restart: Restart one node in the cluster without a filesystem
+                          on disk.
  *  
- * Each restart type is represented by a NdbRestart class and a collection of these are stored 
- * in the NdbRestarts class.
+ * Each restart type is represented by a NdbRestart class and a collection
+ * of these are stored in the NdbRestarts class.
  *
  * This class may be used from other programs to execute a particular restart.
  *
@@ -70,13 +73,13 @@ public:
 	       NdbRestartType _type,
 	       restartFunc* _func,
 	       int _requiredNodes,
-	       int _arg1 = -1);
+	       int _requiredNodeGroups);
 	       
     const char * m_name;
     NdbRestartType m_type;
     restartFunc* m_restartFunc;
     int m_numRequiredNodes;
-    int m_arg1;
+    int m_numRequiredNodeGroups;
 
   };
 
@@ -119,15 +122,5 @@ private:
 
   NdbRestarter m_restarter;
 };
-
-
-
-
-
-
-
-
-
-
 
 #endif
