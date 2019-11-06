@@ -80,7 +80,7 @@ class TimingIterator final : public RowIterator {
     // crashes.
     return std::chrono::time_point_cast<std::chrono::nanoseconds>(
         steady_clock::now());
-#elif __linux__
+#elif defined(__linux__)
     // Work around very slow libstdc++ implementations of std::chrono
     // (those compiled with _GLIBCXX_USE_CLOCK_GETTIME_SYSCALL).
     timespec tp;
