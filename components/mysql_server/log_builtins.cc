@@ -2122,8 +2122,9 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
       dir = '+';
       tim = -tim;
     }
-    snprintf(tzinfo, sizeof(tzinfo), "%c%02d:%02d", dir, (int)(tim / (60 * 60)),
-             (int)((tim / 60) % 60));
+    snprintf(tzinfo, sizeof(tzinfo), "%c%02u:%02u", dir,
+             (unsigned int)((tim / (60 * 60)) % 100),
+             (unsigned int)((tim / 60) % 60));
   } else {
     DBUG_ASSERT(false);
   }
