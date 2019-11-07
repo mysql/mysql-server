@@ -7089,9 +7089,9 @@ static bool comparable_in_index(Item *cond_func, const Field *field,
        field->match_collation_to_optimize_range() &&
        value->result_type() == STRING_RESULT && itype == Field::itRAW &&
        field->charset() != cond_func->compare_collation() &&
-       !(cond_func->compare_collation()->state & MY_CS_BINSORT &&
-         (comp_type == Item_func::EQUAL_FUNC ||
-          comp_type == Item_func::EQ_FUNC))))
+       !((comp_type == Item_func::EQUAL_FUNC ||
+          comp_type == Item_func::EQ_FUNC) &&
+         cond_func->compare_collation()->state & MY_CS_BINSORT)))
     return false;
 
   /*
