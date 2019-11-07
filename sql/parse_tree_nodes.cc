@@ -558,8 +558,16 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
 
   thd->lex->sql_command = m_sql_command;
 
-  if (m_qe->contextualize(&pc) || contextualize_safe(&pc, m_into))
+  if (m_qe->contextualize(&pc)) {
     return nullptr;
+  }
+  if (m_into != nullptr && m_qe->has_into_clause()) {
+    my_error(ER_MULTIPLE_INTO_CLAUSES, MYF(0));
+    return nullptr;
+  }
+  if (contextualize_safe(&pc, m_into)) {
+    return nullptr;
+  }
 
   if (thd->lex->sql_command == SQLCOM_SELECT)
     return new (thd->mem_root) Sql_cmd_select(thd->lex->result);
@@ -1215,6 +1223,12 @@ bool PT_union::contextualize(Parse_context *pc) {
   pc->select = pc->thd->lex->new_union_query(pc->select, m_is_distinct);
 
   if (pc->select == nullptr || m_rhs->contextualize(pc)) return true;
+
+  if (m_rhs->is_union()) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "nesting of unions at the right-hand side");
+    return true;
+  }
 
   pc->thd->lex->pop_context();
   return false;
@@ -3033,6 +3047,11 @@ bool PT_subquery::contextualize(Parse_context *pc) {
   if (m_is_derived_table) child->linkage = DERIVED_TABLE_TYPE;
 
   if (qe->contextualize(&inner_pc)) return true;
+
+  if (qe->has_into_clause()) {
+    my_error(ER_MISPLACED_INTO, MYF(0));
+    return true;
+  }
 
   select_lex = inner_pc.select->master_unit()->first_select();
 

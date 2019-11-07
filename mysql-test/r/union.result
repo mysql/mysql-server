@@ -1601,7 +1601,7 @@ SELECT a FROM (SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY c) AS test;
 ERROR 42S22: Unknown column 'c' in 'order clause'
 DROP TABLE t1;
 (select 1 into @var) union (select 1);
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 (select 1) union (select 1 into @var);
 select @var;
 @var
@@ -1744,11 +1744,11 @@ SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
 SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 # Tests fix in parser rule query_expression_body.
 SELECT ( SELECT a UNION SELECT a ) INTO @v FROM t1;
 SELECT ( SELECT a UNION SELECT a ) INTO OUTFILE  'union.out.file3' FROM t1;
