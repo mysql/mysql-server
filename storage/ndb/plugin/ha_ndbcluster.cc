@@ -170,7 +170,7 @@ static MYSQL_THDVAR_UINT(
     "Specify number of autoincrement values that are prefetched.",
     NULL,  /* check func. */
     NULL,  /* update func. */
-    1,     /* default */
+    512,   /* default */
     1,     /* min */
     65535, /* max */
     0      /* block */
@@ -9513,6 +9513,59 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d, stored: %d",
                         field->field_name, field->real_type(),
                         field->pack_length(), field->stored_in_db));
+    if ((field->auto_flags & Field::NEXT_NUMBER) &&
+        !ndb_name_is_temp(m_tabname)) {
+      uint64 max_field_memory;
+      switch (field->pack_length()) {
+        case 1:
+          if (field->unsigned_flag) {
+            max_field_memory = UINT_MAX8;
+          } else {
+            max_field_memory = INT_MAX8;
+          }
+          break;
+        case 2:
+          if (field->unsigned_flag) {
+            max_field_memory = UINT_MAX16;
+          } else {
+            max_field_memory = INT_MAX16;
+          }
+          break;
+        case 3:
+          if (field->unsigned_flag) {
+            max_field_memory = UINT_MAX24;
+          } else {
+            max_field_memory = INT_MAX24;
+          }
+          break;
+        case 4:
+          if (field->unsigned_flag) {
+            max_field_memory = UINT_MAX32;
+          } else {
+            max_field_memory = INT_MAX32;
+          }
+          break;
+        case 8:
+        default:
+          if (field->unsigned_flag) {
+            max_field_memory = UINT_MAX64;
+          } else {
+            max_field_memory = INT_MAX64;
+          }
+          break;
+      }
+      unsigned int autoinc_prefetch = THDVAR(thd, autoincrement_prefetch_sz);
+      // If autoincrement_prefetch_sz is greater than the max value of the
+      // column than the first insert query in the second mysqld will fail.
+      if (max_field_memory < (uint64)autoinc_prefetch) {
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING, ER_WRONG_FIELD_SPEC,
+            "Max value for column %s in table %s.%s is less than "
+            "autoincrement prefetch size. Please decrease "
+            "ndb_autoincrement_prefetch_sz",
+            field->field_name, m_dbname, m_tabname);
+      }
+    }
     if (field->stored_in_db) {
       const int create_column_result =
           create_ndb_column(thd, col, field, create_info);
@@ -14974,7 +15027,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       Alter_inplace_info::ADD_FOREIGN_KEY |
       Alter_inplace_info::DROP_FOREIGN_KEY |
       Alter_inplace_info::ALTER_INDEX_COMMENT |
-      Alter_inplace_info::ALTER_COLUMN_NAME;
+      Alter_inplace_info::ALTER_COLUMN_NAME | Alter_inplace_info::RENAME_INDEX;
 
   const Alter_inplace_info::HA_ALTER_FLAGS not_supported = ~supported;
 
@@ -15144,6 +15197,19 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       return inplace_unsupported(ha_alter_info,
                                  "Only rename column exclusively can be "
                                  "performed inplace");
+    }
+  }
+
+  if (alter_flags & Alter_inplace_info::RENAME_INDEX) {
+    /*
+     Server sets same flag(Alter_inplace_info::RENAME_INDEX) for ALTER INDEX and
+     RENAME INDEX. RENAME INDEX cannot be done inplace and only the ALTER INDEX
+     which changes the visibility of the index can be done inplace.
+    */
+
+    if (alter_info->flags & Alter_info::ALTER_RENAME_INDEX) {
+      return inplace_unsupported(ha_alter_info,
+                                 "Rename index can not be performed inplace");
     }
   }
 

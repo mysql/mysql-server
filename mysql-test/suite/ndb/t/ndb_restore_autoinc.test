@@ -11,6 +11,12 @@
 --echo 1.  Create tables and add some data
 --echo ----------------------------------------
 use test;
+
+--disable_query_log
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
+--enable_query_log
+
 create table boring (
   a tinyint auto_increment primary key,
   b int
@@ -257,6 +263,9 @@ select max(a) from big_varchars;
 --echo 7.  Cleanup
 --echo ----------------------------------------
 
+--disable_query_log
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+--enable_query_log
 
 drop table boring;
 drop table boring_keyless;
