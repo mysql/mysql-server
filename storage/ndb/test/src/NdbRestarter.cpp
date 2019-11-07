@@ -203,6 +203,10 @@ NdbRestarter::getNodeGroup(int nodeId){
   return -1;
 }
 
+/* getNodeGroups()
+   Both parameters are OUT params.
+   Returns -1 on error, or the number of configured node groups on success.
+*/
 int
 NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_ptr)
 {
@@ -216,6 +220,7 @@ NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_p
     return -1;
   }
 
+  int n_groups = 0;
   Vector<int> node_group_replicas;
   for (unsigned i = 0; i < ndbNodes.size(); i++)
   {
@@ -235,12 +240,13 @@ NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_p
     if (node_group_replicas[node_group] == 0)
     {
       node_groups.push_back(node_group);
+      n_groups++;
     }
 
     node_group_replicas[node_group]++;
   }
 
-  if (max_alive_replicas_ptr != NULL)
+  if (max_alive_replicas_ptr != nullptr)
   {
     int max_alive_replicas = 0;
     for (unsigned i = 0; i < node_group_replicas.size(); i++)
@@ -253,7 +259,37 @@ NdbRestarter::getNodeGroups(Vector<int>& node_groups, int * max_alive_replicas_p
     }
     *max_alive_replicas_ptr = max_alive_replicas;
   }
-  return 0;
+  return n_groups;
+}
+
+int NdbRestarter::getNumNodeGroups() {
+  Vector<int> node_group_list;
+  return getNodeGroups(node_group_list);
+}
+
+int NdbRestarter::getNumReplicas() {
+  Vector<int> node_group_list;
+  int replicas;
+  (void) getNodeGroups(node_group_list, &replicas);
+  return replicas;
+}
+
+/* Calculate the number of data nodes that can fail at the same time,
+   which is half the total number of data nodes (rounded down) if
+   there are two or more replicas of the data.
+*/
+int NdbRestarter::getMaxConcurrentNodeFailures() {
+  return (getNumReplicas() < 2) ? 0 : getNumDbNodes() / 2;
+}
+
+/* Calculate the total number of data nodes that can eventually fail.
+   In each replica set, one node must remain running.
+*/
+int NdbRestarter::getMaxFailedNodes() {
+  Vector<int> node_group_list;
+  int replicas;
+  int ngroups = getNodeGroups(node_group_list, &replicas);
+  return (replicas-1) * ngroups;
 }
 
 int
@@ -386,6 +422,13 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
     return ndbNodes[rand].node_id;
   
   return -1;
+}
+
+int
+NdbRestarter::getRandomNodePreferOtherNodeGroup(int nodeId, int rand) {
+  int n = getRandomNodeOtherNodeGroup(nodeId, rand);
+  if(n == -1) n = getRandomNodeSameNodeGroup(nodeId, rand);
+  return n;
 }
 
 
