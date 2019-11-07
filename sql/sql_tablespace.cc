@@ -371,7 +371,7 @@ bool intermediate_commit_unless_atomic_ddl(THD *thd, handlerton *hton) {
     return false;
   }
   /* purecov: begin inspected */
-  Disable_gtid_state_update_guard disabler{thd};
+  Implicit_substatement_state_guard substatement_guard{thd};
   return (trans_commit_stmt(thd) || trans_commit(thd));
   /* purecov: end */
 }
@@ -597,7 +597,7 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
         return true;
       }
 
-      Disable_gtid_state_update_guard disabler{thd};
+      Implicit_substatement_state_guard substatement_guard{thd};
       (void)trans_commit_stmt(thd);
       (void)trans_commit(thd);
       /* purecov: end */
@@ -696,7 +696,7 @@ bool Sql_cmd_drop_tablespace::execute(THD *thd) {
         return true;
       }
 
-      Disable_gtid_state_update_guard disabler{thd};
+      Implicit_substatement_state_guard substatement_guard{thd};
       (void)trans_commit_stmt(thd);
       (void)trans_commit(thd);
       /* purecov: end */
@@ -1446,7 +1446,7 @@ bool Sql_cmd_create_undo_tablespace::execute(THD *thd) {
         return true;
       }
 
-      Disable_gtid_state_update_guard disabler{thd};
+      Implicit_substatement_state_guard substatement_guard{thd};
       (void)trans_commit_stmt(thd);
       (void)trans_commit(thd);
     }
@@ -1544,7 +1544,7 @@ bool Sql_cmd_alter_undo_tablespace::execute(THD *thd) {
       hton->alter_tablespace(hton, thd, &ts_info, tsmp.first, tsmp.second);
   if (map_errors(ha_error, "ALTER UNDO TABLEPSPACE", &ts_info)) {
     if (!ddl_is_atomic(hton)) {
-      Disable_gtid_state_update_guard disabler{thd};
+      Implicit_substatement_state_guard substatement_guard{thd};
       (void)trans_commit_stmt(thd);
       (void)trans_commit(thd);
     }
@@ -1644,7 +1644,7 @@ bool Sql_cmd_drop_undo_tablespace::execute(THD *thd) {
         return true;
       }
 
-      Disable_gtid_state_update_guard disabler{thd};
+      Implicit_substatement_state_guard substatement_guard{thd};
       (void)trans_commit_stmt(thd);
       (void)trans_commit(thd);
     }

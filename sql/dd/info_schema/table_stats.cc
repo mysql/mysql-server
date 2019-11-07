@@ -136,7 +136,7 @@ class Update_I_S_statistics_ctx {
 template <typename T>
 bool store_statistics_record(THD *thd, T *object) {
   Update_I_S_statistics_ctx ctx(thd);
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   // Store tablespace object in dictionary
   if (thd->dd_client()->store(object)) {

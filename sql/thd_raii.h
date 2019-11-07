@@ -85,21 +85,61 @@ class Disable_autocommit_guard {
 };
 
 /**
-  RAII class which allows to temporary disable updating Gtid_state.
+  The mode for Implicit_substatement_state_guard based on which it determine
+  whether to enable or disable updating Gtid_state and invocation of commit
+  order.
 */
+enum class enum_implicit_substatement_guard_mode {
+  DISABLE_GTID_AND_SPCO,
+  DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE,
+  ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE
+};
 
-class Disable_gtid_state_update_guard {
+/**
+  RAII class which allows to temporary disable updating Gtid_state and
+  disable invocation of commit order for intermediate commits.
+*/
+class Implicit_substatement_state_guard {
  public:
-  explicit Disable_gtid_state_update_guard(THD *thd)
+  /**
+    Constructs a new object and set thd->is_operating_substatement_implicitly
+    and thd->skip_gtid_rollback according to
+    enum_implicit_substatement_guard_mode mode argument.
+
+    @param thd         Thread context.
+    @param mode        If mode is not ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE then
+                       temporary disable updating Gtid_state and invocation of
+                       commit order (Commit_order_manager::wait).
+  */
+  explicit Implicit_substatement_state_guard(
+      THD *thd,
+      enum_implicit_substatement_guard_mode mode =
+          enum_implicit_substatement_guard_mode::DISABLE_GTID_AND_SPCO)
       : m_thd(thd),
         m_save_is_operating_substatement_implicitly(
             thd->is_operating_substatement_implicitly),
-        m_save_skip_gtid_rollback(thd->skip_gtid_rollback) {
-    m_thd->is_operating_substatement_implicitly = true;
-    m_thd->skip_gtid_rollback = true;
+        m_save_skip_gtid_rollback(thd->skip_gtid_rollback),
+        m_guard_ignored(false) {
+    /*
+      For modes depending on SPCO being active,
+      ignore and return if SPCO is not active.
+    */
+    if (mode != enum_implicit_substatement_guard_mode::DISABLE_GTID_AND_SPCO &&
+        !has_commit_order_manager(thd)) {
+      m_guard_ignored = true;
+      return;
+    }
+
+    bool disable_gtid_and_spco =
+        (mode != enum_implicit_substatement_guard_mode ::
+                     ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+    m_thd->is_operating_substatement_implicitly = disable_gtid_and_spco;
+    m_thd->skip_gtid_rollback = disable_gtid_and_spco;
   }
 
-  ~Disable_gtid_state_update_guard() {
+  ~Implicit_substatement_state_guard() {
+    DBUG_TRACE;
+    if (m_guard_ignored) return;
     m_thd->is_operating_substatement_implicitly =
         m_save_is_operating_substatement_implicitly;
     m_thd->skip_gtid_rollback = m_save_skip_gtid_rollback;
@@ -109,38 +149,7 @@ class Disable_gtid_state_update_guard {
   THD *m_thd;
   bool m_save_is_operating_substatement_implicitly;
   bool m_save_skip_gtid_rollback;
-};
-
-/**
-  RAII class for temporarily turning ON is_intermediate_commit_without_binlog
-  variable.
-  Currently being used for ANALYZE/OPTIMIZE/REPAIR TABLE statements to
-  disable invocation of commit order for intermediate commits.
-*/
-
-class Intermediate_commit_without_binlog_guard {
- public:
-  Intermediate_commit_without_binlog_guard(THD *thd, bool status = true)
-      : m_thd(thd),
-        m_skip_intermediate_commit_without_binlog_guard(
-            m_thd->is_intermediate_commit_without_binlog) {
-    DBUG_TRACE;
-    if (has_commit_order_manager(thd)) {
-      thd->is_intermediate_commit_without_binlog = status;
-    }
-  }
-
-  ~Intermediate_commit_without_binlog_guard() {
-    DBUG_TRACE;
-    if (has_commit_order_manager(m_thd)) {
-      m_thd->is_intermediate_commit_without_binlog =
-          m_skip_intermediate_commit_without_binlog_guard;
-    }
-  }
-
- private:
-  THD *const m_thd;
-  bool m_skip_intermediate_commit_without_binlog_guard;
+  bool m_guard_ignored;
 };
 
 /**

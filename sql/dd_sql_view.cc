@@ -528,7 +528,7 @@ static bool open_views_and_update_metadata(
     bool res = dd::update_view(thd, new_view, view);
 
     if (commit_dd_changes) {
-      Disable_gtid_state_update_guard disabler(thd);
+      Implicit_substatement_state_guard substatement_guard(thd);
       if (res) {
         trans_rollback_stmt(thd);
         // Full rollback in case we have THD::transaction_rollback_request.

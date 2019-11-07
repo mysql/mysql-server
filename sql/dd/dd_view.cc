@@ -712,7 +712,7 @@ bool update_view_status(THD *thd, const char *schema_name,
   dd::Properties *view_options = &new_view->options();
   view_options->set("view_valid", status);
 
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   // Update DD tables.
   if (client->update(new_view)) {

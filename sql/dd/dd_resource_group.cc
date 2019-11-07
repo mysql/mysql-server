@@ -97,7 +97,7 @@ bool create_resource_group(THD *thd,
   if (set_resource_group_attributes(resource_group.get(), res_grp_ref))
     return true;  // Error already logged.
 
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   // Write changes to dictionary.
   if (thd->dd_client()->store(resource_group.get())) {
@@ -156,7 +156,7 @@ bool drop_resource_group(THD *thd, const String_type resource_grp_name) {
     return true;
   }
 
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   // Drop resource group.
   if (thd->dd_client()->drop(resource_group)) {

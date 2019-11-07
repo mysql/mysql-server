@@ -1525,10 +1525,10 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
     did when binlog is enabled.
 
     We also skip saving GTID into mysql.gtid_executed table and
-    @@GLOBAL.GTID_EXECUTED when slave-preserve-commit-order is enabled and
-    thd->is_intermediate_commit_without_binlog is disabled. We skip as GTID will
-    be saved in Commit_order_manager::flush_engine_and_signal_threads (invoked
-    from Commit_order_manager::wait_and_finish). In particular, there is the
+    @@GLOBAL.GTID_EXECUTED when slave-preserve-commit-order is enabled. We skip
+    as GTID will be saved in
+    Commit_order_manager::flush_engine_and_signal_threads (invoked from
+    Commit_order_manager::wait_and_finish). In particular, there is the
     following call stack under ha_commit_low which save GTID in case its skipped
     here:
 
@@ -1537,11 +1537,13 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
       Commit_order_manager::finish ->
       Commit_order_manager::flush_engine_and_signal_threads ->
       Gtid_state::update_commit_group
+
+    We also skip saving GTID for intermediate commits i.e. when
+    thd->is_operating_substatement_implicitly is enabled.
   */
-  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
+  if (thd->is_current_stmt_binlog_log_slave_updates_disabled() &&
       ending_trans(thd, all) && !thd->is_operating_gtid_table_implicitly &&
-      !thd->is_operating_substatement_implicitly &&
-      !thd->is_intermediate_commit_without_binlog) {
+      !thd->is_operating_substatement_implicitly) {
     if (!has_commit_order_manager(thd) &&
         (thd->owned_gtid.sidno > 0 ||
          thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)) {
@@ -1893,7 +1895,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
         mysql_execute_command, it will call ha_commit_low a final
         time.  It is only in this final call that we should preserve
         the commit order. Therefore, we set the flag
-        thd->is_intermediate_commit_without_binlog while executing
+        thd->is_operating_substatement_implicitly while executing
         mysql_admin_table, mysql_recreate_table, and
         handle_histogram_command, clear it when returning from those
         functions, and check the flag here in ha_commit_low().
@@ -1906,8 +1908,10 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       Note: the calls to Commit_order_manager::wait/wait_and_finish() will be
             no-op for threads other than replication applier threads.
     */
-    if ((!thd->is_intermediate_commit_without_binlog &&
-         thd->is_current_stmt_binlog_disabled() && ending_trans(thd, all)) ||
+    if ((!thd->is_operating_substatement_implicitly &&
+         !thd->is_operating_gtid_table_implicitly &&
+         thd->is_current_stmt_binlog_log_slave_updates_disabled() &&
+         ending_trans(thd, all)) ||
         Commit_order_manager::get_rollback_status(thd)) {
       if (Commit_order_manager::wait(thd)) {
         error = 1;

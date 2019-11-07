@@ -827,8 +827,9 @@ static bool mysql_admin_table(
       protocol->store_string(buff, length, system_charset_info);
       {
         /* Prevent intermediate commits to invoke commit order */
-        Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
-            thd);
+        Implicit_substatement_state_guard substatement_guard(
+            thd, enum_implicit_substatement_guard_mode ::
+                     DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
         trans_commit_stmt(thd, ignore_grl_on_analyze);
         trans_commit(thd, ignore_grl_on_analyze);
       }
@@ -1076,8 +1077,9 @@ static bool mysql_admin_table(
         save_flags = alter_info->flags;
         {
           /* Prevent intermediate commits to invoke commit order */
-          Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
-              thd);
+          Implicit_substatement_state_guard substatement_guard(
+              thd, enum_implicit_substatement_guard_mode ::
+                       DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
           /*
             This is currently used only by InnoDB. ha_innobase::optimize()
             answers "try with alter", so here we close the table, do an ALTER
@@ -1134,8 +1136,9 @@ static bool mysql_admin_table(
           thd->get_stmt_da()->reset_diagnostics_area();
         {
           /* Prevent intermediate commits to invoke commit order */
-          Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
-              thd);
+          Implicit_substatement_state_guard substatement_guard(
+              thd, enum_implicit_substatement_guard_mode ::
+                       DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
           trans_commit_stmt(thd, ignore_grl_on_analyze);
           trans_commit(thd, ignore_grl_on_analyze);
         }
@@ -1310,20 +1313,26 @@ static bool mysql_admin_table(
 
       if (trans_rollback_stmt(thd) || trans_rollback_implicit(thd)) goto err;
     } else {
-      bool interm_commit_status = true;
-      /*
-        Allow intermediate commits to invoke commit order for OPTIMIZE TABLE
-        and ALTER ADMIN PARTITION commands.
-      */
+      enum_implicit_substatement_guard_mode mode =
+          enum_implicit_substatement_guard_mode ::
+              DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
+
       if (strcmp(operator_name, "optimize") == 0 ||
           strcmp(operator_name, "analyze") == 0 ||
           strcmp(operator_name, "repair") == 0) {
-        interm_commit_status = false;
+        mode = enum_implicit_substatement_guard_mode ::
+            ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
       }
 
-      /* Prevent intermediate commits to invoke commit order */
-      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
-          thd, interm_commit_status);
+      /*
+        It allows saving GTID and invoking commit order i.e. set
+        thd->is_operating_substatement_implicitly = false, when
+        slave-preserve-commit-order is enabled and any of OPTIMIZE TABLE,
+        ANALYZE TABLE and REPAIR TABLE command is getting executed,
+        otherwise saving GTID and invoking commit order is disabled.
+      */
+      Implicit_substatement_state_guard guard(thd, mode);
+
       if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
           trans_commit_implicit(thd, ignore_grl_on_analyze))
         goto err;
@@ -1458,9 +1467,12 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
       res = false;
     } else {
       Disable_autocommit_guard autocommit_guard(thd);
+
       /* Prevent intermediate commits to invoke commit order */
-      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
-          thd);
+      Implicit_substatement_state_guard substatement_guard(
+          thd, enum_implicit_substatement_guard_mode ::
+                   DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
+
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       switch (get_histogram_command()) {
         case Histogram_command::UPDATE_HISTOGRAM:
