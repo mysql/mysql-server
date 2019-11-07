@@ -602,7 +602,7 @@ void NDBT_TestCaseImpl1::waitSteps(){
       completedSteps++;
       if (results[i] == NDBT_OK)
 	numStepsOk++;
-      else
+      else if (results[i] == NDBT_FAILED)
 	numStepsFail++;
     }       
   }
@@ -767,7 +767,7 @@ int NDBT_TestCaseImpl1::runSteps(NDBT_Context* ctx){
     if (results[i] != NDBT_OK)
     {
       // Found one step which had failed -> report failed
-      res = NDBT_FAILED;
+      res = results[i];
       break;
     }
   }
