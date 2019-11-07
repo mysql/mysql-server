@@ -976,18 +976,15 @@ bool Session_impl::is_auto_method(const Auth auto_authentication) {
 }
 
 std::pair<XError, std::vector<std::string>>
-Session_impl::validate_and_adjust_auth_methods(std::vector<Auth> auth_methods,
-                                               const bool can_use_plain) {
+Session_impl::validate_and_adjust_auth_methods(
+    const std::vector<Auth> &auth_methods, bool can_use_plain) {
   DBUG_TRACE;
-  const auto auth_methods_count = auth_methods.size();
   const Auth first_method =
-      auth_methods_count == 0 ? Auth::k_auto : auth_methods[0];
+      auth_methods.empty() ? Auth::k_auto : auth_methods[0];
 
   const auto auto_sequence =
       get_methods_sequence_from_auto(first_method, can_use_plain);
-  if (!auto_sequence.empty()) {
-    auth_methods.assign(auto_sequence.begin(), auto_sequence.end());
-  } else {
+  if (auto_sequence.empty()) {
     if (std::any_of(std::begin(auth_methods), std::end(auth_methods),
                     is_auto_method))
       return {XError{CR_X_INVALID_AUTH_METHOD,
@@ -997,7 +994,8 @@ Session_impl::validate_and_adjust_auth_methods(std::vector<Auth> auth_methods,
 
   std::vector<std::string> auth_method_string_list;
 
-  for (const auto auth_method : auth_methods) {
+  for (const auto auth_method :
+       auto_sequence.empty() ? auth_methods : auto_sequence) {
     if (0 < m_server_supported_auth_methods.count(auth_method))
       auth_method_string_list.push_back(get_method_from_auth(auth_method));
   }
@@ -1008,7 +1006,7 @@ Session_impl::validate_and_adjust_auth_methods(std::vector<Auth> auth_methods,
             {}};
   }
 
-  return {{}, auth_method_string_list};
+  return {{}, std::move(auth_method_string_list)};
 }
 
 Handler_result Session_impl::handle_notices(

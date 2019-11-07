@@ -85,7 +85,7 @@ class Program : public Base::Abstract_connection_program {
 
     @return 0 (success)
    */
-  int execute(vector<string> positional_options MY_ATTRIBUTE((unused))) {
+  int execute(const vector<string> &) {
     return this->print_message(0, deprecation_msg);
   }
 

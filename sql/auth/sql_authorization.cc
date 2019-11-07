@@ -7200,8 +7200,8 @@ bool Default_local_authid::create(
 }
 
 Grant_temporary_dynamic_privileges::Grant_temporary_dynamic_privileges(
-    const THD *thd, const std::vector<std::string> privs)
-    : m_thd(thd), m_privs(privs) {}
+    const THD *thd, std::vector<std::string> privs)
+    : m_thd(thd), m_privs(std::move(privs)) {}
 
 bool Grant_temporary_dynamic_privileges::precheck(
     Security_context *sctx MY_ATTRIBUTE((unused))) {
