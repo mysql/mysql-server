@@ -30,7 +30,7 @@ let SEARCH_PATTERN= Rolling back LOB for transaction \d+ undo number \d+ : curre
 
 --source include/start_mysqld.inc
 
-SELECT * FROM t1;
+SELECT * FROM t1 FOR UPDATE;
 DROP TABLE t1;
 SET GLOBAL innodb_compression_level = default;
 
