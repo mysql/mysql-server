@@ -1550,10 +1550,8 @@ class PT_query_expression final : public PT_query_primary {
   /// Called by the Bison parser.
   PT_query_expression_body *body() { return m_body; }
 
-  /// Called by the Bison parser.
   bool is_union() const override { return m_body->is_union(); }
 
-  /// Called by the Bison parser.
   bool has_into_clause() const override { return m_body->has_into_clause(); }
 
   bool can_absorb_order_and_limit() const override {
@@ -1610,7 +1608,7 @@ class PT_subquery : public Parse_tree_node {
 
 class PT_union : public PT_query_expression_body {
  public:
-  PT_union(PT_query_expression *lhs, const POS &lhs_pos, bool is_distinct,
+  PT_union(PT_query_expression_body *lhs, const POS &lhs_pos, bool is_distinct,
            PT_query_primary *rhs)
       : m_lhs(lhs),
         m_lhs_pos(lhs_pos),
@@ -1631,7 +1629,7 @@ class PT_union : public PT_query_expression_body {
   PT_insert_values_list *get_row_value_list() const override { return nullptr; }
 
  private:
-  PT_query_expression *m_lhs;
+  PT_query_expression_body *m_lhs;
   POS m_lhs_pos;
   bool m_is_distinct;
   PT_query_primary *m_rhs;

@@ -9009,12 +9009,6 @@ select_stmt_with_into:
           }
         | query_expression into_clause
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($1->has_into_clause())
-              YYTHD->syntax_error_at(@2);
-
             $$= NEW_PTN PT_select_stmt($1, $2);
           }
         ;
@@ -9116,35 +9110,19 @@ query_expression_body:
           }
         | query_expression_body UNION_SYM union_option query_primary
           {
-            $$= NEW_PTN PT_union(NEW_PTN PT_query_expression($1), @1, $3, $4);
+            $$ = NEW_PTN PT_union($1, @1, $3, $4);
           }
         | query_expression_parens UNION_SYM union_option query_primary
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            $$= NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = NEW_PTN PT_union($1, @1, $3, $4);
           }
         | query_expression_body UNION_SYM union_option query_expression_parens
           {
-            if ($4 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($4->is_union())
-              YYTHD->syntax_error_at(@4);
-
-            auto lhs_qe= NEW_PTN PT_query_expression($1);
-            $$= NEW_PTN PT_union(lhs_qe, @1, $3, $4);
+            $$ = NEW_PTN PT_union($1, @1, $3, $4);
           }
         | query_expression_parens UNION_SYM union_option query_expression_parens
           {
-            if ($1 == NULL || $4 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($4->is_union())
-              YYTHD->syntax_error_at(@4);
-
-            $$= NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = NEW_PTN PT_union($1, @1, $3, $4);
           }
         ;
 
@@ -16082,12 +16060,6 @@ table_subquery:
 subquery:
           query_expression_parens %prec SUBQUERY_AS_EXPR
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-
-            if ($1->has_into_clause())
-              YYTHD->syntax_error_at(@1);
-
             $$= NEW_PTN PT_subquery(@$, $1);
           }
         ;

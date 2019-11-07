@@ -5823,43 +5823,31 @@ INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2( a INT, b INT );
 SELECT * 
 FROM (SELECT a INTO @var FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @var FROM t1 WHERE a = 2) t1a' at line 2
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * 
 FROM (SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * 
 FROM (SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2) t1a' at line 2
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO @var FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( 
-SELECT 1 a 
-UNION 
-SELECT a INTO @var FROM t1 WHERE a = 2 
-) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( 
-SELECT 1 a 
-UNION 
-SELECT a INTO OUTFILE 'file' FROM t1 WHERE a = 2 
-) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM ( 
 SELECT 1 a 
 UNION 
 SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2 
 ) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( 
-SELECT 1 a 
-UNION 
-SELECT a INTO DUMPFILE 'file' FROM t1 WHERE a = 2 
-) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT a FROM t1 WHERE a = 2) t1a;
 a
 2
@@ -5889,23 +5877,23 @@ SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
 1
 1
 SELECT * FROM ((SELECT 1 a INTO @a)) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '((SELECT 1 a INTO @a)) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM ((SELECT 1 a INTO OUTFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '((SELECT 1 a INTO OUTFILE 'file' )) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM ((SELECT 1 a INTO DUMPFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '((SELECT 1 a INTO DUMPFILE 'file' )) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 a UNION (SELECT 1 a INTO @a)) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 a UNION (SELECT 1 a INTO DUMPFILE 'file' )) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 a UNION (SELECT 1 a INTO OUTFILE 'file' )) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 a UNION ((SELECT 1 a INTO @a))) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 a UNION ((SELECT 1 a INTO DUMPFILE 'file' ))) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 a UNION ((SELECT 1 a INTO OUTFILE 'file' ))) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT 1 a ORDER BY a) t1a;
 a
 1
@@ -5986,11 +5974,11 @@ SELECT * FROM t1 WHERE a = ANY ( SELECT 3 UNION SELECT 1 );
 a
 1
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO @a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO @a)' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ( SELECT 1 );
 a
 1
@@ -5998,29 +5986,29 @@ SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 );
 a
 1
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO @a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO @a)' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO OUTFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ( SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO DUMPFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO @a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO @a)' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a = ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT ( SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO @v )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT ( SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO OUTFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT ( SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO DUMPFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT ( SELECT 1 UNION SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO @v )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT ( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO OUTFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT ( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO DUMPFILE 'file' )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT ( SELECT a FROM t1 WHERE a = 1 ), a FROM t1;
 ( SELECT a FROM t1 WHERE a = 1 )	a
 1	1
@@ -6032,12 +6020,12 @@ SELECT ( SELECT a FROM t1 WHERE a = 1 UNION SELECT 1 ), a FROM t1;
 SELECT * FROM t2 WHERE (a, b) IN (SELECT a, b FROM t2);
 a	b
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 1
 1
 SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
@@ -6047,7 +6035,7 @@ SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 ((SELECT 1 UNION SELECT 1 UNION SELECT 1))
 1
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
+ERROR 42000: Every derived table must have its own alias
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
 ERROR 42000: Every derived table must have its own alias
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
@@ -6057,13 +6045,13 @@ SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 1
 1
 SELECT * FROM t1 WHERE a =     ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 SELECT * FROM t1 WHERE a = ALL ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 SELECT * FROM t1 WHERE a = ANY ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 SELECT * FROM t1 WHERE a =     ( ( SELECT 1 UNION SELECT 1 )  UNION SELECT 1 );
 a
 1
@@ -6089,18 +6077,18 @@ SELECT * FROM t1 WHERE a IN    ( SELECT 1 UNION SELECT 1 UNION SELECT 1 );
 a
 1
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 UNION SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO @v )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT EXISTS(SELECT 1+1);
 EXISTS(SELECT 1+1)
 1
 SELECT EXISTS(SELECT 1+1 INTO @test);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1+1 INTO @test)' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a IN ( SELECT 1 UNION SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 INTO @v )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE EXISTS ( SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO @v )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM t1 WHERE a IN ( SELECT 1 INTO @v );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 INTO @v )' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a ENUM('rainbow'));
 INSERT INTO t1 VALUES (),(),(),(),();

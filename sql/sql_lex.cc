@@ -632,8 +632,8 @@ SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct) {
      the outer-most level:
   */
   if (outer_most && result) {
-    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-    return NULL;
+    my_error(ER_MISPLACED_INTO, MYF(0));
+    return nullptr;
   }
 
   SELECT_LEX *const select = new_empty_query_block();

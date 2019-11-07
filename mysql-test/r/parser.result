@@ -720,10 +720,10 @@ Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
 SELECT 1 INTO @var17727401 FROM DUAL;
 SELECT 1 INTO @var17727401_1 FROM t1 INTO @var17727401_2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 1
+ERROR HY000: Multiple INTO clauses in one query block.
 SELECT 1 INTO @var17727401_1 FROM DUAL
 INTO @var17727401_2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 2
+ERROR HY000: Multiple INTO clauses in one query block.
 SELECT 1 INTO @var17727401 FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1;
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
@@ -735,7 +735,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT 1 INTO @var17727401_1
 FROM t1 WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1 LIMIT 1
 INTO @var17727401_2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401_2' at line 3
+ERROR HY000: Multiple INTO clauses in one query block.
 SELECT (SELECT 1 FROM t1 INTO @var17727401);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 INTO @var17727401) a;
@@ -1191,7 +1191,7 @@ SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
 SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ALL SELECT a FROM t1' at line 1
 (SELECT 1) UNION (SELECT 2 UNION SELECT 3);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 2 UNION SELECT 3)' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
 a
 1
@@ -1248,15 +1248,17 @@ ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER c
 ORDER BY t1.b;
 ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 1
 1
 ( (SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) UNION SELECT 1;
 1
 1
+( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+ERROR 42000: This version of MySQL doesn't yet support 'nesting of unions at the right-hand side'
 ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) UNION SELECT 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t1' at line 1
 (SELECT * FROM t1 LIMIT 1) UNION SELECT * FROM t1;
@@ -1632,13 +1634,13 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ((SELECT 1 FROM t1 INTO @v) UNION (SELECT 1));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1))' at line 1
 SELECT 1 INTO @v UNION SELECT 1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 (SELECT 1 INTO @v) UNION SELECT 1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT 1 INTO @v UNION (SELECT 1);
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 ((SELECT 1 INTO @v) UNION (SELECT 1));
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT 1 UNION SELECT 2 INTO @v;
 ERROR 42000: Result consisted of more than one row
 (SELECT 1) UNION SELECT 2 INTO @v;
@@ -1665,9 +1667,9 @@ SELECT 1 UNION (SELECT 2 INTO OUTFILE 'parser.test.file2');
 (SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file4');
 ((SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file5'));
 SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v FROM t1) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 SELECT * FROM (SELECT a INTO @v) t1a;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v) t1a' at line 1
+ERROR HY000: Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses.
 DROP TABLE t1;
 #
 # Part 4: The <joined table> syntax.

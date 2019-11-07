@@ -942,7 +942,7 @@ DROP TABLE t1;
 #
 # Bug#23345: Wrongly allowed INTO in a non-last select of a UNION.
 #
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 (select 1 into @var) union (select 1);
 (select 1) union (select 1 into @var);
 select @var;
@@ -1071,11 +1071,11 @@ SELECT a INTO DUMPFILE 'union.out.file2' FROM (
 SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
 SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
---error ER_WRONG_USAGE
+--error ER_MISPLACED_INTO
 SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
 
 -- echo # Tests fix in parser rule query_expression_body.
