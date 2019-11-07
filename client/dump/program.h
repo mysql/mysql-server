@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Program : public Mysql::Tools::Base::Abstract_connection_program {
 
   std::string get_description();
 
-  int execute(std::vector<std::string> positional_options);
+  int execute(const std::vector<std::string> &positional_options);
 
   void create_options();
 

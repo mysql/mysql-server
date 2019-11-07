@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ extern void mysql_check(MYSQL *connection, int what_to_do, bool opt_alldbs,
                         bool opt_upgrade, bool opt_write_binlog,
                         unsigned int verbose, std::string opt_skip_database,
                         std::vector<std::string> arguments,
-                        void (*dberror)(MYSQL *mysql, std::string when));
+                        void (*dberror)(MYSQL *mysql, const std::string &when));
 
 /**
   This class is object wrapper to mysql_check function. It looks like
@@ -70,19 +70,12 @@ class Program {
   /**
     Checks specified databases on MySQL server.
    */
-  int check_databases(MYSQL *connection, std::vector<std::string> databases);
+  int check_databases(MYSQL *connection,
+                      const std::vector<std::string> &databases);
   /**
     Checks all databases on MySQL server.
    */
   int check_all_databases(MYSQL *connection);
-  /**
-    Upgrades specified on MySQL server.
-   */
-  int upgrade_databases(MYSQL *connection, std::vector<std::string> databases);
-  /**
-    Upgrades all databases on MySQL server.
-   */
-  int upgrade_all_databases(MYSQL *connection);
 
   /**
     Automatically try to fix table when upgrade is needed.
@@ -120,7 +113,7 @@ class Program {
     Sets error callback to be called when error is encountered.
    */
   Program *set_error_callback(void (*error_callback)(MYSQL *mysql,
-                                                     std::string when));
+                                                     const std::string &when));
 
  private:
   /**
@@ -130,7 +123,7 @@ class Program {
   /**
     Starts mysqlcheck process.
    */
-  int execute(std::vector<std::string> positional_options);
+  int execute(const std::vector<std::string> &positional_options);
 
   int m_what_to_do;
   bool m_auto_repair;
@@ -143,7 +136,7 @@ class Program {
   bool m_fix_db_names;
   MYSQL *m_connection;
   std::string m_database_to_skip;
-  void (*m_error_callback)(MYSQL *mysql, std::string when);
+  void (*m_error_callback)(MYSQL *mysql, const std::string &when);
 };
 
 }  // namespace Check

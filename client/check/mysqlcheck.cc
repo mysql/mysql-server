@@ -249,7 +249,7 @@ static void usage(void);
 static int get_options(int *argc, char ***argv, MEM_ROOT *alloc);
 static int dbConnect(char *host, char *user, char *passwd);
 static void dbDisconnect(char *host);
-static void DBerror(MYSQL *mysql, string when);
+static void DBerror(MYSQL *mysql, const string &when);
 static void safe_exit(int error);
 
 static int what_to_do = 0;
@@ -498,7 +498,7 @@ static void dbDisconnect(char *host) {
   mysql_close(sock);
 } /* dbDisconnect */
 
-static void DBerror(MYSQL *mysql, string when) {
+static void DBerror(MYSQL *mysql, const string &when) {
   DBUG_TRACE;
   my_printf_error(0, "Got error: %d: %s %s", MYF(0), mysql_errno(mysql),
                   mysql_error(mysql), when.c_str());

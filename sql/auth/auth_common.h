@@ -901,19 +901,18 @@ class Security_context_factory {
     @param drop_policy                The policy for deleting the authid and
                                       revoke privileges
   */
-  Security_context_factory(
-      THD *thd, const std::string &user, const std::string &host,
-      const Security_context_functor &extend_user_profile,
-      const Security_context_functor &priv,
-      const Security_context_functor &static_priv,
-      const std::function<void(Security_context *)> &drop_policy)
+  Security_context_factory(THD *thd, std::string user, std::string host,
+                           Security_context_functor extend_user_profile,
+                           Security_context_functor priv,
+                           Security_context_functor static_priv,
+                           std::function<void(Security_context *)> drop_policy)
       : m_thd(thd),
-        m_user(user),
-        m_host(host),
-        m_user_profile(extend_user_profile),
-        m_privileges(priv),
-        m_static_privileges(static_priv),
-        m_drop_policy(drop_policy) {}
+        m_user(std::move(user)),
+        m_host(std::move(host)),
+        m_user_profile(std::move(extend_user_profile)),
+        m_privileges(std::move(priv)),
+        m_static_privileges(std::move(static_priv)),
+        m_drop_policy(std::move(drop_policy)) {}
 
   Sctx_ptr<Security_context> create(MEM_ROOT *mem_root);
 
@@ -947,7 +946,7 @@ class Grant_temporary_dynamic_privileges
     : public Grant_privileges<Grant_temporary_dynamic_privileges> {
  public:
   Grant_temporary_dynamic_privileges(const THD *thd,
-                                     const std::vector<std::string> privs);
+                                     std::vector<std::string> privs);
   bool precheck(Security_context *sctx);
   bool grant_privileges(Security_context *sctx);
 
@@ -958,8 +957,8 @@ class Grant_temporary_dynamic_privileges
 
 class Drop_temporary_dynamic_privileges {
  public:
-  Drop_temporary_dynamic_privileges(const std::vector<std::string> privs)
-      : m_privs(privs) {}
+  explicit Drop_temporary_dynamic_privileges(std::vector<std::string> privs)
+      : m_privs(std::move(privs)) {}
   void operator()(Security_context *sctx);
 
  private:

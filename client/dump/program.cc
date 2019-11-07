@@ -139,7 +139,7 @@ int Program::get_total_connections() {
 
 int Program::get_error_code() { return m_error_code.load(); }
 
-int Program::execute(std::vector<std::string> positional_options) {
+int Program::execute(const std::vector<std::string> &positional_options) {
   I_connection_provider *connection_provider = NULL;
   int num_connections = get_total_connections();
 
