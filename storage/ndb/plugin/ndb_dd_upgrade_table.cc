@@ -81,7 +81,7 @@
 #include "sql/sql_table.h"  // build_tablename
 #include "sql/system_variables.h"
 #include "sql/table.h"     // Table_check_intact
-#include "sql/thd_raii.h"  // Disable_autocommit_guard
+#include "sql/thd_raii.h"  // Implicit_substatement_state_guard
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit
 #include "sql_string.h"
@@ -887,7 +887,7 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     return false;
   }
 
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   std::unique_ptr<dd::Table> table_def = dd::create_dd_user_table(
       thd, *sch_obj, to_table_name, &create_info, alter_info.create_list,
