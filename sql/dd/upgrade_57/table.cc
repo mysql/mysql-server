@@ -784,7 +784,7 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
 
   bool result = dd::create_view(thd, *schema, view_ref);
 
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
   if (result) {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -1203,7 +1203,7 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
 
       if (!t) break;
 
-      Disable_gtid_state_update_guard disabler(thd);
+      Implicit_substatement_state_guard substatement_guard(thd);
 
       // Ordering of Triggers is taken care above, pass dummy arguments here.
       LEX_CSTRING anchor_trigger_name{0, 0};
@@ -1742,7 +1742,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     return true;
   }
 
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   std::unique_ptr<dd::Table> table_def = dd::create_dd_user_table(
       thd, *sch_obj, to_table_name, &create_info, alter_info.create_list,

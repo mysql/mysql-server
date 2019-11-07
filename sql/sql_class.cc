@@ -439,7 +439,6 @@ THD::THD(bool enable_plugins)
 #endif
       skip_gtid_rollback(false),
       is_commit_in_middle_of_statement(false),
-      is_intermediate_commit_without_binlog(false),
       has_gtid_consistency_violation(false),
       main_da(false),
       m_parser_da(false),
@@ -2635,6 +2634,11 @@ bool THD::rpl_unflag_detached_engine_ha_data() const {
 
 bool THD::is_current_stmt_binlog_disabled() const {
   return (!(variables.option_bits & OPTION_BIN_LOG) ||
+          !mysql_bin_log.is_open());
+}
+
+bool THD::is_current_stmt_binlog_log_slave_updates_disabled() const {
+  return ((!opt_bin_log || (slave_thread && !opt_log_slave_updates)) ||
           !mysql_bin_log.is_open());
 }
 

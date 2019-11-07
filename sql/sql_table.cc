@@ -267,7 +267,7 @@ class Disable_slave_info_update_guard {
 
 static bool trans_intermediate_ddl_commit(THD *thd, bool error) {
   // Must be used for intermediate (but not final) DDL commits.
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
   if (error) {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -3483,7 +3483,7 @@ err_with_rollback:
         tables deletion of in SEs supporting atomic DDL should not rollback
         GTID. Use guard class to disable this.
       */
-      Disable_gtid_state_update_guard disabler(thd);
+      Implicit_substatement_state_guard substatement_guard(thd);
       trans_rollback_stmt(thd);
       /*
         Full rollback in case we have THD::transaction_rollback_request
@@ -3532,7 +3532,7 @@ err_with_rollback:
       // We need to turn off updating of slave info
       // without conflicting with GTID update.
       {
-        Disable_slave_info_update_guard disabler(thd);
+        Disable_slave_info_update_guard substatement_guard(thd);
 
         (void)trans_commit_stmt(thd);
         (void)trans_commit_implicit(thd);
@@ -8724,9 +8724,6 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
 
   if (thd->is_plugin_fake_ddl()) no_ha_table = true;
 
-  /* Prevent intermediate commits to invoke commit order */
-  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
-
   return create_table_impl(
       thd, *schema, db, table_name, table_name, path, create_info, alter_info,
       false, select_field_count, find_parent_keys, no_ha_table, false, is_trans,
@@ -12782,12 +12779,10 @@ static bool mysql_inplace_alter_table(
         support atomic DDL. Such SEs can't rollback in-place changes if error
         or crash happens after this point, so we are better to have
         data-dictionary in sync with SE.
-      */
-      Disable_gtid_state_update_guard disabler(thd);
 
-      /* Prevent intermediate commits to invoke commit order */
-      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
-          thd);
+        Prevent intermediate commits to invoke commit order
+      */
+      Implicit_substatement_state_guard substatement_guard(thd);
 
       if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) goto cleanup2;
     }
@@ -12903,6 +12898,25 @@ static bool mysql_inplace_alter_table(
   DEBUG_SYNC(thd, "action_after_write_bin_log");
 
   if (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) {
+    enum_implicit_substatement_guard_mode mode =
+        enum_implicit_substatement_guard_mode ::
+            ENABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
+
+    /* Disable GTID and SPCO for OPTIMIZE TABLE to avoid deadlock. */
+    if (thd->lex->sql_command == SQLCOM_OPTIMIZE)
+      mode = enum_implicit_substatement_guard_mode ::
+          DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE;
+
+    /*
+      It allows saving GTID and invoking commit order, except when
+      slave-preserve-commit-order is enabled and OPTIMIZE TABLE command
+      is getting executed. The exception for OPTIMIZE TABLE command is
+      because if it does enter commit order here and at the same time
+      any operation on the table which is getting optimized is done,
+      it results in deadlock.
+    */
+    Implicit_substatement_state_guard guard(thd, mode);
+
     /*
       Commit ALTER TABLE. Needs to be done here and not in the callers
       (which do it anyway) to be able notify SE about changed table.
@@ -16130,7 +16144,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   {
     Disable_binlog_guard binlog_guard(thd);
     /* Prevent intermediate commits to invoke commit order */
-    Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
+    Implicit_substatement_state_guard substatement_guard(
+        thd, enum_implicit_substatement_guard_mode ::
+                 DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
     error = create_table_impl(
         thd, *new_schema, alter_ctx.new_db, alter_ctx.tmp_name,
         alter_ctx.table_name, alter_ctx.get_tmp_path(), create_info, alter_info,
@@ -16726,7 +16742,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_ASSERT(!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
     /* Prevent intermediate commits to invoke commit order */
-    Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
+    Implicit_substatement_state_guard substatement_guard(
+        thd, enum_implicit_substatement_guard_mode ::
+                 DISABLE_GTID_AND_SPCO_IF_SPCO_ACTIVE);
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
@@ -16833,10 +16851,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         thd->dd_client()->store(non_dd_table_def.get()))
       goto err_new_table_cleanup;
 
-    Disable_gtid_state_update_guard disabler(thd);
-
     /* Prevent intermediate commits to invoke commit order */
-    Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
+    Implicit_substatement_state_guard substatement_guard(thd);
 
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
@@ -17085,10 +17101,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         goto err_with_mdl;
 
       /* Prevent intermediate commits to invoke commit order */
-      Intermediate_commit_without_binlog_guard interm_commit_without_binlog(
-          thd);
-
-      Disable_gtid_state_update_guard disabler(thd);
+      Implicit_substatement_state_guard substatement_guard(thd);
       if (!atomic_replace && (trans_commit_stmt(thd) || trans_commit(thd)))
         goto err_with_mdl;
     }
@@ -17364,16 +17377,15 @@ err_with_mdl:
 
 bool mysql_trans_prepare_alter_copy_data(THD *thd) {
   DBUG_TRACE;
-  /* Prevent intermediate commits to invoke commit order */
-  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
-
   /*
     Turn off recovery logging since rollback of an alter table is to
     delete the new table so there is no need to log the changes to it.
 
     This needs to be done before external_lock.
+
+    Also this prevent intermediate commits to invoke commit order.
   */
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   if (ha_enable_transaction(thd, false)) return true;
   return false;
@@ -17386,13 +17398,12 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd) {
 bool mysql_trans_commit_alter_copy_data(THD *thd) {
   bool error = false;
   DBUG_TRACE;
-  /* Prevent intermediate commits to invoke commit order */
-  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
   /*
     Ensure that ha_commit_trans() which is implicitly called by
     ha_enable_transaction() doesn't update GTID and slave info states.
+    Also this prevent intermediate commits to invoke commit order.
   */
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
   if (ha_enable_transaction(thd, true)) return true;
 
   /*
@@ -17725,9 +17736,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy) {
 
   DBUG_TRACE;
   DBUG_ASSERT(!table_list->next_global);
-
-  /* Prevent intermediate commits to invoke commit order */
-  Intermediate_commit_without_binlog_guard interm_commit_without_binlog(thd);
 
   /* Set lock type which is appropriate for ALTER TABLE. */
   table_list->set_lock({TL_READ_NO_INSERT, THR_DEFAULT});

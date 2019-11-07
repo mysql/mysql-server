@@ -1463,6 +1463,18 @@ class THD : public MDL_context_owner,
   bool is_current_stmt_binlog_disabled() const;
 
   /**
+    Determine if binlogging is currently disabled for this session.
+    If the binary log is disabled for this thread (either by log_bin=0 or
+    sql_log_bin=0 or by log_slave_updates=0 for a slave thread), then the
+    statement will not be written to the binary log.
+
+    @retval true The binary log is currently disabled for the statement.
+
+    @retval false The binary log is currently enabled for the statement.
+  */
+  bool is_current_stmt_binlog_log_slave_updates_disabled() const;
+
+  /**
     Determine if binloging is enabled in row format and write set extraction is
     enabled for this session
     @retval true  if is enable
@@ -3448,19 +3460,6 @@ class THD : public MDL_context_owner,
     flag.
   */
   bool is_commit_in_middle_of_statement;
-
-  /*
-    The ANALYZE/OPTIMIZE/REPAIR TABLE calls ha_commit_low for each table, and
-    after completion write the binlog, and let mysql_execute_command write the
-    binlog. We need to order the transaction only when writing the binlog.
-    Therefore, we order the transaction only when
-    is_intermediate_commit_without_binlog is not set
-    i.e. is_intermediate_commit_without_binlog == false. The
-    is_intermediate_commit_without_binlog variable is set before executing
-    ANALYZE/OPTIMIZE/REPAIR TABLE intermediate commit, and reset after its
-    completed.
-  */
-  bool is_intermediate_commit_without_binlog;
 
   /*
     True while the transaction is executing, if one of

@@ -460,7 +460,7 @@ bool create_system_views(THD *thd, bool is_non_dd_based) {
   const CHARSET_INFO *cs = thd->variables.collation_connection;
   const CHARSET_INFO *m_client_cs, *m_connection_cl;
   Disable_binlog_guard binlog_guard(thd);
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
 
   resolve_charset("utf8", system_charset_info, &m_client_cs);
   resolve_collation("utf8_general_ci", system_charset_info, &m_connection_cl);
@@ -699,7 +699,7 @@ bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name) {
   DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Remove view from DD tables.
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
   if (thd->dd_client()->drop(at)) {
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return (true);

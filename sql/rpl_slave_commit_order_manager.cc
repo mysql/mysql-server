@@ -393,7 +393,7 @@ bool Commit_order_manager::wait_for_its_turn_before_flush_stage(THD *thd) {
     case SQLCOM_ANALYZE:
     case SQLCOM_OPTIMIZE:
     case SQLCOM_REPAIR:
-      return true;
+      return has_commit_order_manager(thd);
     default:
       break;
   }

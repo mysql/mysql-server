@@ -397,7 +397,7 @@ void Event_queue::recalculate_activation_times(THD *thd) {
     events are at the end.
   */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  Disable_gtid_state_update_guard disabler(thd);
+  Implicit_substatement_state_guard substatement_guard(thd);
   std::vector<std::unique_ptr<Event_queue_element>> events_to_drop;
   for (size_t i = queue.size(); i > 0; i--) {
     Event_queue_element *element = queue[i - 1];
