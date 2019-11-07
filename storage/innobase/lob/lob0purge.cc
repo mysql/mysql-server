@@ -54,13 +54,14 @@ static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
 }
 
 #ifdef UNIV_DEBUG
-/** Waits for a given committed mtr to be flushed to disc.
+/** Waits for a given committed lsn to be flushed to disc.
 It's a helper debug function used to make tests involving DBUG_SUICIDE more
 deterministic w.r.t. to the content of redo log
-@param[in]      mtr             A committed mtr
+@param[in]      lsn             A committed lsn
 */
-static void wait_for_mtr_flush(const mtr_t &mtr) {
-  log_write_up_to(*log_sys, mtr.commit_lsn(), true);
+static void wait_for_lsn_flush(const lsn_t lsn) {
+  ut_a(0 < lsn);
+  log_write_up_to(*log_sys, lsn, true);
 }
 #endif /* UNIV_DEBUG */
 
@@ -121,6 +122,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
 #ifdef UNIV_DEBUG
   ulint iteration = 0;
+  lsn_t last_change_lsn = 0;
 #endif /* UNIV_DEBUG */
 
   while (!fil_addr_is_null(node_loc)) {
@@ -144,14 +146,17 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     mtr_commit(&local_mtr);
 
 #ifdef UNIV_DEBUG
+    if (local_mtr.get_log_mode() == MTR_LOG_ALL && 0 < local_mtr.commit_lsn()) {
+      last_change_lsn = local_mtr.commit_lsn();
+    }
     DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
       if (iteration == 6) {
-        wait_for_mtr_flush(local_mtr);
+        wait_for_lsn_flush(last_change_lsn);
         DBUG_SUICIDE();
       }
     });
     DBUG_EXECUTE_IF("crash_almost_end_lob_rollback",
-                    { wait_for_mtr_flush(local_mtr); });
+                    { wait_for_lsn_flush(last_change_lsn); });
 #endif /* UNIV_DEBUG */
 
     mtr_start(&local_mtr);
@@ -192,7 +197,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   mtr_commit(&local_mtr);
 
   DBUG_EXECUTE_IF("crash_endof_lob_rollback", {
-    wait_for_mtr_flush(local_mtr);
+    wait_for_lsn_flush(local_mtr.commit_lsn());
     DBUG_SUICIDE();
   });
 }
@@ -233,6 +238,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
 #ifdef UNIV_DEBUG
   ulint iteration = 0;
+  lsn_t last_change_lsn = 0;
 #endif /* UNIV_DEBUG */
 
   while (!fil_addr_is_null(node_loc)) {
@@ -257,14 +263,17 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     mtr_commit(&local_mtr);
 
 #ifdef UNIV_DEBUG
+    if (local_mtr.get_log_mode() == MTR_LOG_ALL && 0 < local_mtr.commit_lsn()) {
+      last_change_lsn = local_mtr.commit_lsn();
+    }
     DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
       if (iteration == 6) {
-        wait_for_mtr_flush(local_mtr);
+        wait_for_lsn_flush(last_change_lsn);
         DBUG_SUICIDE();
       }
     });
     DBUG_EXECUTE_IF("crash_almost_endof_zlob_rollback",
-                    { wait_for_mtr_flush(local_mtr); });
+                    { wait_for_lsn_flush(last_change_lsn); });
 #endif /* UNIV_DEBUG */
 
     mtr_start(&local_mtr);
@@ -294,7 +303,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   mtr_commit(&local_mtr);
 
   DBUG_EXECUTE_IF("crash_endof_zlob_rollback", {
-    wait_for_mtr_flush(local_mtr);
+    wait_for_lsn_flush(local_mtr.commit_lsn());
     DBUG_SUICIDE();
   });
 }

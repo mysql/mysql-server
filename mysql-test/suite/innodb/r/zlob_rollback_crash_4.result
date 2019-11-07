@@ -17,7 +17,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # Verify that before the crash, we HAVE NOT reached the index length=4 yet
 Pattern "Rolling back LOB for transaction \d+ undo number \d+ : current index length 4\." not found
 # restart
-SELECT * FROM t1;
+SELECT * FROM t1 FOR UPDATE;
 f1	f2
 DROP TABLE t1;
 SET GLOBAL innodb_compression_level = default;

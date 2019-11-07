@@ -23,7 +23,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # Verify that before the crash, we HAVE NOT reached 7-th iteration
 Pattern "Rolling back LOB for transaction \d+ undo number \d+ : current index length \d+\. \(iteration 7\)" not found
 # restart
-SELECT JSON_EXTRACT(j1, '$[1]') FROM t1;
+SELECT JSON_EXTRACT(j1, '$[1]') FROM t1 FOR UPDATE;
 JSON_EXTRACT(j1, '$[1]')
 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 DROP TABLE t1;

@@ -40,7 +40,7 @@ let SEARCH_PATTERN= Rolling back LOB for transaction \d+ undo number \d+ : curre
 
 --source include/start_mysqld.inc
 
-SELECT SUBSTRING(c1, 1, 10) FROM t1;
+SELECT SUBSTRING(c1, 1, 10) FROM t1 FOR UPDATE;
 DROP TABLE t1;
 
 --echo # Verify that after the restart, we HAVE reached the index length=0
