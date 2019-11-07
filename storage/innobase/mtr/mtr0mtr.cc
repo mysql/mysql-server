@@ -879,5 +879,10 @@ void mtr_commit_mlog_test_filling_block(log_t &log, size_t req_space_left) {
   mtr_commit_mlog_test_filling_block_low(log, req_space_left, 1);
 }
 
+void mtr_t::wait_for_flush() {
+  ut_ad(commit_lsn() > 0);
+  log_write_up_to(*log_sys, commit_lsn(), true);
+}
+
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -120,6 +120,11 @@ dberr_t Deleter::destroy() {
     if (err != DB_SUCCESS) {
       break;
     }
+
+    DBUG_EXECUTE_IF("ib_zlob_deleter_middle_crash", {
+      m_mtr.wait_for_flush();
+      DBUG_SUICIDE();
+    });
   }
 
   return (err);

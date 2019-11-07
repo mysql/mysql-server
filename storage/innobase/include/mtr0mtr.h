@@ -430,6 +430,7 @@ struct mtr_t {
     return (m_impl.m_log.size() + (m_impl.m_n_log_recs > 1 ? 1 : 0));
   }
 
+  void wait_for_flush();
 #endif /* UNIV_DEBUG */
 
   /** @return true if a record was added to the mini-transaction */

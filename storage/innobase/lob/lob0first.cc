@@ -359,6 +359,9 @@ buf_block_t *first_page_t::load_x(const page_id_t &page_id,
     case FIL_PAGE_SDI_ZBLOB:
     case FIL_PAGE_SDI_BLOB:
       /* Valid first page type.*/
+    case FIL_PAGE_TYPE_ZBLOB2:
+      /* Because of partially purged ZBLOB, we might see this page type as
+         the first page of the ZBLOB. */
       break;
     default:
       std::cerr << "Unexpected LOB first page type=" << page_type << std::endl;
