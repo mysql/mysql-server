@@ -379,6 +379,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
            undo_no_t undo_no, ref_t ref, ulint rec_type,
            const upd_field_t *uf) {
   DBUG_TRACE;
+  mtr_t lob_mtr;
 
   mtr_t *mtr = ctx->get_mtr();
   const mtr_log_t log_mode = mtr->get_log_mode();
@@ -407,6 +408,24 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     at the LOB. */
     return;
   }
+
+  /* Below we will restart the btr_mtr.  Between the cursor store and restore,
+  it is possible that the position of the record changes and hence the lob
+  reference could become invalid.  To avoid this take the latches before
+  restarting the btr_mtr. */
+
+  mtr_start(&lob_mtr);
+  mtr_sx_lock(dict_index_get_lock(index), &lob_mtr);
+
+  if (ctx->m_pcur != nullptr) {
+    ctx->restart_mtr();
+  } else {
+    ctx->x_latch_rec_page(&lob_mtr);
+    ctx->restart_mtr();
+    mtr_sx_lock(dict_index_get_lock(index), mtr);
+    ctx->x_latch_rec_page(mtr);
+  }
+  mtr_commit(&lob_mtr);
 
   space_id_t space_id = ref.space_id();
 
@@ -437,7 +456,6 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     return;
   }
 
-  mtr_t lob_mtr;
   mtr_start(&lob_mtr);
   lob_mtr.set_log_mode(log_mode);
 

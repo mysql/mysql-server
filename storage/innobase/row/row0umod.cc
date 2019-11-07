@@ -148,7 +148,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
     err = btr_cur_pessimistic_update(
         BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG, btr_cur,
         offsets, offsets_heap, heap, &dummy_big_rec, node->update,
-        node->cmpl_info, thr, thr_get_trx(thr)->id, node->undo_no, mtr);
+        node->cmpl_info, thr, thr_get_trx(thr)->id, node->undo_no, mtr, pcur);
 
     ut_a(!dummy_big_rec);
   }

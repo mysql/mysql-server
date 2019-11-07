@@ -201,7 +201,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_lo
 
     btr_cur_pessimistic_delete(&err, FALSE, btr_pcur_get_btr_cur(&node->pcur),
                                0, false, node->trx_id, node->undo_no,
-                               node->rec_type, &mtr);
+                               node->rec_type, &mtr, &node->pcur);
 
     switch (err) {
       case DB_SUCCESS:

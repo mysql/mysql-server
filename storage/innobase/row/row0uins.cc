@@ -134,7 +134,7 @@ retry:
   ut_a(success);
 
   btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, node->trx->id,
-                             node->undo_no, node->rec_type, &mtr);
+                             node->undo_no, node->rec_type, &mtr, &node->pcur);
 
   /* The delete operation may fail if we have little
   file space left: TODO: easiest to crash the database
