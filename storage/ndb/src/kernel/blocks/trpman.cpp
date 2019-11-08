@@ -748,10 +748,10 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
     }
   }
-  if (arg == 9994 ||  /* Block send to node X */
-      arg == 9995)    /* Unblock send to node X */
+  if (arg == 9988 ||  /* Block send to node X */
+      arg == 9989)    /* Unblock send to node X */
   {
-    bool block = (arg == 9994);
+    bool block = (arg == 9988);
     TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
     assert(recvdata != 0);
     for (Uint32 n = 1; n < signal->getLength(); n++)

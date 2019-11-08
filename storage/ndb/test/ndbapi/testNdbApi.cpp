@@ -6487,7 +6487,7 @@ testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
   ndbout << "Reducing MGMD SB memory + blocking send to data node" << endl;
   const int leftSbBytes = 96 * 1024;
   const int dumpCodeConsumeSb [] = {9996, leftSbBytes};
-  const int dumpCodeBlockSend [] = {9994, dataNodeId};
+  const int dumpCodeBlockSend [] = {9988, dataNodeId};
   CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeConsumeSb, 2) == 0);
   CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeBlockSend, 2) == 0);
 
@@ -6515,7 +6515,7 @@ testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   ndbout << "Cleaning up" << endl;
-  const int dumpCodeUnblockSend [] = {9995, dataNodeId};
+  const int dumpCodeUnblockSend [] = {9989, dataNodeId};
   const int dumpCodeReleaseSb [] = {9997};
   CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeUnblockSend, 2) == 0);
   CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeReleaseSb, 1) == 0);
