@@ -41,7 +41,7 @@ extern EventLogger * g_eventLogger;
 #define DEBUG_FPRINTF(a)
 #endif
 
-#define DEBUG_MULTI_TRP 1
+//#define DEBUG_MULTI_TRP 1
 
 #ifdef DEBUG_MULTI_TRP
 #define DEB_MULTI_TRP(arglist) do { g_eventLogger->info arglist ; } while (0)
