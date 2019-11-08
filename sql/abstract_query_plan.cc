@@ -426,7 +426,9 @@ Join_plan::Join_plan(const JOIN *join)
         m_tab_no(0),
         m_access_type(AT_VOID),
         m_other_access_reason(nullptr),
-        m_index_no(-1) {}
+        m_index_no(-1),
+        m_properties(0)
+   {}
 
   /**
     Check if the results from this operation will joined with results 

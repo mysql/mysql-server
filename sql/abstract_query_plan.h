@@ -224,6 +224,12 @@ namespace AQP
     int get_first_sj_inner() const;
     int get_last_sj_inner() const;
 
+    /**
+      Getter and setters for an opaque object for each table
+    */
+    uint get_table_properties() const;
+    void set_table_properties(uint);
+
   private:
 
     /** Backref. to the Join_plan which this Table_access is part of */
@@ -242,6 +248,9 @@ namespace AQP
 
     /** The index to use for this operation (if applicable )*/
     mutable int m_index_no;
+
+    /** May store an opaque property / flag */
+    uint m_properties;
 
     explicit Table_access();
 
@@ -320,6 +329,16 @@ namespace AQP
   inline uint Table_access::get_access_no() const
   { 
     return m_tab_no;
+  }
+
+  inline uint Table_access::get_table_properties() const
+  {
+    return m_properties;
+  }
+
+  inline void Table_access::set_table_properties(uint val)
+  {
+    m_properties = val;
   }
 
 }
