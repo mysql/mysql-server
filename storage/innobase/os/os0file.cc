@@ -1941,6 +1941,12 @@ os_file_get_parent_dir(
 		return(NULL);
 	}
 
+	if (last_slash - path < 0) {
+		/* Sanity check, it prevents gcc from trying to handle this case which
+		 * results in warnings for some optimized builds */
+		return (NULL);
+	}
+
 	/* Non-trivial directory component */
 
 	return(mem_strdupl(path, last_slash - path));
