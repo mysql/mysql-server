@@ -234,6 +234,7 @@ Mysqlx.Crud.Delete {
 -->echo ######### get validation error when working with collections #########
 stmtadmin create_collection	{"schema": "xtest", "name": "test3", "options": {
   "validation": {
+    "level": "STRICT",
     "schema": {
       "type": "object", "properties": {
         "value": {"type": "number", "minimum": 0, "maximum": 10}

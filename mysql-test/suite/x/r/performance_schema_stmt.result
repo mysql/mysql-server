@@ -14,7 +14,7 @@ null	SELECT ?	1
 command ok
 Query
 SELECT @@lower_case_table_names
-CREATE TABLE `xtest`.`test` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
+CREATE TABLE `xtest`.`test` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) NOT ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
 0 rows affected
 ######### Crud.Insert #########
 
@@ -93,14 +93,14 @@ DELETE FROM `xtest`.`test` WHERE (`_id` = 'one')
 command ok
 Query
 SELECT @@lower_case_table_names
-CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) NOT ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
 0 rows affected
 ######### ensure_collection #########
 
 command ok
 Query
 SELECT @@lower_case_table_names
-CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
+CREATE TABLE `xtest`.`test2` (doc JSON,_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY, _json_schema JSON GENERATED ALWAYS AS ('{"type":"object"}'), CONSTRAINT `$val_strict_7CEB3FDE5F7A9C4CE5FBE610D7D8EDA62EBE5F4E` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) NOT ENFORCED) CHARSET utf8mb4 ENGINE=InnoDB
 SELECT @@sql_mode
 SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND column_name != '_json_schema' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\"|`.*`)))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen, COUNT(CASE WHEN (column_name = '_json_schema') THEN 1 ELSE NULL END) AS validation_schema FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
 SELECT @@lower_case_table_names

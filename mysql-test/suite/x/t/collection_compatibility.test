@@ -102,6 +102,7 @@ stmtsql SELECT column_name FROM information_schema.columns WHERE
 -->callmacro %CREATE_COLLECTION% foobar
 stmtadmin create_collection	{"schema": "xtest", "name": "foobar", "options": {
   "validation": {
+    "level": "STRICT",
     "schema": "{\"type\": \"object\"}"
   }
 }};
@@ -218,6 +219,7 @@ callmacro Insert_value_to_collection	old_coll
 stmtadmin modify_collection_options
 	{"schema": "xtest", "name": "old_coll", "options": {
     "validation": {
+      "level": "strict",
       "schema":{"type":"object"}
     }
   }
@@ -269,6 +271,8 @@ varlet %STR%  "type": "object", "properties": {
    "amount": {"type": "number", "minimum": 100}},
  "required": ["amount"];
 
+-->callmacro Modify_level	old_coll	STRICT
+-->recvresult
 -->callmacro Modify_schema	old_coll	{%STR%}
 -->recverror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
 callmacro Update_item old_coll

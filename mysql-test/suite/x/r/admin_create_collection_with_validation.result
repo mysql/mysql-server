@@ -261,7 +261,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -277,7 +277,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -293,7 +293,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -304,8 +304,8 @@ test_coll	CREATE TABLE `test_coll` (
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5015
-  msg: "Invalid number of arguments, expected value for \'schema\'"
+  code: 5021
+  msg: "\'foo\' is not a valid field for create_collection command"
   sql_state: "HY000"
 }
 
@@ -315,8 +315,8 @@ Mysqlx.Error {
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5015
-  msg: "Invalid number of arguments, expected value for \'schema\'"
+  code: 5021
+  msg: "\'foo\' is not a valid field for create_collection command"
   sql_state: "HY000"
 }
 
@@ -597,7 +597,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -613,7 +613,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -629,7 +629,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -640,8 +640,8 @@ test_coll	CREATE TABLE `test_coll` (
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5015
-  msg: "Invalid number of arguments, expected value for \'schema\'"
+  code: 5021
+  msg: "\'foo\' is not a valid field for ensure_collection command"
   sql_state: "HY000"
 }
 
@@ -651,8 +651,8 @@ Mysqlx.Error {
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5015
-  msg: "Invalid number of arguments, expected value for \'schema\'"
+  code: 5021
+  msg: "\'foo\' is not a valid field for ensure_collection command"
   sql_state: "HY000"
 }
 
@@ -700,7 +700,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"description":"bar"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -719,7 +719,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"description":"foo"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -735,7 +735,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"description":"custom schema"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 
@@ -746,7 +746,7 @@ test_coll	CREATE TABLE `test_coll` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 

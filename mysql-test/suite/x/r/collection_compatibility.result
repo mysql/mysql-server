@@ -104,7 +104,7 @@ bar	CREATE TABLE `bar` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type": "object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foo
@@ -134,7 +134,7 @@ foobar	CREATE TABLE `foobar` (
   `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_9B500343BC52E2911172EB52AE5CF4847604C6E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_9B500343BC52E2911172EB52AE5CF4847604C6E5` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foobar
@@ -406,6 +406,8 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
+
+command ok
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
@@ -616,7 +618,7 @@ bar	CREATE TABLE `bar` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type": "object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foo
@@ -646,7 +648,7 @@ foobar	CREATE TABLE `foobar` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_9B500343BC52E2911172EB52AE5CF4847604C6E5` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_9B500343BC52E2911172EB52AE5CF4847604C6E5` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foobar
@@ -918,6 +920,8 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
+
+command ok
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
@@ -1140,7 +1144,7 @@ bar	CREATE TABLE `bar` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type": "object"}') VIRTUAL,
   PRIMARY KEY (`_id`),
-  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`))
+  CONSTRAINT `$val_strict_E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE IF EXISTS xtest.foo
@@ -1470,6 +1474,8 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
+
+command ok
 Got expected error:
 Mysqlx.Error {
   severity: ERROR

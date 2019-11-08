@@ -114,7 +114,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->vargen %INVALID_VALUE% x 1025
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"%INVALID_VALUE%"	"%TEST_KEY%"	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH
--->callmacro Assert_no_attribute_inserted
+-->callmacro Assert_no_attribute_inserted	%TEST_KEY%
 -->closesession
 
 -->echo
@@ -139,7 +139,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->vargen %INVALID_KEY% x 33
 -->callmacro Send_session_connect_attrs_2	"%INVALID_KEY%"	"valid_value"	"%TEST_KEY%"	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
--->callmacro Assert_no_attribute_inserted
+-->callmacro Assert_no_attribute_inserted	%TEST_KEY%
 -->closesession
 
 -->echo
@@ -163,7 +163,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	""	"valid_value"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_EMPTY_KEY
--->callmacro Assert_no_attribute_inserted
+-->callmacro Assert_no_attribute_inserted	%TEST_KEY%
 -->closesession
 
 -->echo
@@ -188,7 +188,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->vargen %INVALID_VALUE% x 1025
 -->callmacro Send_session_connect_attrs_2	"%TEST_KEY%"	"valid_value"	"%INVALID_KEY%"	"%INVALID_VALUE%"
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH
--->callmacro Assert_no_attribute_inserted
+-->callmacro Assert_no_attribute_inserted	%TEST_KEY%
 -->closesession
 
 -->echo
@@ -212,7 +212,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->newsession test_session.II.5.a	-
 -->callmacro Verify_its_xprotocol_connection
 -->callmacro Send_connect_capability_with_too_long_payload
--->callmacro Assert_no_attribute_inserted
+-->callmacro Assert_no_attribute_inserted	%TEST_KEY%
 -->closesession
 
 -->echo
@@ -248,7 +248,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->varlet %SCALAR2% type: V_BOOL v_bool: 1
 -->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
 -->recverror ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_VALUE_LENGTH
--->callmacro Assert_no_attribute_inserted
+-->callmacro Assert_no_attribute_inserted	%TEST_KEY%
 -->closesession
 
 -->echo
@@ -260,7 +260,7 @@ GRANT ALL ON *.* TO xtest_client2@localhost;
 -->varlet %SCALAR2% type: V_NULL
 -->callmacro Send_two_different_capabilities	%SCALAR1%	%SCALAR2%
 -->recverror ER_X_CAPABILITIES_PREPARE_FAILED
--->callmacro Assert_no_attribute_inserted
+-->callmacro Assert_no_attribute_inserted	%TEST_KEY%
 -->closesession
 
 -->echo
