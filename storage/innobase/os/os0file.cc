@@ -1790,6 +1790,12 @@ static char *os_file_get_parent_dir(const char *path) {
     return (nullptr);
   }
 
+  if (last_slash - path < 0) {
+    /* Sanity check, it prevents gcc from trying to handle this case which
+     * results in warnings for some optimized builds */
+    return (nullptr);
+  }
+
   /* Non-trivial directory component */
 
   return (mem_strdupl(path, last_slash - path));
