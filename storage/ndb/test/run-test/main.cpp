@@ -37,6 +37,8 @@
 
 #include <NdbSleep.h>
 #include "my_alloc.h"  // MEM_ROOT
+#include "my_sys.h" // my_realpath()
+#include "my_io.h" // FN_REFLEN
 #include <ndb_version.h>
 #include <vector>
 #include <ndb_version.h>
@@ -1922,8 +1924,9 @@ static bool find_config_ini_files() {
 }
 
 BaseString get_atrt_path(const char *arg) {
-  char *fullPath = realpath(arg, nullptr);
-  if (fullPath == nullptr) return {};
+  char fullPath[FN_REFLEN];
+  int ret = my_realpath(fullPath, arg, 0);
+  if (ret == -1) return {};
 
   BaseString path;
   char *last_folder_sep = strrchr(fullPath, '/');
@@ -1932,7 +1935,6 @@ BaseString get_atrt_path(const char *arg) {
     path.assign(fullPath);
   }
 
-  free(fullPath);
   return path;
 }
 
