@@ -190,6 +190,11 @@ typedef struct Trans_param {
 
   /// pointer to immediate_server_version
   uint32_t *immediate_server_version;
+
+  /*
+    Flag to identify a 'CREATE TABLE ... AS SELECT'.
+  */
+  bool is_create_table_as_select;
 } Trans_param;
 
 /**

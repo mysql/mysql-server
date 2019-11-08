@@ -800,7 +800,19 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     Update parallel applier indexes.
   */
   if (!local_transaction) {
-    if (!has_write_set) {
+    /*
+      'CREATE TABLE ... AS SELECT' is considered a DML, though in reality it
+      is DDL + DML, which write-sets do not capture all dependencies.
+      It is flagged through gle->last_committed and gle->sequence_number so
+      that it is only executed on parallel applier after all precedent
+      transactions like any other DDL.
+    */
+    bool update_parallel_applier_last_committed_global = false;
+    if (0 == gle->last_committed && 0 == gle->sequence_number) {
+      update_parallel_applier_last_committed_global = true;
+    }
+
+    if (!has_write_set || update_parallel_applier_last_committed_global) {
       /*
         DDL does not have write-set, so we need to ensure that it
         is applied without any other transaction in parallel.
@@ -814,7 +826,8 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     DBUG_ASSERT(gle->sequence_number > 0);
     DBUG_ASSERT(gle->last_committed < gle->sequence_number);
 
-    increment_parallel_applier_sequence_number(!has_write_set);
+    increment_parallel_applier_sequence_number(
+        !has_write_set || update_parallel_applier_last_committed_global);
   }
 
 end:

@@ -768,6 +768,13 @@ given at all. */
   Implies HA_CREATE_USED_DEFAULT_ENCRYPTION.
 */
 #define HA_CREATE_USED_DEFAULT_ENCRYPTION (1L << 30)
+
+/**
+  This option is used to convey that the create table should not
+  commit the operation and keep the transaction started.
+*/
+#define HA_CREATE_USED_START_TRANSACTION (1L << 31)
+
 /*
   End of bits used in used_fields
 */
@@ -2689,6 +2696,12 @@ struct HA_CREATE_INFO {
     created by ALTER to be marked as hidden.
   */
   bool m_hidden{false};
+
+  /*
+    A flag to indicate if this table should be created but not committed at
+    the end of statement.
+  */
+  bool m_transactional_ddl{false};
 
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
@@ -6668,6 +6681,22 @@ handler *get_new_handler(TABLE_SHARE *share, bool partitioned, MEM_ROOT *alloc,
                          handlerton *db_type);
 handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
                          bool no_substitute, bool report_error);
+
+/**
+  Get default handlerton, if handler supplied is null.
+
+  @param thd   Thread context.
+  @param hton  The handlerton passed.
+
+  @returns pointer to handlerton.
+*/
+inline handlerton *get_default_handlerton(THD *thd, handlerton *hton) {
+  if (!hton) {
+    hton = ha_checktype(thd, DB_TYPE_UNKNOWN, false, false);
+    DBUG_ASSERT(hton);
+  }
+  return hton;
+}
 
 static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type) {
   return (db_type == nullptr) ? DB_TYPE_UNKNOWN : db_type->db_type;

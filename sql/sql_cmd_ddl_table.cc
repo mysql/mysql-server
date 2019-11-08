@@ -193,6 +193,33 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     if (lex->duplicates == DUP_REPLACE)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_REPLACE_SELECT);
 
+    /**
+      Disallow creation of foreign keys if,
+
+      - SE supports atomic DDL's.
+      - The binlogging is enabled.
+      - The binlog format is ROW.
+
+      This is done to avoid complications involved in locking,
+      updating and invalidation (in case of rollback) of DD cache
+      for parent table.
+    */
+    if ((alter_info.flags & Alter_info::ADD_FOREIGN_KEY) &&
+        (create_info.db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+        mysql_bin_log.is_open() &&
+        (thd->variables.option_bits & OPTION_BIN_LOG) &&
+        thd->variables.binlog_format == BINLOG_FORMAT_ROW) {
+      my_error(ER_FOREIGN_KEY_WITH_ATOMIC_CREATE_SELECT, MYF(0));
+      return true;
+    }
+
+    // Reject request to CREATE TABLE AS SELECT with START TRANSACTION.
+    if (create_info.m_transactional_ddl) {
+      my_error(ER_NOT_ALLOWED_WITH_START_TRANSACTION, MYF(0),
+               "with CREATE TABLE ... AS SELECT statement.");
+      return true;
+    }
+
     /*
       If:
       a) we inside an SP and there was NAME_CONST substitution,

@@ -2305,6 +2305,13 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
       case VIEW_CHECK_ERROR:
         return true;
     }
+    /*
+      Replication may require extra check of data change statements, i.e.,
+      for DML executed for CREATE ... SELECT. We check this only once
+      before inserting the first row.
+    */
+  } else if (info.stats.records == 0 && run_before_dml_hook(thd)) {
+    return true;
   }
 
   if (invoke_table_check_constraints(thd, table)) {
@@ -2935,15 +2942,22 @@ int Query_result_create::binlog_show_create_table(THD *thd) {
     /*
       Binary log layer has special code to handle rollback of CREATE TABLE
       SELECT in RBR mode - it truncates statement cache in this case.
-      So it is OK that we disregard that SE is transactional and might even
-      support atomic DDL below.
+
+      If SE is transactional and supports atomic DDL, we log the Query_log
+      event into transactional cache and do not flush it immediately.
     */
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
+
+    bool is_trans = false;
+    bool direct = true;
+    if (get_default_handlerton(thd, thd->lex->create_info->db_type)->flags &
+        HTON_SUPPORTS_ATOMIC_DDL) {
+      is_trans = true;
+      direct = false;
+    }
     result =
         thd->binlog_query(THD::STMT_QUERY_TYPE, query.ptr(), query.length(),
-                          /* is_trans */ false,
-                          /* direct */ true,
-                          /* suppress_use */ false, errcode);
+                          is_trans, direct, /* suppress_use */ false, errcode);
     DEBUG_SYNC(thd, "create_select_after_write_create_event");
   }
   return result;
@@ -3077,12 +3091,15 @@ bool Query_result_create::send_eof(THD *thd) {
       error = update_referencing_views_metadata(thd, create_table, false,
                                                 &uncommitted_tables);
   }
+  DBUG_EXECUTE_IF("crash_before_create_select_insert", DBUG_SUICIDE(););
 
   if (!error) error = Query_result_insert::send_eof(thd);
   if (error)
     abort_result_set(thd);
   else {
     bool commit_error = false;
+
+    DBUG_EXECUTE_IF("crash_after_create_select_insert", DBUG_SUICIDE(););
     /*
       Do an implicit commit at end of statement for non-temporary tables.
       This can fail in which case rollback will be done automatically.

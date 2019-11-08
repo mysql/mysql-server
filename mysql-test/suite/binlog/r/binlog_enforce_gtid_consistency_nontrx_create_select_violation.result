@@ -21,7 +21,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -38,7 +38,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -55,7 +55,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -72,7 +72,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -89,7 +89,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -107,7 +107,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -125,7 +125,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -143,7 +143,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -161,7 +161,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -179,7 +179,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -204,10 +204,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -218,10 +218,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -232,10 +232,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -246,10 +246,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -260,10 +260,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -275,10 +275,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -290,10 +290,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -305,10 +305,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -320,10 +320,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -335,10 +335,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -359,7 +359,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -376,7 +376,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -393,7 +393,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -410,7 +410,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -427,7 +427,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -445,7 +445,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -463,7 +463,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -481,7 +481,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -499,7 +499,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -517,7 +517,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -543,10 +543,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -557,10 +557,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -571,10 +571,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -585,10 +585,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -599,10 +599,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -614,10 +614,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -629,10 +629,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -644,10 +644,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -659,10 +659,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -674,10 +674,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -697,10 +697,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -711,10 +711,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -725,10 +725,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -739,10 +739,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -753,10 +753,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -768,10 +768,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -783,10 +783,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -798,10 +798,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -813,10 +813,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -828,10 +828,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -852,7 +852,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -869,7 +869,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -886,7 +886,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -903,7 +903,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -920,7 +920,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=0 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -938,7 +938,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -956,7 +956,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -974,7 +974,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -992,7 +992,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1010,7 +1010,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1036,10 +1036,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1050,10 +1050,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1064,10 +1064,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1078,10 +1078,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1092,10 +1092,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1107,10 +1107,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1122,10 +1122,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1137,10 +1137,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1152,10 +1152,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1167,10 +1167,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1190,10 +1190,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1204,10 +1204,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1218,10 +1218,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1232,10 +1232,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1246,10 +1246,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1261,10 +1261,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1276,10 +1276,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1291,10 +1291,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1306,10 +1306,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1321,10 +1321,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=0 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
@@ -1350,7 +1350,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1367,7 +1367,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1384,7 +1384,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1401,7 +1401,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1418,7 +1418,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1436,7 +1436,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1454,7 +1454,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1472,7 +1472,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1490,7 +1490,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1508,7 +1508,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1534,7 +1534,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1551,7 +1551,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1568,7 +1568,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1585,7 +1585,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1602,7 +1602,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=3 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1620,7 +1620,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1638,7 +1638,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1656,7 +1656,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1674,7 +1674,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1692,7 +1692,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1719,7 +1719,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1736,7 +1736,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1753,7 +1753,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1770,7 +1770,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1787,7 +1787,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1805,7 +1805,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1823,7 +1823,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1841,7 +1841,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1859,7 +1859,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1877,7 +1877,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1903,7 +1903,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1920,7 +1920,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1937,7 +1937,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1954,7 +1954,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1971,7 +1971,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -1989,7 +1989,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2007,7 +2007,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2025,7 +2025,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2043,7 +2043,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2061,7 +2061,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2087,7 +2087,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2104,7 +2104,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2121,7 +2121,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2138,7 +2138,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2155,7 +2155,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2173,7 +2173,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2191,7 +2191,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2209,7 +2209,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2227,7 +2227,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2245,7 +2245,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2272,7 +2272,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2289,7 +2289,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2306,7 +2306,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2323,7 +2323,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2340,7 +2340,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2358,7 +2358,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2376,7 +2376,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2394,7 +2394,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2412,7 +2412,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2430,7 +2430,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2456,7 +2456,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2473,7 +2473,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2490,7 +2490,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2507,7 +2507,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2524,7 +2524,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2542,7 +2542,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2560,7 +2560,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2578,7 +2578,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2596,7 +2596,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2614,7 +2614,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2640,7 +2640,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2657,7 +2657,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2674,7 +2674,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2691,7 +2691,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2708,7 +2708,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2726,7 +2726,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2744,7 +2744,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2762,7 +2762,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2780,7 +2780,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2798,7 +2798,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2825,7 +2825,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2842,7 +2842,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2859,7 +2859,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2876,7 +2876,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2893,7 +2893,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2911,7 +2911,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2929,7 +2929,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2947,7 +2947,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2965,7 +2965,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -2983,7 +2983,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3009,7 +3009,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3026,7 +3026,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3043,7 +3043,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3060,7 +3060,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3077,7 +3077,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=1 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3095,7 +3095,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3113,7 +3113,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3131,7 +3131,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3149,7 +3149,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3167,7 +3167,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3197,7 +3197,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3214,7 +3214,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3231,7 +3231,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3248,7 +3248,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3265,7 +3265,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3283,7 +3283,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3301,7 +3301,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3319,7 +3319,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3337,7 +3337,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3355,7 +3355,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3380,10 +3380,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3398,10 +3398,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3416,10 +3416,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3434,10 +3434,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3452,10 +3452,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3471,10 +3471,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3490,10 +3490,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3509,10 +3509,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3528,10 +3528,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3547,10 +3547,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3575,7 +3575,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3592,7 +3592,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3609,7 +3609,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3626,7 +3626,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3643,7 +3643,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=2 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3661,7 +3661,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3679,7 +3679,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3697,7 +3697,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3715,7 +3715,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3733,7 +3733,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -3759,10 +3759,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3777,10 +3777,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3795,10 +3795,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3813,10 +3813,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3831,10 +3831,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3850,10 +3850,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3869,10 +3869,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3888,10 +3888,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3907,10 +3907,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3926,10 +3926,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3953,10 +3953,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3971,10 +3971,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -3989,10 +3989,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4007,10 +4007,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4025,10 +4025,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4044,10 +4044,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4063,10 +4063,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4082,10 +4082,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4101,10 +4101,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4120,10 +4120,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4148,7 +4148,7 @@ INSERT INTO nonempty_myisam VALUES (1);
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4165,7 +4165,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4182,7 +4182,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4199,7 +4199,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4216,7 +4216,7 @@ Note	1051	Unknown table 'test.t1'
 # enforce_gtid_consistency=2 gtid_mode=1 gtid_next=GTID
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_SELECT
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4234,7 +4234,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT 1;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4252,7 +4252,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4270,7 +4270,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4288,7 +4288,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4306,7 +4306,7 @@ Note	1051	Unknown table 'test.t1'
 SET GTID_NEXT = 'GTID';
 BEGIN; INSERT INTO t0 VALUES (1);;
 error ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 ERROR HY000: Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
@@ -4332,10 +4332,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4350,10 +4350,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4368,10 +4368,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4386,10 +4386,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4404,10 +4404,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4423,10 +4423,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4442,10 +4442,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4461,10 +4461,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4480,10 +4480,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4499,10 +4499,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=AUTOMATIC
 SET GTID_NEXT = 'AUTOMATIC';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4526,10 +4526,10 @@ INSERT INTO nonempty_myisam VALUES (1);
 ---- CREATE ... SELECT (value, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4544,10 +4544,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4562,10 +4562,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 1 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4580,10 +4580,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (InnoDB, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4598,10 +4598,10 @@ DROP TABLE IF EXISTS t1;
 ---- CREATE ... SELECT (MyISAM, 0 row) ----
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4617,10 +4617,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT 1;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT 1;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT 1;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4636,10 +4636,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4655,10 +4655,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM nonempty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM nonempty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4674,10 +4674,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_innodb;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_innodb;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]
@@ -4693,10 +4693,10 @@ DROP TABLE IF EXISTS t1;
 # enforce_gtid_consistency=2 gtid_mode=0 gtid_next=ANONYMOUS
 SET GTID_NEXT = 'ANONYMOUS';
 BEGIN; INSERT INTO t0 VALUES (1);;
-[START] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[START] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
-[END] CREATE TABLE t1 (a INT) SELECT * FROM empty_myisam;
+[END] CREATE TABLE t1 (a INT) ENGINE=MyISAM SELECT * FROM empty_myisam;
 Warnings:
 Warning	1786	Statement violates GTID consistency: CREATE TABLE ... SELECT.
 include/assert.inc [One warning/error should be generated.]

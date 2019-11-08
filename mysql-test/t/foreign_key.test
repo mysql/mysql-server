@@ -5,7 +5,7 @@
 --disable_query_log
 call mtr.add_suppression(" In RENAME TABLE table `test`.`parent` is referenced in foreign key constraints which are not compatible with the new table definition.");
 --enable_query_log
-
+SET @saved_binlog_format= @@SESSION.binlog_format;
 
 #
 # Bug#34455 (Ambiguous foreign keys syntax is accepted)
@@ -870,6 +870,8 @@ BEGIN;
 SELECT * FROM source FOR UPDATE;
 
 connection default;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 --send CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT fk FROM source;
 
 connection con1;
@@ -897,6 +899,7 @@ COMMIT;
 connection default;
 --echo # Reap CREATE TABLE
 --reap
+SET SESSION binlog_format= @saved_binlog_format;
 
 DROP TABLES child, source;
 
@@ -907,6 +910,7 @@ BEGIN;
 SELECT * FROM parent;
 
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 --send CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
 
 connection con1;
@@ -921,6 +925,7 @@ COMMIT;
 connection default;
 --echo # Reap CREATE TABLE
 --reap
+SET SESSION binlog_format= @saved_binlog_format;
 
 --echo # 3.3) CREATE TABLE ... SELECT for existing table should not acquire
 --echo #      any locks on parent table.
@@ -929,7 +934,9 @@ CREATE TABLE parent2 (pk INT PRIMARY KEY);
 LOCK TABLE parent2 WRITE;
 
 connection default;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE IF NOT EXISTS child (fk INT, FOREIGN KEY (fk) REFERENCES parent2(pk)) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 
 connection con1;
 UNLOCK TABLES;
@@ -945,8 +952,10 @@ LOCK TABLE parent WRITE;
 
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 --error ER_LOCK_WAIT_TIMEOUT
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 
 connection con1;
@@ -959,8 +968,10 @@ SELECT * FROM parent;
 
 connection default;
 SET @@lock_wait_timeout= 1;
+SET @@SESSION.binlog_format=STATEMENT;
 --error ER_LOCK_WAIT_TIMEOUT
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk)) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 SET @@lock_wait_timeout= @old_lock_wait_timeout;
 
 connection con1;
@@ -973,7 +984,9 @@ DROP TABLE parent;
 --echo #      acquire X on child table.
 
 SET FOREIGN_KEY_CHECKS=0;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET SESSION binlog_format= @saved_binlog_format;
 SET FOREIGN_KEY_CHECKS=1;
 
 connection con1;
@@ -1037,7 +1050,10 @@ CREATE TABLE parent (pk INT PRIMARY KEY);
 SELECT * FROM parent;
 
 connection con1;
+SET @saved_binlog_format= @@SESSION.binlog_format;
+SET @@SESSION.binlog_format=STATEMENT;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE CASCADE) SELECT NULL AS fk;
+SET SESSION binlog_format= @saved_binlog_format;
 
 connection default;
 LOCK TABLE parent WRITE;

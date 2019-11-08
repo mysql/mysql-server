@@ -23,6 +23,7 @@
 #include "sql/sql_parse.h"
 
 #include "my_config.h"
+#include "mysql/psi/mysql_table.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -364,8 +365,10 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask) {
       return !lex->drop_temporary;
     case SQLCOM_ALTER_TABLE:
     case SQLCOM_CREATE_TABLE:
-      /* If CREATE TABLE of non-temporary table, do implicit commit */
-      return (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) == 0;
+      /* If CREATE TABLE of non-temporary table or without
+        START TRANSACTION, do implicit commit */
+      return (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE ||
+              lex->create_info->m_transactional_ddl) == 0;
     case SQLCOM_SET_OPTION:
       /* Implicitly commit a transaction started by a SET statement */
       return lex->autocommit;
@@ -2651,6 +2654,23 @@ int mysql_execute_command(THD *thd, bool first_level) {
   DBUG_ASSERT(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
+  DBUG_ASSERT(!thd->m_transactional_ddl.inited() ||
+              thd->in_active_multi_stmt_transaction());
+
+  /*
+    If there is a CREATE TABLE...START TRANSACTION command which
+    is not yet committed or rollbacked, then we should allow only
+    BINLOG INSERT, COMMIT or ROLLBACK command.
+    TODO: Should we really check name of table when we cable BINLOG INSERT ?
+  */
+  if (thd->m_transactional_ddl.inited() && lex->sql_command != SQLCOM_COMMIT &&
+      lex->sql_command != SQLCOM_ROLLBACK &&
+      lex->sql_command != SQLCOM_BINLOG_BASE64_EVENT) {
+    my_error(ER_STATEMENT_NOT_ALLOWED_AFTER_START_TRANSACTION, MYF(0));
+    binlog_gtid_end_transaction(thd);
+    return 1;
+  }
+
   thd->work_part_info = nullptr;
 
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQUERY_TO_DERIVED))
@@ -2943,6 +2963,16 @@ int mysql_execute_command(THD *thd, bool first_level) {
 #endif
 
   /*
+    Start a new transaction if CREATE TABLE has START TRANSACTION clause.
+    Disable binlog so that the BEGIN is not logged in binlog.
+   */
+  if (lex->create_info && lex->create_info->m_transactional_ddl &&
+      !thd->slave_thread) {
+    Disable_binlog_guard binlog_guard(thd);
+    if (trans_begin(thd, MYSQL_START_TRANS_OPT_READ_WRITE)) return true;
+  }
+
+  /*
     For statements which need this, prevent InnoDB from automatically
     committing InnoDB transaction each time data-dictionary tables are
     closed after being updated.
@@ -3009,6 +3039,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     goto error;
   }
+
+  DBUG_EXECUTE_IF(
+      "force_rollback_in_slave_on_transactional_ddl_commit",
+      if (thd->m_transactional_ddl.inited() &&
+          thd->lex->sql_command == SQLCOM_COMMIT) {
+        lex->sql_command = SQLCOM_ROLLBACK;
+      });
 
   /*
     We do not flag "is DML" (TX_STMT_DML) here as replication expects us to
@@ -4714,7 +4751,9 @@ finish:
       automatically release metadata locks of the current statement.
     */
     thd->mdl_context.release_transactional_locks();
-  } else if (!thd->in_sub_stmt) {
+  } else if (!thd->in_sub_stmt &&
+             (thd->lex->sql_command != SQLCOM_CREATE_TABLE ||
+              !thd->lex->create_info->m_transactional_ddl)) {
     thd->mdl_context.release_statement_locks();
   }
 

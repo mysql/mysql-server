@@ -969,21 +969,9 @@ void release_table_share(TABLE_SHARE *share) {
 
 /**
   Get an existing table definition from the table definition cache.
-
-  Search the table definition cache for a share with the given key.
-  If the share exists or if it is in the process of being opened
-  by another thread (m_open_in_progress flag is true) return share.
-  Do not wait for share opening to finish.
-
-  @param db         database name.
-  @param table_name table name.
-
-  @retval NULL      a share for the table does not exist in the cache
-  @retval != NULL   pointer to existing share in the cache
 */
 
-static TABLE_SHARE *get_cached_table_share(const char *db,
-                                           const char *table_name) {
+TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name) {
   char key[MAX_DBKEY_LENGTH];
   size_t key_length;
   mysql_mutex_assert_owner(&LOCK_open);

@@ -36,6 +36,7 @@
 #include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"  // thd->lex
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
 
@@ -71,10 +72,14 @@ class Disable_autocommit_guard {
     if (m_thd) {
       /*
         Both session and statement transactions need to be finished by the
-        time when we enable auto-commit mode back.
+        time when we enable auto-commit mode back OR there must be a
+        transactional DDL being executed.
       */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+      DBUG_ASSERT(
+          ((m_thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+            m_thd->lex->create_info->m_transactional_ddl) ||
+           (m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+            m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION))));
       m_thd->variables.option_bits = m_save_option_bits;
     }
   }

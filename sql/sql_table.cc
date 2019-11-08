@@ -6201,6 +6201,12 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
     return true;
   }
 
+  // FKs are not supported with CREATE TABLE ... START TRANSACTION.
+  if (create_info->m_transactional_ddl) {
+    my_error(ER_FOREIGN_KEY_WITH_ATOMIC_CREATE_SELECT, MYF(0));
+    return true;
+  }
+
   // Validate checks (among other things) that index prefixes are
   // not used and that generated columns are not used with
   // SET NULL and ON UPDATE CASCASE. Since this cannot change once
@@ -9492,7 +9498,7 @@ bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
 
 bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
                         HA_CREATE_INFO *create_info, Alter_info *alter_info) {
-  bool result;
+  bool result = false;
   bool is_trans = false;
   uint not_used;
   handlerton *post_ddl_ht = nullptr;
@@ -9500,6 +9506,27 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   DBUG_TRACE;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+  if (create_info->m_transactional_ddl) {
+    /*
+      Stop if START TRANSACTION is requested on table with engine that
+      does not support atomic DDL.
+     */
+    if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+      my_error(ER_NOT_ALLOWED_WITH_START_TRANSACTION, MYF(0),
+               "with engine that does not support atomic DDL.");
+      result = true;
+      goto end;
+    }
+
+    // Stop if START TRANSACTION is requested when creating temporary table.
+    if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+      my_error(ER_NOT_ALLOWED_WITH_START_TRANSACTION, MYF(0),
+               "to create temporary tables.");
+      result = true;
+      goto end;
+    }
+  }
 
   /*
     Open or obtain "X" MDL lock on the table being created.
@@ -9651,12 +9678,35 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     }
 
     /*
+      Initialize the create select context with details required to perform
+      rollback and commit operation after the INSERT's are executed. The
+      context is freed once transaction is rolled back or committed.
+
+      We do it just before transaction commit, so that if there is some
+      error while creating a table, we can skip this initialization. One
+      reason to do it this way is that the open_tables() acquires S mdl lock
+      on table name and then later upgrade lock to X. If there is a error
+      before the lock upgrade, we would have held S mdl lock, but then
+      attempt to call tdc_remove_table() would assert during call to
+      m_transactional_ddl.rollback().
+    */
+    if (!result && create_info->m_transactional_ddl) {
+      thd->m_transactional_ddl.init(create_table->db, create_table->table_name,
+                                    create_info->db_type);
+    }
+
+    /*
       Unless we are executing CREATE TEMPORARY TABLE we need to commit
       changes to the data-dictionary, SE and binary log and possibly run
       handlerton's post-DDL hook.
+
+      Also, ignore implicit commit of transaction if we are processing
+      transactional DDL.
     */
     if (!result && !thd->is_plugin_fake_ddl())
-      result = trans_commit_stmt(thd) || trans_commit_implicit(thd);
+      result = trans_commit_stmt(thd) ||
+               (create_info->m_transactional_ddl ? false
+                                                 : trans_commit_implicit(thd));
 
     if (result && !thd->is_plugin_fake_ddl()) {
       trans_rollback_stmt(thd);
@@ -9672,9 +9722,11 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
       In case of CREATE TABLE post-DDL hook is mostly relevant for case
       when statement is rolled back. In such cases it is responsibility
       of this hook to cleanup files which might be left after failed
-      table creation attempt.
+      table creation attempt. Ignore calling post-DDL hoot if we are
+      processing transactional DDL.
     */
-    if (post_ddl_ht) post_ddl_ht->post_ddl(thd);
+    if (!create_info->m_transactional_ddl && post_ddl_ht)
+      post_ddl_ht->post_ddl(thd);
 
     if (!result) {
       /*
@@ -15360,6 +15412,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
       return true;
     }
+  }
+
+  // Reject request to ALTER TABLE with START TRANSACTION.
+  if (create_info->m_transactional_ddl) {
+    my_error(ER_NOT_ALLOWED_WITH_START_TRANSACTION, MYF(0),
+             "with ALTER TABLE command.");
+    return true;
   }
 
   if (alter_info->with_validation != Alter_info::ALTER_VALIDATION_DEFAULT &&

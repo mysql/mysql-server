@@ -762,11 +762,21 @@ Dictionary_client::Auto_releaser::Auto_releaser()
 // as the current releaser.
 Dictionary_client::Auto_releaser::Auto_releaser(Dictionary_client *client)
     : m_client(client), m_prev(client->m_current_releaser) {
+  /**
+    Make sure that if we install a first auto_releaser, we do not have
+    uncommitted object or we are not processing a transactional DDL.
+  */
+  DBUG_ASSERT(m_client->m_current_releaser != &m_client->m_default_releaser ||
+              m_client->m_registry_uncommitted.size_all() == 0 ||
+              m_client->m_thd->m_transactional_ddl.inited());
   m_client->m_current_releaser = this;
 }
 
 // Release all objects registered and restore previous releaser.
 Dictionary_client::Auto_releaser::~Auto_releaser() {
+  // Make sure that we destroy auto_releaser object in LIFO order.
+  DBUG_ASSERT(m_client->m_current_releaser == this);
+
   // Release all objects registered.
   m_client->release<Abstract_table>(&m_release_registry);
   m_client->release<Schema>(&m_release_registry);
@@ -787,12 +797,16 @@ Dictionary_client::Auto_releaser::~Auto_releaser() {
   // the transaction.
   if (m_client->m_current_releaser == &m_client->m_default_releaser) {
     // We should either have reported an error or have removed all
-    // uncommitted objects (typically committed them to the shared cache).
+    // uncommitted objects (typically committed them to the shared cache)
+    // we should be processing transactional DDL.
     DBUG_ASSERT(m_client->m_thd->is_error() || m_client->m_thd->killed ||
+                m_client->m_thd->m_transactional_ddl.inited() ||
                 (m_client->m_registry_uncommitted.size_all() == 0 &&
                  m_client->m_registry_dropped.size_all() == 0));
 
-    m_client->m_registry_uncommitted.erase_all();
+    // Do not remove uncommitted object when processing transactional DDL.
+    if (!m_client->m_thd->m_transactional_ddl.inited())
+      m_client->m_registry_uncommitted.erase_all();
     m_client->m_registry_dropped.erase_all();
 
     // Delete any objects retrieved by acquire_uncached() or

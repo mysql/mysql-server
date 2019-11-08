@@ -1349,6 +1349,20 @@ static bool check_prepared_statement(Prepared_statement *stmt) {
     case SQLCOM_ALTER_USER_DEFAULT_ROLE:
       break;
 
+    case SQLCOM_CREATE_TABLE:
+      /*
+        CREATE TABLE ... START TRANSACTION is not supported with
+        prepared statements
+      */
+      if (lex->create_info->m_transactional_ddl) {
+        my_error(ER_UNSUPPORTED_PS, MYF(0));
+        return true;
+      }
+#if defined(__has_cpp_attribute)
+#if __has_cpp_attribute(fallthrough)
+      [[fallthrough]];
+#endif
+#endif
     case SQLCOM_SELECT:
     case SQLCOM_DO:
     case SQLCOM_DELETE:
@@ -1362,7 +1376,6 @@ static bool check_prepared_statement(Prepared_statement *stmt) {
     case SQLCOM_CALL:
     case SQLCOM_SHOW_FIELDS:
     case SQLCOM_SHOW_KEYS:
-    case SQLCOM_CREATE_TABLE:
     case SQLCOM_SET_RESOURCE_GROUP:
       res = lex->m_sql_cmd->prepare(thd);
       // @todo Temporary solution: Unprepare after preparation to preserve

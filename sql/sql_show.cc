@@ -1573,6 +1573,15 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   if (!foreign_db_mode) {
     show_table_options = true;
 
+    /**
+      Append START TRANSACTION for CREATE SELECT on SE supporting atomic DDL.
+      This is done only while binlogging CREATE TABLE AS SELECT.
+    */
+    if (thd->lex->select_lex->get_fields_list()->elements &&
+        (create_info_arg->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
+      packet->append(STRING_WITH_LEN(" START TRANSACTION"));
+    }
+
     // Show tablespace name only if it is explicitly provided by user.
     if (share->tmp_table) {
       // Innodb allows temporary tables in be in system temporary tablespace.

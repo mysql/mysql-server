@@ -70,22 +70,6 @@ include/assert.inc ['Check table t3 dropped on server 2']
 include/assert.inc ['Check table t2 dropped on server 3']
 include/assert.inc ['Check table t3 dropped on server 3']
 
-## 2.5 Create table using select statement, table should not be created
-##     CREATE TABLE .. SELECT is not allowed in GR
-##     since it does not support GTID
-[connection server1]
-CREATE TABLE t4 AS SELECT * FROM t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TABLE ... SELECT.
-
-[connection server1]
-include/assert.inc ['Table t4 does not exist on server 1']
-
-[connection server2]
-include/assert.inc ['Table t4 does not exist on server 2']
-
-[connection server3]
-include/assert.inc ['Table t4 does not exist on server 3']
-
 ## 3.1 Insert some data in table t1 on server 2,
 ##     transaction should be rolledback
 [connection server2]

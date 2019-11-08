@@ -10583,17 +10583,20 @@ bool THD::is_ddl_gtid_compatible() {
   if (lex->sql_command == SQLCOM_CREATE_TABLE &&
       !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
       lex->select_lex->get_fields_list()->elements) {
-    /*
-      CREATE ... SELECT (without TEMPORARY) is unsafe because if
-      binlog_format=row it will be logged as a CREATE TABLE followed
-      by row events, re-executed non-atomically as two transactions,
-      and then written to the slave's binary log as two separate
-      transactions with the same GTID.
-    */
-    bool ret = handle_gtid_consistency_violation(
-        this, ER_GTID_UNSAFE_CREATE_SELECT,
-        ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
-    return ret;
+    if (!(get_default_handlerton(this, lex->create_info->db_type)->flags &
+          HTON_SUPPORTS_ATOMIC_DDL)) {
+      /*
+        CREATE ... SELECT (without TEMPORARY) for engines not supporting atomic
+        DDL is unsafe because if binlog_format=row it will be logged as a CREATE
+        TABLE followed by row events, re-executed non-atomically as two
+        transactions, and then written to the slave's binary log as two separate
+        transactions with the same GTID.
+      */
+      bool ret = handle_gtid_consistency_violation(
+          this, ER_GTID_UNSAFE_CREATE_SELECT,
+          ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
+      return ret;
+    }
   } else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
              (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary)) {

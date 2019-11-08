@@ -167,6 +167,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
   int error = 0;
   const int pre_wait_error = 1;
   const int post_wait_error = 2;
+  int64 sequence_number = 1;
 
   DBUG_EXECUTE_IF("group_replication_force_error_on_before_commit_listener",
                   return 1;);
@@ -340,7 +341,8 @@ int group_replication_trans_before_commit(Trans_param *param) {
       a transaction may have not write set at all because it didn't
       change any data, it will just persist that GTID as applied.
     */
-    if ((write_set == nullptr) && (!is_gtid_specified)) {
+    if ((write_set == nullptr) && (!is_gtid_specified) &&
+        (!param->is_create_table_as_select)) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_EXTRACT_TRANS_WRITE_SET,
                    param->thread_id);
       error = pre_wait_error;
@@ -364,6 +366,25 @@ int group_replication_trans_before_commit(Trans_param *param) {
         For empty transactions we should set the GTID may_have_sbr_stmts. See
         comment at binlog_cache_data::may_have_sbr_stmts().
       */
+      may_have_sbr_stmts = true;
+    }
+
+    /*
+      'CREATE TABLE ... AS SELECT' is considered a DML, though in reality it
+      is DDL + DML, which write-sets do not capture all dependencies.
+      Example:
+        CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY);
+        INSERT INTO test.t1 VALUES (99);
+        CREATE TABLE test.t2 (c1 INT NOT NULL PRIMARY KEY) AS SELECT * FROM
+      test.t1; The 'CREATE TABLE ... AS SELECT' does depend on the INSERT on t1,
+      though these transactions have non intersecting write-sets, the INSERT
+      will refer to table t1 and the 'CREATE TABLE ... AS SELECT' to table t2.
+      As such we need to say that 'CREATE TABLE ... AS SELECT' can only be
+      executed on parallel applier after all precedent transactions like any
+      other DDL.
+    */
+    if (param->is_create_table_as_select) {
+      sequence_number = 0;
       may_have_sbr_stmts = true;
     }
   }
@@ -415,7 +436,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
 
   // Notice the GTID of atomic DDL is written to the trans cache as well.
   gle = new Gtid_log_event(
-      param->server_id, is_dml || param->is_atomic_ddl, 0, 1,
+      param->server_id, is_dml || param->is_atomic_ddl, 0, sequence_number,
       may_have_sbr_stmts, *(param->original_commit_timestamp), 0,
       gtid_specification, *(param->original_server_version),
       *(param->immediate_server_version));

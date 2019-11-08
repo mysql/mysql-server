@@ -2508,6 +2508,11 @@ typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::key_block_size), HA_CREATE_USED_KEY_BLOCK_SIZE>
     PT_create_key_block_size_option;
 
+typedef PT_traceable_create_table_option<
+    TYPE_AND_REF(HA_CREATE_INFO::m_transactional_ddl),
+    HA_CREATE_USED_START_TRANSACTION>
+    PT_create_start_transaction_option;
+
 typedef decltype(HA_CREATE_INFO::table_options) table_options_t;
 
 /**

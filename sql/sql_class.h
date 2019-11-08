@@ -83,6 +83,7 @@
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/current_thd.h"
+#include "sql/dd/string_type.h"      // dd::string_type
 #include "sql/discrete_interval.h"   // Discrete_interval
 #include "sql/locked_tables_list.h"  // enum_locked_tables_mode
 #include "sql/mdl.h"
@@ -755,6 +756,42 @@ class Global_read_lock {
 };
 
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
+
+/**
+  This class keeps the context of transactional DDL statements. Currently only
+  CREATE TABLE with START TRANSACTION uses this context.
+*/
+class Transactional_ddl_context {
+ public:
+  explicit Transactional_ddl_context(THD *thd) : m_thd(thd) {
+    DBUG_ASSERT(m_thd != nullptr);
+  }
+
+  ~Transactional_ddl_context() {
+    DBUG_ASSERT(!m_hton);
+    post_ddl();
+  }
+
+  void init(dd::String_type db, dd::String_type tablename,
+            const handlerton *hton);
+
+  bool inited() { return m_hton != nullptr; }
+
+  void rollback();
+
+  void post_ddl();
+
+ private:
+  // The current thread.
+  THD *m_thd{nullptr};
+
+  // Handlerton pointer to table's engine begin created.
+  const handlerton *m_hton{nullptr};
+
+  // Schema and table name being created.
+  dd::String_type m_db{};
+  dd::String_type m_tablename{};
+};
 
 /**
   @class THD
@@ -4289,6 +4326,9 @@ class THD : public MDL_context_owner,
  public:
   bool is_system_user();
   void set_system_user(bool system_user_flag);
+
+ public:
+  Transactional_ddl_context m_transactional_ddl{this};
 };
 
 /**

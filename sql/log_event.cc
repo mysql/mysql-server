@@ -3700,6 +3700,11 @@ Query_log_event::Query_log_event()
   Returns true when the lex context determines an atomic DDL.
   The result is optimistic as there can be more properties to check out.
 
+  CREATE TABLE ... START TRANSACTION is not treated as atomic here, because
+  the table is not really committed at the end of CREATE TABLE processing.
+  It gets committed by a explicit call to COMMIT after INSERTing rows into
+  the table.
+
   @param lex  pointer to LEX object of being executed statement
 */
 inline bool is_sql_command_atomic_ddl(const LEX *lex) {
@@ -3708,7 +3713,8 @@ inline bool is_sql_command_atomic_ddl(const LEX *lex) {
           lex->sql_command != SQLCOM_REPAIR &&
           lex->sql_command != SQLCOM_ANALYZE) ||
          (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)) ||
+          !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+          !lex->create_info->m_transactional_ddl) ||
          (lex->sql_command == SQLCOM_DROP_TABLE && !lex->drop_temporary);
 }
 
@@ -4086,6 +4092,20 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
 #endif
     event_logging_type = Log_event::EVENT_NORMAL_LOGGING;
     event_cache_type = Log_event::EVENT_TRANSACTIONAL_CACHE;
+  } else if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+             thd->lex->create_info->m_transactional_ddl) {
+    /*
+      When executing CREATE-TABLE-SELECT using engine that support atomic
+      DDL's, we cache the CREATE-TABLE event using normal logging. This
+      enables using single transaction for execution of both CREATE-TABLE
+      and INSERT's when applying the binlog events at slave.
+    */
+    event_logging_type = Log_event::EVENT_NORMAL_LOGGING;
+    event_cache_type = Log_event::EVENT_TRANSACTIONAL_CACHE;
+
+    DBUG_ASSERT(ddl_xid == binary_log::INVALID_XID);
+
+    if (thd->rli_slave) thd->rli_slave->ddl_not_atomic = true;
   } else {
     /*
       Note SQLCOM_XA_COMMIT, SQLCOM_XA_ROLLBACK fall into this block.
@@ -11644,6 +11664,10 @@ int Write_rows_log_event::do_before_row_operations(
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command = SQLCOM_INSERT;
+
+  DBUG_EXECUTE_IF(
+      "crash_on_transactional_ddl_insert",
+      if (thd->m_transactional_ddl.inited()) { DBUG_SUICIDE(); });
 
   /**
      todo: to introduce a property for the event (handler?) which forces

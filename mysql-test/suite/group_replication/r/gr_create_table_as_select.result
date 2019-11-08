@@ -1,0 +1,55 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Table t5 does not have any PRIMARY KEY. This is not compatible with Group Replication.'");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Create a table using select statement from a empty table.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) AS SELECT * FROM t1;
+INSERT INTO t2 VALUES (1);
+
+############################################################
+# 2. Create a table using select statement from a non empty table.
+[connection server1]
+CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t3 VALUES (1);
+CREATE TABLE t4 (c1 INT NOT NULL PRIMARY KEY) AS SELECT * FROM t3;
+INSERT INTO t4 VALUES (2);
+
+# 3. Verify that we fail to execution DML on table without PK.
+############################################################
+CREATE TABLE t5 (c1 INT NOT NULL) AS SELECT * FROM t3;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+# Allow table creation when there is no DML executed.
+CREATE TABLE t5 (c1 INT NOT NULL) AS SELECT * FROM t1;
+
+# 4. Assert parallel applier indexes.
+############################################################
+include/rpl_sync.inc
+[connection server2]
+include/include/assert_logical_timestamps.inc [0 0;0 0;2 3;3 4;4 5;5 6;6 7;7 8;8 9;9 10]
+Asserting all GTID transaction length information in 'server-relay-log-group_replication_applier.000002'
+Inspected 9 transactions, all with correct transaction length.
+
+############################################################
+# 5. Check data consistency.
+include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
+include/diff_tables.inc [server1:test.t2 ,server2:test.t2]
+include/diff_tables.inc [server1:test.t3 ,server2:test.t3]
+include/diff_tables.inc [server1:test.t4 ,server2:test.t4]
+
+############################################################
+# 5. Clean-up
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+include/group_replication_end.inc

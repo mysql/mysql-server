@@ -49,6 +49,8 @@
 #include "mysql/psi/mysql_ps.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/mysql_table.h"
+#include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"  // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
@@ -97,6 +99,7 @@
 #include "sql/sql_profile.h"
 #include "sql/sql_timer.h"  // thd_timer_destroy
 #include "sql/table.h"
+#include "sql/table_cache.h"  // table_cache_manager
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_rollback
@@ -2960,6 +2963,67 @@ void THD::set_time_after_lock() {
 void THD::update_slow_query_status() {
   if (my_micro_time() > utime_after_lock + variables.long_query_time)
     server_status |= SERVER_QUERY_WAS_SLOW;
+}
+
+/**
+  Initialize the transactional ddl context when executing CREATE TABLE ...
+  SELECT command with engine which supports atomic DDL.
+
+  @param db         Schema name in which table is being created.
+  @param tablename  Table name being created.
+  @param hton       Handlerton representing engine used for table.
+
+  @returns void
+*/
+void Transactional_ddl_context::init(dd::String_type db,
+                                     dd::String_type tablename,
+                                     const handlerton *hton) {
+  DBUG_ASSERT(m_hton == nullptr);
+  m_db = db;
+  m_tablename = tablename;
+  m_hton = hton;
+}
+
+/**
+  Remove the table share used while creating the table, if the transaction
+  is being rolledback.
+
+  @returns void
+*/
+void Transactional_ddl_context::rollback() {
+  if (!inited()) return;
+  table_cache_manager.lock_all_and_tdc();
+  TABLE_SHARE *share =
+      get_cached_table_share(m_db.c_str(), m_tablename.c_str());
+  if (share) {
+    tdc_remove_table(m_thd, TDC_RT_REMOVE_ALL, m_db.c_str(),
+                     m_tablename.c_str(), true);
+
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    // quick_rm_table() was not called, so remove the P_S table share here.
+    PSI_TABLE_CALL(drop_table_share)
+    (false, m_db.c_str(), strlen(m_db.c_str()), m_tablename.c_str(),
+     strlen(m_tablename.c_str()));
+#endif
+  }
+  table_cache_manager.unlock_all_and_tdc();
+}
+
+/**
+  End the transactional context created by calling post ddl hook for engine
+  on which table is being created. This is done after transaction rollback
+  and commit.
+
+  @returns void
+*/
+void Transactional_ddl_context::post_ddl() {
+  if (!inited()) return;
+  if (m_hton && m_hton->post_ddl) {
+    m_hton->post_ddl(m_thd);
+  }
+  m_hton = nullptr;
+  m_db = "";
+  m_tablename = "";
 }
 
 void my_ok(THD *thd, ulonglong affected_rows, ulonglong id,

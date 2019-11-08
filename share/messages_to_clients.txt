@@ -9342,6 +9342,15 @@ ER_DA_GRP_RPL_RECOVERY_ENDPOINT_INVALID
 ER_WRONG_VALUE_FOR_VAR_PLUS_ACTIONABLE_PART
   eng "Variable '%-.64s' cannot be set to the value of '%-.200s'. %-.200s"
 
+ER_STATEMENT_NOT_ALLOWED_AFTER_START_TRANSACTION
+  eng "Only BINLOG INSERT, COMMIT and ROLLBACK statements are allowed after CREATE TABLE with START TRANSACTION statement."
+
+ER_FOREIGN_KEY_WITH_ATOMIC_CREATE_SELECT
+  eng "Foreign key creation is not allowed with CREATE TABLE as SELECT and CREATE TABLE with START TRANSACTION statement."
+
+ER_NOT_ALLOWED_WITH_START_TRANSACTION
+  eng "START TRANSACTION clause cannot be used %.128s".
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

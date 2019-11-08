@@ -6221,6 +6221,10 @@ create_table_option:
           {
             $$= NEW_PTN PT_create_key_block_size_option($3);
           }
+        | START_SYM TRANSACTION_SYM
+          {
+            $$= NEW_PTN PT_create_start_transaction_option(true);
+          }
         ;
 
 ternary_option:
