@@ -107,7 +107,7 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd,
 
 #ifdef _WIN32
   if (m_type == ProcessType::PERMANENT) {
-    logger.critical("Process type must be '%s' on windows", m_type.toString());
+    logger.critical("Process type must be '%s' on windows", m_type.c_str());
     exit(1);
   }
 #endif
