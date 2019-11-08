@@ -1200,14 +1200,19 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
              len == 0); // only full length in ndbapi
       if (signal->header.m_noOfSections >= 1)
       {
+        len = signal->ptr[0].sz;
         if (BitmaskImpl::safe_get(len, signal->ptr[0].p, nodeId))
         {
           do_send = true;
         }
       }
-      else if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+      else
       {
-	do_send = true; // retry with other node
+        assert(len > 0);
+        if (BitmaskImpl::safe_get(len, rep->theAllNodes, nodeId))
+        {
+	  do_send = true; // retry with other node
+        }
       }
       continue;
     }
