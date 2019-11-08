@@ -2183,21 +2183,28 @@ TransporterRegistry::blockReceive(TransporterReceiveHandle& recvdata,
   Uint32 num_ids;
   lockMultiTransporters();
   get_trps_for_node(nodeId, ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
-  unlockMultiTransporters();
 
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
   for (Uint32 i = 0; i < num_ids; i++)
   {
     Uint32 trp_id = ids[i];
-    assert(recvdata.m_transporters.get(trp_id));
-    m_blocked_trp.set(trp_id);
+    if (recvdata.m_transporters.get(trp_id))
+      m_blocked_trp.set(trp_id);
   }
   /* Check that node is not already blocked?
    * Stop pulling from its socket (but track received data etc)
    */
   /* Shouldn't already be blocked with data */
-  assert(!m_blocked.get(nodeId));
-  m_blocked.set(nodeId);
+  bool last_call = true;
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    Uint32 trp_id = ids[i];
+    if (!m_blocked_trp.get(trp_id))
+      last_call = false;
+  }
+  if (last_call)
+    m_blocked.set(nodeId);
+  unlockMultiTransporters();
 }
 
 void
@@ -2208,29 +2215,45 @@ TransporterRegistry::unblockReceive(TransporterReceiveHandle& recvdata,
   Uint32 num_ids;
   lockMultiTransporters();
   get_trps_for_node(nodeId, ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
-  unlockMultiTransporters();
 
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
   for (Uint32 i = 0; i < num_ids; i++)
   {
     Uint32 trp_id = ids[i];
-    assert(recvdata.m_transporters.get(trp_id));
-    assert(m_blocked_trp.get(trp_id));
-    assert(!recvdata.m_has_data_transporters.get(trp_id));
-    m_blocked_trp.clear(trp_id);
+    if (recvdata.m_transporters.get(trp_id))
+    {
+      assert(m_blocked_trp.get(trp_id));
+      assert(!recvdata.m_has_data_transporters.get(trp_id));
+      m_blocked_trp.clear(trp_id);
+    }
   }
+  bool last_call = true;
+  for (Uint32 i = 0; i < num_ids; i++)
+  {
+    Uint32 trp_id = ids[i];
+    if (m_blocked_trp.get(trp_id))
+    {
+      last_call = false;
+    }
+  }
+
   /* Check that node is blocked?
    * Resume pulling from its socket
    * Ensure in-flight data is processed if there was some
    */
-  assert(m_blocked.get(nodeId));
-  m_blocked.clear(nodeId);
+  if (last_call)
+    m_blocked.clear(nodeId);
+  unlockMultiTransporters();
   if (m_blocked_disconnected.get(nodeId))
   {
     /* Process disconnect notification/handling now */
-    m_blocked_disconnected.clear(nodeId);
-
     report_disconnect(recvdata, nodeId, m_disconnect_errors[nodeId]);
+  }
+  if (last_call)
+  {
+    lockMultiTransporters();
+    m_blocked_disconnected.clear(nodeId);
+    unlockMultiTransporters();
   }
 }
 
@@ -2250,15 +2273,8 @@ TransporterRegistry::blockSend(TransporterReceiveHandle& recvdata,
   lockMultiTransporters();
   get_trps_for_node(nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
   unlockMultiTransporters();
-
-  for (Uint32 i = 0; i < num_ids; i++)
-  {
-    Uint32 trp_id = trp_ids[i];
-    assert(recvdata.m_transporters.get(trp_id));
-  }
 #endif
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
-
   m_sendBlocked.set(nodeId);
 }
 
@@ -2272,12 +2288,6 @@ TransporterRegistry::unblockSend(TransporterReceiveHandle& recvdata,
   lockMultiTransporters();
   get_trps_for_node(nodeId, trp_ids, num_ids, MAX_NODE_GROUP_TRANSPORTERS);
   unlockMultiTransporters();
-
-  for (Uint32 i = 0; i < num_ids; i++)
-  {
-    Uint32 trp_id = trp_ids[i];
-    assert(recvdata.m_transporters.get(trp_id));
-  }
 #endif
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
   m_sendBlocked.clear(nodeId);
@@ -3813,7 +3823,11 @@ TransporterRegistry::get_trps_for_node(Uint32 nodeId,
                                        Uint32 max_size)
 {
   Transporter *t = theNodeIdTransporters[nodeId];
-  if (t->isMultiTransporter())
+  if (!t)
+  {
+    num_ids = 0;
+  }
+  else if (t->isMultiTransporter())
   {
     Multi_Transporter *multi_trp = (Multi_Transporter*)t;
     num_ids = multi_trp->get_num_active_transporters();

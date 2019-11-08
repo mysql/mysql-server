@@ -61,7 +61,7 @@ public:
 protected:
   bool getParam(const char* name, Uint32* count) override;
 private:
-  bool handles_this_node(Uint32 nodeId);
+  bool handles_this_node(Uint32 nodeId, bool all = false);
   void close_com_failed_node(Signal*, Uint32);
   void enable_com_node(Signal*, Uint32);
 };
