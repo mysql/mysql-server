@@ -193,3 +193,16 @@ WITH RECURSIVE cte AS
 SELECT * FROM cte;
 
 SET SQL_BUFFER_RESULT = DEFAULT;
+
+--echo #
+--echo # Bug #30509580: SERVER CRASHED DURING EXPLAIN ANALYZE WITH RECURSIVE ...
+--echo #
+
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
+(
+  SELECT 1
+  UNION ALL
+  SELECT n + 1 FROM cte WHERE n < 5
+)
+SELECT * FROM cte;

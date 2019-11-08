@@ -193,3 +193,21 @@ n
 2
 3
 SET SQL_BUFFER_RESULT = DEFAULT;
+#
+# Bug #30509580: SERVER CRASHED DURING EXPLAIN ANALYZE WITH RECURSIVE ...
+#
+EXPLAIN ANALYZE WITH RECURSIVE cte (n) AS
+(
+SELECT 1
+UNION ALL
+SELECT n + 1 FROM cte WHERE n < 5
+)
+SELECT * FROM cte;
+EXPLAIN
+-> Table scan on cte  (actual time=N.NNN..N.NNN rows=5 loops=1)
+    -> Materialize recursive CTE cte  (actual time=N.NNN..N.NNN rows=5 loops=1)
+        -> Rows fetched before execution  (actual time=N.NNN..N.NNN rows=1 loops=1)
+        -> Repeat until convergence
+            -> Filter: (cte.n < 5)  (cost=2.73 rows=1) (actual time=N.NNN..N.NNN rows=2 loops=2)
+                -> Scan new records on cte  (cost=2.73 rows=2) (actual time=N.NNN..N.NNN rows=2 loops=2)
+
