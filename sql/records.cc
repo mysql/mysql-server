@@ -255,7 +255,7 @@ unique_ptr_destroy_only<RowIterator> create_table_iterator(
     unique_ptr_destroy_only<RowIterator> iterator =
         NewIterator<FollowTailIterator>(thd, table, qep_tab, examined_rows);
     qep_tab->recursive_iterator =
-        down_cast<FollowTailIterator *>(iterator.get());
+        down_cast<FollowTailIterator *>(iterator->real_iterator());
     return iterator;
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
