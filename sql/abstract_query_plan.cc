@@ -447,5 +447,59 @@ Join_plan::Join_plan(const JOIN *join)
     return (get_qep_tab()->filesort != nullptr);
   }
 
+  Item* Table_access::get_condition() const
+  {
+    return get_qep_tab()->condition();
+  }
+  void Table_access::set_condition(Item* cond)
+  {
+    const_cast<QEP_TAB*>(get_qep_tab())->set_condition(cond);
+  }
+
+  /**
+   * Returns the first/last table in the join-nest this table is a member of.
+   * As opposed to the nest info returned by the QEP_TAB interface, we
+   * enumerate the uppermost nest to range from [0..#tables-1] (not [-1,-1]).
+   *
+   * Similarly, the first_upper reference to this range is '0', instead of -1.
+   * Note, that first_upper of the uppermost nest is still negative.
+   */
+  uint Table_access::get_first_inner() const
+  {
+    const QEP_TAB *qep_tab = get_qep_tab();
+    if (qep_tab->first_inner() < 0)
+      return 0;
+    return qep_tab->first_inner();
+  }
+  uint Table_access::get_last_inner() const
+  {
+    const QEP_TAB *qep_tab = get_qep_tab();
+    if (qep_tab->last_inner() < 0)
+      return m_join_plan->get_access_count()-1;
+    return qep_tab->last_inner();
+  }
+  int Table_access::get_first_upper() const
+  {
+    const QEP_TAB *qep_tab = get_qep_tab();
+    if (qep_tab->first_inner() > 0 &&  // Is an inner join_nest &&
+        qep_tab->first_upper() < 0)    // upper indicate 'no-nest'
+      return 0;                        // Return 'first table'
+    return qep_tab->first_upper();
+  }
+
+  /**
+   * Returns the first/last table in a semi-join nest.
+   * Returns <0 if table is not part of a semi-join nest.
+   */
+  int Table_access::get_first_sj_inner() const
+  {
+    const QEP_TAB *qep_tab = get_qep_tab();
+    return qep_tab->first_sj_inner();
+  }
+  int Table_access::get_last_sj_inner() const
+  {
+    const QEP_TAB *qep_tab = get_qep_tab();
+    return qep_tab->last_sj_inner();
+  }
 }
 // namespace AQP

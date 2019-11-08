@@ -214,6 +214,16 @@ namespace AQP
     
     bool filesort_before_join() const;
 
+    Item* get_condition() const;
+    void set_condition(Item* cond);
+
+    uint get_first_inner() const;
+    uint get_last_inner() const;
+    int get_first_upper() const;
+
+    int get_first_sj_inner() const;
+    int get_last_sj_inner() const;
+
   private:
 
     /** Backref. to the Join_plan which this Table_access is part of */
