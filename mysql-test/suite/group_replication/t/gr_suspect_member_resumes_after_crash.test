@@ -38,19 +38,19 @@
 --echo
 --echo ############################################################
 --echo # 1. Set group_replication_member_expel_timeout to
---echo #    30 seconds.
+--echo #    60 seconds.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-SET GLOBAL group_replication_member_expel_timeout = 30;
+SET GLOBAL group_replication_member_expel_timeout = 60;
 --let $server1_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-SET GLOBAL group_replication_member_expel_timeout = 30;
+SET GLOBAL group_replication_member_expel_timeout = 60;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
-SET GLOBAL group_replication_member_expel_timeout = 30;
+SET GLOBAL group_replication_member_expel_timeout = 60;
 set session sql_log_bin=0;
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");

@@ -62,6 +62,7 @@ START GROUP_REPLICATION;
 
 --let $assert_text= Check that Group Replication errors out when a certificate with a wrong hostname is provided
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
+--let $assert_only_after= XCom initialized and ready to accept incoming connections
 --let $assert_select= Failed to verify the server certificate via X509 certificate matching functions
 --let $assert_count= 1
 --source include/assert_grep.inc

@@ -1951,6 +1951,24 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
   gcs_module_parameters.add_parameter(
       "xcom_cache_size", std::to_string(ov.message_cache_size_var));
 
+  /*
+   We will add GCS-level join retries for those scenarios where a node
+   crashes and comes back immediately, but it still has a reencarnation
+   in the system ready to be expel.
+
+   The chosen values relate with START GROUP_REPLICATION timeout which is
+   60 seconds.
+
+   This will cover most cases. If a user changes the parameter
+   member_expel_timeout this mechanism for sure will not have the same
+   effect.
+  */
+  // Enable only if autorejoin is not running.
+  if (!autorejoin_module->is_autorejoin_ongoing()) {
+    gcs_module_parameters.add_parameter("join_attempts", "10");
+    gcs_module_parameters.add_parameter("join_sleep_time", "5");
+  }
+
   // Compression parameter
   if (ov.compression_threshold_var > 0) {
     std::stringstream ss;

@@ -6,13 +6,13 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 ############################################################
 # 1. Set group_replication_member_expel_timeout to
-#    60 seconds.
+#    20 seconds.
 [connection server1]
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 20;
 [connection server2]
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 20;
 [connection server3]
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 20;
 set session sql_log_bin=0;
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
@@ -29,58 +29,31 @@ INSERT INTO t1 VALUES (1);
 include/rpl_sync.inc
 
 ############################################################
-# 3. Crash server 3 and it will restart.
+# 3. Crash server 3 and it will restart with start on boot.
+#    It will try to rejoin immediatly
 [connection server3]
-# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=1
 #
 # Restarting server 3
+# Needed as we are not using rpl_restart_server.inc
 include/rpl_reconnect.inc
 
 ############################################################
 # 4. Check that all members are still in the group on
 #    servers 1 and 2, which should both be ONLINE.
 #    Server 3 should still be in the group but UNREACHABLE.
+#    This is a proof that we did not have any implicit rejoin.
 [connection server1]
 [connection server2]
 
 ############################################################
-# 5. Insert data into table t1 on server 2 and check that
-#    it is replicated to server 1.
-INSERT INTO t1 VALUES (2);
-[connection server1]
-
-############################################################
-# 6. Restart GR on server 3 and it should fail since its
-#    suspicion still hasn't timed out on other members.
-[connection server3]
-SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
-SET GLOBAL group_replication_group_seeds= "SERVER1_LOCAL_ADDRESS";
-START GROUP_REPLICATION;
-ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
-
-############################################################
-# 7. Wait until server 3 is expelled from the group.
-[connection server1]
-[connection server2]
-
-############################################################
-# 8. Server 3 was expelled! Start GR on server 3.
-[connection server3]
-include/start_group_replication.inc
-[connection server1]
-[connection server2]
+# 5. Make sure that all servers joined the group and that we
+#    have exactly 3 ONLINE group members.
+#    Node 3 was able to rejoin
+#
 [connection server3]
 
 ############################################################
-# 9. Check that server 3 retrieves the data inserted while
-#    it was suspended. Then, use it to insert new data into
-#    table t1 which should be replicated to servers 1 and 2.
-[connection server3]
-INSERT INTO t1 VALUES (3);
-include/rpl_sync.inc
-include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
-
-############################################################
-# 10. Clean up.
+# 6. Clean up.
 DROP TABLE t1;
 include/group_replication_end.inc
