@@ -93,7 +93,7 @@ namespace AQP
     const QEP_TAB* const m_qep_tabs;
 
     /** Number of table access operations. */
-    const uint m_access_count;
+    uint m_access_count;
     Table_access* m_table_accesses;
 
     const QEP_TAB* get_qep_tab(uint qep_tab_no) const;

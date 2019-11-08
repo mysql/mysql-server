@@ -56,6 +56,12 @@ Join_plan::Join_plan(const JOIN *join)
               (m_qep_tabs[0].type() == JT_ALL) ||
               (m_qep_tabs[0].quick() == nullptr));
 
+  // Discard trailing allocated, but unused, tables.
+  while (m_qep_tabs[m_access_count-1].position() == nullptr)
+  {
+    m_access_count--;
+  }
+
   m_table_accesses = new (*THR_MALLOC) Table_access[m_access_count];
   for (uint i = 0; i < m_access_count; i++) {
     m_table_accesses[i].m_join_plan = this;
