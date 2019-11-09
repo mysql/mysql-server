@@ -2488,48 +2488,6 @@ Backup::execCONTINUEB(Signal* signal)
 	       GetTabInfoReq::SignalLength, JBB);
     return;
   }
-  case BackupContinueB::ZDELAY_SCAN_NEXT:
-  {
-    if (ERROR_INSERTED(10039))
-    {
-      jam();
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 300, 
-			  signal->getLength());
-      return;
-    }
-    else
-    {
-      jam();
-      CLEAR_ERROR_INSERT_VALUE;
-      ndbout_c("Resuming backup");
-
-      Uint32 filePtr_I = Tdata1;
-      BackupFilePtr filePtr;
-      c_backupFilePool.getPtr(filePtr, filePtr_I);
-      BackupRecordPtr ptr;
-      c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
-      TablePtr tabPtr;
-      ndbrequire(findTable(ptr, tabPtr, filePtr.p->tableId));
-      FragmentPtr fragPtr;
-      tabPtr.p->fragments.getPtr(fragPtr, filePtr.p->fragmentNo);
-
-      BlockReference lqhRef = 0;
-      if (ptr.p->is_lcp()) {
-        lqhRef = calcInstanceBlockRef(DBLQH);
-      } else {
-        const Uint32 instanceKey = fragPtr.p->lqhInstanceKey;
-        ndbrequire(instanceKey != 0);
-        lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
-      }
-
-      memmove(signal->theData, signal->theData + 2, 
-	      4*ScanFragNextReq::SignalLength);
-
-      sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
-		 ScanFragNextReq::SignalLength, JBB);
-      return ;
-    }
-  }
   case BackupContinueB::ZGET_NEXT_FRAGMENT:
   {
     BackupRecordPtr backupPtr;
@@ -7547,6 +7505,12 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   {
     jam();
     /* Backup path */
+    if (ERROR_INSERTED(10039))
+    {
+      sendSignalWithDelay(reference(), GSN_BACKUP_FRAGMENT_REQ, signal,
+                          300, signal->getLength());
+      return;
+    }
     /* Get Table */
     ndbrequire(findTable(ptr, tabPtr, tableId));
   }
@@ -9882,23 +9846,6 @@ Backup::checkScan(Signal* signal,
     req->batch_size_rows= ZRESERVED_SCAN_BATCH_SIZE;
     req->batch_size_bytes= 0;
 
-    if (ERROR_INSERTED(10039) && 
-	filePtr.p->tableId >= 2 &&
-	filePtr.p->operation.noOfRecords > 0 &&
-        !ptr.p->is_lcp())
-    {
-      ndbout_c("halting backup for table %d fragment: %d after %llu records",
-	       filePtr.p->tableId,
-	       filePtr.p->fragmentNo,
-	       filePtr.p->operation.noOfRecords);
-      memmove(signal->theData+2, signal->theData, 
-	      4*ScanFragNextReq::SignalLength);
-      signal->theData[0] = BackupContinueB::ZDELAY_SCAN_NEXT;
-      signal->theData[1] = filePtr.i;
-      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 
-			  300, 2+ScanFragNextReq::SignalLength);
-      return;
-    }
     if(ERROR_INSERTED(10032))
       sendSignalWithDelay(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 			  100, ScanFragNextReq::SignalLength);
