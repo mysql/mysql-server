@@ -1,3 +1,5 @@
+--source include/big_test.inc
+
 --let $lctn= query_get_value(SHOW VARIABLES LIKE 'lower_case_table_names', Value, 1)
 
 --let $MYSQLD_DATADIR1= $MYSQL_TMP_DIR/data_80011

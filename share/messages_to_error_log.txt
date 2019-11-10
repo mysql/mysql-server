@@ -10632,6 +10632,18 @@ ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY
 ER_GR_ELECTED_PRIMARY_GTID_INFORMATION
   eng "Elected primary member %s: %s"
 
+ER_SCHEMA_NAME_IN_UPPER_CASE_NOT_ALLOWED
+  eng "Schema name '%s' containing upper case characters is not allowed with lower_case_table_names = 1."
+
+ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED
+  eng "Table name '%s.%s' containing upper case characters is not allowed with lower_case_table_names = 1."
+
+ER_SCHEMA_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
+  eng "Schema name '%s' containing upper case characters, used by foreign key '%s' in table '%s.%s', is not allowed with lower_case_table_names = 1."
+
+ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
+  eng "Table name '%s.%s' containing upper case characters, used by foreign key '%s' in table '%s.%s', is not allowed with lower_case_table_names = 1."
+
 ER_INNODB_OUT_OF_RESOURCES
   eng "%s"
 

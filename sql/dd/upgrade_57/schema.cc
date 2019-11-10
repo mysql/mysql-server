@@ -42,6 +42,7 @@
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"  // Auto_releaser
 #include "sql/dd/dd_schema.h"                // Schema_MDL_locker
+#include "sql/dd/impl/utils.h"               // is_string_in_lowercase
 #include "sql/log.h"                         // LogErr()
 #include "sql/mysqld.h"                      // key_file_dbopt
 #include "sql/sql_class.h"                   // THD
@@ -151,6 +152,23 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname) {
   } else {
     LogErr(WARNING_LEVEL, ER_DB_OPT_NOT_FOUND_USING_DEFAULT_CHARSET, dbname);
   }
+
+  // See comments regarding l_c_t_n in migrate_all_frm_to_dd().
+  if (lower_case_table_names == 0)
+    // Supported only for case sensitive file systems.
+    DBUG_ASSERT(!lower_case_file_system);
+  else if (lower_case_table_names == 1) {
+    // Supported for any file system. All names must be in lower case.
+    if (!is_string_in_lowercase(schema_name, system_charset_info)) {
+      LogErr(ERROR_LEVEL, ER_SCHEMA_NAME_IN_UPPER_CASE_NOT_ALLOWED,
+             schema_name);
+      return true;
+    }
+  } else if (lower_case_table_names == 2)
+    // Supported only for case insensitive file systems.
+    DBUG_ASSERT(lower_case_file_system);
+  else
+    DBUG_ASSERT(false);
 
   // Disable autocommit option
   Disable_autocommit_guard autocommit_guard(thd);

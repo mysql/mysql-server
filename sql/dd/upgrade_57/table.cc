@@ -1394,6 +1394,27 @@ static bool fix_fk_parent_key_names(THD *thd, const String_type &schema_name,
       // This FK references the same table as on which it is defined.
       parent_table_def = table_def;
     } else {
+      /*
+        With l_c_t_n = 1, the referenced table and schema name must be
+        all lower case; this is an invariant of l_c_t_n = 1.
+      */
+      if (lower_case_table_names == 1) {
+        if (!is_string_in_lowercase(fk->referenced_table_schema_name().c_str(),
+                                    system_charset_info)) {
+          LogErr(ERROR_LEVEL, ER_SCHEMA_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK,
+                 fk->referenced_table_schema_name().c_str(), fk->name().c_str(),
+                 schema_name.c_str(), table_name.c_str());
+          return true;
+        }
+        if (!is_string_in_lowercase(fk->referenced_table_name().c_str(),
+                                    system_charset_info)) {
+          LogErr(ERROR_LEVEL, ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK,
+                 fk->referenced_table_schema_name().c_str(),
+                 fk->referenced_table_name().c_str(), fk->name().c_str(),
+                 schema_name.c_str(), table_name.c_str());
+          return true;
+        }
+      }
       if (thd->dd_client()->acquire(fk->referenced_table_schema_name().c_str(),
                                     fk->referenced_table_name().c_str(),
                                     &parent_table_def))
@@ -1869,6 +1890,46 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
       // Construct the schema name from its canonical format.
       filename_to_tablename(dbname, schema_name, sizeof(schema_name));
       filename_to_tablename(file.c_str(), table_name, sizeof(table_name));
+
+      /*
+        Check that schema- and table names do not break the selected l_c_t_n
+        related invariants. The schema and table names are constructed from
+        file system names.
+
+        - l_c_t_n = 0: Supported only for case sensitive file systems.
+                       Everything should be fine.
+        - l_c_t_n = 1: Check that the name does not contain upper case
+                       characters.
+        - l_c_t_n = 2: Supported only for case insensitive file systems.
+                       This guarantees that there are no names differing
+                       only in character case, and hence, everything should
+                       be fine.
+
+        There is also a potential issue regarding implicit tablespaces in
+        InnoDB, as these have lower case names even with l_c_t_n = 2 and an
+        upper case table name. This will be an issue if upgrading to
+        l_c_t_n = 0, where InnoDB expects tablespace names with the same
+        letter case as the table name. However, this is detected by InnoDB
+        during the migration of meta data from 5.7 to 8.0 when we call
+        ha_upgrade_table(). In this case, InnoDB will emit an error, and
+        hence, we do not need to check this issue at the SQL layer.
+
+        See also the corresponding check in migrate_schema_to_dd(). We do
+        not repeat the DBUG_ASSERTS here, but check only if l_c_t_n = 1.
+        Additionally, we do the check below only once, hence the test for
+        is_fix_view_cols_and_deps = false.
+      */
+      if (!is_fix_view_cols_and_deps && lower_case_table_names == 1) {
+        // Already checked schema name while migrating schema meta data.
+        DBUG_ASSERT(is_string_in_lowercase(schema_name, system_charset_info));
+        // Upper case table names break invariant when l_c_t_n = 1.
+        if (!is_string_in_lowercase(table_name, system_charset_info)) {
+          LogErr(ERROR_LEVEL, ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED,
+                 schema_name, table_name);
+          error = true;
+          continue;
+        }
+      }
 
       /*
         Skip mysql.plugin tables during upgrade of user and system tables as
