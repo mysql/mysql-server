@@ -262,7 +262,7 @@ String *Item::val_string_from_decimal(String *str) {
   my_decimal dec_buf, *dec = val_decimal(&dec_buf);
   if (null_value) return error_str();
   my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, false, &dec_buf);
-  my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, 0, 0, 0, str);
+  my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, str);
   return str;
 }
 
@@ -2991,7 +2991,7 @@ double Item_decimal::val_real() {
 
 String *Item_decimal::val_str(String *result) {
   result->set_charset(&my_charset_numeric);
-  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, result);
+  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, result);
   return result;
 }
 
@@ -3002,7 +3002,7 @@ void Item_decimal::print(const THD *, String *str,
     return;
   }
   StringBuffer<MAX_DOUBLE_STR_LENGTH + 1> tmp;  // +1 for terminating null
-  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, &tmp);
+  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, &tmp);
   str->append(tmp);
 }
 
@@ -3712,8 +3712,7 @@ String *Item_param::val_str(String *str) {
       str->set(value.integer, &my_charset_bin);
       return str;
     case DECIMAL_VALUE:
-      if (my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, str) <=
-          1)
+      if (my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, str) <= 1)
         return str;
       return nullptr;
     case TIME_VALUE: {
@@ -3751,8 +3750,7 @@ const String *Item_param::query_val_str(const THD *thd, String *str) const {
       str->set_real(value.real, DECIMAL_NOT_SPECIFIED, &my_charset_bin);
       break;
     case DECIMAL_VALUE:
-      if (my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, str) >
-          1)
+      if (my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, str) > 1)
         return &my_null_string;
       break;
     case TIME_VALUE: {
@@ -4338,7 +4336,7 @@ type_conversion_status Item_copy_decimal::save_in_field_inner(Field *field,
 String *Item_copy_decimal::val_str(String *result) {
   if (null_value) return (String *)nullptr;
   result->set_charset(&my_charset_bin);
-  my_decimal2string(E_DEC_FATAL_ERROR, &cached_value, 0, 0, 0, result);
+  my_decimal2string(E_DEC_FATAL_ERROR, &cached_value, result);
   return result;
 }
 
@@ -9010,7 +9008,7 @@ String *Item_cache_decimal::val_str(String *str) {
   if (!has_value()) return nullptr;
   my_decimal_round(E_DEC_FATAL_ERROR, &decimal_value, decimals, false,
                    &decimal_value);
-  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, str);
+  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, str);
   return str;
 }
 

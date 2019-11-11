@@ -58,7 +58,10 @@ struct decimal_t {
 void widen_fraction(int new_frac, decimal_t *d);
 int string2decimal(const char *from, decimal_t *to, const char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
-                   int fixed_precision, int fixed_decimals, char filler);
+                   int fixed_precision, int fixed_decimals);
+inline int decimal2string(const decimal_t *from, char *to, int *to_len) {
+  return decimal2string(from, to, to_len, 0, 0);
+}
 int decimal2ulonglong(const decimal_t *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal_t *to);
 int decimal2longlong(const decimal_t *from, longlong *to);

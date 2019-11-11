@@ -29,6 +29,7 @@
 
 #include <gtest/gtest.h>
 #include <math.h>
+#include <string.h>
 
 #include "decimal.h"
 #include "m_string.h"
@@ -184,10 +185,10 @@ void dump_decimal(decimal_t *d) {
     do_test_mx(p1, p2, p3); \
   }
 
-#define test_pr(p1, p2, p3, p4, p5, p6) \
-  {                                     \
-    SCOPED_TRACE("");                   \
-    do_test_pr(p1, p2, p3, p4, p5, p6); \
+#define test_pr(p1, p2, p3, p4, p5) \
+  {                                 \
+    SCOPED_TRACE("");               \
+    do_test_pr(p1, p2, p3, p4, p5); \
   }
 
 #define test_widen_fraction(p1, p2, p3) \
@@ -216,7 +217,7 @@ void do_print_decimal(decimal_t *d, const char *orig, int actual, int want,
   int slen = sizeof(s);
 
   if (full) dump_decimal(d);
-  decimal2string(d, s, &slen, 0, 0, 0);
+  decimal2string(d, s, &slen);
   check_result_code(actual, want);
   if (orig) {
     EXPECT_STREQ(orig, s) << " arguments were: " << msg;
@@ -234,30 +235,30 @@ void test_d2s() {
   a.frac = 0;
   a.sign = false;
   slen = sizeof(s);
-  res = decimal2string(&a, s, &slen, 0, 0, 0);
+  res = decimal2string(&a, s, &slen);
   dump_decimal(&a);
   printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 
   a.buf[1] = 987000000;
   a.frac = 3;
   slen = sizeof(s);
-  res = decimal2string(&a, s, &slen, 0, 0, 0);
+  res = decimal2string(&a, s, &slen);
   dump_decimal(&a);
   printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 
   a.sign = true;
   slen = sizeof(s);
-  res = decimal2string(&a, s, &slen, 0, 0, 0);
+  res = decimal2string(&a, s, &slen);
   dump_decimal(&a);
   printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 
   slen = 8;
-  res = decimal2string(&a, s, &slen, 0, 0, 0);
+  res = decimal2string(&a, s, &slen);
   dump_decimal(&a);
   printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 
   slen = 5;
-  res = decimal2string(&a, s, &slen, 0, 0, 0);
+  res = decimal2string(&a, s, &slen);
   dump_decimal(&a);
   printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 
@@ -265,7 +266,7 @@ void test_d2s() {
   a.frac = 3;
   a.intg = 0;
   slen = sizeof(s);
-  res = decimal2string(&a, s, &slen, 0, 0, 0);
+  res = decimal2string(&a, s, &slen);
   dump_decimal(&a);
   printf("  -->  res=%d str='%s' len=%d\n", res, s, slen);
 }
@@ -497,20 +498,16 @@ void do_test_mx(int precision, int frac, const char *orig) {
   print_decimal(&a, orig, 0, 0, s);
 }
 
-void do_test_pr(const char *s1, int prec, int dec, char filler,
-                const char *orig, int ex) {
+static void do_test_pr(const char *s1, int prec, int dec, const char *orig,
+                       int ex) {
   char s[100];
   char s2[100];
   int slen = sizeof(s2);
-  int res;
 
-  if (filler)
-    sprintf(s, "'%s', %d, %d, '%c'", s1, prec, dec, filler);
-  else
-    sprintf(s, "'%s', %d, %d, '\\0'", s1, prec, dec);
+  sprintf(s, "'%s', %d, %d", s1, prec, dec);
   const char *end = strend(s1);
   string2decimal(s1, &a, &end);
-  res = decimal2string(&a, s2, &slen, prec, dec, filler);
+  const int res = decimal2string(&a, s2, &slen, prec, dec);
   check_result_code(res, ex);
   if (orig) {
     EXPECT_STREQ(orig, s2) << " arguments were: " << s;
@@ -529,7 +526,7 @@ void do_test_widen_fraction(const char *s1, int increase, const char *orig) {
 
   char s[100];
   int slen = sizeof(s);
-  int result = decimal2string(&a, s, &slen, 0, 0, 0);
+  int result = decimal2string(&a, s, &slen);
   EXPECT_EQ(result, 0);
   EXPECT_STREQ(orig, s) << " arguments were: " << s1;
 }
@@ -553,16 +550,18 @@ void do_test_fr(const char *s1, const char *orig) {
   print_decimal(&a, orig, 0, 0, s);
 }
 
+static void SetupDecimals() {
+  a.buf = buf1;
+  a.len = sizeof(buf1) / sizeof(dec1);
+  b.buf = buf2;
+  b.len = sizeof(buf2) / sizeof(dec1);
+  c.buf = buf3;
+  c.len = sizeof(buf3) / sizeof(dec1);
+}
+
 class DecimalTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
-    a.buf = buf1;
-    a.len = sizeof(buf1) / sizeof(dec1);
-    b.buf = buf2;
-    b.len = sizeof(buf2) / sizeof(dec1);
-    c.buf = buf3;
-    c.len = sizeof(buf3) / sizeof(dec1);
-  }
+  void SetUp() override { SetupDecimals(); }
 };
 
 TEST_F(DecimalTest, String2Decimal) {
@@ -813,14 +812,14 @@ TEST_F(DecimalTest, MaxDecimal) {
 }
 
 TEST_F(DecimalTest, Decimal2String) {
-  test_pr("123.123", 0, 0, 0, "123.123", 0);
+  test_pr("123.123", 0, 0, "123.123", 0);
   /* For fixed precision, we no longer count the '.' here. */
-  test_pr("123.123", 6, 3, '0', "123.123", 0);
-  test_pr("123.123", 8, 3, '0', "00123.123", 0);
-  test_pr("123.123", 8, 4, '0', "0123.1230", 0);
-  test_pr("123.123", 8, 5, '0', "123.12300", 0);
-  test_pr("123.123", 8, 2, '0', "000123.12", 1);
-  test_pr("123.123", 8, 6, '0', "23.123000", 2);
+  test_pr("123.123", 6, 3, "123.123", 0);
+  test_pr("123.123", 8, 3, "00123.123", 0);
+  test_pr("123.123", 8, 4, "0123.1230", 0);
+  test_pr("123.123", 8, 5, "123.12300", 0);
+  test_pr("123.123", 8, 2, "000123.12", 1);
+  test_pr("123.123", 8, 6, "23.123000", 2);
 }
 
 TEST_F(DecimalTest, WidenFraction) {
@@ -1040,4 +1039,79 @@ static void BM_Bin2Decimal_10_2(size_t iters) {
             dummy);  // To keep the optimizer from removing the loop.
 }
 BENCHMARK(BM_Bin2Decimal_10_2)
+
+static void BM_Decimal2String(size_t iterations) {
+  StopBenchmarkTiming();
+  constexpr size_t num_elements = array_elements(decimal_testdata);
+  decimal_t decimals[num_elements];
+  decimal_digit_t decimal_buf[num_elements][9];
+
+  for (size_t i = 0; i < num_elements; ++i) {
+    const char *end = strend(decimal_testdata[i]);
+    decimals[i].buf = decimal_buf[i];
+    decimals[i].len = array_elements(decimal_buf[i]);
+    int res = string2decimal(decimal_testdata[i], &decimals[i], &end);
+    ASSERT_EQ(E_DEC_OK, res) << decimal_testdata[i] << " wasn't converted";
+  }
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < iterations; ++i) {
+    for (const decimal_t &dec : decimals) {
+      char buffer[20];
+      int length = sizeof(buffer);
+      decimal2string(&dec, buffer, &length);
+    }
+  }
+}
+BENCHMARK(BM_Decimal2String)
+
+struct DecimalToStringParam {
+  const char *input_string;
+  int buffer_size;
+  const char *result_string;
+  int error_code;
+};
+
+class DecimalToStringTest
+    : public testing::TestWithParam<DecimalToStringParam> {
+ protected:
+  void SetUp() override { SetupDecimals(); }
+};
+
+TEST_P(DecimalToStringTest, DecimalToString) {
+  const char *end = strend(GetParam().input_string);
+  EXPECT_EQ(E_DEC_OK, string2decimal(GetParam().input_string, &a, &end));
+
+  char buffer[DECIMAL_MAX_STR_LENGTH + 1];
+  int length = GetParam().buffer_size;
+  EXPECT_EQ(GetParam().error_code, decimal2string(&a, buffer, &length));
+  EXPECT_EQ(strlen(GetParam().result_string), length);
+  EXPECT_STREQ(GetParam().result_string, buffer);
+}
+
+// Tests how decimal2string() handles the case where the buffer is too small to
+// hold the full decimal value.
+static const DecimalToStringParam TO_STRING_OVERFLOW_TRUNCATE[] = {
+    {"123.456", 2, "3", E_DEC_OVERFLOW},
+    {"123.456", 3, "23", E_DEC_OVERFLOW},
+    {"123.456", 4, "123", E_DEC_TRUNCATED},
+    {"123.456", 5, "123", E_DEC_TRUNCATED},
+    {"123.456", 6, "123.4", E_DEC_TRUNCATED},
+    {"123.456", 7, "123.45", E_DEC_TRUNCATED},
+    {"123.456", 8, "123.456", E_DEC_OK},
+    {"1230000", 3, "00", E_DEC_OVERFLOW},
+    {"1230000", 4, "000", E_DEC_OVERFLOW},
+    {"1230000", 5, "0000", E_DEC_OVERFLOW},
+    {"1230000", 6, "30000", E_DEC_OVERFLOW},
+    {"0.12345", 2, "0", E_DEC_TRUNCATED},
+    {"0.12345", 3, "0", E_DEC_TRUNCATED},
+    {"0.12345", 4, "0.1", E_DEC_TRUNCATED},
+    {"0.00000", 2, "0", E_DEC_TRUNCATED},
+    {"0.00000", 3, "0", E_DEC_TRUNCATED},
+    {"0.00000", 4, "0.0", E_DEC_TRUNCATED},
+};
+
+INSTANTIATE_TEST_CASE_P(OverflowTruncate, DecimalToStringTest,
+                        testing::ValuesIn(TO_STRING_OVERFLOW_TRUNCATE));
+
 }  // namespace decimal_unittest

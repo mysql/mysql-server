@@ -2111,7 +2111,7 @@ String *Item_func_format::val_str_ascii(String *str) {
     if ((null_value = args[0]->null_value))
       return nullptr; /* purecov: inspected */
     my_decimal_round(E_DEC_FATAL_ERROR, res, dec, false, &rnd_dec);
-    my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, 0, 0, 0, str);
+    my_decimal2string(E_DEC_FATAL_ERROR, &rnd_dec, str);
     str_length = str->length();
   } else {
     double nr = args[0]->val_real();

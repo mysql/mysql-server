@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,5 +81,5 @@ int decimal_bin2str(const void *bin, int bin_len,
     to_len = decimal_string_size(&dec);
     if(to_len > str_len) return E_DEC_OOM;   
     
-    return decimal2string(&dec, str, &to_len, 0, 0, 0);
+    return decimal2string(&dec, str, &to_len);
 }

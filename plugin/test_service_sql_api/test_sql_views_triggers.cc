@@ -310,7 +310,7 @@ static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
 static const char *test_decimal_as_string(char *buff, const decimal_t *val,
                                           int *length) {
   if (!val) return "NULL";
-  (void)decimal2string(val, buff, length, 0, 0, 0);
+  (void)decimal2string(val, buff, length);
   return buff;
 }
 

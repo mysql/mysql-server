@@ -3024,7 +3024,7 @@ String *Field_new_decimal::val_str(
   my_decimal decimal_value;
   uint fixed_precision = zerofill ? precision : 0;
   my_decimal2string(E_DEC_FATAL_ERROR, val_decimal(&decimal_value),
-                    fixed_precision, dec, '0', val_buffer);
+                    fixed_precision, dec, val_buffer);
   val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
@@ -6186,9 +6186,8 @@ type_conversion_status Field_string::store(longlong nr, bool unsigned_val) {
 }
 
 type_conversion_status Field_longstr::store_decimal(const my_decimal *d) {
-  char buff[DECIMAL_MAX_STR_LENGTH + 1];
-  String str(buff, sizeof(buff), &my_charset_numeric);
-  my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
+  StringBuffer<DECIMAL_MAX_STR_LENGTH + 1> str(&my_charset_numeric);
+  my_decimal2string(E_DEC_FATAL_ERROR, d, &str);
   return store(str.ptr(), str.length(), str.charset());
 }
 

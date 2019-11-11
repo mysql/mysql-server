@@ -3678,11 +3678,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       char decStr[MaxDecimalStrLen];
       assert(decimal_string_size(&tmpDec) <= MaxDecimalStrLen);
       int len= MaxDecimalStrLen;
-      if ((rc= decimal2string(&tmpDec, decStr, 
-                              &len,
-                              0,   // 0 = Var length output length
-                              0,   // 0 = Var length fractional part
-                              0))) // Filler char for fixed length
+      if ((rc= decimal2string(&tmpDec, decStr, &len)))
       {
         out.print("***Error : bad decimal2string conversion %d ***",
                   rc);
