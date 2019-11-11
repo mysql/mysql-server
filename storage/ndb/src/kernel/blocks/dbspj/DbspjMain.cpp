@@ -1955,10 +1955,10 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  *  Recursively append all non-INNER-joined lookup branches to be executed
  *  after the sequence of INNER-joined-lookups (from 1). Note that these
  *  branches are executed in sequence in a left -> right order, such
- *  that when the 'left' branch as completed, we 'RESUME' into the 'right'
+ *  that when the 'left' branch is completed, we 'RESUME' into the 'right'
  *  branch. This is done in order to avoid overflowing the job buffers
  *  due to too many LQHKEYREQ-signals being sent at once.
- *  The 'nextBranchPtr' is set up by this step as the 'right' branch
+ *  The 'nextBranchPtr' is set up by this step as the 'right' lookup branch
  *  to RESUME. (See appendTreeNode() for more about RESUME handling)
  * 
  * 4)
@@ -1973,9 +1973,9 @@ Dbspj::planParallelExec(Ptr<Request>  requestPtr,
  */
 Uint32
 Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
-                       const Ptr<TreeNode> branchPtr,
-                       Ptr<TreeNode> prevExecPtr,
-		       const Ptr<TreeNode> nextBranchPtr)
+                          const Ptr<TreeNode> branchPtr,
+                          Ptr<TreeNode> prevExecPtr,
+                          const Ptr<TreeNode> nextBranchPtr)
 {
   DEBUG("planSequentialExec, start branch at treeNode no: " << branchPtr.p->m_node_no);
 
@@ -2041,7 +2041,8 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
 	<< treeNodePtr.p->m_node_no);
       
       ndbassert(treeNodePtr.p->isScan());
-      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr, nextBranchPtr);
+      const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr,
+                                            NullTreeNodePtr);
       if (unlikely(err))
         return err;
       break;
@@ -2111,7 +2112,8 @@ Dbspj::planSequentialExec(Ptr<Request>  requestPtr,
           << ", to branch at: " << branchPtr.p->m_node_no
           << ", as 'descendant' of node: " << prevExecPtr.p->m_node_no);
 
-        const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr, NullTreeNodePtr);
+        const Uint32 err = planSequentialExec(requestPtr, treeNodePtr, prevExecPtr,
+                                              NullTreeNodePtr);
         if (unlikely(err))
           return err;
       }
