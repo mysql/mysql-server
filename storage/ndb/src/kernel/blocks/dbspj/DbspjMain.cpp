@@ -4536,13 +4536,11 @@ Dbspj::dumpScanFragHandle(Ptr<ScanFragHandle> fragPtr) const
   jam();
   
   g_eventLogger->info("DBSPJ %u :         SFH fragid %u state %u ref 0x%x "
-                      "range_sz %u range_cnt %u rangePtr 0x%x",
+                      "rangePtr 0x%x",
                       instance(),
                       fragPtr.p->m_fragId,
                       fragPtr.p->m_state,
                       fragPtr.p->m_ref,
-                      fragPtr.p->m_range_builder.m_range_size,
-                      fragPtr.p->m_range_builder.m_range_cnt,
                       fragPtr.p->m_rangePtrI);
 }
 
@@ -7285,7 +7283,6 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       list.first(fragPtr);
     }
 
-    bool hasNull = false;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
       jam();
@@ -7311,7 +7308,29 @@ Dbspj::scanFrag_parent_row(Signal* signal,
         break;
       }
 
-      err = expand(fragPtr.p->m_rangePtrI, pattern, rowRef, hasNull);
+      bool hasNull = false;
+      Uint32 keyPtrI = RNIL;
+      err = expand(keyPtrI, pattern, rowRef, hasNull);
+      if (unlikely(err != 0))
+      {
+        jam();
+        break;
+      }
+      if (hasNull)
+      {
+        jam();
+        DEBUG("Key contain NULL values, ignoring it");
+        DBUG_ASSERT((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
+	
+        // Ignore this request as 'NULL == <column>' will never give a match
+        releaseSection(keyPtrI);
+        return;  // Bailout, SCANREQ would have returned 0 rows anyway
+      }
+      scanFrag_fixupBound(fragPtr, keyPtrI, rowRef.m_src_correlation);
+
+      SectionReader key(keyPtrI, getSectionSegmentPool());
+      err = appendReaderToSection(fragPtr.p->m_rangePtrI, key, key.getSize());
+      releaseSection(keyPtrI);
       if (unlikely(err != 0))
       {
         jam();
@@ -7324,8 +7343,6 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       // Fixed key...fix later...
       ndbabort();
     }
-//  ndbrequire(!hasNull);  // FIXME, can't ignore request as we already added it to keyPattern
-    scanFrag_fixupBound(fragPtr, fragPtr.p->m_rangePtrI, rowRef.m_src_correlation);
 
     if (treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT)
     {
@@ -7356,9 +7373,7 @@ Dbspj::scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr,
    * 1) Set #bound no, bound-size, and renumber attributes
    */
   SectionReader r0(ptrI, getSectionSegmentPool());
-  ndbrequire(r0.step(fragPtr.p->m_range_builder.m_range_size));
-  const Uint32 boundsz = r0.getSize() - fragPtr.p->m_range_builder.m_range_size;
-  const Uint32 boundno = fragPtr.p->m_range_builder.m_range_cnt + 1;
+  const Uint32 boundsz = r0.getSize();
 
   Uint32 tmp;
   ndbrequire(r0.peekWord(&tmp));
@@ -7367,21 +7382,18 @@ Dbspj::scanFrag_fixupBound(Ptr<ScanFragHandle> fragPtr,
   ndbrequire(r0.updateWord(tmp));
   ndbrequire(r0.step(1));    // Skip first BoundType
 
-  // TODO: Renumbering below assume there are only EQ-bounds !!
+  // Note: Renumbering below assume there are only EQ-bounds !!
   Uint32 id = 0;
   Uint32 len32;
   do
   {
     ndbrequire(r0.peekWord(&tmp));
     AttributeHeader ah(tmp);
-    Uint32 len = ah.getByteSize();
+    const Uint32 len = ah.getByteSize();
     AttributeHeader::init(&tmp, id++, len);
     ndbrequire(r0.updateWord(tmp));
     len32 = (len + 3) >> 2;
   } while (r0.step(2 + len32));  // Skip AttributeHeader(1) + Attribute(len32) + next BoundType(1)
-
-  fragPtr.p->m_range_builder.m_range_cnt = boundno;
-  fragPtr.p->m_range_builder.m_range_size = r0.getSize();
 }
 
 void
@@ -7822,7 +7834,6 @@ Dbspj::scanFrag_send(Signal* signal,
 
           /** Reflect the release of the keyInfo 'range' set above */
           fragWithRangePtr.p->m_rangePtrI = RNIL;
-          fragWithRangePtr.p->reset_ranges();
         } //if (releaseAtSend)
       }
 
@@ -8616,7 +8627,6 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
         releaseSection(fragPtr.p->m_rangePtrI);
         fragPtr.p->m_rangePtrI = RNIL;
       }
-      fragPtr.p->reset_ranges();
     }
   }
   else
@@ -8629,7 +8639,6 @@ Dbspj::scanFrag_release_rangekeys(Ptr<Request> requestPtr,
       releaseSection(fragPtr.p->m_rangePtrI);
       fragPtr.p->m_rangePtrI = RNIL;
     }
-    fragPtr.p->reset_ranges();
   }
 }
 
@@ -9005,27 +9014,18 @@ Dbspj::appendParamHeadToPattern(Local_pattern_store& dst,
 }
 
 Uint32
-Dbspj::appendTreeToSection(Uint32 & ptrI, SectionReader & tree, Uint32 len)
+Dbspj::appendReaderToSection(Uint32 &ptrI, SectionReader &reader, Uint32 len)
 {
-  /**
-   * TODO handle errors
-   */
-  jam();
-  Uint32 SZ = 16;
-  Uint32 tmp[16];
-  while (len > SZ)
+  while (len > 0)
   {
     jam();
-    tree.getWords(tmp, SZ);
-    if (!appendToSection(ptrI, tmp, SZ))
+    const Uint32* readPtr;
+    Uint32 readLen;
+    ndbrequire(reader.getWordsPtr(len, readPtr, readLen));
+    if (unlikely(!appendToSection(ptrI, readPtr, readLen)))
       return DbspjErr::OutOfSectionMemory;
-    len -= SZ;
+    len -= readLen;
   }
-
-  tree.getWords(tmp, len);
-  if (!appendToSection(ptrI, tmp, len))
-    return DbspjErr::OutOfSectionMemory;
-
   return 0;
 }
 
@@ -9086,7 +9086,7 @@ Dbspj::appendColToSection(Uint32 & dst, const RowPtr::Section & row,
     hasNull = true;  // NULL-value in key
     return 0;
   }
-  return appendTreeToSection(dst, reader, len);
+  return appendReaderToSection(dst, reader, len);
 }
 
 Uint32
@@ -9142,7 +9142,7 @@ Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowPtr::Section & row,
     jam();
     hasNull = true;  // NULL-value in key
   }
-  return appendTreeToSection(dst, reader, 1 + len);
+  return appendReaderToSection(dst, reader, 1 + len);
 }
 
 /**
@@ -9165,7 +9165,7 @@ Dbspj::appendPkColToSection(Uint32 & dst, const RowPtr::Section & row, Uint32 co
   Uint32 len = AttributeHeader::getDataSize(tmp);
   ndbrequire(len>1);  // NULL-value in PkKey is an error
   ndbrequire(reader.step(1)); // Skip fragid
-  return appendTreeToSection(dst, reader, len-1);
+  return appendReaderToSection(dst, reader, len-1);
 }
 
 /**
@@ -10161,7 +10161,7 @@ Dbspj::parseDA(Build_context& ctx,
           getSection(ptr, attrParamPtrI);
           {
             SectionReader r0(ptr, getSectionSegmentPool());
-            err = appendTreeToSection(attrInfoPtrI, r0, ptr.sz);
+            err = appendReaderToSection(attrInfoPtrI, r0, ptr.sz);
             if (unlikely(err != 0))
             {
               jam();

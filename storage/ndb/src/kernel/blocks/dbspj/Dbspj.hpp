@@ -685,7 +685,6 @@ public:
       m_state = SFH_NOT_STARTED;
       m_rangePtrI = RNIL;
       m_readBackup = readBackup;
-      reset_ranges();
     }
 
     Uint32 m_magic;
@@ -694,16 +693,6 @@ public:
     Uint8 m_state;
     Uint8 m_readBackup;
     Uint32 m_ref;
-
-    void reset_ranges() {
-      // m_rangePtrI is explicitly managed...in code
-      m_range_builder.m_range_cnt = m_range_builder.m_range_size = 0;
-    }
-    struct RangeBuilder
-    {
-      Uint32 m_range_size;
-      Uint16 m_range_cnt; // too set bounds info correctly
-    } m_range_builder;
     Uint32 m_rangePtrI;
     union {
       Uint32 nextList;
@@ -1510,7 +1499,7 @@ private:
   Uint32 appendParamHeadToPattern(Local_pattern_store&,const RowPtr::Linear&,
                                   Uint32);
 
-  Uint32 appendTreeToSection(Uint32 & ptrI, SectionReader &, Uint32);
+  Uint32 appendReaderToSection(Uint32 & ptrI, SectionReader&, Uint32);
   Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Linear&, Uint32 col, bool& hasNull);
   Uint32 appendColToSection(Uint32 & ptrI, const RowPtr::Section&, Uint32 col, bool& hasNull);
   Uint32 appendPkColToSection(Uint32 & ptrI, const RowPtr::Section&,Uint32 col);
