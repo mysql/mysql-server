@@ -66,7 +66,7 @@ int my_decimal::check_result(uint mask, int result) const {
         break;
       case E_DEC_OVERFLOW:
         // "Truncated incorrect %-.32s value: \'%-.128s\'"
-        decimal2string(this, strbuff, &length, 0, 0, 0);
+        decimal2string(this, strbuff, &length);
         push_warning_printf(
             current_thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
             ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DECIMAL", strbuff);
@@ -80,7 +80,7 @@ int my_decimal::check_result(uint mask, int result) const {
       case E_DEC_BAD_NUM:
         // "Incorrect %-.32s value: \'%-.128s\' for column \'%.192s\' at row
         // %ld"
-        decimal2string(this, strbuff, &length, 0, 0, 0);
+        decimal2string(this, strbuff, &length);
         push_warning_printf(
             current_thd, Sql_condition::SL_WARNING,
             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
@@ -106,7 +106,6 @@ int my_decimal::check_result(uint mask, int result) const {
   @param[in]   d           the decimal to print
   @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
   @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
-  @param[in]   filler      what char to pad with (ZEROFILL et al.)
   @param[out]  str         where to store the resulting string
 
   @return error coce
@@ -117,7 +116,7 @@ int my_decimal::check_result(uint mask, int result) const {
 */
 
 int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
-                      uint fixed_dec, char filler, String *str) {
+                      uint fixed_dec, String *str) {
   /*
     Calculate the size of the string: For DECIMAL(a,b), fixed_prec==a
     holds true iff the type is also ZEROFILL, which in turn implies
@@ -135,8 +134,7 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
                   : my_decimal_string_length(d));
   int result;
   if (str->alloc(length)) return d->check_result(mask, E_DEC_OOM);
-  result = decimal2string(d, str->ptr(), &length, (int)fixed_prec, fixed_dec,
-                          filler);
+  result = decimal2string(d, str->ptr(), &length, fixed_prec, fixed_dec);
   str->length(length);
   str->set_charset(&my_charset_numeric);
   return d->check_result(mask, result);
@@ -149,9 +147,6 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
 
   @param[in]   mask        what problems to warn on (mask of E_DEC_* values)
   @param[in]   val         the decimal to print
-  @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
-  @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
-  @param[in]   filler      what char to pad with (ZEROFILL et al.)
   @param[out]  str         where to store the resulting string
   @param[in]   cs          character set
 
@@ -165,12 +160,11 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
   but this would need to include
   my_decimal.h from sql_string.h and sql_string.cc, which is not desirable.
 */
-bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
-                     uint fixed_dec, char filler, String *str,
+bool str_set_decimal(uint mask, const my_decimal *val, String *str,
                      const CHARSET_INFO *cs) {
   if (!(cs->state & MY_CS_NONASCII)) {
     /* For ASCII-compatible character sets we can use my_decimal2string */
-    my_decimal2string(mask, val, fixed_prec, fixed_dec, filler, str);
+    my_decimal2string(mask, val, str);
     str->set_charset(cs);
     return false;
   } else {
@@ -180,10 +174,9 @@ bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
       and then convert the result to the target character
       with help of str->copy().
     */
+    StringBuffer<DECIMAL_MAX_STR_LENGTH + 1> tmp(&my_charset_latin1);
+    my_decimal2string(mask, val, &tmp);
     uint errors;
-    char buf[DECIMAL_MAX_STR_LENGTH];
-    String tmp(buf, sizeof(buf), &my_charset_latin1);
-    my_decimal2string(mask, val, fixed_prec, fixed_dec, filler, &tmp);
     return str->copy(tmp.ptr(), tmp.length(), &my_charset_latin1, cs, &errors);
   }
 }
@@ -368,7 +361,7 @@ void print_decimal_buff(const my_decimal *dec, const uchar *ptr, int length) {
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val) {
   int length = DECIMAL_MAX_STR_LENGTH + 1; /* minimum size for buff */
   if (!val) return "NULL";
-  (void)decimal2string(val, buff, &length, 0, 0, 0);
+  (void)decimal2string(val, buff, &length);
   return buff;
 }
 

@@ -150,18 +150,17 @@ TEST_F(ValueMapTest, DecimalValueMap) {
 
   // Check that data is sorted
   String res1;
-  my_decimal2string(E_DEC_FATAL_ERROR, &value_map.begin()->first, 0, 0, 0,
-                    &res1);
+  my_decimal2string(E_DEC_FATAL_ERROR, &value_map.begin()->first, &res1);
   EXPECT_EQ(strcmp(res1.ptr(), "-100.1"), 0);
 
   String res2;
   my_decimal2string(E_DEC_FATAL_ERROR, &std::next(value_map.begin(), 1)->first,
-                    0, 0, 0, &res2);
+                    &res2);
   EXPECT_EQ(strcmp(res2.ptr(), "-12"), 0);
 
   String res3;
   my_decimal2string(E_DEC_FATAL_ERROR, &std::next(value_map.begin(), 2)->first,
-                    0, 0, 0, &res3);
+                    &res3);
   EXPECT_EQ(strcmp(res3.ptr(), "99.9"), 0);
 
   // Check that the counts are correct

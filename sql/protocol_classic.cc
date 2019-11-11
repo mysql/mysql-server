@@ -3326,11 +3326,33 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   DBUG_ASSERT(send_metadata || field_types == 0 ||
               field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
-  char buff[DECIMAL_MAX_STR_LENGTH + 1];
-  String str(buff, sizeof(buff), &my_charset_bin);
-  (void)my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
-  return net_store_data(pointer_cast<const uchar *>(str.ptr()), str.length(),
-                        packet);
+
+  // Lengths less than 251 bytes are encoded in a single byte. See
+  // net_store_length(). Assert that we can fit all DECIMALs in that space.
+  static_assert(DECIMAL_MAX_STR_LENGTH < 251,
+                "Length needs more than one byte");
+
+  // Reserve space for the maximum string length of a DECIMAL, plus one byte for
+  // the terminating '\0' written by decimal2string(), plus one byte to encode
+  // the length of the string.
+  char *pos = packet->prep_append(DECIMAL_MAX_STR_LENGTH + 2,
+                                  PACKET_BUFFER_EXTRA_ALLOC);
+  if (pos == nullptr) return true;
+
+  int string_length = DECIMAL_MAX_STR_LENGTH + 1;
+  int error MY_ATTRIBUTE((unused)) =
+      decimal2string(d, pos + 1, &string_length, prec, dec);
+
+  // decimal2string() can only fail with E_DEC_TRUNCATED or E_DEC_OVERFLOW.
+  // Since it was given a buffer with the maximum length of a DECIMAL,
+  // truncation and overflow should never happen.
+  DBUG_ASSERT(error == E_DEC_OK);
+
+  // Store the actual length, and update the length of packet.
+  *pos = string_length;
+  packet->length((pos + 1 + string_length) - packet->ptr());
+
+  return false;
 }
 
 /**

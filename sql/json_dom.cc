@@ -1683,7 +1683,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (reserve(buffer, length)) return true;
       char *ptr = buffer->ptr() + buffer->length();
       my_decimal m;
-      if (wr.get_decimal_data(&m) || decimal2string(&m, ptr, &length, 0, 0, 0))
+      if (wr.get_decimal_data(&m) || decimal2string(&m, ptr, &length))
         return true; /* purecov: inspected */
       buffer->length(buffer->length() + length);
       break;
@@ -3369,9 +3369,8 @@ size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const {
     case enum_json_type::J_DECIMAL: {
       my_decimal dec;
       if (get_decimal_data(&dec)) break; /* purecov: inspected */
-      char buff[DECIMAL_MAX_STR_LENGTH + 1];
-      String str(buff, sizeof(buff), &my_charset_numeric);
-      if (my_decimal2string(E_DEC_FATAL_ERROR, &dec, 0, 0, 0, &str))
+      StringBuffer<DECIMAL_MAX_STR_LENGTH + 1> str(&my_charset_numeric);
+      if (my_decimal2string(E_DEC_FATAL_ERROR, &dec, &str))
         break; /* purecov: inspected */
       make_json_numeric_sort_key(str.ptr(), str.length(), dec.sign(), &key);
       break;

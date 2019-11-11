@@ -1325,7 +1325,7 @@ String *Item_func_numhybrid::val_str(String *str) {
       if (!(val = decimal_op(&decimal_value))) return 0;  // null is set
       my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, false, val);
       str->set_charset(collation.collation);
-      my_decimal2string(E_DEC_FATAL_ERROR, val, 0, 0, 0, str);
+      my_decimal2string(E_DEC_FATAL_ERROR, val, str);
       break;
     }
     case INT_RESULT: {
@@ -1611,8 +1611,8 @@ longlong Item_typecast_unsigned::val_int() {
 
 String *Item_typecast_decimal::val_str(String *str) {
   my_decimal tmp_buf, *tmp = val_decimal(&tmp_buf);
-  if (null_value) return NULL;
-  my_decimal2string(E_DEC_FATAL_ERROR, tmp, 0, 0, 0, str);
+  if (null_value) return nullptr;
+  my_decimal2string(E_DEC_FATAL_ERROR, tmp, str);
   return str;
 }
 
@@ -4392,7 +4392,7 @@ String *Item_func_udf_decimal::val_str(String *str) {
   if (str->length() < DECIMAL_MAX_STR_LENGTH)
     str->length(DECIMAL_MAX_STR_LENGTH);
   my_decimal_round(E_DEC_FATAL_ERROR, dec, decimals, false, &dec_buf);
-  my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, 0, 0, '0', str);
+  my_decimal2string(E_DEC_FATAL_ERROR, &dec_buf, str);
   return str;
 }
 
@@ -5804,7 +5804,8 @@ String *user_var_entry::val_str(bool *null_value, String *str,
         str->set(*(ulonglong *)m_ptr, collation.collation);
       break;
     case DECIMAL_RESULT:
-      str_set_decimal((my_decimal *)m_ptr, str, collation.collation);
+      str_set_decimal(E_DEC_FATAL_ERROR, pointer_cast<my_decimal *>(m_ptr), str,
+                      collation.collation);
       break;
     case STRING_RESULT:
       if (str->copy(m_ptr, m_length, collation.collation))

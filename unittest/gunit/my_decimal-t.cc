@@ -139,7 +139,7 @@ TEST_F(DecimalTest, Multiply) {
   EXPECT_EQ(2, d2.frac);
   EXPECT_EQ(DECIMAL_NOT_SPECIFIED, prod.frac);
   bufsz = sizeof(buff);
-  EXPECT_EQ(0, decimal2string(&prod, buff, &bufsz, 0, 0, 0));
+  EXPECT_EQ(0, decimal2string(&prod, buff, &bufsz));
   EXPECT_STREQ("1.9250000000000000000000000000000", buff);
 }
 
@@ -223,13 +223,13 @@ TEST_F(DecimalTest, Modulo) {
     EXPECT_EQ(0, chars_2_decimal(pd->result, &expected_result));
 
     EXPECT_EQ(0, my_decimal_mod(E_DEC_FATAL_ERROR, &mod_result, &d1, &d2));
-    EXPECT_EQ(0, decimal2string(&mod_result, buff_m, &bufsz_m, 0, 0, 0));
+    EXPECT_EQ(0, decimal2string(&mod_result, buff_m, &bufsz_m));
     EXPECT_EQ(0, my_decimal_cmp(&expected_result, &mod_result))
         << " a:" << pd->a << " b:" << pd->b << " expected:" << pd->result
         << " got mod:" << buff_m;
 
     EXPECT_EQ(0, decimal_modulo(&xxx_result, &d1, &d2));
-    EXPECT_EQ(0, decimal2string(&xxx_result, buff_x, &bufsz_x, 0, 0, 0));
+    EXPECT_EQ(0, decimal2string(&xxx_result, buff_x, &bufsz_x));
     EXPECT_EQ(0, my_decimal_cmp(&expected_result, &xxx_result))
         << " a:" << pd->a << " b:" << pd->b << " expected:" << pd->result
         << " got mod:" << buff_m << " got xxx:" << buff_x;

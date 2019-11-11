@@ -268,7 +268,7 @@ class XRow_encoder_base {
     std::string str_buf;
     int str_len = 200;
     str_buf.resize(str_len);
-    decimal2string(value, &(str_buf)[0], &str_len, 0, 0, 0);
+    decimal2string(value, &(str_buf)[0], &str_len);
     str_buf.resize(str_len);
 
     xcl::Decimal dec(str_buf);

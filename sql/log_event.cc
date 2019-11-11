@@ -1922,9 +1922,9 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       my_decimal dec;
       binary2my_decimal(E_DEC_FATAL_ERROR, pointer_cast<const uchar *>(ptr),
                         &dec, precision, decimals);
-      int len = DECIMAL_MAX_STR_LENGTH;
       char buff[DECIMAL_MAX_STR_LENGTH + 1];
-      decimal2string(&dec, buff, &len, 0, 0, 0);
+      int len = sizeof(buff);
+      decimal2string(&dec, buff, &len);
       my_b_printf(file, "%s", buff);
       return bin_size;
     }
@@ -6443,7 +6443,7 @@ int User_var_log_event::pack_info(Protocol *protocol) {
         my_decimal dec;
         binary2my_decimal(E_DEC_FATAL_ERROR, (uchar *)(val + 2), &dec, val[0],
                           val[1]);
-        my_decimal2string(E_DEC_FATAL_ERROR, &dec, 0, 0, 0, &str);
+        my_decimal2string(E_DEC_FATAL_ERROR, &dec, &str);
         event_len = str.length() + val_offset;
         break;
       }
@@ -6597,8 +6597,8 @@ void User_var_log_event::print(FILE *,
         my_b_printf(head, ":=%s%s\n", int_buf, print_event_info->delimiter);
         break;
       case DECIMAL_RESULT: {
-        char str_buf[200];
-        int str_len = sizeof(str_buf) - 1;
+        char str_buf[DECIMAL_MAX_STR_LENGTH + 1];
+        int str_len = sizeof(str_buf);
         int precision = (int)val[0];
         int scale = (int)val[1];
         decimal_digit_t dec_buf[10];
@@ -6607,8 +6607,7 @@ void User_var_log_event::print(FILE *,
         dec.buf = dec_buf;
 
         bin2decimal((uchar *)val + 2, &dec, precision, scale);
-        decimal2string(&dec, str_buf, &str_len, 0, 0, 0);
-        str_buf[str_len] = 0;
+        decimal2string(&dec, str_buf, &str_len);
         my_b_printf(head, ":=%s%s\n", str_buf, print_event_info->delimiter);
         break;
       }

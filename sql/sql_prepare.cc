@@ -3543,11 +3543,8 @@ bool Protocol_local::store_longlong(longlong value, bool, uint32) {
 
 bool Protocol_local::store_decimal(const my_decimal *value, uint prec,
                                    uint dec) {
-  char buf[DECIMAL_MAX_STR_LENGTH];
-  String str(buf, sizeof(buf), &my_charset_bin);
-  int rc;
-
-  rc = my_decimal2string(E_DEC_FATAL_ERROR, value, prec, dec, '0', &str);
+  StringBuffer<DECIMAL_MAX_STR_LENGTH> str;
+  const int rc = my_decimal2string(E_DEC_FATAL_ERROR, value, prec, dec, &str);
 
   if (rc) return true;
 

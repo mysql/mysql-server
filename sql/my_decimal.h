@@ -175,8 +175,7 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 #define dbug_decimal_as_string(A) NULL
 #endif
 
-bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
-                     uint fixed_dec, char filler, String *str,
+bool str_set_decimal(uint mask, const my_decimal *val, String *str,
                      const CHARSET_INFO *cs);
 
 extern my_decimal decimal_zero;
@@ -310,13 +309,12 @@ inline int my_decimal_ceiling(uint mask, const my_decimal *from,
   return from->check_result(mask, decimal_round(from, to, 0, CEILING));
 }
 
-inline bool str_set_decimal(const my_decimal *val, String *str,
-                            const CHARSET_INFO *cs) {
-  return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
-}
-
 int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
-                      uint fixed_dec, char filler, String *str);
+                      uint fixed_dec, String *str);
+
+inline int my_decimal2string(uint mask, const my_decimal *d, String *str) {
+  return my_decimal2string(mask, d, 0, 0, str);
+}
 
 inline int my_decimal2int(uint mask, const my_decimal *d, bool unsigned_flag,
                           longlong *l) {
