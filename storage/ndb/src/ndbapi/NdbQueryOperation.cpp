@@ -517,14 +517,17 @@ public:
   Uint16 firstResult();
   Uint16 nextResult();
 
-  /** 
+  /**
    * Returns true if last row matching the current parent tuple has been 
    * consumed.
    */
   bool isEmpty() const
   { return m_iterState == Iter_finished; }
 
-  /** 
+  Uint32 getInternalOpNo() const
+  { return m_operation.getInternalOpNo(); }
+
+  /**
    * This method 
    * returns true if this result stream holds the last batch of a sub scan.
    * This means that it is the last batch of the scan that was instantiated 
@@ -537,7 +540,7 @@ public:
      * operation will have two distincts nodes in the tree used by the
      * SPJ block, this number may be different from 'opNo'.
      */
-    const Uint32 internalOpNo = m_operation.getInternalOpNo();
+    const Uint32 internalOpNo = getInternalOpNo();
     return !remainingScans.get(internalOpNo);
   }
 
@@ -964,7 +967,7 @@ NdbResultStream::prepareNextReceiveSet()
   }
 
   m_resultSets[m_recv].prepareReceive(m_receiver);
-  prepared.set(m_operation.getInternalOpNo());
+  prepared.set(getInternalOpNo());
 
   /**
    * If this stream will get new rows in the next batch, then so will
@@ -1003,7 +1006,7 @@ NdbResultStream::prepareResultSet(const SpjNodeMask expectingResults,
 
   if (m_tupleSet!=NULL)
   {
-    if (expectingResults.get(m_operation.getInternalOpNo()))
+    if (expectingResults.get(getInternalOpNo()))
     {
       buildResultCorrelations();
     }
