@@ -95,6 +95,9 @@ private:
   NdbBulkAllocator& operator= (const NdbBulkAllocator&);
 };
 
+/** Bitmask of the possible node participants in a SPJ query */
+typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> SpjNodeMask;
+
 /** This class is the internal implementation of the interface defined by
  * NdbQuery. This class should thus not be visible to the application 
  * programmer. @see NdbQuery.*/

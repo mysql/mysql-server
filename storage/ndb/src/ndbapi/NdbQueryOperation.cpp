@@ -316,8 +316,8 @@ public:
    */
   void setRemainingSubScans(Uint32 moreMask, Uint32 activeMask)
   {
-    m_remainingScans = moreMask;
-    m_activeScans = activeMask;
+    m_remainingScans.assign(SpjNodeMask::Size, &moreMask);
+    m_activeScans.assign(SpjNodeMask::Size, &activeMask);
   }
 
   /** Release resources after last row has been returned */
@@ -375,10 +375,19 @@ private:
   /**
    * A bitmask of operation id's for which we will receive more
    * ResultSets in a NEXTREQ.
+   * Note: This is the next set of op's to be prepared (before NEXTREQ)
+   * Note: Due to protocol legacy, only the uppermost scan op's in the branch
+   *       getting new rows are set - However, all descendants will also get
+   *       new ResultSets.
    */
-  Uint32 m_remainingScans;
+  SpjNodeMask m_remainingScans;
 
-  Uint32 m_activeScans;
+  /**
+   * A bitmask of operation id's still being 'active' on the SPJ side.
+   * These will sooner or later return 'm_remainingScans', but not necessarily
+   * in the next round. It follows from this that 'active' contains 'remaining'.
+   */
+  SpjNodeMask m_activeScans;
 
   /** 
    * Used for implementing a hash map from root receiver ids to a 
@@ -490,7 +499,7 @@ public:
    * Update whatever required before the appl. are allowed to navigate the result.
    * @return true if node and all its siblings have returned all rows.
    */ 
-  bool prepareResultSet(Uint32 remainingScans);
+  bool prepareResultSet(SpjNodeMask remainingScans);
 
   /**
    * Navigate within the current ResultSet to resp. first and next row.
@@ -515,7 +524,7 @@ public:
    * This means that it is the last batch of the scan that was instantiated 
    * from the current batch of its parent operation.
    */
-  bool isSubScanComplete(Uint32 remainingScans) const
+  bool isSubScanComplete(SpjNodeMask remainingScans) const
   { 
     /**
      * Find the node number seen by the SPJ block. Since a unique index
@@ -523,9 +532,7 @@ public:
      * SPJ block, this number may be different from 'opNo'.
      */
     const Uint32 internalOpNo = m_operation.getInternalOpNo();
-
-    const bool complete = !((remainingScans >> internalOpNo) & 1);
-    return complete; 
+    return !remainingScans.get(internalOpNo);
   }
 
   bool isScanQuery() const
@@ -576,7 +583,7 @@ public:
     /** If the n'th bit is set, then a matching tuple for the n,th child has been seen. 
      * This information is needed when generating left join tuples for those tuples
      * that had no matching children.*/
-    Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> m_hasMatchingChild;
+    SpjNodeMask m_hasMatchingChild;
 
     explicit TupleSet() : m_hash_head(tupleNotFound)
     {}
@@ -971,7 +978,7 @@ NdbResultStream::prepareNextReceiveSet()
  *    rows.
  */
 bool 
-NdbResultStream::prepareResultSet(Uint32 remainingScans)
+NdbResultStream::prepareResultSet(SpjNodeMask remainingScans)
 {
   bool isComplete = isSubScanComplete(remainingScans); //Childs with more rows
 
@@ -1176,11 +1183,12 @@ NdbWorker::NdbWorker():
   m_availResultSets(0),
   m_outstandingResults(0),
   m_confReceived(false),
-  m_remainingScans(0xffffffff),
-  m_activeScans(0),
+  m_remainingScans(),
+  m_activeScans(),
   m_idMapHead(-1),
   m_idMapNext(-1)
 {
+  m_remainingScans.set();  //Set all bits
 }
 
 NdbWorker::~NdbWorker()
