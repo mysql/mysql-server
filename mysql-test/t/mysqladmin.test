@@ -105,6 +105,7 @@ FLUSH PRIVILEGES;
 --exec $MYSQL_CONFIG_EDITOR set --login-path=test-login-path1 --user=testadmin_user1 --host=127.0.0.1 2>&1
 --exec $MYSQLADMIN --no-defaults --login-path=test-login-path1 --port=$MASTER_MYPORT ping 2>&1
 DROP USER testadmin_user1;
+--remove_file $MYSQL_TEST_LOGIN_FILE
 
 # Using --server-public-key-path and --get-server-public-key
 CREATE USER tester@localhost IDENTIFIED WITH caching_sha2_password BY 'abcd';

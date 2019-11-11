@@ -33,3 +33,5 @@ call mtr.add_suppression("WARNING: The option --database has been used. It may f
 --let $rewrite_to_db=
 
 --eval SET BINLOG_FORMAT=$saved_binlog_format
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ SQL_LOAD_MB*
