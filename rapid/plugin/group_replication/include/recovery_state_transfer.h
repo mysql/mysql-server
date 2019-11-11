@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,11 +311,13 @@ private:
   /**
     Terminates the connection to the donor
 
+    @param purge_logs  purge recovery logs
+
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  int terminate_recovery_slave_threads();
+  int terminate_recovery_slave_threads(bool purge_logs = true);
 
   /**
     Purges relay logs and the master info object
