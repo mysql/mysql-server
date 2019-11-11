@@ -373,6 +373,12 @@ private:
   bool m_confReceived;
 
   /**
+   * A bitmask of operation id's which has been set up to receive more
+   * ResultSets by prepareNextReceiveSet().
+   */
+  SpjNodeMask m_preparedReceiveSet;
+
+  /**
    * A bitmask of operation id's for which we will receive more
    * ResultSets in a NEXTREQ.
    * Note: This is the next set of op's to be prepared (before NEXTREQ)
@@ -473,7 +479,7 @@ public:
   void prepare();
 
   /** Prepare for receiving next batch of scan results. */
-  void prepareNextReceiveSet();
+  SpjNodeMask prepareNextReceiveSet();
     
   NdbReceiver& getReceiver()
   { return m_receiver; }
@@ -499,7 +505,7 @@ public:
    * Update whatever required before the appl. are allowed to navigate the result.
    * @return true if node and all its siblings have returned all rows.
    */ 
-  bool prepareResultSet(SpjNodeMask remainingScans);
+  bool prepareResultSet(SpjNodeMask expectingResults, SpjNodeMask remainingScans);
 
   /**
    * Navigate within the current ResultSet to resp. first and next row.
@@ -946,9 +952,11 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
  * This NdbResultStream, and all its sibling will receive a batch
  * of results from the datanodes.
  */
-void
+SpjNodeMask
 NdbResultStream::prepareNextReceiveSet()
 {
+  SpjNodeMask prepared;
+
   if (isScanQuery())          // Doublebuffered ResultSet[] if isScanQuery()
   {
     m_recv = (m_recv+1) % 2;  // Receive into next ResultSet
@@ -956,6 +964,7 @@ NdbResultStream::prepareNextReceiveSet()
   }
 
   m_resultSets[m_recv].prepareReceive(m_receiver);
+  prepared.set(m_operation.getInternalOpNo());
 
   /**
    * If this stream will get new rows in the next batch, then so will
@@ -965,8 +974,9 @@ NdbResultStream::prepareNextReceiveSet()
        childNo++)
   {
     NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
-    m_worker.getResultStream(child).prepareNextReceiveSet();
+    prepared.bitOR(m_worker.getResultStream(child).prepareNextReceiveSet());
   }
+  return prepared;
 } //NdbResultStream::prepareNextReceiveSet
 
 /**
@@ -978,7 +988,8 @@ NdbResultStream::prepareNextReceiveSet()
  *    rows.
  */
 bool 
-NdbResultStream::prepareResultSet(SpjNodeMask remainingScans)
+NdbResultStream::prepareResultSet(const SpjNodeMask expectingResults,
+				  const SpjNodeMask remainingScans)
 {
   bool isComplete = isSubScanComplete(remainingScans); //Childs with more rows
 
@@ -987,13 +998,12 @@ NdbResultStream::prepareResultSet(SpjNodeMask remainingScans)
    * 'new' received from datanodes or reuse the last as has been 
    * determined by ::prepareNextReceiveSet()
    */
-  const bool newResults = (m_read != m_recv);
   m_read = m_recv;
   const NdbResultSet& readResult = m_resultSets[m_read];
 
   if (m_tupleSet!=NULL)
   {
-    if (newResults)
+    if (expectingResults.get(m_operation.getInternalOpNo()))
     {
       buildResultCorrelations();
     }
@@ -1017,7 +1027,8 @@ NdbResultStream::prepareResultSet(SpjNodeMask remainingScans)
   {
     const NdbQueryOperationImpl& child = m_operation.getChildOperation(childNo);
     NdbResultStream& childStream = m_worker.getResultStream(child);
-    const bool allSubScansComplete = childStream.prepareResultSet(remainingScans);
+    const bool allSubScansComplete =
+        childStream.prepareResultSet(expectingResults,remainingScans);
 
     Uint32 childId = child.getQueryOperationDef().getOpNo();
 
@@ -1183,6 +1194,7 @@ NdbWorker::NdbWorker():
   m_availResultSets(0),
   m_outstandingResults(0),
   m_confReceived(false),
+  m_preparedReceiveSet(),
   m_remainingScans(),
   m_activeScans(),
   m_idMapHead(-1),
@@ -1298,6 +1310,7 @@ void NdbWorker::prepareNextReceiveSet()
   assert(m_workerNo!=voidWorkerNo);
   assert(m_outstandingResults == 0);
 
+  m_preparedReceiveSet.clear();
   for (unsigned opNo=0; opNo<m_query->getNoOfOperations(); opNo++) 
   {
     NdbResultStream& resultStream = getResultStream(opNo);
@@ -1307,7 +1320,7 @@ void NdbWorker::prepareNextReceiveSet()
        * Reset resultStream and all its descendants, since all these
        * streams will get a new set of rows in the next batch.
        */ 
-      resultStream.prepareNextReceiveSet();
+      m_preparedReceiveSet.bitOR(resultStream.prepareNextReceiveSet());
     }
   }
   m_confReceived = false;
@@ -1329,7 +1342,7 @@ void NdbWorker::grabNextResultSet()  // Need mutex
   m_pendingRequests--;
 
   NdbResultStream& rootStream = getResultStream(0);
-  rootStream.prepareResultSet(m_remainingScans);  
+  rootStream.prepareResultSet(m_preparedReceiveSet, m_remainingScans);
 
   /* Position at the first (sorted?) row available from this worker.
    */
