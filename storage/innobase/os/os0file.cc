@@ -1789,10 +1789,17 @@ static char *os_file_get_parent_dir(const char *path) {
     return (NULL);
   }
 
+  if (last_slash - path < 0) {
+    /* Sanity check, it prevents gcc from trying to handle this case which
+     * results in warnings for some optimized builds */
+    return (NULL);
+  }
+
   /* Non-trivial directory component */
 
   return (mem_strdupl(path, last_slash - path));
 }
+
 #ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
 
 /* Test the function os_file_get_parent_dir. */
