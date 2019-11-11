@@ -396,6 +396,18 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
   m_fragmentRecordPool.setSize(noFragments);
   m_fragmentRecordHash.setSize(noFragments);
 
+  Uint32 noTables = 0;
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_TABLE, &noTables));
+  m_tableRecordPool.setSize(noTables);
+
+  for (Uint32 i = 0; i < noTables; i++)
+  {
+    TableRecordPtr tabPtr;
+    ndbrequire(m_tableRecordPool.seizeId(tabPtr, i));
+    tabPtr.p->m_is_table_ready_for_prep_lcp_writes = false;
+    tabPtr.p->m_num_prepare_lcp_outstanding = 0;
+  }
+
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
@@ -1753,6 +1765,7 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
    * means that we are in the fragment dirty list.
    */
 
+  fragPtr.p->m_is_frag_ready_for_prep_lcp_writes = true;
   if (fragPtr.p->m_current_lcp_dirty_state == Pgman::IN_FIRST_FRAG_DIRTY_LIST)
   {
     jam();
@@ -2006,18 +2019,29 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
        * from the dirty list of the first fragment to perform
        * an LCP on.
        */
-      if (get_first_ordered_fragment(fragPtr) &&
-          !fragPtr.p->m_dirty_list.isEmpty())
-      {
-        jam();
-        handle_prepare_lcp(signal, fragPtr);
-        return;
-      }
+      get_first_ordered_fragment(fragPtr);
       if (fragPtr.i == RNIL)
       {
         jam();
         /* No disk data tables exists */
         return;
+      }
+      TableRecordPtr tabPtr;
+      m_tableRecordPool.getPtr(tabPtr,fragPtr.p->m_table_id);
+      if (tabPtr.p->m_is_table_ready_for_prep_lcp_writes &&
+          fragPtr.p->m_is_frag_ready_for_prep_lcp_writes)
+      {
+        /**
+         * We don't care about non-active tables in the Prepare LCP
+         * handling, a non-active table that is found in ordered
+         * fragment list is being dropped.
+         */
+        if (!fragPtr.p->m_dirty_list.isEmpty())
+        {
+          jam();
+          handle_prepare_lcp(signal, fragPtr);
+          return;
+        }
       }
     }
     else
@@ -2050,11 +2074,17 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
          */
         return;
       }
-      if (!fragPtr.p->m_dirty_list.isEmpty())
+      TableRecordPtr tabPtr;
+      m_tableRecordPool.getPtr(tabPtr,fragPtr.p->m_table_id);
+      if (tabPtr.p->m_is_table_ready_for_prep_lcp_writes &&
+          fragPtr.p->m_is_frag_ready_for_prep_lcp_writes)
       {
-        jam();
-        handle_prepare_lcp(signal, fragPtr);
-        return;
+        if (!fragPtr.p->m_dirty_list.isEmpty())
+        {
+          jam();
+          handle_prepare_lcp(signal, fragPtr);
+          return;
+        }
       }
       loop++;
     } while (loop < MAX_PREPARE_LCP_SEARCH_DEPTH);
@@ -2170,6 +2200,9 @@ Pgman::handle_prepare_lcp(Signal *signal, FragmentRecordPtr fragPtr)
                                           ptr.p->m_real_page_i, 
                                           ptr.p->m_dirty_count);
         }
+        TableRecordPtr tabPtr;
+        m_tableRecordPool.getPtr(tabPtr,fragPtr.p->m_table_id);
+        tabPtr.p->m_num_prepare_lcp_outstanding++;
         pageout(signal, ptr, false);
         break_flag = true;
         m_current_lcp_pageouts++;
@@ -2479,7 +2512,20 @@ Pgman::lcp_start_point(Signal *signal,
   Uint32 max_log_level = MAX(max_undo_log_level, max_redo_log_level);
   ndbrequire(!m_lcp_ongoing);
   m_lcp_ongoing = true;
-  m_prev_lcp_table_id = 0;
+  if (max_log_level > 0)
+  {
+    /**
+     * max_log_level == 0 means that this is called from inside
+     * PGMAN. This happens at restarts to flush pages. We don't
+     * want to have any PREP_LCP writes performed in this case.
+     * Thus we avoid setting m_prev_lcp_table_id to 0 which will
+     * start off the PREP_LCP writes.
+     * PREP_LCP writes are used to smooth out the checkpoint writes
+     * for disk data pages during LCPs.
+     */
+    jam();
+    m_prev_lcp_table_id = 0;
+  }
   NDB_TICKS lcp_start_time = getHighResTimer();
   if (m_lcp_time_in_ms > 0)
   {
@@ -3578,6 +3624,10 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
     state &= ~ Page_entry::PREP_LCP;
     ndbrequire(m_prep_lcp_outstanding > 0);
     m_prep_lcp_outstanding--;
+    TableRecordPtr tabPtr;
+    m_tableRecordPool.getPtr(tabPtr,ptr.p->m_table_id);
+    ndbrequire(tabPtr.p->m_num_prepare_lcp_outstanding > 0);
+    tabPtr.p->m_num_prepare_lcp_outstanding--;
     DEB_PGMAN_PREP_PAGE((
                     "(%u)fswriteconf():prepare LCP, page(%u,%u):%u:%x"
                     ", m_prep_lcp_outstanding = %u",
@@ -5627,7 +5677,25 @@ Pgman::add_fragment(Uint32 tableId, Uint32 fragmentId)
   ndbrequire(!m_fragmentRecordHash.find(check, *fragPtr.p));
   m_fragmentRecordHash.add(fragPtr);
   insert_ordered_fragment_list(fragPtr);
+  fragPtr.p->m_is_frag_ready_for_prep_lcp_writes = false;
   return 0;
+}
+
+void
+Pgman::set_table_ready_for_prep_lcp_writes(Uint32 tabPtrI,
+                                           bool ready)
+{
+  TableRecordPtr tabPtr;
+  m_tableRecordPool.getPtr(tabPtr, tabPtrI);
+  tabPtr.p->m_is_table_ready_for_prep_lcp_writes = ready;
+}
+
+bool
+Pgman::is_prep_lcp_writes_outstanding(Uint32 tabPtrI)
+{
+  TableRecordPtr tabPtr;
+  m_tableRecordPool.getPtr(tabPtr, tabPtrI);
+  return tabPtr.p->m_num_prepare_lcp_outstanding != 0;
 }
 
 void
@@ -5784,6 +5852,8 @@ Pgman::drop_fragment(Uint32 tableId, Uint32 fragmentId)
   FragmentRecord key(*this, tableId, fragmentId);
   FragmentRecordPtr fragPtr;
   m_fragmentRecordHash.find(fragPtr, key);
+  TableRecordPtr tabPtr;
+  m_tableRecordPool.getPtr(tabPtr, tableId);
   if (fragPtr.i != RNIL)
   {
     jam();

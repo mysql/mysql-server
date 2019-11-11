@@ -276,6 +276,7 @@ class Lgman;
 #define ZSTART_QUEUED_SCAN 30
 #define ZLQH_SHRINK_TRANSIENT_POOLS 31
 #define ZLQH_TRANSIENT_POOL_STAT 32
+#define ZPGMAN_PREP_LCP_ACTIVE_CHECK 33
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -2281,6 +2282,8 @@ public:
     Uint32 usageCountR; // readers
     Uint32 usageCountW; // writers
     Uint32 m_addfragptr_i;
+    Uint32 m_senderData;
+    Uint32 m_senderRef;
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
 #endif // DBLQH_STATE_EXTRACT
@@ -3412,6 +3415,7 @@ private:
   Dbtup* c_tup;
   Dbtux* c_tux;
   Dbacc* c_acc;
+  Pgman* c_pgman;
   Backup* c_backup;
   Lgman* c_lgman;
   Restore* c_restore;
@@ -4256,6 +4260,8 @@ private:
   void release_op_rec(TcConnectionrecPtr tcConnectptr);
   void send_scan_fragref(Signal*, Uint32, Uint32, Uint32, Uint32, Uint32);
   void init_release_scanrec(ScanRecord*);
+  void check_pgman_prep_lcp_active_prep_drop_tab(Signal*, Uint32);
+  void check_pgman_prep_lcp_active_drop_tab(Signal*, Uint32);
 public:
   static Uint64 getTransactionMemoryNeed(
     const Uint32 ldm_instance_count,

@@ -391,6 +391,20 @@ void Dblqh::execCONTINUEB(Signal* signal)
   LogPartRecordPtr save;
   TcConnectionrecPtr tcConnectptr;
   switch (tcase) {
+  case ZPGMAN_PREP_LCP_ACTIVE_CHECK:
+  {
+    if (data1 == 0)
+    {
+      jam();
+      check_pgman_prep_lcp_active_prep_drop_tab(signal, data0);
+    }
+    else
+    {
+      jam();
+      check_pgman_prep_lcp_active_drop_tab(signal, data0);
+    }
+    return;
+  }
   case ZLQH_SHRINK_TRANSIENT_POOLS:
   {
     jam();
@@ -848,12 +862,14 @@ void Dblqh::execSTTOR(Signal* signal)
     c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     c_tux = (Dbtux*)globalData.getBlock(DBTUX, instance());
     c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
+    c_pgman = (Pgman*)globalData.getBlock(PGMAN, instance());
     c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
     c_restore = (Restore*)globalData.getBlock(RESTORE, instance());
     c_lgman = (Lgman*)globalData.getBlock(LGMAN);
     ndbrequire(c_tup != 0 &&
                c_tux != 0 &&
                c_acc != 0 &&
+               c_pgman != 0 &&
                c_lgman != 0 &&
                c_restore != 0);
     
@@ -2904,6 +2920,7 @@ void Dblqh::execTAB_COMMITREQ(Signal* signal)
   DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = TABLE_DEFINED",
                       instance(),
                       tabptr.i));
+  c_pgman->set_table_ready_for_prep_lcp_writes(tabptr.i, true);
   signal->theData[0] = dihPtr;
   signal->theData[1] = cownNodeid;
   signal->theData[2] = tabptr.i;
@@ -3151,17 +3168,47 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
 	       PrepDropTabRef::SignalLength, JBB);
     return;
   }
-  
+
+  tabPtr.p->m_senderData = senderData;
+  tabPtr.p->m_senderRef = senderRef;
+  c_pgman->set_table_ready_for_prep_lcp_writes(tabPtr.i, false);
+  check_pgman_prep_lcp_active_prep_drop_tab(signal, tabPtr.i);
+}
+
+/**
+ * In PGMAN we have a feature that writes data pages before the actual
+ * checkpoint happens. These pages are tagged with PREP_LCP as the state.
+ * We need to ensure that no such writes are outstanding for a table
+ * that is being prepared to drop. We will only write such pages when
+ * the table is active in PGMAN. We declare it as inactive when we start
+ * preparing to drop the table.
+ */
+void
+Dblqh::check_pgman_prep_lcp_active_prep_drop_tab(Signal *signal,
+                                                 Uint32 tabPtrI)
+{
+  if (c_pgman->is_prep_lcp_writes_outstanding(tabPtrI))
+  {
+    jam();
+    signal->theData[0] = ZPGMAN_PREP_LCP_ACTIVE_CHECK;
+    signal->theData[1] = tabPtrI;
+    signal->theData[2] = 0;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 3);
+    return;
+  }
+
+  TablerecPtr tabPtr;
+  tabPtr.i = tabPtrI;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
   tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_DONE;
-  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = PREP_DROP_TABLE_DONE",
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = PREP_DROP_TABLE_DONE(2)",
                       instance(),
                       tabPtr.i));
-  
   PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
-  conf->tableId = tabPtr.i;
+  conf->tableId = tabPtrI;
   conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
+  conf->senderData = tabPtr.p->m_senderData;
+  sendSignal(tabPtr.p->m_senderRef, GSN_PREP_DROP_TAB_CONF, signal,
 	     PrepDropTabConf::SignalLength, JBB);
 }
 
@@ -3172,6 +3219,33 @@ Dblqh::execINFORM_BACKUP_DROP_TAB_CONF(Signal *signal)
   tabPtr.i = signal->theData[0];
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
   tabPtr.p->m_informed_backup_drop_tab = true;
+}
+
+void
+Dblqh::check_pgman_prep_lcp_active_drop_tab(Signal *signal,
+                                            Uint32 tabPtrI)
+{
+  if (c_pgman->is_prep_lcp_writes_outstanding(tabPtrI))
+  {
+    jam();
+    signal->theData[0] = ZPGMAN_PREP_LCP_ACTIVE_CHECK;
+    signal->theData[1] = tabPtrI;
+    signal->theData[2] = 1;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 3);
+    return;
+  }
+  TablerecPtr tabPtr;
+  tabPtr.i = tabPtrI;
+  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+  tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
+  DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_USAGE(2)",
+                      instance(),
+                      tabPtr.i));
+  signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
+  signal->theData[1] = tabPtrI;
+  signal->theData[2] = tabPtr.p->m_senderRef;
+  signal->theData[3] = tabPtr.p->m_addfragptr_i;
+  dropTab_wait_usage(signal);
 }
 
 void
@@ -3403,15 +3477,9 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
       tabPtr.p->m_addfragptr_i = addfragptr.i;
       addfragptr.p->m_dropTabReq = * req;
       tabPtr.p->m_informed_backup_drop_tab = false;
-      tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_USAGE;
-      DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = DROP_TABLE_WAIT_USAGE(2)",
-                          instance(),
-                          tabPtr.i));
-      signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
-      signal->theData[1] = tabPtr.i;
-      signal->theData[2] = req->senderRef;
-      signal->theData[3] = addfragptr.i;
-      dropTab_wait_usage(signal);
+      tabPtr.p->m_senderRef = req->senderRef;
+      c_pgman->set_table_ready_for_prep_lcp_writes(tabPtr.i, false);
+      check_pgman_prep_lcp_active_drop_tab(signal, tabPtr.i);
       return;
     }
     else
@@ -23280,6 +23348,7 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   DEB_SCHEMA_VERSION(("(%u)tab: %u tableStatus = TABLE_DEFINED(3)",
                       instance(),
                       tabptr.i));
+  c_pgman->set_table_ready_for_prep_lcp_writes(tabptr.i, true);
   
   Uint32 lcpNo = startFragReq->lcpNo;
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
