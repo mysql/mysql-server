@@ -624,13 +624,20 @@ int Recovery_state_transfer::state_transfer(
   int error = 0;
 
   while (!donor_transfer_finished && !recovery_aborted) {
-    // If an applier error happened: stop the receiver thread and purge the logs
+    /*
+      If an applier error happened: stop the slave threads.
+      We do not purge logs or reset channel configuration to
+      preserve the error information on performance schema
+      tables until the next recovery attempt.
+      Recovery_state_transfer::initialize_donor_connection() will
+      take care of that.
+    */
     if (donor_channel_thread_error) {
       // Unsubscribe the listener until it connects again.
       channel_observation_manager->unregister_channel_observer(
           recovery_channel_observer);
 
-      if ((error = terminate_recovery_slave_threads())) {
+      if ((error = terminate_recovery_slave_threads(false))) {
         /* purecov: begin inspected */
         LogPluginErr(ERROR_LEVEL,
                      ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_APPLIER);
