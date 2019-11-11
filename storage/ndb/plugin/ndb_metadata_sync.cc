@@ -31,6 +31,7 @@
 #include "sql/sql_table.h"                            // build_table_filename
 #include "storage/ndb/include/ndbapi/Ndb.hpp"         // Ndb
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_setup_table
+#include "storage/ndb/plugin/ndb_dd.h"                // ndb_dd_fs_name_case
 #include "storage/ndb/plugin/ndb_dd_client.h"         // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"  // ndb_dd_disk_data_get_object_id_and_version
 #include "storage/ndb/plugin/ndb_dd_table.h"  // ndb_dd_table_get_object_id_and_version
@@ -614,6 +615,7 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
     temp_error = false;
     return false;
   }
+  const std::string dd_schema_name = ndb_dd_fs_name_case(schema_name.c_str());
   Ndb_dd_client dd_client(thd);
   // Acquire exclusive MDL on the schema upfront. Note that this isn't strictly
   // necessary since the Ndb_local_connection is used further down the function.
@@ -621,7 +623,7 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
   // acquired. Thus, there's an attempt to lock the schema with
   // lock_wait_timeout = 0 to ensure that the binlog thread can bail out early
   // should there be any conflicting locks
-  if (!dd_client.mdl_lock_schema_exclusive(schema_name.c_str(), true)) {
+  if (!dd_client.mdl_lock_schema_exclusive(dd_schema_name.c_str(), true)) {
     ndb_log_info("Failed to acquire MDL on schema '%s'", schema_name.c_str());
     temp_error = true;
     // Since it's a temporary error, the THD conditions should be cleared but
@@ -644,7 +646,7 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
   }
 
   bool exists_in_DD;
-  if (!dd_client.schema_exists(schema_name.c_str(), &exists_in_DD)) {
+  if (!dd_client.schema_exists(dd_schema_name.c_str(), &exists_in_DD)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
     ndb_log_warning("Failed to determine if schema '%s' exists in DD",
                     schema_name.c_str());
