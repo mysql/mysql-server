@@ -308,10 +308,16 @@ public:
    * This method is used for marking which streams belonging to this
    * NdbWorker which has remaining batches for a sub scan
    * instantiated from the current batch of its parent operation.
+   *
+   * moreMask:   Set of streams which we may receive more result from
+   *             in *next* batch.
+   * activeMask: Set of streams currently not returned their last row.
+   *             (Will return 'more' in next or later REQuests)
    */
-  void setRemainingSubScans(Uint32 nodeMask)
-  { 
-    m_remainingScans = nodeMask;
+  void setRemainingSubScans(Uint32 moreMask, Uint32 activeMask)
+  {
+    m_remainingScans = moreMask;
+    m_activeScans = activeMask;
   }
 
   /** Release resources after last row has been returned */
@@ -371,6 +377,8 @@ private:
    * ResultSets in a NEXTREQ.
    */
   Uint32 m_remainingScans;
+
+  Uint32 m_activeScans;
 
   /** 
    * Used for implementing a hash map from root receiver ids to a 
@@ -1169,6 +1177,7 @@ NdbWorker::NdbWorker():
   m_outstandingResults(0),
   m_confReceived(false),
   m_remainingScans(0xffffffff),
+  m_activeScans(0),
   m_idMapHead(-1),
   m_idMapNext(-1)
 {
@@ -3163,7 +3172,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     ScanTabReq::setDescendingFlag(reqInfo, descending);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);
     ScanTabReq::setNoDiskFlag(reqInfo, !root.diskInUserProjection());
-    ScanTabReq::set4WordConf(reqInfo, 1);
+    ScanTabReq::setExtendedConf(reqInfo, 1);
 
     // Assume LockMode LM_ReadCommited, set related lock flags
     ScanTabReq::setLockMode(reqInfo, false);  // not exclusive
@@ -5194,12 +5203,13 @@ NdbQueryOperationImpl::execTCKEYREF(const NdbApiSignal* aSignal)
 } //NdbQueryOperationImpl::execTCKEYREF
 
 bool
-NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI, 
+NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
                                         Uint32 rowCount,
                                         Uint32 nodeMask,
+                                        Uint32 activeMask,
                                         const NdbReceiver* receiver)
 {
-  assert((tcPtrI==RNIL && nodeMask==0) || 
+  assert((tcPtrI==RNIL && nodeMask==0) ||
          (tcPtrI!=RNIL && nodeMask!=0));
   assert(checkMagicNumber());
   // For now, only the root operation may be a scan.
@@ -5215,19 +5225,22 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
     assert(false);
     return false;
   }
-  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, nodeMask==0 -> EOF
-  worker->setConfReceived(tcPtrI);
-  worker->setRemainingSubScans(nodeMask);
-  worker->incrOutstandingResults(rowCount);
 
   if(traceSignals){
     ndbout << "NdbQueryOperationImpl::execSCAN_TABCONF"
            << " from workerNo=" << worker->getWorkerNo()
            << " rows " << rowCount
-           << " nodeMask: H'" << hex << nodeMask << ")"
+           << " nodeMask: H'" << hex << nodeMask
+           << " activeMask: H'" << hex << activeMask
            << " tcPtrI " << tcPtrI
            << endl;
   }
+  DBUG_ASSERT(nodeMask!=0 || activeMask==0);
+
+  // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, nodeMask==0 -> EOF
+  worker->setConfReceived(tcPtrI);
+  worker->setRemainingSubScans(nodeMask,activeMask);
+  worker->incrOutstandingResults(rowCount);
 
   bool ret = false;
   if (worker->isFragBatchComplete())

@@ -2852,6 +2852,26 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       conf->fragmentCompleted = is_complete ? 1 : 0;
       conf->total_len = requestPtr.p->m_active_nodes.rep.data[0];
 
+      /**
+       * Collect the map of nodes still having more rows to return.
+       * Note that this 'activeMask' is returned as part of the
+       * extended format of the ScanFragConf signal introduced in wl7636.
+       * If returned to a TC node not yet upgraded, the extended part
+       * of the ScanFragConf is simply ignored.
+       */
+      Uint32 activeMask = 0;
+      Ptr<TreeNode> treeNodePtr;
+      Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
+
+      for (list.first(treeNodePtr); !treeNodePtr.isNull(); list.next(treeNodePtr))
+      {
+        if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
+        {
+          DBUG_ASSERT(treeNodePtr.p->m_node_no <= 31);
+          activeMask |= (1 << treeNodePtr.p->m_node_no);
+        }
+      }
+      conf->activeMask = activeMask;
       c_Counters.incr_counter(CI_SCAN_BATCHES_RETURNED, 1);
       c_Counters.incr_counter(CI_SCAN_ROWS_RETURNED, requestPtr.p->m_rows);
 
@@ -2892,7 +2912,7 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
                          DBLQH);
 #endif
       sendSignal(requestPtr.p->m_senderRef, GSN_SCAN_FRAGCONF, signal,
-                 ScanFragConf::SignalLength, JBB);
+                 ScanFragConf::SignalLength_ext, JBB);
     }
     else
     {

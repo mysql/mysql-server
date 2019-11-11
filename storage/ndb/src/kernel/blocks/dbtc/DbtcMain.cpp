@@ -13373,6 +13373,7 @@ Dbtc::ScanFragRec::ScanFragRec()
   m_ops(0),
   m_apiPtr(RNIL),
   m_totalLen(0),
+  m_hasMore(0),
   nextList(RNIL),
   prevList(RNIL)
 {
@@ -13428,7 +13429,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
   scanptr.p->m_close_scan_req = false;
   scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
-  scanptr.p->m_4word_conf = ScanTabReq::get4WordConf(ri);
+  scanptr.p->m_extended_conf = ScanTabReq::getExtendedConf(ri);
   scanptr.p->scanKeyInfoPtr = RNIL;
   scanptr.p->scanAttrInfoPtr = RNIL;
 
@@ -14412,6 +14413,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
       // Prepare an 'empty result' reply for this 'scanFragP'
       scanFragP.p->m_ops = 0;
       scanFragP.p->m_totalLen = 0;
+      scanFragP.p->m_hasMore = 0;
       scanFragP.p->m_scan_frag_conf_status = 1;
       scanFragP.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
       scanFragP.p->stopFragTimer();
@@ -14558,6 +14560,9 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   const ScanFragConf * const conf = (ScanFragConf*)&signal->theData[0];
   const Uint32 noCompletedOps = conf->completedOps;
   const Uint32 status = conf->fragmentCompleted;
+  const Uint32 activeMask =
+    (signal->getLength() >= ScanFragConf::SignalLength_ext)
+      ? conf->activeMask : 0;
 
   scanFragptr.i = conf->senderData;
   if (!c_scan_frag_pool.getValidPtr(scanFragptr))
@@ -14663,13 +14668,6 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     }
     return;
   }
- /* 
-  Uint32 totalLen = 0;
-  for(Uint32 i = 0; i<noCompletedOps; i++){
-    Uint32 tmp = conf->opReturnDataLen[i];
-    totalLen += tmp;
-  }
- */ 
   {
     Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
     Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
@@ -14698,6 +14696,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   scanFragptr.p->m_scan_frag_conf_status = status;
   scanFragptr.p->m_ops = noCompletedOps;
   scanFragptr.p->m_totalLen = total_len;
+  scanFragptr.p->m_hasMore = activeMask;
   scanFragptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
 
   if (scanptr.p->m_queued_count > /** Min */ 0)
@@ -15462,17 +15461,27 @@ void Dbtc::sendScanTabConf(Signal* signal,
 {
   jamDebug();
   Uint32* ops = signal->getDataPtrSend()+4;
-  Uint32 op_count = scanPtr.p->m_queued_count;
-
-  Uint32 words_per_op = 4;
+  const Uint32 op_count = scanPtr.p->m_queued_count;
   const Uint32 ref = apiConnectptr.p->ndbapiBlockref;
-  if (!scanPtr.p->m_4word_conf)
-  {
-    jamDebug();
-    words_per_op = 3;
-  }
 
-  if (4 + words_per_op * op_count > 25)
+  Uint32 words_per_op = 3;
+  if (scanPtr.p->m_extended_conf)
+  {
+    // Use 4 or 5 word extended conf signal?
+    const Uint32 apiVersion = getNodeInfo(refToNode(ref)).m_version;
+    ndbassert(apiVersion != 0);
+    if (ndbd_send_active_bitmask(apiVersion))
+    {
+      jamDebug();
+      words_per_op = 5;
+    }
+    else
+    {
+      jamDebug();
+      words_per_op = 4;
+    }
+  }
+  if (ScanTabConf::SignalLength + (words_per_op * op_count) > 25)
   {
     jamDebug();
     ops += 21;
@@ -15501,7 +15510,13 @@ void Dbtc::sendScanTabConf(Signal* signal,
       
       * ops++ = curr.p->m_apiPtr;
       * ops++ = done ? RNIL : curr.i;
-      if (words_per_op == 4)
+      if (words_per_op == 5)
+      {
+        * ops++ = curr.p->m_ops;
+        * ops++ = curr.p->m_totalLen;
+        * ops++ = curr.p->m_hasMore;
+      }
+      else if (words_per_op == 4)
       {
         * ops++ = curr.p->m_ops;
         * ops++ = curr.p->m_totalLen;
@@ -15550,7 +15565,7 @@ void Dbtc::sendScanTabConf(Signal* signal,
     }
   }
   
-  if (4 + words_per_op * op_count > 25)
+  if (ScanTabConf::SignalLength + (words_per_op * op_count) > 25)
   {
     jamDebug();
     LinearSectionPtr ptr[3];
@@ -15563,7 +15578,7 @@ void Dbtc::sendScanTabConf(Signal* signal,
   {
     jamDebug();
     sendSignal(ref, GSN_SCAN_TABCONF, signal,
-	       ScanTabConf::SignalLength + words_per_op * op_count, JBB);
+	       ScanTabConf::SignalLength + (words_per_op * op_count), JBB);
   }
   scanPtr.p->m_queued_count = 0;
 
@@ -20942,7 +20957,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   ScanTabReq::setDistributionKeyFlag(ri, 0);
   ScanTabReq::setViaSPJFlag(ri, 0);
   ScanTabReq::setPassAllConfsFlag(ri, 0);
-  ScanTabReq::set4WordConf(ri, 0);
+  ScanTabReq::setExtendedConf(ri, 0);
   req->requestInfo = ri;
   req->transId1 = regApiPtr->transid[0];
   req->transId2 = regApiPtr->transid[1];

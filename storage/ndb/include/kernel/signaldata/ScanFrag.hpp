@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,6 +199,7 @@ class ScanFragConf {
   friend class Suma;
 public:
   STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength_ext = 7 );
   
 public:
   Uint32 senderData;
@@ -207,6 +208,13 @@ public:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 total_len;  // Total #Uint32 returned as TRANSID_AI
+
+  /**
+   * ext'ended format used by SPJ: Allow it to report a bitmask
+   * of treeNode id's (tables) which are still 'active', such
+   * that more result rows will be returned in later NEXTREQ's.
+   */
+  Uint32 activeMask;
 };
 
 class ScanFragRef {

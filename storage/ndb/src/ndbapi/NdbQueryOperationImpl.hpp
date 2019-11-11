@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -670,12 +670,15 @@ public:
 
   /** Called once per complete (within batch) fragment when a SCAN_TABCONF 
    * signal is received.
-   * @param tcPtrI not in use.
-   * @param rowCount Number of rows for this fragment, including all rows from 
+   * @param tcPtrI
+   * @param rowCount Number of rows for this fragment, including all rows from
    * descendant lookup operations.
+   * @param nodeMask Nodes that will return more rows in following NEXTREQ
+   * @param activeMask Nodes still active, will return more rows in some later
+   * NEXTREQ.
    * @param receiver The receiver object that shall process the results.*/
   bool execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, Uint32 nodeMask,
-                        const NdbReceiver* receiver); 
+                        Uint32 activeMask, const NdbReceiver* receiver);
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }

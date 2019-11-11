@@ -116,7 +116,7 @@ private:
   static UintR getNoDiskFlag(const UintR & requestInfo);
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
-  static Uint32 get4WordConf(const Uint32&);
+  static Uint32 getExtendedConf(const Uint32&);
   static Uint8 getReadCommittedBaseFlag(const UintR & requestInfo);
   static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
 
@@ -137,7 +137,7 @@ private:
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
-  static void set4WordConf(Uint32 & requestInfo, Uint32 val);
+  static void setExtendedConf(Uint32 & requestInfo, Uint32 val);
   static void setReadCommittedBaseFlag(Uint32 & requestInfo, Uint32 val);
   static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
 };
@@ -208,7 +208,7 @@ private:
 
 #define SCAN_SPJ_SHIFT (27)
 #define SCAN_PASS_CONF_SHIFT (28)
-#define SCAN_4WORD_CONF_SHIFT (29)
+#define SCAN_EXTENDED_CONF_SHIFT (29)
 #define SCAN_READ_COMMITTED_BASE_SHIFT (30)
 #define SCAN_MULTI_FRAG_SHIFT (31)
 
@@ -414,15 +414,15 @@ ScanTabReq::setPassAllConfsFlag(UintR & requestInfo, Uint32 flag){
 
 inline
 UintR
-ScanTabReq::get4WordConf(const UintR & requestInfo){
-  return (requestInfo >> SCAN_4WORD_CONF_SHIFT) & 1;
+ScanTabReq::getExtendedConf(const UintR & requestInfo){
+  return (requestInfo >> SCAN_EXTENDED_CONF_SHIFT) & 1;
 }
 
 inline
 void
-ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
-  ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
-  requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+ScanTabReq::setExtendedConf(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "ScanTabReq::setExtendedConf");
+  requestInfo |= (flag << SCAN_EXTENDED_CONF_SHIFT);
 }
 
 /**

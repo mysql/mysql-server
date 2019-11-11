@@ -562,4 +562,18 @@ ndbd_protocol_accepted_by_8_0(Uint32 x)
   }
   return 1;
 }
+
+/*
+ * Send/expect the extra 'still active' word as part of ScanTabConf and
+ * ScanFragConf signals.
+ */
+#define NDBD_SEND_ACTIVE_BITMASK NDB_MAKE_VERSION(8,0,20)
+static
+inline
+int
+ndbd_send_active_bitmask(Uint32 x)
+{
+  return x >= NDBD_SEND_ACTIVE_BITMASK;
+}
+
 #endif

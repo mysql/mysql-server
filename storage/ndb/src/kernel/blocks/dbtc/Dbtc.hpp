@@ -1694,6 +1694,7 @@ public:
     Uint32 m_ops;
     Uint32 m_apiPtr;
     Uint32 m_totalLen;
+    Uint32 m_hasMore;
     Uint32 nextList;
     Uint32 prevList;
     NDB_TICKS m_start_ticks;
@@ -1843,9 +1844,11 @@ public:
     bool m_pass_all_confs;
 
     /**
-     * Send opcount/total len as different words
+     * Use 4 or 5 word extended conf signal, where opcount, total_len & active
+     * are sent as seperate words. 4 or 5 word extended format is decided
+     * based on 'ndbd_send_active_bitmask(<version>)'
      */
-    bool m_4word_conf;
+    bool m_extended_conf;
     bool m_read_committed_base;
 
     /**

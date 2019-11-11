@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,6 +100,8 @@ printSCAN_FRAGCONF(FILE * output, const Uint32 * theData,
   fprintf(output, " transId1: 0x%x\n", sig->transId1);
   fprintf(output, " transId2: 0x%x\n", sig->transId2);
   fprintf(output, " total_len: %u\n", sig->total_len);
+  if (len >= ScanFragConf::SignalLength_ext)
+    fprintf(output, " activeMask: 0x%x\n", sig->activeMask);
 
   return true;
 }
