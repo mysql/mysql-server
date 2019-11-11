@@ -277,14 +277,14 @@ int NdbRestarts::executeRestart(NDBT_Context* ctx,
     if (config_node_groups < min_groups) {
       g_err << "This test requires " << min_groups << " node groups, "
       "but cluster has only " << config_node_groups << "." << endl;
-      return NDBT_SKIPPED;
+      return NDBT_OK;
     }
   }
   if (_restart->m_numRequiredNodes > restarter.getNumDbNodes()){
     g_err << "This test requires " << _restart->m_numRequiredNodes << " nodes "
 	  << "there are only "<< restarter.getNumDbNodes() <<" nodes in cluster" 
 	  << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   if (restarter.waitClusterStarted(120) != 0){
@@ -751,7 +751,7 @@ int restartNFDuringNR(F_ARGS safety){
   // It is left here for possible re-use in the future.
 
   if(_restarter.getNumNodeGroups() < 2)
-    return NDBT_OK;   // should be NDBT_SKIPPED
+    return NDBT_OK;
 
   for(i = 0; i<sz && !ctx->isTestStopped() && !ctx->closeToTimeout(safety);i++){
     const int randomId = myRandom48(_restarter.getNumDbNodes());
