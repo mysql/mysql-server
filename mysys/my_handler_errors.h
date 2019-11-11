@@ -88,7 +88,7 @@ static const char *handler_error_messages[] = {
     "The event was corrupt, leading to illegal data being read",
     "The table is of a new format not supported by this version",
     "The event could not be processed no other hanlder error happened",
-    "Got a fatal error during initialzaction of handler",
+    "Got a fatal error during initialization of handler",
     "File too short; Expected more data in file",
     "Read page with wrong checksum",
     "Too many active concurrent transactions",
