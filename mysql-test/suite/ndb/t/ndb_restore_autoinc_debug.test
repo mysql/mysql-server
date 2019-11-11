@@ -2,6 +2,11 @@
 --source include/have_ndb_debug.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
+--disable_query_log
+set @old_ndb_autoincrement_prefetch_sz = @@session.ndb_autoincrement_prefetch_sz;
+set ndb_autoincrement_prefetch_sz = 1;
+--enable_query_log
+
 --echo Check some behaviours around restoring autoinc
 --echo tables where autoinc values are used in the log
 
@@ -68,3 +73,7 @@ drop table test.t2;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+
+--disable_query_log
+set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
+--enable_query_log
