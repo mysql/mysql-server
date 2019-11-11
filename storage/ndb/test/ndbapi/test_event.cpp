@@ -2726,7 +2726,7 @@ runBug33793(NDBT_Context* ctx, NDBT_Step* step)
   {
     printf("SKIPPING the test since the test attempts to restart more than"
            " half of the data nodes");
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   // This should really wait for applier to start...10s is likely enough
   NdbSleep_SecSleep(10);

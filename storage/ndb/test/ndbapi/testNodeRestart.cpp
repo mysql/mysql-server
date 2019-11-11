@@ -1624,7 +1624,7 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
   if (restarter.getMaxConcurrentNodeFailures() < 1)
   {
     g_err << "[SKIPPED] Configuration cannot handle 1 node failure." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   Uint32 cnt = restarter.getNumDbNodes();
@@ -1723,17 +1723,17 @@ int
 runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
-  return NDBT_SKIPPED; /* Until we fix handling of partitioned clusters */
+  return NDBT_OK; /* Until we fix handling of partitioned clusters */
 
   if (restarter.getNumReplicas() < 2)
   {
     g_err << "[SKIPPED] Test requires 2 or more replicas." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
  if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   Uint32 cnt = restarter.getNumDbNodes();
 
@@ -1963,7 +1963,7 @@ runBug29364(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   int dump0[] = { 9000, 0 } ;
@@ -2011,7 +2011,7 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
@@ -2173,7 +2173,7 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step)
   if (restarter.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   for (int i = 0; i<loops; i++)
@@ -2336,12 +2336,12 @@ runBug26457(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   int loops = ctx->getNumLoops();
@@ -4055,12 +4055,12 @@ runBug36199(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   int master = res.getMasterNodeId();
@@ -4112,12 +4112,12 @@ runBug36246(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   HugoOperations hugoOps(*ctx->getTab());
@@ -4208,12 +4208,12 @@ runBug36247(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   Ndb* pNdb = GETNDB(step);
@@ -4314,12 +4314,12 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getNumDbNodes() < 4)
   {
     g_err << "[SKIPPED] Test skipped. Requires at least 4 nodes" << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   int master = res.getMasterNodeId();
@@ -4366,12 +4366,12 @@ runBug36245(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   /**
@@ -4701,7 +4701,7 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   int loops = ctx->getNumLoops();
@@ -6524,12 +6524,12 @@ runBug16007980(NDBT_Context* ctx, NDBT_Step* step)
   if (res.getNumNodeGroups() < 2)
   {
     g_err << "[SKIPPED] Test requires at least 2 node groups." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
-    return NDBT_SKIPPED;
+    return NDBT_OK;
   }
 
   int loops = ctx->getNumLoops();
