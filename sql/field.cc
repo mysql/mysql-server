@@ -9703,17 +9703,9 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
 
 Field_typed_array::Field_typed_array(const Field_typed_array &other)
     : Field_json(other),
-      m_conv_field(other.m_conv_field),
       m_elt_type(other.m_elt_type),
       m_elt_decimals(other.m_elt_decimals),
-      m_elt_charset(other.m_elt_charset) {
-  /*
-    When conv_field is null the field is cloned from share and isn't
-    attached to any table yet (this will happen later).
-  */
-  //  DBUG_ASSERT(!m_conv_field);
-  m_conv_field = nullptr;
-}
+      m_elt_charset(other.m_elt_charset) {}
 
 Field_typed_array::Field_typed_array(
     enum_field_types elt_type, bool elt_is_unsigned, size_t elt_length,
@@ -9722,7 +9714,6 @@ Field_typed_array::Field_typed_array(
     uint blob_pack_length, const CHARSET_INFO *cs)
     : Field_json(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                  field_name_arg, share, blob_pack_length),
-      m_conv_field(nullptr),
       m_elt_type(elt_type),
       m_elt_decimals(elt_decimals),
       m_elt_charset(cs) {
@@ -9892,7 +9883,6 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
 }
 
 void Field_typed_array::init(TABLE *table_arg) {
-  uint fld_length = field_length;
   Field::init(table_arg);
 
   switch (type()) {
@@ -9908,22 +9898,22 @@ void Field_typed_array::init(TABLE *table_arg) {
     default:
       // Shouldn't happen
       DBUG_ASSERT(0); /* purecov: inspected */
-
       return;
   }
+
   // Create field for data conversion
   m_conv_field = ::make_field(
       // Allocate conversion field in table's mem_root
       &table_arg->mem_root,
-      nullptr,        // TABLE_SHARE, not needed
-      nullptr,        // data buffer, isn't allocated yet
-      fld_length,     // field_length
-      &null_byte, 0,  // null_pos, nul_bit
-      real_type(),    // field_type
+      nullptr,       // TABLE_SHARE, not needed
+      nullptr,       // data buffer, isn't allocated yet
+      field_length,  // field_length
+      nullptr, 0,    // null_pos, nul_bit
+      real_type(),   // field_type
       m_elt_charset,
       Field::GEOM_GEOMETRY,  // geom type
       Field::NONE,           // auto_flags
-      nullptr,               // itervals aren't supported in array
+      nullptr,               // intervals aren't supported in array
       field_name, is_nullable(),
       false,  // zerofill is meaningless with JSON
       unsigned_flag, m_elt_decimals,
@@ -9932,27 +9922,27 @@ void Field_typed_array::init(TABLE *table_arg) {
       {},     // srid
       false   // is_array
   );
-  if (!m_conv_field ||
-      !(m_conv_buf = static_cast<uchar *>(
-            table_arg->mem_root.Alloc(m_conv_field->pack_length()))))
-    return; /* purecov: inspected */
+  if (m_conv_field == nullptr) return;
+  uchar *buf =
+      table_arg->mem_root.ArrayAlloc<uchar>(m_conv_field->pack_length() + 1);
+  if (buf == nullptr) return;
   if (type() == MYSQL_TYPE_NEWDECIMAL)
     (down_cast<Field_new_decimal *>(m_conv_field))->set_keep_precision(true);
-  m_conv_field->move_field(m_conv_buf);
+  m_conv_field->move_field(buf + 1, buf, 0);
   // Allow conv_field to use table->in_use
   m_conv_field->table = table;
   m_conv_field->field_index = field_index;
   m_conv_field->table_name = table_name;
 }
 
-const char *Field_typed_array::get_index_name() {
+const char *Field_typed_array::get_index_name() const {
   uint key = part_of_key.get_first_set();
   DBUG_ASSERT(key != MY_BIT_NONE);
   return table->s->key_info[key].name;
 }
 
 size_t Field_typed_array::make_sort_key(Json_wrapper *wr, uchar *to,
-                                        size_t length) {
+                                        size_t length) const {
 #ifndef DBUG_OFF
   switch (wr->type()) {
     case enum_json_type::J_ERROR:

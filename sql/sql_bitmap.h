@@ -189,7 +189,7 @@ class Bitmap<64> {
     return buf;
   }
   ulonglong to_ulonglong() const { return map; }
-  uint get_first_set() {
+  uint get_first_set() const {
     for (uint i = 0; i < ALL_BITS; i++)
       if (map & (1ULL << i)) return i;
     return MY_BIT_NONE;

@@ -4239,11 +4239,7 @@ class Field_json : public Field_blob {
 
 class Field_typed_array final : public Field_json {
   /// Conversion field
-  Field *m_conv_field;
-  /// Null byte for conv_field
-  uchar null_byte;
-  /// conversion field's buffer
-  uchar *m_conv_buf;
+  Field *m_conv_field{nullptr};
   /// The array element's real type.
   enum_field_types m_elt_type;
   /// Element's decimals
@@ -4354,7 +4350,7 @@ class Field_typed_array final : public Field_json {
       false  conversion succeeded
   */
   bool coerce_json_value(const Json_wrapper *wr, bool no_error,
-                         Json_wrapper *coerced);
+                         Json_wrapper *coerced) const;
 
   /**
     Get name of the index defined over this field.
@@ -4366,8 +4362,8 @@ class Field_typed_array final : public Field_json {
     @returns
       name of the index defined over the field.
   */
-  const char *get_index_name();
-  virtual uint32 get_length_bytes() const override {
+  const char *get_index_name() const;
+  uint32 get_length_bytes() const override {
     DBUG_ASSERT(m_elt_type == MYSQL_TYPE_VARCHAR);
     return field_length > 255 ? 2 : 1;
   }
@@ -4387,7 +4383,7 @@ class Field_typed_array final : public Field_json {
     @returns
       actual sort key length
   */
-  size_t make_sort_key(Json_wrapper *wr, uchar *to, size_t length);
+  size_t make_sort_key(Json_wrapper *wr, uchar *to, size_t length) const;
   /**
      Save the field metadata for typed array fields.
 
@@ -4401,8 +4397,8 @@ class Field_typed_array final : public Field_json {
 
      @returns number of bytes written to metadata_ptr
   */
-  virtual int do_save_field_metadata(uchar *metadata_ptr) const override;
-  virtual uint pack_length_from_metadata(uint) const override {
+  int do_save_field_metadata(uchar *metadata_ptr) const override;
+  uint pack_length_from_metadata(uint) const override {
     return pack_length_no_ptr();
   }
   void sql_type(String &str) const final override;

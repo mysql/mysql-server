@@ -3780,7 +3780,7 @@ Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
     true  Otherwise
 */
 bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
-                                          Json_wrapper *coerced) {
+                                          Json_wrapper *coerced) const {
   Json_wrapper saved;
   THD *thd = table->in_use;
   // Save JSON value to the conversion field
