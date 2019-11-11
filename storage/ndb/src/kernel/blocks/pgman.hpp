@@ -457,6 +457,7 @@ private:
 
     DirtyState m_current_lcp_dirty_state;
 
+    bool m_is_frag_ready_for_prep_lcp_writes;
     Uint32 prevList;
     Uint32 nextList;
     Uint32 prevHash;
@@ -496,6 +497,20 @@ private:
 
   DLHashTable<FragmentRecord_pool, FragmentRecord> m_fragmentRecordHash;
 
+  struct TableRecord
+  {
+    bool m_is_table_ready_for_prep_lcp_writes;
+    Uint32 m_num_prepare_lcp_outstanding;
+    Uint32 nextPool;
+  };
+  typedef Ptr<TableRecord> TableRecordPtr;
+  typedef ArrayPool<TableRecord> TableRecord_pool;
+  TableRecord_pool m_tableRecordPool;
+public:
+  void set_table_ready_for_prep_lcp_writes(Uint32, bool);
+  bool is_prep_lcp_writes_outstanding(Uint32);
+
+private:
   Page_dirty_list m_dirty_list_lcp;
   Page_dirty_list m_dirty_list_lcp_out;
 
