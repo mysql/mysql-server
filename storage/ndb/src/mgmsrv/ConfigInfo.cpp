@@ -4436,6 +4436,16 @@ ConfigInfo::verify_enum(const Properties * section, const char* fname,
 }
 
 
+/*
+ * Get allowed values for enum parameters in a space separated list.
+ *
+ * It returns values in order of increasing numerical value to make it possible
+ * to map numerical value to string value.
+ *
+ * At least in the cases there enum values are consecutive and zero based,
+ * which is the case for ConfigInfo.
+ */
+
 void
 ConfigInfo::get_enum_values(const Properties * section, const char* fname,
                       BaseString& list) const {
@@ -4446,9 +4456,25 @@ ConfigInfo::get_enum_values(const Properties * section, const char* fname,
 
   const char* separator = "";
   Properties::Iterator it(values);
+  Vector<const char*> enum_names;
+  const char* fill = nullptr;
+  unsigned cnt = 0;
   for (const char* name = it.first(); name != NULL; name = it.next())
   {
-    list.appfmt("%s%s", separator, name);
+    Uint32 val;
+    values->get(name, &val);
+    enum_names.set(name, val, fill);
+    cnt++;
+  }
+  // Enum values should be consecutive starting at zero.
+  assert(enum_names.size() == cnt);
+  for (unsigned i = 0; i < enum_names.size(); i++)
+  {
+    if (enum_names[i] == nullptr)
+    {
+      continue;
+    }
+    list.appfmt("%s%s", separator, enum_names[i]);
     separator = " ";
   }
 }
