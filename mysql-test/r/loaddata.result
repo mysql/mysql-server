@@ -621,7 +621,7 @@ ERROR 0A000: LOAD DATA is not allowed in stored procedures
 SET @save_local_infile = @@local_infile;
 SET GLOBAL local_infile = OFF;
 LOAD DATA LOCAL INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t1;
-ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server side
+ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server sides
 SET GLOBAL local_infile = @save_local_infile;
 DROP TABLE t1;
 CREATE TABLE t2(a BLOB);

@@ -9254,7 +9254,7 @@ ER_FAILED_TO_FETCH_MANDATORY_ROLE_LIST
   eng "Failed to acquire lock on user management service, unable to fetch mandatory role list"
 
 ER_CLIENT_LOCAL_FILES_DISABLED 42000
-  eng "Loading local data is disabled; this must be enabled on both the client and server side"
+  eng "Loading local data is disabled; this must be enabled on both the client and server sides"
 
 ER_IMP_INCOMPATIBLE_CFG_VERSION
   eng "Failed to import %s because the CFG file version (%u) is not compatible with the current version (%u)"
