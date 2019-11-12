@@ -563,9 +563,10 @@ public:
 
     /**
      * This function is called when a waited for signal arrives.
-     * Return 'true' if this completes the wait for this treeNode
+     * Sets Request::m_completed_nodes if this completed the
+     * wait for this treeNode
      */
-    bool (Dbspj::*m_countSignal)(const Signal*,Ptr<Request>,Ptr<TreeNode>);
+    void (Dbspj::*m_countSignal)(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
 
     /**
      * This function is used when getting a LQHKEYREF
@@ -1555,7 +1556,7 @@ private:
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_resume(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  bool lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void lookup_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
   void lookup_execLQHKEYREF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_stop_branch(Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 err);
@@ -1592,7 +1593,7 @@ private:
                        DABuffer param, Uint32 paramBits);
   void scanFrag_start(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_prepare(Signal*, Ptr<Request>, Ptr<TreeNode>);
-  bool scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void scanFrag_countSignal(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
   void scanFrag_execSCAN_FRAGREF(Signal*, Ptr<Request>, Ptr<TreeNode>,
                                  Ptr<ScanFragHandle>);
   void scanFrag_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>,

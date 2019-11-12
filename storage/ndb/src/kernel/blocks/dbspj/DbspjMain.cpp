@@ -155,7 +155,7 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
     ndbassert(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_countSignal);
     (this->*(treeNodePtr.p->m_info->m_countSignal))(signal,
                                                     requestPtr,
-                                                    treeNodePtr);
+                                                    treeNodePtr, 1);
 
     abort(signal, requestPtr, DbspjErr::OutOfSectionMemory);
     break;
@@ -3236,8 +3236,8 @@ Dbspj::handleTreeNodeComplete(Signal * signal, Ptr<Request> requestPtr,
   if ((requestPtr.p->m_state & Request::RS_ABORTING) == 0)
   {
     jam();
-    ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
-    requestPtr.p->m_completed_nodes.set(treeNodePtr.p->m_node_no);
+    ndbassert(requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
+    ndbassert(treeNodePtr.p->m_deferred.isEmpty());
 
     /**
      * If all predecessors are complete, this has to be reported
@@ -3718,7 +3718,7 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
   const ScanFragConf* conf = reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  ndbout_c("Dbspj::execSCAN_FRAGCONF() receiveing SCAN_FRAGCONF ");
+  ndbout_c("Dbspj::execSCAN_FRAGCONF() receiving SCAN_FRAGCONF ");
   printSCAN_FRAGCONF(stdout, signal->getDataPtrSend(),
                      conf->total_len,
                      DBLQH);
@@ -3920,13 +3920,12 @@ Dbspj::execTRANSID_AI(Signal* signal)
 #endif
 
   /**
-   * Register signal as arrived -> 'done' if this completed this treeNode
+   * Register signal as arrived.
    */ 
   ndbassert(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_countSignal);
-  const bool done = (this->*(treeNodePtr.p->m_info->m_countSignal))(
-                                                     signal,
-                                                     requestPtr,
-                                                     treeNodePtr);
+  (this->*(treeNodePtr.p->m_info->m_countSignal))(signal,
+                                                  requestPtr,
+                                                  treeNodePtr, 1);
 
   /**
    * build easy-access-array for row
@@ -3982,10 +3981,10 @@ Dbspj::execTRANSID_AI(Signal* signal)
   release(dataPtr);
 
   /**
-   * When TreeNode is 'done' we might have to reply, or 
+   * When TreeNode is completed we might have to reply, or
    * resume other parts of the request.
    */
-  if (done && treeNodePtr.p->m_deferred.isEmpty())
+  if (requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     handleTreeNodeComplete(signal, requestPtr, treeNodePtr);
@@ -5390,25 +5389,31 @@ Dbspj::lookup_send(Signal* signal,
   abort(signal, requestPtr, err);
 } //Dbspj::lookup_send
 
-bool
+void
 Dbspj::lookup_countSignal(const Signal* signal,
                        Ptr<Request> requestPtr,
-                       Ptr<TreeNode> treeNodePtr)
+                       Ptr<TreeNode> treeNodePtr,
+                       Uint32 cnt)
 {
   jam();
   const Uint32 Tnode = refToNode(signal->getSendersBlockRef());
 
-  ndbassert(requestPtr.p->m_lookup_node_data[Tnode] > 0);
-  requestPtr.p->m_lookup_node_data[Tnode]--;
+  ndbassert(requestPtr.p->m_lookup_node_data[Tnode] >= cnt);
+  requestPtr.p->m_lookup_node_data[Tnode] -= cnt;
 
-  ndbassert(requestPtr.p->m_outstanding > 0);
-  requestPtr.p->m_outstanding--;
+  ndbassert(requestPtr.p->m_outstanding >= cnt);
+  requestPtr.p->m_outstanding -= cnt;
 
-  ndbassert(treeNodePtr.p->m_lookup_data.m_outstanding > 0);
-  treeNodePtr.p->m_lookup_data.m_outstanding--;
+  ndbassert(treeNodePtr.p->m_lookup_data.m_outstanding >= cnt);
+  treeNodePtr.p->m_lookup_data.m_outstanding -= cnt;
 
-  // Return 'true' if this completes the wait for this treeNode
-  return (treeNodePtr.p->m_lookup_data.m_outstanding == 0);
+  if (treeNodePtr.p->m_lookup_data.m_outstanding == 0 &&
+      treeNodePtr.p->m_deferred.isEmpty())
+  {
+    jam();
+    // We have received all rows for this treeNode in this batch.
+    requestPtr.p->m_completed_nodes.set(treeNodePtr.p->m_node_no);
+  }
 }
 
 void
@@ -5426,12 +5431,14 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 
   if (treeNodePtr.p->m_bits & TreeNode::T_EXPECT_TRANSID_AI)
   {
-    // Count the non-arriving TRANSID_AI due to the 'REF'
-    lookup_countSignal(signal, requestPtr, treeNodePtr);
+    // Count(==2) the REF and the non-arriving TRANSID_AI
+    lookup_countSignal(signal, requestPtr, treeNodePtr, 2);
   }
-  
-  // Count awaiting CONF/REF
-  const bool done = lookup_countSignal(signal, requestPtr, treeNodePtr);
+  else
+  {
+    // Count(==1) only awaiting CONF/REF
+    lookup_countSignal(signal, requestPtr, treeNodePtr, 1);
+  }
 
   /**
    * If Request is still actively running: API need to
@@ -5477,7 +5484,7 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
     lookup_resume(signal, requestPtr, resumeTreeNodePtr);
   }
 
-  if (done && treeNodePtr.p->m_deferred.isEmpty())
+  if (requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     // We have received all rows for this treeNode in this batch.
@@ -5614,7 +5621,7 @@ Dbspj::lookup_execLQHKEYCONF(Signal* signal,
   }
 
   // Count awaiting CONF. If non-leaf, there will also be a TRANSID_AI
-  const bool done = lookup_countSignal(signal, requestPtr, treeNodePtr);
+  lookup_countSignal(signal, requestPtr, treeNodePtr, 1);
 
   /**
    * Another TreeNode awaited for completion of this request
@@ -5629,7 +5636,7 @@ Dbspj::lookup_execLQHKEYCONF(Signal* signal,
     lookup_resume(signal, requestPtr, resumeTreeNodePtr);
   }
 
-  if (done && treeNodePtr.p->m_deferred.isEmpty())
+  if (requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no))
   {
     jam();
     // We have received all rows for this treeNode in this batch.
@@ -5676,7 +5683,7 @@ Dbspj::lookup_resume(Signal* signal,
   }
   ndbassert(!treeNodePtr.p->m_deferred.isEmpty());
   ndbassert(!requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no));
- 
+
   Uint32 corrVal;
   {
     LocalArenaPool<DataBufferSegment<14> > pool(treeNodePtr.p->m_batchArena, m_dependency_map_pool);
@@ -5796,6 +5803,9 @@ Dbspj::lookup_row(Signal* signal,
         releaseSection(ptrI);
         ptrI = RNIL;
 
+        /* count(==0) the not sent signal to update completion status */
+        lookup_countSignal(signal, requestPtr, treeNodePtr, 0);
+	
         /* Send KEYREF(errCode=626) as required by lookup request protocol */
         if (requestPtr.p->isLookup())
         {
@@ -5817,6 +5827,15 @@ Dbspj::lookup_row(Signal* signal,
           lookup_resume(signal, requestPtr, resumeTreeNodePtr);
         }
 
+        /**
+         * This possibly completed this treeNode, handle it.
+         */
+        if (requestPtr.p->m_completed_nodes.get(treeNodePtr.p->m_node_no))
+        {
+          jam();
+          handleTreeNodeComplete(signal, requestPtr, treeNodePtr);
+        }
+	
         return;  // Bailout, KEYREQ would have returned KEYREF(626) anyway
       } // keyIsNull
 
@@ -7972,14 +7991,15 @@ Dbspj::scanFrag_parent_batch_repeat(Signal* signal,
   }
 }
 
-bool
+void
 Dbspj::scanFrag_countSignal(const Signal* signal,
                        Ptr<Request> requestPtr,
-                       Ptr<TreeNode> treeNodePtr)
+                       Ptr<TreeNode> treeNodePtr,
+                       Uint32 cnt)
 {
   jam();
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
-  data.m_rows_received++;
+  data.m_rows_received += cnt;
 
   if (data.m_frags_outstanding == 0 &&
       data.m_rows_received == data.m_rows_expecting)
@@ -7987,9 +8007,10 @@ Dbspj::scanFrag_countSignal(const Signal* signal,
     jam();
     ndbassert(requestPtr.p->m_outstanding > 0);
     requestPtr.p->m_outstanding--;
-    return true;
+
+    // We have received all rows for this treeNode in this batch.
+    requestPtr.p->m_completed_nodes.set(treeNodePtr.p->m_node_no);
   }
-  return false;
 }
 
 void
@@ -8162,13 +8183,14 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
         jam();
       }
     } // if (isFirstBatch ...)
-    
+
     if (data.m_rows_received == data.m_rows_expecting ||
         state == ScanFragHandle::SFH_WAIT_CLOSE)
     {
       jam();
       ndbassert(requestPtr.p->m_outstanding > 0);
       requestPtr.p->m_outstanding--;
+      requestPtr.p->m_completed_nodes.set(treeNodePtr.p->m_node_no);
       handleTreeNodeComplete(signal, requestPtr, treeNodePtr);
     }
   } // if (data.m_frags_outstanding == 0)
