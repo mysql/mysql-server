@@ -705,13 +705,6 @@ DROP DATABASE test_wl5522;
 set global innodb_monitor_disable = all;
 set global innodb_monitor_reset_all = all;
 
--- disable_warnings
-set global innodb_monitor_enable = default;
-set global innodb_monitor_disable = default;
-set global innodb_monitor_reset = default;
-set global innodb_monitor_reset_all = default;
--- enable_warnings
-
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only:");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");
@@ -735,3 +728,4 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means that another p
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd
 
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+--source include/innodb_monitor_restore.inc

@@ -437,10 +437,5 @@ UNLOCK TABLES;
 SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME
 LIKE 'buffer_page_written_index_leaf';
 
---disable_warnings
-SET GLOBAL innodb_monitor_enable=default;
-SET GLOBAL innodb_monitor_disable=default;
-SET GLOBAL innodb_monitor_reset_all=default;
---enable_warnings
-
 DROP TABLE t1;
+--source include/innodb_monitor_restore.inc
