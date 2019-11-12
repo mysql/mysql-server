@@ -1886,7 +1886,7 @@ bool invalid_tablespace_usage(THD *thd, const dd::String_type &schema_name,
     additionally, a system thread can do what it likes.
     Tables in the 'mysql' schema, with temporary names, are
     also allowed to be in the DD tablespace, since mysql_upgrade
-    will ned to do ALTER TABLE.
+    will need to do ALTER TABLE.
   */
   if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name) ||
       (type != nullptr && *type == System_tables::Types::SYSTEM) ||
