@@ -325,7 +325,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	MATERIALIZED	it	NULL	index	NULL	PRIMARY	4	NULL	80	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.ot.d' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`ot`.`d` = `<subquery2>`.`tmp_field_0`)
+Note	1003	/* select#1 */ select `test`.`ot`.`pk` AS `pk`,`test`.`ot`.`uk` AS `uk`,`test`.`ot`.`ukn` AS `ukn`,`test`.`ot`.`ik` AS `ik`,`test`.`ot`.`d` AS `d` from `test`.`t1` `ot` semi join (`test`.`t2` `it`) where (`test`.`ot`.`d` = `<subquery2>`.`(it.pk - 1)`)
 SELECT * FROM t1 AS ot
 WHERE EXISTS (SELECT * FROM t2 AS it WHERE ot.d = it.pk - 1);
 pk	uk	ukn	ik	d

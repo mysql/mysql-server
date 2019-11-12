@@ -2249,7 +2249,7 @@ SET BIG_TABLES=1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
 SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
-ERROR 42000: The used storage engine can't index column 'tmp_field_0'
+ERROR 42000: The used storage engine can't index column 'if(t1.a,'','')'
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
 1
 1

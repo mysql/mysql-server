@@ -1693,7 +1693,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "tmp_field_0"
+                "field": "rand(2)"
               }
             ],
             "filesort_priority_queue_optimization": {

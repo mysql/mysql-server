@@ -581,13 +581,18 @@ void get_max_key_and_part_length(uint *max_key_length,
   Create a temporary name for one field if the field_name is empty.
 
   @param thd          Thread handle
-  @param field_index  Index of this field in table->field
+  @param item         Item to name the field after
 */
 
-static const char *create_tmp_table_field_tmp_name(THD *thd, int field_index) {
-  char buf[64];
-  snprintf(buf, 64, "tmp_field_%d", field_index);
-  return thd->mem_strdup(buf);
+static const char *create_tmp_table_field_tmp_name(THD *thd, Item *item) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> field_name;
+  const ulonglong save_bits = thd->variables.option_bits;
+  thd->variables.option_bits &= ~OPTION_QUOTE_SHOW_CREATE;
+  item->print(
+      thd, &field_name,
+      enum_query_type(QT_NO_DEFAULT_DB | QT_SUBSELECT_AS_ONLY_SELECT_NUMBER));
+  thd->variables.option_bits = save_bits;
+  return thd->mem_strdup(field_name.c_ptr());
 }
 
 /**
@@ -1030,8 +1035,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           }
           /* InnoDB temp table doesn't allow field with empty_name */
           if (!new_field->field_name)
-            new_field->field_name =
-                create_tmp_table_field_tmp_name(thd, new_field->field_index);
+            new_field->field_name = create_tmp_table_field_tmp_name(thd, item);
         }
       }
     } else if (store_column) {
@@ -1109,9 +1113,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       new_field->field_index = fieldnr++;
       *(reg_field++) = new_field;
       /* InnoDB temp table doesn't allow field with empty_name */
-      if (!new_field->field_name)
-        new_field->field_name =
-            create_tmp_table_field_tmp_name(thd, new_field->field_index);
+      if (!new_field->field_name) {
+        new_field->field_name = create_tmp_table_field_tmp_name(thd, item);
+      }
 
       /*
         Calculate length of distinct key. The goal is to decide what to use -
