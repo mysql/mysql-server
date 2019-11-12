@@ -322,8 +322,11 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
     LIST(REMOVE_ITEM ${target}_LIB_DEPENDS "")
     LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
     FOREACH(lib ${${target}_LIB_DEPENDS})
+      # Filter out -limported_openssl and -limported_crypto
       # Filter out "general", it is not a library, just CMake hint
-      IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
+      IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} " AND
+          NOT lib MATCHES "imported_"
+          )
         IF (lib MATCHES "^\\-l")
           SET(${var} "${${var}} ${lib} ")
         ELSEIF (lib MATCHES "^\\-L")
