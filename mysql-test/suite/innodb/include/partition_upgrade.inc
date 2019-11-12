@@ -1,17 +1,7 @@
 # WL 13352: Test Upgrade of partitioned tables from different versions
 # Caller need to set OLD_VERSION: 5727, 8013, 8015, 8017, 8019
-
---echo # Test Upgrade from old version $OLD_VERSION
-
---source include/have_innodb_16k.inc
-
-# Check migration across platforms for 8.0.19 [lower_case_table_names = 1]
-if ($OLD_VERSION != 8019) {
-  --source include/have_case_sensitive_file_system.inc
-}
-
---echo # Stop DB server which was created by MTR default
---source include/shutdown_mysqld.inc
+#                    OLD_LCTN: 0,1,2 [lower_case_table_names]
+#                    OLD_PLATFORM: lin, win, mac [linux/windows/mac]
 
 # To disable external file path
 # --let $NO_EXT_PATH = 1
@@ -19,11 +9,64 @@ if ($OLD_VERSION != 8019) {
 # To Enable fixed path for external files
 # --let $IS_FIXED_PATH = 1
 
-# By default skip external directory for 5.7
-if ($OLD_VERSION == '5727')
-{
-  --let $NO_EXT_PATH = 1
+--echo # Test Upgrade from old version $OLD_VERSION
+
+--source include/have_innodb_16k.inc
+--source include/no_valgrind_without_big.inc
+
+# For all other versions we run only on case sensitive fs
+if ($OLD_VERSION != 8019) {
+  if ($OLD_VERSION != 5727) {
+    --source include/have_case_sensitive_file_system.inc
+    --let $OLD_LCTN = 1
+  }
 }
+
+--let $OLD_EXTN = $OLD_VERSION
+--let $LCTN = --lower_case_table_names=$OLD_LCTN
+
+# lower_case_table_names = 0 is supported only on case sensitive fs
+if ($OLD_LCTN == 0) {
+  --source include/have_case_sensitive_file_system.inc
+}
+
+# lower_case_table_names = 2 is supported only on case sensitive fs
+if ($OLD_LCTN == 2) {
+  --source include/have_case_insensitive_file_system.inc
+}
+
+if ($OLD_VERSION == 5727)
+{
+  # By default skip external directory for 5.7
+  --let $NO_EXT_PATH = 1
+
+  # 5.7 upgrade not supported across platforms
+  if ($OLD_PLATFORM == win)
+  {
+    --source include/windows.inc
+  }
+
+  if ($OLD_PLATFORM == mac)
+  {
+    --source include/have_mac_os.inc
+  }
+
+  if ($OLD_PLATFORM == lin)
+  {
+    --source include/have_case_sensitive_file_system.inc
+  }
+  --let $OLD_EXTN = `select concat("$OLD_VERSION", "_", "$OLD_PLATFORM", "_lctn_", "$OLD_LCTN")`
+}
+
+# Check migration across platforms for 8.0.19
+if ($OLD_VERSION == 8019)
+{
+  --let $OLD_EXTN = `select concat("$OLD_VERSION", "_", "$OLD_PLATFORM", "_lctn_", "$OLD_LCTN")`
+  --let EXTRA_TABLES = 1
+}
+
+--echo # Stop DB server which was created by MTR default
+--source include/shutdown_mysqld.inc
 
 --let $EXTERNAL_DIR_NAME= mysql_wl13352_data
 
@@ -45,7 +88,7 @@ if (!$IS_FIXED_PATH)
 --force-rmdir $EXTERNAL_DIRECTORY
 
 --echo # Copy and unzip old version data directory.
---copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_wl13352_$OLD_VERSION.zip $MYSQL_TMP_DIR/data_upgrade.zip
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_wl13352_$OLD_EXTN.zip $MYSQL_TMP_DIR/data_upgrade.zip
 --file_exists $MYSQL_TMP_DIR/data_upgrade.zip
 --exec unzip -qo $MYSQL_TMP_DIR/data_upgrade.zip -d $MYSQL_TMP_DIR
 --remove_file $MYSQL_TMP_DIR/data_upgrade.zip
@@ -53,7 +96,7 @@ if (!$IS_FIXED_PATH)
 if (!$NO_EXT_PATH)
 {
   --echo # Copy and unzip external directory
-  --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_VERSION.zip $MYSQL_TMP_DIR/data_extn.zip
+  --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_EXTN.zip $MYSQL_TMP_DIR/data_extn.zip
   --file_exists $MYSQL_TMP_DIR/data_extn.zip
   --exec unzip -qo $MYSQL_TMP_DIR/data_extn.zip -d $UNZIP_DIR
   --remove_file $MYSQL_TMP_DIR/data_extn.zip
@@ -83,12 +126,12 @@ let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysqld_upgrade.log;
 
 if ($NO_EXT_PATH) {
   --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG
-  --exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --lower_case_table_names=1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+  --exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE $LCTN --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 }
 
 if (!$NO_EXT_PATH) {
   --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG $EXTERNAL_DIRECTORY EXTERNAL_DIRECTORY
-  --exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --lower_case_table_names=1 --innodb_directories=$EXTERNAL_DIRECTORY --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+  --exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE $LCTN --innodb_directories=$EXTERNAL_DIRECTORY --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 }
 
 --let $wait_counter= 10000

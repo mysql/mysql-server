@@ -909,15 +909,12 @@ class create_table_info_t {
 
   /** Normalizes a table name string.
   A normalized name consists of the database name catenated to '/' and
-  table name. An example: test/mytable. On Windows normalization puts
-  both the database name and the table name always to lower case if
-  "set_lower_case" is set to true.
+  table name. An example: test/mytable. On case insensitive file system
+  normalization converts name to lower case.
   @param[in,out]	norm_name	Buffer to return the normalized name in.
   @param[in]		name		Table name string.
-  @param[in]		set_lower_case	if true, set name to lower case.
   @return true if successful. */
-  static bool normalize_table_name_low(char *norm_name, const char *name,
-                                       bool set_lower_case);
+  static bool normalize_table_name(char *norm_name, const char *name);
 
  private:
   /** Parses the table name into normal name and either temp path or
@@ -1206,14 +1203,8 @@ This condition check should be equal to the following one:
 */
 #define innobase_is_multi_value_fld(field) (field->is_array())
 
-/** Always normalize table name to lower case on Windows */
-#ifdef _WIN32
 #define normalize_table_name(norm_name, name) \
-  create_table_info_t::normalize_table_name_low(norm_name, name, TRUE)
-#else
-#define normalize_table_name(norm_name, name) \
-  create_table_info_t::normalize_table_name_low(norm_name, name, FALSE)
-#endif /* _WIN32 */
+  create_table_info_t::normalize_table_name(norm_name, name)
 
 /** Note that a transaction has been registered with MySQL.
 @param[in]	trx	Transaction.

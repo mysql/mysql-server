@@ -1,15 +1,26 @@
 # WL 13352: SCHEMA, DDL, DML, CHECK for upgrade of partitioned tables
-# Caller need to set check_option: CREATE, DROP, CHECK, DDL, DML
+# Caller need to set check_option: CREATE, DROP, CHECK, DDL, DML, EXPORT, IMPORT
 #                set check_dd: 1, 0 DD table can be checked on debug build
 #                set NO_EXT_PATH: 1, 0 No file outside data directory
 #                set EXTERNAL_DIRECTORY:  Place for external files
 #                set EXPORT_DIRECTORY:    Place for exported data files
+#                set EXTRA_TABLES:        Include non partitioned tables
 
 --let $TABLE_1 = table_part_1
 --let $TABLE_2 = table_part_sub_1
 --let $TABLE_3 = table_part_sub_2
 --let $TABLE_4 = `select "`table_part_\\_special_/_sub_?_3`"`
 --let $TABLE_5 = table_part_2
+
+--let $num_tables = 5
+--let $num_rows = 10
+
+if ($EXTRA_TABLES)
+{
+  --let $TABLE_6 = table_part_CAP_6
+  --let $TABLE_7 = table_part_NOPART_CAP_7
+  --let $num_tables = 7
+}
 
 if (!$NO_EXT_PATH)
 {
@@ -20,9 +31,6 @@ if ($NO_EXT_PATH)
 {
   --let $DIR_CLAUSE=
 }
-
---let $num_tables = 5
---let $num_rows = 10
 
 if ($check_option == 'DROP')
 {
@@ -39,6 +47,11 @@ if ($check_option == 'DROP')
 
   if ($imported) {
     DROP TABLE table_part_encrypt;
+  }
+
+  if ($EXTRA_TABLES)
+  {
+    DROP TABLESPACE SPACE_part;
   }
 }
 
@@ -158,6 +171,19 @@ if ($check_option == 'CREATE')
         partition `PART_/_3` values less than MAXVALUE(
             subpartition `SUB_?/_5`,
             subpartition `sub_\/?_6`));
+
+  if ($EXTRA_TABLES)
+  {
+    CREATE TABLESPACE SPACE_part add datafile 'SPACE_part_1.ibd';
+
+    CREATE TABLE table_part_CAP_6(
+        id int primary key, value int, name varchar(32), data BLOB,
+        key k1(value)) partition by hash (id) partitions 5;
+
+    CREATE TABLE table_part_NOPART_CAP_7(
+        id int primary key, value int, name varchar(32), data BLOB,
+        key k1(value)) TABLESPACE SPACE_part;
+  }
 
   --let $loop_idx = 1
 
@@ -287,7 +313,7 @@ if ($check_option == 'CHECK')
     where name like '%table_part%' order by name;
 
     --echo
-    --replace_result $MYSQL_TMP_DIR ""
+    --replace_result $MYSQL_TMP_DIR "" \\test\\ /test/
     select file_name from mysql.tablespace_files
     where file_name like '%table_part%' order by file_name;
 
@@ -356,7 +382,13 @@ if ($check_option == 'DDL')
     --echo
     --eval ALTER TABLE $table_name ADD COLUMN new_id int AFTER id
     --echo
-    --eval ALTER TABLE $table_name REMOVE PARTITIONING
+
+    # Only for partitioned table
+    if ($loop_idx != 7)
+    {
+      --eval ALTER TABLE $table_name REMOVE PARTITIONING
+    }
+
     --inc $loop_idx
   }
 }
