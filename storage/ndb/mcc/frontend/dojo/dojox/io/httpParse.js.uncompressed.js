@@ -1,4 +1,3 @@
-//>>built
 define("dojox/io/httpParse", ["dojo/_base/kernel"], function(dojo){
 dojo.getObject("io.httpParse", true, dojox);
 
@@ -6,15 +5,15 @@ dojox.io.httpParse = function(/*String*/httpStream, /*String?*/topHeaders,/*Bool
 	// summary:
 	//		Parses an HTTP stream for a message.
 	// httpStream:
-	// 		HTTP stream to parse
+	//		HTTP stream to parse
 	// topHeaders:
 	//		Extra header information to add to each HTTP request (kind of HTTP inheritance)
 	// partial:
 	//		A true value indicates that the stream may not be finished, it may end arbitrarily in mid stream.
 	//		The last XHR object will have a special property _lastIndex that indicates the how far along
-	// 		the httpStream could be successfully parsed into HTTP messages.
-	// return:
-	// 		Returns an array of XHR-like object for reading the headers for each message
+	//		the httpStream could be successfully parsed into HTTP messages.
+	// returns:
+	//		Returns an array of XHR-like object for reading the headers for each message
 	//
 	var xhrs=[];
 	var streamLength = httpStream.length;

@@ -18,6 +18,7 @@ audit_null.audit_plugin_bugs : BUG#28080637 Test fails consistently
 auth_sec.openssl_without_fips : BUG#28812609 Test fails all over
 
 # binlog suite tests
+binlog.binlog_mysqlbinlog_rewrite_db @windows     : BUG#26717205 Requires a debug client binary and fails consistently.
 
 # func1 suite tests
 funcs_1.is_basics_mixed @darwin  : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
@@ -35,15 +36,11 @@ innodb.truncate                                   : WL#12034 Enable again once s
 innodb.subpartition                               : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.ddl_crash_alter_table_partition_tablespace : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
 innodb.innodb_bug14676111                         : BUG#18200831 The test has never worked correctly
-
-# json suite tests
-json.json_ddl_ndb : BUG#26616564 PB2 failures.
+innodb.log_first_rec_group                        : Bug#29692047 Disable for now until we can find a better way to test this.
+innodb.fts_exec_interrupt                         : Bug#28534199 The test is unstable and should be rewritten 
 
 # main suite tests
 main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
-
-# Memcached tests
-memcached.memc242_set : BUG#28834121
 
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 Disabled it since it's failing on pb2.
@@ -71,6 +68,7 @@ rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled
 
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
+rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG INJECTION WITH SELF LOGGING ENGINES IS BROKEN
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.

@@ -54,7 +54,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `database()` varchar(34) CHARACTER SET utf8 DEFAULT NULL,
-  `user()` varchar(93) CHARACTER SET utf8 NOT NULL DEFAULT '',
+  `user()` varchar(288) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `version` char(60) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

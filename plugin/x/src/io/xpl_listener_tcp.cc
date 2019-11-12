@@ -38,9 +38,7 @@
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
-#ifdef HAVE_SETNS
-#include "sql/net_ns.h"
-#endif
+#include "sql-common/net_ns.h"
 
 namespace xpl {
 

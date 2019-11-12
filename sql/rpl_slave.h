@@ -342,7 +342,8 @@ extern MY_BITMAP slave_error_mask;
 extern char slave_skip_error_names[];
 extern bool use_slave_mask;
 extern char *slave_load_tmpdir;
-extern char *master_info_file, *relay_log_info_file;
+extern const char *master_info_file;
+extern const char *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern bool opt_relaylog_index_name_supplied;
 extern bool opt_relay_logname_supplied;
@@ -523,7 +524,9 @@ extern int disconnect_slave_event_count, abort_slave_event_count;
 
 /* the master variables are defaults read from my.cnf or command line */
 extern uint report_port;
-extern char *master_info_file, *relay_log_info_file, *report_user;
+extern const char *master_info_file;
+extern const char *relay_log_info_file;
+extern char *report_user;
 extern char *report_host, *report_password;
 
 bool mts_recovery_groups(Relay_log_info *rli);

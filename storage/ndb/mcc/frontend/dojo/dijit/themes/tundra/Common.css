@@ -1,12 +1,10 @@
 
-.tundra .dojoDndItemBefore {
-	border-top: 2px solid #369;
-}
-.tundra .dojoDndItemAfter {
-	border-bottom: 2px solid #369;
-}
 .tundra .dojoDndItemOver {
-	cursor:pointer;
+	background-image: url(images/treeHover.png);
+}
+.tundra .dojoDndItemAnchor,
+.tundra .dojoDndItemSelected {
+	background-color: #E2EBFE;
 }
 .tundra table.dojoDndAvatar { -moz-border-radius: 0; border: 1px solid #ccc; border-collapse: collapse; background-color: #fff; font-size: 75%; color: black;}
 .tundra .dojoDndAvatar td	{ border: none; }

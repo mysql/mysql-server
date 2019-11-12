@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/Exporter", [
 	"dojo/_base/declare",
 	"dojo/_base/array",
@@ -16,9 +15,10 @@ var Exporter = declare("dojox.grid.enhanced.plugins.Exporter", _Plugin, {
 	//		Provide functions to export the grid data into a given format.
 	//
 	//		Acceptable plugin parameters:
+	//
 	//		1. exportFormatter: function(data, cell, rowIndex, item)
-	//				Provide a way to customize how data should look in exported string.
-	//				Note that usually the formatter of grid cell should not be used here (it can return HTML or even widget).
+	//			Provide a way to customize how data should look in exported string.
+	//			Note that usually the formatter of grid cell should not be used here (it can return HTML or even widget).
 	// example:
 	//	|	function onExported(exported_text){
 	//	|		//custom code here...
@@ -66,17 +66,17 @@ var Exporter = declare("dojox.grid.enhanced.plugins.Exporter", _Plugin, {
 		//		then pass the exported text to a given function(onExported).
 		// tags:
 		//		public
-		// type: string
+		// type: String
 		//		A registered export format name
-		// args: object?
+		// args: Object?
 		//		includes:
-		//		{
-		//			fetchArgs: object?
-		//				Any arguments for store.fetch
-		//			writerArgs: object?
-		//				Arguments for the given format writer
-		//		}
-		// onExported: function(string)
+		// |	{
+		// |		fetchArgs: object?
+		// |			Any arguments for store.fetch
+		// |		writerArgs: object?
+		// |			Arguments for the given format writer
+		// |	}
+		// onExported: Function(string)
 		//		Call back function when export result is ready
 		if(lang.isFunction(args)){
 			onExported = args;
@@ -110,7 +110,7 @@ var Exporter = declare("dojox.grid.enhanced.plugins.Exporter", _Plugin, {
 			onExported(this._goThroughGridData(items, writer));
 		}
 	},
-	exportSelected: function(type, writerArgs){
+	exportSelected: function(type, writerArgs, onExported){
 		// summary:
 		//		Only export selected rows.
 		// tags:
@@ -125,7 +125,7 @@ var Exporter = declare("dojox.grid.enhanced.plugins.Exporter", _Plugin, {
 			return "";
 		}
 		var writer = this._getExportWriter(type, writerArgs);
-		return this._goThroughGridData(this.grid.selection.getSelected(), writer);	//String
+		return onExported(this._goThroughGridData(this.grid.selection.getSelected(), writer));	//String
 	},
 	_buildRow: function(/* object */arg_obj,/* ExportWriter */writer){
 		// summary:

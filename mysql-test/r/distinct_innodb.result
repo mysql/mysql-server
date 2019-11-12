@@ -1,0 +1,961 @@
+#
+# Bug#13335170 - ASSERT IN
+# PLAN_CHANGE_WATCHDOG::~PLAN_CHANGE_WATCHDOG() ON SELECT DISTINCT 
+#
+CREATE TABLE t1 (
+col_int_key int(11) NOT NULL,
+col_time_key time NOT NULL,
+col_datetime_key datetime NOT NULL,
+KEY col_int_key (col_int_key),
+KEY col_time_key (col_time_key),
+KEY col_datetime_key (col_datetime_key)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (7,'06:17:39','2003-08-21 00:00:00');
+SELECT DISTINCT col_int_key
+FROM t1
+WHERE col_int_key IN  ( 18, 6, 84, 4, 0, 2, 8, 3, 7, 9, 1 )
+AND col_datetime_key BETWEEN '2001-08-04' AND '2003-06-13'
+ORDER BY col_time_key
+LIMIT 3;
+col_int_key
+DROP TABLE t1;
+
+# BUG#13581713 ONLY_FULL_GROUP_BY DOES NOT BLOCK "SELECT
+# DISTINCT A ORDER BY B"
+
+create table t1(a int, b int, c int) engine=InnoDB;
+create table t2(a int, b int, c int) engine=InnoDB;
+insert into t2 values();
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+# Test when selecting from base table
+insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select distinct b from t1 order by c;
+b
+2
+1
+select distinct min(b) from t1 group by a order by min(c);
+min(b)
+1
+2
+explain select distinct min(b) from t1 group by a order by min(c);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	#	4	100.00	Using temporary; Using filesort
+Note	1003	/* select#1 */ select distinct min(`test`.`t1`.`b`) AS `min(b)` from `test`.`t1` group by `test`.`t1`.`a` order by min(`test`.`t1`.`c`)
+Warnings:
+Insert rows in different order:
+delete from t1;
+insert into t1 values(200,1,1),(100,1,2),(400,2,2),(300,2,1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+And get a different order. Query is executed like this:
+- First, DISTINCT, using a tmp MEMORY table with a unique
+index, thus if two rows have the same 'b' but a different 'c',
+the second row is rejected, so the first value of 'c' wins
+(=> randomness of 'c')
+- Second, ORDER BY on the random 'c'.
+select distinct b from t1 order by c;
+b
+1
+2
+Random order too (same reason):
+select distinct min(b) from t1 group by a order by min(c);
+min(b)
+1
+2
+This query gives random order:
+select distinct b from t1 order by c;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct b from t1 order by b-1,b+1,c;
+ERROR HY000: Expression #3 of ORDER BY clause is not in SELECT list, references column 'test.t1.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct min(b) from t1 group by a order by min(c);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Not random (though Standard bans aggregates from ORDER BY):
+select distinct min(b) from t1 group by a order by min(b);
+min(b)
+1
+2
+select distinct min(b) from t1 group by a order by -min(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+All group exprs are in select list => DISTINCT is removed => no error
+select distinct a, min(b) from t1 group by a order by max(b-2)-min(c*5);
+a	min(b)
+100	1
+400	2
+200	1
+300	2
+This one is standard:
+select distinct min(b) as z from t1 group by a order by z;
+z
+1
+2
+Other queries:
+select distinct b from t1 where b<0 order by rand();
+b
+select distinct b from t1 order by 45.0+3;
+b
+1
+2
+select (select distinct b from t1 as S2 where b=7 order by S3.a) from t1 as S3;
+(select distinct b from t1 as S2 where b=7 order by S3.a)
+NULL
+NULL
+NULL
+NULL
+select distinct b from t1 order by abs(b);
+b
+1
+2
+select distinct b as z from t1 order by abs(z);
+z
+1
+2
+select distinct b from t1 order by abs(b+a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.a' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from t1 order by z;
+z
+1
+2
+select distinct abs(b) as z from t1 order by abs(b);
+z
+1
+2
+select distinct abs(b) from t1 order by abs(b);
+abs(b)
+1
+2
+Not ok: ABS(b)+1 is neither a SELECTed expression nor an alias
+to one, and mentions a column of FROM tables.
+select distinct abs(b) as z from t1 order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from t1 order by z+1;
+z
+1
+2
+select distinct abs(b) from t1 order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from t1 order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from t1 order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.b' which is not in SELECT list; this is incompatible with DISTINCT
+Two offending columns; error message needs to report only one
+select distinct abs(b) from t1 order by floor(10*b),floor(10*a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from t1 as S2 order by
+(select floor(10*S2.b) from t1 as S3 limit 1);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Ok as S2.b in SELECT list
+select distinct abs(b),b from t1 as S2 order by
+(select floor(10*S2.b) from t1 as S3 limit 1);
+abs(b)	b
+1	1
+2	2
+Ok as subq does not use columns of FROM clause of ordered Q.
+select distinct abs(b) from t1 as S2 order by
+(select floor(10*S3.b) from t1 as S3 limit 1);
+abs(b)
+1
+2
+Subq as alias => ok
+select distinct abs(b),
+(select floor(10*S3.b) from t1 as S3 limit 1) as subq
+from t1 as S2 order by subq;
+abs(b)	subq
+1	10
+2	10
+Bad field in left or right argument of ALL/ANY(subq):
+select distinct abs(b) from t1 as S2 order by
+floor(10*S2.b) IN (select floor(10*S3.b) from t1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from t1 as S2 order by
+floor(10*S2.b) > ALL(select floor(10*S3.b) from t1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from t1 as S2 order by
+floor(10*10) IN (select floor(10*S2.b) from t1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from t1 as S2 order by
+floor(10*10) > ALL(select floor(10*S2.b) from t1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Aggregates:
+SELECT distinct 1 FROM t1 group by a order by count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Test ANY_VALUE
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*)-count(b));
+1
+1
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*))-any_value(count(b));
+1
+1
+All group exprs are in select list => DISTINCT is removed => no error
+SELECT distinct a, min(b) FROM t1 group by a order by count(*)-count(*);
+a	min(b)
+100	1
+200	1
+300	2
+400	2
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+aggregation in outer Q => constant in inner Q
+select * from t1 as t2 where t2.a in
+(SELECT distinct 1 FROM t1 group by a order by count(t2.a)-max(t2.a));
+a	b	c
+ORDER BY expressions are in SELECT list => ok
+SELECT distinct 1, count(*)-count(b) FROM t1 group by a order by count(*)-count(b);
+1	count(*)-count(b)
+1	0
+Without GROUP BY, aggregates yield a single row, no random order
+SELECT distinct sum(a) FROM t1 order by count(*)-count(*);
+sum(a)
+1000
+SELECT distinct sum(a) FROM t1 order by count(*)-count(b);
+sum(a)
+1000
+Verify that DISTINCT is optimized away even if the aggregate
+function is hidden in a subquery
+EXPLAIN SELECT DISTINCT MAX(b) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1`
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+but if the subquery is the aggregation query, DISTINCT must stay:
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+QA's query is properly rejected:
+SELECT DISTINCT GP1.a AS g1 FROM t1 AS GP1
+WHERE GP1.a >= 0
+ORDER BY GP1.b LIMIT 8;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.GP1.b' which is not in SELECT list; this is incompatible with DISTINCT
+result order does change depending on chosen plan.
+SELECT DISTINCT GP1.a AS g1 FROM t1 AS GP1
+WHERE GP1.a >= 0
+ORDER BY 2+ANY_VALUE(GP1.b) LIMIT 8;
+g1
+100
+200
+300
+400
+DELETE FROM t1;
+# Test when selecting from view
+create view v1 as select t1.* from t1 left join t2 on 1;
+insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select distinct b from v1 order by c;
+b
+2
+1
+select distinct min(b) from v1 group by a order by min(c);
+min(b)
+1
+2
+explain select distinct min(b) from v1 group by a order by min(c);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	#	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	#	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Note	1003	/* select#1 */ select distinct min(`test`.`t1`.`b`) AS `min(b)` from `test`.`t1` left join `test`.`t2` on(true) where true group by `test`.`t1`.`a` order by min(`test`.`t1`.`c`)
+Warnings:
+Insert rows in different order:
+delete from t1;
+insert into t1 values(200,1,1),(100,1,2),(400,2,2),(300,2,1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+And get a different order. Query is executed like this:
+- First, DISTINCT, using a tmp MEMORY table with a unique
+index, thus if two rows have the same 'b' but a different 'c',
+the second row is rejected, so the first value of 'c' wins
+(=> randomness of 'c')
+- Second, ORDER BY on the random 'c'.
+select distinct b from v1 order by c;
+b
+1
+2
+Random order too (same reason):
+select distinct min(b) from v1 group by a order by min(c);
+min(b)
+1
+2
+This query gives random order:
+select distinct b from v1 order by c;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct b from v1 order by b-1,b+1,c;
+ERROR HY000: Expression #3 of ORDER BY clause is not in SELECT list, references column 'v1.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct min(b) from v1 group by a order by min(c);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Not random (though Standard bans aggregates from ORDER BY):
+select distinct min(b) from v1 group by a order by min(b);
+min(b)
+1
+2
+select distinct min(b) from v1 group by a order by -min(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+All group exprs are in select list => DISTINCT is removed => no error
+select distinct a, min(b) from v1 group by a order by max(b-2)-min(c*5);
+a	min(b)
+100	1
+400	2
+200	1
+300	2
+This one is standard:
+select distinct min(b) as z from v1 group by a order by z;
+z
+1
+2
+Other queries:
+select distinct b from v1 where b<0 order by rand();
+b
+select distinct b from v1 order by 45.0+3;
+b
+1
+2
+select (select distinct b from v1 as S2 where b=7 order by S3.a) from v1 as S3;
+(select distinct b from v1 as S2 where b=7 order by S3.a)
+NULL
+NULL
+NULL
+NULL
+select distinct b from v1 order by abs(b);
+b
+1
+2
+select distinct b as z from v1 order by abs(z);
+z
+1
+2
+select distinct b from v1 order by abs(b+a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.a' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from v1 order by z;
+z
+1
+2
+select distinct abs(b) as z from v1 order by abs(b);
+z
+1
+2
+select distinct abs(b) from v1 order by abs(b);
+abs(b)
+1
+2
+Not ok: ABS(b)+1 is neither a SELECTed expression nor an alias
+to one, and mentions a column of FROM tables.
+select distinct abs(b) as z from v1 order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from v1 order by z+1;
+z
+1
+2
+select distinct abs(b) from v1 order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from v1 order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+Two offending columns; error message needs to report only one
+select distinct abs(b) from v1 order by floor(10*b),floor(10*a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+(select floor(10*S2.b) from v1 as S3 limit 1);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Ok as S2.b in SELECT list
+select distinct abs(b),b from v1 as S2 order by
+(select floor(10*S2.b) from v1 as S3 limit 1);
+abs(b)	b
+1	1
+2	2
+Ok as subq does not use columns of FROM clause of ordered Q.
+select distinct abs(b) from v1 as S2 order by
+(select floor(10*S3.b) from v1 as S3 limit 1);
+abs(b)
+1
+2
+Subq as alias => ok
+select distinct abs(b),
+(select floor(10*S3.b) from v1 as S3 limit 1) as subq
+from v1 as S2 order by subq;
+abs(b)	subq
+1	10
+2	10
+Bad field in left or right argument of ALL/ANY(subq):
+select distinct abs(b) from v1 as S2 order by
+floor(10*S2.b) IN (select floor(10*S3.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+floor(10*S2.b) > ALL(select floor(10*S3.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+floor(10*10) IN (select floor(10*S2.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+floor(10*10) > ALL(select floor(10*S2.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Aggregates:
+SELECT distinct 1 FROM t1 group by a order by count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Test ANY_VALUE
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*)-count(b));
+1
+1
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*))-any_value(count(b));
+1
+1
+All group exprs are in select list => DISTINCT is removed => no error
+SELECT distinct a, min(b) FROM t1 group by a order by count(*)-count(*);
+a	min(b)
+100	1
+200	1
+300	2
+400	2
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+aggregation in outer Q => constant in inner Q
+select * from t1 as t2 where t2.a in
+(SELECT distinct 1 FROM t1 group by a order by count(t2.a)-max(t2.a));
+a	b	c
+ORDER BY expressions are in SELECT list => ok
+SELECT distinct 1, count(*)-count(b) FROM t1 group by a order by count(*)-count(b);
+1	count(*)-count(b)
+1	0
+Without GROUP BY, aggregates yield a single row, no random order
+SELECT distinct sum(a) FROM t1 order by count(*)-count(*);
+sum(a)
+1000
+SELECT distinct sum(a) FROM t1 order by count(*)-count(b);
+sum(a)
+1000
+Verify that DISTINCT is optimized away even if the aggregate
+function is hidden in a subquery
+EXPLAIN SELECT DISTINCT MAX(b) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1`
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+but if the subquery is the aggregation query, DISTINCT must stay:
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+QA's query is properly rejected:
+SELECT DISTINCT GP1.a AS g1 FROM v1 AS GP1
+WHERE GP1.a >= 0
+ORDER BY GP1.b LIMIT 8;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'GP1.b' which is not in SELECT list; this is incompatible with DISTINCT
+result order does change depending on chosen plan.
+SELECT DISTINCT GP1.a AS g1 FROM v1 AS GP1
+WHERE GP1.a >= 0
+ORDER BY 2+ANY_VALUE(GP1.b) LIMIT 8;
+g1
+100
+200
+300
+400
+DELETE FROM t1;
+drop view v1;
+# Test when selecting from view, again
+create view v1 as select t1.a*2 as a, t1.b*2 as b, t1.c*2 as c from t1;
+insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select distinct b from v1 order by c;
+b
+4
+2
+select distinct min(b) from v1 group by a order by min(c);
+min(b)
+2
+4
+explain select distinct min(b) from v1 group by a order by min(c);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	#	4	100.00	Using temporary; Using filesort
+Note	1003	/* select#1 */ select distinct min((`test`.`t1`.`b` * 2)) AS `min(b)` from `test`.`t1` group by (`test`.`t1`.`a` * 2) order by min((`test`.`t1`.`c` * 2))
+Warnings:
+Insert rows in different order:
+delete from t1;
+insert into t1 values(200,1,1),(100,1,2),(400,2,2),(300,2,1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+And get a different order. Query is executed like this:
+- First, DISTINCT, using a tmp MEMORY table with a unique
+index, thus if two rows have the same 'b' but a different 'c',
+the second row is rejected, so the first value of 'c' wins
+(=> randomness of 'c')
+- Second, ORDER BY on the random 'c'.
+select distinct b from v1 order by c;
+b
+2
+4
+Random order too (same reason):
+select distinct min(b) from v1 group by a order by min(c);
+min(b)
+2
+4
+This query gives random order:
+select distinct b from v1 order by c;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct b from v1 order by b-1,b+1,c;
+ERROR HY000: Expression #3 of ORDER BY clause is not in SELECT list, references column 'v1.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct min(b) from v1 group by a order by min(c);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Not random (though Standard bans aggregates from ORDER BY):
+select distinct min(b) from v1 group by a order by min(b);
+min(b)
+2
+4
+select distinct min(b) from v1 group by a order by -min(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+All group exprs are in select list => DISTINCT is removed => no error
+select distinct a, min(b) from v1 group by a order by max(b-2)-min(c*5);
+a	min(b)
+200	2
+800	4
+400	2
+600	4
+This one is standard:
+select distinct min(b) as z from v1 group by a order by z;
+z
+2
+4
+Other queries:
+select distinct b from v1 where b<0 order by rand();
+b
+select distinct b from v1 order by 45.0+3;
+b
+2
+4
+select (select distinct b from v1 as S2 where b=7 order by S3.a) from v1 as S3;
+(select distinct b from v1 as S2 where b=7 order by S3.a)
+NULL
+NULL
+NULL
+NULL
+select distinct b from v1 order by abs(b);
+b
+2
+4
+select distinct b as z from v1 order by abs(z);
+z
+2
+4
+select distinct b from v1 order by abs(b+a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.a' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from v1 order by z;
+z
+2
+4
+select distinct abs(b) as z from v1 order by abs(b);
+z
+2
+4
+select distinct abs(b) from v1 order by abs(b);
+abs(b)
+2
+4
+Not ok: ABS(b)+1 is neither a SELECTed expression nor an alias
+to one, and mentions a column of FROM tables.
+select distinct abs(b) as z from v1 order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from v1 order by z+1;
+z
+2
+4
+select distinct abs(b) from v1 order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from v1 order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+Two offending columns; error message needs to report only one
+select distinct abs(b) from v1 order by floor(10*b),floor(10*a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'v1.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+(select floor(10*S2.b) from v1 as S3 limit 1);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Ok as S2.b in SELECT list
+select distinct abs(b),b from v1 as S2 order by
+(select floor(10*S2.b) from v1 as S3 limit 1);
+abs(b)	b
+2	2
+4	4
+Ok as subq does not use columns of FROM clause of ordered Q.
+select distinct abs(b) from v1 as S2 order by
+(select floor(10*S3.b) from v1 as S3 limit 1);
+abs(b)
+2
+4
+Subq as alias => ok
+select distinct abs(b),
+(select floor(10*S3.b) from v1 as S3 limit 1) as subq
+from v1 as S2 order by subq;
+abs(b)	subq
+2	20
+4	20
+Bad field in left or right argument of ALL/ANY(subq):
+select distinct abs(b) from v1 as S2 order by
+floor(10*S2.b) IN (select floor(10*S3.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+floor(10*S2.b) > ALL(select floor(10*S3.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+floor(10*10) IN (select floor(10*S2.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from v1 as S2 order by
+floor(10*10) > ALL(select floor(10*S2.b) from v1 as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Aggregates:
+SELECT distinct 1 FROM t1 group by a order by count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Test ANY_VALUE
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*)-count(b));
+1
+1
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*))-any_value(count(b));
+1
+1
+All group exprs are in select list => DISTINCT is removed => no error
+SELECT distinct a, min(b) FROM t1 group by a order by count(*)-count(*);
+a	min(b)
+100	1
+200	1
+300	2
+400	2
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+aggregation in outer Q => constant in inner Q
+select * from t1 as t2 where t2.a in
+(SELECT distinct 1 FROM t1 group by a order by count(t2.a)-max(t2.a));
+a	b	c
+ORDER BY expressions are in SELECT list => ok
+SELECT distinct 1, count(*)-count(b) FROM t1 group by a order by count(*)-count(b);
+1	count(*)-count(b)
+1	0
+Without GROUP BY, aggregates yield a single row, no random order
+SELECT distinct sum(a) FROM t1 order by count(*)-count(*);
+sum(a)
+1000
+SELECT distinct sum(a) FROM t1 order by count(*)-count(b);
+sum(a)
+1000
+Verify that DISTINCT is optimized away even if the aggregate
+function is hidden in a subquery
+EXPLAIN SELECT DISTINCT MAX(b) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1`
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+but if the subquery is the aggregation query, DISTINCT must stay:
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+QA's query is properly rejected:
+SELECT DISTINCT GP1.a AS g1 FROM v1 AS GP1
+WHERE GP1.a >= 0
+ORDER BY GP1.b LIMIT 8;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'GP1.b' which is not in SELECT list; this is incompatible with DISTINCT
+result order does change depending on chosen plan.
+SELECT DISTINCT GP1.a AS g1 FROM v1 AS GP1
+WHERE GP1.a >= 0
+ORDER BY 2+ANY_VALUE(GP1.b) LIMIT 8;
+g1
+200
+400
+600
+800
+DELETE FROM t1;
+drop view v1;
+# Test when selecting from derived table
+insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by c;
+b
+2
+1
+select distinct min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by min(c);
+min(b)
+1
+2
+explain select distinct min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by min(c);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	#	4	100.00	Using temporary; Using filesort
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	#	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Note	1003	/* select#1 */ select distinct min(`test`.`t1`.`b`) AS `min(b)` from `test`.`t1` left join `test`.`t2` on(true) where true group by `test`.`t1`.`a` order by min(`test`.`t1`.`c`)
+Warnings:
+Insert rows in different order:
+delete from t1;
+insert into t1 values(200,1,1),(100,1,2),(400,2,2),(300,2,1);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+And get a different order. Query is executed like this:
+- First, DISTINCT, using a tmp MEMORY table with a unique
+index, thus if two rows have the same 'b' but a different 'c',
+the second row is rejected, so the first value of 'c' wins
+(=> randomness of 'c')
+- Second, ORDER BY on the random 'c'.
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by c;
+b
+1
+2
+Random order too (same reason):
+select distinct min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by min(c);
+min(b)
+1
+2
+This query gives random order:
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by c;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'derived.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by b-1,b+1,c;
+ERROR HY000: Expression #3 of ORDER BY clause is not in SELECT list, references column 'derived.c' which is not in SELECT list; this is incompatible with DISTINCT
+and this one too:
+select distinct min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by min(c);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Not random (though Standard bans aggregates from ORDER BY):
+select distinct min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by min(b);
+min(b)
+1
+2
+select distinct min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by -min(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+All group exprs are in select list => DISTINCT is removed => no error
+select distinct a, min(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by max(b-2)-min(c*5);
+a	min(b)
+100	1
+400	2
+200	1
+300	2
+This one is standard:
+select distinct min(b) as z from (SELECT t1.* FROM t1 left join t2 on 1) AS derived group by a order by z;
+z
+1
+2
+Other queries:
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived where b<0 order by rand();
+b
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by 45.0+3;
+b
+1
+2
+select (select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) as S2 where b=7 order by S3.a) from (SELECT t1.* FROM t1 left join t2 on 1) as S3;
+(select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) as S2 where b=7 order by S3.a)
+NULL
+NULL
+NULL
+NULL
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by abs(b);
+b
+1
+2
+select distinct b as z from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by abs(z);
+z
+1
+2
+select distinct b from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by abs(b+a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'derived.a' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by z;
+z
+1
+2
+select distinct abs(b) as z from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by abs(b);
+z
+1
+2
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by abs(b);
+abs(b)
+1
+2
+Not ok: ABS(b)+1 is neither a SELECTed expression nor an alias
+to one, and mentions a column of FROM tables.
+select distinct abs(b) as z from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'derived.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by z+1;
+z
+1
+2
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by abs(b)+1;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'derived.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) as z from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'derived.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by floor(10*b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'derived.b' which is not in SELECT list; this is incompatible with DISTINCT
+Two offending columns; error message needs to report only one
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) AS derived order by floor(10*b),floor(10*a);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'derived.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by
+(select floor(10*S2.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3 limit 1);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Ok as S2.b in SELECT list
+select distinct abs(b),b from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by
+(select floor(10*S2.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3 limit 1);
+abs(b)	b
+1	1
+2	2
+Ok as subq does not use columns of FROM clause of ordered Q.
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by
+(select floor(10*S3.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3 limit 1);
+abs(b)
+1
+2
+Subq as alias => ok
+select distinct abs(b),
+(select floor(10*S3.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3 limit 1) as subq
+from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by subq;
+abs(b)	subq
+1	10
+2	10
+Bad field in left or right argument of ALL/ANY(subq):
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by
+floor(10*S2.b) IN (select floor(10*S3.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by
+floor(10*S2.b) > ALL(select floor(10*S3.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by
+floor(10*10) IN (select floor(10*S2.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct abs(b) from (SELECT t1.* FROM t1 left join t2 on 1) as S2 order by
+floor(10*10) > ALL(select floor(10*S2.b) from (SELECT t1.* FROM t1 left join t2 on 1) as S3);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'S2.b' which is not in SELECT list; this is incompatible with DISTINCT
+Aggregates:
+SELECT distinct 1 FROM t1 group by a order by count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(*);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+Test ANY_VALUE
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*)-count(b));
+1
+1
+SELECT distinct 1 FROM t1 group by a order by any_value(count(*))-any_value(count(b));
+1
+1
+All group exprs are in select list => DISTINCT is removed => no error
+SELECT distinct a, min(b) FROM t1 group by a order by count(*)-count(*);
+a	min(b)
+100	1
+200	1
+300	2
+400	2
+SELECT distinct 1 FROM t1 group by a order by count(*)-count(b);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, contains aggregate function; this is incompatible with DISTINCT
+aggregation in outer Q => constant in inner Q
+select * from t1 as t2 where t2.a in
+(SELECT distinct 1 FROM t1 group by a order by count(t2.a)-max(t2.a));
+a	b	c
+ORDER BY expressions are in SELECT list => ok
+SELECT distinct 1, count(*)-count(b) FROM t1 group by a order by count(*)-count(b);
+1	count(*)-count(b)
+1	0
+Without GROUP BY, aggregates yield a single row, no random order
+SELECT distinct sum(a) FROM t1 order by count(*)-count(*);
+sum(a)
+1000
+SELECT distinct sum(a) FROM t1 order by count(*)-count(b);
+sum(a)
+1000
+Verify that DISTINCT is optimized away even if the aggregate
+function is hidden in a subquery
+EXPLAIN SELECT DISTINCT MAX(b) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1`
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+but if the subquery is the aggregation query, DISTINCT must stay:
+EXPLAIN SELECT DISTINCT (SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select distinct (/* select#2 */ select max((`test`.`t1`.`b` + (0 * `test`.`t2`.`a`))) from `test`.`t1` `t2` limit 1) AS `(SELECT MAX(t1.b+0*t2.a) FROM t1 AS t2 LIMIT 1)` from `test`.`t1`
+QA's query is properly rejected:
+SELECT DISTINCT GP1.a AS g1 FROM (SELECT t1.* FROM t1 left join t2 on 1) AS GP1
+WHERE GP1.a >= 0
+ORDER BY GP1.b LIMIT 8;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'GP1.b' which is not in SELECT list; this is incompatible with DISTINCT
+result order does change depending on chosen plan.
+SELECT DISTINCT GP1.a AS g1 FROM (SELECT t1.* FROM t1 left join t2 on 1) AS GP1
+WHERE GP1.a >= 0
+ORDER BY 2+ANY_VALUE(GP1.b) LIMIT 8;
+g1
+100
+200
+300
+400
+DELETE FROM t1;
+select distinct t1_outer.a from t1 t1_outer
+order by t1_outer.b;
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1_outer.b' which is not in SELECT list; this is incompatible with DISTINCT
+select distinct t1_outer.a from t1 t1_outer
+order by (select max(t1_outer.b+t1_inner.b) from t1 t1_inner);
+ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1_outer.b' which is not in SELECT list; this is incompatible with DISTINCT
+select
+(select distinct 1 from t1 t1_inner
+group by t1_inner.a order by max(t1_outer.b))
+from t1 t1_outer;
+(select distinct 1 from t1 t1_inner
+group by t1_inner.a order by max(t1_outer.b))
+NULL
+drop table t1, t2;

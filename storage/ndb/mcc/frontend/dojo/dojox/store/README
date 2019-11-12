@@ -1,8 +1,8 @@
 -------------------------------------------------------------------------------
 DojoX Stores (data)
 -------------------------------------------------------------------------------
-Version 1.000
-Release date: 03/04/2011
+Version 1.8
+Release date: 06/13/2012
 -------------------------------------------------------------------------------
 Project state:
 LightstreamerStore:	beta
@@ -27,6 +27,11 @@ one to connect to a Lightstreamer server and get continuous updates (depending
 on the data adapter and mode used).  Because it requires the Lightstreamer
 server, unit tests are not functional here; there is a demonstration of it in 
 action (URL to be determined).
+
+Note, as of Dojo 1.8, the LightstreamerStore should now be downloaded either
+from their GitHub repository, or through CPM. The new version will work with
+Version 5 of their library, which is now fully AMD-compliant.
+
 -------------------------------------------------------------------------------
 Dependencies:
 

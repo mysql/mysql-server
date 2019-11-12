@@ -4,6 +4,7 @@
 ################################################################################
 
 --source include/not_valgrind.inc
+--source include/mysql_upgrade_preparation.inc
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
 --source include/xplugin_preamble.inc

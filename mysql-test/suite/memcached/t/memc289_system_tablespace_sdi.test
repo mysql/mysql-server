@@ -33,7 +33,8 @@ ENGINE = INNODB;
 SET DEBUG='-d, skip_sdi';
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11289
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 --let $MYSQLD_DATADIR=`SELECT @@datadir`
 

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/NestedSorting", [
 	"dojo/_base/declare",
 	"dojo/_base/array",
@@ -20,6 +19,7 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 	//
 	// description:
 	//		A flexible way to control multiple column sorting, including
+	//
 	//		1. Set default sorting order
 	//		2. Disable sorting for certain columns
 	//		3. Set sorting order dynamically with JS API
@@ -67,7 +67,11 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		}
 		this.connect(this.grid.views, 'render', '_initSort');//including column resize
 		this.initCookieHandler();
-		this.subscribe("dojox/grid/rearrange/move/" + this.grid.id, lang.hitch(this, '_onColumnDnD'));
+		if(this.grid.plugin('rearrange')){
+			this.subscribe("dojox/grid/rearrange/move/" + this.grid.id, lang.hitch(this, '_onColumnDnD'));
+		}else{
+			this.connect(this.grid.layout, 'moveColumn', '_onMoveColumn');
+		}
 	},
 	onStartUp: function(){
 		//overwrite base Grid functions
@@ -75,6 +79,52 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		this.connect(this.grid, 'onHeaderCellClick', '_onHeaderCellClick');
 		this.connect(this.grid, 'onHeaderCellMouseOver', '_onHeaderCellMouseOver');
 		this.connect(this.grid, 'onHeaderCellMouseOut', '_onHeaderCellMouseOut');
+	},
+	_onMoveColumn: function(sourceViewIndex, destViewIndex, cellIndex, targetIndex, before){
+		var cr = this._getCurrentRegion(),
+			idx = cr && this._getRegionHeader(cr).getAttribute('idx'),
+			c = this._headerNodes[idx],
+			sortData = this._sortData,
+			newSortData = {},
+			sortIndex, data;
+		if(cr){
+			this._blurRegion(cr);
+			this._currRegionIdx = array.indexOf(this._getRegions(), c.firstChild);
+		}
+		if(targetIndex < cellIndex){
+			for(sortIndex in sortData){
+				sortIndex = parseInt(sortIndex, 10);
+				data = sortData[sortIndex];
+				if(data){
+					if(sortIndex >= targetIndex && sortIndex < cellIndex){
+						newSortData[sortIndex + 1] = data;
+					}else if(sortIndex == cellIndex){
+						newSortData[targetIndex] = data;
+					}else{
+						newSortData[sortIndex] = data;
+					}
+				}
+			}
+		}else if(targetIndex > cellIndex + 1){
+			if(!before){
+				targetIndex++;
+			}
+			for(sortIndex in sortData){
+				sortIndex = parseInt(sortIndex, 10);
+				data = sortData[sortIndex];
+				if(data){
+					if(sortIndex > cellIndex && sortIndex < targetIndex){
+						newSortData[sortIndex - 1] = data;
+					}else if(sortIndex == cellIndex){
+						newSortData[targetIndex - 1] = data;
+					}else{
+						newSortData[sortIndex] = data;
+					}
+				}
+			}
+		}
+		this._sortData = newSortData;
+		this._initSort(false);
 	},
 	_onColumnDnD: function(type, mapping){
 		// summary:
@@ -210,7 +260,7 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		this._updateHeaderNodeUI(node);
 	},
 	_onHeaderCellClick: function(e){
-		// summary
+		// summary:
 		//		See dojox.grid.enhanced._Events._onHeaderCellClick()
 		this._focusRegion(e.target);
 		if(html.hasClass(e.target, 'dojoxGridSortBtn')){
@@ -220,7 +270,7 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		}
 	},
 	_onHeaderCellMouseOver: function(e){
-		// summary
+		// summary:
 		//		See dojox.grid._Events._onHeaderCellMouseOver()
 		//		When user mouseover other columns than sorted column in a single sorted grid,
 		//		We need to show 1 in the sorted column
@@ -267,7 +317,7 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		}
 	},
 	_onHeaderCellMouseOut: function(e){
-		// summary
+		// summary:
 		//		See dojox.grid.enhanced._Events._onHeaderCellMouseOut()
 		var p;
 		for(p in this._sortData){
@@ -341,7 +391,7 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		}
 	},
 	_prepareNestedSort: function(cellIdx){
-		// summary
+		// summary:
 		//		Prepare the nested sorting, this will order the column on existing sorting result.
 		var i = this._sortData[cellIdx] ? this._sortData[cellIdx].index : null;
 		if(i === 0 || !!i){ return; }
@@ -490,7 +540,7 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 	_focusHeader: function(e){
 		// summary:
 		//		Overwritten, see _FocusManager.focusHeader()
-		//delayed: Boolean
+		// delayed: Boolean
 		//		If called from "this.focus._delayedHeaderFocus()"
 		if(this._currRegionIdx === -1){
 			this._onMove(0, 1, null);
@@ -498,7 +548,9 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 			this._focusRegion(this._getCurrentRegion());
 		}
 		try{
-			evt.stop(e);
+			if(e){
+				evt.stop(e);
+			}
 		}catch(e){}
 		return true;
 	},
@@ -559,7 +611,7 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		return regions;
 	},
 	_focusRegion: function(region){
-		// summary
+		// summary:
 		//		Focus the given region
 		if(!region){return;}
 		var currRegion = this._getCurrentRegion();
@@ -573,7 +625,10 @@ var NestedSorting = declare("dojox.grid.enhanced.plugins.NestedSorting", _Plugin
 		}else if(html.hasClass(region, 'dojoxGridSortBtn')){
 			html.addClass(region, 'dojoxGridSortBtnFocus');
 		}
-		region.focus();
+		//For invisible nodes, IE will throw error when calling focus().
+		try{
+			region.focus();
+		}catch(e){}
 		this.focus.currentArea('header');
 		this._currRegionIdx = array.indexOf(this._focusRegions, region);
 	},

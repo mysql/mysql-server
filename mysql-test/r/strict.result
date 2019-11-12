@@ -857,6 +857,8 @@ NULL
 -99.99
 DROP TABLE t1;
 CREATE TABLE t1 (col1 FLOAT, col2 FLOAT UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t1 VALUES (-1.1E-37,0),(+3.4E+38,+3.4E+38);
 INSERT INTO t1 VALUES ('-1.1E-37',0),('+3.4E+38','+3.4E+38');
 INSERT INTO t1 (col1) VALUES (3E-46);
@@ -907,6 +909,8 @@ NULL	NULL
 3.40282e38	0
 DROP TABLE t1;
 CREATE TABLE t1 (col1 DOUBLE PRECISION, col2 DOUBLE PRECISION UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t1 VALUES (-2.2E-307,0),(2E-307,0),(+1.7E+308,+1.7E+308);
 INSERT INTO t1 VALUES ('-2.2E-307',0),('-2E-307',0),('+1.7E+308','+1.7E+308');
 INSERT INTO t1 (col1) VALUES (-2.2E-330);
@@ -1129,10 +1133,6 @@ select count(*) from t1 where STR_TO_DATE('2004.12.12 10:22:61','%Y.%m.%d %T') I
 count(*)
 7
 Warnings:
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
-Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
 Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
 Warning	1411	Incorrect datetime value: '2004.12.12 10:22:61' for function str_to_date
 drop table t1;
@@ -1858,3 +1858,48 @@ Level	Code	Message
 Warning	1831	Duplicate index 'in_c2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 # Clean-up
 DROP TABLE t1;
+#
+# Bug#18090591: STR_TO_DATE IN TRADITIONAL SQL_MODE FAILS TO PARSE
+# TIME-ONLY FIELD
+#
+CREATE TABLE t1 ( a datetime(2) );
+CREATE TABLE t2 ( a timestamp(2) );
+SELECT str_to_date('09:22', '%H:%i');
+str_to_date('09:22', '%H:%i')
+09:22:00
+SELECT str_to_date('09:22:23.33', '%H:%i:%s.%f');
+str_to_date('09:22:23.33', '%H:%i:%s.%f')
+09:22:23.330000
+INSERT INTO t1 VALUES( str_to_date('09:22', '%H:%i') );
+INSERT INTO t1 VALUES( str_to_date('09:22:23.33', '%H:%i:%s.%f') );
+# We do this to get the test deterministic. The above INSERT's
+# will insert the *current* date with the time added.
+SELECT timediff( a, cast(CURRENT_DATE AS datetime) ) FROM t1;
+timediff( a, cast(CURRENT_DATE AS datetime) )
+09:22:00.00
+09:22:23.33
+DELETE FROM t1;
+INSERT INTO t1 VALUES( str_to_date('2019-12-31', '%Y-%m-%d') );
+SELECT * FROM t1;
+a
+2019-12-31 00:00:00.00
+INSERT INTO t2 VALUES( str_to_date('09:22', '%H:%i') );
+INSERT INTO t2 VALUES( str_to_date('09:22:23.33', '%H:%i:%s.%f') );
+# We do this to get the test deterministic. The above INSERT's
+# will insert the *current* date with the time added.
+SELECT timediff( a, cast(CURRENT_DATE AS datetime) ) FROM t2;
+timediff( a, cast(CURRENT_DATE AS datetime) )
+09:22:00.00
+09:22:23.33
+DELETE FROM t2;
+INSERT INTO t2 VALUES( str_to_date('2019-12-31', '%Y-%m-%d') );
+CREATE TABLE t3 SELECT str_to_date('09:22:23.33', '%H:%i:%s.%f');
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `str_to_date('09:22:23.33', '%H:%i:%s.%f')` time(6) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+a
+2019-12-31 00:00:00.00
+DROP TABLE t1, t2, t3;

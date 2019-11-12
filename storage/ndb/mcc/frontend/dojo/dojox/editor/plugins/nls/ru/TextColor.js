@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"setButtonText": "Задать",
-	"cancelButtonText": "Отменить"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/ru/TextColor",({"setButtonText":"Задать","cancelButtonText":"Отмена"}));

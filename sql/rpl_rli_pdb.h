@@ -28,7 +28,7 @@
 #include <time.h>
 #include <atomic>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -234,13 +234,13 @@ struct Slave_job_group {
   void reset(my_off_t master_pos, ulonglong seqno) {
     master_log_pos = master_pos;
     group_master_log_pos = group_relay_log_pos = 0;
-    group_master_log_name = NULL;  // todo: remove
-    group_relay_log_name = NULL;
+    group_master_log_name = nullptr;  // todo: remove
+    group_relay_log_name = nullptr;
     worker_id = MTS_WORKER_UNDEF;
     total_seqno = seqno;
-    checkpoint_log_name = NULL;
+    checkpoint_log_name = nullptr;
     checkpoint_log_pos = 0;
-    checkpoint_relay_log_name = NULL;
+    checkpoint_relay_log_name = nullptr;
     checkpoint_relay_log_pos = 0;
     checkpoint_seqno = (uint)-1;
     done = 0;
@@ -250,7 +250,7 @@ struct Slave_job_group {
 #endif
     last_committed = SEQ_UNINIT;
     sequence_number = SEQ_UNINIT;
-    new_fd_event = NULL;
+    new_fd_event = nullptr;
   }
 };
 
@@ -642,6 +642,12 @@ class Slave_worker : public Relay_log_info {
   int rli_init_info(bool);
   int flush_info(bool force = false);
   static size_t get_number_worker_fields();
+  /**
+     Sets bits for columns that are allowed to be `NULL`.
+
+     @param nullable_fields the bitmap to hold the nullable fields.
+  */
+  static void set_nullable_fields(MY_BITMAP *nullable_fields);
   void slave_worker_ends_group(Log_event *, int);
   const char *get_master_log_name();
   ulonglong get_master_log_pos() { return master_log_pos; }
@@ -705,7 +711,7 @@ class Slave_worker : public Relay_log_info {
     @return 1 if an error was encountered, 0 otherwise.
   */
   int set_rli_description_event(Format_description_log_event *fdle) {
-    DBUG_ENTER("Slave_worker::set_rli_description_event");
+    DBUG_TRACE;
 
     if (fdle) {
       /*
@@ -787,7 +793,7 @@ class Slave_worker : public Relay_log_info {
         } else if (in_active_multi_stmt) {
           my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
                    "gtid_next");
-          DBUG_RETURN(1);
+          return 1;
         }
       }
       adapt_to_master_version_updown(fdle->get_product_version(),
@@ -806,7 +812,7 @@ class Slave_worker : public Relay_log_info {
     }
     rli_description_event = fdle;
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
   inline void reset_gaq_index() { gaq_index = c_rli->gaq->size; }

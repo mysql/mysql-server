@@ -1,4 +1,3 @@
--- source include/have_ssl.inc
 
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
@@ -183,7 +182,7 @@ SET @orig_ssl_ca= @@global.ssl_ca;
 SET GLOBAL ssl_ca = 'gizmo';
 
 --echo # Must fail and not change the SSL params
---error ER_SSL_LIBRARY_ERROR
+--error ER_DA_SSL_LIBRARY_ERROR
 ALTER INSTANCE RELOAD TLS;
 
 --echo # Must be 1

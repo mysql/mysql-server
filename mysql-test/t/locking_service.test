@@ -139,7 +139,10 @@ SELECT service_release_locks(        '');
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 TRUNCATE TABLE performance_schema.events_waits_current;
 TRUNCATE TABLE performance_schema.events_waits_history_long;
-UPDATE performance_schema.setup_instruments SET enabled = 'YES';
+
+# Enable only metadata wait event to prevent other wait events filling history
+UPDATE performance_schema.setup_instruments SET enabled = 'YES'
+WHERE name = 'wait/lock/metadata/sql/mdl';
 
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
@@ -155,10 +158,6 @@ WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 
 SELECT service_release_locks('pfs_check');
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 
 --echo #
@@ -178,11 +177,6 @@ SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo #      Per performance_schema no current wait for getting a service lock
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
---echo #      Per performance_schema no historic wait for getting a service lock
---echo #      because TRUNCATE of events_waits_history_long
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo # 4.1: Test that another connection gets blocked.
 SELECT service_get_write_locks("namespace1", "lock1", "lock2", 60);
@@ -207,9 +201,9 @@ SELECT service_get_read_locks("namespace1", "lock1", 0);
 SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
 FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
---echo #      Per performance_schema there is no current wait for getting a
---echo #      service lock because our attempt already timed out.
-SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
+--echo #      Per performance_schema keeps the last monitored wait for
+--echo #      service lock even after our attempt timed out.
+SELECT COUNT(*) = 1 AS expect_1 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo # 4.3: Show the impact of waiting for getting a service lock on
 --echo #      content of the processlist and performance_schema
@@ -227,10 +221,6 @@ WHERE state = 'Waiting for locking service lock';
 SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
---echo #      Per performance_schema six waits in history
-SELECT COUNT(*) = 3 AS expect_1
-FROM performance_schema.events_waits_history_long
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 --echo # 4.4: Show the impact of releasing and getting a service lock on
 --echo #      content of the processlist and performance_schema
 # Release locks and cleanup
@@ -240,12 +230,9 @@ SELECT service_release_locks("namespace1");
 --echo #      No waiting session in information_schema.processlist
 SELECT COUNT(*) = 0 AS expect_1 FROM information_schema.processlist
 WHERE state = 'Waiting for locking service lock';
---echo #      Per performance_schema no current wait for getting a service lock
-SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
---echo #      Per performance_schema now seven waits in history
-SELECT COUNT(*) = 4 AS expect_1
-FROM performance_schema.events_waits_history_long
+--echo #      performance_schema keeps the last monitored wait for
+--echo #      service lock even if no current wait
+SELECT COUNT(*) = 1 AS expect_1 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 SELECT service_release_locks("namespace1");
 
@@ -885,5 +872,8 @@ SELECT service_release_locks('holder_name_space');
 DROP FUNCTION service_get_read_locks;
 DROP FUNCTION service_get_write_locks;
 DROP FUNCTION service_release_locks;
---disable_connect_log
 
+# Restore previous state of performance_schema instruments
+UPDATE performance_schema.setup_instruments SET enabled = 'YES';
+
+--disable_connect_log

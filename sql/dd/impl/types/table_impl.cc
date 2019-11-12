@@ -79,19 +79,13 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // NDB keys:
-    "object_version", "previous_mysql_version",
-    // InnoDB keys:
-    "autoinc", "data_directory", "discard", "instant_col", "version"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Table_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Table_impl::Table_impl()
     : m_se_private_id(INVALID_OBJECT_ID),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_row_format(RF_FIXED),
       m_is_temporary(false),
       m_partition_type(PT_NONE),
@@ -592,14 +586,16 @@ bool Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   // (as we don't know the address of the referenced Column or Index
   // object).
 
-  deserialize_each(rctx, [this]() { return add_index(); }, val, "indexes");
+  deserialize_each(
+      rctx, [this]() { return add_index(); }, val, "indexes");
 
-  deserialize_each(rctx, [this]() { return add_foreign_key(); }, val,
-                   "foreign_keys");
-  deserialize_each(rctx, [this]() { return add_check_constraint(); }, val,
-                   "check_constraints");
-  deserialize_each(rctx, [this]() { return add_partition(); }, val,
-                   "partitions");
+  deserialize_each(
+      rctx, [this]() { return add_foreign_key(); }, val, "foreign_keys");
+  deserialize_each(
+      rctx, [this]() { return add_check_constraint(); }, val,
+      "check_constraints");
+  deserialize_each(
+      rctx, [this]() { return add_partition(); }, val, "partitions");
   read(&m_collation_id, val, "collation_id");
   return deserialize_tablespace_ref(rctx, &m_tablespace_id, val,
                                     "tablespace_id");

@@ -633,6 +633,11 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
 @param[in,out]	mdl	metadata lock */
 void dd_mdl_release(THD *thd, MDL_ticket **mdl);
 
+/** Returns thd associated with the trx or current_thd
+@param[in]	trx	transaction
+@return	trx->mysql_thd or current_thd */
+THD *dd_thd_for_undo(const trx_t *trx);
+
 /** Check if current undo needs a MDL or not
 @param[in]	trx	transaction
 @return	true if MDL is necessary, otherwise false */
@@ -937,15 +942,15 @@ operation.
 @param[in]	new_space_name	dd_tablespace name
 @param[in]	new_path	new data file path
 @retval DB_SUCCESS on success. */
-dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
+dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
                              const char *new_space_name, const char *new_path);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Parse the tablespace name from filename charset to table name charset
-@param[in]      space_name      tablespace name
+@param[in]      file_name      tablespace name
 @param[in,out]	tablespace_name	tablespace name which is in table name
                                 charset. */
-void dd_filename_to_spacename(const char *space_name,
+void dd_filename_to_spacename(const char *file_name,
                               std::string *tablespace_name);
 
 #ifndef UNIV_HOTBACKUP
@@ -1180,17 +1185,18 @@ dd_space_states dd_tablespace_get_state_enum(
 bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space);
 
 /** Get the MDL for the named tablespace.  The mdl_ticket pointer can
-be provided if it is needed by the caller.  If for_trx is set to false,
+be provided if it is needed by the caller.  If foreground is set to false,
 then the caller must explicitly release that ticket with dd_release_mdl().
 Otherwise, it will ne released with the transaction.
 @param[in]  space_name  tablespace name
 @param[in]  mdl_ticket  tablespace MDL ticket, default to nullptr
-@param[in]  for_trx     How long will the MDL be held. defaults to true for
-                        MDL_TRANSACTION, false for MDL_EXPLICIT
-@return DB_SUCCESS or DD_FAILURE. */
+@param[in]  foreground  true, if the caller is foreground thread. Default
+                        is true. For foreground, the lock duration is
+                        MDL_TRANSACTION. Otherwise, it is MDL_EXPLICIT.
+@return DD_SUCCESS or DD_FAILURE. */
 bool dd_tablespace_get_mdl(const char *space_name,
                            MDL_ticket **mdl_ticket = nullptr,
-                           bool for_trx = true);
+                           bool foreground = true);
 /** Set discard attribute value in se_private_dat of tablespace
 @param[in]  dd_space  dd::Tablespace object
 @param[in]  discard   true if discarded, else false */

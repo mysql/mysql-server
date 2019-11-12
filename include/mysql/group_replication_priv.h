@@ -59,12 +59,16 @@ my_thread_attr_t *get_connection_attrib();
   @param[out] port
   @param[out] uuid
   @param[out] server_version
-  @param[out] server_ssl_variables
-
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
-                           unsigned int *server_version,
-                           st_server_ssl_variables *server_ssl_variables);
+                           unsigned int *server_version);
+
+/**
+  Returns the server ssl configuration values.
+
+  @param[out] server_ssl_variables
+*/
+void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables);
 
 /**
   Returns the server_id.
@@ -200,5 +204,10 @@ unsigned long get_slave_max_allowed_packet();
   @returns the maximum value of slave_max_allowed_packet.
  */
 unsigned long get_max_slave_max_allowed_packet();
+
+/**
+  @returns if the server is restarting after a clone
+*/
+bool is_server_restarting_after_clone();
 
 #endif /* GROUP_REPLICATION_PRIV_INCLUDE */

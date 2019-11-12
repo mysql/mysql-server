@@ -114,36 +114,6 @@ COMMIT;
 --connection master
 DROP TABLE t1,t2;
 
-# Case-3: BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST
-#  INSERT into autoincrement field which is not the first part in the
-#  composed primary key is unsafe
-#
-# Step-3.1: Create a table with auto increment column and a composed primary key
-# (second column is auto increment column). Such a definition is allowed only
-# with 'myisam' engine.
-CREATE TABLE t1(i int, id INT AUTO_INCREMENT, PRIMARY KEY (i, id)) ENGINE=MYISAM;
-
-# Step-3.2: Inserting into such a table is unsafe.
-INSERT INTO t1 (i) values (1);
-
-# Step-3.3: Repeat step 3.2, now with 'LOCK TABLES' logic.
-START TRANSACTION;
-LOCK TABLES t1 WRITE;
-INSERT INTO t1 (i) values (2);
-UNLOCK TABLES;
-COMMIT;
-
-# Step-3.4: Sync slave with master
---sync_slave_with_master
-
-# Step-3.5: Diff master-slave tables to make sure everything is in sync.
---let $diff_tables=master:t1, slave:t1
---source include/diff_tables.inc
-
-# Step-3.6: Cleanup
---connection master
-DROP TABLE t1;
-
 # Case-4: BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS
 #  INSERT... ON DUPLICATE KEY UPDATE  on a table with more than one UNIQUE KEY
 #  is unsafe Statement

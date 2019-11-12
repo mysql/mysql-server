@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,26 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_MESSAGE_DECODER_H_
 
 #include <sys/types.h>
-#include "my_inttypes.h"
 
+#include <memory>
+
+#include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/message_cache.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/src/io/vio_input_stream.h"
 
 namespace ngs {
+
+enum class Frame_layout {
+  k_frame,
+  k_compressed_single_frame,
+  k_compressed_multiple_frames,
+  k_compressed_group_of_frames
+};
+
+class Client_interface;
 
 /**
  X Protocol Message decoder
@@ -40,46 +53,105 @@ namespace ngs {
 */
 class Message_decoder {
  public:
-  using Zero_copy_input_stream = google::protobuf::io::ZeroCopyInputStream;
+  using ZeroCopyInputStream = google::protobuf::io::ZeroCopyInputStream;
+  using CodedInputStream = google::protobuf::io::CodedInputStream;
+
+  class Message_dispatcher_interface {
+   public:
+    virtual ~Message_dispatcher_interface() = default;
+
+    virtual void handle(Message_request *message) = 0;
+  };
+
+  class Decode_error {
+   public:
+    /**
+     * Constructor that marks that some internal error
+     *
+     * @param error_code - Internal error code and message
+     */
+    explicit Decode_error(const Error_code &error_code);
+
+    /**
+     * Constructor that marks that the IO occurred (failed with "errno")
+     *
+     * @param sys_error    error number that broke last IO operation (value of
+     * "errno")
+     */
+    explicit Decode_error(const int sys_error);
+
+    /**
+     * Constructor that marks that user disconnected
+     *
+     * @param disconnected
+     */
+    explicit Decode_error(const bool disconnected = false);
+
+   public:
+    bool was_peer_disconnected() const;
+
+    /**
+     * This method returns error number with which last IO failed
+     *
+     * In case when IO error occurred, this class holds inside
+     * value of "errno" which on has INT as underlying type.
+     * This is enforced by return value of:
+     *
+     *     int vio_errno(MYSQL_VIO vio);
+     *
+     * and C++ standard.
+     *
+     * @return last system error number
+     */
+    int get_io_error() const;
+    Error_code get_logic_error() const;
+
+    bool was_error() const;
+
+   private:
+    bool m_disconnected{false};
+    int m_sys_error{0};
+    Error_code m_error_code;
+  };
 
  public:
+  Message_decoder(Message_dispatcher_interface *dispatcher,
+                  Protocol_monitor_interface *monitor,
+                  std::shared_ptr<Protocol_config> config);
+
   /**
-    Parse X Protocol message reading it from input steam.
+    Parse X Protocol message by reading it from input steam and dispatch to
+    external handler.
 
     All IO errors must be stores on stream object, which must also give user
     the possibility to check it. In case of IO error the return value might
     point a success.
 
-    @param msg_type  message that should be deserialized
-    @param stream    object wrapping IO operations
+    @param message_type   message that should be deserialized
+    @param stream        object wrapping IO operations
     @param out_msg   returns message that is result of parsing
 
     @return Error_code is used only to pass logic error.
   */
-  Error_code parse(const uint8 msg_type, const int msg_size,
-                   Zero_copy_input_stream *stream, Message_request *out_msg);
+  Decode_error parse_and_dispatch(const uint8_t message_type,
+                                  const uint32_t message_size,
+                                  xpl::Vio_input_stream *stream);
 
  private:
-  Message *alloc_message(const int8 type, Error_code &ret_error,
-                         bool &ret_shared);
+  static Error_code parse_coded_stream_generic(CodedInputStream *stream,
+                                               Message *message);
+  Decode_error parse_coded_stream_inner(CodedInputStream *coded_input,
+                                        const uint8_t inner_message_type,
+                                        const uint32_t inner_message_size);
 
-  // Messages that are cached
-  Mysqlx::Sql::StmtExecute m_stmt_execute;
-  Mysqlx::Crud::Find m_crud_find;
-  Mysqlx::Crud::Insert m_crud_insert;
-  Mysqlx::Crud::Update m_crud_update;
-  Mysqlx::Crud::Delete m_crud_delete;
-  Mysqlx::Expect::Open m_expect_open;
-  Mysqlx::Expect::Close m_expect_close;
-  Mysqlx::Crud::CreateView m_crud_create_view;
-  Mysqlx::Crud::ModifyView m_crud_modify_view;
-  Mysqlx::Crud::DropView m_crud_drop_view;
-  Mysqlx::Cursor::Open m_cursor_open;
-  Mysqlx::Cursor::Close m_cursor_close;
-  Mysqlx::Cursor::Fetch m_cursor_fetch;
-  Mysqlx::Prepare::Prepare m_prepare_prepare;
-  Mysqlx::Prepare::Execute m_prepare_execute;
-  Mysqlx::Prepare::Deallocate m_prepare_deallocate;
+  Decode_error parse_protobuf_frame(const uint8_t message_type,
+                                    const uint32_t message_size,
+                                    xpl::Vio_input_stream *net_input_stream);
+
+  Message_dispatcher_interface *m_dispatcher;
+  Protocol_monitor_interface *m_monitor;
+  std::shared_ptr<Protocol_config> m_config;
+  Message_cache m_cache;
 };
 
 }  // namespace ngs

@@ -24,6 +24,8 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/sync_slave_sql_with_master.inc
 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10') * 0
 0
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 SET GLOBAL GTID_MODE = OFF;
 ==== Iteration 1 ====
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
@@ -46,6 +48,8 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/sync_slave_sql_with_master.inc
 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11') * 0
 0
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 SET GLOBAL GTID_MODE = OFF;
 ERROR HY000: SET @@GLOBAL.GTID_MODE = OFF is not allowed because there are ongoing calls to WAIT_FOR_EXECUTED_GTID_SET or WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS. Before you set @@GLOBAL.GTID_MODE = OFF, ensure that no other client is waiting for GTID-transactions to be committed.
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:21';

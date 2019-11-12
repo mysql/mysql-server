@@ -41,6 +41,12 @@ PRIMARY KEY  (`day`,`hour`,`bannerid`,`zoneid`,`source`),
 KEY `bannerid_day` (`bannerid`,`day`),
 KEY `zoneid` (`zoneid`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t2` VALUES
 (  1,0,'2004-09-17', 5,100,100,''),
 (  1,0,'2004-09-18', 7,100,100,''),

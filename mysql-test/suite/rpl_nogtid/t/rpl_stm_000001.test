@@ -2,6 +2,7 @@
 # get_lock() is logged in row format if binlog_format=mixed or row.
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
+-- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
 
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

@@ -1,0 +1,48 @@
+# ==== Purpose ====
+# The purpose of this test is to make sure binlog file is re-stored
+# when client session running RESET MASTER is killed.
+#
+# ==== Requirements ====
+# RESET MASTER should exit leaving binlog files in consistent state.
+#
+# ==== Implementation ====
+# 1. Create table t1
+# 2. Run RESET MASTER from client connection master_tmp
+# 3. Kill the master_tmp connection
+# 4. Now DROP TABLE t1(any DDL)
+#
+# ==== References ====
+# Bug#29125121: ASSERTION `M_PIPELINE_HEAD != __NULL' IN MYSQL_BIN_LOG::BINLOG_OFILE::WRITE
+
+# 1. Create table t1
+--source include/have_debug_sync.inc
+
+--let $debug_point= wait_for_kill_gtid_state_clear
+--source include/add_debug_point.inc
+
+CALL mtr.add_suppression('The transaction owned GTID is already in the gtid_executed table, which is caused by an explicit modifying from user client.');
+CREATE TABLE t1(c1 int);
+
+--connect(master_tmp,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--let $thread_id= `SELECT CONNECTION_ID()`
+
+# 2. Run RESET MASTER from client connection master_tmp
+--send RESET MASTER
+
+# 3. Kill the master_tmp connection
+--connection default
+--disable_query_log
+--eval KILL $thread_id
+SET DEBUG_SYNC='now SIGNAL kill_gtid_state_clear';
+--enable_query_log
+
+--connection master_tmp
+--error CR_SERVER_LOST
+--reap
+
+# 4. Now DROP TABLE t1(any DDL)
+--connection default
+DROP TABLE t1;
+--source include/remove_debug_point.inc
+
+--disconnect master_tmp

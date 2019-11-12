@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 IF ("${PIDFILE_RPM}" STREQUAL "")
-  SET(PIDFILE_RPM  "/var/run/mysqld/mysqld.pid")
+  IF (LINUX_FEDORA)
+    SET(PIDFILE_RPM "/run/mysqld/mysqld.pid")
+  ELSE()
+    SET(PIDFILE_RPM "/var/run/mysqld/mysqld.pid")
+  ENDIF()
 ENDIF()
 
 IF ("${LOGFILE_RPM}" STREQUAL "")
@@ -30,11 +34,22 @@ ENDIF()
 
 SET(bindir "${CMAKE_INSTALL_PREFIX}/${INSTALL_BINDIR}")
 
-FOREACH(cfile my.cnf mysql.logrotate mysqlrouter.conf)
+FOREACH(cfile
+    my.cnf
+    mysql.logrotate
+    mysqlrouter.conf
+    mysqlrouter.service
+    mysqlrouter.tmpfiles.d
+    )
   CONFIGURE_FILE(${cfile}.in ${CMAKE_CURRENT_BINARY_DIR}/${cfile} @ONLY)
 ENDFOREACH()
 
-FOREACH(cfile filter-provides.sh filter-requires.sh mysql_config.sh my_config.h
-        mysqlrouter.init mysqlrouter.service mysqlrouter.tmpfiles.d)
+FOREACH(cfile
+    filter-provides.sh
+    filter-requires.sh
+    mysql_config.sh
+    my_config.h
+    mysqlrouter.init
+    )
   CONFIGURE_FILE(${cfile} ${CMAKE_CURRENT_BINARY_DIR}/${cfile} COPYONLY)
 ENDFOREACH()

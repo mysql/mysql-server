@@ -5,7 +5,6 @@
 	-webkit-animation-timing-function: ease-out;
 }
 .mblScaleIn.mblIn {
-	z-index: 0;
 	-webkit-animation-duration: .5s;
 	-webkit-animation-name: mblScaleInIn;
 	-webkit-animation-timing-function: ease-out;

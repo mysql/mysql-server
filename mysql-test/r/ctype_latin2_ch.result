@@ -7,6 +7,8 @@ create table t1 (
 id  int(5) not null,    
 tt  char(255) not null
 ) character set latin2 collate latin2_czech_cs;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,'Aa');
 insert into t1 values (2,'Aas');
 alter table t1 add primary key aaa(tt);
@@ -158,43 +160,6 @@ w	name
 1C013B0174017400	LATIN _SMALL_ LETTER U WITH DIAERESIS
 1C013C0176017600	LATIN _SMALL_ LETTER U WITH DOUBLE ACUTE
 drop table t1;
-SET collation_connection=latin2_czech_cs;
-CREATE TABLE t1 ENGINE=MYISAM AS SELECT repeat('a', 5) AS s1 LIMIT 0;
-INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
-SELECT * FROM t1 GROUP BY s1;
-s1
-x
-y
-z
-X
-Y
-Z
-SELECT * FROM t1 ORDER BY s1;
-s1
-x
-X
-y
-Y
-z
-Z
-CREATE INDEX i1 ON t1 (s1);
-SELECT * FROM t1 GROUP BY s1;
-s1
-x
-X
-y
-Y
-z
-Z
-SELECT * FROM t1 ORDER BY s1;
-s1
-x
-X
-y
-Y
-z
-Z
-DROP TABLE t1;
 CREATE TABLE t1 ENGINE=INNODB AS SELECT repeat('a', 5) AS s1 LIMIT 0;
 INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
@@ -202,9 +167,6 @@ s1
 x
 y
 z
-X
-Y
-Z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x
@@ -217,11 +179,8 @@ CREATE INDEX i1 ON t1 (s1);
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
-Z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x
@@ -240,9 +199,6 @@ s1
 x
 y
 z
-X
-Y
-Z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x
@@ -255,11 +211,8 @@ CREATE INDEX i1 ON t1 (s1);
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
-Z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x
@@ -278,9 +231,6 @@ s1
 x
 y
 z
-X
-Y
-Z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x
@@ -293,11 +243,8 @@ CREATE INDEX i1 ON t1 (s1);
 SELECT * FROM t1 GROUP BY s1;
 s1
 x
-X
 y
-Y
 z
-Z
 SELECT * FROM t1 ORDER BY s1;
 s1
 x
@@ -321,23 +268,6 @@ SELECT * FROM t2;
 colours
 blue
 DROP TABLE t1, t2;
-CREATE TABLE `t1` (
-`ID` smallint(5) unsigned zerofill NOT NULL AUTO_INCREMENT,
-`Post` enum('','B','O','Z','U') COLLATE latin2_czech_cs DEFAULT NULL,
-PRIMARY KEY (`ID`)
-) ENGINE=MyISAM AUTO_INCREMENT=135 DEFAULT CHARSET=latin2;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `ID` smallint(5) unsigned zerofill NOT NULL AUTO_INCREMENT,
-  `Post` enum('','B','O','Z','U') CHARACTER SET latin2 COLLATE latin2_czech_cs DEFAULT NULL,
-  PRIMARY KEY (`ID`)
-) ENGINE=MyISAM AUTO_INCREMENT=135 DEFAULT CHARSET=latin2
-INSERT INTO t1 (ID,Post) VALUES (00041,'');
-SELECT ID, Post, HEX(WEIGHT_STRING(Post)) FROM t1;
-ID	Post	HEX(WEIGHT_STRING(Post))
-00041		01010100
-DROP TABLE t1;
 #
 # Start of 5.6 tests
 #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "sql/debug_sync.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key.h"
@@ -47,19 +48,20 @@
 #include "sql/sql_executor.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h"
 #include "sql/table.h"
+#include "sql/timing_iterator.h"
 
 using std::string;
 using std::vector;
 
 /**
-  Initialize READ_RECORD structure to perform full index scan in desired
+  Initialize a row iterator to perform full index scan in desired
   direction using the RowIterator interface
 
   This function has been added at late stage and is used only by
   UPDATE/DELETE. Other statements perform index scans using IndexScanIterator.
 
-  @param info         READ_RECORD structure to initialize.
   @param thd          Thread handle
   @param table        Table to be accessed
   @param idx          index to scan
@@ -70,30 +72,24 @@ using std::vector;
   @retval false  success
 */
 
-void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
-                           bool reverse, QEP_TAB *qep_tab) {
+unique_ptr_destroy_only<RowIterator> create_table_iterator_idx(
+    THD *thd, TABLE *table, uint idx, bool reverse, QEP_TAB *qep_tab) {
   empty_record(table);
-  new (info) READ_RECORD;
 
   ha_rows *examined_rows = nullptr;
   if (qep_tab != nullptr && qep_tab->join() != nullptr) {
     examined_rows = &qep_tab->join()->examined_rows;
   }
 
-  unique_ptr_destroy_only<RowIterator> iterator;
-
   if (reverse) {
-    iterator.reset(new (&info->iterator_holder.index_scan_reverse)
-                       IndexScanIterator<true>(thd, table, idx,
-                                               /*use_order=*/true, qep_tab,
-                                               examined_rows));
-  } else {
-    iterator.reset(new (&info->iterator_holder.index_scan)
-                       IndexScanIterator<false>(thd, table, idx,
+    return NewIterator<IndexScanIterator<true>>(thd, table, idx,
                                                 /*use_order=*/true, qep_tab,
-                                                examined_rows));
+                                                examined_rows);
+  } else {
+    return NewIterator<IndexScanIterator<false>>(thd, table, idx,
+                                                 /*use_order=*/true, qep_tab,
+                                                 examined_rows);
   }
-  info->iterator = std::move(iterator);
 }
 
 template <bool Reverse>
@@ -181,6 +177,7 @@ vector<string> IndexScanIterator<Reverse>::DebugString() const {
   if (Reverse) {
     str += " (reverse)";
   }
+  str += table()->file->explain_extra();
   return {str};
 }
 
@@ -192,7 +189,6 @@ template class IndexScanIterator<false>;
   Which method to use is set-up in this call so that you can fetch rows
   through the resulting row iterator afterwards.
 
-  @param info     OUT read structure
   @param thd      Thread handle
   @param table    Table the data [originally] comes from; if NULL,
     'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
@@ -206,43 +202,44 @@ template class IndexScanIterator<false>;
     been deleted by foreign key handling. Only relevant for methods that need
     to look up rows in tables (those marked “Indirect”).
   @param examined_rows
-    If not-nullptr, the iterator will increase this variable by the number of
+    If non-nullptr, the iterator will increase this variable by the number of
     examined rows. If nullptr, will use qep_tab->join()->examined_rows
     if possible.
+  @param using_table_scan
+    If non-nullptr, will be whether a TableScanIterator was chosen.
  */
-void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                       QEP_TAB *qep_tab, bool disable_rr_cache,
-                       bool ignore_not_found_rows, ha_rows *examined_rows) {
+unique_ptr_destroy_only<RowIterator> create_table_iterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
+    bool ignore_not_found_rows, ha_rows *examined_rows,
+    bool *using_table_scan) {
   // If only 'table' is given, assume no quick, no condition.
   DBUG_ASSERT(!(table && qep_tab));
   if (!table) table = qep_tab->table();
   empty_record(table);
-
-  new (info) READ_RECORD;
+  if (using_table_scan != nullptr) {
+    *using_table_scan = false;
+  }
 
   if (examined_rows == nullptr && qep_tab != nullptr &&
       qep_tab->join() != nullptr) {
     examined_rows = &qep_tab->join()->examined_rows;
   }
 
-  unique_ptr_destroy_only<RowIterator> iterator;
-
   QUICK_SELECT_I *quick = qep_tab ? qep_tab->quick() : NULL;
   if (table->unique_result.io_cache &&
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
-    iterator.reset(
-        new (&info->iterator_holder.sort_file_indirect)
-            SortFileIndirectIterator(thd, table, table->unique_result.io_cache,
-                                     !disable_rr_cache, ignore_not_found_rows,
-                                     examined_rows));
+    unique_ptr_destroy_only<RowIterator> iterator =
+        NewIterator<SortFileIndirectIterator>(
+            thd, table, table->unique_result.io_cache, !disable_rr_cache,
+            ignore_not_found_rows, examined_rows);
     table->unique_result.io_cache =
         nullptr;  // Now owned by SortFileIndirectIterator.
+    return iterator;
   } else if (quick) {
     DBUG_PRINT("info", ("using IndexRangeScanIterator"));
-    iterator.reset(
-        new (&info->iterator_holder.index_range_scan)
-            IndexRangeScanIterator(thd, table, quick, qep_tab, examined_rows));
+    return NewIterator<IndexRangeScanIterator>(thd, table, quick, qep_tab,
+                                               examined_rows);
   } else if (table->unique_result.has_result_in_memory()) {
     /*
       The Unique class never puts its results into table->sort's
@@ -250,32 +247,39 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
     */
     DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
-    iterator.reset(
-        new (&info->iterator_holder.sort_buffer_indirect)
-            SortBufferIndirectIterator(thd, table, &table->unique_result,
-                                       ignore_not_found_rows, examined_rows));
+    return NewIterator<SortBufferIndirectIterator>(
+        thd, table, &table->unique_result, ignore_not_found_rows,
+        examined_rows);
+  } else if (qep_tab != nullptr && qep_tab->table_ref != nullptr &&
+             qep_tab->table_ref->is_recursive_reference()) {
+    unique_ptr_destroy_only<RowIterator> iterator =
+        NewIterator<FollowTailIterator>(thd, table, qep_tab, examined_rows);
+    qep_tab->recursive_iterator =
+        down_cast<FollowTailIterator *>(iterator.get());
+    return iterator;
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
-    iterator.reset(new (&info->iterator_holder.table_scan)
-                       TableScanIterator(thd, table, qep_tab, examined_rows));
+    if (using_table_scan != nullptr) {
+      *using_table_scan = true;
+    }
+    return NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows);
   }
-  info->iterator = std::move(iterator);
 }
 
-bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool disable_rr_cache,
-                      bool ignore_not_found_rows) {
-  setup_read_record(info, thd, table, qep_tab, disable_rr_cache,
-                    ignore_not_found_rows, /*examined_rows=*/nullptr);
-  if (info->iterator->Init()) {
-    info->iterator.reset();
-    return true;
+unique_ptr_destroy_only<RowIterator> init_table_iterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
+    bool ignore_not_found_rows) {
+  unique_ptr_destroy_only<RowIterator> iterator = create_table_iterator(
+      thd, table, qep_tab, disable_rr_cache, ignore_not_found_rows,
+      /*examined_rows=*/nullptr, /*using_table_scan=*/nullptr);
+  if (iterator->Init()) {
+    return nullptr;
   }
-  return false;
+  return iterator;
 }
 
 /**
-  The default implementation of unlock-row method of READ_RECORD,
+  The default implementation of unlock-row method of RowIterator,
   used in all access methods except EQRefIterator.
 */
 void TableRowIterator::UnlockRow() { m_table->file->unlock_row(); }
@@ -341,14 +345,23 @@ bool IndexRangeScanIterator::Init() {
   if (first_init && table()->file->inited && set_record_buffer(m_qep_tab))
     return 1; /* purecov: inspected */
 
+  m_seen_eof = false;
   return false;
 }
 
 int IndexRangeScanIterator::Read() {
+  if (m_seen_eof) {
+    return -1;
+  }
+
   int tmp;
   while ((tmp = m_quick->get_next())) {
     if (thd()->killed || (tmp != HA_ERR_RECORD_DELETED)) {
-      return HandleError(tmp);
+      int error_code = HandleError(tmp);
+      if (error_code == -1) {
+        m_seen_eof = true;
+      }
+      return error_code;
     }
   }
 
@@ -369,6 +382,7 @@ vector<string> IndexRangeScanIterator::DebugString() const {
     ret += ", with index condition: " +
            ItemToString(table()->file->pushed_idx_cond);
   }
+  ret += table()->file->explain_extra();
   return {ret};
 }
 
@@ -380,7 +394,9 @@ TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
       m_examined_rows(examined_rows) {}
 
 TableScanIterator::~TableScanIterator() {
-  table()->file->ha_index_or_rnd_end();
+  if (table()->file != nullptr) {
+    table()->file->ha_index_or_rnd_end();
+  }
 }
 
 bool TableScanIterator::Init() {
@@ -420,5 +436,147 @@ int TableScanIterator::Read() {
 
 vector<string> TableScanIterator::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  return {string("Table scan on ") + table()->alias};
+  return {string("Table scan on ") + table()->alias +
+          table()->file->explain_extra()};
+}
+
+FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                                       ha_rows *examined_rows)
+    : TableRowIterator(thd, table),
+      m_record(table->record[0]),
+      m_qep_tab(qep_tab),
+      m_examined_rows(examined_rows) {}
+
+FollowTailIterator::~FollowTailIterator() {
+  if (table()->file != nullptr) {
+    table()->file->ha_index_or_rnd_end();
+  }
+}
+
+bool FollowTailIterator::Init() {
+  // BeginMaterialization() must be called before this.
+  DBUG_ASSERT(m_stored_rows != nullptr);
+
+  /*
+    Only attempt to allocate a record buffer the first time the handler is
+    initialized.
+  */
+  const bool first_init = !table()->file->inited;
+
+  if (first_init) {
+    // The first Init() call at the start of a new WITH RECURSIVE
+    // execution. MaterializeIterator calls ha_index_or_rnd_end()
+    // before each iteration, which sets file->inited = false,
+    // so we can use that as a signal.
+    if (!table()->is_created()) {
+      // Recursive references always refer to a temporary table,
+      // which do not exist at resolution time; thus, we need to
+      // connect to it on first run here.
+      if (open_tmp_table(table())) {
+        return true;
+      }
+    }
+
+    int error = table()->file->ha_rnd_init(true);
+    if (error) {
+      PrintError(error);
+      return true;
+    }
+
+    if (first_init && set_record_buffer(m_qep_tab))
+      return true; /* purecov: inspected */
+
+    // The first seen record will start a new iteration.
+    m_read_rows = 0;
+    m_recursive_iteration_count = 0;
+    m_end_of_current_iteration = 0;
+  } else {
+    // Just continue where we left off last time.
+  }
+
+  return false;
+}
+
+int FollowTailIterator::Read() {
+  if (m_read_rows == *m_stored_rows) {
+    /*
+      Return EOF without even checking if there are more rows
+      (there isn't), so that we can continue reading when there are.
+      There are two underlying reasons why we need to do this,
+      depending on the storage engine in use:
+
+      1. For both MEMORY and InnoDB, when they report EOF,
+         the scan stays blocked at EOF forever even if new rows
+         are inserted later. (InnoDB has a supremum record, and
+         MEMORY increments info->current_record unconditionally.)
+
+      2. Specific to MEMORY, inserting records that are deduplicated
+         away can corrupt cursors that hit EOF. Consider the following
+         scenario:
+
+         - write 'A'
+         - write 'A': allocates a record, hits a duplicate key error, leaves
+           the allocated place as "deleted record".
+         - init scan
+         - read: finds 'A' at #0
+         - read: finds deleted record at #1, properly skips over it, moves to
+           EOF
+         - even if we save the read position at this point, it's "after #1"
+         - close scan
+         - write 'B': takes the place of deleted record, i.e. writes at #1
+         - write 'C': writes at #2
+         - init scan, reposition at saved position
+         - read: still after #1, so misses 'B'.
+
+         In this scenario, the table is formed of real records followed by
+         deleted records and then EOF.
+
+       To avoid these problems, we keep track of the number of rows in the
+       table by holding the m_stored_rows pointer into the MaterializeIterator,
+       and simply avoid hitting EOF.
+     */
+    return -1;
+  }
+
+  if (m_read_rows == m_end_of_current_iteration) {
+    // We have started a new iteration. Check to see if we have passed the
+    // user-set limit.
+    if (++m_recursive_iteration_count >
+        thd()->variables.cte_max_recursion_depth) {
+      my_error(ER_CTE_MAX_RECURSION_DEPTH, MYF(0), m_recursive_iteration_count);
+      return 1;
+    }
+    m_end_of_current_iteration = *m_stored_rows;
+
+#ifdef ENABLED_DEBUG_SYNC
+    if (m_recursive_iteration_count == 4) {
+      DEBUG_SYNC(thd(), "in_WITH_RECURSIVE");
+    }
+#endif
+  }
+
+  // Read the actual row.
+  //
+  // We can never have MyISAM here, so we don't need the checks
+  // for HA_ERR_RECORD_DELETED that TableScanIterator has.
+  int err = table()->file->ha_rnd_next(m_record);
+  if (err) {
+    return HandleError(err);
+  }
+
+  ++m_read_rows;
+
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
+  return 0;
+}
+
+vector<string> FollowTailIterator::DebugString() const {
+  DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+  return {string("Scan new records on ") + table()->alias};
+}
+
+bool FollowTailIterator::RepositionCursorAfterSpillToDisk() {
+  return reposition_innodb_cursor(table(), m_read_rows);
 }

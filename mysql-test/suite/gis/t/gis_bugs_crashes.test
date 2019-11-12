@@ -1899,7 +1899,6 @@ SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
                        LINESTRING(POINT(6,7), POINT(+.1,7), POINT(0,-.5)))))));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_INTERSECTION(
     ST_GEOMFROMWKB(
         ST_ASWKB(

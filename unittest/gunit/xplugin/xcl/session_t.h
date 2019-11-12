@@ -41,6 +41,7 @@
 namespace xcl {
 namespace test {
 
+using ::testing::_;
 using ::testing::An;
 using ::testing::Invoke;
 using ::testing::Return;
@@ -50,7 +51,6 @@ using ::testing::StrictMock;
 using ::testing::Test;
 using ::testing::Values;
 using ::testing::WithParamInterface;
-using ::testing::_;
 
 class Xcl_session_impl_tests : public Test {
  public:

@@ -1,0 +1,122 @@
+# Test clone error with concurrent DDL
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+--echo # In connection CON1
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $CLONE_DATADIR2 = $MYSQL_TMP_DIR/data_new2
+--let $MYSQLD_DATADIR= `select @@datadir;`
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+SHOW VARIABLES LIKE 'clone_ddl_timeout';
+
+--echo # Set backup lock timeout to 1 sec
+SET GLOBAL clone_ddl_timeout = 1;
+SHOW VARIABLES LIKE 'clone_ddl_timeout';
+SHOW VARIABLES LIKE "lock_wait_timeout";
+
+connection default;
+--echo # In connection DEFAULT
+
+--echo # 1A. Clone while CREATE TABLE in progress
+--let $ddl_text = CREATE TABLE t1 (col1 INT PRIMARY KEY)
+--source ../include/ddl_lock_clone_wait.inc
+SHOW CREATE TABLE t1;
+
+--echo # 1B. CREATE TABLE while clone in progress
+--let $ddl_text = CREATE TABLE t2 (col1 INT PRIMARY KEY)
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 2A. Clone while ALTER TABLE ADD COLUMN [COPY] in progress
+INSERT INTO t1 values(10), (20), (30);
+SELECT * FROM t1 ORDER BY col1;
+--let $ddl_text = ALTER TABLE t1 ADD COLUMN col2 int, ALGORITHM=COPY
+--source ../include/ddl_lock_clone_wait.inc
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 ORDER BY col1;
+UPDATE t1 SET col2 = col1 + 1000;
+
+--echo # 2B. ALTER TABLE ADD COLUMN [COPY] while clone in progress
+--let $ddl_text = ALTER TABLE t1 ADD COLUMN col3 int, ALGORITHM=COPY
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 2C. Clone while ALTER TABLE ADD COLUMN [INPLACE] in progress
+SELECT * FROM t1 ORDER BY col1;
+--let $ddl_text = ALTER TABLE t1 ADD COLUMN col3 int, ALGORITHM=INPLACE
+--source ../include/ddl_lock_clone_wait.inc
+SHOW CREATE TABLE t1;
+SELECT * FROM t1 ORDER BY col1;
+UPDATE t1 SET col3 = col2 + 1000;
+
+--echo # 2D. ALTER TABLE ADD COLUMN [INPLACE] while clone in progress
+--let $ddl_text = ALTER TABLE t1 ADD COLUMN col4 int, ALGORITHM=INPLACE
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 3A. Clone while ADD INDEX [COPY] in progress
+SHOW CREATE TABLE t1;
+--let $ddl_text = ALTER TABLE t1 ADD INDEX col2_idx(col2), ALGORITHM=COPY
+--source ../include/ddl_lock_clone_wait.inc
+SHOW CREATE TABLE t1;
+
+--echo # 3B. ADD INDEX [COPY] while clone in progress
+--let $ddl_text = ALTER TABLE t1 ADD INDEX col3_idx(col3), ALGORITHM=COPY
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 3C. Clone while ADD INDEX [INPLACE] in progress
+SHOW CREATE TABLE t1;
+--let $ddl_text = ALTER TABLE t1 ADD INDEX col3_idx(col3), ALGORITHM=INPLACE
+--source ../include/ddl_lock_clone_wait.inc
+SHOW CREATE TABLE t1;
+
+--echo # 3D. ADD INDEX [INPLACE] while clone in progress
+--let $ddl_text = ALTER TABLE t1 ADD INDEX col1_idx(col1), ALGORITHM=COPY
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 4A. DROP INDEX [COPY] while clone in progress
+--let $ddl_text = ALTER TABLE t1 DROP INDEX col3_idx, ALGORITHM=COPY
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 4B. Clone while DROP INDEX [COPY] in progress
+SHOW CREATE TABLE t1;
+--let $ddl_text = ALTER TABLE t1 DROP INDEX col3_idx, ALGORITHM=COPY
+--source ../include/ddl_lock_clone_wait.inc
+SHOW CREATE TABLE t1;
+
+--echo # 4C. DROP INDEX [INPLACE] while clone in progress
+--let $ddl_text = ALTER TABLE t1 DROP INDEX col2_idx, ALGORITHM=INPLACE
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 4D. Clone while DROP INDEX [INPLACE] in progress
+SHOW CREATE TABLE t1;
+--let $ddl_text = ALTER TABLE t1 DROP INDEX col2_idx, ALGORITHM=INPLACE
+--source ../include/ddl_lock_clone_wait.inc
+SHOW CREATE TABLE t1;
+
+--echo # 5A. TRUNCATE TABLE while clone in progress
+--let $ddl_text = TRUNCATE TABLE t1
+--source ../include/ddl_lock_ddl_wait.inc
+
+--echo # 5B. Clone while TRUNCATE TABLE in progress
+SELECT * FROM t1 ORDER BY col1;
+--let $ddl_text = TRUNCATE TABLE t1
+--source ../include/ddl_lock_clone_wait.inc
+SELECT * FROM t1 ORDER BY col1;
+
+--echo # 6A. DROP TABLE while clone in progress
+--let $ddl_text = DROP TABLE t1
+--source ../include/ddl_lock_ddl_wait.inc
+SHOW CREATE TABLE t1;
+
+--echo # 6B. Clone while DROP TABLE in progress
+--let $ddl_text = DROP TABLE t1
+--source ../include/ddl_lock_clone_wait.inc
+
+--echo #Cleanup
+disconnect con1;
+SET DEBUG_SYNC = 'RESET';
+
+UNINSTALL PLUGIN clone;
+--source include/wait_until_count_sessions.inc

@@ -85,14 +85,13 @@ string based columns */
 
 /** This structure represents INFORMATION_SCHEMA.innodb_locks row */
 struct i_s_locks_row_t {
-  uint64_t
-      lock_trx_immutable_id;  /*!< transaction address as integer. We need an id
-                      which is unique and does not change over time.
-                      Unfortunately trx->id is initially equal to 0 for
-                      all trxs which still appear to be read only, and it
-                      changes to non-zero, once trx needs to perform write.
-                      For this reason trx->id is not good enough for our
-                      purpose. */
+  uint64_t lock_trx_immutable_id; /*!< transaction address as integer. We need
+                          an id which is unique and does not change over time.
+                          Unfortunately trx->id is initially equal to 0 for
+                          all trxs which still appear to be read only, and it
+                          changes to non-zero, once trx needs to perform write.
+                          For this reason trx->id is not good enough for our
+                          purpose. */
   uint64_t lock_immutable_id; /*!< lock address as integer. We need to identify
                       the lock in unique way. Specifying space, page and heap_no
                       and trx is not enough, because there could be locks with

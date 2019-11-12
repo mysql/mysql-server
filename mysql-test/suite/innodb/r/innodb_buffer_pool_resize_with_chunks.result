@@ -24,6 +24,7 @@ drop view view0;
 set global innodb_buffer_pool_size = 1048576;
 Warnings:
 Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '1048576'
+Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '5242880'
 select @@innodb_buffer_pool_size;
 @@innodb_buffer_pool_size
 6291456

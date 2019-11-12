@@ -1,5 +1,5 @@
 //>>built
-require({cache:{"url:dijit/templates/TitlePane.html":"<div>\n\t<div data-dojo-attach-event=\"onclick:_onTitleClick, onkeypress:_onTitleKey\"\n\t\t\tclass=\"dijitTitlePaneTitle\" data-dojo-attach-point=\"titleBarNode\">\n\t\t<div class=\"dijitTitlePaneTitleFocus\" data-dojo-attach-point=\"focusNode\">\n\t\t\t<img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"arrowNode\" class=\"dijitArrowNode\" role=\"presentation\"\n\t\t\t/><span data-dojo-attach-point=\"arrowNodeInner\" class=\"dijitArrowNodeInner\"></span\n\t\t\t><span data-dojo-attach-point=\"titleNode\" class=\"dijitTitlePaneTextNode\"></span>\n\t\t</div>\n\t</div>\n\t<div class=\"dijitTitlePaneContentOuter\" data-dojo-attach-point=\"hideNode\" role=\"presentation\">\n\t\t<div class=\"dijitReset\" data-dojo-attach-point=\"wipeNode\" role=\"presentation\">\n\t\t\t<div class=\"dijitTitlePaneContentInner\" data-dojo-attach-point=\"containerNode\" role=\"region\" id=\"${id}_pane\">\n\t\t\t\t<!-- nested divs because wipeIn()/wipeOut() doesn't work right on node w/padding etc.  Put padding on inner div. -->\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>\n"}});
+require({cache:{"url:dijit/templates/TitlePane.html":"<div>\n\t<div data-dojo-attach-event=\"onclick:_onTitleClick, onkeydown:_onTitleKey\"\n\t\t\tclass=\"dijitTitlePaneTitle\" data-dojo-attach-point=\"titleBarNode\" id=\"${id}_titleBarNode\">\n\t\t<div class=\"dijitTitlePaneTitleFocus\" data-dojo-attach-point=\"focusNode\">\n\t\t\t<img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"arrowNode\" class=\"dijitArrowNode\" role=\"presentation\"\n\t\t\t/><span data-dojo-attach-point=\"arrowNodeInner\" class=\"dijitArrowNodeInner\"></span\n\t\t\t><span data-dojo-attach-point=\"titleNode\" class=\"dijitTitlePaneTextNode\"></span>\n\t\t</div>\n\t</div>\n\t<div class=\"dijitTitlePaneContentOuter\" data-dojo-attach-point=\"hideNode\" role=\"presentation\">\n\t\t<div class=\"dijitReset\" data-dojo-attach-point=\"wipeNode\" role=\"presentation\">\n\t\t\t<div class=\"dijitTitlePaneContentInner\" data-dojo-attach-point=\"containerNode\" role=\"region\" id=\"${id}_pane\" aria-labelledby=\"${id}_titleBarNode\">\n\t\t\t\t<!-- nested divs because wipeIn()/wipeOut() doesn't work right on node w/padding etc.  Put padding on inner div. -->\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>\n"}});
 define("dijit/TitlePane",["dojo/_base/array","dojo/_base/declare","dojo/dom","dojo/dom-attr","dojo/dom-class","dojo/dom-geometry","dojo/_base/event","dojo/fx","dojo/_base/kernel","dojo/keys","./_CssStateMixin","./_TemplatedMixin","./layout/ContentPane","dojo/text!./templates/TitlePane.html","./_base/manager"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f){
 return _2("dijit.TitlePane",[_d,_c,_b],{title:"",_setTitleAttr:{node:"titleNode",type:"innerHTML"},open:true,toggleable:true,tabIndex:"0",duration:_f.defaultDuration,baseClass:"dijitTitlePane",templateString:_e,doLayout:false,_setTooltipAttr:{node:"focusNode",type:"attribute",attribute:"title"},buildRendering:function(){
 this.inherited(arguments);
@@ -35,7 +35,6 @@ this._onShow();
 this.onHide();
 }
 }
-this.arrowNodeInner.innerHTML=_12?"-":"+";
 this.containerNode.setAttribute("aria-hidden",_12?"false":"true");
 this.focusNode.setAttribute("aria-pressed",_12?"true":"false");
 this._set("open",_12);
@@ -44,9 +43,12 @@ this._setCss();
 this.focusNode.setAttribute("role",_16?"button":"heading");
 if(_16){
 this.focusNode.setAttribute("aria-controls",this.id+"_pane");
-_4.set(this.focusNode,"tabIndex",this.tabIndex);
+this.focusNode.setAttribute("tabIndex",this.tabIndex);
+this.focusNode.setAttribute("aria-pressed",this.open);
 }else{
+_4.remove(this.focusNode,"aria-controls");
 _4.remove(this.focusNode,"tabIndex");
+_4.remove(this.focusNode,"aria-pressed");
 }
 this._set("toggleable",_16);
 this._setCss();
@@ -74,13 +76,13 @@ this._titleBarClass="dijit"+(this.toggleable?"":"Fixed")+(this.open?"Open":"Clos
 _5.replace(_18,this._titleBarClass,_19||"");
 this.arrowNodeInner.innerHTML=this.open?"-":"+";
 },_onTitleKey:function(e){
-if(e.charOrCode==_a.ENTER||e.charOrCode==" "){
+if(e.keyCode==_a.ENTER||e.keyCode==_a.SPACE){
 if(this.toggleable){
 this.toggle();
-}
 _7.stop(e);
+}
 }else{
-if(e.charOrCode==_a.DOWN_ARROW&&this.open){
+if(e.keyCode==_a.DOWN_ARROW&&this.open){
 this.containerNode.focus();
 e.preventDefault();
 }

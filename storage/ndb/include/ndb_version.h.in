@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,36 +268,6 @@ ndbd_LIST_TABLES_CONF_long_signal(Uint32 x)
     
     return x >= NDBD_LONG_LIST_TABLES_CONF_63;
   }
-}
-
-#ifdef NOT_YET
-#define NDBD_FIRE_TRIG_ORD_TRANSID_63 NDB_MAKE_VERSION(6,3,9)
-#define NDBD_FIRE_TRIG_ORD_TRANSID_62 NDB_MAKE_VERSION(6,2,12)
-#endif
-
-static
-inline
-int
-ndb_fire_trig_ord_transid(Uint32 version)
-{
-  if (version >= NDB_VERSION_D)
-    return 1;
-
-#ifdef NOT_YET
-  const Uint32 major = (version >> 16) & 0xFF;
-  const Uint32 minor = (version >>  8) & 0xFF;
-  if (major >= 6)
-  {
-    if (minor == 2)
-    {
-      return version >= NDBD_FIRE_TRIG_ORD_TRANSID_62;
-    }
-
-    return version >= NDBD_FIRE_TRIG_ORD_TRANSID_63;
-  }
-#endif
-
-  return 0;
 }
 
 #define NDBD_SCAN_DISTKEY NDB_MAKE_VERSION(6,4,0)
@@ -1132,4 +1102,200 @@ ndbd_use_partial_lcp(Uint32 x)
   }
   return 1;
 }
+
+/**
+ * Enable Redo control for LCPs
+ */
+#define NDBD_ENABLE_REDO_CONTROL_76 NDB_MAKE_VERSION(7,6,8)
+#define NDBD_ENABLE_REDO_CONTROL_80 NDB_MAKE_VERSION(8,0,14)
+static
+inline
+int
+ndbd_enable_redo_control(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    return x >= NDBD_ENABLE_REDO_CONTROL_76;
+  }
+  return x >= NDBD_ENABLE_REDO_CONTROL_80;
+}
+
+/**
+ * Drop6 version, have impact on some file formats.
+ */
+
+static
+inline
+int
+ndbd_drop6(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  return (major == 5) && (minor == 2);
+}
+
+static
+inline
+int
+ndbd_backup_file_fragid(Uint32 x)
+{
+  return (x >= NDBD_FRAGID_VERSION) && !ndbd_drop6(x);
+}
+
+/**
+ * Fragmented SUB_TABLE_DATA signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_SUB_TABLE_DATA NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_sub_table_data(Uint32 x)
+{
+  return x >= NDBD_FRAG_SUB_TABLE_DATA;
+}
+
+/**
+ * Fragmented FIRE_TRIG_ORD signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_FIRE_TRIG_ORD NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_fire_trig_ord(Uint32 x)
+{
+  return x >= NDBD_FRAG_FIRE_TRIG_ORD;
+}
+
+/**
+ * Fragmented LQHKEYREQ signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_LQHKEYREQ NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_lqhkeyreq(Uint32 x)
+{
+  return x >= NDBD_FRAG_LQHKEYREQ;
+}
+
+/**
+ * Fragmented TCKEYREQ and TCINDXREQ signals.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_TCKEYREQ NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_tckeyreq(Uint32 x)
+{
+  return x >= NDBD_FRAG_TCKEYREQ;
+}
+
+#define NDBD_NOWAIT_KEYREQ NDB_MAKE_VERSION(8,0,18)
+
+/**
+ * wl#13120 extended NdbScanFilter and NdbInterpretedCode to allow
+ * two columns to be compared.
+ */
+
+#define NDBD_SUPPORT_CMP_COLUMNS NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+bool
+ndbd_support_column_cmp(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_CMP_COLUMNS;
+}
+
+/**
+ * Send the node bitmask in a long signal section:
+ */
+#define NDBD_NODE_BITMASK_IN_SECTION_80 NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_send_node_bitmask_in_section(Uint32 x)
+{
+  return x >= NDBD_NODE_BITMASK_IN_SECTION_80;
+}
+
+#define NDBD_UPGRADE_OK_74 NDB_MAKE_VERSION(7,4,6)
+#define NDBD_UPGRADE_OK_75 NDB_MAKE_VERSION(7,5,4)
+#define NDBD_UPGRADE_OK_76 NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_upgrade_ok(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 4)
+    {
+      return 0;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_UPGRADE_OK_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_UPGRADE_OK_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_UPGRADE_OK_76;
+    }
+    else
+    {
+      return 0;
+    }
+  }
+  else
+  {
+    return 1;
+  }
+}
+
+#define NDB_USE_CONFIG_VERSION_V2_80 NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndb_config_version_v2(Uint32 x)
+{
+  return x >= NDB_USE_CONFIG_VERSION_V2_80;
+}
+
+/**
+ * Formerly defined as
+ * #define MAX_FRM_DATA_SIZE 6000
+ */
+#define NDB_SHORT_OPAQUE_METADATA_MAX_BYTES 6000
+
+
 #endif

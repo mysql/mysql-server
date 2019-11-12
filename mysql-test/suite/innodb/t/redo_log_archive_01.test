@@ -1,0 +1,184 @@
+#
+# Test the Redo-Log Archiving feature. Success cases.
+#
+
+--disable_query_log
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
+
+--let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
+--let $SERVER_UUID      = `SELECT @@global.server_uuid`
+--let $IRLA_FILENAME    = archive.$SERVER_UUID.000001.log
+--let $IRLA_DIRECTORY_1 = $MYSQLTEST_VARDIR/log/redo_log_archive_1
+--let $IRLA_DIRECTORY_2 = $MYSQLTEST_VARDIR/log/redo_log_archive_2
+--let $IRLA_DIRECTORY_3 = $MYSQLTEST_VARDIR/log/redo_log_archive_3
+--let $IRLA_SUBDIR_2    = subdir_2
+--let $IRLA_SUBDIR_3    = subdir_3
+--let $IRLA_PATHNAME_1  = $IRLA_DIRECTORY_1/$IRLA_FILENAME
+--let $IRLA_PATHNAME_2  = $IRLA_DIRECTORY_2/$IRLA_SUBDIR_2/$IRLA_FILENAME
+--let $IRLA_PATHNAME_3  = $IRLA_DIRECTORY_3/$IRLA_SUBDIR_3/$IRLA_FILENAME
+
+--echo #
+--echo # Prepare the server for redo log archiving.
+--echo #
+--mkdir $IRLA_DIRECTORY_1
+--mkdir $IRLA_DIRECTORY_2
+--mkdir $IRLA_DIRECTORY_2/$IRLA_SUBDIR_2
+--mkdir $IRLA_DIRECTORY_3
+--mkdir $IRLA_DIRECTORY_3/$IRLA_SUBDIR_3
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1 $IRLA_DIRECTORY_2 IRLA_DIRECTORY_2 $IRLA_DIRECTORY_3 IRLA_DIRECTORY_3
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1;label2:$IRLA_DIRECTORY_2;:$IRLA_DIRECTORY_3;';
+--echo
+
+--echo #
+--echo # Start and stop redo log archiving. Using SELECT.
+--echo #
+SELECT innodb_redo_log_archive_start('label1');
+SELECT innodb_redo_log_archive_stop();
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Start and stop redo log archiving. Using DO. Result is constant anyway.
+--echo #
+DO innodb_redo_log_archive_start('label1');
+DO innodb_redo_log_archive_stop();
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Start and stop redo log archiving. With NULL subdir.
+--echo #
+DO innodb_redo_log_archive_start('label1', NULL);
+DO innodb_redo_log_archive_stop();
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Start and stop redo log archiving. With empty subdir.
+--echo #
+DO innodb_redo_log_archive_start('label1', '');
+DO innodb_redo_log_archive_stop();
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Start and stop redo log archiving. With subdir.
+--echo #
+eval DO innodb_redo_log_archive_start('label2', '$IRLA_SUBDIR_2');
+DO innodb_redo_log_archive_stop();
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_2
+--echo
+
+--echo #
+--echo # Start redo log archiving. With empty label
+--echo #
+eval DO innodb_redo_log_archive_start('', '$IRLA_SUBDIR_3');
+--echo
+
+--echo #
+--echo # Create a lot of InnoDB redo log.
+--echo #
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+--enable_warnings
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id int, b longblob) ENGINE=InnoDB;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+--echo
+
+--echo #
+--echo # Stop redo log archiving.
+--echo #
+DO innodb_redo_log_archive_stop();
+--echo
+
+--echo #
+--echo # Check the minimum size of the redo log archive file.
+--echo #
+--file_exists $IRLA_PATHNAME_3
+--exec perl -e "if(-s '$IRLA_PATHNAME_3' < 20971520){die 'The file is too small';}"
+--echo
+
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_3
+--echo
+
+--echo #
+--echo # Privileged user can start and stop redo log archiving.
+--echo #
+CREATE USER mysqltest_u1@localhost;
+GRANT INNODB_REDO_LOG_ARCHIVE ON *.* TO mysqltest_u1@localhost;
+--echo [connection u1]
+--connect (u1, localhost, mysqltest_u1,,)
+DO innodb_redo_log_archive_start('label1');
+DO innodb_redo_log_archive_stop();
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_1
+--echo [connection default]
+--connection default
+--disconnect u1
+--echo
+
+--echo #
+--echo # Restart server
+--echo #
+--source include/shutdown_mysqld.inc
+--let $restart_parameters="restart:"
+--source include/start_mysqld_no_echo.inc
+# Need to set the variable again after restart. It has not been persisted above.
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+--echo #
+--echo # Verify that the user does still have the INNODB_REDO_LOG_ARCHIVE privilege.
+--echo #
+SHOW GRANTS FOR mysqltest_u1@localhost;
+--echo #
+--echo # Verify that the user can still start and stop redo log archiving.
+--echo #
+--echo [connection u1]
+--connect (u1, localhost, mysqltest_u1,,)
+DO innodb_redo_log_archive_start('label1');
+DO innodb_redo_log_archive_stop();
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_1
+--echo [connection default]
+--connection default
+--disconnect u1
+DROP USER mysqltest_u1@localhost;
+--echo
+
+--echo #
+--echo # Cleanup
+--echo #
+--rmdir $IRLA_DIRECTORY_3/$IRLA_SUBDIR_3
+--rmdir $IRLA_DIRECTORY_3
+--rmdir $IRLA_DIRECTORY_2/$IRLA_SUBDIR_2
+--rmdir $IRLA_DIRECTORY_2
+--rmdir $IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_dirs';

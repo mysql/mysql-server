@@ -13,4 +13,6 @@
 
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source extra/rpl_tests/rpl_gtid_create_drop_temporary_in_function_or_trigger.test

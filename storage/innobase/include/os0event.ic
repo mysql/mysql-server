@@ -68,6 +68,7 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
 #endif
   uint32_t waits = 0;
 
+  constexpr uint64_t MIN_TIMEOUT_US = 1;
   constexpr uint64_t MAX_TIMEOUT_US = 100 * 1000;
 
   while (true) {
@@ -95,6 +96,24 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
     } else {
       /* Event-based loop. */
       ++waits;
+      if (timeout < MIN_TIMEOUT_US) {
+        /* If timeout = 0, then timeout * 2 = 0 and
+        we would not keep increasing timeout below.
+        Therefore we need some limitation for min.
+
+        Moreover, we measured how long does it take
+        to wake up on timeout, depending on timeout:
+             1us ->   57us,
+            10us ->   66us,
+            20us ->   76us,
+            50us ->  106us,
+           100us ->  156us,
+          1000us -> 1100us.
+
+        (Oracle Linux 4.14.28) */
+
+        timeout = MIN_TIMEOUT_US;
+      }
 
       if (waits == next_level) {
         timeout = std::min(timeout * 2, MAX_TIMEOUT_US);

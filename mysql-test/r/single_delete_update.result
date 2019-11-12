@@ -277,7 +277,7 @@ Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	1
+Handler_read_rnd	0
 Handler_read_rnd_next	27
 FLUSH STATUS;
 DELETE FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
@@ -835,7 +835,7 @@ Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	1
+Handler_read_rnd	0
 Handler_read_rnd_next	27
 FLUSH STATUS;
 UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;

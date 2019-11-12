@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,10 +348,10 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( BackupCompleted,     "n_records",     6, n_records), 
   ROW( BackupCompleted,     "n_log_bytes",   7, n_log_bytes),
   ROW( BackupCompleted,     "n_log_records", 8, n_log_records),
-  ROW( BackupCompleted,     "n_bytes_hi",    9+NdbNodeBitmask::Size, n_bytes_hi),
-  ROW( BackupCompleted,     "n_records_hi", 10+NdbNodeBitmask::Size, n_records_hi), 
-  ROW( BackupCompleted,     "n_log_bytes_hi",   11+NdbNodeBitmask::Size, n_log_bytes_hi),
-  ROW( BackupCompleted,     "n_log_records_hi", 12+NdbNodeBitmask::Size, n_log_records_hi), 
+  ROW( BackupCompleted,     "n_bytes_hi",    11, n_bytes_hi),
+  ROW( BackupCompleted,     "n_records_hi", 12, n_records_hi),
+  ROW( BackupCompleted,     "n_log_bytes_hi",   13, n_log_bytes_hi),
+  ROW( BackupCompleted,     "n_log_records_hi", 14, n_log_records_hi),
 
   ROW_FN( BackupStatus,     "starting_node",    1, starting_node, ref_to_node),
   ROW( BackupStatus,        "backup_id",        2, backup_id), 
@@ -682,7 +682,7 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
     tmp.split(list);
     for (unsigned j = 0; j<list.size(); j++)
     {
-      dst->Data[j] = atoi(list[j].c_str());
+      dst->Data[j] = (unsigned)atoll(list[j].c_str());
     }
   }
   return 1;

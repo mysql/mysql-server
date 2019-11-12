@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/widget/FilePicker", ["dijit","dojo","dojox","dojo/i18n!dojox/widget/nls/FilePicker","dojo/require!dojox/widget/RollingList,dojo/i18n"], function(dijit,dojo,dojox){
+define("dojox/widget/FilePicker", ["dojo","dijit","dojox","dojo/i18n!dojox/widget/nls/FilePicker","dojo/require!dojox/widget/RollingList,dojo/i18n"], function(dojo,dijit,dojox){
 dojo.provide("dojox.widget.FilePicker");
 
 dojo.require("dojox.widget.RollingList");
@@ -10,11 +9,12 @@ dojo.requireLocalization("dojox.widget", "FilePicker");
 
 dojo.declare("dojox.widget._FileInfoPane",
 	[dojox.widget._RollingListPane], {
-	// summary: a pane to display the information for the currently-selected
-	//	file
+	// summary:
+	//		a pane to display the information for the currently-selected
+	//		file
 	
 	// templateString: string
-	//	delete our template string
+	//		delete our template string
 	templateString: "",
 	
 	// templateString: String
@@ -28,8 +28,8 @@ dojo.declare("dojox.widget._FileInfoPane",
 
 	onItems: function(){
 		// summary:
-		//	called after a fetch or load - at this point, this.items should be
-		//  set and loaded.
+		//		called after a fetch or load - at this point, this.items should be
+		//		set and loaded.
 		var store = this.store, item = this.items[0];
 		if(!item){
 			this._onError("Load", new Error("No item defined"));
@@ -44,46 +44,48 @@ dojo.declare("dojox.widget._FileInfoPane",
 });
 
 dojo.declare("dojox.widget.FilePicker", dojox.widget.RollingList, {
-	// summary: a specialized version of RollingList that handles file information
-	//  in a store
+	// summary:
+	//		a specialized version of RollingList that handles file information
+	//		in a store
 	
 	className: "dojoxFilePicker",
 	
-	// pathSeparator: string
-	//  Our file separator - it will be guessed if not set
+	// pathSeparator: String
+	//		Our file separator - it will be guessed if not set
 	pathSeparator: "",
 	
-	// topDir: string
-	//	The top directory string - it will be guessed if not set
+	// topDir: String
+	//		The top directory string - it will be guessed if not set
 	topDir: "",
 		
-	// parentAttr: string
-	//	the attribute to read for finding our parent directory
+	// parentAttr: String
+	//		the attribute to read for finding our parent directory
 	parentAttr: "parentDir",
 	
-	// pathAttr: string
-	//  the attribute to read for getting the full path of our file
+	// pathAttr: String
+	//		the attribute to read for getting the full path of our file
 	pathAttr: "path",
 	
-	// preloadItems: boolean or int
-	//  Set this to a sane number - since we expect to mostly be using the
-	//	dojox.data.FileStore - which doesn't like loading lots of items
-	//	all at once.
+	// preloadItems: Boolean|Int
+	//		Set this to a sane number - since we expect to mostly be using the
+	//		dojox.data.FileStore - which doesn't like loading lots of items
+	//		all at once.
 	preloadItems: 50,
 
-	// selectDirectories: boolean
-	//  whether or not we allow selection of directories - that is, whether or
-	//  our value can be set to a directory.
+	// selectDirectories: Boolean
+	//		whether or not we allow selection of directories - that is, whether or
+	//		our value can be set to a directory.
 	selectDirectories: true,
 
-	// selectFiles: boolean
-	//  whether or not we allow selection of files - that is, we will disable
-	//  the file entries.
+	// selectFiles: Boolean
+	//		whether or not we allow selection of files - that is, we will disable
+	//		the file entries.
 	selectFiles: true,
 
 	_itemsMatch: function(/*item*/ item1, /*item*/ item2){
-		// Summary: returns whether or not the two items match - checks ID if
-		//  they aren't the exact same object - ignoring trailing slashes
+		// Summary:
+		//		Returns whether or not the two items match - checks ID if
+		//		they aren't the exact same object - ignoring trailing slashes
 		if(!item1 && !item2){
 			return true;
 		}else if(!item1 || !item2){
@@ -148,7 +150,7 @@ dojo.declare("dojox.widget.FilePicker", dojox.widget.RollingList, {
 		return ret;
 	},
 	
-	getMenuItemForItem: function(/*item*/ item, /* dijit._Contained */ parentPane, /* item[]? */ children){
+	getMenuItemForItem: function(/*item*/ item, /* dijit/_Contained */ parentPane, /* item[]? */ children){
 		var menuOptions = {iconClass: "dojoxDirectoryItemIcon"};
 		if(!this.store.getValue(item, "directory")){
 			menuOptions.iconClass = "dojoxFileItemIcon";
@@ -164,7 +166,7 @@ dojo.declare("dojox.widget.FilePicker", dojox.widget.RollingList, {
 		return ret;
 	},
 	
-	getPaneForItem: function(/*item*/ item, /* dijit._Contained */ parentPane, /* item[]? */ children){
+	getPaneForItem: function(/*item*/ item, /* dijit/_Contained */ parentPane, /* item[]? */ children){
 		var ret = null;
 		if(!item || (this.store.isItem(item) && this.store.getValue(item, "directory"))){
 			ret = new dojox.widget._RollingListGroupPane({});
@@ -174,8 +176,9 @@ dojo.declare("dojox.widget.FilePicker", dojox.widget.RollingList, {
 		return ret;
 	},
 	
-	_setPathValueAttr: function(/*string*/ path, /*boolean?*/ resetLastExec, /*function?*/ onSet){
-		// Summary: sets the value of this widget based off the given path
+	_setPathValueAttr: function(/*String*/ path, /*Boolean?*/ resetLastExec, /*function?*/ onSet){
+		// summary:
+		//		sets the value of this widget based off the given path
 		if(!path){
 			this.set("value", null);
 			return;
@@ -195,8 +198,9 @@ dojo.declare("dojox.widget.FilePicker", dojox.widget.RollingList, {
 	},
 	
 	_getPathValueAttr: function(/*item?*/val){
-		// summary: returns the path value of the given value (or current value
-		//  if not passed a value)
+		// summary:
+		//		returns the path value of the given value (or current value
+		//		if not passed a value)
 		if(!val){
 			val = this.value;
 		}
@@ -208,7 +212,8 @@ dojo.declare("dojox.widget.FilePicker", dojox.widget.RollingList, {
 	},
 	
 	_setValue: function(/* item */ value){
-		// summary: internally sets the value and fires onchange
+		// summary:
+		//		internally sets the value and fires onchange
 		delete this._setInProgress;
 		var store = this.store;
 		if(value && store.isItem(value)){
@@ -224,4 +229,5 @@ dojo.declare("dojox.widget.FilePicker", dojox.widget.RollingList, {
 		}
 	}
 });
+
 });

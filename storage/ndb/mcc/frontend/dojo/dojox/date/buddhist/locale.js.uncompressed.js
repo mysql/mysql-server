@@ -1,9 +1,7 @@
-//>>built
-define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "dojo/regexp", "dojo/string", "./Date", "dojo/i18n!dojo/cldr/nls/buddhist"],
-	function(dojo, dd, i18n, regexp, string, buddhistDate){
+define("dojox/date/buddhist/locale", ["../..", "dojo/_base/lang", "dojo/_base/array", "dojo/date", "dojo/i18n", "dojo/regexp", "dojo/string", "./Date", "dojo/i18n!dojo/cldr/nls/buddhist"],
+	function(dojox, lang, arr, dd, i18n, regexp, string, BDate){
 
-	dojo.getObject("date.buddhist.locale", true, dojox);
-	dojo.experimental("dojox.date.buddhist.locale");
+	var blocale = lang.getObject("date.buddhist.locale", true, dojox);
 
 	// Format a pattern without literals
 	function formatPattern(dateObject, bundle, locale, fullYear,  pattern){
@@ -78,7 +76,7 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 					break;
 				case 'z':
 					// We only have one timezone to offer; the one from the browser
-					s = dojo.date.getTimezoneName(dateObject.toGregorian());
+					s = dd.getTimezoneName(dateObject.toGregorian());
 					if(s){ break; }
 					l = 4;
 					// fallthrough... use GMT if tz not available
@@ -103,18 +101,20 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 		});
 	}
 	
-	dojox.date.buddhist.locale.format = function(/*buddhist.Date*/dateObject, /*object?*/options){
-		// based on and similar to dojo.date.locale.format
+	blocale.format = function(/*dojox/date/buddhist/Date*/dateObject, /*object?*/options){
 		// summary:
 		//		Format a Date object as a String, using  settings.
+
+		// based on and similar to dojo.date.locale.format
+
 		options = options || {};
 
 		var locale = i18n.normalizeLocale(options.locale);
 		var formatLength = options.formatLength || 'short';
-		var bundle = dojox.date.buddhist.locale._getBuddhistBundle(locale);
+		var bundle = blocale._getBuddhistBundle(locale);
 		var str = [];
 
-		var sauce = dojo.hitch(this, formatPattern, dateObject, bundle, locale, options.fullYear);
+		var sauce = lang.hitch(this, formatPattern, dateObject, bundle, locale, options.fullYear);
 		if(options.selector == "year"){
 			var year = dateObject.getFullYear();
 			return year;
@@ -132,19 +132,21 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 		return result; // String
 	};
 
-	dojox.date.buddhist.locale.regexp = function(/*Object?*/options){
-		//	based on and similar to dojo.date.locale.regexp
+	blocale.regexp = function(/*Object?*/options){
 		// summary:
 		//		Builds the regular needed to parse a buddhist.Date
-		return dojox.date.buddhist.locale._parseInfo(options).regexp; // String
+
+		//	based on and similar to dojo.date.locale.regexp
+
+		return blocale._parseInfo(options).regexp; // String
 	};
 
-	dojox.date.buddhist.locale._parseInfo = function(/*Object?*/options){
+	blocale._parseInfo = function(/*Object?*/options){
 	/* based on and similar to dojo.date.locale._parseInfo */
 
 		options = options || {};
 		var locale = i18n.normalizeLocale(options.locale);
-		var bundle = dojox.date.buddhist.locale._getBuddhistBundle(locale);
+		var bundle = blocale._getBuddhistBundle(locale);
 		var formatLength = options.formatLength || 'short';
 		var datePattern = options.datePattern || bundle["dateFormat-" + formatLength];
 		var timePattern = options.timePattern || bundle["timeFormat-" + formatLength];
@@ -160,17 +162,20 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 
 		var tokens = [];
 	
-		var re = _processPattern(pattern, dojo.hitch(this, _buildDateTimeRE, tokens, bundle, options));
+		var re = _processPattern(pattern, lang.hitch(this, _buildDateTimeRE, tokens, bundle, options));
 		return {regexp: re, tokens: tokens, bundle: bundle};
 	};
 
-	dojox.date.buddhist.locale.parse = function(/*String*/value, /*Object?*/options){
+	blocale.parse = function(/*String*/value, /*Object?*/options){
+		// summary:
+		//		This function parses string date value according to options
+
 		// based on and similar to dojo.date.locale.parse
-		// summary: This function parses string date value according to options
+
 		value =  value.replace(/[\u200E\u200F\u202A-\u202E]/g, ""); //remove special chars
 	
 		if(!options){options={};}
-		var info = dojox.date.buddhist.locale._parseInfo(options);
+		var info = blocale._parseInfo(options);
 	
 		var tokens = info.tokens, bundle = info.bundle;
 		var re = new RegExp("^" + info.regexp + "$");
@@ -179,10 +184,7 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 
 		var locale = i18n.normalizeLocale(options.locale);
 
-		if(!match){
-			console.debug("dojox.date.buddhist.locale.parse: value  "+value+" doesn't match pattern   " + re);
-			return null;
-		} // null
+		if(!match){ return null; } // null
 	
 		var date, date1;
 	
@@ -190,7 +192,7 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 		var amPm = "";
 		var mLength = 0;
 		var widthList = ["abbr", "wide", "narrow"];
-		var valid = dojo.every(match, function(v, i){
+		var valid = arr.every(match, function(v, i){
 			if(!i){return true;}
 			var token=tokens[i-1];
 			var l=token.length;
@@ -205,9 +207,9 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 							//Tolerate abbreviating period in month part
 							//Case-insensitive comparison
 							v = v.replace(".","").toLowerCase();
-							months = dojo.map(months, function(s){ return s ? s.replace(".","").toLowerCase() : s; } );
+							months = arr.map(months, function(s){ return s ? s.replace(".","").toLowerCase() : s; } );
 						}
-						v = dojo.indexOf(months, v);
+						v = arr.indexOf(months, v);
 						if(v == -1){
 							return false;
 						}
@@ -267,13 +269,14 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 		}else if(amPm === 'a' && hours == 12){
 			result[3] = 0; //12am -> 0
 		}
-		var dateObject = new buddhistDate(result[0], result[1], result[2], result[3], result[4], result[5], result[6]);
+		var dateObject = new BDate(result[0], result[1], result[2], result[3], result[4], result[5], result[6]);
 		return dateObject;
 	};
 
 
 	function _processPattern(pattern, applyPattern, applyLiteral, applyAll){
-		// summary: Process a pattern with literals in it
+		// summary:
+		//		Process a pattern with literals in it
 
 		// Break up on single quotes, treat every other one as a literal, except '' which becomes '
 		var identity = function(x){return x;};
@@ -286,7 +289,7 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 		var chunks = pattern.match(/(''|[^'])+/g);
 		var literal = pattern.charAt(0) == "'";
 
-		dojo.forEach(chunks, function(chunk, i){
+		arr.forEach(chunks, function(chunk, i){
 			if(!chunk){
 				chunks[i]='';
 			}else{
@@ -369,29 +372,29 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 	}
 
 	var _customFormats = [];
-	dojox.date.buddhist.locale.addCustomFormats = function(/*String*/packageName, /*String*/bundleName){
+	blocale.addCustomFormats = function(/*String*/packageName, /*String*/bundleName){
 		// summary:
 		//		Add a reference to a bundle containing localized custom formats to be
 		//		used by date/time formatting and parsing routines.
 		_customFormats.push({pkg:packageName,name:bundleName});
 	};
 
-	dojox.date.buddhist.locale._getBuddhistBundle = function(/*String*/locale){
+	blocale._getBuddhistBundle = function(/*String*/locale){
 		var buddhist = {};
-		dojo.forEach(_customFormats, function(desc){
+		arr.forEach(_customFormats, function(desc){
 			var bundle = i18n.getLocalization(desc.pkg, desc.name, locale);
-			buddhist = dojo.mixin(buddhist, bundle);
+			buddhist = lang.mixin(buddhist, bundle);
 		}, this);
 		return buddhist; /*Object*/
 	};
 
-	dojox.date.buddhist.locale.addCustomFormats("dojo.cldr","buddhist");
+	blocale.addCustomFormats("dojo.cldr","buddhist");
 
-	dojox.date.buddhist.locale.getNames = function(/*String*/item, /*String*/type, /*String?*/context, /*String?*/locale, /*buddhist Date Object?*/date){
+	blocale.getNames = function(/*String*/item, /*String*/type, /*String?*/context, /*String?*/locale, /*dojox/date/buddhist/Date?*/date){
 		// summary:
 		//		Used to get localized strings from dojo.cldr for day or month names.
 		var label;
-		var lookup = dojox.date.buddhist.locale._getBuddhistBundle(locale);
+		var lookup = blocale._getBuddhistBundle(locale);
 		var props = [item, context, type];
 		if(context == 'standAlone'){
 			var key = props.join('-');
@@ -405,4 +408,5 @@ define("dojox/date/buddhist/locale", ["dojo/main", "dojo/date", "dojo/i18n", "do
 		return (label || lookup[props.join('-')]).concat(); /*Array*/
 	};
 
+	return blocale;
 });

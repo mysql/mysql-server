@@ -1,7 +1,4 @@
---source include/have_myisam.inc
 --source include/no_valgrind_without_big.inc
-
-# The include file ctype_numconv.inc have some MyISAM specific tests
 
 # Test of charset cp1251
 
@@ -52,18 +49,6 @@ insert into t1 (a) values ('air'),
 
 SELECT * FROM t1 WHERE a LIKE 'we_%' ORDER BY a;
 drop table t1;
-
-#
-# Bug#158 ENUM and SET types does not accept valid cp1251 character
-#
-CREATE TABLE t1 (
-  e1 enum('ябълка'),
-  e2 enum('мляко')
-) ENGINE=MYISAM character set cp1251;
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
-
-# End of 4.1 tests
 
 --echo #
 --echo # Start of 5.1 tests

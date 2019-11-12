@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ struct mysql_heartbeat_context {
 };
 
 static void *mysql_heartbeat(void *p) {
-  DBUG_ENTER("mysql_heartbeat");
+  DBUG_TRACE;
   struct mysql_heartbeat_context *con = (struct mysql_heartbeat_context *)p;
   char buffer[HEART_STRING_BUFFER];
   time_t result;
@@ -82,7 +82,7 @@ static void *mysql_heartbeat(void *p) {
     my_write(con->heartbeat_file, (uchar *)buffer, strlen(buffer), MYF(0));
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -100,7 +100,7 @@ static void *mysql_heartbeat(void *p) {
 */
 
 static int daemon_example_plugin_init(void *p) {
-  DBUG_ENTER("daemon_example_plugin_init");
+  DBUG_TRACE;
 
 #ifdef HAVE_PSI_INTERFACE
   init_deamon_example_psi_keys();
@@ -145,7 +145,7 @@ static int daemon_example_plugin_init(void *p) {
   }
   plugin->data = (void *)con;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -162,7 +162,7 @@ static int daemon_example_plugin_init(void *p) {
 */
 
 static int daemon_example_plugin_deinit(void *p) {
-  DBUG_ENTER("daemon_example_plugin_deinit");
+  DBUG_TRACE;
   char buffer[HEART_STRING_BUFFER];
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
   struct mysql_heartbeat_context *con =
@@ -190,7 +190,7 @@ static int daemon_example_plugin_deinit(void *p) {
 
   my_free(con);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_mysql_daemon daemon_example_plugin = {MYSQL_DAEMON_INTERFACE_VERSION};

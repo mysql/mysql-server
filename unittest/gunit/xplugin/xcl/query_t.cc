@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
 #include <memory>
 #include <stdexcept>
 
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
-#include "plugin/x/client/xcontext.h"
 #include "plugin/x/client/xquery_result_impl.h"
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/protocol.h"
@@ -35,13 +35,13 @@
 namespace xcl {
 namespace test {
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::Throw;
-using ::testing::_;
 
 const Query_instances::Instance_id TEST_INSTANCE_ID = 1001;
 const xcl::XProtocol::Handler_id TEST_NOTICE_HANDLER_ID = 1002;
@@ -193,7 +193,7 @@ class Query_active_test_suite : public Query_test_suite {
   void expect_recv_message(const std::string &msg_text) {
     auto *message = new Message_from_str<Message_type>(msg_text);
 
-    const auto &message_options = message->descriptor()->options();
+    const auto &message_options = message->get().descriptor()->options();
     const auto server_id = static_cast<int>(
         message_options.GetExtension(Mysqlx::server_message_id));
 
@@ -205,7 +205,7 @@ class Query_active_test_suite : public Query_test_suite {
 
           if (out_error) *out_error = XError();
 
-          return message;
+          return &message->get();
         }));
   }
 

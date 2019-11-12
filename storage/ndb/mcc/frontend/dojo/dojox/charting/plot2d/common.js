@@ -131,7 +131,7 @@ return _17;
 },curve:function(a,_18){
 var _19=a.slice(0);
 if(_18=="x"){
-_19[_19.length]=_2[0];
+_19[_19.length]=_19[0];
 }
 var p=_2.map(_19,function(_1a,i){
 if(i==0){

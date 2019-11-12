@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,10 +291,10 @@ Incident_event::Incident_event(const char *buf,
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
   uint16_t incident_number;
-  uint8_t len = 0;         // Assignment to keep compiler happy
-  const char *str = NULL;  // Assignment to keep compiler happy
+  uint8_t len = 0;            // Assignment to keep compiler happy
+  const char *str = nullptr;  // Assignment to keep compiler happy
 
-  message = NULL;
+  message = nullptr;
   message_length = 0;
   incident = INCIDENT_NONE;
 
@@ -543,8 +543,8 @@ Transaction_context_event::Transaction_context_event(
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
 
-  server_uuid = NULL;
-  encoded_snapshot_version = NULL;
+  server_uuid = nullptr;
+  encoded_snapshot_version = nullptr;
 
   uint8_t server_uuid_len;
   uint32_t write_set_len;
@@ -575,7 +575,7 @@ Transaction_context_event::Transaction_context_event(
 void Transaction_context_event::clear_set(std::list<const char *> *set) {
   for (std::list<const char *>::iterator it = set->begin(); it != set->end();
        ++it)
-    bapi_free((void *)*it);
+    bapi_free(const_cast<char *>(*it));
   set->clear();
 }
 
@@ -583,20 +583,22 @@ void Transaction_context_event::clear_set(std::list<const char *> *set) {
   Destructor of the Transaction_context_event class.
 */
 Transaction_context_event::~Transaction_context_event() {
-  if (server_uuid) bapi_free((void *)server_uuid);
-  server_uuid = NULL;
-  if (encoded_snapshot_version) bapi_free((void *)encoded_snapshot_version);
-  encoded_snapshot_version = NULL;
+  if (server_uuid) bapi_free(const_cast<char *>(server_uuid));
+  server_uuid = nullptr;
+  if (encoded_snapshot_version)
+    bapi_free(const_cast<unsigned char *>(encoded_snapshot_version));
+  encoded_snapshot_version = nullptr;
   clear_set(&write_set);
   clear_set(&read_set);
 }
 
-View_change_event::View_change_event(char *raw_view_id)
+View_change_event::View_change_event(const char *raw_view_id)
     : Binary_log_event(VIEW_CHANGE_EVENT),
       view_id(),
       seq_number(0),
       certification_info() {
-  memcpy(view_id, raw_view_id, strlen(raw_view_id));
+  strncpy(view_id, raw_view_id, sizeof(view_id) - 1);
+  view_id[sizeof(view_id) - 1] = 0;
 }
 
 View_change_event::View_change_event(const char *buffer,
@@ -634,7 +636,7 @@ Heartbeat_event::Heartbeat_event(const char *buf,
   READER_ASSERT_POSITION(fde->common_header_len);
 
   READER_TRY_SET(log_ident, ptr);
-  if (log_ident == NULL || header()->log_pos < BIN_LOG_HEADER_SIZE)
+  if (log_ident == nullptr || header()->log_pos < BIN_LOG_HEADER_SIZE)
     READER_THROW("Invalid Heartbeat information");
 
   ident_len = READER_CALL(available_to_read);

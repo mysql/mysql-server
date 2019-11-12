@@ -1,15 +1,15 @@
-//>>built
 define("dojox/html/ext-dojo/style", ["dojo/_base/kernel", "dojo/dom-style", "dojo/_base/lang", "dojo/_base/html", "dojo/_base/sniff",
 		"dojo/_base/window", "dojo/dom", "dojo/dom-construct", "dojo/dom-style", "dojo/dom-attr"], 
 	function(kernel, domStyle, lang, Html, has, win, DOM, DOMConstruct, DOMStyle, DOMAttr){
 	kernel.experimental("dojox.html.ext-dojo.style");
 	var st = lang.getObject("dojox.html.ext-dojo.style", true);
 	var HtmlX = lang.getObject("dojox.html");
-	// summary: Extensions to dojo.style adding the css3 "transform" and "transform-origin" properties on IE5.5+
+	// summary:
+	//		Extensions to dojo.style adding the css3 "transform" and "transform-origin" properties on IE5.5+
 	// description:
-	//	A Package to extend the dojo.style function
-	//	Supported transformation functions:
-	//  matrix, translate, translateX, translateY, scale, scaleX, scaleY, rotate, skewX, skewY, skew
+	//		A Package to extend the dojo.style function
+	//		Supported transformation functions:
+	//	 	matrix, translate, translateX, translateY, scale, scaleX, scaleY, rotate, skewX, skewY, skew
 	lang.mixin(HtmlX["ext-dojo"].style, {
 		supportsTransform: true,
 		_toPx: function(measure){
@@ -35,7 +35,7 @@ define("dojox/html/ext-dojo/style", ["dojo/_base/kernel", "dojo/dom-style", "doj
 				}else if(to){
 					return extStyle.getTransformOrigin(node);
 				}else{
-					return arguments.length == 2 ? sget(node, name) : sget(node);
+					return sget.apply(this, arguments);
 				}
 			};
 			DOMStyle.set = function(/*DOMNode|String*/ node, /*String|Object*/ name, /*String?*/ value){
@@ -48,7 +48,7 @@ define("dojox/html/ext-dojo/style", ["dojo/_base/kernel", "dojo/dom-style", "doj
 				}else if(to){
 					return extStyle.setTransformOrigin(n, value);
 				}else{
-					return arguments.length == 3 ? sset(n, name, value) : sset(n, name);
+					return sset.apply(this, arguments);
 				}
 			};
 			// prefixes and property names

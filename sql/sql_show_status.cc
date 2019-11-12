@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #include <stddef.h>
 
 #include "lex_string.h"
-#include "m_string.h"  // C_STRING_WITH_LEN
+#include "m_string.h"  // STRING_WITH_LEN
 #include "my_sqlcommand.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/mem_root_array.h"
@@ -84,8 +84,8 @@
 */
 static SELECT_LEX *build_query(const POS &pos, THD *thd,
                                enum_sql_command command,
-                               const LEX_STRING &table_name, const String *wild,
-                               Item *where_cond) {
+                               const LEX_CSTRING &table_name,
+                               const String *wild, Item *where_cond) {
   /*
     MAINTAINER:
     This code builds a parsed tree for a query.
@@ -94,13 +94,13 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
     to understand which grammar actions are needed to
     build a parsed tree for this SQL query.
   */
-  static const LEX_STRING col_name = {C_STRING_WITH_LEN("VARIABLE_NAME")};
-  static const LEX_STRING as_name = {C_STRING_WITH_LEN("Variable_name")};
-  static const LEX_STRING col_value = {C_STRING_WITH_LEN("VARIABLE_VALUE")};
-  static const LEX_STRING as_value = {C_STRING_WITH_LEN("Value")};
-  static const LEX_STRING pfs = {C_STRING_WITH_LEN("performance_schema")};
+  static const LEX_CSTRING col_name = {STRING_WITH_LEN("VARIABLE_NAME")};
+  static const LEX_CSTRING as_name = {STRING_WITH_LEN("Variable_name")};
+  static const LEX_CSTRING col_value = {STRING_WITH_LEN("VARIABLE_VALUE")};
+  static const LEX_CSTRING as_value = {STRING_WITH_LEN("Value")};
+  static const LEX_CSTRING pfs = {STRING_WITH_LEN("performance_schema")};
 
-  static const LEX_STRING star = {C_STRING_WITH_LEN("*")};
+  static const LEX_CSTRING star = {STRING_WITH_LEN("*")};
 
   static const Query_options options = {
       0 /* query_spec_options */
@@ -193,8 +193,8 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   Create_col_name_list column_names;
   column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
-  derived_table = new (thd->mem_root) PT_derived_table(
-      false, sub_query, to_lex_cstring(table_name), &column_names);
+  derived_table = new (thd->mem_root)
+      PT_derived_table(false, sub_query, table_name, &column_names);
   if (derived_table == NULL) return NULL;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list1;
@@ -240,7 +240,7 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
     if (func_like == NULL) return NULL;
 
     /* ... WHERE Variable_name LIKE <value> ... */
-    where_clause = new (thd->mem_root) PTI_context<CTX_WHERE>(pos, func_like);
+    where_clause = new (thd->mem_root) PTI_where(pos, func_like);
     if (where_clause == NULL) return NULL;
   } else {
     where_clause = where_cond;
@@ -282,7 +282,7 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_session_status(const POS &pos, THD *thd,
                                       const String *wild, Item *where_cond) {
-  static const LEX_STRING table_name = {C_STRING_WITH_LEN("session_status")};
+  static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_status")};
 
   return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild,
                      where_cond);
@@ -290,7 +290,7 @@ SELECT_LEX *build_show_session_status(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_global_status(const POS &pos, THD *thd,
                                      const String *wild, Item *where_cond) {
-  static const LEX_STRING table_name = {C_STRING_WITH_LEN("global_status")};
+  static const LEX_CSTRING table_name = {STRING_WITH_LEN("global_status")};
 
   return build_query(pos, thd, SQLCOM_SHOW_STATUS, table_name, wild,
                      where_cond);
@@ -298,7 +298,7 @@ SELECT_LEX *build_show_global_status(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
                                          const String *wild, Item *where_cond) {
-  static const LEX_STRING table_name = {C_STRING_WITH_LEN("session_variables")};
+  static const LEX_CSTRING table_name = {STRING_WITH_LEN("session_variables")};
 
   return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild,
                      where_cond);
@@ -306,7 +306,7 @@ SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_global_variables(const POS &pos, THD *thd,
                                         const String *wild, Item *where_cond) {
-  static const LEX_STRING table_name = {C_STRING_WITH_LEN("global_variables")};
+  static const LEX_CSTRING table_name = {STRING_WITH_LEN("global_variables")};
 
   return build_query(pos, thd, SQLCOM_SHOW_VARIABLES, table_name, wild,
                      where_cond);

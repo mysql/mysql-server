@@ -757,6 +757,9 @@ name varchar(20),
 PRIMARY KEY (id),
 KEY index1 (age)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE source_db.t1 DROP INDEX index1, ADD INDEX index2(name, age), algorithm=inplace;
 FLUSH TABLES source_db.t1 FOR EXPORT;
 UNLOCK TABLES;
@@ -768,6 +771,9 @@ CREATE TABLE `t1` (
   PRIMARY KEY (`id`),
   KEY `index2` (`name`,`age`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE dest_db.t1 DISCARD TABLESPACE;
 ALTER TABLE dest_db.t1 IMPORT TABLESPACE;
 CHECK TABLE dest_db.t1;
@@ -795,6 +801,9 @@ CREATE TABLE `t1` (
   `name` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE dest_db.t1 DISCARD TABLESPACE;
 ALTER TABLE dest_db.t1 IMPORT TABLESPACE;
 CHECK TABLE dest_db.t1;

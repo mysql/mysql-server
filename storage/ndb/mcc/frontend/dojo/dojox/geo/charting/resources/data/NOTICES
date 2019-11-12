@@ -1,9 +1,13 @@
-Mapping data in this directory was obtained from the United States Geological Survey (USGS) at http://nationalatlas.gov/atlasftp.html.  
-Data and information authored or produced by the USGS are in the public domain:  http://nationalatlas.gov/policies.html.  
-The following notices and information are provided by the USGS:
------------------------------------------------------------------------------------------------------------------------------------------------
 
-	
+USStates.json mapping data was obtained from the United States Geological Survey (USGS) at http://nationalatlas.gov/atlasftp.html.
+Data and information authored or produced by the USGS are in the public domain:  http://nationalatlas.gov/policies.html.
+
+Americas.json, AsianPacific.json, ContinentalEurope.json, EuropeMiddleEastAfrica.json, WorldCountries.json and
+WorldCountriesMercator.json mapping data were obtained from Natural Earth http://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/.
+These data are in the public domain: http://www.naturalearthdata.com/about/terms-of-use/.
+
+The following notices and information are provided by the USGS (first) and then Natural Earth.
+------------------------------------------------------------------------------------------------------------------------
 	Are there legal restrictions on access or use of the data?
 
 		Access_Constraints: None 
@@ -31,7 +35,9 @@ The following notices and information are provided by the USGS:
 	3. What legal disclaimers am I supposed to read?
 
 		Although these data have been processed successfully on a computer system 
-		at the U.S. Geological Survey, no warranty expressed or implied is made by the U.S. Geological Survey regarding the utility of the data on any other system, nor shall the act of distribution constitute any such warranty. No responsibility is assumed by the U.S. Geological Survey in the use of these data. 
+		at the U.S. Geological Survey, no warranty expressed or implied is made by the U.S. Geological Survey regarding
+		the utility of the data on any other system, nor shall the act of distribution constitute any such warranty. No
+		responsibility is assumed by the U.S. Geological Survey in the use of these data.
 
 	4. How can I download or order the data?
 
@@ -58,6 +64,55 @@ The following notices and information are provided by the USGS:
 
 			To order files on CD-ROM, please see <http://nationalatlas.gov/atlasftp.html#q12>. 
 
+------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------
+Public Domain. All versions of Natural Earth raster + vector map data found on this website are in the public domain.
+You may use the maps in any manner, including modifying the content and design, electronic dissemination, and offset
+printing. The primary authors, Tom Patterson and Nathaniel Vaughn Kelso, and all other contributors renounce all
+financial claim to the maps and invites you to use them for personal, educational, and commercial purposes.
+
+No permission is needed to use Natural Earth. Crediting the authors is unnecessary.
+
+However, if you wish to cite the map data, simply use one of the following.
+
+Short text: Made with Natural Earth.
+
+Long text: Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.
+
+All users of Natural Earth are highly encouraged to read about data sources and manipulation in the Data Creation section.
+
+The authors provide Natural Earth as a public service and are not responsible for any problems relating to accuracy,
+content, design, and how it is used. If you find an error or omission, please report it for future updates.
+
+The authors used data from The Washington Post, here is their release:
+
+    Natural Earth is hereby granted a non-exclusive license to use the data being provided by The Washington Post for
+    the sole purpose of creating a world base map.  The Washington Post makes no claims as to the completeness, accuracy
+    or content of the data, and makes no representation of any kind, including, but not limited to, any warranty as to
+    the accuracy or fitness of the data for a particular use (nor shall the act of distribution constitute any such
+    warranty). No responsibility is assumed by The Washington Post for any claims arising out of Natural Earth’s use of
+    the data.
+
+The author’s used river and lake data (for Europe only) from the European Commission, Joint Research Centre, Institute
+for Environment and Sustainability, here is their release:
+
+    Natural Earth is hereby granted a non-exclusive license to use the data being provided by European Commission, Joint
+    Research Centre, Institute for Environment and Sustainability (JRC IES) for the sole purpose of creating a world
+    base map. The EC JRC IES makes no claims as to the completeness, accuracy or content of the data, and makes no
+    representation of any kind, including, but not limited to, any warranty as to the accuracy or fitness of the data
+    for a particular use (nor shall the act of distribution constitute any such warranty). No responsibility is assumed
+    by EC JRC IES for any claims arising out of Natural Earth’s use of the data.
+
+The author’s used road transportation data (for North America only) from XNR Productions, here is their release:
+
+    Natural Earth is hereby granted a non-exclusive license to use the data being provided by XNR Productions for the
+    sole purpose of creating a world base map. XNR makes no claims as to the completeness, accuracy or content of the
+    data, and makes no representation of any kind, including, but not limited to, any warranty as to the accuracy or
+    fitness of the data for a particular use (nor shall the act of distribution constitute any such warranty). No
+    responsibility is assumed by XNR for any claims arising out of Natural Earth’s use of the data.
+
+Happy mapping!
 ---------------------------------------------------------------------------------------------------------------------
 
-This Shapefile data is then reformatted into a simple JSON format
+These Shapefile data have been then reformatted into a simple JSON format

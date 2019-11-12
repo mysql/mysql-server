@@ -1,9 +1,9 @@
-//>>built
 define("dijit/_Widget", [
 	"dojo/aspect",	// aspect.around
 	"dojo/_base/config",	// config.isDebug
 	"dojo/_base/connect",	// connect.connect
 	"dojo/_base/declare", // declare
+	"dojo/has",
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/_base/lang", // lang.hitch
 	"dojo/query",
@@ -14,20 +14,12 @@ define("dijit/_Widget", [
 	"./_FocusMixin",
 	"dojo/uacss",		// browser sniffing (included for back-compat; subclasses may be using)
 	"./hccss"		// high contrast mode sniffing (included to set CSS classes on <body>, module ret value unused)
-], function(aspect, config, connect, declare, kernel, lang, query, ready,
+], function(aspect, config, connect, declare, has, kernel, lang, query, ready,
 			registry, _WidgetBase, _OnDijitClickMixin, _FocusMixin){
-
-/*=====
-	var _WidgetBase = dijit._WidgetBase;
-	var _OnDijitClickMixin = dijit._OnDijitClickMixin;
-	var _FocusMixin = dijit._FocusMixin;
-=====*/
 
 
 // module:
 //		dijit/_Widget
-// summary:
-//		Old base for widgets.   New widgets should extend _WidgetBase instead
 
 
 function connectToDomNode(){
@@ -52,22 +44,26 @@ if(kernel.connect){
 
 var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusMixin], {
 	// summary:
-	//		Base class for all Dijit widgets.
+	//		Old base class for widgets.   New widgets should extend `dijit/_WidgetBase` instead
+	// description:
+	//		Old Base class for Dijit widgets.
 	//
 	//		Extends _WidgetBase, adding support for:
-	//			- declaratively/programatically specifying widget initialization parameters like
-	//				onMouseMove="foo" that call foo when this.domNode gets a mousemove event
-	//			- ondijitclick
-	//				Support new data-dojo-attach-event="ondijitclick: ..." that is triggered by a mouse click or a SPACE/ENTER keypress
-	//			- focus related functions
-	//				In particular, the onFocus()/onBlur() callbacks.   Driven internally by
-	//				dijit/_base/focus.js.
-	//			- deprecated methods
-	//			- onShow(), onHide(), onClose()
+	//
+	//		- declaratively/programatically specifying widget initialization parameters like
+	//			onMouseMove="foo" that call foo when this.domNode gets a mousemove event
+	//		- ondijitclick:
+	//			Support new data-dojo-attach-event="ondijitclick: ..." that is triggered by a mouse click or a SPACE/ENTER keypress
+	//		- focus related functions:
+	//			In particular, the onFocus()/onBlur() callbacks.   Driven internally by
+	//			dijit/_base/focus.js.
+	//		- deprecated methods
+	//		- onShow(), onHide(), onClose()
 	//
 	//		Also, by loading code in dijit/_base, turns on:
-	//			- browser sniffing (putting browser id like .dj_ie on <html> node)
-	//			- high contrast mode sniffing (add .dijit_a11y class to <body> if machine is in high contrast mode)
+	//
+	//		- browser sniffing (putting browser class like `dj_ie` on `<html>` node)
+	//		- high contrast mode sniffing (add `dijit_a11y` class to `<body>` if machine is in high contrast mode)
 
 
 	////////////////// DEFERRED CONNECTS ///////////////////
@@ -205,7 +201,20 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 	},
 	=====*/
 
-	constructor: function(params){
+	constructor: function(params /*===== ,srcNodeRef =====*/){
+		// summary:
+		//		Create the widget.
+		// params: Object|null
+		//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
+		//		and functions, typically callbacks like onClick.
+		//		The hash can contain any of the widget's properties, excluding read-only properties.
+		// srcNodeRef: DOMNode|String?
+		//		If a srcNodeRef (DOM node) is specified:
+		//
+		//		- use srcNodeRef.innerHTML as my contents
+		//		- if this is a behavioral widget then apply behavior to that srcNodeRef
+		//		- otherwise, replace srcNodeRef with my generated DOM tree
+
 		// extract parameters like onMouseMove that should connect directly to this.domNode
 		this._toConnect = {};
 		for(var name in params){
@@ -226,10 +235,12 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 		delete this._toConnect;
 	},
 
-	on: function(/*String*/ type, /*Function*/ func){
+	on: function(/*String|Function*/ type, /*Function*/ func){
 		if(this[this._onMap(type)] === connectToDomNode){
-			// Use connect.connect() rather than on() to get handling for "onmouseenter" on non-IE, etc.
+			// Use connect.connect() rather than on() to get handling for "onmouseenter" on non-IE,
+			// normalization of onkeypress/onkeydown to behave like firefox, etc.
 			// Also, need to specify context as "this" rather than the default context of the DOMNode
+			// Remove in 2.0.
 			return connect.connect(this.domNode, type.toLowerCase(), this, func);
 		}
 		return this.inherited(arguments);
@@ -256,11 +267,11 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 	attr: function(/*String|Object*/name, /*Object?*/value){
 		// summary:
 		//		Set or get properties on a widget instance.
-		//	name:
+		// name:
 		//		The property to get or set. If an object is passed here and not
 		//		a string, its keys are used as names of attributes to be set
 		//		and the value of the object as values to set in the widget.
-		//	value:
+		// value:
 		//		Optional. If provided, attr() operates as a setter. If omitted,
 		//		the current value of the named property is returned.
 		// description:
@@ -292,7 +303,7 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 		//		supposed to be internal/hidden, but it's left here for back-compat reasons.
 
 		kernel.deprecated(this.declaredClass+"::getDescendants() is deprecated. Use getChildren() instead.", "", "2.0");
-		return this.containerNode ? query('[widgetId]', this.containerNode).map(registry.byNode) : []; // dijit._Widget[]
+		return this.containerNode ? query('[widgetId]', this.containerNode).map(registry.byNode) : []; // dijit/_WidgetBase[]
 	},
 
 	////////////////// MISCELLANEOUS METHODS ///////////////////
@@ -307,8 +318,8 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 	onShow: function(){
 		// summary:
 		//		Called when this widget becomes the selected pane in a
-		//		`dijit.layout.TabContainer`, `dijit.layout.StackContainer`,
-		//		`dijit.layout.AccordionContainer`, etc.
+		//		`dijit/layout/TabContainer`, `dijit/layout/StackContainer`,
+		//		`dijit/layout/AccordionContainer`, etc.
 		//
 		//		Also called to indicate display of a `dijit.Dialog`, `dijit.TooltipDialog`, or `dijit.TitlePane`.
 		// tags:
@@ -317,13 +328,13 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 
 	onHide: function(){
 		// summary:
-			//		Called when another widget becomes the selected pane in a
-			//		`dijit.layout.TabContainer`, `dijit.layout.StackContainer`,
-			//		`dijit.layout.AccordionContainer`, etc.
-			//
-			//		Also called to indicate hide of a `dijit.Dialog`, `dijit.TooltipDialog`, or `dijit.TitlePane`.
-			// tags:
-			//		callback
+		//		Called when another widget becomes the selected pane in a
+		//		`dijit/layout/TabContainer`, `dijit/layout/StackContainer`,
+		//		`dijit/layout/AccordionContainer`, etc.
+		//
+		//		Also called to indicate hide of a `dijit.Dialog`, `dijit.TooltipDialog`, or `dijit.TitlePane`.
+		// tags:
+		//		callback
 	},
 
 	onClose: function(){
@@ -332,7 +343,7 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 		//		up from a DateTextBox), and it is hidden.
 		//		This is called from the dijit.popup code, and should not be called directly.
 		//
-		//		Also used as a parameter for children of `dijit.layout.StackContainer` or subclasses.
+		//		Also used as a parameter for children of `dijit/layout/StackContainer` or subclasses.
 		//		Callback if a user tries to close the child.   Child will be closed if this function returns true.
 		// tags:
 		//		extension
@@ -342,7 +353,7 @@ var _Widget = declare("dijit._Widget", [_WidgetBase, _OnDijitClickMixin, _FocusM
 });
 
 // For back-compat, remove in 2.0.
-if(!kernel.isAsync){
+if(has("dijit-legacy-requires")){
 	ready(0, function(){
 		var requires = ["dijit/_base"];
 		require(requires);	// use indirection so modules not rolled into a build

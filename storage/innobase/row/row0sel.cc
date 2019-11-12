@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -237,7 +237,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
                       NULL, NULL, NULL, &ext, heap);
 
-      vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, NULL,
+      vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, heap,
                                            NULL, thr_get_trx(thr)->mysql_thd,
                                            thr->prebuilt->m_mysql_table, NULL,
                                            NULL, NULL);
@@ -320,6 +320,12 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
         is_equal = false;
         goto func_exit;
       }
+    } else if (col->is_multi_value()) {
+      if (!is_multi_value_clust_and_sec_equal(clust_field, clust_len, sec_field,
+                                              sec_len, col)) {
+        is_equal = false;
+        goto func_exit;
+      }
     } else {
       /* We are testing for equality; ASC/DESC does not
       matter */
@@ -395,10 +401,9 @@ void sel_eval_select_list(sel_node_t *node) /*!< in: select node */
 /** Assigns the values in the select list to the possible into-variables in
  SELECT ... INTO ... */
 UNIV_INLINE
-void sel_assign_into_var_values(
-    sym_node_t *var,  /*!< in: first variable in a list of
-                      variables */
-    sel_node_t *node) /*!< in: select node */
+void sel_assign_into_var_values(sym_node_t *var,  /*!< in: first variable in a
+                                                  list of  variables */
+                                sel_node_t *node) /*!< in: select node */
 {
   que_node_t *exp;
 
@@ -879,9 +884,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_sel_get_clust_rec(
     lock_type = trx->skip_gap_locks() ? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
 
     err = lock_clust_rec_read_check_and_lock(
-        0, btr_pcur_get_block(&plan->clust_pcur), clust_rec, index, offsets,
-        SELECT_ORDINARY, static_cast<lock_mode>(node->row_lock_mode), lock_type,
-        thr);
+        lock_duration_t::REGULAR, btr_pcur_get_block(&plan->clust_pcur),
+        clust_rec, index, offsets, SELECT_ORDINARY,
+        static_cast<lock_mode>(node->row_lock_mode), lock_type, thr);
 
     switch (err) {
       case DB_SUCCESS:
@@ -1007,9 +1012,9 @@ retry:
         rw_lock_own(&(match->block.lock), RW_LOCK_S));
   ut_ad(page_is_leaf(buf_block_get_frame(cur_block)));
 
-  err = lock_sec_rec_read_check_and_lock(0, cur_block, rec, index, my_offsets,
-                                         sel_mode, static_cast<lock_mode>(mode),
-                                         type, thr);
+  err = lock_sec_rec_read_check_and_lock(
+      lock_duration_t::REGULAR, cur_block, rec, index, my_offsets, sel_mode,
+      static_cast<lock_mode>(mode), type, thr);
 
   switch (err) {
     case DB_SUCCESS:
@@ -1104,8 +1109,8 @@ lock_match:
                                  ULINT_UNDEFINED, &heap);
 
     err = lock_sec_rec_read_check_and_lock(
-        0, &match->block, rtr_rec->r_rec, index, my_offsets, sel_mode,
-        static_cast<lock_mode>(mode), type, thr);
+        lock_duration_t::REGULAR, &match->block, rtr_rec->r_rec, index,
+        my_offsets, sel_mode, static_cast<lock_mode>(mode), type, thr);
 
     switch (err) {
       case DB_SUCCESS:
@@ -1163,8 +1168,11 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
   block = btr_pcur_get_block(pcur);
 
   trx = thr_get_trx(thr);
+  trx_mutex_enter(trx);
+  bool too_many_locks = (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000);
+  trx_mutex_exit(trx);
 
-  if (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000) {
+  if (too_many_locks) {
     if (buf_LRU_buf_pool_running_out()) {
       return (DB_LOCK_TABLE_FULL);
     }
@@ -1172,8 +1180,8 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
 
   if (index->is_clustered()) {
     err = lock_clust_rec_read_check_and_lock(
-        0, block, rec, index, offsets, sel_mode, static_cast<lock_mode>(mode),
-        type, thr);
+        lock_duration_t::REGULAR, block, rec, index, offsets, sel_mode,
+        static_cast<lock_mode>(mode), type, thr);
   } else {
     if (dict_index_is_spatial(index)) {
       if (type == LOCK_GAP || type == LOCK_ORDINARY) {
@@ -1186,8 +1194,8 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
                                  type, thr, mtr);
     } else {
       err = lock_sec_rec_read_check_and_lock(
-          0, block, rec, index, offsets, sel_mode, static_cast<lock_mode>(mode),
-          type, thr);
+          lock_duration_t::REGULAR, block, rec, index, offsets, sel_mode,
+          static_cast<lock_mode>(mode), type, thr);
     }
   }
 
@@ -2532,7 +2540,7 @@ static void row_sel_store_row_id_to_prebuilt(
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
 #define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
                                             sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, src, len)
+  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len)
 #endif /* UNIV_DEBUG */
 
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
@@ -2556,8 +2564,8 @@ mysql_col_len, mbminlen, mbmaxlen
                                 range comparison. */
 void row_sel_field_store_in_mysql_format_func(byte *dest,
                                               const mysql_row_templ_t *templ,
-#ifdef UNIV_DEBUG
                                               const dict_index_t *index,
+#ifdef UNIV_DEBUG
                                               ulint field_no,
 #endif /* UNIV_DEBUG */
                                               const byte *data, ulint len
@@ -2573,6 +2581,8 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
 
   bool clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 #endif /* UNIV_DEBUG */
+  ulint mysql_col_len =
+      templ->is_multi_val ? templ->mysql_mvidx_len : templ->mysql_col_len;
 
   ut_ad(rec_field_not_null_not_add_col_def(len));
   UNIV_MEM_ASSERT_RW(data, len);
@@ -2601,13 +2611,14 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
         dest[len - 1] = (byte)(dest[len - 1] ^ 128);
       }
 
-      ut_ad(templ->mysql_col_len == len);
+      ut_ad(mysql_col_len == len);
+
       break;
 
     case DATA_VARCHAR:
     case DATA_VARMYSQL:
     case DATA_BINARY:
-      field_end = dest + templ->mysql_col_len;
+      field_end = dest + mysql_col_len;
 
       if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
         /* This is a >= 5.0.3 type true VARCHAR. Store the
@@ -2672,7 +2683,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
     case DATA_MYSQL:
       memcpy(dest, data, len);
 
-      ut_ad(templ->mysql_col_len >= len);
+      ut_ad(mysql_col_len >= len);
       ut_ad(templ->mbmaxlen >= templ->mbminlen);
 
       /* If field_no equals to templ->icp_rec_field_no,
@@ -2684,26 +2695,35 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       by icp_rec_field_no has a prefix or this is a virtual
       column */
       ut_ad(templ->is_virtual || templ->mbmaxlen > templ->mbminlen ||
-            templ->mysql_col_len == len ||
+            mysql_col_len == len ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
 
       /* The following assertion would fail for old tables
       containing UTF-8 ENUM columns due to Bug #9526. */
-      ut_ad(!templ->mbmaxlen || !(templ->mysql_col_len % templ->mbmaxlen));
+      ut_ad(!templ->mbmaxlen || !(mysql_col_len % templ->mbmaxlen));
       /* Length of the record will be less in case of
       clust_templ_for_sec is true or if it is fetched
       from prefix virtual column in virtual index. */
       ut_ad(templ->is_virtual || clust_templ_for_sec ||
-            len * templ->mbmaxlen >= templ->mysql_col_len ||
+            len * templ->mbmaxlen >= mysql_col_len ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
       ut_ad(templ->is_virtual || !(field->prefix_len % templ->mbmaxlen));
 
-      if (templ->mbminlen == 1 && templ->mbmaxlen != 1) {
-        /* Pad with spaces. This undoes the stripping
-        done in row0mysql.cc, function
-        row_mysql_store_col_in_innobase_format(). */
-
-        memset(dest + len, 0x20, templ->mysql_col_len - len);
+      /* Pad with spaces. This undoes the stripping
+      done in row0mysql.cc, function
+      row_mysql_store_col_in_innobase_format(). */
+      if ((templ->mbminlen == 1 && templ->mbmaxlen != 1) ||
+          (templ->is_virtual && templ->mysql_col_len > len)) {
+        /* NOTE: This comment is for the second condition:
+        This probably comes from a prefix virtual index, where no complete
+        value can be got because the full virtual column can only be
+        calculated in server layer for now. Since server now assumes the
+        returned value should always have padding spaces, thus the fixup.
+        However, a proper and more efficient solution is that server does
+        not depend on the trailing spaces to check the terminal of the CHAR
+        string, because at least in this case,server should know it's a prefix
+        index search and no complete value would be got. */
+        memset(dest + len, 0x20, mysql_col_len - len);
       }
       break;
 
@@ -2729,53 +2749,54 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       ut_ad((templ->is_virtual && !field) ||
             (field && field->prefix_len
                  ? field->prefix_len == len
-                 : clust_templ_for_sec ? 1 : templ->mysql_col_len == len));
+                 : clust_templ_for_sec ? 1 : mysql_col_len == len));
       memcpy(dest, data, len);
   }
 }
 
 /** Convert a field from Innobase format to MySQL format. */
-#define row_sel_store_mysql_field(m, p, r, i, o, f, t, s, l) \
-  row_sel_store_mysql_field_func(m, p, r, i, o, f, t, s, l)
+#define row_sel_store_mysql_field(m, p, r, i, o, f, t, s, l, bh) \
+  row_sel_store_mysql_field_func(m, p, r, i, o, f, t, s, l, bh)
+// clang-format off
 /** Convert a field in the Innobase format to a field in the MySQL format.
-@param[out]	mysql_rec		record in the MySQL format
-@param[in,out]	prebuilt		prebuilt struct
-@param[in]	rec			InnoDB record; must be protected
-                                        by a page latch
-@param[in]	index			index of rec
-@param[in]	offsets			array returned by rec_get_offsets()
-@param[in]	field_no		templ->rec_field_no or
-                                        templ->clust_rec_field_no
-                                        or templ->icp_rec_field_no
-                                        or sec field no if clust_templ_for_sec
-                                        is TRUE
-@param[in]	templ			row template
-@param[in]	sec_field_no		secondary index field no if the
-                                        secondary index record but the
-                                        prebuilt template is in clustered index
-                                        format and used only for end
-                                        range comparison.
-@param[in]	lob_undo		the LOB undo information. */
-static MY_ATTRIBUTE((warn_unused_result)) ibool
-    row_sel_store_mysql_field_func(byte *mysql_rec, row_prebuilt_t *prebuilt,
-                                   const rec_t *rec, const dict_index_t *index,
-                                   const ulint *offsets, ulint field_no,
-                                   const mysql_row_templ_t *templ,
-                                   ulint sec_field_no,
-                                   lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_sel_store_mysql_field_func");
+@param[out]	mysql_rec		        Record in the MySQL format
+@param[in,out]	prebuilt		    Prebuilt struct
+@param[in]	rec			            InnoDB record; must be protected by a page latch
+@param[in]	index			          Index of rec
+@param[in]	offsets			        Array returned by rec_get_offsets()
+@param[in]	field_no		        templ->rec_field_no or
+                                templ->clust_rec_field_no
+                                or templ->icp_rec_field_no
+                                or sec field no if clust_templ_for_sec
+                                is true
+@param[in]	templ			          Row template
+@param[in]	sec_field_no		    Secondary index field no if the secondary index
+                                record but the prebuilt template is in
+                                clustered index format and used only for end
+                                range comparison.
+@param[in]	lob_undo		        the LOB undo information.
+@param[in,out] blob_heap        If not null then use this heap for BLOBs */
+// clang-format on
+static MY_ATTRIBUTE((warn_unused_result)) bool row_sel_store_mysql_field_func(
+    byte *mysql_rec, row_prebuilt_t *prebuilt, const rec_t *rec,
+    const dict_index_t *index, const ulint *offsets, ulint field_no,
+    const mysql_row_templ_t *templ, ulint sec_field_no,
+    lob::undo_vers_t *lob_undo, mem_heap_t *blob_heap) {
+  DBUG_TRACE;
 
   const byte *data;
   ulint len;
   ulint clust_field_no = 0;
   bool clust_templ_for_sec = (sec_field_no != ULINT_UNDEFINED);
 
-  ut_ad(prebuilt->default_rec);
   ut_ad(templ);
+  ut_ad(prebuilt->default_rec);
   ut_ad(templ >= prebuilt->mysql_template);
   ut_ad(templ < &prebuilt->mysql_template[prebuilt->n_template]);
+
   ut_ad(clust_templ_for_sec || field_no == templ->clust_rec_field_no ||
         field_no == templ->rec_field_no || field_no == templ->icp_rec_field_no);
+
   ut_ad(rec_offs_validate(
       rec, clust_templ_for_sec == true ? prebuilt->index : index, offsets));
 
@@ -2786,20 +2807,24 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     field_no = sec_field_no;
   }
 
-  if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets, field_no))) {
-    mem_heap_t *heap;
+  if (rec_offs_nth_extern(offsets, field_no)) {
     /* Copy an externally stored field to a temporary heap */
 
     ut_a(!prebuilt->trx->has_search_latch);
     ut_ad(field_no == templ->clust_rec_field_no);
     ut_ad(templ->type != DATA_POINT);
 
-    if (DATA_LARGE_MTYPE(templ->type)) {
-      if (prebuilt->blob_heap == NULL) {
-        prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
-      }
+    mem_heap_t *heap;
 
-      heap = prebuilt->blob_heap;
+    if (DATA_LARGE_MTYPE(templ->type)) {
+      if (blob_heap != nullptr) {
+        heap = blob_heap;
+      } else {
+        if (prebuilt->blob_heap == nullptr) {
+          prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
+        }
+        heap = prebuilt->blob_heap;
+      }
     } else {
       heap = mem_heap_create(UNIV_PAGE_SIZE);
     }
@@ -2818,7 +2843,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
         prebuilt->trx, clust_index, rec, offsets, page_size, field_no, &len,
         &lob_version, dict_index_is_sdi(index), heap);
 
-    if (UNIV_UNLIKELY(!data)) {
+    if (data == nullptr) {
       /* The externally stored field was not written
       yet. This record should only be seen by
       trx_rollback_or_clean_all_recovered() or any
@@ -2830,14 +2855,14 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       by recv_recovery_rollback_active() or any
       TRX_ISO_READ_UNCOMMITTED transactions. */
 
-      if (heap != prebuilt->blob_heap) {
+      if (heap != blob_heap && heap != prebuilt->blob_heap) {
         mem_heap_free(heap);
       }
 
       ut_a((!prebuilt->idx_cond &&
-            prebuilt->m_mysql_handler->end_range != NULL) ||
+            prebuilt->m_mysql_handler->end_range != nullptr) ||
            (prebuilt->trx->isolation_level == TRX_ISO_READ_UNCOMMITTED));
-      DBUG_RETURN(FALSE);
+      return false;
     }
 
     if (lob_undo != nullptr) {
@@ -2858,7 +2883,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
                                         templ, index, field_no, data, len,
                                         ULINT_UNDEFINED);
 
-    if (heap != prebuilt->blob_heap) {
+    if (heap != blob_heap && heap != prebuilt->blob_heap) {
       mem_heap_free(heap);
     }
   } else {
@@ -2878,7 +2903,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       memcpy(mysql_rec + templ->mysql_col_offset,
              (const byte *)prebuilt->default_rec + templ->mysql_col_offset,
              templ->mysql_col_len);
-      DBUG_RETURN(TRUE);
+      return true;
     }
 
     if (DATA_LARGE_MTYPE(templ->type) || DATA_GEOMETRY_MTYPE(templ->type)) {
@@ -2895,11 +2920,17 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       but it should be a BLOB field in MySQL layer. So we
       still treated it as BLOB here. */
 
-      if (prebuilt->blob_heap == NULL) {
-        prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
-      }
+      mem_heap_t *heap{};
 
-      data = static_cast<byte *>(mem_heap_dup(prebuilt->blob_heap, data, len));
+      if (blob_heap != nullptr) {
+        heap = blob_heap;
+      } else {
+        if (prebuilt->blob_heap == nullptr) {
+          prebuilt->blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
+        }
+        heap = prebuilt->blob_heap;
+      }
+      data = static_cast<byte *>(mem_heap_dup(heap, data, len));
     }
 
     /* Reassign the clustered index field no. */
@@ -2915,51 +2946,51 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   ut_ad(rec_field_not_null_not_add_col_def(len));
 
   if (templ->mysql_null_bit_mask) {
-    /* It is a nullable column with a non-NULL
-    value */
+    /* It is a nullable column with a non-NULL value */
     mysql_rec[templ->mysql_null_byte_offset] &=
         ~(byte)templ->mysql_null_bit_mask;
   }
 
-  DBUG_RETURN(TRUE);
+  return true;
 }
 
-ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
-                              const rec_t *rec, const dtuple_t *vrow,
-                              ibool rec_clust, const dict_index_t *index,
-                              const ulint *offsets, bool clust_templ_for_sec,
-                              lob::undo_vers_t *lob_undo) {
-  ulint i;
+bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
+                             const rec_t *rec, const dtuple_t *vrow,
+                             bool rec_clust, const dict_index_t *index,
+                             const ulint *offsets, bool clust_templ_for_sec,
+                             lob::undo_vers_t *lob_undo,
+                             mem_heap_t *blob_heap) {
   std::vector<const dict_col_t *> template_col;
 
-  DBUG_ENTER("row_sel_store_mysql_rec");
+  DBUG_TRACE;
 
   ut_ad(rec_clust || index == prebuilt->index);
   ut_ad(!rec_clust || index->is_clustered());
 
-  if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
+  if (blob_heap != nullptr) {
+    mem_heap_empty(blob_heap);
+  } else if (prebuilt->blob_heap != nullptr) {
     mem_heap_empty(prebuilt->blob_heap);
   }
 
   if (clust_templ_for_sec) {
-    /* Store all clustered index column of
-    secondary index record. */
-    for (i = 0; i < dict_index_get_n_fields(prebuilt->index); i++) {
-      ulint sec_field = dict_index_get_nth_field_pos(index, prebuilt->index, i);
+    /* Store all clustered index column of secondary index record. */
+    for (ulint i = 0; i < dict_index_get_n_fields(prebuilt->index); i++) {
+      auto sec_field = dict_index_get_nth_field_pos(index, prebuilt->index, i);
 
       if (sec_field == ULINT_UNDEFINED) {
         template_col.push_back(nullptr);
         continue;
       }
 
-      const dict_field_t *field = index->get_field(sec_field);
-      const dict_col_t *col = field->col;
+      const auto field = index->get_field(sec_field);
+      const auto col = field->col;
       template_col.push_back(col);
     }
   }
 
-  for (i = 0; i < prebuilt->n_template; i++) {
-    const mysql_row_templ_t *templ = &prebuilt->mysql_template[i];
+  for (ulint i = 0; i < prebuilt->n_template; i++) {
+    const auto templ = &prebuilt->mysql_template[i];
 
     if (templ->is_virtual && index->is_clustered()) {
       /* Skip virtual columns if it is not a covered
@@ -2976,7 +3007,7 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
 
       ut_ad(vrow);
 
-      const dfield_t *dfield = dtuple_get_nth_v_field(vrow, col->v_pos);
+      const auto dfield = dtuple_get_nth_v_field(vrow, col->v_pos);
 
       /* If this is a partitioned table, it might request
       InnoDB to fill out virtual column data for serach
@@ -3041,8 +3072,9 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     }
 
     if (!row_sel_store_mysql_field(mysql_rec, prebuilt, rec, index, offsets,
-                                   field_no, templ, sec_field_no, lob_undo)) {
-      DBUG_RETURN(FALSE);
+                                   field_no, templ, sec_field_no, lob_undo,
+                                   blob_heap)) {
+      return false;
     }
   }
 
@@ -3059,7 +3091,7 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     }
   }
 
-  DBUG_RETURN(TRUE);
+  return true;
 }
 
 /** Builds a previous version of a clustered index record for a consistent read
@@ -3086,7 +3118,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                                       mem_heap_t **offset_heap,
                                       rec_t **old_vers, const dtuple_t **vrow,
                                       mtr_t *mtr, lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_sel_build_prev_vers_for_mysql");
+  DBUG_TRACE;
 
   dberr_t err;
 
@@ -3100,7 +3132,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       rec, mtr, clust_index, offsets, read_view, offset_heap,
       prebuilt->old_vers_heap, old_vers, vrow, lob_undo);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Helper class to cache clust_rec and old_ver */
@@ -3148,7 +3180,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
     que_thr_t *thr, const rec_t **out_rec, ulint **offsets,
     mem_heap_t **offset_heap, const dtuple_t **vrow, mtr_t *mtr,
     lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_sel_get_clust_rec_for_mysql");
+  DBUG_TRACE;
 
   dict_index_t *clust_index;
   const rec_t *clust_rec;
@@ -3288,8 +3320,8 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
     we set a LOCK_REC_NOT_GAP type lock */
 
     err = lock_clust_rec_read_check_and_lock(
-        0, btr_pcur_get_block(prebuilt->clust_pcur), clust_rec, clust_index,
-        *offsets, prebuilt->select_mode,
+        lock_duration_t::REGULAR, btr_pcur_get_block(prebuilt->clust_pcur),
+        clust_rec, clust_index, *offsets, prebuilt->select_mode,
         static_cast<lock_mode>(prebuilt->select_lock_type), LOCK_REC_NOT_GAP,
         thr);
 
@@ -3399,7 +3431,7 @@ func_exit:
   }
 
 err_exit:
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Restores cursor position after it has been stored. We have to take into
@@ -3799,7 +3831,7 @@ static ICP_RESULT row_search_idx_cond_check(
   /* Convert to MySQL format those fields that are needed for
   evaluating the index condition. */
 
-  if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
+  if (prebuilt->blob_heap != nullptr) {
     mem_heap_empty(prebuilt->blob_heap);
   }
 
@@ -3813,7 +3845,7 @@ static ICP_RESULT row_search_idx_cond_check(
 
     if (!row_sel_store_mysql_field(mysql_rec, prebuilt, rec, prebuilt->index,
                                    offsets, templ->icp_rec_field_no, templ,
-                                   ULINT_UNDEFINED, nullptr)) {
+                                   ULINT_UNDEFINED, nullptr, nullptr)) {
       return (ICP_NO_MATCH);
     }
   }
@@ -3833,7 +3865,7 @@ static ICP_RESULT row_search_idx_cond_check(
       if (!prebuilt->need_to_access_clustered ||
           prebuilt->index->is_clustered()) {
         if (!row_sel_store_mysql_rec(mysql_rec, prebuilt, rec, NULL, FALSE,
-                                     prebuilt->index, offsets, false,
+                                     prebuilt->index, offsets, false, nullptr,
                                      nullptr)) {
           ut_ad(prebuilt->index->is_clustered());
           return (ICP_NO_MATCH);
@@ -3894,7 +3926,7 @@ static bool row_search_end_range_check(byte *mysql_rec, const rec_t *rec,
       if (templ.is_virtual && templ.icp_rec_field_no != ULINT_UNDEFINED &&
           !row_sel_store_mysql_field(mysql_rec, prebuilt, rec, prebuilt->index,
                                      offsets, templ.icp_rec_field_no, &templ,
-                                     ULINT_UNDEFINED, nullptr)) {
+                                     ULINT_UNDEFINED, nullptr, nullptr)) {
         return (false);
       }
     }
@@ -4164,7 +4196,8 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
 
     } else if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, NULL, TRUE,
-                                        clust_index, offsets, false, nullptr)) {
+                                        clust_index, offsets, false, nullptr,
+                                        nullptr)) {
       err = DB_ERROR;
       break;
     }
@@ -4238,6 +4271,129 @@ static void row_sel_fill_vrow(const rec_t *rec, dict_index_t *index,
     }
   }
 }
+/** The return type of row_compare_row_to_range() which summarizes information
+about the relation between the row being processed, and the range of the scan */
+struct row_to_range_relation_t {
+  /** true: we don't know, false: row is not in range */
+  bool row_can_be_in_range;
+  /** true: we don't know, false: gap has nothing in common with range */
+  bool gap_can_intersect_range;
+  /** true: row exactly matches end of range, false: we don't know */
+  bool row_must_be_at_end;
+};
+
+/** A helper function extracted from row_search_mvcc() which compares the row
+being processed with the range of the scan.
+It does not modify any of it's arguments and returns a summary of situation.
+All the arguments are named the same way as local variables at place of call,
+and have same values. */
+static row_to_range_relation_t row_compare_row_to_range(
+    const bool set_also_gap_locks, const trx_t *const trx,
+    const ibool unique_search, const dict_index_t *const index,
+    const dict_index_t *const clust_index, const rec_t *const rec,
+    const ibool comp, const page_cur_mode_t mode, const ulint direction,
+    const dtuple_t *search_tuple, const ulint *const offsets,
+    const ibool moves_up, const row_prebuilt_t *const prebuilt) {
+  row_to_range_relation_t row_to_range_relation;
+  row_to_range_relation.row_can_be_in_range = true;
+  row_to_range_relation.gap_can_intersect_range = true;
+  row_to_range_relation.row_must_be_at_end = false;
+
+  /* We don't know how to compare row which is on supremum with range, but this
+  should not be a problem because row_search_mvcc "skips" over them without
+  calling our function */
+  ut_ad(!page_rec_is_supremum(rec));
+  if (page_rec_is_supremum(rec)) {
+    return (row_to_range_relation);
+  }
+
+  /* Try to place a lock on the index record; note that delete
+  marked records are a special case in a unique search. If there
+  is a non-delete marked record, then it is enough to lock its
+  existence with LOCK_REC_NOT_GAP. */
+
+  /* If we are doing a 'greater or equal than a primary key
+  value' search from a clustered index, and we find a record
+  that has that exact primary key value, then there is no need
+  to lock the gap before the record, because no insert in the
+  gap can be in our search range. That is, no phantom row can
+  appear that way.
+
+  An example: if col1 is the primary key, the search is WHERE
+  col1 >= 100, and we find a record where col1 = 100, then no
+  need to lock the gap before that record. */
+
+  if (!set_also_gap_locks || trx->skip_gap_locks() ||
+      (unique_search && !rec_get_deleted_flag(rec, comp)) ||
+      dict_index_is_spatial(index) ||
+      (index == clust_index && mode == PAGE_CUR_GE && direction == 0 &&
+       dtuple_get_n_fields_cmp(search_tuple) ==
+           dict_index_get_n_unique(index) &&
+       0 == cmp_dtuple_rec(search_tuple, rec, index, offsets))) {
+    row_to_range_relation.gap_can_intersect_range = false;
+    return (row_to_range_relation);
+  }
+
+  /* We don't know how to handle HANDLER interface */
+  if (prebuilt->used_in_HANDLER) {
+    return (row_to_range_relation);
+  }
+
+  /* While I believe that we handle semi-consistent reads correctly, the proof
+  is quite complicated and lingers on the fact that semi-consistent reads are
+  used only if we don't use gap locks. And fortunately, we've already checked
+  above that trx->skip_gap_locks() is false, so we don't have to go through the
+  whole reasoning about what exactly happens in case the row which is at the
+  end of the range got locked by another transaction, removed, purged, and while
+  we were doing semi-consistent read on it. */
+  ut_ad(!trx->skip_gap_locks());
+  ut_ad(prebuilt->row_read_type == ROW_READ_WITH_LOCKS);
+
+  /* Following heuristics are meant to avoid locking the row itself, or even
+  the gap before it, in case when the row is "after the end of range". The
+  difficulty here is in that the index itself can be declared as either
+  ascending or descending, separately for each column, and cursor can be
+  PAGE_CUR_G(E) or PAGE_CUR_L(E) etc., and direction of scan can be 0,
+  ROW_SEL_NEXT or ROW_SEL_PREV, and this might be a secondary index (with
+  duplicates). So we limit ourselves just to the cases, which are at the
+  same common, tested, actionable and easy to reason about.
+  In particular we only handle cases where we iterate the index in its
+  natural order. */
+  if (index == clust_index && (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) &&
+      (direction == 0 || direction == ROW_SEL_NEXT) &&
+      prebuilt->is_reading_range()) {
+    ut_ad(moves_up);
+    const auto stop_len = dtuple_get_n_fields_cmp(prebuilt->m_stop_tuple);
+    if (0 < stop_len) {
+      const auto index_len = dict_index_get_n_unique(index);
+      ut_ad(prebuilt->m_mysql_handler->end_range != nullptr);
+      if (stop_len <= index_len) {
+        const auto cmp =
+            cmp_dtuple_rec(prebuilt->m_stop_tuple, rec, index, offsets);
+
+        if (cmp < 0) {
+          row_to_range_relation.row_can_be_in_range = false;
+          if (prebuilt->m_stop_tuple_found) {
+            ut_ad(stop_len == index_len);
+            ut_ad(direction != 0);
+            row_to_range_relation.gap_can_intersect_range = false;
+            return (row_to_range_relation);
+          }
+          return (row_to_range_relation);
+        }
+
+        if (cmp == 0) {
+          ut_ad(!prebuilt->m_stop_tuple_found);
+          row_to_range_relation.row_can_be_in_range =
+              prebuilt->m_mysql_handler->end_range->flag != HA_READ_BEFORE_KEY;
+          row_to_range_relation.row_must_be_at_end = stop_len == index_len;
+          return (row_to_range_relation);
+        }
+      }
+    }
+  }
+  return (row_to_range_relation);
+}
 
 /** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
@@ -4261,7 +4417,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
                         row_prebuilt_t *prebuilt, ulint match_mode,
                         ulint direction) {
-  DBUG_ENTER("row_search_mvcc");
+  DBUG_TRACE;
 
   dict_index_t *index = prebuilt->index;
   ibool comp = dict_table_is_comp(index->table);
@@ -4317,7 +4473,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   So anything related to traditional index query would not apply to
   it. */
   if (prebuilt->index->type & DICT_FTS) {
-    DBUG_RETURN(DB_END_OF_INDEX);
+    return DB_END_OF_INDEX;
   }
 
 #ifdef UNIV_DEBUG
@@ -4328,16 +4484,16 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 #endif /* UNIV_DEBUG */
 
   if (dict_table_is_discarded(prebuilt->table)) {
-    DBUG_RETURN(DB_TABLESPACE_DELETED);
+    return DB_TABLESPACE_DELETED;
 
   } else if (prebuilt->table->ibd_file_missing) {
-    DBUG_RETURN(DB_TABLESPACE_NOT_FOUND);
+    return DB_TABLESPACE_NOT_FOUND;
 
   } else if (!prebuilt->index_usable) {
-    DBUG_RETURN(DB_MISSING_HISTORY);
+    return DB_MISSING_HISTORY;
 
   } else if (prebuilt->index->is_corrupted()) {
-    DBUG_RETURN(DB_CORRUPTION);
+    return DB_CORRUPTION;
   }
 
   /* We need to get the virtual column values stored in secondary
@@ -4527,7 +4683,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
           }
 
           if (!row_sel_store_mysql_rec(buf, prebuilt, rec, NULL, FALSE, index,
-                                       offsets, false, nullptr)) {
+                                       offsets, false, nullptr, nullptr)) {
             /* Only fresh inserts may contain
             incomplete externally stored
             columns. Pretend that such
@@ -4793,8 +4949,8 @@ rec_loop:
   }
 
   if (page_rec_is_supremum(rec)) {
-    DBUG_EXECUTE_IF("compare_end_range",
-                    if (end_loop < 100) { end_loop = 100; });
+    DBUG_EXECUTE_IF(
+        "compare_end_range", if (end_loop < 100) { end_loop = 100; });
 
     /** Compare the last record of the page with end range
     passed to InnoDB when there is no ICP and number of
@@ -4823,7 +4979,7 @@ rec_loop:
       if (row_sel_store_mysql_rec(end_range_cache, prebuilt, prev_rec,
                                   prev_vrow, clust_templ_for_sec, key_index,
                                   offsets, clust_templ_for_sec,
-                                  prebuilt->get_lob_undo())) {
+                                  prebuilt->get_lob_undo(), nullptr)) {
         if (row_search_end_range_check(end_range_cache, prev_rec, prebuilt,
                                        clust_templ_for_sec, offsets,
                                        record_buffer)) {
@@ -5030,38 +5186,24 @@ rec_loop:
   set: the cursor is now placed on a user record */
 
   if (prebuilt->select_lock_type != LOCK_NONE) {
-    /* Try to place a lock on the index record; note that delete
-    marked records are a special case in a unique search. If there
-    is a non-delete marked record, then it is enough to lock its
-    existence with LOCK_REC_NOT_GAP. */
+    auto row_to_range_relation = row_compare_row_to_range(
+        set_also_gap_locks, trx, unique_search, index, clust_index, rec, comp,
+        mode, direction, search_tuple, offsets, moves_up, prebuilt);
 
     ulint lock_type;
-
-    if (!set_also_gap_locks || trx->skip_gap_locks() ||
-        (unique_search && !rec_get_deleted_flag(rec, comp)) ||
-        dict_index_is_spatial(index)) {
-      goto no_gap_lock;
+    if (row_to_range_relation.row_can_be_in_range) {
+      if (row_to_range_relation.gap_can_intersect_range) {
+        lock_type = LOCK_ORDINARY;
+      } else {
+        lock_type = LOCK_REC_NOT_GAP;
+      }
     } else {
-      lock_type = LOCK_ORDINARY;
-    }
-
-    /* If we are doing a 'greater or equal than a primary key
-    value' search from a clustered index, and we find a record
-    that has that exact primary key value, then there is no need
-    to lock the gap before the record, because no insert in the
-    gap can be in our search range. That is, no phantom row can
-    appear that way.
-
-    An example: if col1 is the primary key, the search is WHERE
-    col1 >= 100, and we find a record where col1 = 100, then no
-    need to lock the gap before that record. */
-
-    if (index == clust_index && mode == PAGE_CUR_GE && direction == 0 &&
-        dtuple_get_n_fields_cmp(search_tuple) ==
-            dict_index_get_n_unique(index) &&
-        0 == cmp_dtuple_rec(search_tuple, rec, index, offsets)) {
-    no_gap_lock:
-      lock_type = LOCK_REC_NOT_GAP;
+      if (row_to_range_relation.gap_can_intersect_range) {
+        lock_type = LOCK_GAP;
+      } else {
+        err = DB_RECORD_NOT_FOUND;
+        goto normal_return;
+      }
     }
 
     err = sel_set_rec_lock(pcur, rec, index, offsets, prebuilt->select_mode,
@@ -5079,6 +5221,9 @@ rec_loop:
         err = DB_SUCCESS;
         // Fall through
       case DB_SUCCESS:
+        if (row_to_range_relation.row_must_be_at_end) {
+          prebuilt->m_stop_tuple_found = true;
+        }
         break;
       case DB_SKIP_LOCKED:
         goto next_rec;
@@ -5104,6 +5249,7 @@ rec_loop:
         a deadlock and the transaction had to wait then
         release the lock it is waiting on. */
 
+        DEBUG_SYNC_C("semi_consistent_read_would_wait");
         err = lock_trx_handle_wait(trx);
 
         switch (err) {
@@ -5145,6 +5291,11 @@ rec_loop:
       default:
 
         goto lock_wait_or_error;
+    }
+  locks_ok:
+    if (err == DB_SUCCESS && !row_to_range_relation.row_can_be_in_range) {
+      err = DB_RECORD_NOT_FOUND;
+      goto normal_return;
     }
   } else {
     /* This is a non-locking consistent read: if necessary, fetch
@@ -5215,7 +5366,6 @@ rec_loop:
     }
   }
 
-locks_ok:
   /* NOTE that at this point rec can be an old version of a clustered
   index record built for a consistent read. We cannot assume after this
   point that rec is on a buffer pool page. Functions like
@@ -5359,7 +5509,8 @@ locks_ok:
       authoritative case is in result_rec, the
       appropriate version of the clustered index record. */
       if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, vrow, TRUE,
-                                   clust_index, offsets, false, nullptr)) {
+                                   clust_index, offsets, false, nullptr,
+                                   nullptr)) {
         goto next_rec;
       }
     }
@@ -5456,7 +5607,7 @@ locks_ok:
       if (!row_sel_store_mysql_rec(next_buf, prebuilt, result_rec, vrow,
                                    result_rec != rec,
                                    result_rec != rec ? clust_index : index,
-                                   offsets, false, nullptr)) {
+                                   offsets, false, nullptr, nullptr)) {
         if (next_buf == buf) {
           ut_a(prebuilt->n_fetch_cached == 0);
           next_buf = 0;
@@ -5538,10 +5689,10 @@ locks_ok:
       mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
     } else if (!prebuilt->idx_cond && !prebuilt->innodb_api) {
       /* The record was not yet converted to MySQL format. */
-      if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec, vrow,
-                                   result_rec != rec,
-                                   result_rec != rec ? clust_index : index,
-                                   offsets, false, prebuilt->get_lob_undo())) {
+      if (!row_sel_store_mysql_rec(
+              buf, prebuilt, result_rec, vrow, result_rec != rec,
+              result_rec != rec ? clust_index : index, offsets, false,
+              prebuilt->get_lob_undo(), nullptr)) {
         /* Only fresh inserts may contain
         incomplete externally stored
         columns. Pretend that such records do
@@ -5777,10 +5928,7 @@ normal_return:
   /* Rollback blocking transactions from hit list for high priority
   transaction, if any. We should not be holding latches here as
   we are going to rollback the blocking transactions. */
-  if (!trx->hit_list.empty()) {
-    ut_ad(trx_is_high_priority(trx));
-    trx_kill_blocking(trx);
-  }
+  trx_kill_blocking(trx);
 
   DEBUG_SYNC_C("row_search_for_mysql_before_return");
 
@@ -5852,7 +6000,7 @@ func_exit:
 
   ut_a(!trx->has_search_latch);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Count rows in a R-Tree leaf level.

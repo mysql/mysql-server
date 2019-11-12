@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -161,21 +161,16 @@ inline void log_block_store_checksum(byte *log_block) {
   log_block_set_checksum(log_block, log_block_calc_checksum(log_block));
 }
 
-  /* @} */
+/* @} */
 
 #ifndef UNIV_HOTBACKUP
 
-inline lsn_t log_get_max_modified_age_async() {
-  return (log_sys->max_modified_age_async);
-}
-
-inline bool log_needs_free_check() {
-  const log_t &log = *log_sys;
-
+inline bool log_needs_free_check(const log_t &log) {
   const sn_t sn = log.sn.load();
-
-  return (sn > log.sn_limit_for_start.load());
+  return (sn > log.free_check_limit_sn.load());
 }
+
+inline bool log_needs_free_check() { return (log_needs_free_check(*log_sys)); }
 
 /** Call this function before starting a mini-transaction.  It will check
 for space in the redo log. It assures there is at least
@@ -215,9 +210,7 @@ inline void log_free_check() {
   /** We prefer to wait now for the space in log file, because now
   are not holding any latches of dirty pages. */
 
-  const sn_t sn = log.sn.load();
-
-  if (unlikely(sn > log.sn_limit_for_start.load())) {
+  if (log_needs_free_check(log)) {
     /* We need to wait, because the concurrency margin could be violated
     if we let all threads to go forward after making this check now.
 
@@ -225,7 +218,7 @@ inline void log_free_check() {
     Therefore we extracted the code to seperate function, to make the
     inlined log_free_check() small. */
 
-    log_free_check_wait(log, sn);
+    log_free_check_wait(log);
   }
 }
 
@@ -273,6 +266,11 @@ inline bool log_lsn_validate(lsn_t lsn) {
 }
 
 #ifndef UNIV_HOTBACKUP
+
+/** @return total capacity of log files in bytes. */
+inline uint64_t log_get_file_capacity(const log_t &log) {
+  return (log.files_real_capacity);
+}
 
 inline lsn_t log_get_lsn(const log_t &log) {
   return (log_translate_sn_to_lsn(log.sn.load()));
@@ -341,6 +339,30 @@ inline bool log_write_to_file_requests_are_frequent(uint64_t interval) {
 inline bool log_write_to_file_requests_are_frequent(const log_t &log) {
   return (log_write_to_file_requests_are_frequent(
       log.write_to_file_requests_interval.load(std::memory_order_relaxed)));
+}
+
+inline bool log_writer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_writer));
+}
+
+inline bool log_write_notifier_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_write_notifier));
+}
+
+inline bool log_flusher_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_flusher));
+}
+
+inline bool log_flush_notifier_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_flush_notifier));
+}
+
+inline bool log_closer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_closer));
+}
+
+inline bool log_checkpointer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_checkpointer));
 }
 
 #endif /* !UNIV_HOTBACKUP */

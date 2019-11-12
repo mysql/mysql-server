@@ -30,23 +30,12 @@
 %{?with_cluster: %global cluster 1}
 
 # Pass path to mecab lib
-%if 0%{?rhel} >= 8
-%global mecab_option -DWITH_MECAB=system
-%global mecab 1
-%else
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
-%endif
 
 # Pass path to the AWS SDK install
-%{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
+%{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=1 -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
-
-# Pass path to the libcurl "lib" directory
-%{?WITH_CURL: %global curl_lib_option -DWITH_CURL=%{WITH_CURL}}
-
-# Pass alternative ssl setting if provided. Needed for e.g. wolfssl.
-%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
@@ -54,7 +43,10 @@
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
 %{?el8:                          %global systemd 1}
-%{!?with_debuginfo:              %global nodebuginfo 1}
+
+%{?el8:                          %global with_debuginfo 1}
+%{!?with_debuginfo:              %global without_debuginfo 1}
+
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
@@ -64,13 +56,13 @@
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %if 0%{?rhel} == 6
-%global compatver             5.1.72
+%global compatver             5.1.73
 %global compatlib             16
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.1/mysql-%{compatver}.tar.gz
 %endif
 
 %if 0%{?rhel} == 7
-%global compatver             5.6.42
+%global compatver             5.6.45
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
@@ -80,8 +72,7 @@
 
 %global src_dir               %{src_base}-@VERSION_SRC@
 
-# No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
-%if 0%{?nodebuginfo}
+%if 0%{?without_debuginfo}
 %global _enable_debug_package 0
 %global debug_package         %{nil}
 %global __os_install_post     /usr/lib/rpm/brp-compress %{nil}
@@ -118,13 +109,13 @@ BuildRequires:  cmake >= 3.6.1
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  libtirpc-devel
-BuildRequires:  mecab-devel
 BuildRequires:  rpcgen
 %else
 BuildRequires:  cmake3 >= 3.6.1
 BuildRequires:  devtoolset-8-gcc
 BuildRequires:  devtoolset-8-gcc-c++
 %endif
+BuildRequires:  bison >= 2.1
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
 %{?el8:BuildRequires: perl(Env)}
@@ -158,6 +149,9 @@ BuildRequires:  perl(Time::HiRes)
 BuildRequires:  perl(Time::localtime)
 BuildRequires:  time
 BuildRequires:  libaio-devel
+%if 0%{?commercial}
+BuildRequires:  libcurl-devel
+%endif
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
@@ -172,8 +166,10 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
-%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
+%global _privatelibs libprotobuf.*
+%global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
+%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*)$
 %else
 # https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
 %global __perl_provides %{SOURCE90}
@@ -206,8 +202,6 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-%{?el8:Recommends:     mecab-ipadic}
-%{?el8:Recommends:     mecab-ipadic-EUCJP}
 Requires:       %{name}-client%{?_isa} >= %{min}
 Requires:       %{name}-common%{?_isa} = %{version}-%{release}
 %if 0%{?commercial}
@@ -248,8 +242,11 @@ Obsoletes:      mariadb-connector-c-config
 Obsoletes:      mariadb-backup
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
+Obsoletes:      mariadb-server-galera
+Obsoletes:      mariadb-server-utils
 Obsoletes:      mariadb-galera-server
 Obsoletes:      mariadb-gssapi-server
+Obsoletes:      mariadb-oqgraph-engine
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
@@ -284,6 +281,19 @@ and the manual for more information.
 
 This package includes the MySQL server binary as well as related utilities
 to run and administer a MySQL server.
+
+%if 0%{?with_debuginfo}
+%package        server-debug
+Summary:        The debug version of MySQL server
+%if 0%{?commercial}
+Requires:       mysql-commercial-server = %{version}-%{release}
+Obsoletes:      mysql-community-server-debug < %{version}-%{release}
+%else
+Requires:       mysql-community-server = %{version}-%{release}
+%endif
+%description    server-debug
+This packages contains the special debug build of MySQL server.
+%endif # with_debuginfo
 
 %package        client
 Summary:        MySQL database client applications and tools
@@ -416,6 +426,7 @@ Obsoletes:      MySQL-Cluster-devel-gpl < %{version}-%{release}
 Provides:       MySQL-devel = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
+%{?el8:Obsoletes:      mariadb-embedded-devel}
 Obsoletes:      mariadb-devel
 Obsoletes:      mariadb-connector-c-devel
 Obsoletes:      mysql-connector-c-devel < 6.2
@@ -579,6 +590,7 @@ Requires:       python-paramiko
 %{?el6:Requires:  python-crypto}
 %{?el7:Requires:  python2-crypto}
 %{?el8:Requires:  python2-crypto}
+%{?el8:BuildRequires: /usr/bin/pathfix.py}
 %description    auto-installer
 This package contains the MySQL Cluster web-based graphical
 configuration installer, which can be used to set up and start or stop
@@ -678,11 +690,6 @@ fi
 
 # Build compat libs
 %if 0%{?compatlib}
-%if 0%{?commercial}
-%global compat_ssl_option -DWITH_SSL=system
-%else
-%global compat_ssl_option -DWITH_SSL=bundled
-%endif
 %if 0%{?rhel} < 7
 (
   export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -fno-strict-aliasing -fwrapv"
@@ -729,7 +736,7 @@ fi
     -DFEATURE_SET="%{feature_set}" \
     -DWITH_EMBEDDED_SERVER=1 \
     -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
-    %{?compat_ssl_option} \
+    -DWITH_SSL=system \
     -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
     -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
     -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -767,10 +774,10 @@ mkdir debug
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=1 \
+           -DWITH_CURL=system \
+           %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -778,9 +785,6 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
-           %{?aws_sdk_option} \
-           %{?curl_lib_option} \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -813,10 +817,10 @@ mkdir release
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=1 \
+           -DWITH_CURL=system \
+           %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -824,9 +828,6 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
-           %{?aws_sdk_option} \
-           %{?curl_lib_option} \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -871,7 +872,7 @@ install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
 install -D -m 0755 packaging/rpm-oel/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysqld
-%endif
+%endif # systemd
 
 # Add libdir to linker
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
@@ -883,12 +884,17 @@ mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{_
 install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/mysql_config
 %endif
 
+# Fix a cluster script
+%if 0%{?cluster}
+%{?el8:/usr/bin/pathfix.py -i /usr/bin/python2 -n -p %{buildroot}%{_bindir}/ndb_setup.py}
+%endif # cluster
+
 %if 0%{?systemd}
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
 %else
 install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
-%endif
+%endif # systemd
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # Remove files pages we explicitly do not want to package
@@ -897,12 +903,6 @@ rm -rf %{buildroot}%{_datadir}/mysql-*/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql-*/mysqld_multi.server
 rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
-
-# Remove upcoming man pages, to avoid breakage when they materialize
-# Keep this comment as a placeholder for future cases
-# rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
-
-# Remove removed manpages here until they are removed from the docs repo
 
 # remove some unwanted router files
 rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
@@ -920,11 +920,11 @@ export MTR_BUILD_THREAD=auto
 pushd mysql-test
 ./mtr \
     --mem --parallel=auto --force --retry=0 \
-    --mysqld=--binlog-format=mixed \
+    --mysqld=--binlog-format=row \
     --suite-timeout=720 --testcase-timeout=30 \
     --clean-vardir
 rm -r $(readlink var) var
-%endif
+%endif # runselftest
 
 %pre server
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
@@ -932,16 +932,13 @@ rm -r $(readlink var) var
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
-/bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
-/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
-/bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
+[ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
 /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
 %else
 /sbin/chkconfig --add mysqld
-%endif
+%endif # systemd
 
 %preun server
 %if 0%{?systemd}
@@ -1026,7 +1023,7 @@ fi
 %else
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
-%endif
+%endif # systemd
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
@@ -1037,7 +1034,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
-
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
@@ -1062,9 +1058,12 @@ fi
 %else
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
-%endif
+%endif # systemd
 %attr(755, root, root) %{_sbindir}/mysqld
-%attr(755, root, root) %{_sbindir}/mysqld-debug
+
+%dir %{_libdir}/mysql/private
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.6.1
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.6.1
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -1074,6 +1073,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
@@ -1086,6 +1086,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
@@ -1093,6 +1094,53 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
+
+%if 0%{?mecab}
+%{_libdir}/mysql/mecab
+%attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
+%endif # mecab
+
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
+%if 0%{?aws_sdk}
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
+%endif # aws_sdk
+%endif # commercial
+
+%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
+%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
+%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
+%if 0%{?systemd}
+%attr(644, root, root) %{_unitdir}/mysqld.service
+%attr(644, root, root) %{_unitdir}/mysqld@.service
+%attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
+%else
+%attr(755, root, root) %{_sysconfdir}/init.d/mysqld
+%endif # systemd
+%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
+%dir %attr(751, mysql, mysql) /var/lib/mysql
+%dir %attr(755, mysql, mysql) /var/run/mysqld
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
+%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
+
+%if 0%{?with_debuginfo}
+%files server-debug
+%endif # with_debuginfo
+%attr(755, root, root) %{_sbindir}/mysqld-debug
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -1101,6 +1149,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
@@ -1113,6 +1162,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
@@ -1120,28 +1170,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
+
 %if 0%{?mecab}
-%if 0%{?rhel} < 8
-%{_libdir}/mysql/mecab
-%endif # rhel
-%attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
 %endif # mecab
+
 %if 0%{?commercial}
-%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
-%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_page_track_component.so
-%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
@@ -1149,33 +1183,14 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_clone.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_page_track_component.so
 %if 0%{?aws_sdk}
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
-%endif
-%endif
-%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
-%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
-%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
-%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
-%if 0%{?systemd}
-%attr(644, root, root) %{_unitdir}/mysqld.service
-%attr(644, root, root) %{_unitdir}/mysqld@.service
-%attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
-%else
-%attr(755, root, root) %{_sysconfdir}/init.d/mysqld
-%endif
-%attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
-%dir %attr(751, mysql, mysql) /var/lib/mysql
-%dir %attr(755, mysql, mysql) /var/run/mysqld
-%dir %attr(750, mysql, mysql) /var/lib/mysql-files
-%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
+%endif # aws_sdk
+%endif # commercial
 
 %files common
 %defattr(-, root, root, -)
@@ -1346,6 +1361,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_test.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_backup_lock_service.so
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_page_track_component.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
@@ -1356,6 +1374,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_registration.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_current_thread_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
@@ -1420,6 +1439,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_test.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_backup_lock_service.so
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_page_track_component.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
@@ -1430,6 +1452,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_registration.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
@@ -1592,8 +1615,12 @@ fi
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_keyring
 %{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_passwd.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
 %if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf
@@ -1604,11 +1631,21 @@ fi
 %{_libdir}/libmysqlrouter.so.*
 %{_libdir}/libmysqlrouter_http.so.*
 %dir %{_libdir}/mysqlrouter
-%{_libdir}/mysqlrouter/*.so
+%{_libdir}/mysqlrouter/*.so*
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Fri Jun 28 2019 Ivan Svaljek <ivan.svaljek@oracle.com> - 8.0.18-1
+- Add keyring_hashicorp.so plugin
+- Add component_mysqlbackup component
+
+* Mon May 13 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.17-1
+- Add router man pages
+- Bundle mecab as usual on el8
+- Ship debuginfo and separate server-debug package on el8
+- Some clean up
+
 * Mon Feb 18 2019 Terje Rosten <terje.rosten@oracle.com> - 8.0.16-1
 - Initial el8 packaging
 - Add back support for alternative with_ssl
@@ -1626,7 +1663,7 @@ fi
 - Adapt to numbered share directory for NDB files
 - Add Router
 
-* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -126,13 +126,14 @@ a new-style compact page */
 /*-----------------------------*/
 
 /* Heap numbers */
-#define PAGE_HEAP_NO_INFIMUM 0  /* page infimum */
-#define PAGE_HEAP_NO_SUPREMUM 1 /* page supremum */
-#define PAGE_HEAP_NO_USER_LOW        \
-  2 /* first user record in          \
-    creation (insertion) order,      \
-    not necessarily collation order; \
-    this record may have been deleted */
+/** Page infimum */
+constexpr ulint PAGE_HEAP_NO_INFIMUM = 0;
+/** Page supremum */
+constexpr ulint PAGE_HEAP_NO_SUPREMUM = 1;
+
+/** First user record in creation (insertion) order, not necessarily collation
+order; this record may have been deleted */
+constexpr ulint PAGE_HEAP_NO_USER_LOW = 2;
 
 /* Directions of cursor movement */
 #define PAGE_LEFT 1

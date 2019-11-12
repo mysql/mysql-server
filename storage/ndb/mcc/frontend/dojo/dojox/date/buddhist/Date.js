@@ -1,34 +1,32 @@
 //>>built
-define("dojox/date/buddhist/Date",["dojo/_base/kernel","dojo/_base/declare","dojo/date"],function(_1,_2,dd){
-_1.getObject("date.buddhist.Date",true,dojox);
-_1.experimental("dojox.date.buddhist.Date");
-_1.declare("dojox.date.buddhist.Date",null,{_date:0,_month:0,_year:0,_hours:0,_minutes:0,_seconds:0,_milliseconds:0,_day:0,constructor:function(){
-var _3=arguments.length;
-if(!_3){
+define("dojox/date/buddhist/Date",["dojo/_base/lang","dojo/_base/declare","dojo/date"],function(_1,_2,dd){
+var _3=_2("dojox.date.buddhist.Date",null,{_date:0,_month:0,_year:0,_hours:0,_minutes:0,_seconds:0,_milliseconds:0,_day:0,constructor:function(){
+var _4=arguments.length;
+if(!_4){
 this.fromGregorian(new Date());
 }else{
-if(_3==1){
-var _4=arguments[0];
-if(typeof _4=="number"){
-_4=new Date(_4);
+if(_4==1){
+var _5=arguments[0];
+if(typeof _5=="number"){
+_5=new Date(_5);
 }
-if(_4 instanceof Date){
-this.fromGregorian(_4);
+if(_5 instanceof Date){
+this.fromGregorian(_5);
 }else{
-if(_4==""){
+if(_5==""){
 this._date=new Date("");
 }else{
-this._year=_4._year;
-this._month=_4._month;
-this._date=_4._date;
-this._hours=_4._hours;
-this._minutes=_4._minutes;
-this._seconds=_4._seconds;
-this._milliseconds=_4._milliseconds;
+this._year=_5._year;
+this._month=_5._month;
+this._date=_5._date;
+this._hours=_5._hours;
+this._minutes=_5._minutes;
+this._seconds=_5._seconds;
+this._milliseconds=_5._milliseconds;
 }
 }
 }else{
-if(_3>=3){
+if(_4>=3){
 this._year+=arguments[0];
 this._month+=arguments[1];
 this._date+=arguments[2];
@@ -43,7 +41,7 @@ this._milliseconds+=arguments[6]||0;
 }
 }
 }
-},getDate:function(_5){
+},getDate:function(_6){
 return parseInt(this._date);
 },getMonth:function(){
 return parseInt(this._month);
@@ -57,116 +55,116 @@ return this._minutes;
 return this._seconds;
 },getMilliseconds:function(){
 return this._milliseconds;
-},setDate:function(_6){
-_6=parseInt(_6);
-if(_6>0&&_6<=this._getDaysInMonth(this._month,this._year)){
-this._date=_6;
+},setDate:function(_7){
+_7=parseInt(_7);
+if(_7>0&&_7<=this._getDaysInMonth(this._month,this._year)){
+this._date=_7;
 }else{
-var _7;
-if(_6>0){
-for(_7=this._getDaysInMonth(this._month,this._year);_6>_7;_6-=_7,_7=this._getDaysInMonth(this._month,this._year)){
+var _8;
+if(_7>0){
+for(_8=this._getDaysInMonth(this._month,this._year);_7>_8;_7-=_8,_8=this._getDaysInMonth(this._month,this._year)){
 this._month++;
 if(this._month>=12){
 this._year++;
 this._month-=12;
 }
 }
-this._date=_6;
+this._date=_7;
 }else{
-for(_7=this._getDaysInMonth((this._month-1)>=0?(this._month-1):11,((this._month-1)>=0)?this._year:this._year-1);_6<=0;_7=this._getDaysInMonth((this._month-1)>=0?(this._month-1):11,((this._month-1)>=0)?this._year:this._year-1)){
+for(_8=this._getDaysInMonth((this._month-1)>=0?(this._month-1):11,((this._month-1)>=0)?this._year:this._year-1);_7<=0;_8=this._getDaysInMonth((this._month-1)>=0?(this._month-1):11,((this._month-1)>=0)?this._year:this._year-1)){
 this._month--;
 if(this._month<0){
 this._year--;
 this._month+=12;
 }
-_6+=_7;
+_7+=_8;
 }
-this._date=_6;
+this._date=_7;
 }
 }
 return this;
-},setFullYear:function(_8,_9,_a){
-this._year=parseInt(_8);
-},setMonth:function(_b){
-this._year+=Math.floor(_b/12);
-this._month=Math.floor(_b%12);
+},setFullYear:function(_9,_a,_b){
+this._year=parseInt(_9);
+},setMonth:function(_c){
+this._year+=Math.floor(_c/12);
+this._month=Math.floor(_c%12);
 for(;this._month<0;this._month=this._month+12){
 }
 },setHours:function(){
-var _c=arguments.length;
-var _d=0;
-if(_c>=1){
-_d=parseInt(arguments[0]);
+var _d=arguments.length;
+var _e=0;
+if(_d>=1){
+_e=parseInt(arguments[0]);
 }
-if(_c>=2){
+if(_d>=2){
 this._minutes=parseInt(arguments[1]);
 }
-if(_c>=3){
+if(_d>=3){
 this._seconds=parseInt(arguments[2]);
 }
-if(_c==4){
+if(_d==4){
 this._milliseconds=parseInt(arguments[3]);
 }
-while(_d>=24){
+while(_e>=24){
 this._date++;
-var _e=this._getDaysInMonth(this._month,this._year);
-if(this._date>_e){
+var _f=this._getDaysInMonth(this._month,this._year);
+if(this._date>_f){
 this._month++;
 if(this._month>=12){
 this._year++;
 this._month-=12;
 }
-this._date-=_e;
+this._date-=_f;
 }
-_d-=24;
+_e-=24;
 }
-this._hours=_d;
-},_addMinutes:function(_f){
-_f+=this._minutes;
-this.setMinutes(_f);
-this.setHours(this._hours+parseInt(_f/60));
+this._hours=_e;
+},_addMinutes:function(_10){
+_10+=this._minutes;
+this.setMinutes(_10);
+this.setHours(this._hours+parseInt(_10/60));
 return this;
-},_addSeconds:function(_10){
-_10+=this._seconds;
-this.setSeconds(_10);
-this._addMinutes(parseInt(_10/60));
+},_addSeconds:function(_11){
+_11+=this._seconds;
+this.setSeconds(_11);
+this._addMinutes(parseInt(_11/60));
 return this;
-},_addMilliseconds:function(_11){
-_11+=this._milliseconds;
-this.setMilliseconds(_11);
-this._addSeconds(parseInt(_11/1000));
+},_addMilliseconds:function(_12){
+_12+=this._milliseconds;
+this.setMilliseconds(_12);
+this._addSeconds(parseInt(_12/1000));
 return this;
-},setMinutes:function(_12){
-this._minutes=_12%60;
+},setMinutes:function(_13){
+this._minutes=_13%60;
 return this;
-},setSeconds:function(_13){
-this._seconds=_13%60;
+},setSeconds:function(_14){
+this._seconds=_14%60;
 return this;
-},setMilliseconds:function(_14){
-this._milliseconds=_14%1000;
+},setMilliseconds:function(_15){
+this._milliseconds=_15%1000;
 return this;
 },toString:function(){
-return this._date+", "+this._month+", "+this._year+"  "+this._hours+":"+this._minutes+":"+this._seconds;
-},_getDaysInMonth:function(_15,_16){
-return dd.getDaysInMonth(new Date(_16-543,_15));
-},fromGregorian:function(_17){
-var _18=new Date(_17);
-this._date=_18.getDate();
-this._month=_18.getMonth();
-this._year=_18.getFullYear()+543;
-this._hours=_18.getHours();
-this._minutes=_18.getMinutes();
-this._seconds=_18.getSeconds();
-this._milliseconds=_18.getMilliseconds();
-this._day=_18.getDay();
+return isNaN(this._date)?"Invalid Date":this._date+", "+this._month+", "+this._year+"  "+this._hours+":"+this._minutes+":"+this._seconds;
+},_getDaysInMonth:function(_16,_17){
+return dd.getDaysInMonth(new Date(_17-543,_16));
+},fromGregorian:function(_18){
+var _19=new Date(_18);
+this._date=_19.getDate();
+this._month=_19.getMonth();
+this._year=_19.getFullYear()+543;
+this._hours=_19.getHours();
+this._minutes=_19.getMinutes();
+this._seconds=_19.getSeconds();
+this._milliseconds=_19.getMilliseconds();
+this._day=_19.getDay();
 return this;
 },toGregorian:function(){
 return new Date(this._year-543,this._month,this._date,this._hours,this._minutes,this._seconds,this._milliseconds);
 },getDay:function(){
 return this.toGregorian().getDay();
 }});
-dojox.date.buddhist.Date.prototype.valueOf=function(){
+_3.prototype.valueOf=function(){
 return this.toGregorian().valueOf();
 };
-return dojox.date.buddhist.Date;
+return _3;
 });

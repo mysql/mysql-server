@@ -55,25 +55,25 @@ Certification_handler::~Certification_handler() {
 }
 
 int Certification_handler::initialize() {
-  DBUG_ENTER("Certification_handler::initialize");
+  DBUG_TRACE;
   DBUG_ASSERT(cert_module == NULL);
   cert_module = new Certifier();
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Certification_handler::terminate() {
-  DBUG_ENTER("Certification_handler::terminate");
+  DBUG_TRACE;
   int error = 0;
 
-  if (cert_module == NULL) DBUG_RETURN(error); /* purecov: inspected */
+  if (cert_module == NULL) return error; /* purecov: inspected */
 
   delete cert_module;
   cert_module = NULL;
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::handle_action(Pipeline_action *action) {
-  DBUG_ENTER("Certification_handler::handle_action");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -109,31 +109,31 @@ int Certification_handler::handle_action(Pipeline_action *action) {
     error = cert_module->terminate();
   }
 
-  if (error) DBUG_RETURN(error);
+  if (error) return error;
 
-  DBUG_RETURN(next(action));
+  return next(action);
 }
 
 int Certification_handler::handle_event(Pipeline_event *pevent,
                                         Continuation *cont) {
-  DBUG_ENTER("Certification_handler::handle_event");
+  DBUG_TRACE;
 
   Log_event_type ev_type = pevent->get_event_type();
   switch (ev_type) {
     case binary_log::TRANSACTION_CONTEXT_EVENT:
-      DBUG_RETURN(handle_transaction_context(pevent, cont));
+      return handle_transaction_context(pevent, cont);
     case binary_log::GTID_LOG_EVENT:
-      DBUG_RETURN(handle_transaction_id(pevent, cont));
+      return handle_transaction_id(pevent, cont);
     case binary_log::VIEW_CHANGE_EVENT:
-      DBUG_RETURN(extract_certification_info(pevent, cont));
+      return extract_certification_info(pevent, cont);
     default:
       next(pevent, cont);
-      DBUG_RETURN(0);
+      return 0;
   }
 }
 
 int Certification_handler::set_transaction_context(Pipeline_event *pevent) {
-  DBUG_ENTER("Certification_handler::set_transaction_context");
+  DBUG_TRACE;
   int error = 0;
 
   DBUG_ASSERT(transaction_context_packet == NULL);
@@ -144,17 +144,17 @@ int Certification_handler::set_transaction_context(Pipeline_event *pevent) {
   if (error || (packet == NULL)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_CONTEXT_FAILED);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
   transaction_context_packet = new Data_packet(packet->payload, packet->len);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::get_transaction_context(
     Pipeline_event *pevent, Transaction_context_log_event **tcle) {
-  DBUG_ENTER("Certification_handler::get_transaction_context");
+  DBUG_TRACE;
   int error = 0;
 
   DBUG_ASSERT(transaction_context_packet != NULL);
@@ -164,7 +164,7 @@ int Certification_handler::get_transaction_context(
   if (pevent->get_FormatDescription(&fdle) && (fdle == NULL)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_FORMAT_DESC_LOG_EVENT_FAILED);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -176,7 +176,7 @@ int Certification_handler::get_transaction_context(
   DBUG_EXECUTE_IF("certification_handler_force_error_on_pipeline", error = 1;);
   if (error || (transaction_context_event == NULL)) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_TRANS_CONTEXT_LOG_EVENT_FAILED);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *tcle =
@@ -184,15 +184,15 @@ int Certification_handler::get_transaction_context(
   if ((*tcle)->read_snapshot_version()) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_SNAPSHOT_VERSION_FAILED);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Certification_handler::reset_transaction_context() {
-  DBUG_ENTER("Certification_handler::reset_transaction_context");
+  DBUG_TRACE;
 
   /*
     Release memory allocated to transaction_context_packet,
@@ -200,13 +200,11 @@ void Certification_handler::reset_transaction_context() {
   */
   delete transaction_context_pevent;
   transaction_context_pevent = NULL;
-
-  DBUG_VOID_RETURN;
 }
 
 int Certification_handler::handle_transaction_context(Pipeline_event *pevent,
                                                       Continuation *cont) {
-  DBUG_ENTER("Certification_handler::handle_transaction_context");
+  DBUG_TRACE;
   int error = 0;
 
   error = set_transaction_context(pevent);
@@ -215,12 +213,12 @@ int Certification_handler::handle_transaction_context(Pipeline_event *pevent,
   else
     next(pevent, cont);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
                                                  Continuation *cont) {
-  DBUG_ENTER("Certification_handler::handle_transaction_id");
+  DBUG_TRACE;
   int error = 0;
   rpl_gno seq_number = 0;
   bool local_transaction = true;
@@ -475,12 +473,12 @@ after_certify:
 
 end:
   reset_transaction_context();
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::extract_certification_info(Pipeline_event *pevent,
                                                       Continuation *cont) {
-  DBUG_ENTER("Certification_handler::extract_certification_info");
+  DBUG_TRACE;
   int error = 0;
 
   if (pevent->get_event_context() != SINGLE_VIEW_EVENT) {
@@ -493,7 +491,7 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
       channel, without any special handling.
     */
     next(pevent, cont);
-    DBUG_RETURN(error);
+    return error;
   }
 
   /*
@@ -537,11 +535,11 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
       cont->signal(1, false);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
-  DBUG_ENTER("Certification_handler::log_delayed_view_change_events");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -559,13 +557,13 @@ int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
       pending_view_change_events.pop_front();
     }
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::store_view_event_for_delayed_logging(
     Pipeline_event *pevent, std::string &local_gtid_certified_string,
     rpl_gno event_gno, Continuation *cont) {
-  DBUG_ENTER("Certification_handler::store_view_event_for_delayed_logging");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -574,7 +572,7 @@ int Certification_handler::store_view_event_for_delayed_logging(
   if (error || (event == NULL)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_VIEW_CHANGE_LOG_EVENT_FAILED);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
   View_change_log_event *vchange_event =
@@ -597,17 +595,17 @@ int Certification_handler::store_view_event_for_delayed_logging(
       new View_change_packet(delayed_view_id);
   applier_module->add_view_change_packet(view_change_packet);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::wait_for_local_transaction_execution(
     std::string &local_gtid_certified_string) {
-  DBUG_ENTER("Certification_handler::wait_for_local_transaction_execution");
+  DBUG_TRACE;
   int error = 0;
 
   if (local_gtid_certified_string.empty()) {
     if (!cert_module->get_local_certified_gtid(local_gtid_certified_string)) {
-      DBUG_RETURN(0);  // set is empty, we don't need to wait
+      return 0;  // set is empty, we don't need to wait
     }
   }
 
@@ -619,7 +617,7 @@ int Certification_handler::wait_for_local_transaction_execution(
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONTACT_WITH_SRV_FAILED);
     delete sql_command_interface;
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -636,13 +634,13 @@ int Certification_handler::wait_for_local_transaction_execution(
     /* purecov: end */
   }
   delete sql_command_interface;
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
                                                        rpl_gno *event_gno,
                                                        Continuation *cont) {
-  DBUG_ENTER("Certification_handler::inject_transactional_events");
+  DBUG_TRACE;
   Log_event *event = NULL;
   Format_description_log_event *fd_event = NULL;
 
@@ -650,7 +648,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_LOG_EVENT_FAILED);
     cont->signal(1, true);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -658,7 +656,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_FORMAT_DESC_LOG_EVENT_FAILED);
     cont->signal(1, true);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -670,7 +668,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   Gtid gtid = {group_sidno, *event_gno};
   if (gtid.gno <= 0) {
     cont->signal(1, true);
-    DBUG_RETURN(1);
+    return 1;
   }
   Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
   /**
@@ -694,7 +692,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   int error = cont->wait();
   delete gtid_pipeline_event;
   if (error) {
-    DBUG_RETURN(0); /* purecov: inspected */
+    return 0; /* purecov: inspected */
   }
 
   // BEGIN event
@@ -709,7 +707,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   error = cont->wait();
   delete begin_pipeline_event;
   if (error) {
-    DBUG_RETURN(0); /* purecov: inspected */
+    return 0; /* purecov: inspected */
   }
 
   /*
@@ -720,7 +718,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   next(pevent, cont);
   error = cont->wait();
   if (error) {
-    DBUG_RETURN(0); /* purecov: inspected */
+    return 0; /* purecov: inspected */
   }
 
   // COMMIT event
@@ -734,13 +732,13 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   next(end_pipeline_event, cont);
   delete end_pipeline_event;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Certification_handler::log_view_change_event_in_order(
     Pipeline_event *view_pevent, std::string &local_gtid_string,
     rpl_gno *event_gno, Continuation *cont) {
-  DBUG_ENTER("Certification_handler::log_view_change_event_in_order");
+  DBUG_TRACE;
 
   int error = 0;
   bool first_log_attempt = (*event_gno == -1);
@@ -750,7 +748,7 @@ int Certification_handler::log_view_change_event_in_order(
   if (error || (event == NULL)) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FETCH_VIEW_CHANGE_LOG_EVENT_FAILED);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
   View_change_log_event *vchange_event =
@@ -759,7 +757,7 @@ int Certification_handler::log_view_change_event_in_order(
 
   // We are just logging old event(s), this packet was created to delay that
   // process
-  if (unlikely(view_change_event_id == "-1")) DBUG_RETURN(0);
+  if (unlikely(view_change_event_id == "-1")) return 0;
 
   if (first_log_attempt) {
     std::map<std::string, std::string> cert_info;
@@ -798,7 +796,7 @@ int Certification_handler::log_view_change_event_in_order(
     *event_gno = cert_module->generate_view_change_group_gno();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Certification_handler::is_unique() { return true; }

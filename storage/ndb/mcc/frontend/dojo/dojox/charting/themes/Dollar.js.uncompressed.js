@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/Dollar", ["../Theme", "./common"], function(Theme, themes){
-	
-	themes.Dollar=new Theme({
+define("dojox/charting/themes/Dollar", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.Dollar = new SimpleTheme({
 		colors: [
 			"#A4CE67",
 			"#739363",
@@ -10,6 +8,5 @@ define("dojox/charting/themes/Dollar", ["../Theme", "./common"], function(Theme,
 			"#636563"
 		]
 	});
-	
 	return themes.Dollar;
 });

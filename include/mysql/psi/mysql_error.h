@@ -62,6 +62,6 @@ static inline void inline_mysql_log_error(int error_num,
 }
 #endif /* HAVE_PSI_ERROR_INTERFACE */
 
-  /** @} (end of group psi_api_error) */
+/** @} (end of group psi_api_error) */
 
 #endif

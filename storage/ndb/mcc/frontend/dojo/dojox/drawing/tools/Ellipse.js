@@ -1,9 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.drawing.tools.Ellipse");
-_3.drawing.tools.Ellipse=_3.drawing.util.oo.declare(_3.drawing.stencil.Ellipse,function(){
-},{draws:true,onDrag:function(_4){
-var s=_4.start,e=_4;
+define("dojox/drawing/tools/Ellipse",["dojo/_base/lang","../util/oo","../manager/_registry","../stencil/Ellipse"],function(_1,oo,_2,_3){
+var _4=oo.declare(_3,function(){
+},{draws:true,onDrag:function(_5){
+var s=_5.start,e=_5;
 var x=s.x<e.x?s.x:e.x,y=s.y<e.y?s.y:e.y,w=s.x<e.x?e.x-s.x:s.x-e.x,h=s.y<e.y?e.y-s.y:s.y-e.y;
 if(this.keys.shift){
 w=h=Math.max(w,h);
@@ -23,13 +22,13 @@ w=x;
 }
 this.points=[{x:x-w,y:y-h},{x:x+w,y:y-h},{x:x+w,y:y+h},{x:x-w,y:y+h}];
 this.render();
-},onUp:function(_5){
+},onUp:function(_6){
 if(this.created||!this._downOnCanvas){
 return;
 }
 this._downOnCanvas=false;
 if(!this.shape){
-var s=_5.start,e=this.minimumSize*2;
+var s=_6.start,e=this.minimumSize*2;
 this.data={cx:s.x+e,cy:s.y+e,rx:e,ry:e};
 this.dataToPoints();
 this.render();
@@ -42,6 +41,8 @@ return;
 }
 this.onRender(this);
 }});
-_3.drawing.tools.Ellipse.setup={name:"dojox.drawing.tools.Ellipse",tooltip:"Ellipse Tool",iconClass:"iconEllipse"};
-_3.drawing.register(_3.drawing.tools.Ellipse.setup,"tool");
+_1.setObject("dojox.drawing.tools.Ellipse",_4);
+_4.setup={name:"dojox.drawing.tools.Ellipse",tooltip:"Ellipse Tool",iconClass:"iconEllipse"};
+_2.register(_4.setup,"tool");
+return _4;
 });

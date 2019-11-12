@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class Group_event_observer {
     @param group              members in the group
     @param is_leaving         is the member leaving
     @param[out] skip_election skip primary election on view
-    @param[out] enum_primary_election_mode election mode
+    @param[out] election_mode election mode
     @param[out] suggested_primary what should be the next primary to elect
   */
   virtual int after_view_change(
@@ -58,7 +58,7 @@ class Group_event_observer {
 
   /**
     Executed after primary election
-    @param primary  the elected primary
+    @param primary_uuid    the elected primary
     @param primary_changed if the primary changed after the election
     @param election_mode   what was the election mode
     @param error           if there was and error on the process
@@ -72,7 +72,7 @@ class Group_event_observer {
     Executed before the message is processed
     @param message             The GCS message
     @param message_origin      The member that sent this message (address)
-    @param[out] skip_election  skip message handling if true
+    @param[out] skip_message   skip message handling if true
   */
   virtual int before_message_handling(const Plugin_gcs_message &message,
                                       const std::string &message_origin,
@@ -115,7 +115,7 @@ class Group_events_observation_manager {
     @param group              members in the group
     @param is_leaving         is the member leaving
     @param[out] skip_election skip primary election on view
-    @param[out] enum_primary_election_mode election mode
+    @param[out] election_mode election mode
     @param[out] suggested_primary what should be the next primary to elect
   */
   int after_view_change(const std::vector<Gcs_member_identifier> &joining,
@@ -127,7 +127,7 @@ class Group_events_observation_manager {
 
   /**
     Executed after primary election
-    @param primary  the elected primary
+    @param primary_uuid    the elected primary
     @param primary_changed if the primary changed after the election
     @param election_mode   what was the election mode
     @param error    if there was and error on the process
@@ -140,7 +140,7 @@ class Group_events_observation_manager {
     Executed before the message is processed
     @param message             The GCS message
     @param message_origin      The member that sent this message (address)
-    @param[out] skip_election  skip message handling if true
+    @param[out] skip_message   skip message handling if true
   */
   int before_message_handling(const Plugin_gcs_message &message,
                               const std::string &message_origin,

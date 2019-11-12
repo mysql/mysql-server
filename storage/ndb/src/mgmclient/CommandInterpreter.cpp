@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -867,7 +867,7 @@ printLogEvent(struct ndb_logevent* event)
             reason_str.appfmt(" (extra info %d)", extra);
         }
         if (sphase < 255)
-          sphase_str.appfmt(" Occured during startphase %u.", sphase);
+          sphase_str.appfmt(" Occurred during startphase %u.", sphase);
         ndbout_c("Node %u: Forced node shutdown completed%s.%s%s",
                  R, action_str.c_str(), sphase_str.c_str(), 
                  reason_str.c_str());
@@ -1819,6 +1819,13 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	    if (master_id && node_state->dynamic_id == master_id)
 	      ndbout << ", *";
         }
+        else
+        {
+          if (node_state->is_single_user)
+          {
+            ndbout << ", allowed single user";
+          }
+        }
 	ndbout << ")" << endl;
       } else {
 	ndb_mgm_first(it);
@@ -1827,8 +1834,16 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
 	  if (config_hostname == 0 || config_hostname[0] == 0)
 	    config_hostname= "any host";
-	  ndbout_c(" (not connected, accepting connect from %s)",
-		   config_hostname);
+          if (type == NDB_MGM_NODE_TYPE_API && node_state->is_single_user)
+          {
+            ndbout_c(" (not connected, accepting connect from %s, "
+              "allowed single user)", config_hostname);
+          }
+          else
+          {
+            ndbout_c(" (not connected, accepting connect from %s)",
+              config_hostname);
+          }
 	}
 	else
 	{

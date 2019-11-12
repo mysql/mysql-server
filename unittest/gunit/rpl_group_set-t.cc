@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ class GroupTest : public ::testing::Test {
   unsigned int seed;
 
   void SetUp() {
-    seed = (unsigned int)time(NULL);
+    seed = (unsigned int)time(nullptr);
     printf("# seed = %u\n", seed);
     srand(seed);
     for (int i = 0; i < 16; i++) sids[i].parse(uuids[i]);
@@ -66,21 +66,21 @@ class GroupTest : public ::testing::Test {
     my_delete("sid-map-2", MYF(0));
   }
 
-    /*
-      Test that different, equivalent ways to construct a Gtid_set give
-      the same resulting Gtid_set.  This is used to test Gtid_set,
-      Sid_map, Group_cache, Group_log_state, and Owned_groups.
+  /*
+    Test that different, equivalent ways to construct a Gtid_set give
+    the same resulting Gtid_set.  This is used to test Gtid_set,
+    Sid_map, Group_cache, Group_log_state, and Owned_groups.
 
-      We will generate sets of groups in *stages*.  Each stage is
-      divided into a number of *sub-stages* (the number of substages is
-      taken uniformly at random from the set 1, 2, ..., 200).  In each
-      sub-stage, we randomly sample one sub-group from a fixed set of
-      groups.  The fixed set of groups consists of groups from 16
-      different SIDs.  For the Nth SID (1 <= N <= 16), the fixed set of
-      groups contains all GNOS from the closed interval [N, N - 1 + N *
-      N].  The stage consists of the set of groups from all the
-      sub-stages.
-    */
+    We will generate sets of groups in *stages*.  Each stage is
+    divided into a number of *sub-stages* (the number of substages is
+    taken uniformly at random from the set 1, 2, ..., 200).  In each
+    sub-stage, we randomly sample one sub-group from a fixed set of
+    groups.  The fixed set of groups consists of groups from 16
+    different SIDs.  For the Nth SID (1 <= N <= 16), the fixed set of
+    groups contains all GNOS from the closed interval [N, N - 1 + N *
+    N].  The stage consists of the set of groups from all the
+    sub-stages.
+  */
 
 #define BEGIN_SUBSTAGE_LOOP(group_test, stage, do_errtext)                    \
   (group_test)->push_errtext();                                               \
@@ -139,7 +139,7 @@ class GroupTest : public ::testing::Test {
           sid_map(sm),
           set(sm),
           str_len(0),
-          str(NULL),
+          str(nullptr),
           automatic_groups(sm),
           non_automatic_groups(sm) {
       init(sm);
@@ -183,7 +183,7 @@ class GroupTest : public ::testing::Test {
         substage.gno = 1 + (rand() % (substage.sidno * substage.sidno));
         // compute alternative forms
         substage.sid = sid_map->sidno_to_sid(substage.sidno);
-        ASSERT_NE((rpl_sid *)NULL, substage.sid) << group_test->errtext;
+        ASSERT_NE((rpl_sid *)nullptr, substage.sid) << group_test->errtext;
         substage.sid->to_string(substage.sid_str);
         substage.sid->to_string(substage.gtid_str);
         substage.gtid_str[rpl_sid.TEXT_LENGTH] = ':';
@@ -197,8 +197,8 @@ class GroupTest : public ::testing::Test {
         const Gtid_set::Interval *iv = ivit.get();
         substage.is_auto =
             !set.contains_group(substage.sidno, substage.gno) &&
-            ((iv == NULL || iv->start > 1) ? substage.gno == 1
-                                           : substage.gno == iv->end);
+            ((iv == nullptr || iv->start > 1) ? substage.gno == 1
+                                              : substage.gno == iv->end);
 
         // check if this sub-group is the first in its group in this
         // stage, and add it to the set
@@ -326,7 +326,7 @@ TEST_F(GroupTest, Sid_map) {
     rpl_sidno sidno = sm.get_sorted_sidno(i);
     const rpl_sid *sid;
     char buf[100];
-    EXPECT_NE((rpl_sid *)NULL, sid = sm.sidno_to_sid(sidno)) << errtext;
+    EXPECT_NE((rpl_sid *)nullptr, sid = sm.sidno_to_sid(sidno)) << errtext;
     const int max_len = binary_log::Uuid::TEXT_LENGTH;
     EXPECT_EQ(max_len, sid->to_string(buf)) << errtext;
     EXPECT_STRCASEEQ(uuids[i], buf) << errtext;
@@ -555,7 +555,7 @@ TEST_F(GroupTest, Group_containers) {
     of all stage group sets is equal to the full set from which we
     took the samples.
   */
-  char *done_str = NULL;
+  char *done_str = nullptr;
   int done_str_len = 0;
   Stage stage(this, sid_maps[0]);
   int stage_i = 0;
@@ -568,7 +568,7 @@ TEST_F(GroupTest, Group_containers) {
     etc.  Hence we use malloc instead of new.
   */
   THD *thd = (THD *)malloc(sizeof(THD));
-  ASSERT_NE((THD *)NULL, thd) << errtext;
+  ASSERT_NE((THD *)nullptr, thd) << errtext;
   Gtid_specification *gtid_next = &thd->variables.gtid_next;
   thd->set_new_thread_id();
   gtid_next->type = Gtid_specification::AUTOMATIC;
@@ -592,7 +592,7 @@ TEST_F(GroupTest, Group_containers) {
     // Create a string that contains all previous stage.str,
     // concatenated.
     done_str = (char *)realloc(done_str, done_str_len + 1 + stage.str_len + 1);
-    ASSERT_NE((char *)NULL, done_str) << errtext;
+    ASSERT_NE((char *)nullptr, done_str) << errtext;
     done_str_len += sprintf(done_str + done_str_len, ",%s", stage.str);
 
     // Add groups to Gtid_sets.
@@ -773,7 +773,7 @@ TEST_F(GroupTest, Group_containers) {
 #endif  // ifndef DBUG_OFF
         if (!stmt_cache.is_empty())
           gtid_flush_group_cache(
-              thd, &lock, &group_log_state, NULL /*group log*/, &stmt_cache,
+              thd, &lock, &group_log_state, nullptr /*group log*/, &stmt_cache,
               &trx_cache, 1 /*binlog_no*/, 1 /*binlog_pos*/,
               stmt_contains_logged_subgroup ? 20 + rand() % 99 : -1
               /*offset_after_last_statement*/);
@@ -798,7 +798,7 @@ TEST_F(GroupTest, Group_containers) {
 
           if (!trx_cache.is_empty())
             gtid_flush_group_cache(
-                thd, &lock, &group_log_state, NULL /*group log*/, &trx_cache,
+                thd, &lock, &group_log_state, nullptr /*group log*/, &trx_cache,
                 &trx_cache, 1 /*binlog_no*/, 1 /*binlog_pos*/,
                 trx_contains_logged_subgroup ? 20 + rand() % 99 : -1
                 /*offset_after_last_statement*/);

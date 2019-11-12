@@ -80,7 +80,6 @@
 /* Functions */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
 #cmakedefine HAVE_BACKTRACE 1
-#cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CUSERID 1
@@ -157,6 +156,7 @@
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 #cmakedefine HAVE_MADV_DONTDUMP 1
+#cmakedefine HAVE_O_TMPFILE
 
 #cmakedefine HAVE_ISINF 1
 
@@ -226,6 +226,7 @@
 /*
  * From main CMakeLists.txt
  */
+#cmakedefine CHECK_ERRMSG_FORMAT
 #cmakedefine MAX_INDEXES @MAX_INDEXES@
 #cmakedefine WITH_INNODB_MEMCACHED 1
 #cmakedefine ENABLE_MEMCACHED_SASL 1
@@ -236,6 +237,11 @@
 #cmakedefine HAVE_UBSAN
 #cmakedefine HAVE_TSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
+
+/* Lock Order */
+#cmakedefine WITH_LOCK_ORDER 1
+
+/* Character sets and collations */
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"
 #cmakedefine DEFAULT_BASEDIR "@DEFAULT_BASEDIR@"

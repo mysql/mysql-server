@@ -1,0 +1,140 @@
+#
+# Bug #30086559 CATS ASSERTION FAILURE:
+#               NEW_LOCK->TRX->STATE == TRX_STATE_ACTIVE
+#
+SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout = 20;
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(200)) ENGINE=InnoDB;
+INSERT INTO t1 (id,val) VALUES (1,"a"),   (3,"c"),(4,"d");
+BEGIN;
+SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+id	val
+BEGIN;
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C_waiter_will_wait';
+INSERT INTO t1 (id,val) VALUES (2,"b");
+SET DEBUG_SYNC = 'now WAIT_FOR C_waiter_will_wait';
+XA START 'xa1';
+SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+id	val
+XA END 'xa1';
+SET DEBUG_SYNC = 'trx_prepare_for_mysql_has_entered_innodb
+                    SIGNAL C_grantee_has_entered_innodb
+                    WAIT_FOR C_grantee_can_change_state';
+SET DEBUG_SYNC = 'trx_prepare_has_changed_state
+                    SIGNAL C_grantee_has_changed_state';
+XA PREPARE 'xa1';
+# establishing connection cats0
+# establishing connection cats1
+# establishing connection cats2
+# establishing connection cats3
+# establishing connection cats4
+# establishing connection cats5
+# establishing connection cats6
+# establishing connection cats7
+# establishing connection cats8
+# establishing connection cats9
+# establishing connection cats10
+# establishing connection cats11
+# establishing connection cats12
+# establishing connection cats13
+# establishing connection cats14
+# establishing connection cats15
+# establishing connection cats16
+# establishing connection cats17
+# establishing connection cats18
+# establishing connection cats19
+# establishing connection cats20
+# establishing connection cats21
+# establishing connection cats22
+# establishing connection cats23
+# establishing connection cats24
+# establishing connection cats25
+# establishing connection cats26
+# establishing connection cats27
+# establishing connection cats28
+# establishing connection cats29
+# establishing connection cats30
+# establishing connection cats31
+# establishing connection cats32
+# wating for cats1
+# wating for cats2
+# wating for cats3
+# wating for cats4
+# wating for cats5
+# wating for cats6
+# wating for cats7
+# wating for cats8
+# wating for cats9
+# wating for cats10
+# wating for cats11
+# wating for cats12
+# wating for cats13
+# wating for cats14
+# wating for cats15
+# wating for cats16
+# wating for cats17
+# wating for cats18
+# wating for cats19
+# wating for cats20
+# wating for cats21
+# wating for cats22
+# wating for cats23
+# wating for cats24
+# wating for cats25
+# wating for cats26
+# wating for cats27
+# wating for cats28
+# wating for cats29
+# wating for cats30
+# wating for cats31
+# wating for cats32
+SET DEBUG_SYNC = 'now WAIT_FOR C_grantee_has_entered_innodb';
+SET DEBUG_SYNC = 'lock_update_age_will_check_state_again
+                    SIGNAL C_resizer_checked_state_once
+                    WAIT_FOR C_resizer_can_check_state_again
+                    EXECUTE 3';
+UPDATE t1 SET val="cccccccccccccccc" WHERE id=3;
+SET DEBUG_SYNC = 'now WAIT_FOR C_resizer_checked_state_once';
+SET DEBUG_SYNC = 'now SIGNAL C_resizer_can_check_state_again';
+SET DEBUG_SYNC = 'now WAIT_FOR C_resizer_checked_state_once';
+SET DEBUG_SYNC = 'now SIGNAL C_grantee_can_change_state';
+SET DEBUG_SYNC = 'now WAIT_FOR C_grantee_has_changed_state';
+SET DEBUG_SYNC = 'now SIGNAL C_resizer_can_check_state_again';
+XA COMMIT 'xa1';
+COMMIT;
+COMMIT;
+DROP TABLE t1;
+# cleaning up connection cats0
+# cleaning up connection cats1
+# cleaning up connection cats2
+# cleaning up connection cats3
+# cleaning up connection cats4
+# cleaning up connection cats5
+# cleaning up connection cats6
+# cleaning up connection cats7
+# cleaning up connection cats8
+# cleaning up connection cats9
+# cleaning up connection cats10
+# cleaning up connection cats11
+# cleaning up connection cats12
+# cleaning up connection cats13
+# cleaning up connection cats14
+# cleaning up connection cats15
+# cleaning up connection cats16
+# cleaning up connection cats17
+# cleaning up connection cats18
+# cleaning up connection cats19
+# cleaning up connection cats20
+# cleaning up connection cats21
+# cleaning up connection cats22
+# cleaning up connection cats23
+# cleaning up connection cats24
+# cleaning up connection cats25
+# cleaning up connection cats26
+# cleaning up connection cats27
+# cleaning up connection cats28
+# cleaning up connection cats29
+# cleaning up connection cats30
+# cleaning up connection cats31
+# cleaning up connection cats32
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved ;

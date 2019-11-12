@@ -206,7 +206,7 @@ drop table t1;
 drop table t2;
 FK options
 create table t1(a int,  b int as (a % 2), c int as (a) stored);
-create table t2 (a int);
+create table t2 (a int primary key);
 alter table t1 add constraint foreign key fk(d) references t2(a);
 ERROR 42000: Key column 'd' doesn't exist in table
 alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
@@ -393,6 +393,11 @@ col5 int(11) GENERATED ALWAYS AS (col4 / col2) VIRTUAL,
 col6 text
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 INSERT INTO t1(col1,col2,col3,col4,col6) VALUES(NULL,1,4,0,REPEAT(2,1000));
 ALTER TABLE t1 DROP PRIMARY KEY , ADD KEY idx ( col5, col2 );
@@ -428,6 +433,9 @@ DROP TABLE t1;
 #
 # Check for a valid syntax:
 CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar"));
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -436,6 +444,9 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 CREATE TABLE t1 (i INT);
 ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar");
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -444,6 +455,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i INT COLLATE utf8_bin, c INT COLLATE utf8_bin GENERATED ALWAYS AS (10));
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -484,6 +498,11 @@ DROP TABLE t1;
 CREATE TABLE t (a int(11), b int(11),
 c int(11) GENERATED ALWAYS AS (a+b) VIRTUAL,
 d int(11) GENERATED ALWAYS AS (a+b) VIRTUAL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t(a,b) VALUES(1,2);
 # Mixed drop/add/rename virtual with non-virtual columns,
 # ALGORITHM=INPLACE is not supported for InnoDB
@@ -502,17 +521,25 @@ affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t ADD c int(11) as (a+b), ADD f varchar(10) as ('aaa');
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # Change order should be ALGORITHM=INPLACE on Innodb
 ALTER TABLE t CHANGE c c int(11) as (a) after f;
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t CHANGE b b int(11) after c;
 affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+info: Records: 1  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method
 ALTER TABLE t CHANGE c c varchar(10) as ('a');
 affected rows: 1
@@ -626,7 +653,7 @@ b INT AS (1 + DEFAULT(a)) STORED,
 c INT AS (1 + DEFAULT(a)) VIRTUAL);
 INSERT INTO t1 VALUES ();
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7, ALGORITHM = INPLACE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+Got one of the listed errors
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7;
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
@@ -643,10 +670,6 @@ CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5);
 INSERT INTO t1 VALUES();
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
 ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
-ALGORITHM = INPLACE;
-Got one of the listed errors
-ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
-ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL,
 ALGORITHM = INPLACE;
 Got one of the listed errors
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,

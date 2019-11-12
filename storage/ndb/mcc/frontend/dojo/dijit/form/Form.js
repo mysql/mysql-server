@@ -1,5 +1,5 @@
 //>>built
-define("dijit/form/Form",["dojo/_base/declare","dojo/dom-attr","dojo/_base/event","dojo/_base/kernel","dojo/_base/sniff","../_Widget","../_TemplatedMixin","./_FormMixin","../layout/_ContentPaneResizeMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+define("dijit/form/Form",["dojo/_base/declare","dojo/dom-attr","dojo/_base/event","dojo/_base/kernel","dojo/sniff","../_Widget","../_TemplatedMixin","./_FormMixin","../layout/_ContentPaneResizeMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
 return _1("dijit.form.Form",[_6,_7,_8,_9],{name:"",action:"",method:"",encType:"","accept-charset":"",accept:"",target:"",templateString:"<form data-dojo-attach-point='containerNode' data-dojo-attach-event='onreset:_onReset,onsubmit:_onSubmit' ${!nameAttrSetting}></form>",postMixInProperties:function(){
 this.nameAttrSetting=this.name?("name='"+this.name+"'"):"";
 this.inherited(arguments);

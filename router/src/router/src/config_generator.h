@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ class ConfigGenerator {
 
       operator bool() const { return port > 0 || !socket.empty(); }
     };
-    Options() : multi_master(false) {}
+    Options() {}
 
     Endpoint rw_endpoint;
     Endpoint ro_endpoint;
@@ -157,13 +157,14 @@ class ConfigGenerator {
     std::string keyring_master_key;
     std::string keyring_master_key_file_path;
 
-    bool multi_master;
     std::string bind_address;
 
     int connect_timeout;
     int read_timeout;
 
     mysqlrouter::SSLOptions ssl_options;
+
+    bool use_gr_notifications;
   };
 
   void set_file_owner(const std::map<std::string, std::string> &options,
@@ -172,8 +173,7 @@ class ConfigGenerator {
  private:
   friend class MySQLInnoDBClusterMetadata;
 
-  Options fill_options(bool multi_master,
-                       const std::map<std::string, std::string> &user_options);
+  Options fill_options(const std::map<std::string, std::string> &user_options);
 
   void create_start_script(const std::string &directory,
                            bool interactive_master_key,
@@ -209,8 +209,7 @@ class ConfigGenerator {
 
   void fetch_metadata_servers(std::vector<std::string> &metadata_servers,
                               std::string &metadata_cluster,
-                              std::string &metadata_replicaset,
-                              bool &multi_master);
+                              std::string &metadata_replicaset);
 
   void create_config(std::ostream &config_file, std::ostream &state_file,
                      uint32_t router_id, const std::string &router_name,

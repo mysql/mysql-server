@@ -20,7 +20,11 @@
 # Bug #22252394   SLAVE I/O THREAD MAY STOP WHEN BINLOG ROTATES
 #
 #
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 --source include/have_debug_sync.inc
+
 # Testing it in one mode is enough
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc

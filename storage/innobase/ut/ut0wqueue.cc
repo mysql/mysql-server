@@ -72,11 +72,10 @@ void ib_wqueue_free(ib_wqueue_t *wq) /*!< in: work queue */
 }
 
 /** Add a work item to the queue. */
-void ib_wqueue_add(
-    ib_wqueue_t *wq,  /*!< in: work queue */
-    void *item,       /*!< in: work item */
-    mem_heap_t *heap) /*!< in: memory heap to use for allocating the
-                      list node */
+void ib_wqueue_add(ib_wqueue_t *wq,  /*!< in: work queue */
+                   void *item,       /*!< in: work item */
+                   mem_heap_t *heap) /*!< in: memory heap to use for allocating
+                                     the list node */
 {
   mutex_enter(&wq->mutex);
 

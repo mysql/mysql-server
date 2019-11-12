@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ bool set_thread_priority(int priority) {
 }
 
 bool set_thread_priority(int priority, my_thread_os_id_t thread_id) {
-  DBUG_ENTER("set_thread_priority");
+  DBUG_TRACE;
 
   DBUG_ASSERT(is_valid_thread_priority(priority));
   HANDLE handle;
@@ -169,7 +169,7 @@ bool set_thread_priority(int priority, my_thread_os_id_t thread_id) {
            my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
 
-  DBUG_RETURN(res == FALSE);
+  return res == FALSE;
 }
 
 uint32_t num_vcpus_using_affinity() {

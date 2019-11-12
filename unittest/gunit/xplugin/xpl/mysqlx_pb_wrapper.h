@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@ class Wrapper {
  public:
   using Base = T;
   operator const T &() const { return m_base; }
+  const T &base() const { return m_base; }
 
  protected:
   T m_base;
@@ -103,20 +104,28 @@ class Scalar : public Wrapper<::Mysqlx::Datatypes::Scalar> {
   };
 
   struct Octets : public Wrapper<::Mysqlx::Datatypes::Scalar_Octets> {
+    enum class Content_type {
+      k_plain = 0x0000,  //   default value; general use of octets
+      k_geometry = Mysqlx::Resultset::GEOMETRY,
+      k_json = Mysqlx::Resultset::JSON,
+      k_xml = Mysqlx::Resultset::XML
+    };
+
     Octets(const std::string &value,
-           const unsigned type = 0);  // NOLINT(runtime/explicit)
+           const Content_type type =
+               Content_type::k_plain);  // NOLINT(runtime/explicit)
   };
 
   Scalar() = default;
-  Scalar(const int value);                       // NOLINT(runtime/explicit)
-  Scalar(const unsigned int value);              // NOLINT(runtime/explicit)
-  Scalar(const bool value);                      // NOLINT(runtime/explicit)
-  Scalar(const float value);                     // NOLINT(runtime/explicit)
-  Scalar(const double value);                    // NOLINT(runtime/explicit)
-  Scalar(const char *value, unsigned type = 0);  // NOLINT(runtime/explicit)
-  Scalar(const Scalar::Octets &value);           // NOLINT(runtime/explicit)
-  Scalar(const Scalar::String &value);           // NOLINT(runtime/explicit)
-  Scalar(Null value);                            // NOLINT(runtime/explicit)
+  Scalar(const int value);              // NOLINT(runtime/explicit)
+  Scalar(const unsigned int value);     // NOLINT(runtime/explicit)
+  Scalar(const bool value);             // NOLINT(runtime/explicit)
+  Scalar(const float value);            // NOLINT(runtime/explicit)
+  Scalar(const double value);           // NOLINT(runtime/explicit)
+  Scalar(const Scalar::Octets &value);  // NOLINT(runtime/explicit)
+  Scalar(const char *value);            // NOLINT(runtime/explicit)
+  Scalar(const Scalar::String &value);  // NOLINT(runtime/explicit)
+  Scalar(Null value);                   // NOLINT(runtime/explicit)
 };
 
 class Any : public Wrapper<::Mysqlx::Datatypes::Any> {
@@ -492,6 +501,7 @@ class Stmt_execute : public Wrapper<::Mysqlx::Sql::StmtExecute> {
     return *this;
   }
 };
+
 }  // namespace test
 }  // namespace xpl
 

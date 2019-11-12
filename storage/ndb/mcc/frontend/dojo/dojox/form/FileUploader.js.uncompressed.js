@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/FileUploader", [
 	"dojo/_base/kernel",
 	"dojo/_base/declare",
@@ -8,6 +7,7 @@ define("dojox/form/FileUploader", [
 	"dojo/_base/window",
 	"dojo/_base/sniff",
 	"dojo/query",
+	"dojo/dom",
 	"dojo/dom-style",
 	"dojo/dom-geometry",
 	"dojo/dom-attr",
@@ -25,32 +25,25 @@ define("dojox/form/FileUploader", [
 	"dojox/embed/Flash",
 	"dojox/embed/flashVars",
 	"dojox/html/styles"
-],function(kernel, declare, lang, array, connect, win, has, query, domStyle, domGeometry, domAttr, domClass, domConstruct, domForm, config, manager, ioIframe, Color, unloadUtils, Widget, TemplatedMixin, Contained, embedFlash, embedFlashVars, htmlStyles){
+],function(kernel, declare, lang, array, connect, win, has, query, dom, domStyle, domGeometry, domAttr, domClass, domConstruct, domForm, config, manager, ioIframe, Color, unloadUtils, Widget, TemplatedMixin, Contained, embedFlash, embedFlashVars, htmlStyles){
 
 kernel.deprecated("dojox.form.FileUploader", "Use dojox.form.Uploader", "2.0");
 
 	//	Usage Notes:
 	//		To center text vertically, use vertical-align:middle;
-	//			which emulates a boxModel button. Using line-height to center text
-	//			can cause height problems in IE6
+	//		which emulates a boxModel button. Using line-height to center text
+	//		can cause height problems in IE6
 
-
-	/*=====
-		Widget = dijit._Widget;
-		TemplatedMixin = dijit._TemplatedMixin;
-		Contained = dijit._Contained;
-	=====*/
-declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
+return declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	// version:
 	//		1.5 (deprecated)
 	// summary:
-	// 		Handles File Uploading to a server (PHP script included for testing)
+	//		Handles File Uploading to a server (PHP script included for testing)
 	//
 	//		FileUploader is now a WIDGET. You do not have to pass a button
 	//		in. Passing a button is still supported until version 1.5 to maintain
-	//		backwards compatibility, but it is not reccomended. Just create your
+	//		backwards compatibility, but it is not recommended. Just create your
 	//		uploader like any other widget.
-	//
 	// description:
 	//		If the correct version of Flash Player is available (> 9.0) , a SWF
 	//		is used. If Flash Player is not installed or is outdated, a typical
@@ -68,30 +61,33 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	//		The HTML button is created in a new way and it is now inline as is the
 	//		FLash button. Styling is much easier and more versatile.
 	//
-	//	Dependencies:
+	//		###Dependencies
+	//
 	//		FileUploader no longer uses FileInput.css. It now uses FileUploader.css
 	//		See requires for JavaScript dependencies.
 	//
-	//	NEW FEATURES -
-	//		There are a ton of features and fixes in this version.
-	//			Disabled: Can be toggled with widget.attr("disable", true|false)
-	//			Submit: A convenience method has been added for if the uploader is in a form.
-	//					Instead of submitting the form, call uploader.submit(theForm), and the
-	//					Uploader will handle all of the form values and post the data.
-	//			Selected List: If passing the ID of a container, the Uploaders will populate it
-	//					with the selected files.
-	//			Deleting Files: You can now delete pending files.
-	//			Progress Built in: showProgress:true will change the button to a progress
-	//					bar on upload.
-	//			Progress Attach: Passing progressWidgetId will tell the Uploader of a progress
-	//					widget. If the Progress widget is initially hidden, it will change to
-	//					visible and then restored after upload.
-	//			A11Y: The Flash button can be accessed with the TAB key. (The HTML cannot due
-	//					to browser limtations)
-	//			Deferred Uploading: (Flash only) throttles the upload to one file at a time
+	//		###NEW FEATURES
 	//
+	//		There are a ton of features and fixes in this version:
 	//
-	//	CDN USERS -
+	//		- Disabled: Can be toggled with widget.set("disabled", true|false)
+	//		- Submit: A convenience method has been added for if the uploader is in a form.
+	//			Instead of submitting the form, call uploader.submit(theForm), and the
+	//			Uploader will handle all of the form values and post the data.
+	//		- Selected List: If passing the ID of a container, the Uploaders will populate it
+	//			with the selected files.
+	//		- Deleting Files: You can now delete pending files.
+	//		- Progress Built in: showProgress:true will change the button to a progress
+	//			bar on upload.
+	//		- Progress Attach: Passing progressWidgetId will tell the Uploader of a progress
+	//			widget. If the Progress widget is initially hidden, it will change to
+	//			visible and then restored after upload.
+	//		- A11Y: The Flash button can be accessed with the TAB key. (The HTML cannot due
+	//			to browser limitations)
+	//		- Deferred Uploading: (Flash only) throttles the upload to one file at a time
+	//
+	//		###CDN USERS
+	//
 	//		FileUpload now works with the CDN but with limitations. The SWF must
 	//		be from the same domain as the HTML page. 'swfPath' has been exposed
 	//		so that you may link to that file (could of course be the same SWF in
@@ -99,24 +95,27 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	//		CDN server. This would require a special XML file that would allow
 	//		access to your server, and the logistics to that is impossible.
 	//
-	//	LIMITATIONS
+	//		###LIMITATIONS
+	//
 	//		- This is not designed to be a part of a form, it contains its own. (See submit())
 	//		- Currently does not in a Dialog box or a Tab where it is not initially visible,
 	//		- The default style inherits font sizes - but a parent container should have a font size
 	//			set somewhere of the results could be inconsistent.
 	//
-	//	OPERA USERS -
+	//		###OPERA USERS
+	//
 	//		It works better than the 1.3 version. fileInputs apperantly can't have opacity
 	//		set to zero. The Flash uploader works but files are auto-uploaded. Must be a
 	//		flashVar problem.
 	//
-	//	Safari Bug note:
-	//	The bug is in the way Safari handles the connection:
+	//		###Safari Bug note:
+	//
+	//		The bug is in the way Safari handles the connection:
 	//		https://bugs.webkit.org/show_bug.cgi?id=5760
 	//		I added this to the virtual host in the Apache conf file, and now it
 	//		works like a charm:
-	//		BrowserMatch Safari nokeepalive
-	//
+	//	|	BrowserMatch Safari nokeepalive
+
 	swfPath: config.uploaderPath || require.toUrl("dojox/form/resources/fileuploader.swf"),
 
 
@@ -126,22 +125,24 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	//		The url targeted for upload. An absolute URL is preferred. Relative URLs are
 	//		changed to absolute.
 	uploadUrl: "",
-	//
-	//	isDebug: Boolean
+
+	// isDebug: Boolean
 	//		If true, outputs traces from the SWF to console. What exactly gets passed
 	//		is very relative, and depends upon what traces have been left in the DEFT SWF.
 	isDebug:false,
-	//
-	//	devMode: Boolean.
+
+	// devMode: Boolean
 	//		Re-implemented. devMode increases the logging, adding style tracing from the SWF.
 	devMode:false,
-	//
-	//	id: String
+
+	/*=====
+	// id: String
 	//		The object id, just like any other widget in Dojo. However, this id
 	//		is also used as a reference for the SWF
-	// id: "",
-	//
-	//	baseClass: String
+	id: "",
+	=====*/
+
+	// baseClass: String
 	//		The name of the class that will style the button in a "normal" state.
 	//		If baseClass is not defined, 'class' will be used.
 	//		NOTE: By default the uploader will be styled like a dijit buttons and
@@ -150,44 +151,44 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	//		overwrite baseClass, you should overwrite the remaing state classes
 	//		that follow) as well.
 	baseClass:"dojoxUploaderNorm",
-	//
-	//	hoverClass: String
+
+	// hoverClass: String
 	//		The name of the class that will style the button in a "hover" state. A specific
 	//		class should be made to do this. Do not rely on a target like button:hover{...}
 	hoverClass:"dojoxUploaderHover",
-	//
-	//	activeClass: String
+
+	// activeClass: String
 	//		The name of the class that will style the button in a "press" state. A specific
 	//		class should be made to do this. Do not rely on a target like button:active{...}
 	activeClass:"dojoxUploaderActive",
-	//
-	//	disabledClass: String
+
+	// disabledClass: String
 	//		The name of the class that will style the button when its disabled.
 	disabledClass:"dojoxUploaderDisabled",
-	//
-	//	force: String
+
+	// force: String
 	//		Use "flash" to always use Flash (and hopefully force the user to download the plugin
 	//		if they don't have it). Use "html" to always use the HTML uploader. An empty string
 	//		(default) will check for the right version of Flash and use HTML if not available.
 	force:"",
-	//
-	//	uploaderType: [readonly] String
+
+	// uploaderType: [readonly] String
 	//		Internal. What type of uploader is being used: "flash" or "html"
 	uploaderType:"",
-	//
-	//	flashObject: [readonly] dojox.embed.Flash
+
+	// flashObject: [readonly] dojox.embed.Flash
 	//		The object that creates the SWF embed object. Mostly Internal.
 	flashObject: null,
-	//
-	//	flashMovie: [readonly] Function
+
+	// flashMovie: [readonly] Function
 	//		The SWF. Mostly Internal.
 	flashMovie: null,
-	//
-	//	insideNode: [readonly] HTMLNode
+
+	// insideNode: [readonly] HTMLNode
 	//		The div that holds the SWF and form/fileInput
 	insideNode: null,
-	//
-	//	deferredUploading: Number (1 - X)
+
+	// deferredUploading: Number (1 - X)
 	//		(Flash only) throttles the upload to a certain amount of files at a time.
 	//		By default, Flash uploads file one at a time to the server, but in parallel.
 	//		Firefox will try to queue all files at once, leading to problems. Set this
@@ -195,88 +196,91 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	//		Generally, 1 should work fine, but you can experiment with queuing more than
 	//		one at a time.
 	//		This is of course ignored if selectMultipleFiles equals false.
-	deferredUploading:1,
-	//
-	//	fileListId: String
+	deferredUploading: 1,
+
+	// fileListId: String
 	//		The id of a dom node to be used as a container for the pending file list.
 	fileListId:"",
-	//
-	//	uploadOnChange: Boolean
-	//		If true, uploads imediately after a file has been selected. If false,
+
+	// uploadOnChange: Boolean
+	//		If true, uploads immediately after a file has been selected. If false,
 	//		waits for upload() to be called.
 	uploadOnChange: false,
-	//
-	//	selectMultipleFiles: Boolean
+
+	// selectMultipleFiles: Boolean
 	//		If true and flash mode, multiple files may be selected from the dialog.
 	//		If html mode, files are not uploaded until upload() is called. The references
 	//		to each file is incremented:uploadedfile0, uploadedfile1, uploadedfile2... etc.
 	selectMultipleFiles: true,
-	//
-	//	htmlFieldName: String
+
+	// htmlFieldName: String
 	//		The name of the field of the fileInput that the server is expecting
 	htmlFieldName:"uploadedfile",
-	//
-	//	flashFieldName: String
+
+	// flashFieldName: String
 	//		The name of the field of the flash uploaded files that the server is expecting
 	flashFieldName:"flashUploadFiles",
-	//
+
 	// fileMask:  Array[ Array[Description, FileTypes], Array[...]...]
-	// 		(an array, or an array of arrays)
+	//		(an array, or an array of arrays)
 	//		Restrict file selection to certain file types
-	// 		Empty array defaults to "All Files"
-	// example:
-	//	fileMask = ["Images", "*.jpg;*.jpeg;*.gif;*.png"]
-	//	or
-	//	fileMask = [
-	//		["Jpeg File", 	"*.jpg;*.jpeg"],
-	//		["GIF File", 	"*.gif"],
-	//		["PNG File", 	"*.png"],
-	//		["All Images", 	"*.jpg;*.jpeg;*.gif;*.png"],
-	//	]
-	//	NOTE: MacType is not supported, as it does not work very well.
-	//			fileMask will work on a Mac, but differently than
-	//			Windows.
-	fileMask: null,
+	//		Empty array defaults to "All Files"
 	//
-	//	minFlashVersion: Number
+	//		example:
+	//
+	//	|	fileMask = ["Images", "*.jpg;*.jpeg;*.gif;*.png"]
+	//		or
+	//	|	fileMask = [
+	//	|		["Jpeg File", 	"*.jpg;*.jpeg"],
+	//	|		["GIF File", 	"*.gif"],
+	//	|		["PNG File", 	"*.png"],
+	//	|		["All Images", 	"*.jpg;*.jpeg;*.gif;*.png"],
+	//	|	]
+	//
+	//		NOTE: MacType is not supported, as it does not work very well.
+	//		fileMask will work on a Mac, but differently than
+	//		Windows.
+	fileMask: null,
+
+	// minFlashVersion: Number
 	//		The minimum of version of Flash player to target. 0 would always install Flash, 100
 	//		would never install it. The Flash Player has supported multiple uploads since
 	//		version 8, so it could go as low as that safely.
 	minFlashVersion:9,
-	//
-	//	tabIndex: Number|String
+
+	// tabIndex: Number|String
 	//		The tab order in the DOM. Only supported by Flash. HTML Uploaders have security
 	//		protection to prevent you from tabbing to the uploader. Stupid.
 	tabIndex:-1,
-	//
-	//	showProgress: Boolean
+
+	// showProgress: Boolean
 	//		If true, the button changes to a progress bar during upload.
 	showProgress:false,
-	//
-	//	progressMessage: String
+
+	// progressMessage: String
 	//		The message shown while the button is changed to a progress bar
 	progressMessage:"Loading",
-	//
-	//	progressBackgroundUrl: String|Uri
+
+	// progressBackgroundUrl: String|Uri
 	//		The background image to use for the button-progress
 	progressBackgroundUrl:require.toUrl("dijit/themes/tundra/images/buttonActive.png"),
-	//
-	//	progressBackgroundColor: String|Number
+
+	// progressBackgroundColor: String|Number
 	//		The background color to use for the button-progress
 	progressBackgroundColor:"#ededed",
-	//
-	//	progressWidgetId:String
+
+	// progressWidgetId:String
 	//		The widget id of a Dijit Progress bar. The Uploader will bind to it and update it
 	//		automatically.
 	progressWidgetId:"",
-	//
+
 	// skipServerCheck: Boolean
-	// 		If true, will not verify that the server was sent the correct format.
+	//		If true, will not verify that the server was sent the correct format.
 	//		This can be safely set to true. The purpose of the server side check
 	//		is mainly to show the dev if they've implemented the different returns
 	//		correctly.
 	skipServerCheck:false,
-	//
+
 	// serverTimeout:Number (milliseconds)
 	//		The amount of time given to the uploaded file
 	//		to wait for a server response. After this amount
@@ -286,7 +290,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 
 
 	log: function(){
-		//	summary:
+		// summary:
 		//		Due to the excessive logging necessary to make this code happen,
 		//		It's easier to turn it on and off here in one place.
 		//		Also helpful if there are multiple uploaders on one page.
@@ -357,7 +361,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		//		changed to display:block. Note if the node is in
 		//		a widget that has an onShow event, this is
 		//		overridden.
-		//
+
 		if(!node){ return null; }
 		var hidden = null;
 		var p = node.parentNode;
@@ -450,7 +454,6 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 			this.log("norm:", this.norm)
 			this.log("over:", this.over)
 			this.log("down:", this.down)
-
 		}
 	},
 
@@ -458,7 +461,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		// summary:
 		//		Internal.
 		//		Set up internal dom nodes for button construction.
-		//
+
 		domStyle.set(this.domNode, {
 			width:this.fhtml.nr.w+"px",
 			height:(this.fhtml.nr.h)+"px",
@@ -511,10 +514,10 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 			this.insideNode.innerHTML = this.fhtml.cn;
 		}catch(e){
 			// You have got to be kidding me. IE does us he favor of checking that
-			//	we aren't inserting the improper type of content with innerHTML into
-			//	an inline element. Alert us with an "Unknown Runtime Error". You can't
-			//	MAKE this stuff up.
-			//
+			// we aren't inserting the improper type of content with innerHTML into
+			// an inline element. Alert us with an "Unknown Runtime Error". You can't
+			// MAKE this stuff up.
+
 			if(this.uploaderType == "flash"){
 			this.insideNode = this.insideNode.parentNode.removeChild(this.insideNode);
 				win.body().appendChild(this.insideNode);
@@ -545,50 +548,50 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	// onMouseOut
 
 	onChange: function(dataArray){
-		//	summary:
-		// 		stub to connect
-		// 		Fires when files are selected
-		// 		Event is an array of last files selected
+		// summary:
+		//		stub to connect
+		//		Fires when files are selected
+		//		Event is an array of last files selected
 	},
 
 	onProgress: function(dataArray){
 		// summary:
-		// 		Stub to connect
-		// 		Fires as progress returns from SWF
-		// 		Event is an array of all files uploading
+		//		Stub to connect
+		//		Fires as progress returns from SWF
+		//		Event is an array of all files uploading
 		//		Can be connected to for HTML uploader,
 		//		but will not return anything.
 	},
 
 	onComplete: function(dataArray){
 		// summary:
-		// 		stub to connect
-		// 		Fires when all files have uploaded
-		// 		Event is an array of all files
+		//		stub to connect
+		//		Fires when all files have uploaded
+		//		Event is an array of all files
 	},
 
 	onCancel: function(){
 		// summary:
-		// 		Stub to connect
-		// 		Fires when dialog box has been closed
+		//		Stub to connect
+		//		Fires when dialog box has been closed
 		//		without a file selection
 	},
 
-	onError: function(/* Object or String */evtObject){
+	onError: function(/*Object or String*/ evtObject){
 		// summary:
 		//		Fires on errors
-		//
-		//FIXME: Unsure of a standard form for receiving errors
+
+		// FIXME: Unsure of a standard form for receiving errors
 	},
 
-	onReady: function(/* dojox.form.FileUploader */ uploader){
+	onReady: function(/*dojox.form.FileUploader*/ uploader){
 		// summary:
 		//		Stub - Fired when embedFlash has created the
 		//		Flash object, but it has not necessarilly finished
 		//		downloading, and is ready to be communicated with.
 	},
 
-	onLoad: function(/* dojox.form.FileUploader */ uploader){
+	onLoad: function(/*dojox.form.FileUploader*/ uploader){
 		// summary:
 		//		Stub - SWF has been downloaded 100%.
 	},
@@ -596,21 +599,21 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	/*************************
 	 *	   Public Methods	 *
 	 *************************/
-	submit: function(/* form node ? */form){
+	submit: function(/*form node ?*/ form){
 		// summary:
 		//		If FileUploader is in a form, and other data should be sent
 		//		along with the files, use this instead of form submit.
-		//
+
 		var data = form ? domForm.toObject(form) : null;
 		this.upload(data);
 		return false; // Boolean
 	},
-	upload: function(/*Object ? */data){
+	upload: function(/*Object ? */ data){
 		// summary:
-		// 		When called, begins file upload
-		//	data: Object
+		//		When called, begins file upload
+		// data: Object
 		//		postData to be sent to server
-		//
+
 		if(!this.fileList.length){
 			return false;
 		}
@@ -654,19 +657,19 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		// prevent form submit
 		return false;
 	},
-	removeFile: function(/*String*/name, /*Boolean*/noListEdit){
+	removeFile: function(/*String*/ name, /*Boolean*/ noListEdit){
 		// summary:
 		//		Removes a file from the pending file list.
 		//		Removes pending data from the Flash movie
 		//		and fileInputes from the HTML uploader.
 		//		If a file container node is bound, the file
 		//		will also be removed.
-		// name:String
+		// name: String
 		//		The name of the file to be removed. Typically the file name,
 		//		such as: picture01.png
-		// noListEdit:Boolean
+		// noListEdit: Boolean
 		//		Internal. If true don't remove files from list.
-		//
+
 		var i;
 		for(i = 0; i < this.fileList.length; i++){
 			if(this.fileList[i].name == name){
@@ -689,7 +692,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	},
 
 	destroy: function(){
-		//	summary:
+		// summary:
 		//		Destroys uploader button
 		if(this.uploaderType == "flash" && !this.flashMovie){
 			this._cons.push(connect.connect(this, "onLoad", this, "destroy"));
@@ -713,10 +716,10 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	/*************************
 	 *	   Private Events	 *
 	 *************************/
-	_displayProgress: function(/*Boolean or Number */display){
+	_displayProgress: function(/*Boolean or Number */ display){
 		// summary:
 		//		Shows and updates the built-in progress bar.
-		//
+
 		if(display === true){
 			if(this.uploaderType == "flash"){
 				domStyle.set(this.insideNode,"top", "-2500px");
@@ -777,7 +780,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		//		Internal only. If there is a file list, adds a file to it.
 		//		If you need to use a function such as this, connect to
 		//		onChange and update outside of this widget.
-		//
+
 		if(this.fileListId){
 			var str = '';
 			array.forEach(this.fileList, function(d){
@@ -822,7 +825,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	_complete: function(dataArray){
 		// summary:
 		//		Internal. Handles tasks after files have finished uploading
-		//
+
 		dataArray = lang.isArray(dataArray) ? dataArray : [dataArray];
 
 		// Yes. Yes I do have to do three loops here. ugh.
@@ -948,11 +951,11 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		// summary:
 		//		Internal. You could use this, but you should use upload() or submit();
 		//		which can also handle the post data.
-		//
+
 		// NOTE on deferredUploading:
-		// 		This is not enabled for HTML. Workaround would be to force
+		//		This is not enabled for HTML. Workaround would be to force
 		//		singleFile uploads.
-		//	TODO:
+		// TODO:
 		//		Investigate removing fileInputs and resending form
 		//		multiple times adding each fileInput
 		//
@@ -1087,7 +1090,6 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	_buildForm: function(){
 		// summary:
 		//		Build the form that holds the fileInput
-		//
 
 		if(this._formNode){ return; }
 
@@ -1108,7 +1110,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	_buildFileInput: function(){
 		// summary:
 		//		Build the fileInput field
-		//
+
 		if(this._fileInput){
 			this._disconnect();
 			// FIXME:
@@ -1216,9 +1218,8 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		if(this.uploadUrl){
 			if(this.uploadUrl.toLowerCase().indexOf("http")<0 && this.uploadUrl.indexOf("/")!=0){
 				// Appears to be a relative path. Attempt to
-				//	convert it to absolute, so it will better
-				//target the SWF.
-				//
+				// convert it to absolute, so it will better
+				// target the SWF.
 				var loc = window.location.href.split("/");
 				loc.pop();
 				loc = loc.join("/")+"/";
@@ -1284,14 +1285,14 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 	},
 
 	_connectFlash: function(){
-		// 	summary:
+		// summary:
 		//		Subscribing to published topics coming from the
 		//		Flash uploader.
-		// 	description:
-		//		Sacrificing some readbilty for compactness. this.id
+		//
+		//		Sacrificing some readability for compactness. this.id
 		//		will be on the beginning of the topic, so more than
 		//		one uploader can be on a page and can have unique calls.
-		//
+
 		this._doSub("/filesSelected", "_change");
 		this._doSub("/filesUploaded", "_complete");
 		this._doSub("/filesProgress", "_progress");
@@ -1304,8 +1305,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		this._doSub("/out", "onMouseOut");
 
 		this.connect(this.domNode, "focus", function(){
-			// TODO: some kind of indicator that the Flash button
-			//	is in focus
+			// TODO: some kind of indicator that the Flash button is in focus
 			this.flashMovie.focus();
 			this.flashMovie.doFocus();
 		});
@@ -1376,7 +1376,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 
 	getText: function(node){
 		// Get the text of the button. It's possible to use HTML in the Flash Button,
-		//	but the results are not spectacular.
+		// but the results are not spectacular.
 		var cn = lang.trim(node.innerHTML);
 		if(cn.indexOf("<") >- 1){
 			cn = escape(cn);
@@ -1386,7 +1386,7 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 
 	getStyle: function(node){
 		// getting the style of a node. Using very abbreviated characters which the
-		//	Flash movie understands.
+		// Flash movie understands.
 		var o = {};
 		var dim = domGeometry.getContentBox(node);
 		var pad = domGeometry.getPadExtents(node);
@@ -1441,5 +1441,5 @@ declare("dojox.form.FileUploader", [Widget, TemplatedMixin, Contained], {
 		return style;
 	}
 });
-return dojox.form.FileUploader;
+
 });

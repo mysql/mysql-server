@@ -186,9 +186,9 @@ set @old_os = @@session.optimizer_switch;
 set optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	b	9	NULL	#	#	Using pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and isnull(`test`.`t2`.`c`) and (`test`.`t2`.`a` < 9)); Using filesort
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY,b	b	9	NULL	#	#	Using pushed condition (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)); Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and isnull(`test`.`t2`.`c`) and (`test`.`t2`.`a` < 9)) order by `test`.`t2`.`a`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c` from `test`.`t2` where (((`test`.`t2`.`b` = 3) or (`test`.`t2`.`b` = 5)) and (`test`.`t2`.`c` is null) and (`test`.`t2`.`a` < 9)) order by `test`.`t2`.`a`
 select * from t2 where (b = 3 OR b = 5) AND c IS NULL AND a < 9 order by a;
 a	b	c
 3	3	NULL
@@ -285,6 +285,8 @@ cv varchar(250) NOT NULL default '',
 PRIMARY KEY  (cid),
 UNIQUE KEY cv (cv)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (8,'dummy');
 CREATE TABLE t2 (
 cid bigint(20) unsigned NOT NULL auto_increment,
@@ -292,6 +294,8 @@ cap varchar(255) NOT NULL default '',
 PRIMARY KEY  (cid),
 UNIQUE KEY (cid, cap)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (NULL,'another dummy');
 CREATE TABLE t3 (
 gid bigint(20) unsigned NOT NULL auto_increment,
@@ -299,6 +303,9 @@ gn varchar(255) NOT NULL default '',
 must tinyint(4) default NULL,
 PRIMARY KEY  (gid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,'V1',NULL);
 CREATE TABLE t4 (
 uid bigint(20) unsigned NOT NULL default '0',
@@ -307,6 +314,11 @@ rid bigint(20) unsigned NOT NULL,
 cid bigint(20) unsigned NOT NULL,
 UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (1,1,2,4);
 INSERT INTO t4 VALUES (1,1,2,3);
 INSERT INTO t4 VALUES (1,1,5,7);
@@ -316,6 +328,8 @@ rid bigint(20) unsigned NOT NULL auto_increment,
 rl varchar(255) NOT NULL default '',
 PRIMARY KEY  (rid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6 (
 uid bigint(20) unsigned NOT NULL auto_increment,
 un varchar(250) NOT NULL default '',
@@ -323,6 +337,9 @@ uc smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY  (uid),
 UNIQUE KEY nc (un,uc)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t6 VALUES (1,'test',8);
 INSERT INTO t6 VALUES (2,'test2',9);
 INSERT INTO t6 VALUES (3,'tre',3);
@@ -334,6 +351,12 @@ rid bigint(20) unsigned NOT NULL,
 cid bigint(20) unsigned NOT NULL,
 UNIQUE KEY m (uid,gid,rid,cid)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t7 VALUES(1, 1, 1, 1, 1);
 INSERT INTO t7 VALUES(2, 2, 1, 1, 1);
 INSERT INTO t7 VALUES(3, 3, 1, 1, 1);
@@ -914,9 +937,9 @@ SELECT STRAIGHT_JOIN count(*) FROM
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10000	100.00	Using pushed condition (`test`.`t1`.`a` is not null)
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using pushed condition isnull(`test`.`t2`.`uq`)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix	ix	10	const,test.t1.a	1	100.00	Using pushed condition (`test`.`t2`.`uq` is null)
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and isnull(`test`.`t2`.`uq`))
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`uq` is null))
 SELECT STRAIGHT_JOIN count(*) FROM 
 t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
 count(*)
@@ -938,10 +961,10 @@ INSERT INTO t2 VALUES (42);
 EXPLAIN SELECT * FROM t1 WHERE i IN
 (SELECT t2.col_int_unique FROM t2) IS TRUE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	p0,p1,p2,p3,p4,p5,p6,p7	index_subquery	ix1	ix1	5	func	2	100.00	Using where; Full scan on NULL key
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t1`.`i` is not null)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	ix1	ix1	5	test.t1.i	1	100.00	Child of 't1' in pushed join@1
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`i`) in t2 on ix1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) = `test`.`t2`.`col_int_unique`) or isnull(`test`.`t2`.`col_int_unique`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`col_int_unique`), true)))) is true)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t2` join `test`.`t1` where (`test`.`t2`.`col_int_unique` = `test`.`t1`.`i`)
 create temporary table row_counts_at_startup 
 select * 
 from performance_schema.session_status

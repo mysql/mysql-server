@@ -1,0 +1,74 @@
+--source setup.inc
+--source include/have_debug.inc
+
+
+--echo #
+--echo # Test COPY ALTER failures at various stages
+--echo #  - on failure, they should rollback restoring the
+--echo #    original table definitions and cleanup the
+--echo #    temporary tables.
+
+--echo #
+--echo # Failure when attempting to copy rows
+--echo #
+SHOW CREATE TABLE t8;
+SELECT * FROM t8 ORDER BY a;
+
+--echo # Following alter should fail with error WARN_DATA_TRUNCATED
+--echo # as it tries to copy NULL value to non NULL column
+--error 1265 # WARN_DATA_TRUNCATED
+ALTER TABLE t8
+  CHANGE COLUMN d d INT NOT NULL,
+  ALGORITHM = COPY;
+
+--echo # Verify that the table is intact locally and across all servers.
+--echo # Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t8;
+--source verify_mysql_dd.inc
+--source count_temp_tables.inc
+
+--echo #
+--echo # Failure during the first rename
+--echo #
+USE ndb_ddl_test;
+SHOW CREATE TABLE t1;
+set debug='+d,ndb_simulate_alter_failure_rename1';
+--error ER_INTERNAL_ERROR
+ALTER TABLE t1
+  ADD COLUMN c INT,
+  ALGORITHM = COPY;
+
+--echo # Verify that the table is intact locally and across all servers.
+--echo # Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+--source verify_mysql_dd.inc
+--source count_temp_tables.inc
+
+--echo # ALTER should run now
+ALTER TABLE t1
+  ADD COLUMN c INT,
+  ALGORITHM = COPY;
+
+--echo #
+--echo # Failure during the second rename
+--echo #
+USE ndb_ddl_test;
+set debug='+d,ndb_simulate_alter_failure_rename2';
+--error ER_INTERNAL_ERROR
+ALTER TABLE t1
+  DROP COLUMN c,
+  ALGORITHM = COPY;
+
+--echo # Verify that the table is intact locally and across all servers.
+--echo # Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+--source verify_mysql_dd.inc
+--source count_temp_tables.inc
+
+--echo # ALTER should run now
+ALTER TABLE t1
+  DROP COLUMN c,
+  ALGORITHM = COPY;
+
+
+--source cleanup.inc

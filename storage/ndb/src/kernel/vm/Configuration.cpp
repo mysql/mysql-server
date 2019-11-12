@@ -208,7 +208,11 @@ Configuration::fetch_configuration(const char* _connect_string,
   m_clusterConfig = p;
 
   const ConfigValues * cfg = (ConfigValues*)m_clusterConfig;
-  cfg->pack(m_clusterConfigPacked);
+  cfg->pack_v1(m_clusterConfigPacked_v1);
+  if (OUR_V2_VERSION)
+  {
+    cfg->pack_v2(m_clusterConfigPacked_v2);
+  }
 
   {
     Uint32 generation;
@@ -694,7 +698,8 @@ Configuration::get_config_generation() const {
 
 
 void
-Configuration::calcSizeAlt(ConfigValues * ownConfig){
+Configuration::calcSizeAlt(ConfigValues * ownConfig)
+{
   const char * msg = "Invalid configuration fetched";
   char buf[255];
 
@@ -801,9 +806,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   noOfIndexPages = (Uint32)(indexMem / 8192);
   noOfIndexPages = DO_DIV(noOfIndexPages, lqhInstances);
 
-  for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++){
+  for(unsigned j = 0; j<LogLevel::LOGLEVEL_CATEGORIES; j++)
+  {
     Uint32 tmp;
-    if(!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL+j, &tmp)){
+    if (!ndb_mgm_get_int_parameter(&db, CFG_MIN_LOGLEVEL+j, &tmp))
+    {
       m_logLevel->setLogLevel((LogLevel::EventCategory)j, tmp);
     }
   }
@@ -888,6 +895,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
    */
   ConfigValuesFactory cfg(ownConfig);
 
+  cfg.begin();
   /**
    * Ensure that Backup doesn't fail due to lack of trigger resources
    */
@@ -1163,6 +1171,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_TUX_SCAN_OP, noOfLocalScanRecords); 
   }
 
+  require(cfg.commit(true));
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();
   m_ownConfigIterator = ndb_mgm_create_configuration_iterator
     (m_ownConfig, 0);

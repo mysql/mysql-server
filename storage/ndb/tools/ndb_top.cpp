@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -167,7 +167,7 @@ query_mysql()
     return 3;
   }
 
-  my_ulonglong num_rows = mysql_num_rows(result);
+  uint64_t num_rows = mysql_num_rows(result);
 
   if (thread_result != NULL)
   {
@@ -213,7 +213,7 @@ query_mysql()
     ndb_threads++;
   }
   mysql_free_result(result);
-  assert((my_ulonglong)ndb_threads == num_rows);
+  assert((uint64_t)ndb_threads == num_rows);
   return 0;
 }
 

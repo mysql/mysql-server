@@ -29,7 +29,9 @@
 #include <sstream>
 #include <vector>
 
+#include "common.h"  // make_file_private
 #include "mysql/harness/arg_handler.h"
+#include "mysql/harness/filesystem.h"
 #include "mysql/harness/utility/string.h"
 #include "mysqlrouter/utils.h"
 #include "print_version.h"             // build_version
@@ -333,6 +335,14 @@ int PasswdFrontend::run() {
             << std::endl;
       return EXIT_FAILURE;
     }
+
+    try {
+      mysql_harness::make_file_private(config_.filename);
+    } catch (const std::exception &e) {
+      cerr_ << e.what() << std::endl;
+      return EXIT_FAILURE;
+    }
+
     backend.to_stream(f);
     if (f.bad()) {
       cerr_ << "writing to '" << config_.filename << "' failed" << std::endl;

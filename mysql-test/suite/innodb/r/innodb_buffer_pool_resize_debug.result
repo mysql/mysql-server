@@ -17,7 +17,8 @@ drop table test2.t7;
 set global DEBUG="+d,ib_buf_pool_resize_wait_before_resize";
 set global innodb_buffer_pool_size = 12*1024*1024;
 set global innodb_buffer_pool_size = 8*1024*1024;
-ERROR HY000: Another buffer pool resize is already in progress.
+Warnings:
+Warning	3166	Another buffer pool resize is already in progress.
 select @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
 12582912

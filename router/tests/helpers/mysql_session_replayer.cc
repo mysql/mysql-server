@@ -138,7 +138,8 @@ void MySQLSessionReplayer::query(const std::string &sql,
   const CallInfo info(call_info_.front());
   if (sql.compare(0, info.sql.length(), info.sql) != 0 ||
       info.type != CallInfo::Query) {
-    if (trace_) std::cout << "wrong query: " << sql << "\n";
+    if (trace_)
+      std::cout << "wrong query: " << sql << "\nExpected: " + info.sql + "\n";
     throw std::logic_error("Unexpected/out-of-order call to query(" + sql +
                            ")\nExpected: " + info.sql);
   }
@@ -175,22 +176,41 @@ void MySQLSessionReplayer::query(const std::string &sql,
 
 class MyResultRow : public MySQLSession::ResultRow {
  public:
-  MyResultRow(const std::vector<MySQLSessionReplayer::string> &row)
-      : real_row_(row) {
+  static MySQLSession::Row from_replayer_row(
+      const std::vector<MySQLSessionReplayer::optional_string> &real_row) {
+    MySQLSession::Row row;
+    for (auto &field : real_row) {
+      if (field) {
+        row.push_back(field.c_str());
+      } else {
+        row.push_back(nullptr);
+      }
+    }
+
+    return row;
+  }
+
+  MyResultRow(const std::vector<MySQLSessionReplayer::optional_string> &row)
+      : ResultRow(from_replayer_row(row)), real_row_(row) {
+    // ResultRow doesn't own the fields, it only keeps pointers
+    //
+    // as we just moved those pointers from 'row' to 'real_row_' we must update
+    // non-null pointers
+    size_t ndx{};
     for (auto &field : real_row_) {
       if (field) {
-        row_.push_back(field.c_str());
-      } else {
-        row_.push_back(nullptr);
+        this->operator[](ndx) = field.c_str();
       }
+
+      ndx++;
     }
   }
 
  private:
-  std::vector<MySQLSessionReplayer::string> real_row_;
+  std::vector<MySQLSessionReplayer::optional_string> real_row_;
 };
 
-MySQLSession::ResultRow *MySQLSessionReplayer::query_one(
+std::unique_ptr<MySQLSession::ResultRow> MySQLSessionReplayer::query_one(
     const std::string &sql) {
   if (call_info_.empty()) {
     if (trace_) std::cout << "unexpected query_one: " << sql << "\n";
@@ -213,9 +233,9 @@ MySQLSession::ResultRow *MySQLSessionReplayer::query_one(
 
     throw MySQLSession::Error(info.error.c_str(), info.error_code);
   }
-  ResultRow *result = nullptr;
+  std::unique_ptr<ResultRow> result;
   if (!info.rows.empty()) {
-    result = new MyResultRow(info.rows.front());
+    result = std::make_unique<MyResultRow>(info.rows.front());
   }
   last_insert_id_ = 0;
   call_info_.pop_front();
@@ -292,8 +312,8 @@ void MySQLSessionReplayer::then_error(const std::string &error,
   call_info_.back().error_code = code;
 }
 
-void MySQLSessionReplayer::then_return(unsigned int num_fields,
-                                       std::vector<std::vector<string>> rows) {
+void MySQLSessionReplayer::then_return(
+    unsigned int num_fields, std::vector<std::vector<optional_string>> rows) {
   call_info_.back().num_fields = num_fields;
   call_info_.back().rows = rows;
 }

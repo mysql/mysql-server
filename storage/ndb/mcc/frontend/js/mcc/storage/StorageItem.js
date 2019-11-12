@@ -1,25 +1,18 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2019 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License, version 2.0,
-as published by the Free Software Foundation.
-
-This program is also distributed with certain software (including
-but not limited to OpenSSL) that is licensed under separate terms,
-as designated in a particular file or component or in included license
-documentation.  The authors of MySQL hereby grant you an additional
-permission to link the program and your derivative works with the
-separately licensed software that they have included with MySQL.
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License, version 2.0, for more details.
+GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
 /******************************************************************************
@@ -28,13 +21,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  ***                                                                        ***
  ******************************************************************************
  *
- *  Module: 
+ *  Module:
  *      Name: mcc.storage.StorageItem
  *
  *  Description:
  *      Generic storage item class containing store item and storage ref
  *
- *  External interface: 
+ *  External interface:
  *      mcc.storage.StorageItem: Constructor
  *      isType: Check type attribute
  *      setValue: Set value of an attribute. Delegate to storage
@@ -45,97 +38,92 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  *      deleteAttribute: Delete attribute of an item
  *      delete: Delete the item itself by delegation to storage
  *
- *  External data: 
+ *  External data:
  *      None
  *
- *  Internal interface: 
+ *  Internal interface:
  *      None
  *
- *  Internal data: 
+ *  Internal data:
  *      item: The store item
  *      storage: Reference to the storage instance
  *
- *  Unit test interface: 
+ *  Unit test interface:
  *      None
  *
  *  Todo:
  *      Implement unit tests.
- * 
+ *
  ******************************************************************************/
 
-/****************************** Import/export  ********************************/
+/******************************* Import/export ********************************/
+dojo.provide('mcc.storage.StorageItem');
 
-dojo.provide("mcc.storage.StorageItem");
+dojo.require('mcc.util');
 
-dojo.require("mcc.util");
-
-/****************************** Implementation  *******************************/
-
-dojo.declare("mcc.storage.StorageItem", null, {
+/******************************* Implementation *******************************/
+dojo.declare('mcc.storage.StorageItem', null, {
     item: null,
     storage: null,
     // Tuck away store item and storage object reference
     constructor: function (storage, item) {
-        this.storage = storage; 
-        this.item = item; 
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        this.storage = storage;
+        this.item = item;
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
     },
     // Check type attribute
-    isType: function(type) {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
-        var itemType = this.getValue("type");
-        return (itemType && itemType == type);
+    isType: function (type) {
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
+        var itemType = this.getValue('type');
+        return (itemType && itemType === type);
     },
     // Set value of an attribute. Delegate to storage in order to catch updates
     setValue: function (attr, val) {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
         this.storage.setValue(this, attr, val);
     },
     // Set value of a multi valued attribute
     setValues: function (attr, val) {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
         this.storage.setValues(this, attr, val);
     },
     // Get attribute value of item
     getValue: function (attr) {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
         return this.storage.store().getValue(this.item, attr);
     },
     // Get multi valued attribute of item
     getValues: function (attr) {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
         return this.storage.store().getValues(this.item, attr);
     },
     // Get id of an item
     getId: function () {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
         return this.storage.store().getIdentity(this.item);
     },
     // Delete attribute of an item
     deleteAttribute: function (attr) {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
         this.storage.store().unsetAttribute(this.item, attr);
     },
     // Delete the item itself by delegation to storage
     deleteItem: function () {
-        mcc.util.assert(this.storage, "No storage");
-        mcc.util.assert(this.item, "No item");
+        mcc.util.assert(this.storage, 'No storage');
+        mcc.util.assert(this.item, 'No item');
         this.storage.deleteItem(this.item);
     }
 });
 
-/******************************** Initialize  *********************************/
-
+/********************************* Initialize *********************************/
 dojo.ready(function () {
-    mcc.util.dbg("Storage Item class module initialized");
+    console.info('[INF]Storage Item class module initialized');
 });
-
-

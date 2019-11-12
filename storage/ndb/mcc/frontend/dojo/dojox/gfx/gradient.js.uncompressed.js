@@ -1,10 +1,8 @@
-//>>built
 define("dojox/gfx/gradient", ["dojo/_base/lang", "./matrix", "dojo/_base/Color"], 
   function(lang, m, Color){
 // Various utilities to deal with a linear gradient (mostly VML-specific)
 	var grad = lang.getObject("dojox.gfx.gradient", true);
 	var C = Color;
-	/*===== grad = dojox.gfx.gradient;  =====*/
 	
 	grad.rescale = function(stops, from, to){
 		// summary:
@@ -13,7 +11,7 @@ define("dojox/gfx/gradient", ["dojo/_base/lang", "./matrix", "dojo/_base/Color"]
 		//		if necessary.
 		// stops: Array
 		//		input gradient as a list of colors with offsets
-		//		(see dojox.gfx.defaultLinearGradient and dojox.gfx.defaultRadialGradient)
+		//		(see dojox/gfx.defaultLinearGradient and dojox/gfx.defaultRadialGradient)
 		// from: Number
 		//		the beginning of the window, should be less than "to"
 		// to: Number
@@ -111,17 +109,17 @@ define("dojox/gfx/gradient", ["dojo/_base/lang", "./matrix", "dojo/_base/Color"]
 	grad.project = function(matrix, gradient, tl, rb, ttl, trb){
 		// summary:
 		//		Returns a new gradient using the "VML algorithm" and suitable for VML.
-		// matrix: dojox.gfx.Matrix2D|Null:
+		// matrix: dojox/gfx/matrix.Matrix2D|null
 		//		matrix to apply to a shape and its gradient
-		// gradient: Object:
+		// gradient: Object
 		//		a linear gradient object to be transformed
-		// tl: dojox.gfx.Point:
+		// tl: dojox/gfx.Point
 		//		top-left corner of shape's bounding box
-		// rb: dojox.gfx.Point:
+		// rb: dojox/gfx.Point
 		//		right-bottom corner of shape's bounding box
-		// ttl: dojox.gfx.Point:
+		// ttl: dojox/gfx.Point
 		//		top-left corner of shape's transformed bounding box
-		// trb: dojox.gfx.Point:
+		// trb: dojox/gfx.Point
 		//		right-bottom corner of shape's transformed bounding box
 		
 		matrix = matrix || m.identity;

@@ -129,3 +129,36 @@ set_target_properties(libprotobuf PROPERTIES
     OUTPUT_NAME ${LIB_PREFIX}protobuf
     DEBUG_POSTFIX "${protobuf_DEBUG_POSTFIX}")
 add_library(protobuf::libprotobuf ALIAS libprotobuf)
+
+IF(protobuf_BUILD_SHARED_LIBS)
+  SET_TARGET_PROPERTIES(libprotobuf PROPERTIES
+    DEBUG_POSTFIX ""
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+    )
+
+  IF(LINUX)
+    SET_TARGET_PROPERTIES(libprotobuf
+      PROPERTIES LINK_FLAGS
+      "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libprotobuf.ver"
+      )
+  ENDIF()
+
+  IF(WIN32)
+    ADD_CUSTOM_COMMAND(TARGET libprotobuf POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf>"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:libprotobuf>"
+      )
+
+    SET_TARGET_PROPERTIES(libprotobuf PROPERTIES
+      DEBUG_POSTFIX "-debug")
+    INSTALL_DEBUG_TARGET(libprotobuf
+      DESTINATION "${INSTALL_BINDIR}"
+      COMPONENT SharedLibraries
+      )
+  ENDIF()
+
+  INSTALL_PRIVATE_LIBRARY(libprotobuf)
+
+ENDIF()

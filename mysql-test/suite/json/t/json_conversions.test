@@ -816,6 +816,7 @@ insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_type_enum';
 insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_type_time';
 insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -866,6 +867,7 @@ insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_enum';
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_time';
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -916,6 +918,7 @@ insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_enum';
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_time';
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -965,8 +968,10 @@ insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_set';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_enum';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_date';
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_time';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_geom';
@@ -2261,6 +2266,7 @@ insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t wh
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
 insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
 insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -2311,6 +2317,7 @@ insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t wh
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -2361,6 +2368,7 @@ insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t wh
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -2410,8 +2418,10 @@ insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t wh
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
@@ -3708,6 +3718,7 @@ insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaq
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
 insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
 insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -3758,6 +3769,7 @@ insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaq
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -3808,6 +3820,7 @@ insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaq
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
@@ -3857,8 +3870,10 @@ insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaq
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_set') from t where c='opaque_mysql_type_set';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
+--error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';

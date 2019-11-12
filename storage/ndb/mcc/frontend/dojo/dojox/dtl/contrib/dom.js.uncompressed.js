@@ -1,4 +1,3 @@
-//>>built
 define("dojox/dtl/contrib/dom", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",
@@ -8,9 +7,7 @@ define("dojox/dtl/contrib/dom", [
 	"../_base",
 	"../dom"
 ], function(kernel,lang,connect,domStyle,domConstruct,dd,dddom){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	var ddch = lang.getObject("dojox.dtl.contrib.dom", true);
 
 	var simple = {render: function(){ return this.contents; }};
@@ -115,7 +112,7 @@ define("dojox/dtl/contrib/dom", [
 		buffer: function(parser, token){
 			// summary:
 			//		Buffer large DOM manipulations during re-render.
-			//	description:
+			// description:
 			//		When using DomTemplate, wrap any content
 			//		that you expect to change often during
 			//		re-rendering. It will then remove its parent
@@ -131,11 +128,11 @@ define("dojox/dtl/contrib/dom", [
 			// example:
 			//		You can explicitly declare options:
 			//
-			//			* node: Watch node removal/addition
-			//			* class: Watch for a classname to be changed
-			//			* text: Watch for any text to be changed
+			//		- node: Watch node removal/addition
+			//		- class: Watch for a classname to be changed
+			//		- text: Watch for any text to be changed
 			//
-			//		|	{% buffer node class %}{% for item in items %}<li>{{ item }}</li>{% endfor %}{% endbuffer %}
+			//	|	{% buffer node class %}{% for item in items %}<li>{{ item }}</li>{% endfor %}{% endbuffer %}
 			var parts = token.contents.split().slice(1);
 			var options = {};
 			var found = false;

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/calc/_Executor", [
 	"dojo/_base/kernel",
 	"dojo/_base/declare",
@@ -16,10 +15,6 @@ define("dojox/calc/_Executor", [
 
 	var magicBigInt = (1 << 30) - 35; // 2^30 - 35 is a prime that ensures approx(n/(2^k)) != n/(2^k) for k >= 1 and n < 2^k
 
-	/*=====
-		WidgetBase = dijit._WidgetBase;
-		TemplatedMixin = dijit._TemplatedMixin;
-	=====*/
 	var Executor = declare(
 		"dojox.calc._Executor",
 		[WidgetBase, TemplatedMixin],
@@ -32,9 +27,9 @@ define("dojox/calc/_Executor", [
 			'" style="display:none;" onload="if(arguments[0] && arguments[0].Function)'+dijit._scopeName+'.byNode(this)._onLoad(arguments[0])"></iframe>',
 
 		_onLoad: function(env){
-			// summary
-			//	prepare for communications between the user and the calculator by saving the calculator environment, storing the prompt function locally, and making dojox.math available
-			//
+			// summary:
+			//		prepare for communications between the user and the calculator by saving the calculator environment, storing the prompt function locally, and making dojox.math available
+
 			calcEnv = env;
 			env.outerPrompt = window.prompt; // for IE who can't execute the iframe's prompt method without notifying the user first
 			// let the user call dojo math functions
@@ -84,17 +79,17 @@ define("dojox/calc/_Executor", [
 
 		onLoad: function(){
 			// summary:
-			//	this should be overwritten and become a great place for making user predefined functions
-			//
+			//		this should be overwritten and become a great place for making user predefined functions
 		},
 		Function: function(name, args, body){
-			// summary
-			//	create an anonymous function to run the code the parser generates from the user input.
-			// params
-			//	name: this argument is simply a String that represents the name of the function being evaluated. It can be undefined, but in that case the function is a one time use.
-			//	args: the function arguments (a String)
-			//	body: the function body, also a String
-			//
+			// summary:
+			//		create an anonymous function to run the code the parser generates from the user input.
+			// name:
+			//		this argument is simply a String that represents the name of the function being evaluated. It can be undefined, but in that case the function is a one time use.
+			// args: String
+			//		the function arguments
+			// body: String
+			//		the function body
 			return lang.hitch(calcEnv, calcEnv.Function.apply(calcEnv, arguments));
 		},
 		normalizedFunction: function(name, args, body){
@@ -105,11 +100,10 @@ define("dojox/calc/_Executor", [
 			delete calcEnv[name];
 		},
 		eval: function(text){
-			// summary
-			//	create an anonymous function to run the code the parser generates from the user input.
-			// params
-			//	text, type String, is the user input that needs to be parsed
-			//
+			// summary:
+			//		create an anonymous function to run the code the parser generates from the user input.
+			// text: String
+			//		the user input that needs to be parsed
 			return calcEnv.eval.apply(calcEnv, arguments);
 		},
 		destroy: function(){

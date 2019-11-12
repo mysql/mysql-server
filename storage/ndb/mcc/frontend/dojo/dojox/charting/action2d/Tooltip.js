@@ -1,5 +1,5 @@
 //>>built
-define("dojox/charting/action2d/Tooltip",["dojo/_base/kernel","dijit/Tooltip","dojo/_base/lang","dojo/_base/html","dojo/_base/declare","./PlotAction","dojox/gfx/matrix","dojox/lang/functional","dojox/lang/functional/scan","dojox/lang/functional/fold"],function(_1,_2,_3,_4,_5,_6,m,df,_7,_8){
+define("dojox/charting/action2d/Tooltip",["dojo/_base/kernel","dijit/Tooltip","dojo/_base/lang","dojo/_base/declare","dojo/dom-style","./PlotAction","dojox/gfx/matrix","dojox/lang/functional","dojox/lang/functional/scan","dojox/lang/functional/fold"],function(_1,_2,_3,_4,_5,_6,m,df,_7,_8){
 var _9=function(o){
 var t=o.run&&o.run.data&&o.run.data[o.index];
 if(t&&typeof t!="number"&&(t.tooltip||t.text)){
@@ -11,7 +11,7 @@ return "<table cellpadding=\"1\" cellspacing=\"0\" border=\"0\" style=\"font-siz
 return o.element=="bar"?o.x:o.y;
 };
 var _a=Math.PI/4,_b=Math.PI/2;
-return _5("dojox.charting.action2d.Tooltip",_6,{defaultParams:{text:_9},optionalParams:{},constructor:function(_c,_d,_e){
+return _4("dojox.charting.action2d.Tooltip",_6,{defaultParams:{text:_9},optionalParams:{},constructor:function(_c,_d,_e){
 this.text=_e&&_e.text?_e.text:_9;
 this.connect();
 },process:function(o){
@@ -26,7 +26,7 @@ return;
 if(!o.shape||o.type!=="onmouseover"){
 return;
 }
-var _f={type:"rect"},_10=["after","before"];
+var _f={type:"rect"},_10=["after-centered","before-centered"];
 switch(o.element){
 case "marker":
 _f.x=o.cx;
@@ -38,10 +38,19 @@ _f.x=o.cx-o.cr;
 _f.y=o.cy-o.cr;
 _f.w=_f.h=2*o.cr;
 break;
+case "spider_circle":
+_f.x=o.cx;
+_f.y=o.cy;
+_f.w=_f.h=1;
+break;
+case "spider_plot":
+return;
 case "column":
-_10=["above","below"];
+_10=["above-centered","below-centered"];
 case "bar":
 _f=_3.clone(o.shape.getShape());
+_f.w=_f.width;
+_f.h=_f.height;
 break;
 case "candlestick":
 _f.x=o.x;
@@ -61,16 +70,19 @@ var _11=m._degToRad(o.plot.opt.startAngle),_12=(this.angles[o.index]+this.angles
 _f.x=o.cx+o.cr*Math.cos(_12);
 _f.y=o.cy+o.cr*Math.sin(_12);
 _f.w=_f.h=1;
+if(_11&&(_12<0||_12>2*Math.PI)){
+_12=Math.abs(2*Math.PI-Math.abs(_12));
+}
 if(_12<_a){
 }else{
 if(_12<_b+_a){
-_10=["below","above"];
+_10=["below-centered","above-centered"];
 }else{
 if(_12<Math.PI+_a){
-_10=["before","after"];
+_10=["before-centered","after-centered"];
 }else{
 if(_12<2*Math.PI-_a){
-_10=["above","below"];
+_10=["above-centered","below-centered"];
 }
 }
 }
@@ -87,7 +99,7 @@ _f.h=Math.ceil(_f.h);
 this.aroundRect=_f;
 var _13=this.text(o);
 if(this.chart.getTextDir){
-var _14=(_4.style(this.chart.node,"direction")=="rtl");
+var _14=(_5.get(this.chart.node,"direction")=="rtl");
 var _15=(this.chart.getTextDir(_13)=="rtl");
 }
 if(_13){

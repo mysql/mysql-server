@@ -6,36 +6,6 @@
 call mtr.add_suppression(" In RENAME TABLE table `test`.`parent` is referenced in foreign key constraints which are not compatible with the new table definition.");
 --enable_query_log
 
-# Use MyISAM for this table since we are only interested in checking syntax.
---error ER_WRONG_FK_DEF
-create table t1 (
-	a int not null references t2,
-	b int not null references t2 (c),
-	primary key (a,b),
-	foreign key (a) references t3 match full,
-	foreign key (a) references t3 match partial,
-	foreign key (a,b) references t3 (c,d) on delete no action
-	  on update no action,
-	foreign key (a,b) references t3 (c,d) on update cascade,
-	foreign key (a,b) references t3 (c,d) on delete set default,
-	foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
-
-# Remove the problematic FKs and try again.
-create table t1 (
-        a int not null,
-	b int not null references t2 (c),
-	primary key (a,b),
-	foreign key (a,b) references t3 (c,d) on delete no action
-	  on update no action,
-	foreign key (a,b) references t3 (c,d) on update cascade,
-	foreign key (a,b) references t3 (c,d) on delete set default,
-	foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
-
-create index a on t1 (a);
-create unique index b on t1 (a,b);
-drop table t1;
-
-# End of 4.1 tests
 
 #
 # Bug#34455 (Ambiguous foreign keys syntax is accepted)
@@ -906,7 +876,7 @@ connection con1;
 --echo # Wait until CREATE TABLE is blocked by con1 because of row locks.
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Sending data" AND
+  WHERE state = "System lock" AND
         info LIKE "CREATE TABLE child%";
 --source include/wait_condition.inc
 
@@ -3456,60 +3426,6 @@ ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
 DROP TABLES self;
 
 --echo #
---echo # 5) Check how parent table in different storage engine is handled.
---echo #
---echo # We handle it in the same way as if table was missing to be compatible
---echo # with pre-8.0 versions.
-
---echo #
---echo # 5.a) Attempt to create table with a foreign key or to add foreign key
---echo #      to already xisting table which reference parent in different SE
---echo #      should fail in FOREIGN_KEY_CHECKS=1 mode.
-CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
---error ER_FK_CANNOT_OPEN_PARENT
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
-
-CREATE TABLE child (fk INT);
---error ER_FK_CANNOT_OPEN_PARENT
-ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
-
---echo #
---echo # 5.b) However, in FOREIGN_KEY_CHECKS=0 mode this is allowed.
---echo #      Referenced table is considered missing and existing table
---echo #      in a wrong SE is not considered as real parent.
-SET FOREIGN_KEY_CHECKS = 0;
-ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
-DROP TABLE child;
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
-SET FOREIGN_KEY_CHECKS = 1;
---echo # Bad parent can be dropped just fine even in FOREIGN_KEY_CHECKS=1 mode.
-DROP TABLE bad_parent;
-DROP TABLE child;
-
---echo #
---echo # 5.c) Attempt to change SE for table participating in foreign key
---echo #      should lead to error.
-CREATE TABLE parent (pk INT PRIMARY KEY);
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
---error ER_FK_CANNOT_CHANGE_ENGINE
-ALTER TABLE child ENGINE=MyISAM;
---error ER_FK_CANNOT_CHANGE_ENGINE
-ALTER TABLE parent ENGINE=MyISAM;
-DROP TABLES child, parent;
-
---echo #
---echo # 5.d) It is possible to add "parent" in wrong SE to orphan foreign key.
---echo #      However, it won't be considered as real parent.
-SET FOREIGN_KEY_CHECKS = 0;
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
-SET FOREIGN_KEY_CHECKS = 1;
-CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
---echo # It is possible to break bad parent even in FOREIGN_KEY_CHECKS=1 mode.
-ALTER TABLE bad_parent DROP COLUMN pk, ADD COLUMN i INT;
-DROP TABLE bad_parent;
-DROP TABLE child;
-
---echo #
 --echo # 6) Check that we prohibit foreign keys with SET NULL action with
 --echo #    non-nullable referencing columns.
 --echo #
@@ -3671,27 +3587,6 @@ ALTER TABLE self MODIFY fk2 CHAR(10);
 --error ER_FK_INCOMPATIBLE_COLUMNS
 ALTER TABLE self MODIFY pk2 CHAR(10);
 DROP TABLE self;
-
---echo #
---echo # 7.d) It should be impossible to create foreign keys with incompatible
---echo #      column types by adding parent to previously orphan foreign key.
-SET FOREIGN_KEY_CHECKS=0;
-CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
---error ER_FK_INCOMPATIBLE_COLUMNS
-CREATE TABLE parent (pk INT PRIMARY KEY);
-CREATE TABLE parent0 (pk INT PRIMARY KEY);
---error ER_FK_INCOMPATIBLE_COLUMNS
-ALTER TABLE parent0 RENAME TO parent;
---error ER_FK_INCOMPATIBLE_COLUMNS
-ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT;
---error ER_FK_INCOMPATIBLE_COLUMNS
-RENAME TABLE parent0 TO parent;
---disable_testcase Bug#28608460
-CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
-ALTER TABLE parent ENGINE=InnoDB;
---enable_testcase
-DROP TABLES child, parent0;
-SET FOREIGN_KEY_CHECKS=1;
 
 --echo #
 --echo # 7.e) Test how compatibility rules work for various types.
@@ -4069,7 +3964,11 @@ DROP TABLES child, parent;
 --echo # WL#8910: Ensure foreign key error does not reveal information about
 --echo #          parent table for which user has no access privileges.
 --echo #
-
+# We cannot verify these scenarios with 'test' database since MTR garants DB level
+# privileges to anonymous user. That will interfere the testing
+--let current_DB = `SELECT DATABASE()`
+CREATE DATABASE wl8910db;
+USE wl8910db;
 --echo #Set up tables.
 CREATE TABLE t1(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=INNODB;
 CREATE TABLE t2(fld1 INT PRIMARY KEY, fld2 INT, CONSTRAINT fk2
@@ -4114,7 +4013,7 @@ GRANT EXECUTE ON FUNCTION f2 TO user2@localhost;
 
 --enable_connect_log
 
-connect (con1, localhost, user1,,test);
+connect (con1, localhost, user1,,wl8910db);
 --echo # Without patch, reveals parent table's information.
 --error ER_NO_REFERENCED_ROW
 INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
@@ -4151,11 +4050,11 @@ INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
 
 connection default;
 GRANT INSERT (fld1, fld2) ON t2 TO user2@localhost;
-GRANT CREATE ROUTINE ON test.* TO user2@localhost;
-GRANT CREATE VIEW ON test.* TO user2@localhost;
+GRANT CREATE ROUTINE ON wl8910db.* TO user2@localhost;
+GRANT CREATE VIEW ON wl8910db.* TO user2@localhost;
 
 --echo # Tests where DML reports FK constraint failure within Stored Routines.
-connect (con2, localhost, user2,,test);
+connect (con2, localhost, user2,,wl8910db);
 
 --echo # The SQL security for p1 is invoker where invoker lacks permission
 --echo # to parent table, hence parent table information is not displayed.
@@ -4230,7 +4129,7 @@ GRANT INSERT ON v3 TO user3@localhost;
 GRANT SELECT ON t1 TO user3@localhost;
 GRANT SELECT ON t3 TO user3@localhost;
 
-connect (con3, localhost, user3,,test);
+connect (con3, localhost, user3,,wl8910db);
 
 --echo # Since the execution happens in the definer 'root' user
 --echo # context, the parent table informaton is exposed.
@@ -4259,6 +4158,9 @@ DROP PROCEDURE p3;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
+DROP DATABASE wl8910db;
+# Restore the current DB
+--eval USE $current_DB
 
 --disable_connect_log
 --echo #
@@ -4421,94 +4323,8 @@ CREATE TABLE parent (pk VARCHAR(10) PRIMARY KEY);
 SHOW CREATE TABLE child;
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
   WHERE referenced_table_schema='test' AND referenced_table_name='parent';
-DROP TABLES child, parent;
-
-
---echo #
---echo # Tests for bug#28608460 "POSSIBLE TO ADD INCONSISTENT PARENT TO ORPHAN
---echo #                         FOREIGN KEY IF SE CHANGED".
---echo #
-
---echo #
---echo # Check that consistency checks are performed when we add parent
---echo # table to previously orphan foreign key by changing table storage
---echo # engine.
-SET FOREIGN_KEY_CHECKS=0;
-CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent (pk));
-CREATE TABLE parent (pk INT) ENGINE=MyISAM;
---error ER_FK_NO_INDEX_PARENT
-ALTER TABLE parent ENGINE=InnoDB;
-DROP TABLE parent;
-CREATE TABLE parent (a INT) ENGINE=MyISAM;
---error ER_FK_NO_COLUMN_PARENT
-ALTER TABLE parent ENGINE=InnoDB;
-DROP TABLE parent;
-CREATE TABLE parent (pk BIGINT PRIMARY KEY) ENGINE=MyISAM;
---error ER_FK_INCOMPATIBLE_COLUMNS
-ALTER TABLE parent ENGINE=InnoDB;
-DROP TABLE parent;
-
---echo #
---echo # This should work for ALTER TABLE that combines change of SE
---echo # with renaming of table.
-CREATE TABLE parent0 (pk INT) ENGINE=MyISAM;
---error ER_FK_NO_INDEX_PARENT
-ALTER TABLE parent0 ENGINE=InnoDB, RENAME TO parent;
-DROP TABLE parent0;
-
---echo #
---echo # ALTER TABLE which combines change of SE and renaming of the
---echo # table is executed as if we separately did change of SE and
---echo # renamed table after that. I.e. consistency checks are also
---echo # performed for orphan foreign keys which are associated with
---echo # old table name.
-CREATE TABLE parent (pk INT) ENGINE=MyISAM;
---error ER_FK_NO_INDEX_PARENT
-ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
-DROP TABLE parent;
-
---echo #
---echo # Check that unique constraint name is correctly updated when parent
---echo # table is added to orphan foreign key by changing table SE.
-CREATE TABLE parent (pk INT, UNIQUE u(pk)) ENGINE=MyISAM;
-SELECT referenced_table_name, unique_constraint_name FROM
-  information_schema.referential_constraints WHERE table_name = 'child';
-ALTER TABLE parent ENGINE=InnoDB;
-SELECT referenced_table_name, unique_constraint_name FROM
-  information_schema.referential_constraints WHERE table_name = 'child';
-DROP TABLE parent;
-
---echo #
---echo # Since ALTER TABLE which combines change of SE and renaming of the
---echo # table is executed as if we separately did change of SE and
---echo # renamed table after that, the referenced table name should
---echo # be updated too.
-CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
-SELECT referenced_table_name, unique_constraint_name FROM
-  information_schema.referential_constraints WHERE table_name = 'child';
-ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
-SELECT referenced_table_name, unique_constraint_name FROM
-  information_schema.referential_constraints WHERE table_name = 'child';
-RENAME TABLE parent0 TO parent;
-DROP TABLES parent;
-
---echo #
---echo # Check that under LOCK TABLES, when adding parent for previously orphan
---echo # foreign key by SE change, we check locks on child tables.
-CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
-LOCK TABLES parent WRITE;
---error ER_TABLE_NOT_LOCKED
-ALTER TABLE parent ENGINE=InnoDB;
-UNLOCK TABLES;
-LOCK TABLES child READ, parent WRITE;
---error ER_TABLE_NOT_LOCKED_FOR_WRITE
-ALTER TABLE parent ENGINE=InnoDB;
-UNLOCK TABLES;
-LOCK TABLES child WRITE, parent WRITE;
-ALTER TABLE parent ENGINE=InnoDB;
-UNLOCK TABLES;
-DROP TABLES child, parent;
 SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent;
 
 
 --echo #
@@ -4538,3 +4354,170 @@ SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 
 --echo # Clean-up.
 DROP TABLES t1, t2, t3, t4;
+
+
+--echo #
+--echo # Bug #11756183 "FOREIGN KEYS MAY DISAPPEAR AFTER ALTER TABLE RENAME".
+--echo # Bug #18713399 "FK CHILD TABLE CANNOT BE CREATED: PROBLEMS AFTER TABLE RENAME"
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+INSERT INTO parent VALUES (1);
+CREATE TABLE child (fk INT, b INT, FOREIGN KEY (fk) REFERENCES parent (pk));
+INSERT INTO child VALUES (1, 1);
+SHOW CREATE TABLE child;
+--echo # We use ALGORITHM=COPY to ensure that the below ALTER is executed
+--echo # using COPY algorithm even if changing column datatype becomes
+--echo # in-place operation.
+ALTER TABLE child MODIFY COLUMN b BIGINT, RENAME TO child_renamed, ALGORITHM=COPY;
+--echo # The foreign key should be still in SHOW CREATE TABLE output.
+SHOW CREATE TABLE child_renamed;
+--echo # Removal of parent row should not be allowed.
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE pk = 1;
+DROP TABLE child_renamed;
+--echo # Part of test covering bug#18713399. The below CREATE TABLE statement
+--echo # should not fail due to duplicate foreign key name.
+CREATE TABLE child (fk INT, b INT, FOREIGN KEY (fk) REFERENCES parent (pk));
+DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug #18199504 "AUTO-NAMING OF FOREIGN KEYS SEEMS BROKEN WHEN
+--echo #                MULTI-OPERATION ALTER IS USED".
+--echo #
+CREATE TABLE parent (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c CHAR(32));
+CREATE TABLE uncle (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c CHAR(32));
+CREATE TABLE child (parent_id INT, c CHAR(32), FOREIGN KEY (parent_id) REFERENCES parent (id));
+--echo # Turn off foreign key checking so we can add foreign key using
+--echo # inplace algorithm.
+SET FOREIGN_KEY_CHECKS=0;
+--echo # The problem occured when a foreign key was added by ALTER TABLE
+--echo # executed using inplace algorithm which still did table rebuild
+--echo # internally. So we drop column to make operation non-instant for
+--echo # sure.
+ALTER TABLE child ADD COLUMN uncle_id INT, DROP COLUMN c, ADD CONSTRAINT FOREIGN KEY (uncle_id) REFERENCES uncle (id), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS=1;
+SHOW CREATE TABLE child;
+DROP TABLES child, parent, uncle;
+
+
+--echo #
+--echo # Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY
+--echo #                CONSTRAINT. MISSING INDEX FOR CONSTR".
+--echo #
+--echo # When InnoDB SE checks if a key can serve as a parent key for a foreign
+--echo # key it takes into account columns from hidden part of the key. This
+--echo # hidden part consists of primary key columns which are implicitly
+--echo # added by InnoDB to non-primary keys.
+--echo #
+--echo # See dd_upgrade_test test for coverage of upgrade process for such
+--echo # foreign keys.
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, b INT, KEY(a), UNIQUE(b));
+--echo # This works both for non-unique and unique keys.
+CREATE TABLE child1 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+CREATE TABLE child2 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (b, pk));
+DROP TABLES child1, child2;
+--echo # This also works when foreign keys are added by ALTER TABLE.
+CREATE TABLE child1 (fk1 INT, fk2 INT);
+ALTER TABLE child1 ADD FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk);
+CREATE TABLE child2 (fk1 INT, fk2 INT);
+ALTER TABLE child2 ADD FOREIGN KEY (fk1, fk2) REFERENCES parent (b, pk);
+DROP TABLES child1, child2, parent;
+--echo # And for complex multi-column cases too.
+CREATE TABLE parent (a INT, b INT, c INT, PRIMARY KEY (a,b), KEY(c, a));
+CREATE TABLE child (fk1 INT, fk2 INT, fk3 INT, FOREIGN KEY (fk1, fk2, fk3) REFERENCES parent (c, a, b));
+DROP TABLES child, parent;
+--echo # Moreover, this works for keys which are promoted to primary.
+CREATE TABLE parent (u INT NOT NULL, a INT, b INT, UNIQUE(u), KEY(a), UNIQUE(b));
+CREATE TABLE child1 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, u));
+CREATE TABLE child2 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (b, u));
+DROP TABLES child1, child2, parent;
+--echo # Also works correctly when parent table is altered.
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, KEY k1(a, pk), UNIQUE k2(a));
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+ALTER TABLE parent DROP KEY k1;
+DROP TABLES child, parent;
+--echo # And when we add parent table to previously orphan foreign key.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk1 INT, fk2 INT, CONSTRAINT c FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, UNIQUE ua(a));
+SELECT constraint_name, unique_constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND constraint_name='c';
+DROP TABLES child, parent;
+--echo # However, columns which are implicitly added by InnoDB as hidden
+--echo # elements to the primary key are not considered when searching for
+--echo # parent key (because primary key contains hidden system DB_TRX_ID,
+--echo # DB_ROLL_PTR columns before hidden normal columns).
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (pk, a));
+DROP TABLE parent;
+--echo # Hidden parts which are column prefixes (because primary key has prefix
+--echo # parts [sic!]) are not allowed as parent key parts.
+CREATE TABLE parent (a CHAR(10), b int, KEY(b), PRIMARY KEY (a(5)));
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk1 int, fk2 CHAR(10), FOREIGN KEY (fk1, fk2) REFERENCES parent (b, a));
+DROP TABLE parent;
+--echo # Moreover, even hidden parts for full columns are not allowed if
+--echo # primary key contains prefix parts. This was supported in 5.7.
+CREATE TABLE parent (a INT, b CHAR(10), c int, KEY(c), PRIMARY KEY (a, b(5)));
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk1 int, fk2 int, FOREIGN KEY (fk1, fk2) REFERENCES parent (c, a));
+DROP TABLE parent;
+
+--echo #
+--echo # Now similar tests for self-referencing foreign keys.
+--echo #
+CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+                    KEY(a), FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk));
+CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT,
+                    UNIQUE(b), FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk));
+DROP TABLES self1, self2;
+CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT, KEY(a));
+ALTER TABLE self1 ADD FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk);
+CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT, UNIQUE(b));
+ALTER TABLE self2 ADD FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk);
+DROP TABLES self1, self2;
+--echo # Test for complex multi-column case.
+CREATE TABLE self (a INT, b INT, c INT, fk1 INT, fk2 INT, fk3 INT,
+                  PRIMARY KEY (a,b), KEY(c, a),
+                  FOREIGN KEY (fk1, fk2, fk3) REFERENCES self (c, a, b));
+DROP TABLE self;
+--echo # Test for removing parent key.
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+                   KEY k1(a, pk), UNIQUE k2(a),
+                   FOREIGN KEY (fk1, fk2) REFERENCES self (a, pk));
+ALTER TABLE self DROP KEY k1;
+DROP TABLE self;
+--echo # But again this is not supposed to work for hidden columns added to
+--echo # primary key.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+                   FOREIGN KEY (fk1, fk2) REFERENCES self (pk, a));
+--echo # Hidden parts which are column prefixes should not work.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (a CHAR(10), b int, fk1 int, fk2 CHAR(10), KEY(b),
+                   PRIMARY KEY (a(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (b, a));
+--echo # Hidden parts for full columns are not allowed either if
+--echo # primary key contains prefix parts. This was supported in 5.7.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (a INT, b CHAR(10), c int, fk1 int, fk2 int, KEY(c),
+                   PRIMARY KEY (a, b(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (c, a));
+
+
+--echo #
+--echo # Bug#21308781 "DROP FOREIGN KEY LEAD TO INCONSISTENT TABLE STRUCTURE
+--echo #               ON MASTER AND SLAVE".
+--echo #
+CREATE TABLE t1(pk INT PRIMARY KEY);
+CREATE TABLE t2(pk INT PRIMARY KEY);
+CREATE TABLE t3(fk1 INT, fk2 INT, KEY k1(fk1),
+                CONSTRAINT a FOREIGN KEY (fk1) REFERENCES t1(pk),
+                CONSTRAINT b FOREIGN KEY (fk2) REFERENCES t2(pk));
+--error ER_DROP_INDEX_FK
+ALTER TABLE t3 DROP KEY k1, DROP FOREIGN KEY b, ALGORITHM=COPY;
+--echo # Failed ALTER TABLE should have left table intact!
+SHOW CREATE TABLE t3;
+DROP TABLES t3, t2, t1;

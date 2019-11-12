@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ class Import_target {
     Finish import by removing tmp sdi file when importing from sdi
     file in datadir.
 
-    @retval true if an error occured
+    @retval true if an error occurred
     @retval false otherwise
    */
   bool commit() const;
@@ -95,7 +95,7 @@ class Import_target {
     Restore old state by renaming tmp sdi file back to its original
     name when importing from sdi file in datadir.
 
-    @retval true if an error occured
+    @retval true if an error occurred
     @retval false otherwise
    */
   bool rollback() const;
@@ -130,22 +130,20 @@ class Import_target {
     @param thd thread context
     @param shared_buffer pointer to a dd::String_type which is used to
            store the sdi string until it is deserialized.
-    @retval true if an error occured
+    @retval true if an error occurred
     @retval false otherwise
    */
   bool load(THD *thd, String_type *shared_buffer);
 
   /**
-    Initializes a TABLE_LIST object with info from this Import_target.
+    Constructs a TABLE_LIST object with info from this Import_target.
     TABLE_LIST::db and TABLE_LIST::table_name are initialized to the
     canonical (lowercased for lctn==2) representation,
     TABLE_LIST::alias to the native
     table_name, and TABLE_LIST::m_lock_descriptor.type is set to
     TL_IGNORE.
-
-    @param tlp object to initialize
    */
-  void init_table_list(TABLE_LIST *tlp) const;
+  TABLE_LIST make_table_list() const;
 
   /**
     Upadate the schema reference in the Table object and store
@@ -154,7 +152,7 @@ class Import_target {
     member function is called.
 
     @param thd thread handle
-    @retval true if an error occured
+    @retval true if an error occurred
     @retval false otherwise
    */
   bool store_in_dd(THD *thd) const;
@@ -167,7 +165,7 @@ class Import_target {
 
   @param thd thread handle
   @param t import target context
-  @retval true if an error occured
+  @retval true if an error occurred
   @retval false otherwise
 */
 bool check_privileges(THD *thd, const Import_target &t);

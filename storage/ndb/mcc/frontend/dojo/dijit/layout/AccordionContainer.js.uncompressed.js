@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dijit/layout/templates/AccordionButton.html':"<div data-dojo-attach-event='onclick:_onTitleClick' class='dijitAccordionTitle' role=\"presentation\">\n\t<div data-dojo-attach-point='titleNode,focusNode' data-dojo-attach-event='onkeypress:_onTitleKeyPress'\n\t\t\tclass='dijitAccordionTitleFocus' role=\"tab\" aria-expanded=\"false\"\n\t\t><span class='dijitInline dijitAccordionArrow' role=\"presentation\"></span\n\t\t><span class='arrowTextUp' role=\"presentation\">+</span\n\t\t><span class='arrowTextDown' role=\"presentation\">-</span\n\t\t><img src=\"${_blankGif}\" alt=\"\" class=\"dijitIcon\" data-dojo-attach-point='iconNode' style=\"vertical-align: middle\" role=\"presentation\"/>\n\t\t<span role=\"presentation\" data-dojo-attach-point='titleTextNode' class='dijitAccordionText'></span>\n\t</div>\n</div>\n"}});
 define("dijit/layout/AccordionContainer", [
@@ -12,10 +11,9 @@ define("dijit/layout/AccordionContainer", [
 	"dojo/dom-class", // domClass.remove
 	"dojo/dom-construct", // domConstruct.place
 	"dojo/dom-geometry",
-	"dojo/_base/kernel",
 	"dojo/keys", // keys
 	"dojo/_base/lang", // lang.getObject lang.hitch
-	"dojo/_base/sniff", // has("ie")
+	"dojo/sniff", // has("ie") has("dijit-legacy-requires")
 	"dojo/topic", // publish
 	"../focus",			// focus.focus()
 	"../_base/manager",	// manager.defaultDuration
@@ -28,23 +26,11 @@ define("dijit/layout/AccordionContainer", [
 	"./ContentPane",
 	"dojo/text!./templates/AccordionButton.html"
 ], function(require, array, declare, event, fx, dom, domAttr, domClass, domConstruct, domGeometry,
-			kernel, keys, lang, has, topic, focus, manager, ready,
+			keys, lang, has, topic, focus, manager, ready,
 			_Widget, _Container, _TemplatedMixin, _CssStateMixin, StackContainer, ContentPane, template){
-
-/*=====
-	var _Widget = dijit._Widget;
-	var _Container = dijit._Container;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-	var _CssStateMixin = dijit._CssStateMixin;
-	var StackContainer = dijit.layout.StackContainer;
-	var ContentPane = dijit.layout.ContentPane;
-=====*/
 
 	// module:
 	//		dijit/layout/AccordionContainer
-	// summary:
-	//		Holds a set of panes where every pane's title is visible, but only one pane's content is visible at a time,
-	//		and switching between panes is visualized by sliding the other panes up/down.
 
 
 	// Design notes:
@@ -133,8 +119,8 @@ define("dijit/layout/AccordionContainer", [
 
 		_setSelectedAttr: function(/*Boolean*/ isSelected){
 			this._set("selected", isSelected);
-			this.focusNode.setAttribute("aria-expanded", isSelected);
-			this.focusNode.setAttribute("aria-selected", isSelected);
+			this.focusNode.setAttribute("aria-expanded", isSelected ? "true" : "false");
+			this.focusNode.setAttribute("aria-selected", isSelected ? "true" : "false");
 			this.focusNode.setAttribute("tabIndex", isSelected ? "0" : "-1");
 		}
 	});
@@ -146,7 +132,7 @@ define("dijit/layout/AccordionContainer", [
 		//		this widget.
 
 /*=====
-		// buttonWidget: Function || String
+		// buttonWidget: Function|String
 		//		Class to use to instantiate title
 		//		(Wish we didn't have a separate widget for just the title but maintaining it
 		//		for backwards compatibility, is it worth it?)
@@ -154,9 +140,9 @@ define("dijit/layout/AccordionContainer", [
 =====*/
 
 /*=====
-		// contentWidget: dijit._Widget
+		// contentWidget: dijit/_WidgetBase
 		//		Pointer to the real child widget
-	 	contentWidget: null,
+		contentWidget: null,
 =====*/
 
 		baseClass: "dijitAccordionInnerContainer",
@@ -194,7 +180,9 @@ define("dijit/layout/AccordionContainer", [
 
 			// and then the actual content widget (changing it from prior-sibling to last-child),
 			// wrapped by a <div class=dijitAccordionChildWrapper>
-			this.containerNode = domConstruct.place("<div class='dijitAccordionChildWrapper' style='display:none'>", this.domNode);
+			this.containerNode = domConstruct.place("<div class='dijitAccordionChildWrapper' role='tabpanel' style='display:none'>", this.domNode);
+			this.containerNode.setAttribute("aria-labelledby", this.button.id);
+
 			domConstruct.place(this.contentWidget.domNode, this.containerNode);
 		},
 
@@ -252,10 +240,10 @@ define("dijit/layout/AccordionContainer", [
 		//		Holds a set of panes where every pane's title is visible, but only one pane's content is visible at a time,
 		//		and switching between panes is visualized by sliding the other panes up/down.
 		// example:
-		//	| 	<div data-dojo-type="dijit.layout.AccordionContainer">
-		//	|		<div data-dojo-type="dijit.layout.ContentPane" title="pane 1">
+		//	|	<div data-dojo-type="dijit/layout/AccordionContainer">
+		//	|		<div data-dojo-type="dijit/layout/ContentPane" title="pane 1">
 		//	|		</div>
-		//	|		<div data-dojo-type="dijit.layout.ContentPane" title="pane 2">
+		//	|		<div data-dojo-type="dijit/layout/ContentPane" title="pane 2">
 		//	|			<p>This is some text</p>
 		//	|		</div>
 		//	|	</div>
@@ -279,16 +267,13 @@ define("dijit/layout/AccordionContainer", [
 		buildRendering: function(){
 			this.inherited(arguments);
 			this.domNode.style.overflow = "hidden";		// TODO: put this in dijit.css
-			this.domNode.setAttribute("role", "tablist");	// TODO: put this in template
+			this.domNode.setAttribute("role", "tablist");
 		},
 
 		startup: function(){
 			if(this._started){ return; }
 			this.inherited(arguments);
 			if(this.selectedChildWidget){
-				var style = this.selectedChildWidget.containerNode.style;
-				style.display = "";
-				style.overflow = "auto";
 				this.selectedChildWidget._wrapperWidget.set("selected", true);
 			}
 		},
@@ -313,7 +298,7 @@ define("dijit/layout/AccordionContainer", [
 			// get cumulative height of all the unselected title bars
 			var totalCollapsedHeight = 0;
 			array.forEach(this.getChildren(), function(child){
-	            if(child != openPane){
+				if(child != openPane){
 					// Using domGeometry.getMarginSize() rather than domGeometry.position() since claro has 1px bottom margin
 					// to separate accordion panes.  Not sure that works perfectly, it's probably putting a 1px
 					// margin below the bottom pane (even though we don't want one).
@@ -321,7 +306,7 @@ define("dijit/layout/AccordionContainer", [
 				}
 			});
 			this._verticalSpace = mySize.h - totalCollapsedHeight - wrapperDomNodeMargin.h
-			 	- wrapperDomNodePadBorder.h - wrapperContainerNodeMargin.h - wrapperContainerNodePadBorder.h
+				- wrapperDomNodePadBorder.h - wrapperContainerNodeMargin.h - wrapperContainerNodePadBorder.h
 				- openPane._buttonWidget.getTitleHeight();
 
 			// Memo size to make displayed child
@@ -353,7 +338,8 @@ define("dijit/layout/AccordionContainer", [
 			this.inherited(arguments);
 		},
 
-		addChild: function(/*dijit._Widget*/ child, /*Integer?*/ insertIndex){
+		addChild: function(/*dijit/_WidgetBase*/ child, /*Integer?*/ insertIndex){
+			// Overrides _LayoutWidget.addChild().
 			if(this._started){
 				// Adding a child to a started Accordion is complicated because children have
 				// wrapper widgets.  Default code path (calling this.inherited()) would add
@@ -442,7 +428,7 @@ define("dijit/layout/AccordionContainer", [
 			this.inherited(arguments);
 		},
 
-		_transition: function(/*dijit._Widget?*/ newWidget, /*dijit._Widget?*/ oldWidget, /*Boolean*/ animate){
+		_transition: function(/*dijit/_WidgetBase?*/ newWidget, /*dijit/_WidgetBase?*/ oldWidget, /*Boolean*/ animate){
 			// Overrides StackContainer._transition() to provide sliding of title bars etc.
 
 			if(has("ie") < 8){
@@ -517,7 +503,7 @@ define("dijit/layout/AccordionContainer", [
 		},
 
 		// note: we are treating the container as controller here
-		_onKeyPress: function(/*Event*/ e, /*dijit._Widget*/ fromTitle){
+		_onKeyPress: function(/*Event*/ e, /*dijit/_WidgetBase*/ fromTitle){
 			// summary:
 			//		Handle keypress events
 			// description:
@@ -541,7 +527,7 @@ define("dijit/layout/AccordionContainer", [
 	});
 
 	// Back compat w/1.6, remove for 2.0
-	if(!kernel.isAsync){
+	if(has("dijit-legacy-requires")){
 		ready(0, function(){
 			var requires = ["dijit/layout/AccordionPane"];
 			require(requires);	// use indirection so modules not rolled into a build

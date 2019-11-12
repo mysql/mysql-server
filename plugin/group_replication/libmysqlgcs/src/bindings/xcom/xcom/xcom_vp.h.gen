@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,6 +171,7 @@ enum cargo_type {
 	get_event_horizon_type = 21,
 	set_event_horizon_type = 22,
 	get_synode_app_data_type = 23,
+	convert_into_local_server_type = 24,
 };
 typedef enum cargo_type cargo_type;
 

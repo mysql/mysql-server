@@ -1822,8 +1822,9 @@ static const char* postVersionFileName = "postVersion.txt";
 static BaseString
 getFileName(bool post)
 {
+  /* Path is 1 level *above* basedir, treated as 'run' directory */
   BaseString nameBuff;
-  nameBuff.assfmt("%s/%s",
+  nameBuff.assfmt("%s/../%s",
                   getBaseDir(),
                   (post?
                    postVersionFileName:
@@ -1838,6 +1839,8 @@ runRecordVersion(NDBT_Context* ctx, NDBT_Step* step)
     (ctx->getProperty("PostUpgrade", Uint32(0))) != 0;
   BaseString fileNameBuf = getFileName(postUpgrade);
   const char* fileName = fileNameBuf.c_str();
+
+  ndbout_c("Writing version info to %s", fileName);
 
   FILE* versionFile = fopen(fileName, "w");
   if (!versionFile)
@@ -1863,6 +1866,8 @@ readVersionFile(const char* fileName,
 {
   bool ok = true;
   version = 0;
+
+  ndbout_c("Reading version info from %s", fileName);
 
   FILE* versionFile = fopen(fileName, "r");
   if (versionFile != NULL)

@@ -37,6 +37,18 @@ select * from qn;
 1
 1
 # UNION DISTINCT allowed
+# Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs.
+EXPLAIN FORMAT=tree with recursive qn as
+(select 1 from dual union
+select 1 from qn)
+select * from qn;
+EXPLAIN
+-> Table scan on qn
+    -> Materialize recursive CTE qn with deduplication
+        -> Rows fetched before execution
+        -> Repeat until convergence
+            -> Scan new records on qn  (cost=2.73 rows=2)
+
 with recursive qn as
 (select 1 from dual union
 select 1 from qn)
@@ -333,13 +345,13 @@ select 1+a from qn where a<125)
 select * from qn, qn as qn1;
 a	a
 123	123
-124	123
-125	123
 123	124
-124	124
-125	124
 123	125
+124	123
+124	124
 124	125
+125	123
+125	124
 125	125
 show status like "handler_write";
 Variable_name	Value
@@ -357,13 +369,13 @@ outer_ as (select * from inner_ limit 10)
 select * from outer_, outer_ as outer1;
 a	a
 123	123
-124	123
-125	123
 123	124
-124	124
-125	124
 123	125
+124	123
+124	124
 124	125
+125	123
+125	124
 125	125
 show status like "handler_write";
 Variable_name	Value
@@ -378,13 +390,13 @@ from inner_, inner_ as inner1 limit 10)
 select * from outer_;
 a	a1
 123	123
-124	123
-125	123
 123	124
-124	124
-125	124
 123	125
+124	123
+124	124
 124	125
+125	123
+125	124
 125	125
 show status like "handler_write";
 Variable_name	Value
@@ -580,7 +592,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 0 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select NULL AS `n` from `qn`
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where false union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where false) /* select#1 */ select NULL AS `n` from `qn`
 with recursive qn (n) as (
 select 1 where 0 union all select n+1 from qn where 0
 ) select * from qn;
@@ -593,7 +605,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where false) /* select#1 */ select '1' AS `n` from dual
 with recursive qn (n) as (
 select 1 where 1 union all select n+1 from qn where 0
 ) select * from qn;
@@ -987,9 +999,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
@@ -1063,6 +1075,35 @@ id	name	leftpar	rightpar	path
 10	LRA	12	13	1,3,10
 11	RRA	14	15	1,3,11
 15	RRRA	NULL	NULL	1,3,11,15
+# Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs with joins.
+EXPLAIN FORMAT=tree with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+EXPLAIN
+-> Sort: tree_of_a.path
+    -> Table scan on tree_of_a
+        -> Materialize recursive CTE tree_of_a
+            -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
+                -> Table scan on t2  (cost=1.75 rows=15)
+            -> Repeat until convergence
+                -> Nested loop inner join  (cost=6.22 rows=3)
+                    -> Scan new records on tree_of_a  (cost=2.73 rows=2)
+                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=0.33 rows=2)
+                        -> Table scan on t2  (cost=0.33 rows=15)
+            -> Repeat until convergence
+                -> Nested loop inner join  (cost=11.81 rows=8)
+                    -> Scan new records on tree_of_a  (cost=3.06 rows=5)
+                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=0.28 rows=2)
+                        -> Table scan on t2  (cost=0.28 rows=15)
+
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't
 # rely on it, just as he shouldn't expect some particular order
@@ -1134,9 +1175,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	#	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` where (`tree_of_a`.`id` = 2)
 with recursive tree_of_a as
@@ -1352,6 +1393,18 @@ select * from qn;
 1
 1
 # UNION DISTINCT allowed
+# Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs.
+EXPLAIN FORMAT=tree with recursive qn as
+(select 1 from dual union
+select 1 from qn)
+select * from qn;
+EXPLAIN
+-> Table scan on qn
+    -> Materialize recursive CTE qn with deduplication
+        -> Rows fetched before execution
+        -> Repeat until convergence
+            -> Scan new records on qn  (cost=0.70 rows=2)
+
 with recursive qn as
 (select 1 from dual union
 select 1 from qn)
@@ -1648,13 +1701,13 @@ select 1+a from qn where a<125)
 select * from qn, qn as qn1;
 a	a
 123	123
-124	123
-125	123
 123	124
-124	124
-125	124
 123	125
+124	123
+124	124
 124	125
+125	123
+125	124
 125	125
 show status like "handler_write";
 Variable_name	Value
@@ -1672,13 +1725,13 @@ outer_ as (select * from inner_ limit 10)
 select * from outer_, outer_ as outer1;
 a	a
 123	123
-124	123
-125	123
 123	124
-124	124
-125	124
 123	125
+124	123
+124	124
 124	125
+125	123
+125	124
 125	125
 show status like "handler_write";
 Variable_name	Value
@@ -1693,13 +1746,13 @@ from inner_, inner_ as inner1 limit 10)
 select * from outer_;
 a	a1
 123	123
-124	123
-125	123
 123	124
-124	124
-125	124
 123	125
+124	123
+124	124
 124	125
+125	123
+125	124
 125	125
 show status like "handler_write";
 Variable_name	Value
@@ -1895,7 +1948,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where 0 union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select NULL AS `n` from `qn`
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` from DUAL  where false union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where false) /* select#1 */ select NULL AS `n` from `qn`
 with recursive qn (n) as (
 select 1 where 0 union all select n+1 from qn where 0
 ) select * from qn;
@@ -1908,7 +1961,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where 0) /* select#1 */ select '1' AS `n` from dual
+Note	1003	with recursive `qn` (`n`) as (/* select#2 */ select 1 AS `1` union all /* select#3 */ select (`qn`.`n` + 1) AS `n+1` from `qn` where false) /* select#1 */ select '1' AS `n` from dual
 with recursive qn (n) as (
 select 1 where 1 union all select n+1 from qn where 0
 ) select * from qn;
@@ -2302,9 +2355,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
@@ -2378,6 +2431,35 @@ id	name	leftpar	rightpar	path
 10	LRA	12	13	1,3,10
 11	RRA	14	15	1,3,11
 15	RRRA	NULL	NULL	1,3,11,15
+# Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs with joins.
+EXPLAIN FORMAT=tree with recursive tree_of_a as
+(
+select *, cast(id as char(200)) as path from t2 where name="A"
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.leftpar
+union all
+select t2.*, concat(tree_of_a.path,",",t2.id) from t2 join tree_of_a on
+t2.id=tree_of_a.rightpar
+)
+select * from tree_of_a order by path;
+EXPLAIN
+-> Sort: tree_of_a.path
+    -> Table scan on tree_of_a
+        -> Materialize recursive CTE tree_of_a
+            -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
+                -> Table scan on t2  (cost=1.75 rows=15)
+            -> Repeat until convergence
+                -> Nested loop inner join  (cost=4.20 rows=3)
+                    -> Scan new records on tree_of_a  (cost=0.70 rows=2)
+                    -> Filter: (t2.id = tree_of_a.leftpar)  (cost=0.33 rows=2)
+                        -> Table scan on t2  (cost=0.33 rows=15)
+            -> Repeat until convergence
+                -> Nested loop inner join  (cost=9.75 rows=8)
+                    -> Scan new records on tree_of_a  (cost=1.00 rows=5)
+                    -> Filter: (t2.id = tree_of_a.rightpar)  (cost=0.28 rows=2)
+                        -> Table scan on t2  (cost=0.28 rows=15)
+
 # Without ORDER BY order is different; it is deterministic as
 # the CTE is the driving table (no BNL) but a user shouldn't
 # rely on it, just as he shouldn't expect some particular order
@@ -2449,9 +2531,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	#	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` where (`tree_of_a`.`id` = 2)
 with recursive tree_of_a as
@@ -2573,7 +2655,7 @@ sum(n)
 5050
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	54
+Created_tmp_disk_tables	53
 # Too long key (>3000 bytes in latin1)
 with recursive cte as
 (
@@ -2627,4 +2709,4 @@ Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1
 drop table t1;
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	59
+Created_tmp_disk_tables	58

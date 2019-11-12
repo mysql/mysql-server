@@ -1,28 +1,30 @@
-//>>built
-define("dojox/geo/openlayers/Collection", [ "dojo/_base/kernel", "dojo/_base/declare", "dojox/geo/openlayers/Geometry" ],
-		function(dojo, declare, Geometry) {
-			/*===== 
-			var Geometry = dojox.geo.openlayers.Geometry; 
-			=====*/
-			return declare("dojox.geo.openlayers.Collection", Geometry, {
-				// summary:
-				// A collection of geometries. _coordinates_ holds an array of
-				// geometries.
+define("dojox/geo/openlayers/Collection", [
+	"dojo/_base/declare",
+	"./Geometry"
+], function(declare, Geometry){
 
-				setGeometries : function(/* Array */g) {
-					// summary:
-					// Sets the geometries
-					// g: Array
-					// The array of geometries.
-					this.coordinates = g;
-				},
+	return declare("dojox.geo.openlayers.Collection", Geometry, {
+		// summary:
+		//		A collection of geometries. 
 
-				// summary:
-				// Retrieves the geometries.
-				// returns: Array
-				// The array of geometries defining this collection.
-				getGeometries : function() {
-					return this.coordinates;
-				}
-			});
-		});
+		// coordinates: Array
+		//		An array of geometries.
+		coordinates:null,
+
+		setGeometries: function(g){
+			// summary:
+			//		Sets the geometries
+			// g: Array
+			//		The array of geometries.
+			this.coordinates = g;
+		},
+
+		getGeometries: function(){
+			// summary:
+			//		Returns the geometries.
+			// returns:
+			//		The array of geometries defining this collection.
+			return this.coordinates; // Array
+		}
+	});
+});

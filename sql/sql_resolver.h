@@ -1,7 +1,7 @@
 #ifndef SQL_RESOLVER_INCLUDED
 #define SQL_RESOLVER_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,9 +47,6 @@ void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
 
 bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
                  List<Item> &fields, List<Item> &all_fields, ORDER *order);
-bool subquery_allows_materialization(Item_in_subselect *predicate, THD *thd,
-                                     SELECT_LEX *select_lex,
-                                     const SELECT_LEX *outer);
 bool validate_gc_assignment(List<Item> *fields, List<Item> *values, TABLE *tab);
 
 bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,

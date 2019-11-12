@@ -4,6 +4,8 @@ CREATE TABLE `t1_c` (
 `maturegarbagefa` varchar(32) NOT NULL default '',
 PRIMARY KEY  (`capgoaledatta`,`goaledatta`,`maturegarbagefa`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t1_c` VALUES (2,'3','q3plus.qt'),(400,'4','q3plus.qt'),(1,'3','q3.net'),(3,'4','q3.net'),(3000,'20','threetrees.qt');
 CREATE TABLE `t2_c` (
 `capgotod` smallint(5) unsigned NOT NULL auto_increment,
@@ -15,12 +17,18 @@ CREATE TABLE `t2_c` (
 PRIMARY KEY  (`capgotod`),
 KEY `i quadaddsvr` (`gotod`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t2_c` VALUES (500,4,'','q3.net','addavp:MK_CASELECTOR=1','postorod rattoaa'),(2,1,'4','','addavp:MK_BRANDTAD=345','REDS Brandtad'),(3,2,'4','q3.net','execorder','fixedRatediPO REDS'),(1,1,'3','','addavp:MK_BRANDTAD=123','TEST Brandtad'),(6,5,'','told.q3.net','addavp:MK_BRANDTAD=123','Brandtad Toldzone'),(4,3,'3','q3.net','addavp:MK_POOLHINT=2','ratedi PO TEST'),(5,0,'',NULL,NULL,'');
 CREATE TABLE `t3_c` (
 `CapGoaledatta` smallint(5) unsigned NOT NULL default '0',
 `capgotod` smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY  (`capgotod`,`CapGoaledatta`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t3_c` VALUES (5,3),(2,4),(5,4),(1,3);
 CREATE TABLE `t4_c` (
 `capfa` bigint(20) unsigned NOT NULL auto_increment,
@@ -33,6 +41,9 @@ PRIMARY KEY  (`fa`,`realm`),
 KEY `capfa` (`capfa`),
 KEY `i_quadentity` (`fa`,`realm`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t4_c` VALUES (18,'john.smith','q3.net','dessjohn.smith',0,NULL),(21,'quad_katt_with_brandtad','q3.net','acne',0,NULL),(2200,'quad_katt_carattoaa','q3.net','acne',0,NULL),(26,'436462612809','sqasdt.q3.net','N/A',0,'6'),(19,'john','smith.qt','dessjohn',0,NULL),(33,'436643196120','sqasdt.q3.net','N/A',1,'6'),(28,'436642900019','sqasdt.q3.net','N/A',0,'6'),(30,'436462900209','sqasdt.q3.net','N/A',0,'6'),(16,'436640006666','sqasdt.q3.net','',0,NULL),(19,'dette','el-redun.com','dessdette',0,NULL),(12,'quad_kattPP','q3.net','acne',2,NULL),(14,'436640008888','sqasdt.q3.net','',0,NULL),(29,'463624900028','sqasdt.q3.net','N/A',0,'6'),(15,'436640099099','sqasdt.q3.net','',0,NULL),(13,'pap','q3plus.qt','acne',1,NULL),(19,'436642612091','sqasdt.q3.net','N/A',0,'6'),(12,'quad_katt','q3.net','acne',0,NULL),(11,'quad_kattVK','q3.net','acne',1,NULL),(32000,'463641969502','sqasdt.q3.net','N/A',1,'6'),(20,'joe','q3.net','joedesswd',0,NULL),(290000000,'436642900034','sqasdt.q3.net','N/A',0,'6'),(25,'contind','armerde.qt','acne',1,NULL);
 CREATE TABLE `t5_c` (
 `capfa` bigint(20) unsigned NOT NULL default '0',
@@ -40,6 +51,9 @@ CREATE TABLE `t5_c` (
 `orderutonsa` varchar(64) NOT NULL default '',
 PRIMARY KEY  (`capfa`,`gotod`,`orderutonsa`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t5_c` VALUES (21,2,''),(21,1,''),(22,4,'');
 CREATE TABLE `t6_c` (
 `capfa_parent` bigint(20) unsigned NOT NULL default '0',
@@ -47,6 +61,10 @@ CREATE TABLE `t6_c` (
 `relatta` smallint(5) unsigned NOT NULL default '0',
 PRIMARY KEY  (`capfa_child`,`capfa_parent`,`relatta`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t6_c` VALUES (15,16,0),(19,20,0),(18326932092909551615,30,0),(26,29,0),(18326932092909551615,29,0),(19,18,0),(26,28,0),(12,14,0);
 CREATE TABLE `t7_c` (
 `dardpo` char(15) NOT NULL default '',
@@ -58,6 +76,8 @@ CREATE TABLE `t7_c` (
 `Beareratta` char(2) NOT NULL default '',
 PRIMARY KEY  (`dardpo`,`dardtestard`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t7_c` VALUES ('2.6.2.4',24,'CECHP','54545','0','0','5'),('2.2.5.4',26,'CANFA','33223','1','1','4'),('4.3.2.4',28,'ITALD','54222','1','0','5'),('129..0.0.eins',28,'G','99999','1','1','5'),('1.1.1.1',24,'AUTPT','32323','0','1','3');
 CREATE TABLE `t8_c` (
 `kattjame` varchar(32) NOT NULL default '',
@@ -86,6 +106,10 @@ CREATE TABLE `t8_c` (
 PRIMARY KEY  (`kattjame`,`hunderaaarbagefa`,`hassetistart`,`hassetino`),
 KEY `squardporoot` (`squardporoot`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t8_c` VALUES ('4tt45345235','pap','q3plus.qt','q3plus.qt','q3.net','436643196120','436643196929','8956234534568968','5524595699','uxasmt21.net.acne.qt/481889229462692422','','1.1.1.1','2.2.4.6','4','86989','34','x','x','2012-03-12 12:55:34','2012-12-05 11:20:04',3223433,3369,9565),('4545435545','john','q3.net','q3.net','acne.li','436643196120','436643196929','45345234568968','995696699','uxasmt21.net.acne.qt/481889229462692423','','1.1.1.1','2.2.9.8','2','86989','34','x','x','2012-03-12 11:35:03','2012-12-05 08:50:04',8821923,169,3565),('versteckter_q3net_katt','joe','q3.net','elredun.com','q3.net','436643196120','436643196939','91341234568968','695595699','uxasmt21.net.acne.qt/481889229462692421','','1.1.1.1','2.5.2.5','3','86989','34','x','x','2012-03-12 18:35:04','2012-12-05 12:35:04',1923123,9569,6565);
 CREATE TABLE `t9_c` (
 `kattjame` varchar(32) NOT NULL default '',
@@ -112,6 +136,11 @@ CREATE TABLE `t9_c` (
 `terminateraste` tinyint(3) unsigned default NULL,
 PRIMARY KEY  (`kattjame`,`hunderaaarbagefa`,`hassetistart`,`hassetino`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t9_c` VALUES ('3g4jh8gar2t','joe','q3.net','elredun.com','q3.net','436643316120','436643316939','91341234568968','695595699','1.1.1.1','2.2.6.2','3','86989','34','x','x','2012-03-12 18:35:04','2012-12-05 12:35:04',3123123,9569,6565,1),('4tt45345235','pap','q3plus.qt','q3plus.qt','q3.net','436643316120','436643316939','8956234534568968','5254595969','1.1.1.1','8.6.2.2','4','86989','34','x','x','2012-03-12 12:55:34','2012-12-05 11:20:04',3223433,3369,9565,2),('4545435545','john','q3.net','q3.net','acne.li','436643316120','436643316939','45345234568968','995696699','1.1.1.1','2.9.9.2','2','86998','34','x','x','2012-03-12 11:35:03','2012-12-05 08:50:04',8823123,169,3565,3);
 CREATE TABLE t10_c (a INT AUTO_INCREMENT KEY) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO t10_c VALUES (1),(2),(3);
@@ -131,6 +160,10 @@ create table t10 engine=myisam as select * from t10_c;
 create table t11 engine=myisam as select * from t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
@@ -545,14 +578,10 @@ select * from t11_c) a;
 count(*)
 1
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
-Backup Id = the_backup_id
-Nodeid = 1
-Analyse node group map
+select output_line from ndb_restore_output where output_line like '%t2_c%' order by output_line;
+output_line
 Create table `test/def/t2_c` failed: 721: Schema object with given name already exists
 Restore: Failed to restore table: `test/def/t2_c` ... Exiting 
-
-NDBT_ProgramExit: 1 - Failed
-
 CREATE TABLE t11_c (
 c1 int primary key, c2 char(10), c3 varchar(10)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
@@ -622,6 +651,7 @@ select id into @tmp1 from ndb_show_tables_results
 where name like '%ndb_index_stat_sample_x1%';
 select * from ndb_show_tables_results
 where type like '%Index%'
+and _database = 'test'
 and name not like '%ndb_index_stat_sample_x1%'
 and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
 order by 1,2,3,4,5,6,7;
@@ -716,13 +746,12 @@ select count(1) from mysql.ndb_apply_status where server_id=0;
 count(1)
 1
 drop table t1;
-Backup Id = the_backup_id
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+output_line
 Backup file node ID not specified, please provide --nodeid
-
-NDBT_ProgramExit: 2 - Wrong arguments
-
-Nodeid = 2
+select output_line from ndb_restore_output where output_line like '%not specified%' order by output_line;
+output_line
+Backup file node ID not specified, please provide --nodeid
 Backup ID not specified, please provide --backupid
-
-NDBT_ProgramExit: 2 - Wrong arguments
-
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;

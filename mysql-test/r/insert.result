@@ -42,23 +42,6 @@ a	t>0	c	i
 5	0	a	NULL
 6	1	hello	NULL
 drop table t1;
-create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id)) engine=myisam;
-insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
-select * from t1;
-sid	id
-skr	1
-skr	2
-test	1
-insert into t1 values ('rts',NULL),('rts',NULL),('test',NULL);
-select * from t1;
-sid	id
-rts	1
-rts	2
-skr	1
-skr	2
-test	1
-test	2
-drop table t1;
 create table t1 (id int NOT NULL DEFAULT 8);
 insert into t1 values(NULL);
 ERROR 23000: Column 'id' cannot be null
@@ -88,6 +71,15 @@ insert into mysqltest.t1 set mysqltest.t1.c = '1';
 drop database mysqltest;
 use test;
 create table t1(number int auto_increment primary key, original_value varchar(50), f_double double, f_float float, f_double_7_2 double(7,2), f_float_4_3 float (4,3), f_double_u double unsigned, f_float_u float unsigned, f_double_15_1_u double(15,1) unsigned, f_float_3_1_u float (3,1) unsigned);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 set @value= "aa";
 insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@value,@value);
 Warnings:
@@ -393,30 +385,6 @@ f1	f2
 2	22
 drop view v1;
 drop table t1,t2;
-create table t1 (id int primary key auto_increment, data int, unique(data)) engine=myisam;
-insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
-insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
-Warnings:
-Warning	1062	Duplicate entry '110' for key 'data'
-Warning	1062	Duplicate entry '120' for key 'data'
-Warning	1062	Duplicate entry '100' for key 'data'
-insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);
-Warnings:
-Warning	1062	Duplicate entry '110' for key 'data'
-Warning	1062	Duplicate entry '120' for key 'data'
-Warning	1062	Duplicate entry '100' for key 'data'
-select * from t1 order by id;
-id	data
-1	100
-2	110
-3	120
-4	10
-5	20
-6	90
-7	130
-8	140
-9	150
-drop table t1;
 CREATE TABLE t1 (
 a char(20) NOT NULL,
 b char(7) DEFAULT NULL,
@@ -731,7 +699,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.a	1	100.00	End temporary
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) semi join (`test`.`t3`) join `test`.`t2` where ((`test`.`t3`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`))
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`pk`,`test`.`t1`.`a`) /* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t3`) join `test`.`t2` semi join (`test`.`t3`) where ((`test`.`t3`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`) and (`test`.`t2`.`pk` = `test`.`t3`.`a`))
 INSERT INTO v1
 SELECT dt.pk, v2.a
 FROM (SELECT * FROM v2) AS dt JOIN v2 ON dt.pk=v2.pk;
@@ -848,17 +816,6 @@ pk
 2
 DROP VIEW v1, v2;
 DROP TABLE t1;
-#
-# Bug#22635253: ASSERTION `THD->IS_ERROR() BOOL
-#               SQL_CMD_INSERT::MYSQL_INSERT(THD*, TABLE_LIST*)
-#
-CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
-CREATE TABLE t2(a INT) ENGINE=MyISAM;
-CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 VALUES (1);
-INSERT INTO t1(b) VALUES (1);
-Warnings:
-Warning	1364	Field 'a' doesn't have a default value
-DROP TABLE t2, t1;
 #
 # BUG#22037930: INSERT IGNORE FAILS TO IGNORE
 #               FOREIGN KEY CONSTRAINT
@@ -1044,3 +1001,20 @@ ERROR 42000: Column 'a' specified twice
 INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
 ERROR 42000: Column 'b' specified twice
 DROP TABLE t1;
+#
+# Bug #29899614: SIG 6 -`M_PSI_BATCH_MODE == PSI_BATCH_MODE_NONE' | SQL/HANDLER.CC
+#
+CREATE TABLE t1 ( f1 INTEGER, INDEX ( f1 ) );
+CREATE TABLE t2 ( f1 INTEGER );
+INSERT INTO t1 VALUES (10);
+INSERT INTO t2
+SELECT STRAIGHT_JOIN *
+FROM t1 AS alias1
+WHERE EXISTS (
+SELECT * FROM (
+SELECT * FROM t1 JOIN t1 AS alias2 USING ( f1 )
+) AS alias3
+WHERE alias1.f1 < 20
+);
+FLUSH TABLES;
+DROP TABLE t1, t2;

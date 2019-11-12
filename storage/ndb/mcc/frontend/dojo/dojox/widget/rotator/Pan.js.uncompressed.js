@@ -1,10 +1,11 @@
-//>>built
-// wrapped by build app
-define("dojox/widget/rotator/Pan", ["dijit","dojo","dojox","dojo/require!dojo/fx"], function(dijit,dojo,dojox){
-dojo.provide("dojox.widget.rotator.Pan");
-dojo.require("dojo.fx");
-
-(function(d){
+define("dojox/widget/rotator/Pan", [
+	"dojo/_base/array",
+	"dojo/_base/connect",
+	"dojo/_base/lang",
+	"dojo/dom-style",
+	"dojo/_base/fx",
+	"dojo/fx"
+], function(array, connect, lang, domStyle, baseFx, fx) {
 
 	// Constants used to identify which edge the pane pans in from.
 	var DOWN = 0,
@@ -13,7 +14,7 @@ dojo.require("dojo.fx");
 		LEFT = 3;
 
 	function _pan(/*int*/type, /*Object*/args){
-		//	summary:
+		// summary:
 		//		Handles the preparation of the dom node and creates the dojo.Animation object.
 		var n = args.next.node,
 			r = args.rotatorBox,
@@ -23,7 +24,7 @@ dojo.require("dojo.fx");
 			p = {},
 			q = {};
 
-		d.style(n, "display", "");
+		domStyle.set(n, "display", "");
 
 		p[a] = {
 			start: 0,
@@ -35,14 +36,14 @@ dojo.require("dojo.fx");
 			end: 0
 		};
 
-		return d.fx.combine([ /*dojo.Animation*/
-			d.animateProperty({
+		return fx.combine([ /*dojo.Animation*/
+			baseFx.animateProperty({
 				node: args.current.node,
 				duration: args.duration,
 				properties: p,
 				easing: args.easing
 			}),
-			d.animateProperty({
+			baseFx.animateProperty({
 				node: n,
 				duration: args.duration,
 				properties: q,
@@ -52,14 +53,14 @@ dojo.require("dojo.fx");
 	}
 
 	function _setZindex(/*DomNode*/n, /*int*/z){
-		//	summary:
+		// summary:
 		//		Helper function for continuously panning.
-		d.style(n, "zIndex", z);
+		domStyle.set(n, "zIndex", z);
 	}
 
-	d.mixin(dojox.widget.rotator, {
+	var exports = {
 		pan: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that either pans left or right to the next pane.
 			//		The actual direction depends on the order of the panes.
 			//
@@ -140,7 +141,7 @@ dojo.require("dojo.fx");
 					_setZindex(y.node, z--);
 
 					// build the pan animation
-					_pans.push(_pan(_dir, d.mixin({
+					_pans.push(_pan(_dir, lang.mixin({
 						easing: function(m){ return m; } // continuous gets a linear easing by default
 					}, args, {
 						current: x,
@@ -159,13 +160,13 @@ dojo.require("dojo.fx");
 				}
 
 				// build the chained animation of all pan animations
-				var _anim = d.fx.chain(_pans),
+				var _anim = fx.chain(_pans),
 
 					// clean up styles when the chained animation finishes
-					h = d.connect(_anim, "onEnd", function(){
-						d.disconnect(h);
-						d.forEach(_nodes, function(q){
-							d.style(q, {
+					h = connect.connect(_anim, "onEnd", function(){
+						connect.disconnect(h);
+						array.forEach(_nodes, function(q){
+							domStyle.set(q, {
 								display: "none",
 								left: 0,
 								opacity: 1,
@@ -183,30 +184,32 @@ dojo.require("dojo.fx");
 		},
 
 		panDown: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that pans in the next rotator pane from the top.
 			return _pan(DOWN, args); /*dojo.Animation*/
 		},
 
 		panRight: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that pans in the next rotator pane from the right.
 			return _pan(RIGHT, args); /*dojo.Animation*/
 		},
 
 		panUp: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that pans in the next rotator pane from the bottom.
 			return _pan(UP, args); /*dojo.Animation*/
 		},
 
 		panLeft: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that pans in the next rotator pane from the left.
 			return _pan(LEFT, args); /*dojo.Animation*/
 		}
-	});
+	};
 
-})(dojo);
+	// back-compat, remove for 2.0
+	lang.mixin(lang.getObject("dojox.widget.rotator"), exports);
 
+	return exports;
 });

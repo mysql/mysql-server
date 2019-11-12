@@ -1,6 +1,4 @@
-drop table if exists t1, t2, t3, t4;
 flush status;
-drop table if exists t1, t2, t3, t4;
 flush status;
 create table t1 (a int) engine=ndbcluster;
 create table t2 (a int) engine=ndbcluster;
@@ -64,7 +62,7 @@ t2
 t3
 t4
 drop table t1, t2, t3, t4;
-create table t1(c1 int key)ENGINE=MyISAM;
+create table t1(c1 int key) ENGINE=InnoDB;
 insert into t1 values(1),(3),(5);
 select * from t1 order by c1;
 c1
@@ -73,7 +71,7 @@ c1
 5
 show tables;
 Tables_in_test
-create table t1(c1 int key)ENGINE=MyISAM;
+create table t1(c1 int key) ENGINE=InnoDB;
 insert into t1 values(100),(344),(533);
 select * from t1 order by c1;
 c1
@@ -81,6 +79,8 @@ c1
 344
 533
 alter table t1 engine=ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of ALTER TABLE 't1' failed'
 show tables;
 Tables_in_test
 t1
@@ -89,7 +89,7 @@ c1
 100
 344
 533
-drop table t1 /* engine = MyISAM */;
+drop table t1 /* engine = InnoDB */;
 select * from t1 order by c1;
 c1
 1
@@ -110,12 +110,14 @@ create database db;
 use db;
 create table t1(x int) engine=ndb;
 use db;
-create table t2(x int) engine=myisam;
+create table t2(x int) engine=innodb;
 show tables;
 Tables_in_db
 t1
 t2
 drop database db;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP DATABASE 'db' failed'
 show tables;
 Tables_in_db
 t2
@@ -141,9 +143,11 @@ show tables like '%$%';
 Tables_in_test (%$%)
 show tables like '%$%';
 Tables_in_test (%$%)
-create table t1(s char(1)) engine = myisam;
+create table t1(s char(1)) engine = innodb;
 insert into t1 values ("a"),("b"),("c");
 create table t1(s char(1)) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 insert into t1 values ("d"),("e"),("f");
 Restarting mysqld
 # restart
@@ -159,12 +163,16 @@ d
 e
 f
 drop table t1;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of DROP TABLE 't1' failed'
 select * from t1 order by s;
 s
 a
 b
 c
 create table t1(s char(1)) engine = ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't1' failed'
 insert into t1 values ("g"),("h"),("i");
 show tables;
 Tables_in_test
@@ -178,13 +186,13 @@ drop table t1;
 drop table t1;
 Bug 11894966 - second mysqld does not have table after non
 distributed table alter to ndb
-create table t1(a int) engine myisam;
+create table t1(a int) engine innodb;
 insert into t1 values(37);
 alter table t1 engine ndb;
 truncate t1;
 drop table t1;
-create table mysql.dummy(a int primary key, b int) engine=myisam;
-create table mysql.dummy(a int primary key, b int) engine=myisam;
+create table mysql.dummy(a int primary key, b int) engine=innodb;
+create table mysql.dummy(a int primary key, b int) engine=innodb;
 drop table mysql.dummy;
 show create table mysql.dummy;
 Table	Create Table
@@ -192,7 +200,7 @@ dummy	CREATE TABLE `dummy` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table mysql.dummy;
 CREATE DATABASE tmp_db;
 Let server2 create the table tmp_db.t1 in the background.

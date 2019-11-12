@@ -1,31 +1,27 @@
-//>>built
 define("dojox/charting/Series", ["dojo/_base/lang", "dojo/_base/declare", "./Element"], 
 	function(lang, declare, Element){ 
 	/*=====
-	dojox.charting.__SeriesCtorArgs = function(plot){
-		//	summary:
+	var __SeriesCtorArgs = {
+		// summary:
 		//		An optional arguments object that can be used in the Series constructor.
-		//	plot: String?
+		// plot: String?
 		//		The plot (by name) that this series belongs to.
-		this.plot = plot;
-	}
-
-	var Element = dojox.charting.Element;
+	};
 	=====*/
 	return declare("dojox.charting.Series", Element, {
-		//	summary:
+		// summary:
 		//		An object representing a series of data for plotting on a chart.
 		constructor: function(chart, data, kwArgs){
-			//	summary:
+			// summary:
 			//		Create a new data series object for use within charting.
-			//	chart: dojox.charting.Chart
+			// chart: dojox/charting/Chart
 			//		The chart that this series belongs to.
-			//	data: Array|Object:
+			// data: Array|Object
 			//		The array of data points (either numbers or objects) that
 			//		represents the data to be drawn. Or it can be an object. In
 			//		the latter case, it should have a property "data" (an array),
 			//		destroy(), and setSeriesObject().
-			//	kwArgs: dojox.charting.__SeriesCtorArgs?
+			// kwArgs: __SeriesCtorArgs?
 			//		An optional keyword arguments object to set details for this series.
 			lang.mixin(this, kwArgs);
 			if(typeof this.plot != "string"){ this.plot = "default"; }
@@ -33,15 +29,15 @@ define("dojox/charting/Series", ["dojo/_base/lang", "dojo/_base/declare", "./Ele
 		},
 	
 		clear: function(){
-			//	summary:
+			// summary:
 			//		Clear the calculated additional parameters set on this series.
 			this.dyn = {};
 		},
 		
 		update: function(data){
-			//	summary:
+			// summary:
 			//		Set data and make this object dirty, so it can be redrawn.
-			//	data: Array|Object:
+			// data: Array|Object
 			//		The array of data points (either numbers or objects) that
 			//		represents the data to be drawn. Or it can be an object. In
 			//		the latter case, it should have a property "data" (an array),
@@ -59,5 +55,4 @@ define("dojox/charting/Series", ["dojo/_base/lang", "dojo/_base/declare", "./Ele
 			this.clear();
 		}
 	});
-
 });

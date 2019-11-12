@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -28,23 +28,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  ***                                                                        ***
  ******************************************************************************/
 
-dojo.provide("mcc.userconfig");
+dojo.provide('mcc.userconfig');
 
-/************************** User config utilities  ****************************/
-
-dojo.require("mcc.userconfig.userconfigjs");
+/************************** User config utilities *****************************/
+dojo.require('mcc.userconfig.userconfigjs');
 mcc.userconfig.setConfigFile = mcc.userconfig.userconfigjs.setConfigFile;
 mcc.userconfig.getConfigFile = mcc.userconfig.userconfigjs.getConfigFile;
 mcc.userconfig.setConfigFileContents = mcc.userconfig.userconfigjs.setConfigFileContents;
 mcc.userconfig.getConfigFileContents = mcc.userconfig.userconfigjs.getConfigFileContents;
 mcc.userconfig.getDefaultCfg = mcc.userconfig.userconfigjs.getDefaultCfg;
-mcc.userconfig.getConfKey = mcc.userconfig.userconfigjs.getConfKey;
-mcc.userconfig.setConfKey = mcc.userconfig.userconfigjs.setConfKey;
-mcc.userconfig.resetConfKey = mcc.userconfig.userconfigjs.resetConfKey;
 mcc.userconfig.writeConfigFile = mcc.userconfig.userconfigjs.writeConfigFile;
-
-/******************************** Initialize  *********************************/
-
+mcc.userconfig.setOriginalStore = mcc.userconfig.userconfigjs.setOriginalStore;
+mcc.userconfig.isShadowEmpty = mcc.userconfig.userconfigjs.isShadowEmpty;
+mcc.userconfig.setIsNewConfig = mcc.userconfig.userconfigjs.setIsNewConfig;
+mcc.userconfig.getIsNewConfig = mcc.userconfig.userconfigjs.getIsNewConfig;
+mcc.userconfig.compareStores = mcc.userconfig.userconfigjs.compareStores;
+mcc.userconfig.getConfigProblems = mcc.userconfig.userconfigjs.getConfigProblems;
+//- only list of problems not coming from shadow comparison needs setter too
+mcc.userconfig.setCcfgPrGen = mcc.userconfig.userconfigjs.setCcfgPrGen;
+mcc.userconfig.setMsgForGenPr = mcc.userconfig.userconfigjs.setMsgForGenPr;
+mcc.userconfig.wasCfgStarted = mcc.userconfig.userconfigjs.wasCfgStarted;
+mcc.userconfig.setCfgStarted = mcc.userconfig.userconfigjs.setCfgStarted;
+/******************************** Initialize **********************************/
 dojo.ready(function () {
-    console.log("Userconfig module initialized");
+    console.info('[INF]Userconfig module initialized');
 });

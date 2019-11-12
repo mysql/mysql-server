@@ -109,7 +109,7 @@ class Hash_slave_rows {
      Allocates an empty entry to be added to the hash table.
      It should be called before calling member function @c put.
 
-     @returns NULL if a problem occured, a valid pointer otherwise.
+     @returns NULL if a problem occurred, a valid pointer otherwise.
   */
   HASH_ROW_ENTRY *make_entry();
 
@@ -121,7 +121,7 @@ class Hash_slave_rows {
                      before image begins.
      @param bi_ends  the position to where in the rows buffer the
                      before image ends.
-     @returns NULL if a problem occured, a valid pointer otherwise.
+     @returns NULL if a problem occurred, a valid pointer otherwise.
    */
   HASH_ROW_ENTRY *make_entry(const uchar *bi_start, const uchar *bi_ends);
 
@@ -311,7 +311,7 @@ class table_def {
       we might need to modify the type to get the real type.
     */
     enum_field_types source_type = binlog_type(index);
-    uint16 source_metadata = m_field_metadata[index];
+    uint source_metadata = m_field_metadata[index];
     switch (source_type) {
       case MYSQL_TYPE_STRING: {
         int real_type = source_metadata >> 8;
@@ -348,12 +348,23 @@ class table_def {
     corresponding fields to properly extract the data from the binary log
     in the event that the master's field is smaller than the slave.
   */
-  uint16 field_metadata(uint index) const {
+  uint field_metadata(uint index) const {
     DBUG_ASSERT(index < m_size);
     if (m_field_metadata_size)
       return m_field_metadata[index];
     else
       return 0;
+  }
+
+  /**
+    Returns whether or not the field at `index` is a typed array.
+   */
+  bool is_array(uint index) const {
+    DBUG_ASSERT(index < m_size);
+    if (m_field_metadata_size)
+      return m_is_array[index];
+    else
+      return false;
   }
 
   /*
@@ -373,7 +384,7 @@ class table_def {
     WL#3915) or needs to advance the pointer for the fields in the raw
     data from the master to a specific column.
   */
-  uint32 calc_field_size(uint col, uchar *master_data) const;
+  uint32 calc_field_size(uint col, const uchar *master_data) const;
 
 #ifdef MYSQL_SERVER
   /**
@@ -435,11 +446,12 @@ class table_def {
   ulong m_size;           // Number of elements in the types array
   unsigned char *m_type;  // Array of type descriptors
   uint m_field_metadata_size;
-  uint16 *m_field_metadata;
+  uint *m_field_metadata;
   uchar *m_null_bits;
   uint16 m_flags;  // Table flags
   uchar *m_memory;
   mutable int m_json_column_count;  // Number of JSON columns
+  bool *m_is_array;
 };
 
 #ifdef MYSQL_SERVER
@@ -451,7 +463,7 @@ struct RPL_TABLE_LIST : public TABLE_LIST {
   RPL_TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
                  const char *table_name_arg, size_t table_name_length_arg,
                  const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
+      : TABLE_LIST(db_name_arg, db_length_arg, table_name_arg,
                    table_name_length_arg, alias_arg, lock_type_arg) {}
 
   bool m_tabledef_valid;
@@ -475,6 +487,36 @@ class Deferred_log_events {
 
 #endif
 
+/**
+  Decode field metadata from a char buffer (serialized form) into an int
+  (packed form).
+
+  @note On little-endian platforms (e.g Intel) this function effectively
+  inverts order of bytes compared to what Field::save_field_metadata()
+  writes. E.g for MYSQL_TYPE_NEWDECIMAL save_field_metadata writes precision
+  into the first byte and decimals into the second, this function puts
+  precision into the second byte and decimals into the first. This layout
+  is expected by replication code that reads metadata in the uint form.
+  Due to this design feature show_sql_type() can't correctly print
+  immediate output of save_field_metadata(), this function have to be used
+  as translator.
+
+  @param buffer Field metadata, in the character stream form produced by
+                save_field_metadata.
+  @param binlog_type The type of the field, in the form returned by
+                      Field::binlog_type and stored in Table_map_log_event.
+  @retval pair where:
+  - the first component is the length of the metadata within 'buffer',
+    i.e., how much the buffer pointer should move forward in order to skip it.
+  - the second component is pair containing:
+    - the metadata, encoded as an 'uint', in the form required by e.g.
+      show_sql_type.
+    - bool indicating whether the field is array (true) or a scalar (false)
+*/
+
+std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
+    const uchar *metadata_ptr, enum_field_types type);
+
 // NB. number of printed bit values is limited to sizeof(buf) - 1
 #define DBUG_PRINT_BITSET(N, FRM, BS)                           \
   do {                                                          \
@@ -485,5 +527,80 @@ class Deferred_log_events {
     buf[i] = '\0';                                              \
     DBUG_PRINT((N), ((FRM), buf));                              \
   } while (0)
+
+#ifdef MYSQL_SERVER
+/**
+  Sentry class for managing the need to create and dispose of a local `THD`
+  instance.
+
+  If the given `THD` object pointer passed on the constructor is `nullptr`, a
+  new instance will be initialized within the constructor and disposed of in the
+  destructor.
+
+  If the given `THD` object poitner passed on the constructor is not `nullptr`,
+  the reference is kept and nothing is disposed on the destructor.
+
+  Casting operator to `THD*` is also provided, to easy code replacemente.
+
+  Usage example:
+
+       THD_instance_guard thd{current_thd != nullptr ? current_thd :
+                                                       this->info_thd};
+       Acl_cache_lock_guard guard{thd, Acl_cache_lock_mode::READ_MODE};
+       if (guard.lock())
+         ...
+
+ */
+class THD_instance_guard {
+ public:
+  /**
+    If the given `THD` object pointer is `nullptr`, a new instance will be
+    initialized within the constructor and disposed of in the destructor.
+
+    If the given `THD` object poitner is not `nullptr`, the reference is kept
+    and nothing is disposed on the destructor.
+
+    @param thd `THD` object reference that determines if an existence instance
+    is used or a new instance of `THD` must be created.
+   */
+  THD_instance_guard(THD *thd);
+  /**
+    If a new instance of `THD` was created in the constructor, it will be
+    disposed here.
+   */
+  virtual ~THD_instance_guard();
+
+  /**
+    Returns the active `THD` object pointer.
+
+    @return a not-nullptr `THD` object pointer.
+   */
+  operator THD *();
+
+ private:
+  /** The active `THD` object pointer. */
+  THD *m_target{nullptr};
+  /**
+    Tells whether or not the active `THD` object was created in this object
+    constructor.
+   */
+  bool m_is_locally_initialized{false};
+};
+#endif  // MYSQL_SERVER
+
+/**
+  Replaces every occurrence of the string `find` by the string `replace`, within
+  the string `from` and return the resulting string.
+
+  The original string `from` remains untouched.
+
+  @param from the string to search within.
+  @param find the string to search for.
+  @param replace the string to replace every occurrence of `from`
+
+  @return a new string, holding the result of the search and replace operation.
+ */
+std::string replace_all_in_str(std::string from, std::string find,
+                               std::string replace);
 
 #endif /* RPL_UTILITY_H */

@@ -9,6 +9,11 @@ select x'31',X'ffff'+0;
 x'31'	X'ffff'+0
 1	65535
 create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint(21) unsigned zerofill not null,primary key (ID),unique (UNIQ) );
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 set UNIQ=0x38afba1d73e6a18a;
 insert into t1 set UNIQ=123;
 analyze table t1;
@@ -18,7 +23,7 @@ explain select * from t1 where UNIQ=0x38afba1d73e6a18a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	UNIQ	UNIQ	8	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '00000001' AS `ID`,'004084688022709641610' AS `UNIQ` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '00000001' AS `ID`,'004084688022709641610' AS `UNIQ` from `test`.`t1` where true
 drop table t1;
 select x'hello';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'x'hello'' at line 1
@@ -650,6 +655,9 @@ DROP TABLE t1;
 # Test conversions
 #
 CREATE TABLE t1(vb varbinary(10), i INT, d DECIMAL(5,2), f FLOAT(5,2), dd DOUBLE(5,2), gid INT);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (_binary "-98765.23", 98765, 0.0, 0.0, 0.0, 1);
 INSERT INTO t1 VALUES (_binary "-98765.23", 98765, 1.0, 1.0, 1.0, 2);
 SELECT

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #
 
 SET(SHARED_LIB_MAJOR_VERSION "21")
-SET(SHARED_LIB_MINOR_VERSION "0")
+SET(SHARED_LIB_MINOR_VERSION "1")
 SET(PROTOCOL_VERSION "10")
 
 # Generate "something" to trigger cmake rerun when VERSION changes
@@ -159,15 +159,3 @@ ENDIF()
 IF(NOT COMPILATION_COMMENT_SERVER)
   SET(COMPILATION_COMMENT_SERVER ${COMPILATION_COMMENT})
 ENDIF()
-
-# Get the sys schema version from the mysql_sys_schema.sql file
-# however if compiling without performance schema, always use version 1.0.0
-MACRO(GET_SYS_SCHEMA_VERSION)
-  FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS sys_version")
-  IF(str)
-    STRING(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" SYS_SCHEMA_VERSION "${str}")
-  ENDIF()
-ENDMACRO()
-
-GET_SYS_SCHEMA_VERSION()
-

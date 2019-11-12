@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1113,10 +1113,11 @@ func_start:
   /* It's possible that the new record is too big to be inserted into
   the page, and it'll need the second round split in this case.
   We test this scenario here*/
-  DBUG_EXECUTE_IF("rtr_page_need_second_split", if (n_iterations == 0) {
-    rec = NULL;
-    goto after_insert;
-  });
+  DBUG_EXECUTE_IF(
+      "rtr_page_need_second_split", if (n_iterations == 0) {
+        rec = NULL;
+        goto after_insert;
+      });
 
   rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index, offsets, heap,
                               n_ext, mtr);
@@ -1178,10 +1179,12 @@ after_insert:
       ibuf_reset_free_bits(block);
     }
 
-    /* We need to clean the parent path here and search father
-    node later, otherwise, it's possible that find a wrong
-    parent. */
-    rtr_clean_rtr_info(cursor->rtr_info, true);
+    if (cursor->m_own_rtr_info) {
+      /* We need to clean the parent path here and search father node later,
+      otherwise, it's possible that find a wrong parent. */
+      rtr_clean_rtr_info(cursor->rtr_info, true);
+    }
+
     cursor->rtr_info = NULL;
     n_iterations++;
 

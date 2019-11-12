@@ -1,26 +1,17 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/annotations/Label", ["dijit","dojo","dojox","dojo/require!dojox/drawing/stencil/Text"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.annotations.Label");
-dojo.require("dojox.drawing.stencil.Text");
+define("dojox/drawing/annotations/Label", ["exports", "dojo/_base/lang", "../util/oo", "../stencil/Text"],
+function(exports, lang, oo, Text){
 
-dojox.drawing.annotations.Label = dojox.drawing.util.oo.declare(
-	// summary:
-	// 	An annotation called internally to label an Stencil.
-	// description:
-	//	Annotation is positioned with dojox.drawing.util.positioning.label
-	//	That method should be overwritten for custom placement. Or,
-	//	add a 'setLabelCustom' method to the Stencil and it will be used.
-	//
-	dojox.drawing.stencil.Text,
+// TODO: why not just return Label?
+
+exports.Label = oo.declare(
+	Text,
 	function(/*Object*/options){
-		// arguments:
-		//	options: Object
+		// options: Object
 		//		One key value: the stencil that called this.
-		//
+
 		this.master = options.stencil;
 		this.labelPosition = options.labelPosition || "BR"; // TL, TR, BR, BL, or function
-		if(dojo.isFunction(this.labelPosition)){
+		if(lang.isFunction(this.labelPosition)){
 			this.setLabel = this.setLabelCustom;
 		}
 		this.setLabel(options.text || "");
@@ -31,14 +22,21 @@ dojox.drawing.annotations.Label = dojox.drawing.util.oo.declare(
 			this.connect(this.master, "attr", this, "beforeAttr");
 		}
 	},{
+		// summary:
+		//		An annotation called internally to label an Stencil.
+		// description:
+		//		Annotation is positioned with dojox.drawing.util.positioning.label
+		//		That method should be overwritten for custom placement. Or,
+		//		add a 'setLabelCustom' method to the Stencil and it will be used.
+
 		_align:"start",
 		drawingType:"label",
 		
 		setLabelCustom: function(/* ? String */text){
 			// summary:
-			//	Attaches to custom positioning within a Stencil
-			//
-			var d = dojo.hitch(this.master, this.labelPosition)();
+			//		Attaches to custom positioning within a Stencil
+
+			var d = lang.hitch(this.master, this.labelPosition)();
 			this.setData({
 				x:d.x,
 				y:d.y,
@@ -54,9 +52,9 @@ dojox.drawing.annotations.Label = dojox.drawing.util.oo.declare(
 		
 		setLabel: function(/* String */text){
 			// summary:
-			//	Sets the text of the label. Not called directly. Should
-			//	be called within Stencil. See stencil._Base
-			//
+			//		Sets the text of the label. Not called directly. Should
+			//		be called within Stencil. See stencil._Base
+
 			// onTransform will pass an object here
 			var x, y, box = this.master.getBounds();
 			

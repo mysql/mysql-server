@@ -1,18 +1,16 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojo/fx"],function(_1,_2,_3){
-_2.provide("dojox.widget.rotator.Fade");
-_2.require("dojo.fx");
-(function(d){
+define("dojox/widget/rotator/Fade",["dojo/_base/lang","dojo/_base/fx","dojo/dom-style","dojo/fx"],function(_1,_2,_3,fx){
 function _4(_5,_6){
 var n=_5.next.node;
-d.style(n,{display:"",opacity:0});
+_3.set(n,{display:"",opacity:0});
 _5.node=_5.current.node;
-return d.fx[_6]([d.fadeOut(_5),d.fadeIn(d.mixin(_5,{node:n}))]);
+return fx[_6]([_2.fadeOut(_5),_2.fadeIn(_1.mixin(_5,{node:n}))]);
 };
-d.mixin(_3.widget.rotator,{fade:function(_7){
-return _4(_7,"chain");
-},crossFade:function(_8){
-return _4(_8,"combine");
-}});
-})(_2);
+var _7={fade:function(_8){
+return _4(_8,"chain");
+},crossFade:function(_9){
+return _4(_9,"combine");
+}};
+_1.mixin(_1.getObject("dojox.widget.rotator"),_7);
+return _7;
 });

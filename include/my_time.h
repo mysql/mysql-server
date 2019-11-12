@@ -99,6 +99,9 @@ constexpr const my_time_flags_t TIME_NO_ZERO_DATE = 32;
 /** Allow 2000-02-31 */
 constexpr const my_time_flags_t TIME_INVALID_DATES = 64;
 
+/** Allow only HH:MM:SS or MM:SS time formats */
+constexpr const my_time_flags_t TIME_STRICT_COLON = 128;
+
 /** Conversion warnings */
 constexpr const int MYSQL_TIME_WARN_TRUNCATED = 1;
 constexpr const int MYSQL_TIME_WARN_OUT_OF_RANGE = 2;
@@ -309,7 +312,7 @@ void my_timestamp_from_binary(struct timeval *tm, const unsigned char *ptr,
                               unsigned int dec);
 
 bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
-                 MYSQL_TIME_STATUS *status);
+                 MYSQL_TIME_STATUS *status, my_time_flags_t flags = 0);
 
 bool check_time_mmssff_range(const MYSQL_TIME &my_time);
 bool check_time_range_quick(const MYSQL_TIME &my_time);
@@ -361,6 +364,7 @@ int my_date_to_str(const MYSQL_TIME &my_time, char *to);
 int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 
+void my_date_to_binary(const MYSQL_TIME *ltime, unsigned char *ptr);
 int my_timeval_to_str(const struct timeval *tm, char *to, unsigned int dec);
 
 /**

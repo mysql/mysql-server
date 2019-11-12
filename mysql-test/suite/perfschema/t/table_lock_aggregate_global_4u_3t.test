@@ -3,6 +3,9 @@
 # Use MyISAM as InnoDB SE no longer uses THR_LOCK locks.
 --source include/force_myisam_default.inc
 
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
+
 --source ../include/table_aggregate_setup.inc
 
 # table lock

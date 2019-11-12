@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -245,7 +245,7 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
     return (NULL);
   }
 
-  table = dict_mem_table_create("ZIP_DUMMY", DICT_HDR_SPACE, n, 0,
+  table = dict_mem_table_create("ZIP_DUMMY", DICT_HDR_SPACE, n, 0, 0,
                                 DICT_TF_COMPACT, 0);
   index = dict_mem_index_create("ZIP_DUMMY", "ZIP_DUMMY", DICT_HDR_SPACE, 0, n);
   index->table = table;
@@ -1427,7 +1427,7 @@ ibool page_zip_decompress_low(
     /* Copy the page header. */
     memcpy(page, page_zip->data, PAGE_DATA);
   } else {
-  /* Check that the bytes that we skip are identical. */
+    /* Check that the bytes that we skip are identical. */
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
     ut_a(!memcmp(FIL_PAGE_TYPE + page, FIL_PAGE_TYPE + page_zip->data,
                  PAGE_HEADER - FIL_PAGE_TYPE));

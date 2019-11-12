@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,9 @@ class Replication_thread_api {
     @param preserve_logs If logs should be always preserved
     @param public_key_path The file with public key path information
     @param get_public_key Preference to get public key if unavailable.
+    @param compression_algorithm The compression algorithm
+    @param zstd_compression_level The compression level
+
 
     @return the operation status
       @retval 0      OK
@@ -85,7 +88,9 @@ class Replication_thread_api {
                          char *ssl_crl, char *ssl_crlpath,
                          bool ssl_verify_server_cert, int priority,
                          int retry_count, bool preserve_logs,
-                         char *public_key_path, bool get_public_key);
+                         char *public_key_path, bool get_public_key,
+                         char *compression_algorithm,
+                         uint zstd_compression_level);
 
   /**
     Start the Applier/Receiver threads according to the given options.
@@ -305,15 +310,26 @@ class Replication_thread_api {
 
     @param threads_to_stop      The types of threads to be stopped
     @param timeout              The max time in which the thread should stop
-    @param ecode                The error message code
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Error
   */
-  static int rpl_channel_stop_all(
-      int threads_to_stop, long timeout,
-      int ecode = ER_GRP_RPL_ERROR_STOPPING_CHANNELS);
+  static int rpl_channel_stop_all(int threads_to_stop, long timeout);
+
+  /**
+    Method to get the credentials configured for a channel
+
+    @param[out] username      The user to extract
+    @param[out] password      The password to extract
+    @param[in]  channel_name  The name of the channel to get the information.
+
+    @return the operation status
+      @retval false   OK
+      @retval true    Error, channel not found
+  */
+  bool get_channel_credentials(std::string &username, std::string &password,
+                               const char *channel_name = NULL);
 
  private:
   ulong stop_wait_timeout;

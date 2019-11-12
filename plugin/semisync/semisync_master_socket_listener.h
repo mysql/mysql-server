@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ class Select_socket_listener {
       m_max_fd = (socket_id > m_max_fd ? socket_id : m_max_fd);
 #ifndef _WIN32
       if (socket_id > FD_SETSIZE) {
-        LogErr(ERROR_LEVEL, ER_SEMISYNC_FAILED_TO_HANDLE_SOCKET, socket_id,
+        LogErr(ERROR_LEVEL, ER_SEMISYNC_SOCKET_FD_TOO_LARGE, socket_id,
                FD_SETSIZE);
         return false;
       }

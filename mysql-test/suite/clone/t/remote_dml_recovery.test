@@ -1,0 +1,93 @@
+# Test recovery crash for remote clone with concurrent DML
+
+--source include/not_valgrind.inc
+--source include/linux.inc
+--source include/have_mysqld_safe.inc
+--source include/have_debug.inc
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+
+--let clone_remote_replace = 1
+--let inst_monitor = 1
+--let clone_inst_number = 2
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Clone removing all user data for provisioning: .*");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.*clone_check_recovery_crashpoint.*");
+--enable_query_log
+
+--source ../include/clone_connection_begin.inc
+--source include/count_sessions.inc
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--echo # Install clone plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo ## Create test schema
+--source ../include/create_schema.inc
+
+--echo # Insert rows
+--eval call execute_dml(0, 0, 100, 100, 10, 0)
+
+--echo # Check base rows
+SHOW CREATE TABLE t1;
+SELECT count(*) from t1;
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 LIMIT 10;
+SELECT col1, col2, col3 FROM t1 ORDER BY col1 DESC LIMIT 10;
+
+SHOW CREATE TABLE t2;
+SELECT count(*) from t2;
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 LIMIT 10;
+SELECT col1, col2, col3 FROM t2 ORDER BY col1 DESC LIMIT 10;
+
+--echo # In connection con1 - Running Insert Random [100 - 200 Key range]
+connect (con1,localhost,root,,);
+--send call execute_dml(0, 100, 100, 100, 20, 1)
+
+--echo # In connection con2 - Running Update Random [0 - 25 Key Range]
+connect (con2,localhost,root,,);
+--send call execute_dml(1, 0, 25, 100, 20, 1)
+
+--echo # In connection default - Cloning database
+--connection clone_conn_1
+--let clone_recovery_error = 1
+SET global debug="+d,clone_recovery_crash_point";
+--source ../include/clone_command.inc
+SET global debug="-d,clone_recovery_crash_point";
+--let clone_recovery_error = 0
+--echo # In connection default - Finished Cloning
+
+--echo # In connection con1 - Waiting
+connection con1;
+--reap
+
+--echo # In connection con2 - Waiting
+connection con2;
+--reap
+
+--echo # In connection default
+connection default;
+
+disconnect con1;
+disconnect con2;
+
+--source include/wait_until_count_sessions.inc
+
+--connection clone_conn_1
+
+# Check table in cloned database
+SHOW SCHEMAS;
+
+--connection default
+--source ../include/drop_schema.inc
+
+--echo # Cleanup
+--connection clone_conn_1
+--source ../include/clone_command.inc
+
+--source ../include/clone_connection_end.inc
+
+UNINSTALL PLUGIN clone;

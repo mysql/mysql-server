@@ -31,9 +31,9 @@
 #include <memory>
 
 #include "my_io.h"
+#include "plugin/x/client/context/xcontext.h"
 #include "plugin/x/client/mysqlxclient/xconnection.h"
 #include "plugin/x/client/mysqlxclient/xerror.h"
-#include "plugin/x/client/xcontext.h"
 #include "violite.h"
 
 struct sockaddr_un;

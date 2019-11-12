@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/Action", ["dijit","dojo","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/Wire,dojox/wire/ml/util"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/Action", ["dojo","dijit","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/Wire,dojox/wire/ml/util"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.Action");
 
 dojo.require("dijit._Widget");
@@ -9,9 +8,9 @@ dojo.require("dojox.wire.Wire");
 dojo.require("dojox.wire.ml.util");
 
 dojo.declare("dojox.wire.ml.Action", [dijit._Widget, dijit._Container], {
-	//	summary:
+	// summary:
 	//		A base widget to "run" a task on an event or a topic
-	//	description:
+	// description:
 	//		This widget represents a controller task to be run when an event
 	//		(a function) or a topic is issued.
 	//		Sub-classes must implement _run() method to implement their tasks.
@@ -22,28 +21,28 @@ dojo.declare("dojox.wire.ml.Action", [dijit._Widget, dijit._Container], {
 	//		If one of filter() methods returns false, run() won't be invoked.
 	//		This widget also can serve as a composite task to run child
 	//		Actions on an event or a topic specified to this widget.
-	//	trigger:
+	// trigger:
 	//		An event scope
-	//	triggerEvent:
+	// triggerEvent:
 	//		An event (function) name
-	//	triggerTopic:
+	// triggerTopic:
 	//		A topic name
 	trigger: "",
 	triggerEvent: "",
 	triggerTopic: "",
 
 	postCreate: function(){
-		//	summary:
+		// summary:
 		//		Call _connect()
-		//	description:
+		// description:
 		//		See _connect().
 		this._connect();
 	},
 
 	_connect: function(){
-		//	summary:
+		// summary:
 		//		Connect run() method to an event or a topic
-		//	description:
+		// description:
 		//		If 'triggerEvent' and 'trigger' are specified, connect() is
 		//		used to set up run() to be called on the event.
 		//		If 'triggerTopic' is specified, subscribe() is used to set up
@@ -73,9 +72,9 @@ dojo.declare("dojox.wire.ml.Action", [dijit._Widget, dijit._Container], {
 	},
 
 	_disconnect: function(){
-		//	summary:
+		// summary:
 		//		Disconnect run() method from an event or a topic
-		//	description:
+		// description:
 		//		If 'triggerEvent' and 'trigger' are specified, disconnect() is
 		//		used to set up run() not to be called on the event.
 		//		If 'triggerTopic' is specified, unsubscribe() is used to set up
@@ -90,9 +89,9 @@ dojo.declare("dojox.wire.ml.Action", [dijit._Widget, dijit._Container], {
 	},
 
 	run: function(){
-		//	summary:
+		// summary:
 		//		Run a task
-		//	description:
+		// description:
 		//		This method calls filter() method of child ActionFilter
 		//		widgets.
 		//		If one of them returns false, this method returns.
@@ -110,9 +109,9 @@ dojo.declare("dojox.wire.ml.Action", [dijit._Widget, dijit._Container], {
 	},
 
 	_run: function(){
-		//	summary:
+		// summary:
 		//		Call run() methods of child Action widgets
-		//	description:
+		// description:
 		//		If this widget has child Action widgets, their run() methods
 		//		are called.
 		var children = this.getChildren();
@@ -125,7 +124,7 @@ dojo.declare("dojox.wire.ml.Action", [dijit._Widget, dijit._Container], {
 	},
 
 	uninitialize: function(){
-		//	summary:
+		// summary:
 		//		Over-ride of base widget unitialize function to do some connection cleanup.
 		this._disconnect();
 		return true;
@@ -133,26 +132,26 @@ dojo.declare("dojox.wire.ml.Action", [dijit._Widget, dijit._Container], {
 });
 
 dojo.declare("dojox.wire.ml.ActionFilter", dijit._Widget, {
-	//	summary:
+	// summary:
 	//		A widget to define a filter for the parent Action to run
-	//	description:
+	// description:
 	//		This base class checks a required property specified with
 	//		'required' attribute.
 	//		If 'message' is specified, the message is set to a property
 	//		specified with 'error'.
 	//		Subclasses may implement their own filter() method.
-	//	required:
+	// required:
 	//		A property required
-	//	requiredValue:
+	// requiredValue:
 	//		Optional.  A specific value the property is required to have.  If this isn't provided
 	//		than any non-false/non-null value of the required propery will cause this filter
 	//		to pass.
-	//	type:
+	// type:
 	//		Optional.  A specific type to compare the values as (if requiredValue is set)
 	//		Valid values for type are boolean, int, string.  Default is string.
-	//	message:
+	// message:
 	//		An error message to emit if the filter doesn't execute due to property mismatch.
-	//	error:
+	// error:
 	//		A property to store an error due to property mismatch.
 	required: "",
 	requiredValue: "",
@@ -162,10 +161,10 @@ dojo.declare("dojox.wire.ml.ActionFilter", dijit._Widget, {
 
 
 	filter: function(){
-		//	summary:
+		// summary:
 		//		Check if a required property is specified.  Also, if provided, check to see
 		//		if the required property contains a specific value.
-		//	description:
+		// description:
 		//		If a value is undefined for a property, specified with
 		//		'required', this method returns false.
 		//		If the value for a property is defined, but there isn't a requiredValue for it
@@ -178,7 +177,7 @@ dojo.declare("dojox.wire.ml.ActionFilter", dijit._Widget, {
 		//		with 'error' or shown with alert().
 		//		If 'required' starts with "arguments", a property of
 		//		the method arguments are checked.
-		//	returns:
+		// returns:
 		//		True if a required property is specified (and if requiredValue is specified,
 		//		that they match), otherwise false
 		if(this.required === ""){

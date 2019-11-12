@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	add: "Ekle",
-	addAuthor: "Yazar Ekle",
-	addContributor: "Katkıda Bulunan Ekle"
-})
-//end v1.x content
-);
+define("dojox/atom/widget/nls/tr/PeopleEditor",({add:"Ekle",addAuthor:"Yazar Ekle",addContributor:"Katkıda Bulunan Ekle"}));

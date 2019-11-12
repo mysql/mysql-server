@@ -1,7 +1,6 @@
-//>>built
-define("dojox/highlight/languages/pygments/xml", ["dojox/main", "../../_base", "../xml"], function(dojox){
+define("dojox/highlight/languages/pygments/xml", ["../../_base", "../xml"], function(dh){
 
-	var dxml = dojox.highlight.languages.xml = {
+	var dxml = dh.languages.xml = {
 		defaultMode: {
 			contains: [
 				"name entity",

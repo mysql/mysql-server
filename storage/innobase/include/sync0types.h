@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -239,9 +239,6 @@ enum latch_level_t {
   SYNC_BUF_LRU_LIST,
   SYNC_BUF_CHUNKS,
 
-  SYNC_POOL,
-  SYNC_POOL_MANAGER,
-
   SYNC_SEARCH_SYS,
 
   SYNC_WORK_QUEUE,
@@ -252,6 +249,7 @@ enum latch_level_t {
   SYNC_FTS_CACHE_INIT,
   SYNC_RECV,
 
+  SYNC_LOG_LIMITS,
   SYNC_LOG_WRITER,
   SYNC_LOG_WRITE_NOTIFIER,
   SYNC_LOG_FLUSH_NOTIFIER,
@@ -269,6 +267,8 @@ enum latch_level_t {
   SYNC_REC_LOCK,
   SYNC_THREADS,
   SYNC_TRX,
+  SYNC_POOL,
+  SYNC_POOL_MANAGER,
   SYNC_TRX_SYS,
   SYNC_LOCK_SYS,
   SYNC_LOCK_WAIT_SYS,
@@ -339,7 +339,8 @@ enum latch_level_t {
 };
 
 /** Each latch has an ID. This id is used for creating the latch and to look
-up its meta-data. See sync0debug.c. */
+up its meta-data. See sync0debug.c. The order does not matter here, but
+alphabetical ordering seems useful */
 enum latch_id_t {
   LATCH_ID_NONE = 0,
   LATCH_ID_AUTOINC,
@@ -374,6 +375,7 @@ enum latch_id_t {
   LATCH_ID_LOG_FLUSHER,
   LATCH_ID_LOG_WRITE_NOTIFIER,
   LATCH_ID_LOG_FLUSH_NOTIFIER,
+  LATCH_ID_LOG_LIMITS,
   LATCH_ID_PARSER,
   LATCH_ID_LOG_ARCH,
   LATCH_ID_PAGE_ARCH,
@@ -451,6 +453,9 @@ enum latch_id_t {
   LATCH_ID_CLONE_SYS,
   LATCH_ID_CLONE_TASK,
   LATCH_ID_CLONE_SNAPSHOT,
+  LATCH_ID_PARALLEL_READ,
+  LATCH_ID_REDO_LOG_ARCHIVE_ADMIN_MUTEX,
+  LATCH_ID_REDO_LOG_ARCHIVE_QUEUE_MUTEX,
   LATCH_ID_TEST_MUTEX,
   LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
 };

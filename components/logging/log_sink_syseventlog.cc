@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -451,7 +451,7 @@ static int sysvar_check_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void sysvar_update_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                               SYS_VAR *self MY_ATTRIBUTE((unused)),
                               void *var_ptr, const void *save) {
-  const char *new_val = *((const char **)save);
+  const char *new_val = *(static_cast<const char **>(const_cast<void *>(save)));
 
   var_update_tag(new_val);
 
@@ -470,12 +470,12 @@ static void sysvar_update_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static int sysvar_install_tag(void) {
   char *var_value;
   char *new_value;
-  size_t var_len = 0;
+  size_t var_len = MAX_TAG_LEN;
   int rr = -1;
 
   if ((var_value = new char[MAX_TAG_LEN + 1]) == nullptr) return -1;
 
-  values_tag.def_val = (char *)"";
+  values_tag.def_val = const_cast<char *>("");
 
   DBUG_ASSERT(buffer_tag == nullptr);
 
@@ -583,7 +583,7 @@ static int sysvar_check_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static void sysvar_update_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                               SYS_VAR *self MY_ATTRIBUTE((unused)),
                               void *var_ptr, const void *save) {
-  char *new_val = *((char **)save);
+  char *new_val = *(static_cast<char **>(const_cast<void *>(save)));
 
   var_update_fac(new_val);
 
@@ -602,12 +602,12 @@ static void sysvar_update_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static int sysvar_install_fac(void) {
   char *var_value;
   char *new_value;
-  size_t var_len = 0;
+  size_t var_len = MAX_FAC_LEN;
   int rr = -1;
 
   if ((var_value = new char[MAX_FAC_LEN + 1]) == nullptr) return -1;
 
-  values_fac.def_val = (char *)LOG_DAEMON_NAME;
+  values_fac.def_val = const_cast<char *>(LOG_DAEMON_NAME);
 
   if (mysql_service_component_sys_variable_register->register_variable(
           MY_NAME, OPT_FAC, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
@@ -676,7 +676,7 @@ static void sysvar_update_pid(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                               SYS_VAR *self MY_ATTRIBUTE((unused)),
                               void *var_ptr MY_ATTRIBUTE((unused)),
                               const void *save) {
-  var_update_pid(*((bool *)save));
+  var_update_pid(*(static_cast<bool *>(const_cast<void *>(save))));
 }
 
 /*
@@ -687,13 +687,13 @@ static void sysvar_update_pid(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 */
 static int sysvar_install_pid(void) {
   char *var_value = nullptr;
-  size_t var_len;
+  size_t var_len = 15;
   bool var_bool;
   int rr = -1;
 
   values_pid.def_val = log_syslog_include_pid;
 
-  if ((var_value = new char[16]) == nullptr) return -1;
+  if ((var_value = new char[var_len + 1]) == nullptr) return -1;
 
   // register variable
   if (mysql_service_component_sys_variable_register->register_variable(

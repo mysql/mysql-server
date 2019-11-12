@@ -4,7 +4,9 @@
 
 -- source include/not_group_replication_plugin.inc
 -- source include/have_binlog_format_statement.inc
+-- source include/force_myisam_default.inc
 -- source include/have_myisam.inc
+
 -- source include/master-slave.inc
 
 ## Setup user variables for several numeric types, so that we get
@@ -172,46 +174,4 @@ DROP TABLE t1;
 SET sql_mode = default;
 
 --source include/sync_slave_sql_with_master.inc
-
---echo
---echo # The GET DIAGNOSTICS itself is not replicated, but it can set
---echo # variables which can be used in statements that are replicated.
---echo
-
---source include/rpl_reset.inc
-connection master;
-
-CREATE TABLE t1 (a INT, b INT);
-GET DIAGNOSTICS @var1 = NUMBER;
-INSERT INTO t1 VALUES (@var1, 0), (@var1, 0);
-
-DELIMITER |;
-CREATE PROCEDURE p1()
-LANGUAGE SQL
-BEGIN
-  DECLARE count INT;
-  UPDATE t1 SET b = 2 WHERE a = 0;
-  GET DIAGNOSTICS count = ROW_COUNT;
-  INSERT INTO t1 VALUES (1, count);
-END|
-DELIMITER ;|
-
-CALL p1();
-
---source include/sync_slave_sql_with_master.inc
-
-connection slave;
---echo # On slave, check if the statement was replicated.
-SELECT * FROM t1 ORDER BY a;
-
-connection master;
---let $mask_binlog_commit_events= 1
---echo # Show events and cleanup
---source include/show_binlog_events.inc
---let $mask_binlog_commit_events= 0
-DROP TABLE t1;
-DROP PROCEDURE p1;
-
---source include/sync_slave_sql_with_master.inc
-
 --source include/rpl_end.inc

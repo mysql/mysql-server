@@ -6,14 +6,14 @@
 	width: 13px;
 	height: 13px;
 	z-index: 20;
-	background-image: url(../../../../layout/resources/icons/resize.png);
+	background-image: url("../../../../layout/resources/icons/resize.png");
 	line-height: 0px;
 }
 .dijitRtl .dojoxResizeHandle {
         float: right;
         left: 0px;
         right: auto;
-	background-image: url(../../../../layout/resources/icons/resizeRtl.png);
+	background-image: url("../../../../layout/resources/icons/resizeRtl.png");
 }
 .dojoxResizeNW {
 	cursor: nw-resize;

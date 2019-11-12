@@ -1,4 +1,4 @@
-# Copyright (C) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (C) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/test/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
-ADD_CONVENIENCE_LIBRARY(ndbNDBT
+ADD_LIBRARY(ndbNDBT STATIC
         NDBT_ReturnCodes.cpp
         NDBT_Error.cpp
         NDBT_Tables.cpp

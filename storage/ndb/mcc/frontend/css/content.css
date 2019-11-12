@@ -1,25 +1,18 @@
 /*
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License, version 2.0,
-as published by the Free Software Foundation.
-
-This program is also distributed with certain software (including
-but not limited to OpenSSL) that is licensed under separate terms,
-as designated in a particular file or component or in included license
-documentation.  The authors of MySQL hereby grant you an additional
-permission to link the program and your derivative works with the
-separately licensed software that they have included with MySQL.
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License, version 2.0, for more details.
+GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 */
 
 /******************************************************************************
@@ -49,6 +42,79 @@ body {
     text-align: center;
 }
 
+/************************** Modal dialog for messages  ************************/
+/* The Modal (background) */
+.modalinfohf, .modalinfoh, .modalinfo {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 1001; /* Sit on top, 1001 BECAUSE OF dojo */
+  padding-top: 100px; /* Location of the box */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  /*overflow: auto; /* Enable scroll if needed */
+  overflow: hidden;
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+  -webkit-animation-name: fadeIn;
+  -webkit-animation-duration: 0.6s;
+  animation-name: fadeIn;
+  animation-duration: 0.6s
+}
+
+/* Full Modal Content H + B + F*/
+.modalinfohf-content, .modalinfoh-content, .modalinfo-content {
+  background-color: #fefefe;
+  margin: auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 60%;
+  height: auto;
+  /*overrides height, 80% of view height - 100px taken by top margin of verlay*/
+  max-height: calc(80vh - 100px);
+  -webkit-animation-name: fadeIn;
+  -webkit-animation-duration: 0.6s;
+  /* standard names for compatibility */
+  animation-name: fadeIn;
+  animation-duration: 0.6s;
+}
+
+/* Just Modal Body Text */
+.modalinfohf-body, .modalinfoh-body, .modalinfo-body {
+ /*overrides height, 80% of view height - px taken by top margin of verlay and header*/
+ /*There is always something in the header, at least X to close the modal.*/
+ /*This does not cover for eventual footer :-/ */
+  max-height: calc(80vh - 260px);
+  height: auto; /*when content fits*/
+  width: 100%;
+  overflow: auto;
+}
+
+/* The Close Button */
+.closei, .closeih, .closeihf {
+  color: #aaaaaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.closei:hover, .closeih:hover, .closeihf:hover,
+.closei:focus, .closeih:focus, .closeihf:focus {
+  color: #000;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@-webkit-keyframes fadeIn {
+  from {opacity: 0} 
+  to {opacity: 1}
+}
+
+@keyframes fadeIn {
+  from {opacity: 0} 
+  to {opacity: 1}
+}
 /************************** Title, various html styles ************************/
 
 a, a:link, a:visited {
@@ -67,6 +133,10 @@ h1 {
 	font-size: 1.5em;
 	font-weight: bold;
 }
+
+/*label {
+    font-size: medium;
+}*/
 
 #title {
     position:absolute;
@@ -176,6 +246,13 @@ h1 {
   background-color: #f9fbfc;
 }
 
+#content-main-tab-cfgstatusbuttons {
+  position:absolute;
+  bottom: 25px;
+  left: 25px;
+  background-color: #f9fbfc;
+}
+
 #content-main-tab-container {
   border-bottom-style: solid;
   border-width: 1px;
@@ -242,7 +319,7 @@ h2 {
 }
 
 .content-tab-sub-title {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .content-tab-top-panel {
@@ -262,7 +339,7 @@ h2 {
 }
 
 .content-tab-bottom-panel {
-  height: 28px;
+  height: 32px;
   margin-left: 10px;
   margin-right: 10px;
 }
@@ -415,6 +492,176 @@ h2 {
     background: transparent;
 }
 
+/*********** Button without background but with border and hoover **************/
+.fbtn .dijitButtonNode {
+  display: inline-block;
+  margin: 2px;
+  padding: 4px;
+  font-size: 14px;
+  line-height: 1.8em;
+  appearance: none;
+  box-shadow: none;
+  border-radius: 6px; 
+  -moz-border-radius: 6px; 
+  -webkit-border-radius: 6px; 
+  background: transparent!important;
+}
+
+.fbtn .dijitButtonNode:focus {
+  outline: none;
+}
+
+.fbtn .dijitButtonNode:border {
+  color: #6496c8;
+  background: rgba(0,0,0,0);
+  border: solid 5px #6496c8;
+}
+
+.fbtn .dijitButtonNode:hover {
+  /* border-color: #346392; */
+  border-color: DodgerBlue;
+  color: #346392;
+}
+
+.fbtn .dijitButtonNode:active {
+  border-color: #6496c8; /* #27496d; */
+  color: #27496d;
+  transform: translateY(1px);
+  -webkit-transform: translateY(1px);
+  -moz-transform: translateY(1px);
+}
+
+.fbtn.fbtnDisabled.dijitDisabled {
+  opacity: 0.45;
+  cursor: no-drop;
+  user-select: none;
+}
+
+.fbtn.fbtnDisabled.dijitReadOnly {
+  opacity: 0.45;
+  cursor: no-drop;
+  user-select: none;
+}
+
+/*********** Button without background but with border and hoover **************/
+/***** This is for hostTree.addProcessDlgSetup, "Add processes" dialog box *****/
+.fbtn2 .dijitButtonNode {
+  display: inline-block;
+  margin: 2px;
+  padding: 2px;
+  font-size: 12px;
+  line-height: 1.8em;
+  appearance: none;
+  box-shadow: none;
+  border-radius: 6px; 
+  -moz-border-radius: 6px; 
+  -webkit-border-radius: 6px; 
+  background: transparent!important;
+  width: 92px;
+}
+
+.fbtn2 .dijitButtonNode:focus {
+  outline: none
+}
+
+.fbtn2 .dijitButtonNode:border {
+  color: #6496c8;
+  background: rgba(0,0,0,0);
+  border: solid 5px #6496c8;
+}
+
+.fbtn2 .dijitButtonNode:hover {
+  /*border-color: #346392;*/
+  border-color: DodgerBlue;
+  color: #346392;
+}
+
+.fbtn2 .dijitButtonNode:active {
+  border-color: #6496c8; /*#27496d;*/
+  color: #27496d;
+  transform: translateY(1px);
+  -webkit-transform: translateY(1px);
+  -moz-transform: translateY(1px);
+}
+
+/***** This is for bottom of the page config. status buttons *****/
+.fbtn3 .dijitButtonNode {
+  display: inline-block;
+  margin: 2px;
+  padding: 2px;
+  font-size: 12px;
+  line-height: 1.8em;
+  appearance: none;
+  box-shadow: none;
+  border-radius: 6px; 
+  -moz-border-radius: 6px; 
+  -webkit-border-radius: 6px; 
+  background: transparent!important;
+  width: auto;
+  color: white;
+  }
+
+.fbtn3 .dijitButtonNode:focus {
+  outline: none
+}
+
+.fbtn3 .dijitButtonNode:border {
+  color: #6496c8;
+  background: rgba(0,0,0,0);
+  border: solid 5px #6496c8;
+}
+
+/*.fbtn3 .dijitButtonNode:hover {
+  border-color: DodgerBlue;
+  color: #346392;
+}*/
+
+.fbtn3 .dijitButtonNode:active {
+/*  border-color: #6496c8;
+  color: #27496d;*/
+  transform: translateY(1px);
+  -webkit-transform: translateY(1px);
+  -moz-transform: translateY(1px);
+}
+
+/********************** Toggle view of passwords button ***********************/
+.tglbtn {
+  display: inline-block;
+  margin: 1px;
+  padding: 2px;
+  font-size: 14px;
+  line-height: 1.8em;
+  appearance: none;
+  box-shadow: none;
+  width: 21px;
+  height: 21px;
+  background: url(../img/pwdshow_btn_small.png) no-repeat scroll center center / 100% auto rgba(0, 0, 0, 0);
+}
+
+.tglbtn:focus {
+  outline: none
+}
+
+.tglbtn:border {
+  color: #6496c8;
+  background: rgba(0,0,0,0);
+  border: solid 1px #6496c8;
+}
+
+.tglbtn:hover {
+  /*border-color: #346392;*/
+  border-color: DodgerBlue;
+  color: #346392;
+}
+
+.tglbtn:active {
+  border-color: #6496c8; /*#27496d;*/
+  color: #27496d;
+}
+
+.tglbtn:disabled {
+  background: #dddddd;
+}
 /************************** Tooltip question mark *****************************/
 
 .helpIcon {
@@ -442,7 +689,12 @@ h2 {
     background-image: url('../img/stop.gif');
     width: 11px;
     height: 11px;
-} 
+}
+.viewIcon {
+    background-image: url('../img/icons8-view-50.png');
+    width: 16px;
+    height: 15px;
+}
 .leftIcon {
     background-image: url('../img/left.gif');
     width: 11px;
@@ -502,3 +754,7 @@ h2 {
     height: 14px;
 } 
 
+/***************** Wrap <pre> when showing log of commands ********************/
+pre{
+    white-space: pre-wrap;
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 namespace xpl {
 namespace test {
 
-using Placeholder_id_list = Sql_statement_builder::Placeholder_id_list;
+using Placeholder_list = Sql_statement_builder::Placeholder_list;
 
 template <typename T>
 class Sql_statement_builder_test_base : public testing::TestWithParam<T> {
@@ -100,7 +100,7 @@ INSTANTIATE_TEST_CASE_P(Sql_statement_builder, Sql_statement_builder_fail_test,
 
 struct Param_sql_statement_builder_placeholders {
   std::string expect_query;
-  Placeholder_id_list expect_placeholders;
+  Placeholder_list expect_placeholders;
   std::string query;
   Any_list args;
 };
@@ -126,7 +126,7 @@ using Sql_statement_builder_placeholders_test =
 TEST_P(Sql_statement_builder_placeholders_test,
        build_query_placeholders_success) {
   const ParamType &param = GetParam();
-  Placeholder_id_list phs;
+  Placeholder_list phs;
   ASSERT_NO_THROW(m_builder.build(param.query, param.args, &phs));
   EXPECT_STREQ(param.expect_query.c_str(), m_qb.get().c_str());
   EXPECT_EQ(param.expect_placeholders, phs);

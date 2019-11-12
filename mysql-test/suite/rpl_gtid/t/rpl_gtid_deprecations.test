@@ -54,4 +54,35 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 
 # End of WL#10963
 
+#############################################################
+# WL#13178 Deprecate WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS      #
+#############################################################
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+DROP TABLE t1;
+--let $gtids = `SELECT @@global.gtid_executed`
+
+--source include/rpl_connection_slave.inc
+
+# multiply the result of WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS as its
+# return value is non-deterministic, otherwise, this could trigger
+# random test failures
+
+--replace_result $gtids GTIDS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$gtids") * 0
+
+--replace_result $gtids GTIDS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$gtids", 10) * 0
+
+--replace_result $gtids GTIDS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$gtids", 10, "") * 0
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+# End of WL#13178
+
 --source include/rpl_end.inc

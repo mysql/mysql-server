@@ -1,9 +1,7 @@
-//>>built
-define("dojo/store/util/SimpleQueryEngine", ["../../_base/array"], function(arrayUtil) {
-  //  module:
-  //    dojo/store/util/SimpleQueryEngine
-  //  summary:
-  //    The module defines a simple filtering query engine for object stores. 
+define("dojo/store/util/SimpleQueryEngine", ["../../_base/array" /*=====, "../api/Store" =====*/], function(arrayUtil /*=====, Store =====*/){
+
+// module:
+//		dojo/store/util/SimpleQueryEngine
 
 return function(query, options){
 	// summary:
@@ -27,10 +25,10 @@ return function(query, options){
 	//		An object hash with fields that may match fields of items in the store.
 	//		Values in the hash will be compared by normal == operator, but regular expressions
 	//		or any object that provides a test() method are also supported and can be
-	// 		used to match strings by more complex expressions
-	// 		(and then the regex's or object's test() method will be used to match values).
+	//		used to match strings by more complex expressions
+	//		(and then the regex's or object's test() method will be used to match values).
 	//
-	// options: dojo.store.util.SimpleQueryEngine.__queryOptions?
+	// options: dojo/store/api/Store.QueryOptions?
 	//		An object that contains optional information such as sort, start, and count.
 	//
 	// returns: Function
@@ -42,10 +40,10 @@ return function(query, options){
 	//
 	//	|	var myStore = function(options){
 	//	|		//	...more properties here
-	//	|		this.queryEngine = dojo.store.util.SimpleQueryEngine;
+	//	|		this.queryEngine = SimpleQueryEngine;
 	//	|		//	define our query method
 	//	|		this.query = function(query, options){
-	//	|			return dojo.store.util.QueryResults(this.queryEngine(query, options)(this.data));
+	//	|			return QueryResults(this.queryEngine(query, options)(this.data));
 	//	|		};
 	//	|	};
 
@@ -59,7 +57,8 @@ return function(query, options){
 				for(var key in queryObject){
 					var required = queryObject[key];
 					if(required && required.test){
-						if(!required.test(object[key])){
+						// an object can provide a test method, which makes it work with regex
+						if(!required.test(object[key], object)){
 							return false;
 						}
 					}else if(required != object[key]){
@@ -83,13 +82,17 @@ return function(query, options){
 		// execute the whole query, first we filter
 		var results = arrayUtil.filter(array, query);
 		// next we sort
-		if(options && options.sort){
-			results.sort(function(a, b){
-				for(var sort, i=0; sort = options.sort[i]; i++){
+		var sortSet = options && options.sort;
+		if(sortSet){
+			results.sort(typeof sortSet == "function" ? sortSet : function(a, b){
+				for(var sort, i=0; sort = sortSet[i]; i++){
 					var aValue = a[sort.attribute];
 					var bValue = b[sort.attribute];
-					if (aValue != bValue) {
-						return !!sort.descending == aValue > bValue ? -1 : 1;
+					// valueOf enables proper comparison of dates
+					aValue = aValue != null ? aValue.valueOf() : aValue;
+					bValue = bValue != null ? bValue.valueOf() : bValue;
+					if (aValue != bValue){
+						return !!sort.descending == (aValue == null || aValue > bValue) ? -1 : 1;
 					}
 				}
 				return 0;
@@ -106,4 +109,5 @@ return function(query, options){
 	execute.matches = query;
 	return execute;
 };
+
 });

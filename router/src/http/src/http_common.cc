@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,9 @@ HttpUri HttpUri::parse(const std::string &uri_str) {
 }
 
 std::string HttpUri::get_scheme() const {
-  return evhttp_uri_get_scheme(pImpl_->uri.get());
+  const char *const u = evhttp_uri_get_scheme(pImpl_->uri.get());
+
+  return u != nullptr ? u : "";
 }
 
 void HttpUri::set_scheme(const std::string &scheme) {
@@ -76,14 +78,18 @@ void HttpUri::set_scheme(const std::string &scheme) {
 }
 
 std::string HttpUri::get_userinfo() const {
-  return evhttp_uri_get_userinfo(pImpl_->uri.get());
+  const char *const u = evhttp_uri_get_userinfo(pImpl_->uri.get());
+
+  return u != nullptr ? u : "";
 }
 void HttpUri::set_userinfo(const std::string &userinfo) {
   evhttp_uri_set_userinfo(pImpl_->uri.get(), userinfo.c_str());
 }
 
 std::string HttpUri::get_host() const {
-  return evhttp_uri_get_host(pImpl_->uri.get());
+  const char *const u = evhttp_uri_get_host(pImpl_->uri.get());
+
+  return u != nullptr ? u : "";
 }
 
 void HttpUri::set_host(const std::string &host) {
@@ -99,7 +105,9 @@ void HttpUri::set_port(uint16_t port) const {
 }
 
 std::string HttpUri::get_path() const {
-  return evhttp_uri_get_path(pImpl_->uri.get());
+  const char *const u = evhttp_uri_get_path(pImpl_->uri.get());
+
+  return u != nullptr ? u : "";
 }
 
 void HttpUri::set_path(const std::string &path) {
@@ -109,14 +117,18 @@ void HttpUri::set_path(const std::string &path) {
 }
 
 std::string HttpUri::get_fragment() const {
-  return evhttp_uri_get_fragment(pImpl_->uri.get());
+  const char *const u = evhttp_uri_get_fragment(pImpl_->uri.get());
+
+  return u != nullptr ? u : "";
 }
 void HttpUri::set_fragment(const std::string &fragment) {
   evhttp_uri_set_fragment(pImpl_->uri.get(), fragment.c_str());
 }
 
 std::string HttpUri::get_query() const {
-  return evhttp_uri_get_query(pImpl_->uri.get());
+  const char *const u = evhttp_uri_get_query(pImpl_->uri.get());
+
+  return u != nullptr ? u : "";
 }
 void HttpUri::set_query(const std::string &query) {
   evhttp_uri_set_query(pImpl_->uri.get(), query.c_str());

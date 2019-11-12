@@ -1,7 +1,7 @@
 # Created: Horst Hunger 2014-05-19
 # WL#3836:  Method to bring servers off line
 
--- source include/not_threadpool.inc
+--source include/not_threadpool.inc
 
 # Save the global value to be used to restore the original value.
 SET @global_saved_tmp =  @@global.offline_mode;
@@ -15,29 +15,15 @@ let $user_count= `SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST
   WHERE USER != 'event_scheduler'`;
 
 # test case 2.1.1 3)
-# Create 3 non-super users
+# Create a non-super user
 
 CREATE USER 'user1'@'localhost';
-CREATE USER 'user2'@'localhost';
 --connect(conu1,localhost,user1)
 START TRANSACTION;
---disable_warnings
-DROP TABLE IF EXISTS t2;
---enable_warnings
 CREATE TABLE t2 (c1 int,c2 char(10));
 INSERT INTO t2 VALUES (1,'aaaaaaaaaa');
 COMMIT;
 INSERT INTO t2 VALUES (2,'bbbbbbbbbb');
-
---connect(conu2,localhost,user2)
-START TRANSACTION;
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-CREATE TABLE t1 (c1 int,c2 char(10)) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1,'aaaaaaaaaa');
-COMMIT;
-INSERT INTO t1 VALUES (2,'bbbbbbbbbb');
 
 --connection default
 SET GLOBAL offline_mode = ON;
@@ -49,14 +35,10 @@ SET GLOBAL offline_mode = OFF;
 
 # Disconnect cleanup session infos on client side to be able to reconnect.
 --disconnect conu1
---disconnect conu2
+
 --connect(conu1,localhost,user1)
 SELECT * FROM t2 ORDER BY c1;
 DROP TABLE t2;
-
---connect(conu2,localhost,user2)
-SELECT * FROM t1 ORDER BY c1;
-DROP TABLE t1;
 
 --connection default
 SET GLOBAL offline_mode = ON;
@@ -67,13 +49,11 @@ SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
 
 # Clean up
 --disconnect conu1
---disconnect conu2
 # Wait until all users have been disconnected (for slow machines)
 let $count_sessions= $user_count;
 --source include/wait_until_count_sessions.inc
 
 DROP USER 'user1'@'localhost';
-DROP USER 'user2'@'localhost';
 
 --echo # Restoring the original values.
 SET @@global.offline_mode = @global_saved_tmp;

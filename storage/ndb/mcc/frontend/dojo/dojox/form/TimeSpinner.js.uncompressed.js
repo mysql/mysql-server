@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/TimeSpinner", [
 	"dojo/_base/lang",
 	"dojo/_base/event",
@@ -9,17 +8,17 @@ define("dojox/form/TimeSpinner", [
 	"dojo/date/stamp",
 	"dojo/_base/declare"
 ], function(lang, event, Spinner, keys, dateUtil, dateLocale, dateStamp, declare){
-	/*=====
-		Spinner = dijit.form._Spinner;
-	=====*/
-return declare( "dojox.form.TimeSpinner", Spinner,
+
+return declare("dojox.form.TimeSpinner", Spinner,
 {
-	// summary: Time Spinner
-	// description: This widget is the same as a normal NumberSpinner, but for the time component of a date object instead
+	// summary:
+	//		Time Spinner
+	// description:
+	//		This widget is the same as a normal NumberSpinner, but for the time component of a date object instead
 
 	required: false,
 
-	adjust: function(/* Object */ val, /*Number*/ delta){
+	adjust: function(/*Object*/ val, /*Number*/ delta){
 		return dateUtil.add(val, "minute", delta)
 	},
 
@@ -45,18 +44,16 @@ return declare( "dojox.form.TimeSpinner", Spinner,
 
 	value: "12:00 AM",
 
-       _onKeyPress: function(e){
-                if((e.charOrCode == keys.HOME || e.charOrCode == keys.END) && !(e.ctrlKey || e.altKey || e.metaKey)
-                && typeof this.get('value') != 'undefined' /* gibberish, so HOME and END are default editing keys*/){
-                        var value = this.constraints[(e.charOrCode == keys.HOME ? "min" : "max")];
-                        if(value){
-                                this._setValueAttr(value,true);
-                        }
-                        // eat home or end key whether we change the value or not
-                        event.stop(e);
-                }
-        }
-
-
+   _onKeyPress: function(e){
+			if((e.charOrCode == keys.HOME || e.charOrCode == keys.END) && !(e.ctrlKey || e.altKey || e.metaKey)
+			&& typeof this.get('value') != 'undefined' /* gibberish, so HOME and END are default editing keys*/){
+					var value = this.constraints[(e.charOrCode == keys.HOME ? "min" : "max")];
+					if(value){
+							this._setValueAttr(value,true);
+					}
+					// eat home or end key whether we change the value or not
+					event.stop(e);
+			}
+	}
 });
 });

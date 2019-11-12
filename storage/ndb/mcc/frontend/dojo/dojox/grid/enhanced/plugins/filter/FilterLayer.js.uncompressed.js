@@ -1,16 +1,15 @@
-//>>built
 define("dojox/grid/enhanced/plugins/filter/FilterLayer", [
 	"dojo/_base/declare",
 	"dojo/_base/lang",
-	"dojo/_base/window",
+	"dojo/_base/kernel",
 	"dojo/_base/json",
 	"../_StoreLayer"
-], function(declare, lang, win, json, layers){
+], function(declare, lang, kernel, json, layers){
 
 	var cmdSetFilter = "filter",
 		cmdClearFilter = "clear",
 		hitchIfCan = function(scope, func){
-			return func ? lang.hitch(scope || win.global, func) : function(){};
+			return func ? lang.hitch(scope || kernel.global, func) : function(){};
 		},
 		shallowClone = function(obj){
 			var res = {};
@@ -33,8 +32,8 @@ define("dojox/grid/enhanced/plugins/filter/FilterLayer", [
 			// tags:
 			//		public
 			// filter: (_ConditionExpr|null)?
-			//		null: clear filter definition
-			//		undefined: it's getter
+			//		- null: clear filter definition
+			//		- undefined: it's getter
 			// returns:
 			//		A filter definition if it's getter.
 		},
@@ -128,23 +127,23 @@ define("dojox/grid/enhanced/plugins/filter/FilterLayer", [
 		//		Add a client side filter layer on top of the data store,
 		//		so any filter expression can be applied to the store.
 /*=====
-		//_items: Array,
+		// _items: Array,
 		//		Cached items (may contain holes)
 		_items: [],
 		
-		//_result: Array,
+		// _result: Array,
 		//		Current fetch result
 		_result: [],
-		
-		//_resultStartIdx: Integer,
+
+		// _resultStartIdx: Integer,
 		//		The index in cache of the first result item
 		_resultStartIdx: 0,
 		
-		//_indexMap: Array,
+		// _indexMap: Array,
 		//		A map from the row index of this._items to the row index of the original store.
 		_indexMap: null,
 		
-		//_getter: function(datarow, colArg, rowIndex, store);
+		// _getter: function(datarow, colArg, rowIndex, store);
 		//		A user defined way to get data from store
 		_getter: null,
 		
@@ -221,7 +220,7 @@ define("dojox/grid/enhanced/plugins/filter/FilterLayer", [
 			//		Implement _StoreLayer._fetch
 			// tags:
 			//		private callback
-			// filterRequest: dojo.data.api.Request
+			// filterRequest: dojo/data/api/Request
 			//		The actual request used in store.fetch.
 			//		This function is called recursively to fill the result store items
 			//		until the user specified item count is reached. Only in recursive calls,

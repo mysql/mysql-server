@@ -173,23 +173,23 @@ class OptRangeTest : public ::testing::Test {
     return new Item_cond_or(new_item_lt(fld, val1), new_item_gt(fld, val1));
   }
 
-    /**
-      Utility funtion used to simplify creation of SEL_TREEs with
-      specified range predicate operators and values. Also verifies that
-      the created SEL_TREE has the expected range conditions.
+  /**
+    Utility funtion used to simplify creation of SEL_TREEs with
+    specified range predicate operators and values. Also verifies that
+    the created SEL_TREE has the expected range conditions.
 
-      @param type            The type of range predicate operator requested
-      @param fld             The field used in the range predicate
-      @param val1            The first value used in the range predicate
-      @param val2            The second value used in the range predicate.
-                             Only used for range predicates that takes two
-                             values (BETWEEN).
-      @param expected_result The range conditions the created SEL_TREE
-                             is expected to consist of. The format of this
-                             string is what opt_range.cc print_tree() produces.
+    @param type            The type of range predicate operator requested
+    @param fld             The field used in the range predicate
+    @param val1            The first value used in the range predicate
+    @param val2            The second value used in the range predicate.
+                           Only used for range predicates that takes two
+                           values (BETWEEN).
+    @param expected_result The range conditions the created SEL_TREE
+                           is expected to consist of. The format of this
+                           string is what opt_range.cc print_tree() produces.
 
-      @return SEL_TREE that has been verified to have expected range conditions.
-    */
+    @return SEL_TREE that has been verified to have expected range conditions.
+  */
 // Undefined at end of this file
 #define create_tree(i, er) do_create_tree(i, er, TestFailLinePrinter(__LINE__))
   SEL_TREE *do_create_tree(Item *item, const char *expected_result,

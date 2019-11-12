@@ -6,6 +6,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ## case #1 - last_null_bit_pos==0 in record_compare without X bit
 include/rpl_reset.inc
 CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 varchar(1) DEFAULT '', c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0, c8 bigint(20) DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
 INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
 UPDATE IGNORE t1 SET c5 = 'a';
@@ -17,6 +25,14 @@ include/sync_slave_sql_with_master.inc
 ##             (1 column less and no varchar)
 include/rpl_reset.inc
 CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 bigint(20) DEFAULT 0, c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
 INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
 UPDATE IGNORE t1 SET c5 = 'a';

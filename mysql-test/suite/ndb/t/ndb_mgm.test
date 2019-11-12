@@ -110,9 +110,9 @@ echo Request memoryusage from non existing node 17;
 --error 255
 exec $mgm_cmd -e "17 REPORT MEMORYUSAGE";
 
-echo Request memoryusage from illegal nodeid 49;
+echo Request memoryusage from illegal nodeid 145;
 --error 255
-exec $mgm_cmd -e "49 REPORT MEMORYUSAGE";
+exec $mgm_cmd -e "145 REPORT MEMORYUSAGE";
 
 --echo For the following, we want to be running ndbmtd with multiple
 --echo LQH threads

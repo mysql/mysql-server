@@ -1,0 +1,123 @@
+SET SESSION debug= '+d,skip_dd_table_access_check';
+#
+# RENAME will update FK information in both children and parents, also
+# when there are tables in the statement that belong in SEs without
+# support for atomic DDL. Basically the same test case as above with
+# an additional MyISAM table.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY parent_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, k INTEGER, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j), UNIQUE KEY child_key(k));
+CREATE TABLE grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES child(k));
+SET @@foreign_key_checks= 0;
+CREATE TABLE orphan_grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES siebling(k));
+SET @@foreign_key_checks= 1;
+CREATE TABLE non_atomic_t1(pk INTEGER) ENGINE= MyISAM;
+# FK definitions before rename:
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	child
+orphan_grandchild_ibfk_1	NULL	test	siebling
+RENAME TABLE non_atomic_t1 TO non_atomic_t2, child TO siebling;
+# After the rename, we see that:
+# 1. The name of the constraint is changed to 'siebling_ibfk...'.
+# 2. The referenced table name of the grandchild is changed to 'siebling'.
+# 3. The unique constraint name of the orphan_grandchild is corrected.
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+siebling_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	siebling
+orphan_grandchild_ibfk_1	child_key	test	siebling
+DROP TABLE grandchild;
+DROP TABLE orphan_grandchild;
+DROP TABLE siebling;
+DROP TABLE parent;
+DROP TABLE non_atomic_t2;
+#
+# RENAME will rollback FK information in both children and parents, also
+# when there are tables in the statement that belong in SEs without
+# support for atomic DDL. Basically the same test case as above with
+# an additional MyISAM table, where renaming fails due to an existing table.
+#
+CREATE TABLE parent(pk INTEGER PRIMARY KEY, j INTEGER,
+UNIQUE KEY parent_key(j));
+CREATE TABLE child(pk INTEGER PRIMARY KEY, k INTEGER, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES parent(j), UNIQUE KEY child_key(k));
+CREATE TABLE grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES child(k));
+SET @@foreign_key_checks= 0;
+CREATE TABLE orphan_grandchild(pk INTEGER PRIMARY KEY, fk INTEGER,
+FOREIGN KEY (fk) REFERENCES siebling(k));
+SET @@foreign_key_checks= 1;
+CREATE TABLE non_atomic_t1(pk INTEGER) ENGINE= InnoDB;
+CREATE TABLE non_atomic_t2(pk INTEGER) ENGINE= InnoDB;
+# FK definitions before rename:
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	child
+orphan_grandchild_ibfk_1	NULL	test	siebling
+RENAME TABLE child TO siebling,
+non_atomic_t1 TO non_atomic_t3,
+non_atomic_t3 TO non_atomic_t2;
+ERROR 42S01: Table 'non_atomic_t2' already exists
+# After the rename, we see that the FK information remain unchanged.
+# TODO: Note that the unique constraint name of orphan_grandchild is not reverted.
+SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_name
+FROM mysql.foreign_keys
+WHERE referenced_table_schema LIKE 'test';
+name	unique_constraint_name	referenced_table_schema	referenced_table_name
+child_ibfk_1	parent_key	test	parent
+grandchild_ibfk_1	child_key	test	child
+orphan_grandchild_ibfk_1	NULL	test	siebling
+DROP TABLE grandchild;
+DROP TABLE orphan_grandchild;
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE non_atomic_t1;
+DROP TABLE non_atomic_t2;
+SET @@foreign_key_checks= DEFAULT;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+#
+# Additional test coverage for case when ALTER TABLE is non-atomic but
+# still adds foreign keys and fails at the late stage (after foreign
+# keys are added to the data-dictionary).
+#
+connect  con1, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk INT) ENGINE=MyISAM;
+SET @@debug='+d,injecting_fault_writing';
+ALTER TABLE t2 ADD FOREIGN KEY (fk) REFERENCES t1(pk), ENGINE=InnoDB;
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+SET @@debug='-d,injecting_fault_writing';
+# Even though the above ALTER TABLE has failed it has updated
+# data-dictionary. So cached object for parent table should
+# be updated to reflect this new foreign key.
+# The below LOCK TABLES should implicitly lock t2 too.
+LOCK TABLES t1 WRITE;
+connection con1;
+# So concurrent inserts into child are blocked.
+SET @@lock_wait_timeout= 1;
+INSERT INTO t1 VALUES (NULL);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+# And delete from parent table is possible and doesn't cause asserts.
+DELETE FROM t1;
+UNLOCK TABLES;
+DROP TABLES t2, t1;
+connection con1;
+disconnect con1;
+connection default;

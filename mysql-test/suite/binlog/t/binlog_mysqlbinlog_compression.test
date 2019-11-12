@@ -1,0 +1,90 @@
+
+# no need to run the tests in this file more than one combination
+#
+# WL#12475
+#
+# This test checks that the binlog output using the compressed
+# protocol transfer mode is the same as the one using the
+# non-compressed protocol transfer
+#
+# This test also checks that the binlog data transferred over
+# network is less when executing mysqlbinlog with compression
+# option compared to executing mysqlbinlog without compression
+#
+# no need to log result or query logs
+
+--source include/linux.inc
+--source include/have_binlog_format_row.inc
+
+--disable_query_log
+--disable_result_log
+
+RESET MASTER;
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+# generate some binlog entries
+CREATE TABLE t1 (c1 INT);
+--let $iterations=10
+while($iterations)
+{
+  --eval INSERT INTO t1 VALUES ($iterations)
+  --dec $iterations
+}
+DROP TABLE t1;
+
+--let $not_compressed_result_file = $MYSQL_TMP_DIR/binlog-no-compress.000001
+--let $compressed_result_file = $MYSQL_TMP_DIR/binlog-compress.000001
+
+--let $mysqlbinlog_parameters = --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $not_compressed_result_file
+--source include/mysqlbinlog.inc
+
+--let $mysqlbinlog_parameters = --compression-algorithms="zlib" --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $compressed_result_file
+--source include/mysqlbinlog.inc
+
+--let NOT_COMPRESSED=not_compressed_result_file
+--let COMPRESSED=$compressed_result_file
+
+--perl
+use File::Compare;
+my $uncompressed=$ENV{'NOT_COMPRESSED'} or die ("Uncompressed result file name not set!");
+my $compressed=$ENV{'COMPRESSED'} or die ("Compressed result file name not set!");
+die ("Comparison between the output of mysqlbinlog parsing of binary logs transferred with and without compression differs!") if compare($uncompressed, $compressed) == 0;
+EOF
+
+--remove_file $not_compressed_result_file
+--remove_file $compressed_result_file
+
+# RESET MASTER for the next test to start clean
+RESET MASTER;
+# Check compression achieved using compress option
+# Generate a large transaction that is over 1MB
+CREATE TABLE t (a LONGTEXT);
+INSERT INTO t VALUES (REPEAT('a', 1000000));
+DROP TABLE t;
+
+# Get the initial number of bytes written to the socket
+--let $before= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
+# Execute mysqlbinlog with compression
+--let $mysqlbinlog_parameters = --compression-algorithms="zlib" --read-from-remote-server --user=root --socket=$MASTER_MYSOCK $binlog_file
+--source include/mysqlbinlog.inc
+# Get the byte count through socket after executing mysqlbinlog with compression
+--let $after_compression= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
+
+# Execute mysqlbinlog without compression
+--let $mysqlbinlog_parameters = --read-from-remote-server --user=root --socket=$MASTER_MYSOCK $binlog_file
+--source include/mysqlbinlog.inc
+# Get the byte count through socket after executing mysqlbinlog without compression
+--let $after_no_compression= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
+
+# The transaction when compressed will be just in the order of Kilo Bytes
+# Hence assert that $after_no_compression-$before is much bigger than $after_compression-$before
+--let $assert_text= Assert that bytes written to socket are less with compression
+--let $assert_cond= $after_no_compression-$before > 100 * ($after_compression-$before)
+--source include/assert.inc
+
+# clean up the binlog
+RESET MASTER;
+
+# enabling result and query log back
+--enable_result_log
+--enable_query_log

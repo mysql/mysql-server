@@ -43,13 +43,13 @@
 
 const std::string kIPv6AddrRange = "fd84:8829:117d:63d5";
 
-using ::testing::ContainerEq;
-using ::testing::Pair;
 using mysql_harness::split_string;
 using mysqlrouter::get_tcp_port;
 using mysqlrouter::hexdump;
 using mysqlrouter::split_addr_port;
 using std::string;
+using ::testing::ContainerEq;
+using ::testing::Pair;
 
 class SplitAddrPortTest : public ::testing::Test {
  protected:

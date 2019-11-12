@@ -1,14 +1,17 @@
 CREATE TABLE t1 (
-a char(10) CHARSET latin1 NOT NULL primary key,
+a char(10) CHARSET latin1 NOT NULL,
+e varbinary(3000) not null,
 b int,
 c blob,
+d varbinary(26000),
+primary key(e,a),
 unique key (b)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
 tab_partitions	tab_fragments
 8	8
-select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
 partition_id	fragment_id	partition_order	log_part_id	preferred_primary
 0	0	0	0	1
 1	1	0	1	2
@@ -18,81 +21,96 @@ partition_id	fragment_id	partition_order	log_part_id	preferred_primary
 5	5	0	1	1
 6	6	0	2	2
 7	7	0	3	1
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 fragment_id	replica_node_id
 0	1
 0	2
-1	2
 1	1
+1	2
 2	1
 2	2
-3	2
 3	1
-4	2
+3	2
 4	1
+4	2
 5	1
 5	2
-6	2
 6	1
+6	2
 7	1
 7	2
 select read_backup, fully_replicated from table_info as ti join dict_obj_info as doi where ti.table_id = doi.id and doi.fq_name = 'test/def/t1';
 read_backup	fully_replicated
 1	1
 use test;
-insert into t1 values ('24', 24, REPEAT('24', 3000));
-insert into t1 values ('23', 23, REPEAT('23', 3000));
-insert into t1 values ('22', 22, REPEAT('22', 3000));
-insert into t1 values ('21', 21, REPEAT('21', 3000));
-insert into t1 values ('20', 20, REPEAT('20', 3000));
-insert into t1 values ('19', 19, REPEAT('19', 3000));
-insert into t1 values ('18', 18, REPEAT('18', 3000));
-insert into t1 values ('17', 17, REPEAT('17', 3000));
-insert into t1 values ('16', 16, REPEAT('16', 3000));
-insert into t1 values ('15', 15, REPEAT('15', 3000));
-insert into t1 values ('14', 14, REPEAT('14', 3000));
-insert into t1 values ('13', 13, REPEAT('13', 3000));
-insert into t1 values ('12', 12, REPEAT('12', 3000));
-insert into t1 values ('11', 11, REPEAT('11', 3000));
-insert into t1 values ('10', 10, REPEAT('10', 3000));
-insert into t1 values ('9', 9, REPEAT('9', 3000));
-insert into t1 values ('8', 8, REPEAT('8', 3000));
-insert into t1 values ('7', 7, REPEAT('7', 3000));
-insert into t1 values ('6', 6, REPEAT('6', 3000));
-insert into t1 values ('5', 5, REPEAT('5', 3000));
-insert into t1 values ('4', 4, REPEAT('4', 3000));
-insert into t1 values ('3', 3, REPEAT('3', 3000));
-insert into t1 values ('2', 2, REPEAT('2', 3000));
-insert into t1 values ('1', 1, REPEAT('1', 3000));
+insert into t1 values ('24', REPEAT('1', 3000),  24, REPEAT('24', 3000), REPEAT('A', 26000));
+insert into t1 values ('23', REPEAT('1', 3000),  23, REPEAT('23', 3000), REPEAT('A', 26000));
+insert into t1 values ('22', REPEAT('1', 3000),  22, REPEAT('22', 3000), REPEAT('A', 26000));
+insert into t1 values ('21', REPEAT('1', 3000),  21, REPEAT('21', 3000), REPEAT('A', 26000));
+insert into t1 values ('20', REPEAT('1', 3000),  20, REPEAT('20', 3000), REPEAT('A', 26000));
+insert into t1 values ('19', REPEAT('1', 3000),  19, REPEAT('19', 3000), REPEAT('A', 26000));
+insert into t1 values ('18', REPEAT('1', 3000),  18, REPEAT('18', 3000), REPEAT('A', 26000));
+insert into t1 values ('17', REPEAT('1', 3000),  17, REPEAT('17', 3000), REPEAT('A', 26000));
+insert into t1 values ('16', REPEAT('1', 3000),  16, REPEAT('16', 3000), REPEAT('A', 26000));
+insert into t1 values ('15', REPEAT('1', 3000),  15, REPEAT('15', 3000), REPEAT('A', 26000));
+insert into t1 values ('14', REPEAT('1', 3000),  14, REPEAT('14', 3000), REPEAT('A', 26000));
+insert into t1 values ('13', REPEAT('1', 3000),  13, REPEAT('13', 3000), REPEAT('A', 26000));
+insert into t1 values ('12', REPEAT('1', 3000),  12, REPEAT('12', 3000), REPEAT('A', 26000));
+insert into t1 values ('11', REPEAT('1', 3000),  11, REPEAT('11', 3000), REPEAT('A', 26000));
+insert into t1 values ('10', REPEAT('1', 3000),  10, REPEAT('10', 3000), REPEAT('A', 26000));
+insert into t1 values ('9', REPEAT('1', 3000),  9, REPEAT('9', 3000), REPEAT('A', 26000));
+insert into t1 values ('8', REPEAT('1', 3000),  8, REPEAT('8', 3000), REPEAT('A', 26000));
+insert into t1 values ('7', REPEAT('1', 3000),  7, REPEAT('7', 3000), REPEAT('A', 26000));
+insert into t1 values ('6', REPEAT('1', 3000),  6, REPEAT('6', 3000), REPEAT('A', 26000));
+insert into t1 values ('5', REPEAT('1', 3000),  5, REPEAT('5', 3000), REPEAT('A', 26000));
+insert into t1 values ('4', REPEAT('1', 3000),  4, REPEAT('4', 3000), REPEAT('A', 26000));
+insert into t1 values ('3', REPEAT('1', 3000),  3, REPEAT('3', 3000), REPEAT('A', 26000));
+insert into t1 values ('2', REPEAT('1', 3000),  2, REPEAT('2', 3000), REPEAT('A', 26000));
+insert into t1 values ('1', REPEAT('1', 3000),  1, REPEAT('1', 3000), REPEAT('A', 26000));
+create temporary table t1_frag_size (
+fragment_num int primary key,
+fixed_elem_count int
+);
+insert into t1_frag_size select fragment_num, fixed_elem_count from `ndbinfo`.`memory_per_fragment`
+  where fq_name = 'test/def/t1' and node_id = 1;
+set @numpart = (select count(*) from t1_frag_size);
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
+node_id	fragment_num	fixed_elem_count	fragment_num	fixed_elem_count
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
-select a,b,LENGTH(c) from t1 where a = '1';
+select a,b,LENGTH(c) from t1 where a = '1' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 1	1	3000
-select a,b,LENGTH(c) from t1 where a = '2';
+select a,b,LENGTH(c) from t1 where a = '2' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 2	2	3000
-select a,b,LENGTH(c) from t1 where a = '3';
+select a,b,LENGTH(c) from t1 where a = '3' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 3	3	3000
-select a,b,LENGTH(c) from t1 where a = '4';
+select a,b,LENGTH(c) from t1 where a = '4' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 4	4	3000
-select a,b,LENGTH(c) from t1 where a = '5';
+select a,b,LENGTH(c) from t1 where a = '5' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 5	5	3000
-select a,b,LENGTH(c) from t1 where a = '6';
+select a,b,LENGTH(c) from t1 where a = '6' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 6	6	3000
-select a,b,LENGTH(c) from t1 where a = '7';
+select a,b,LENGTH(c) from t1 where a = '7' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 7	7	3000
-select a,b,LENGTH(c) from t1 where a = '8';
+select a,b,LENGTH(c) from t1 where a = '8' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 1	1	3000
 2	2	3000
@@ -102,7 +120,7 @@ a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 2	2	3000
 3	3	3000
@@ -111,7 +129,7 @@ a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 3	3	3000
 4	4	3000
@@ -119,25 +137,25 @@ a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 4	4	3000
 5	5	3000
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 5	5	3000
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('7', '8');
+select a,b,LENGTH(c) from t1 where a in ('7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 7	7	3000
 8	8	3000
@@ -166,7 +184,7 @@ use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
 tab_partitions	tab_fragments
 8	16
-select partition_id, fragment_id, log_part_id, partition_order, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, log_part_id, partition_order, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
 partition_id	fragment_id	log_part_id	partition_order	preferred_primary
 0	0	0	0	1
 1	1	1	0	2
@@ -184,38 +202,38 @@ partition_id	fragment_id	log_part_id	partition_order	preferred_primary
 5	13	1	1	3
 6	14	2	1	4
 7	15	3	1	3
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 fragment_id	replica_node_id
 0	1
 0	2
-1	2
 1	1
+1	2
 2	1
 2	2
-3	2
 3	1
-4	2
+3	2
 4	1
+4	2
 5	1
 5	2
-6	2
 6	1
+6	2
 7	1
 7	2
 8	3
 8	4
-9	4
 9	3
+9	4
 10	3
 10	4
-11	4
 11	3
-12	4
+11	4
 12	3
+12	4
 13	3
 13	4
-14	4
 14	3
+14	4
 15	3
 15	4
 use test;
@@ -299,72 +317,43 @@ node_id
 4
 drop table c;
 set global ndb_data_node_neighbour = 0;
-select node_id, fragment_num, fixed_elem_count > 0
-from `ndbinfo`.`memory_per_fragment`
-where fq_name = 'test/def/t1'
-order by node_id, fragment_num;
-node_id	fragment_num	fixed_elem_count > 0
-1	0	1
-1	1	1
-1	2	1
-1	3	1
-1	4	1
-1	5	1
-1	6	1
-1	7	1
-2	0	1
-2	1	1
-2	2	1
-2	3	1
-2	4	1
-2	5	1
-2	6	1
-2	7	1
-3	8	1
-3	9	1
-3	10	1
-3	11	1
-3	12	1
-3	13	1
-3	14	1
-3	15	1
-4	8	1
-4	9	1
-4	10	1
-4	11	1
-4	12	1
-4	13	1
-4	14	1
-4	15	1
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
+node_id	fragment_num	fixed_elem_count	fragment_num	fixed_elem_count
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
-select a,b,LENGTH(c) from t1 where a = '1';
+select a,b,LENGTH(c) from t1 where a = '1' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 1	1	3000
-select a,b,LENGTH(c) from t1 where a = '2';
+select a,b,LENGTH(c) from t1 where a = '2' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 2	2	3000
-select a,b,LENGTH(c) from t1 where a = '3';
+select a,b,LENGTH(c) from t1 where a = '3' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 3	3	3000
-select a,b,LENGTH(c) from t1 where a = '4';
+select a,b,LENGTH(c) from t1 where a = '4' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 4	4	3000
-select a,b,LENGTH(c) from t1 where a = '5';
+select a,b,LENGTH(c) from t1 where a = '5' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 5	5	3000
-select a,b,LENGTH(c) from t1 where a = '6';
+select a,b,LENGTH(c) from t1 where a = '6' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 6	6	3000
-select a,b,LENGTH(c) from t1 where a = '7';
+select a,b,LENGTH(c) from t1 where a = '7' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 7	7	3000
-select a,b,LENGTH(c) from t1 where a = '8';
+select a,b,LENGTH(c) from t1 where a = '8' and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 1	1	3000
 2	2	3000
@@ -374,7 +363,7 @@ a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 2	2	3000
 3	3	3000
@@ -383,7 +372,7 @@ a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 3	3	3000
 4	4	3000
@@ -391,25 +380,25 @@ a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 4	4	3000
 5	5	3000
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 5	5	3000
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 6	6	3000
 7	7	3000
 8	8	3000
-select a,b,LENGTH(c) from t1 where a in ('7', '8');
+select a,b,LENGTH(c) from t1 where a in ('7', '8') and e = REPEAT('1', 3000);
 a	b	LENGTH(c)
 7	7	3000
 8	8	3000
@@ -425,6 +414,14 @@ counter_name	diff
 LOCAL_READS	129
 READS	129
 drop table counters_at_startup;
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
+node_id	fragment_num	fixed_elem_count	fragment_num	fixed_elem_count
 output_line
 -- t1 --
 Table options: readbackup, fullyreplicated
@@ -439,7 +436,7 @@ use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
 tab_partitions	tab_fragments
 8	32
-select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
 partition_id	fragment_id	partition_order	log_part_id	preferred_primary
 0	0	0	0	1
 1	1	0	1	2
@@ -473,140 +470,79 @@ partition_id	fragment_id	partition_order	log_part_id	preferred_primary
 5	29	3	0	8
 6	30	3	1	7
 7	31	3	2	8
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 fragment_id	replica_node_id
 0	1
 0	2
-1	2
 1	1
+1	2
 2	1
 2	2
-3	2
 3	1
-4	2
+3	2
 4	1
+4	2
 5	1
 5	2
-6	2
 6	1
+6	2
 7	1
 7	2
 8	3
 8	4
-9	4
 9	3
+9	4
 10	3
 10	4
-11	4
 11	3
-12	4
+11	4
 12	3
+12	4
 13	3
 13	4
-14	4
 14	3
+14	4
 15	3
 15	4
 16	5
 16	6
-17	6
 17	5
+17	6
 18	5
 18	6
-19	6
 19	5
-20	6
+19	6
 20	5
+20	6
 21	5
 21	6
-22	6
 22	5
+22	6
 23	5
 23	6
-24	8
 24	7
+24	8
 25	7
 25	8
-26	8
 26	7
+26	8
 27	7
 27	8
 28	7
 28	8
-29	8
 29	7
+29	8
 30	7
 30	8
-31	8
 31	7
+31	8
 use test;
-select node_id, fragment_num, fixed_elem_count > 0
-from `ndbinfo`.`memory_per_fragment`
-where fq_name = 'test/def/t1'
-order by node_id, fragment_num;
-node_id	fragment_num	fixed_elem_count > 0
-1	0	1
-1	1	1
-1	2	1
-1	3	1
-1	4	1
-1	5	1
-1	6	1
-1	7	1
-2	0	1
-2	1	1
-2	2	1
-2	3	1
-2	4	1
-2	5	1
-2	6	1
-2	7	1
-3	8	1
-3	9	1
-3	10	1
-3	11	1
-3	12	1
-3	13	1
-3	14	1
-3	15	1
-4	8	1
-4	9	1
-4	10	1
-4	11	1
-4	12	1
-4	13	1
-4	14	1
-4	15	1
-5	16	1
-5	17	1
-5	18	1
-5	19	1
-5	20	1
-5	21	1
-5	22	1
-5	23	1
-6	16	1
-6	17	1
-6	18	1
-6	19	1
-6	20	1
-6	21	1
-6	22	1
-6	23	1
-7	24	1
-7	25	1
-7	26	1
-7	27	1
-7	28	1
-7	29	1
-7	30	1
-7	31	1
-8	24	1
-8	25	1
-8	26	1
-8	27	1
-8	28	1
-8	29	1
-8	30	1
-8	31	1
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
+node_id	fragment_num	fixed_elem_count	fragment_num	fixed_elem_count
 drop table t1;

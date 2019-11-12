@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,12 @@
  *   and others
  */
 struct NodeFailRep {
-  STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
-  STATIC_CONST( SignalLengthLong = 3 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLengthLong = 3 );
+
+  STATIC_CONST( SignalLength_v1 = 3 + NdbNodeBitmask48::Size );
+  STATIC_CONST( SignalLengthLong_v1 = 3 + NodeBitmask::Size );
+
   Uint32 failNo;
 
   /**
@@ -50,13 +54,15 @@ struct NodeFailRep {
   Uint32 noOfNodes;
   union
   {
-    Uint32 theNodes[NdbNodeBitmask::Size];
-    Uint32 theAllNodes[NodeBitmask::Size];
+    Uint32 theNodes[NdbNodeBitmask::Size]; // data nodes 8.0.17 and older
+    Uint32 theAllNodes[NodeBitmask::Size]; // api nodes 8.0.17 and older
   };
 
   static Uint32 getNodeMaskLength(Uint32 signalLength) {
     assert(signalLength == SignalLength ||
-           signalLength == SignalLengthLong);
+           signalLength == SignalLengthLong ||
+           signalLength == SignalLength_v1 ||
+           signalLength == SignalLengthLong_v1);
     return signalLength - 3;
   }
 };

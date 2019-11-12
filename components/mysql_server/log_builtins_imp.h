@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,47 @@ enum log_sink_buffer_flush_mode {
   LOG_BUFFER_PROCESS_AND_DISCARD,
   LOG_BUFFER_REPORT_AND_KEEP
 };
+
+enum log_error_stage {
+  LOG_ERROR_STAGE_BUFFERING_EARLY,              ///< no log-destination yet
+  LOG_ERROR_STAGE_BUFFERING_UNIPLEX,            ///< 1 sink, or individual files
+  LOG_ERROR_STAGE_BUFFERING_MULTIPLEX,          ///< 2+ sinks writing to stderr
+  LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE,  ///< external services available
+  LOG_ERROR_STAGE_SHUTTING_DOWN                 ///< no external components
+};
+
+/// Set error-logging stage hint (e.g. are loadable services available yet?).
+void log_error_stage_set(enum log_error_stage les);
+
+/// What mode is error-logging in (e.g. are loadable services available yet)?
+enum log_error_stage log_error_stage_get(void);
+
+/**
+  Name of internal filtering engine (so we may recognize it when the
+  user refers to it by name in log_error_services).
+*/
+#define LOG_BUILTINS_FILTER "log_filter_internal"
+
+/**
+  Name of internal log writer (so we may recognize it when the user
+  refers to it by name in log_error_services).
+*/
+#define LOG_BUILTINS_SINK "log_sink_internal"
+
+/**
+  Name of buffered log writer. This sink is used internally during
+  start-up until we know where to write and how to filter, and have
+  all the components to do so. While we don't let the DBA add this
+  sink to the logging pipeline once we're out of start-up, we have
+  a name for this to be able to correctly tag its record in the
+  service-cache.
+*/
+#define LOG_BUILTINS_BUFFER "log_sink_buffer"
+
+/**
+  Default services pipeline for log_builtins_error_stack().
+*/
+#define LOG_ERROR_SERVICES_DEFAULT LOG_BUILTINS_FILTER "; " LOG_BUILTINS_SINK
 
 /**
   Release all buffered log-events (discard_error_log_messages()),

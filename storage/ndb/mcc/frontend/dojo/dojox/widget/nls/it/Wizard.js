@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-next: "Successivo",
-previous: "Precedente",
-done: "Eseguito"
-})
-//end v1.x content
-);
+define("dojox/widget/nls/it/Wizard",({next:"Successivo",previous:"Indietro",done:"Fine"}));

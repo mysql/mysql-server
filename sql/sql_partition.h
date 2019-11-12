@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,6 +167,6 @@ enum enum_partition_keywords {
   PKW_ALGORITHM
 };
 
-extern const LEX_STRING partition_keywords[];
+extern const LEX_CSTRING partition_keywords[];
 
 #endif /* SQL_PARTITION_INCLUDED */

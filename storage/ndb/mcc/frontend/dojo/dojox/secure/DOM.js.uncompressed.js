@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/secure/DOM", ["dijit","dojo","dojox","dojo/require!dojox/lang/observable"], function(dijit,dojo,dojox){
+define("dojox/secure/DOM", ["dojo","dijit","dojox","dojo/require!dojox/lang/observable"], function(dojo,dijit,dojox){
 dojo.provide("dojox.secure.DOM");
 dojo.require("dojox.lang.observable");
 

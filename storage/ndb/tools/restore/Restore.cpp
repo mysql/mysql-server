@@ -33,10 +33,10 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
 #include <NdbAutoPtr.hpp>
+#include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
-#include "sql/ha_ndbcluster_tables.h"
-#include "../../../../sql/ha_ndbcluster_tables.h"
+#include "restore_tables.h"
 #include <NdbThread.h>
 #include "../src/kernel/vm/Emulator.hpp"
 
@@ -348,6 +348,11 @@ RestoreMetaData::getTable(Uint32 tableId) const {
 }
 
 Uint32
+RestoreMetaData::getStartGCP() const {
+  return m_startGCP;
+}
+
+Uint32
 RestoreMetaData::getStopGCP() const {
   return m_stopGCP;
 }
@@ -422,7 +427,7 @@ RestoreMetaData::readMetaTableDesc() {
   // Read section header 
   Uint32 sz = sizeof(sectionInfo) >> 2;
   if (m_fileHeader.NdbVersion < NDBD_ROWID_VERSION ||
-      isDrop6(m_fileHeader.NdbVersion))
+      ndbd_drop6(m_fileHeader.NdbVersion))
   {
     sz = 2;
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
@@ -629,7 +634,8 @@ RestoreMetaData::markSysTables()
         strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_APPLY_TABLE) == 0 ||
         strcmp(tableName, OLD_NDB_REP_DB "/def/" OLD_NDB_SCHEMA_TABLE) == 0 ||
         strcmp(tableName, NDB_REP_DB "/def/" NDB_APPLY_TABLE) == 0 ||
-        strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 )
+        strcmp(tableName, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE)== 0 ||
+        strcmp(tableName, "mysql/def/ndb_schema_result") == 0)
     {
       table->m_isSysTable = true;
       if (strcmp(tableName, "SYSTAB_0") == 0 ||
@@ -748,7 +754,12 @@ RestoreMetaData::readGCPEntry() {
   dst.StopGCP = ntohl(dst.StopGCP);
   
   m_startGCP = dst.StartGCP;
-  m_stopGCP = dst.StopGCP;
+  /**
+   * Stop GCP is recorded as StopGCP -1 by Backup.cpp
+   * We correct this here
+   * Backup format not changed
+   */
+  m_stopGCP = dst.StopGCP + 1;
   return true;
 }
 
@@ -840,11 +851,18 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
   NdbTableImpl* tableImpl = 0;
   int ret = NdbDictInterface::parseTableInfo
     (&tableImpl, data, len, false,
-     isDrop6(m_fileHeader.NdbVersion) ? MAKE_VERSION(5,1,2) :
+     ndbd_drop6(m_fileHeader.NdbVersion) ? MAKE_VERSION(5,1,2) :
      m_fileHeader.NdbVersion);
   
   if (ret != 0) {
-    restoreLogger.log_error("parseTableInfo failed");
+    ndberror_struct err_struct;
+    err_struct.code = ret;
+    ndberror_update(&err_struct);
+
+    restoreLogger.log_error("parseTableInfo failed with error %u \"%s\"",
+        err_struct.code, err_struct.message);
+
+    restoreLogger.log_error("Check version of backup and schema contained in backup.");
     return false;
   }
   if(tableImpl == 0)
@@ -1296,7 +1314,7 @@ RestoreDataIterator::readTupleData_old(Uint32 *buf_ptr,
   }
 
   int res;
-  if (!isDrop6(m_currentTable->backupVersion))
+  if (!ndbd_drop6(m_currentTable->backupVersion))
   {
     if ((res = readVarData(buf_ptr, ptr, dataLength)))
       return res;
@@ -1960,7 +1978,7 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
 
   // just a reminder - does not solve backwards compat
-  if (backupVersion < MAKE_VERSION(5,1,3) || isDrop6(backupVersion))
+  if (backupVersion < MAKE_VERSION(5,1,3) || ndbd_drop6(backupVersion))
   {
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;
@@ -2050,12 +2068,14 @@ RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
 const LogEntry *
 RestoreLogIterator::getNextLogEntry(int & res) {
   // Read record length
+  const Uint32 startGCP = m_metaData.getStartGCP();
   const Uint32 stopGCP = m_metaData.getStopGCP();
   Uint32 tableId;
   Uint32 triggerEvent;
   Uint32 frag_id;
   Uint32 *attr_data;
   Uint32 attr_data_len;
+  bool skip_entry = false;
   do {
     Uint32 len;
     Uint32 *logEntryPtr;
@@ -2091,8 +2111,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       return 0;
     }
 
-    if (unlikely(m_metaData.getFileHeader().NdbVersion < NDBD_FRAGID_VERSION ||
-                 isDrop6(m_metaData.getFileHeader().NdbVersion)))
+    const Uint32 backup_file_version = m_metaData.getFileHeader().NdbVersion;
+    if (unlikely(!ndbd_backup_file_fragid(backup_file_version)))
     {
       /*
         FragId was introduced in LogEntry in version
@@ -2107,7 +2127,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       triggerEvent= ntohl(logE_no_fragid->TriggerEvent);
       frag_id= 0;
       attr_data= &logE_no_fragid->Data[0];
-      attr_data_len= len - ((offsetof(LogE_no_fragid, Data) >> 2) - 1);
+      attr_data_len=
+        len - BackupFormat::LogFile::LogEntry_no_fragid::HEADER_LENGTH_WORDS;
     }
     else /* normal case */
     {
@@ -2117,7 +2138,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       triggerEvent= ntohl(logE->TriggerEvent);
       frag_id= ntohl(logE->FragId);
       attr_data= &logE->Data[0];
-      attr_data_len= len - ((offsetof(LogE, Data) >> 2) - 1);
+      attr_data_len=
+        len - BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS;
     }
     
     const bool hasGcp= (triggerEvent & 0x10000) != 0;
@@ -2128,7 +2150,20 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       attr_data_len--;
       m_last_gci = ntohl(*(attr_data + attr_data_len));
     }
-  } while(m_last_gci > stopGCP + 1);
+    if (m_is_undolog)
+    {
+      // Do not apply anything from startGCP or lower
+      skip_entry = (m_last_gci <= startGCP);
+    }
+    else
+    {
+      // Do not apply anything after stopGCP
+      skip_entry = (m_last_gci > stopGCP);
+    }
+    // Skip entries instead of stopping scan since entries are not ordered
+    // by GCP. Entries from different GCPs may be interleaved, so scan till
+    // EOF to read all matching entries.
+  } while (skip_entry);
 
   m_logEntry.m_table = m_metaData.getTable(tableId);
   /* We should 'invert' the operation type when we restore an Undo log.
@@ -2439,12 +2474,12 @@ RestoreLogger::getThreadPrefix() const
     }
    return prefix;
 }
-#include <NDBT.hpp>
 
-NdbOut & 
-operator<<(NdbOut& ndbout, const TableS & table){
-  
-  ndbout << (* (NDBT_Table*)table.m_dictTable) << endl;
+NdbOut &
+operator<<(NdbOut& ndbout, const TableS & table)
+{
+  ndbout << "-- " << table.getTableName() << " --" << endl;
+  ndbout << *(table.m_dictTable) << endl;
   return ndbout;
 }
 

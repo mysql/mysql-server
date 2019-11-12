@@ -1,49 +1,48 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.drawing.ui.Button");
-_3.drawing.ui.Button=_3.drawing.util.oo.declare(function(_4){
-_4.subShape=true;
-_2.mixin(this,_4);
-this.width=_4.data.width||_4.data.rx*2;
-this.height=_4.data.height||_4.data.ry*2;
-this.y=_4.data.y||_4.data.cy-_4.data.ry;
+define("dojox/drawing/ui/Button",["dojo","../util/oo","../stencil/Rect","../stencil/Ellipse","../stencil/Text","../manager/_registry"],function(_1,oo,_2,_3,_4,_5){
+var _6=oo.declare(function(_7){
+_7.subShape=true;
+_1.mixin(this,_7);
+this.width=_7.data.width||_7.data.rx*2;
+this.height=_7.data.height||_7.data.ry*2;
+this.y=_7.data.y||_7.data.cy-_7.data.ry;
 this.id=this.id||this.util.uid(this.type);
 this.util.attr(this.container,"id",this.id);
 if(this.callback){
-this.hitched=_2.hitch(this.scope||window,this.callback,this);
+this.hitched=_1.hitch(this.scope||window,this.callback,this);
 }
-_4.drawingType="ui";
-if(_4.data.width&&_4.data.height){
-this.shape=new _3.drawing.stencil.Rect(_4);
+_7.drawingType="ui";
+if(_7.data.width&&_7.data.height){
+this.shape=new _2(_7);
 }else{
-this.shape=new _3.drawing.stencil.Ellipse(_4);
+this.shape=new _3(_7);
 }
-var _5=function(s,p,v){
-_2.forEach(["norm","over","down","selected"],function(nm){
+var _8=function(s,p,v){
+_1.forEach(["norm","over","down","selected"],function(nm){
 s[nm].fill[p]=v;
 });
 };
-_5(this.style.button,"y2",this.height+this.y);
-_5(this.style.button,"y1",this.y);
-if(_4.icon&&!_4.icon.text){
-var _6=this.drawing.getConstructor(_4.icon.type);
-var o=this.makeOptions(_4.icon);
-o.data=_2.mixin(o.data,this.style.button.icon.norm);
+_8(this.style.button,"y2",this.height+this.y);
+_8(this.style.button,"y1",this.y);
+if(_7.icon&&!_7.icon.text){
+var _9=this.drawing.getConstructor(_7.icon.type);
+var o=this.makeOptions(_7.icon);
+o.data=_1.mixin(o.data,this.style.button.icon.norm);
 if(o.data&&o.data.borderWidth===0){
 o.data.fill=this.style.button.icon.norm.fill=o.data.color;
 }else{
-if(_4.icon.type=="line"||(_4.icon.type=="path"&&!_4.icon.closePath)){
+if(_7.icon.type=="line"||(_7.icon.type=="path"&&!_7.icon.closePath)){
 this.style.button.icon.selected.color=this.style.button.icon.selected.fill;
 }else{
 }
 }
-this.icon=new _6(o);
+this.icon=new _9(o);
 }else{
-if(_4.text||(_4.icon&&_4.icon.text)){
-o=this.makeOptions(_4.text||_4.icon.text);
+if(_7.text||(_7.icon&&_7.icon.text)){
+o=this.makeOptions(_7.text||_7.icon.text);
 o.data.color=this.style.button.icon.norm.color;
 this.style.button.icon.selected.color=this.style.button.icon.selected.fill;
-this.icon=new _3.drawing.stencil.Text(o);
+this.icon=new _4(o);
 this.icon.attr({height:this.icon._lineHeight,y:((this.height-this.icon._lineHeight)/2)+this.y});
 }
 }
@@ -52,16 +51,16 @@ if(c){
 this.drawing.addUI("tooltip",{data:{text:c.setup.tooltip},button:this});
 }
 this.onOut();
-},{callback:null,scope:null,hitched:null,toolType:"",onClick:function(_7){
+},{callback:null,scope:null,hitched:null,toolType:"",onClick:function(_a){
 },makeOptions:function(d,s){
 s=s||1;
-d=_2.clone(d);
+d=_1.clone(d);
 var o={util:this.util,mouse:this.mouse,container:this.container,subShape:true};
 if(typeof (d)=="string"){
 o.data={x:this.data.x-5,y:this.data.y+2,width:this.data.width,height:this.data.height,text:d,makeFit:true};
 }else{
 if(d.points){
-_2.forEach(d.points,function(pt){
+_1.forEach(d.points,function(pt){
 pt.x=pt.x*this.data.width*0.01*s+this.data.x;
 pt.y=pt.y*this.data.height*0.01*s+this.data.y;
 },this);
@@ -127,8 +126,8 @@ return;
 this.enabled=true;
 this._change(this.style.button.norm);
 this.icon.attr({color:this.style.button.icon.norm.color});
-},_change:function(_8){
-this.shape.attr(_8);
+},_change:function(_b){
+this.shape.attr(_b);
 this.shape.shadow&&this.shape.shadow.container.moveToBack();
 if(this.icon){
 this.icon.shape.moveToFront();
@@ -157,10 +156,12 @@ if(this.hitched){
 this.hitched();
 }
 this.onClick(this);
-},attr:function(_9){
+},attr:function(_c){
 if(this.icon){
-this.icon.attr(_9);
+this.icon.attr(_c);
 }
 }});
-_3.drawing.register({name:"dojox.drawing.ui.Button"},"stencil");
+_1.setObject("dojox.drawing.ui.Button",_6);
+_5.register({name:"dojox.drawing.ui.Button"},"stencil");
+return _6;
 });

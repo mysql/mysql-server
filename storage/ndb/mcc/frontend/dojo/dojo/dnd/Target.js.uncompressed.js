@@ -1,14 +1,13 @@
-//>>built
-define("dojo/dnd/Target", [ "./Source" ], function(Source){
-	/*===== Source = dojo.dnd.Source =====*/
-	return dojo.declare("dojo.dnd.Target", Source, {
-		// summary: a Target object, which can be used as a DnD target
+define("dojo/dnd/Target", [ "../_base/declare", "../dom-class", "./Source" ], function(declare, domClass, Source){
+	return declare("dojo.dnd.Target", Source, {
+		// summary:
+		//		a Target object, which can be used as a DnD target
 
-		constructor: function(node, params){
+		constructor: function(/*===== node, params =====*/){
 			// summary:
-			//		a constructor of the Target --- see the `dojo.dnd.Source.constructor` for details
+			//		a constructor of the Target --- see the `dojo/dnd/Source` constructor for details
 			this.isSource = false;
-			dojo.removeClass(this.node, "dojoDndSource");
+			domClass.remove(this.node, "dojoDndSource");
 		}
 	});
 });

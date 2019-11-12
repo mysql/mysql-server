@@ -1,24 +1,24 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/mobile/app/_Widget,dojo/fx/easing"],function(_1,_2,_3){
-_2.provide("dojox.mobile.app.ImageView");
-_2.experimental("dojox.mobile.app.ImageView");
-_2.require("dojox.mobile.app._Widget");
-_2.require("dojo.fx.easing");
-_2.declare("dojox.mobile.app.ImageView",_3.mobile.app._Widget,{zoom:1,zoomCenterX:0,zoomCenterY:0,maxZoom:5,autoZoomLevel:3,disableAutoZoom:false,disableSwipe:false,autoZoomEvent:null,_leftImg:null,_centerImg:null,_rightImg:null,_leftSmallImg:null,_centerSmallImg:null,_rightSmallImg:null,constructor:function(){
+define("dojox/mobile/app/ImageView",["dojo","dijit","dojox","dojo/require!dojox/mobile/app/_Widget,dojo/fx/easing"],function(_1,_2,_3){
+_1.provide("dojox.mobile.app.ImageView");
+_1.experimental("dojox.mobile.app.ImageView");
+_1.require("dojox.mobile.app._Widget");
+_1.require("dojo.fx.easing");
+_1.declare("dojox.mobile.app.ImageView",_3.mobile.app._Widget,{zoom:1,zoomCenterX:0,zoomCenterY:0,maxZoom:5,autoZoomLevel:3,disableAutoZoom:false,disableSwipe:false,autoZoomEvent:null,_leftImg:null,_centerImg:null,_rightImg:null,_leftSmallImg:null,_centerSmallImg:null,_rightSmallImg:null,constructor:function(){
 this.panX=0;
 this.panY=0;
-this.handleLoad=_2.hitch(this,this.handleLoad);
-this._updateAnimatedZoom=_2.hitch(this,this._updateAnimatedZoom);
-this._updateAnimatedPan=_2.hitch(this,this._updateAnimatedPan);
-this._onAnimPanEnd=_2.hitch(this,this._onAnimPanEnd);
+this.handleLoad=_1.hitch(this,this.handleLoad);
+this._updateAnimatedZoom=_1.hitch(this,this._updateAnimatedZoom);
+this._updateAnimatedPan=_1.hitch(this,this._updateAnimatedPan);
+this._onAnimPanEnd=_1.hitch(this,this._onAnimPanEnd);
 },buildRendering:function(){
 this.inherited(arguments);
-this.canvas=_2.create("canvas",{},this.domNode);
-_2.addClass(this.domNode,"mblImageView");
+this.canvas=_1.create("canvas",{},this.domNode);
+_1.addClass(this.domNode,"mblImageView");
 },postCreate:function(){
 this.inherited(arguments);
-this.size=_2.marginBox(this.domNode);
-_2.style(this.canvas,{width:this.size.w+"px",height:this.size.h+"px"});
+this.size=_1.marginBox(this.domNode);
+_1.style(this.canvas,{width:this.size.w+"px",height:this.size.h+"px"});
 this.canvas.height=this.size.h;
 this.canvas.width=this.size.w;
 var _4=this;
@@ -86,13 +86,13 @@ if(_4.zoom!=1){
 _4.set("animatedZoom",1);
 return;
 }
-var _a=_2._abs(_4.domNode);
+var _a=_1._abs(_4.domNode);
 var _b=_4.size.w/_4._centerImg.width;
 var _c=_4.size.h/_4._centerImg.height;
 _4.zoomTo(((x-_a.x)/_b)-_4.panX,((y-_a.y)/_c)-_4.panY,_4.autoZoomLevel);
 }
 });
-_2.connect(this.domNode,"flick",this,"handleFlick");
+_1.connect(this.domNode,"flick",this,"handleFlick");
 },isAnimating:function(){
 return this._anim&&this._anim.status()=="playing";
 },handleDragEnd:function(){
@@ -105,7 +105,7 @@ var _d=(this._leftImg&&this._leftImg._loaded)||(this._leftSmallImg&&this._leftSm
 var _e=(this._rightImg&&this._rightImg._loaded)||(this._rightSmallImg&&this._rightSmallImg._loaded);
 var _f=!(Math.abs(this.panX)<this._centerImg._baseWidth/2)&&((this.panX>0&&_d?1:0)||(this.panX<0&&_e?1:0));
 if(!_f){
-this._animPanTo(0,_2.fx.easing.expoOut,700);
+this._animPanTo(0,_1.fx.easing.expoOut,700);
 }else{
 this.moveTo(this.panX);
 }
@@ -163,7 +163,7 @@ _13.render();
 _13.onChange(_11*-1);
 });
 }else{
-this._animPanTo(0,_2.fx.easing.expoOut,700);
+this._animPanTo(0,_1.fx.easing.expoOut,700);
 }
 },_switchImage:function(_14,_15){
 var _16="_"+_14+"SmallImg";
@@ -185,7 +185,7 @@ this._centerSmallImg._type="center";
 this[_19]=this[_18]=null;
 },_animPanTo:function(to,_1a,_1b,_1c){
 this._animCallback=_1c;
-this._anim=new _2.Animation({curve:[this.panX,to],onAnimate:this._updateAnimatedPan,duration:_1b||500,easing:_1a,onEnd:this._onAnimPanEnd});
+this._anim=new _1.Animation({curve:[this.panX,to],onAnimate:this._updateAnimatedPan,duration:_1b||500,easing:_1a,onEnd:this._onAnimPanEnd});
 this._anim.play();
 return this._anim;
 },onChange:function(_1d){
@@ -303,7 +303,7 @@ this.render();
 if(this._anim&&this._anim.status()=="playing"){
 return;
 }
-this._anim=new _2.Animation({curve:[this.zoom,_3b],onAnimate:this._updateAnimatedZoom,onEnd:this._onAnimEnd});
+this._anim=new _1.Animation({curve:[this.zoom,_3b],onAnimate:this._updateAnimatedZoom,onEnd:this._onAnimEnd});
 this._anim.play();
 },_updateAnimatedZoom:function(_3c){
 this._setZoomAttr(_3c);
@@ -316,7 +316,7 @@ this._setImage("right",_3f);
 },_setImage:function(_40,_41){
 var _42=null;
 var _43=null;
-if(_2.isString(_41)){
+if(_1.isString(_41)){
 _43=_41;
 }else{
 _43=_41.large;
@@ -329,12 +329,12 @@ var _44=this["_"+_40+"Img"]=new Image();
 _44._type=_40;
 _44._loaded=false;
 _44._src=_43;
-_44._conn=_2.connect(_44,"onload",this.handleLoad);
+_44._conn=_1.connect(_44,"onload",this.handleLoad);
 if(_42){
 var _45=this["_"+_40+"SmallImg"]=new Image();
 _45._type=_40;
 _45._loaded=false;
-_45._conn=_2.connect(_45,"onload",this.handleLoad);
+_45._conn=_1.connect(_45,"onload",this.handleLoad);
 _45._isSmall=true;
 _45._src=_42;
 _45.src=_42;
@@ -343,7 +343,7 @@ _44.src=_43;
 },handleLoad:function(evt){
 var img=evt.target;
 img._loaded=true;
-_2.disconnect(img._conn);
+_1.disconnect(img._conn);
 var _46=img._type;
 switch(_46){
 case "center":

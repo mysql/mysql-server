@@ -1,4 +1,3 @@
-//>>built
 define("dojox/io/xhrPlugins", ["dojo/_base/kernel", "dojo/_base/xhr", "dojo/AdapterRegistry"], function(dojo, xhr, AdapterRegistry){
 	dojo.getObject("io.xhrPlugins", true, dojox);
 
@@ -8,9 +7,9 @@ define("dojox/io/xhrPlugins", ["dojo/_base/kernel", "dojo/_base/xhr", "dojo/Adap
 		return plainXhr = dojox.io.xhrPlugins.plainXhr = plainXhr || dojo._defaultXhr || xhr;
 	}
 	dojox.io.xhrPlugins.register = function(){
-		//	summary:
-		// 		overrides the default xhr handler to implement a registry of
-		// 		xhr handlers
+		// summary:
+		//		overrides the default xhr handler to implement a registry of
+		//		xhr handlers
 		var plainXhr = getPlainXhr();
 		if(!registry){
 			registry = new AdapterRegistry();
@@ -35,16 +34,16 @@ define("dojox/io/xhrPlugins", ["dojo/_base/kernel", "dojo/_base/xhr", "dojo/Adap
 		return registry.register.apply(registry, arguments);
 	};
 	dojox.io.xhrPlugins.addProxy = function(proxyUrl){
-		//	summary:
+		// summary:
 		//		adds a server side proxy xhr handler for cross-site URLs
-		//	proxyUrl:
+		// proxyUrl:
 		//		This is URL to send the requests to.
-		//	example:
+		// example:
 		//		Define a proxy:
 		//	|	dojox.io.xhrPlugins.addProxy("/proxy?url=");
-		// 		And then when you call:
+		//		And then when you call:
 		//	|	dojo.xhr("GET",{url:"http://othersite.com/file"});
-		// 		It would result in the request (to your origin server):
+		//		It would result in the request (to your origin server):
 		//	|	GET /proxy?url=http%3A%2F%2Fothersite.com%2Ffile HTTP/1.1
 		var plainXhr = getPlainXhr();
 		dojox.io.xhrPlugins.register(
@@ -63,20 +62,20 @@ define("dojox/io/xhrPlugins", ["dojo/_base/kernel", "dojo/_base/xhr", "dojo/Adap
 	};
 	var csXhrSupport;
 	dojox.io.xhrPlugins.addCrossSiteXhr = function(url, httpAdapter){
-		//	summary:
-		// 		Adds W3C Cross site XHR or XDomainRequest handling for the given URL prefix
+		// summary:
+		//		Adds W3C Cross site XHR or XDomainRequest handling for the given URL prefix
 		//
-		// 	url:
+		// url:
 		//		Requests that start with this URL will be considered for using
-		// 		cross-site XHR.
+		//		cross-site XHR.
 		//
-		// 	httpAdapter: This allows for adapting HTTP requests that could not otherwise be
-		// 		sent with XDR, so you can use a convention for headers and PUT/DELETE methods.
+		// httpAdapter: This allows for adapting HTTP requests that could not otherwise be
+		//		sent with XDR, so you can use a convention for headers and PUT/DELETE methods.
 		//
-		//	description:
-		// 		This can be used for servers that support W3C cross-site XHR. In order for
-		// 		a server to allow a client to make cross-site XHR requests,
-		// 		it should respond with the header like:
+		// description:
+		//		This can be used for servers that support W3C cross-site XHR. In order for
+		//		a server to allow a client to make cross-site XHR requests,
+		//		it should respond with the header like:
 		//	|	Access-Control: allow <*>
 		//		see: http://www.w3.org/TR/access-control/
 		var plainXhr = getPlainXhr();
@@ -130,13 +129,13 @@ define("dojox/io/xhrPlugins", ["dojo/_base/kernel", "dojo/_base/xhr", "dojo/Adap
 	};
 	dojox.io.xhrPlugins.fullHttpAdapter = function(plainXhr,noRawBody){
 		// summary:
-		// 		Provides a HTTP adaption.
+		//		Provides a HTTP adaption.
 		// description:
-		// 		The following convention is used:
-		// 		method name -> ?http-method=PUT
-		// 		Header -> http-Header-Name=header-value
+		//		The following convention is used:
+		//		method name -> ?http-method=PUT
+		//		Header -> http-Header-Name=header-value
 		//		X-Header -> header_name=header-value
-		//	example:
+		// example:
 		//		dojox.io.xhrPlugins.addXdr("http://somesite.com", dojox.io.xhrPlugins.fullHttpAdapter);
 		return function(method,args,hasBody){
 			var content = {};

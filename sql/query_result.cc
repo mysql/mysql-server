@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ bool Query_result_send::send_result_set_metadata(THD *thd, List<Item> &list,
 }
 
 void Query_result_send::abort_result_set(THD *thd) {
-  DBUG_ENTER("Query_result_send::abort_result_set");
+  DBUG_TRACE;
 
   if (is_result_set_started && thd->sp_runtime_ctx) {
     /*
@@ -81,23 +81,22 @@ void Query_result_send::abort_result_set(THD *thd) {
     */
     thd->sp_runtime_ctx->end_partial_result_set = true;
   }
-  DBUG_VOID_RETURN;
 }
 
 /* Send data to client. Returns 0 if ok */
 
 bool Query_result_send::send_data(THD *thd, List<Item> &items) {
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("Query_result_send::send_data");
+  DBUG_TRACE;
 
   protocol->start_row();
   if (thd->send_result_set_row(&items)) {
     protocol->abort_row();
-    DBUG_RETURN(true);
+    return true;
   }
 
   thd->inc_sent_row_count(1);
-  DBUG_RETURN(protocol->end_row());
+  return protocol->end_row();
 }
 
 bool Query_result_send::send_eof(THD *thd) {
@@ -175,6 +174,13 @@ void Query_result_to_file::cleanup(THD *) {
 ** Export of select to textfile
 ***************************************************************************/
 
+// This is a hack to make it compile. File permissions are different on Windows.
+#ifdef _WIN32
+#define S_IRUSR 00400
+#define S_IWUSR 00200
+#define S_IRGRP 00040
+#endif
+
 /*
   Create file with IO cache
 
@@ -214,13 +220,14 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     return -1;
   }
   /* Create the file world readable */
-  if ((file = mysql_file_create(key_select_to_file, path, 0666,
-                                O_WRONLY | O_EXCL, MYF(MY_WME))) < 0)
+  if ((file = mysql_file_create(key_select_to_file, path,
+                                S_IRUSR | S_IWUSR | S_IRGRP, O_WRONLY | O_EXCL,
+                                MYF(MY_WME))) < 0)
     return file;
 #ifdef HAVE_FCHMOD
-  (void)fchmod(file, 0666);  // Because of umask()
+  (void)fchmod(file, S_IRUSR | S_IWUSR | S_IRGRP);  // Because of umask()
 #else
-  (void)chmod(path, 0666);
+  (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
 #endif
   if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME))) {
     mysql_file_close(file, MYF(0));
@@ -333,7 +340,7 @@ bool Query_result_export::start_execution(THD *thd) {
    (int)(uchar)(x) == line_sep_char || !(x))
 
 bool Query_result_export::send_data(THD *thd, List<Item> &items) {
-  DBUG_ENTER("Query_result_export::send_data");
+  DBUG_TRACE;
   char buff[MAX_FIELD_WIDTH], null_buff[2], space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
   String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
@@ -347,7 +354,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
   uint items_left = items.elements;
   List_iterator_fast<Item> li(items);
 
-  if (my_b_write(&cache, (uchar *)exchange->line.line_start->ptr(),
+  if (my_b_write(&cache,
+                 pointer_cast<const uchar *>(exchange->line.line_start->ptr()),
                  exchange->line.line_start->length()))
     goto err;
   while ((item = li++)) {
@@ -374,8 +382,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
       }
 
       bytes = well_formed_copy_nchars(
-          write_cs, (char *)cvt_str.ptr(), cvt_str.alloced_length(),
-          res->charset(), res->ptr(), res->length(),
+          write_cs, cvt_str.ptr(), cvt_str.alloced_length(), res->charset(),
+          res->ptr(), res->length(),
           UINT_MAX32,  // copy all input chars,
                        // i.e. ignore nchars parameter
           &well_formed_error_pos, &cannot_convert_error_pos, &from_end_pos);
@@ -403,8 +411,10 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
       res = &cvt_str;
     }
     if (res && enclosed) {
-      if (my_b_write(&cache, (uchar *)exchange->field.enclosed->ptr(),
-                     exchange->field.enclosed->length()))
+      if (my_b_write(
+              &cache,
+              pointer_cast<const uchar *>(exchange->field.enclosed->ptr()),
+              exchange->field.enclosed->length()))
         goto err;
     }
     if (!res) {  // NULL
@@ -414,7 +424,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
           null_buff[0] = escape_char;
           null_buff[1] = 'N';
           if (my_b_write(&cache, (uchar *)null_buff, 2)) goto err;
-        } else if (my_b_write(&cache, (uchar *)"NULL", 4))
+        } else if (my_b_write(&cache, pointer_cast<const uchar *>("NULL"), 4))
           goto err;
       } else {
         used_length = 0;  // Fill with space
@@ -426,7 +436,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
         used_length = res->length();
       if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&
           escape_char != -1) {
-        char *pos, *start, *end;
+        const char *pos, *start, *end;
         bool escape_4_bytes = false;
         int in_escapable_4_bytes = 0;
         const CHARSET_INFO *res_charset = res->charset();
@@ -444,8 +454,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
         DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
                     my_mbmaxlenlen(character_set_client) == 2 ||
                     !character_set_client->escape_with_backslash_is_dangerous);
-        for (start = pos = (char *)res->ptr(), end = pos + used_length;
-             pos != end; pos++) {
+        for (start = pos = res->ptr(), end = pos + used_length; pos != end;
+             pos++) {
           bool need_escape = false;
           if (use_mb(res_charset)) {
             int l;
@@ -565,7 +575,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
                     ? field_sep_char
                     : escape_char;
             tmp_buff[1] = *pos ? *pos : '0';
-            if (my_b_write(&cache, (uchar *)start, (uint)(pos - start)) ||
+            if (my_b_write(&cache, pointer_cast<const uchar *>(start),
+                           (uint)(pos - start)) ||
                 my_b_write(&cache, (uchar *)tmp_buff, 2))
               goto err;
             start = pos + 1;
@@ -575,7 +586,9 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
         /* Assert that no escape mode is active here */
         DBUG_ASSERT(in_escapable_4_bytes == 0);
 
-        if (my_b_write(&cache, (uchar *)start, (uint)(pos - start))) goto err;
+        if (my_b_write(&cache, pointer_cast<const uchar *>(start),
+                       (uint)(pos - start)))
+          goto err;
       } else if (my_b_write(&cache, (uchar *)res->ptr(), used_length))
         goto err;
     }
@@ -594,22 +607,27 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
       }
     }
     if (res && enclosed) {
-      if (my_b_write(&cache, (uchar *)exchange->field.enclosed->ptr(),
-                     exchange->field.enclosed->length()))
+      if (my_b_write(
+              &cache,
+              pointer_cast<const uchar *>(exchange->field.enclosed->ptr()),
+              exchange->field.enclosed->length()))
         goto err;
     }
     if (--items_left) {
-      if (my_b_write(&cache, (uchar *)exchange->field.field_term->ptr(),
-                     field_term_length))
+      if (my_b_write(
+              &cache,
+              pointer_cast<const uchar *>(exchange->field.field_term->ptr()),
+              field_term_length))
         goto err;
     }
   }
-  if (my_b_write(&cache, (uchar *)exchange->line.line_term->ptr(),
+  if (my_b_write(&cache,
+                 pointer_cast<const uchar *>(exchange->line.line_term->ptr()),
                  exchange->line.line_term->length()))
     goto err;
-  DBUG_RETURN(false);
+  return false;
 err:
-  DBUG_RETURN(true);
+  return true;
 }
 
 void Query_result_export::cleanup(THD *thd) {
@@ -637,7 +655,7 @@ bool Query_result_dump::send_data(THD *, List<Item> &items) {
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("Query_result_dump::send_data");
+  DBUG_TRACE;
 
   if (row_count++ > 1) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
@@ -647,7 +665,7 @@ bool Query_result_dump::send_data(THD *, List<Item> &items) {
     res = item->val_str(&tmp);
     if (!res)  // If NULL
     {
-      if (my_b_write(&cache, (uchar *)"", 1)) goto err;
+      if (my_b_write(&cache, pointer_cast<const uchar *>(""), 1)) goto err;
     } else if (my_b_write(&cache, (uchar *)res->ptr(), res->length())) {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno(),
@@ -655,9 +673,9 @@ bool Query_result_dump::send_data(THD *, List<Item> &items) {
       goto err;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 err:
-  DBUG_RETURN(true);
+  return true;
 }
 
 /***************************************************************************
@@ -685,16 +703,16 @@ bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
   List_iterator<Item> it(items);
   Item *item;
   PT_select_var *mv;
-  DBUG_ENTER("Query_dumpvar::send_data");
+  DBUG_TRACE;
 
   if (row_count++) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   while ((mv = var_li++) && (item = it++)) {
     if (mv->is_local()) {
       if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
-        DBUG_RETURN(true);
+        return true;
     } else {
       /*
         Create Item_func_set_user_vars with delayed non-constness. We
@@ -705,12 +723,12 @@ bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
        */
       Item_func_set_user_var *suv =
           new Item_func_set_user_var(mv->name, item, true);
-      if (suv->fix_fields(thd, 0)) DBUG_RETURN(true);
+      if (suv->fix_fields(thd, 0)) return true;
       suv->save_item_result(item);
-      if (suv->update()) DBUG_RETURN(true);
+      if (suv->update()) return true;
     }
   }
-  DBUG_RETURN(thd->is_error());
+  return thd->is_error();
 }
 
 bool Query_dumpvar::send_eof(THD *thd) {

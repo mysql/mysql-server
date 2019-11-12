@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,8 +54,8 @@ class Transaction_boundary_parser {
   Transaction_boundary_parser()
       : current_parser_state(EVENT_PARSER_NONE),
         last_parser_state(EVENT_PARSER_NONE) {
-    DBUG_ENTER("Transaction_boundary_parser::Transaction_boundary_parser");
-    DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    return;
   }
 
   /**

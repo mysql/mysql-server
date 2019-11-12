@@ -422,5 +422,4 @@ class Table_function_json final : public Table_function {
   bool do_init_args() override;
   void do_cleanup() override;
 };
-
 #endif /* TABLE_FUNCTION_INCLUDED */

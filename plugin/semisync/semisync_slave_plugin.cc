@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,16 +151,14 @@ static int repl_semi_slave_sql_stop(Binlog_relay_IO_param *, bool) { return 0; }
 
 static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD, SYS_VAR *, void *ptr,
                                             const void *val) {
-  *(char *)ptr = *(char *)val;
+  *static_cast<char *>(ptr) = *static_cast<const char *>(val);
   repl_semisync->setSlaveEnabled(rpl_semi_sync_slave_enabled != 0);
-  return;
 }
 
 static void fix_rpl_semi_sync_trace_level(MYSQL_THD, SYS_VAR *, void *ptr,
                                           const void *val) {
-  *(unsigned long *)ptr = *(unsigned long *)val;
+  *static_cast<unsigned long *>(ptr) = *static_cast<const unsigned long *>(val);
   repl_semisync->setTraceLevel(rpl_semi_sync_slave_trace_level);
-  return;
 }
 
 /* plugin system variables */

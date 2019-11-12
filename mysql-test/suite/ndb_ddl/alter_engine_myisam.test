@@ -1,0 +1,16 @@
+--source setup.inc
+
+
+# Test ALTER TABLE .. ENGINE with MyISAM
+# Since MyISAM does not support ATOMIC_DDL, every single
+# statement will be asked to committed by the Server.
+# Any complete rollback will be done by the Server.
+
+# Run the alter only on one table as the other
+# tables are not compatabile with MyISAM
+let $num_tables = 1;
+
+let $engine = MyISAM;
+--source alter_engine.inc
+
+--source cleanup.inc

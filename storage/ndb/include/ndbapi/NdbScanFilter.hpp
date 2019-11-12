@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,6 +156,17 @@ public:
    *  ®return  0 if successful, -1 otherwise
    */
   int cmp(BinaryCondition cond, int ColId, const void *val, Uint32 len = 0); 
+
+  /**
+   * Compare column <b>ColId1</b> with <b>ColId2</b>
+   *
+   * Compare two column which has to be of the exact same data type,
+   * including length, precision, scale etc, as relevant for each type.
+   * Only the comparison conditions EQ,NE,LT,LE,GT,GE are supported.
+   *
+   *  ï¿½return  0 if successful, -1 otherwise
+   */
+  int cmp(BinaryCondition cond, int ColId1, int ColId2);
 
   /** 
    * @name Integer Comparators

@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/XmlHandler", ["dijit","dojo","dojox","dojo/require!dojox/wire/ml/RestHandler,dojox/xml/parser,dojox/wire/_base,dojox/wire/ml/util"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/XmlHandler", ["dojo","dijit","dojox","dojo/require!dojox/wire/ml/RestHandler,dojox/xml/parser,dojox/wire/_base,dojox/wire/ml/util"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.XmlHandler");
 
 dojo.require("dojox.wire.ml.RestHandler");
@@ -10,22 +9,23 @@ dojo.require("dojox.wire.ml.util");
 
 
 dojo.declare("dojox.wire.ml.XmlHandler", dojox.wire.ml.RestHandler, {
-	//	summary:
+	// summary:
 	//		A REST service handler for XML
-	//	description:
+	// description:
 	//		This class provides XML handling for a REST service.
+
 	contentType: "text/xml",
 	handleAs: "xml",
 
 	_getContent: function(/*String*/method, /*Array*/parameters){
-		//	description:
+		// description:
 		//		If 'method' is "POST" or "PUT", the first parameter in
 		//		'parameters' is used to generate an XML content.
-		//	method:
+		// method:
 		//		A method name
-		//	parameters:
+		// parameters:
 		//		An array of parameters
-		//	returns:
+		// returns:
 		//		A request content
 		var content = null;
 		if(method == "POST" || method == "PUT"){
@@ -49,14 +49,14 @@ dojo.declare("dojox.wire.ml.XmlHandler", dojox.wire.ml.RestHandler, {
 	},
 
 	_getResult: function(/*Document*/data){
-		//	summary:
+		// summary:
 		//		Extract a result
-		//	description:
+		// description:
 		//		A response data (XML Document) is returned wrapped with
 		//		XmlElement.
-		//	data:
+		// data:
 		//		A response data returned by a service
-		//	returns:
+		// returns:
 		//		A result object
 		if(data){
 			data = new dojox.wire.ml.XmlElement(data);

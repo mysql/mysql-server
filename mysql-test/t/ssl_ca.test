@@ -1,5 +1,4 @@
---source include/have_ssl.inc
-
+--source include/allowed_ciphers.inc
 --echo #
 --echo # Bug#21920657: SSL-CA FAILS SILENTLY IF THE PATH CANNOT BE FOUND
 --echo #

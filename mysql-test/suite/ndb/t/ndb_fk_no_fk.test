@@ -187,6 +187,7 @@ create table t1 (
   foreign key (b) references t2(pk1)
 ) engine=ndb;
 
+--error ER_FK_NO_COLUMN_PARENT
 create table t2 (
   pk2 int not null primary key,
   c int
@@ -197,7 +198,7 @@ create table t2 (
 --echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
-drop table t1, t2;
+drop table t1;
 
 --echo #
 --echo # Create child table and then the parent
@@ -214,6 +215,7 @@ create table t1 (
   foreign key (b) references t2(c)
 ) engine=ndb;
 
+--error ER_FK_NO_INDEX_PARENT
 create table t2 (
   pk1 int not null primary key,
   c int
@@ -224,7 +226,7 @@ create table t2 (
 --echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
-drop table t1, t2;
+drop table t1;
 
 # Turn on ndb_show_foreign_key_mock_tables to get more info about
 # when creating and dropping mock tables
@@ -287,7 +289,7 @@ create table t1 (
   d int, e int,
   foreign key (d, e) references t3(f, g),
   h varchar(55), i int, j datetime,
-  foreign key (h, i, j) references t4(k, l, m)
+  foreign key (h, i, j) references t4(m, l, k)
 ) engine=ndb;
 
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
@@ -336,7 +338,7 @@ create table t1 (
   d int, e int,
   foreign key (d, e) references t2(f, g),
   h varchar(55), i int, j datetime,
-  foreign key (h, i, j) references t2(k, l, m)
+  foreign key (h, i, j) references t2(m, l, k)
 ) engine=ndb;
 
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
@@ -703,7 +705,6 @@ set @@ndb_show_foreign_key_mock_tables= 0;
 # Rename table referenced by foreign key -> t1 references t3
 alter table t2 rename t3;
 --disable_warnings
---replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 show create table t1;
 --enable_warnings
 
@@ -874,11 +875,11 @@ drop table t1, t2;
 --echo # then create the real parent (like mysqldump does it)
 --echo #
 CREATE TABLE `address` (
-  `no` int(11) NOT NULL AUTO_INCREMENT,
-  `type` int(11) NOT NULL DEFAULT '37',
-  `customer_id` int(11) NOT NULL,
+  `no` int NOT NULL AUTO_INCREMENT,
+  `type` int NOT NULL DEFAULT '37',
+  `customer_id` int NOT NULL,
   `street` varchar(255) DEFAULT NULL,
-  `country` int(11) DEFAULT NULL,
+  `country` int DEFAULT NULL,
   PRIMARY KEY (`no`),
   KEY `ca_fk1` (`customer_id`),
   CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
@@ -888,7 +889,7 @@ CREATE TABLE `address` (
 INSERT INTO `address` VALUES (1,37,1,'Main st. 1215',48);
 
 CREATE TABLE `customer` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
@@ -922,18 +923,18 @@ drop table address, customer;
 --echo # and then create fk(like mysqldump does not do it)
 --echo #
 CREATE TABLE `customer` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
 INSERT INTO `customer` VALUES (1);
 
 CREATE TABLE `address` (
-  `no` int(11) NOT NULL AUTO_INCREMENT,
-  `type` int(11) NOT NULL DEFAULT '37',
-  `customer_id` int(11) NOT NULL,
+  `no` int NOT NULL AUTO_INCREMENT,
+  `type` int NOT NULL DEFAULT '37',
+  `customer_id` int NOT NULL,
   `street` varchar(255) DEFAULT NULL,
-  `country` int(11) DEFAULT NULL,
+  `country` int DEFAULT NULL,
   PRIMARY KEY (`no`),
   KEY `ca_fk1` (`customer_id`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
@@ -984,6 +985,7 @@ ALTER TABLE address ALGORITHM=copy,
 set foreign_key_checks=1;
 
 # Try to point first address to another customer which does not exists
+--replace_regex /ca_fk[1-2]/<constraint_name>/
 --error ER_NO_REFERENCED_ROW_2
 update address set customer_id = 3 where no = 1;
 

@@ -1,0 +1,175 @@
+include/have_replication_observers_example_plugin.inc
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+[connection server2]
+include/install_replication_observers_example.inc
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+[connection server1]
+include/install_replication_observers_example.inc
+
+# 1. Server can't use send service when server status is OFFLINE
+
+# 1.1. Service send isn't registered when status is OFFLINE
+SELECT group_replication_service_message_send("tag", "Server1 sent a message when OFFLINE");
+ERROR HY000: group_replication_service_message_send UDF failed; No send service to propagate message to a group.
+
+# 1.2. Send message on server2 that won't be received by server1
+[connection server2]
+SELECT group_replication_service_message_send("tag", "Server2 sent a message when server1 was OFFLINE");
+group_replication_service_message_send("tag", "Server2 sent a message when server1 was OFFLINE")
+The tag and message was sent to the group.
+
+# 2. Server can use send service when server status is RECOVERING
+
+# 2.1. Stop applier on server2 to server1 be blocked when doing recovery
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# 2.2. Start GR on server 1 and wait status is RECOVERING
+[connection server1]
+include/start_group_replication.inc
+
+# 2.3. Server1 shall be able to send messages when status is RECOVERING
+SELECT group_replication_service_message_send("tag", "Server1 sent a message when RECOVERING");
+group_replication_service_message_send("tag", "Server1 sent a message when RECOVERING")
+The tag and message was sent to the group.
+
+# 2.4. Send message on server2 that shall be received by server1
+[connection server2]
+SELECT group_replication_service_message_send("tag", "Server2 sent a message when server1 was RECOVERING");
+group_replication_service_message_send("tag", "Server2 sent a message when server1 was RECOVERING")
+The tag and message was sent to the group.
+
+# 3. Server can use send service when server status is ONLINE
+
+# 3.1. Start applier on server2 to server1 finish recovery
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# 3.2. Wait server1 change is status to ONLINE
+[connection server1]
+include/gr_wait_for_member_state.inc
+
+# 3.3. Server1 shall be able to send messages when status is ONLINE
+SELECT group_replication_service_message_send("tag", "Server1 sent a message when ONLINE");
+group_replication_service_message_send("tag", "Server1 sent a message when ONLINE")
+The tag and message was sent to the group.
+
+# 3.4. Send message on server2 that shall be received by server1
+[connection server2]
+SELECT group_replication_service_message_send("tag", "Server2 sent a message when server1 was ONLINE");
+group_replication_service_message_send("tag", "Server2 sent a message when server1 was ONLINE")
+The tag and message was sent to the group.
+
+# 4. Server can't use send service when server status is ERROR
+
+# 4.1. Insert data on server1 that won't be transmitted to the group
+[connection server1]
+set session sql_log_bin=0;
+INSERT INTO test.t1 (a, b) VALUES (1, 1);
+set session sql_log_bin=1;
+
+# 4.2. On server2 insert same data of server1 to create a conflict
+[connection server2]
+INSERT INTO test.t1 (a, b) VALUES (1, 1);
+
+# 4.3. Server1 set its status to ERROR server due to a data conflict
+#      with group
+[connection server1]
+include/gr_wait_for_member_state.inc
+
+# 4.4. Server1 return error when trying to use service send
+SELECT group_replication_service_message_send("tag", "Server1 sent a message when ERROR");
+ERROR HY000: group_replication_service_message_send UDF failed; Service failed sending message to the group.
+
+# 4.5. Send message by server2 that won't be received by server1
+[connection server2]
+SELECT group_replication_service_message_send("tag", "Server2 sent a message when server1 was ERROR");
+group_replication_service_message_send("tag", "Server2 sent a message when server1 was ERROR")
+The tag and message was sent to the group.
+
+# 5. When group looses quorum server can send messages but they only be
+#    deliver if quorum is reestablished
+
+# 5.1. Stop server1 and remove table t1 and reset master to allow
+#      joining back to the group
+[connection server1]
+include/stop_group_replication.inc
+DROP TABLE t1;
+RESET MASTER;
+
+# 5.2. Start server1 and wait to be ONLINE
+include/start_group_replication.inc
+
+# 5.3. Kill server2
+[connection server2]
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+
+# 5.4. Server 1 will update server2 status to UNREACHABLE
+[connection server1]
+
+# 5.5. Send message on server1, it will be delivered if quorum is achieved
+SELECT group_replication_service_message_send("tag", "Server1 sent a message without QUORUM");
+group_replication_service_message_send("tag", "Server1 sent a message without QUORUM")
+The tag and message was sent to the group.
+
+# 6. Assert messages received on group delivery message service
+
+# 6.1. To decrease failure rate on assert_grep we do a transaction with
+#      AFTER consistency to add some rounds on GCS communication and
+#      stop GR on server1, which will make it wait for the delivery of
+#      new view, and that will happen only after delivery of service
+#      message. This will give some time to server to receive and write
+#      it to error log.
+[connection server2]
+SET @@SESSION.group_replication_consistency= 'AFTER';
+INSERT INTO test.t1 (a, b) VALUES (3, 3);
+[connection server1]
+include/stop_group_replication.inc
+
+# 6.2. When OFFLINE server1 didn't send or receive any message
+include/assert_grep.inc [Server1 did not receive any message when OFFLINE.]
+include/assert_grep.inc [Server2 receive a message from itself when server1 was OFFLINE.]
+
+# 6.3. When RECOVERING server1 shall send and receive all messages
+include/assert_grep.inc [Server1 receive a message from itself and one from server2 when RECOVERING.]
+include/assert_grep.inc [Server2 receive a message from itself and from server1.]
+
+# 6.4. When ONLINE server1 shall send and receive all messages
+include/assert_grep.inc [Server1 receive a message from itself and one from server2 when ONLINE.]
+include/assert_grep.inc [Server2 receive a message from itself and from server1.]
+
+# 6.5. When ERROR server1 didn't send or receive any message
+include/assert_grep.inc [Server1 did not receive any message when ERROR.]
+include/assert_grep.inc [Server2 receive a message from itself when server1 was ERROR.]
+
+# 6.6. No messages are received when loss of quorum occur
+include/assert_grep.inc [Server1 did not receive any message when group loss quorum.]
+include/assert_grep.inc [Server2 did not receive any message when group loss quorum.]
+
+# 7. Cleanup
+[connection server2]
+DROP TABLE t1;
+include/uninstall_replication_observers_example.inc
+[connection server1]
+include/uninstall_replication_observers_example.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("Could not execute Write_rows event on table test.t1; Duplicate entry '1'.*");
+call mtr.add_suppression("Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'");
+call mtr.add_suppression("Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'");
+call mtr.add_suppression("Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'");
+call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'");
+call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] Timeout while waiting for the group communication engine to exit!'");
+call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] The member has failed to gracefully leave the group.'");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+set session sql_log_bin=1;
+set session sql_log_bin=0;
+DROP TABLE t1;
+set session sql_log_bin=1;
+include/group_replication_end.inc

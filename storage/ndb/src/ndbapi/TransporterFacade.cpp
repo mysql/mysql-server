@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,8 @@
 #include <NdbGetRUsage.h>
 
 #include <kernel/GlobalSignalNumbers.h>
+#include "kernel/signaldata/DumpStateOrd.hpp"
+#include "kernel/signaldata/TestOrd.hpp"
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 #include <NdbConfig.h>
@@ -372,7 +374,16 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
   else
   {
     // Ignore all other block numbers.
-    if(header->theVerId_signalNumber != GSN_API_REGREQ)
+    if (header->theVerId_signalNumber == GSN_DUMP_STATE_ORD)
+    {
+      trp_client * clnt = get_poll_owner(false);
+      require(clnt != 0);
+      NdbApiSignal sig(*header);
+      sig.setDataPtr(theData);
+      assert(clnt->check_if_locked());
+      theClusterMgr->execDUMP_STATE_ORD(&sig, ptr);
+    }
+    else if(header->theVerId_signalNumber != GSN_API_REGREQ)
     {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
       ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
@@ -649,7 +660,7 @@ runWakeupThread_C(void *me)
 void TransporterFacade::init_cpu_usage(NDB_TICKS currTime)
 {
   struct ndb_rusage curr_rusage;
-  Ndb_GetRUsage(&curr_rusage);
+  Ndb_GetRUsage(&curr_rusage, false);
   Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
   m_last_recv_thread_cpu_usage_in_micros = cpu_time;
   m_recv_thread_cpu_usage_in_percent = 0;
@@ -666,7 +677,7 @@ void TransporterFacade::check_cpu_usage(NDB_TICKS currTime)
     return;
 
   m_last_cpu_usage_check = currTime;
-  int res = Ndb_GetRUsage(&curr_rusage);
+  int res = Ndb_GetRUsage(&curr_rusage, false);
   Uint64 cpu_time = curr_rusage.ru_utime + curr_rusage.ru_stime;
   /**
    * Initialise when Ndb_GetRUsage isn't working,
@@ -2681,12 +2692,18 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
 	   tmp_signal_data,
 	   aNode, 
 	   &tmp_ptr[start_i]);
-	assert(ss != SEND_MESSAGE_TOO_BIG);
-	if (ss != SEND_OK) return -1;
-        if (ss == SEND_OK)
+        if (likely(ss == SEND_OK))
         {
           assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
                  tmp_signal.readSignalNumber() == GSN_API_REGREQ);
+        }
+        else
+        {
+          if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+          {
+            handle_message_too_big(aNode, aSignal, &tmp_ptr[start_i], __LINE__);
+          }
+          return -1;
         }
       }
       assert(remaining_sec_sz >= send_sz);
@@ -2737,13 +2754,20 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
        aSignal->getConstDataPtrSend(),
        aNode,
        &tmp_ptr[start_i]);
-    assert(ss != SEND_MESSAGE_TOO_BIG);
-    if (ss == SEND_OK)
+    if (likely(ss == SEND_OK))
     {
       assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
              aSignal->readSignalNumber() == GSN_API_REGREQ);
+      ret = 0;
     }
-    ret = (ss == SEND_OK ? 0 : -1);
+    else
+    {
+      if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+      {
+        handle_message_too_big(aNode, aSignal, &tmp_ptr[start_i], __LINE__);
+      }
+      ret = -1;
+    }
   }
   aSignal->m_noOfSections = 0;
   aSignal->m_fragmentInfo = 0;
@@ -2785,6 +2809,60 @@ TransporterFacade::sendFragmentedSignal(trp_client* clnt,
 }
   
 
+template<typename SectionPtr>
+void
+TransporterFacade::handle_message_too_big(NodeId aNode,
+                                          const NdbApiSignal* aSignal,
+                                          const SectionPtr ptr[3],
+                                          Uint32 /* line */) const
+{
+  /* If message is too big when sending CmvmiDummySignal log a convinient
+   * message about it to.
+   * Note that CmvmiDummySignal is not intended for production usage but for
+   * use by test cases.
+   * In production this function do nothing and the message too big failure
+   * handling is left to caller.
+   */
+  if (aSignal->theVerId_signalNumber == GSN_DUMP_STATE_ORD &&
+      aSignal->theData[0] == DumpStateOrd::CmvmiDummySignal)
+  {
+    const Uint32 rep_node_id = aSignal->theData[1];
+    const Uint32 num_secs = aSignal->m_noOfSections;
+    char msg[24 * sizeof(Uint32)];
+    snprintf(msg,
+             sizeof(msg),
+             "Failed sending CmvmiDummySignal"
+             " (size %u+%u+%u+%u+%u) from %u to %u.",
+             aSignal->getLength(),
+             num_secs,
+             (num_secs > 0) ? ptr[0].sz : 0,
+             (num_secs > 1) ? ptr[1].sz : 0,
+             (num_secs > 2) ? ptr[2].sz : 0,
+             ownId(),
+             aNode);
+    const Uint32 len = strlen(msg) + 1;
+    NdbApiSignal bSignal(numberToRef(API_CLUSTERMGR, ownId()));
+    bSignal.theTrace                = TestOrd::TraceAPI;
+    bSignal.theReceiversBlockNumber = CMVMI;
+    bSignal.theVerId_signalNumber   = GSN_EVENT_REP;
+    bSignal.theLength               = ((len + 3) / 4) + 1;
+    Uint32* data = bSignal.theData;
+    data[0] = NDB_LE_InfoEvent;
+    memcpy(&data[1], msg, len);
+    LinearSectionPtr ptr[3];
+    theTransporterRegistry->prepareSend(m_poll_owner,
+                                        &bSignal,
+                                        1, // JBB
+                                        bSignal.getConstDataPtrSend(),
+                                        rep_node_id,
+                                        ptr);
+  }
+  else
+  {
+    assert(false); // SEND_MESSAGE_TOO_BIG
+  }
+}
+
 int
 TransporterFacade::sendSignal(trp_client* clnt,
                               const NdbApiSignal* aSignal, NodeId aNode,
@@ -2812,14 +2890,18 @@ TransporterFacade::sendSignal(trp_client* clnt,
      aSignal->getConstDataPtrSend(),
      aNode,
      ptr);
-  assert(ss != SEND_MESSAGE_TOO_BIG);
   const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
-  if (ss == SEND_OK)
+  if (likely(ss == SEND_OK))
   {
     assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
            aSignal->readSignalNumber() == GSN_API_REGREQ);
+    return 0;
   }
-  return (ss == SEND_OK ? 0 : -1);
+  if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+  {
+    handle_message_too_big(aNode, aSignal, ptr, __LINE__);
+  }
+  return -1;
 }
 
 int
@@ -2851,14 +2933,23 @@ TransporterFacade::sendSignal(trp_client* clnt,
      aSignal->getConstDataPtrSend(),
      aNode,
      ptr);
-  assert(ss != SEND_MESSAGE_TOO_BIG);
-  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
+  int ret;
   if (ss == SEND_OK)
   {
     assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
            aSignal->readSignalNumber() == GSN_API_REGREQ);
+    ret = 0;
   }
-  return (ss == SEND_OK ? 0 : -1);
+  else
+  {
+    if (unlikely(ss == SEND_MESSAGE_TOO_BIG))
+    {
+      handle_message_too_big(aNode, aSignal, ptr, __LINE__);
+    }
+    ret = -1;
+  }
+  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
+  return ret;
 }
 
 /******************************************************************************

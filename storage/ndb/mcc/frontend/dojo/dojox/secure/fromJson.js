@@ -1,6 +1,6 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.secure.fromJson");
+define("dojox/secure/fromJson",["dojo","dijit","dojox"],function(_1,_2,_3){
+_1.provide("dojox.secure.fromJson");
 _3.secure.fromJson=typeof JSON!="undefined"?JSON.parse:(function(){
 var _4="(?:-?\\b(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\b)";
 var _5="(?:[^\\0-\\x08\\x0a-\\x1f\"\\\\]"+"|\\\\(?:[\"/\\\\bfnrt]|u[0-9A-Fa-f]{4}))";

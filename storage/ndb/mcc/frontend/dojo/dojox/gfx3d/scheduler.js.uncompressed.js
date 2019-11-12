@@ -1,8 +1,7 @@
-//>>built
 define("dojox/gfx3d/scheduler", [
 	"dojo/_base/lang",
 	"dojo/_base/array",	// dojo.forEach, dojo.every
-	"dojo/_base/declare",	// dojo.declare
+	"dojo/_base/declare",	// declare
 	"./_base",
 	"./vector"
 ], function(lang, arrayUtil, declare, gfx3d, vectorUtil){
@@ -36,18 +35,18 @@ gfx3d.scheduler = {
 
 var BST = declare("dojox.gfx3d.scheduler.BinarySearchTree", null, {
 	constructor: function(obj, outline){
-		// summary: build the binary search tree, using binary space partition algorithm.
-		// The idea is for any polygon, for example, (a, b, c), the space is divided by
-		// the plane into two space: plus and minus.
-		//
-		// for any arbitary vertex p, if(p - a) dotProduct n = 0, p is inside the plane,
-		// > 0, p is in the plus space, vice versa for minus space.
-		// n is the normal vector that is perpendicular the plate, defined as:
-		//            n = ( b - a) crossProduct ( c - a )
-		//
-		// in this implementation, n is declared as normal, ,a is declared as orient.
-		//
-		// obj: object: dojox.gfx3d.Object
+		// summary:
+		//		build the binary search tree, using binary space partition algorithm.
+		//		The idea is for any polygon, for example, (a, b, c), the space is divided by
+		//		the plane into two space: plus and minus.
+		//		
+		//		for any arbitrary vertex p, if(p - a) dotProduct n = 0, p is inside the plane,
+		//		> 0, p is in the plus space, vice versa for minus space.
+		//		n is the normal vector that is perpendicular the plate, defined as:
+		// |		n = ( b - a) crossProduct ( c - a )
+		//		
+		//		in this implementation, n is declared as normal, ,a is declared as orient.
+		// obj: dojox.gfx3d.Object
 		this.plus = null;
 		this.minus = null;
 		this.object = obj;
@@ -141,7 +140,7 @@ gfx3d.drawer = {
 			item.draw(viewport.lighting);
 		});
 	}
-	// More aggrasive optimization may re-order the DOM nodes using the order
+	// More aggressive optimization may re-order the DOM nodes using the order
 	// of objects, and only elements of todos call setShape.
 };
 

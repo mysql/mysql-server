@@ -1,0 +1,50 @@
+--source include/have_debug.inc
+# This test crashes MySQL Server on purpose.
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+# Connect to all
+--source connect.inc
+
+# The variable ndb-schema-dist-timeout controls how long it takes before
+# ndbcluster detects that a participant has not replied properly. The variable
+# can only be set when starting MySQL Server.
+
+# The ndb-schema-dist-timeout value should be set low for this test to avoid
+# waiting on test to complete(the value is specified by <testname>.cnf file)
+--echo # Current value of ndb-schema-dist-timeout
+select @@ndb_schema_dist_timeout;
+
+# Check that variable is readonly
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@ndb_schema_dist_timeout = 120;
+
+--echo #
+--echo # Test participant timeout during schema operation
+--echo #
+
+CREATE TABLE t1(
+  a int primary key
+) engine = NDB;
+
+--echo # Setup participant to timeout when schema operation starts
+connection mysqld6;
+set GLOBAL debug="+d,ndb_schema_op_start_timeout";
+
+--echo # Expect warning printed on node where schema operation is started
+connection mysqld1;
+call mtr.add_suppression("Schema dist coordinator detected timeout");
+
+--echo # Run schema operation to trigger participant timeout
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+ALTER TABLE t1 ALGORITHM=copy, ADD COLUMN b int;
+
+--echo # Reset participant to not timeout anymore
+connection mysqld6;
+set GLOBAL debug="-d,ndb_schema_op_start_timeout";
+
+--echo # Check that schema operation suceeded on another MySQL Server
+connection mysqld2;
+SELECT * FROM t1;
+
+DROP TABLE t1;

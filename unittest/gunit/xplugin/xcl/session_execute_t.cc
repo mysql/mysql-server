@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
  */
 
 #include "my_compiler.h"
+
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/query_result.h"
 #include "unittest/gunit/xplugin/xcl/session_t.h"
@@ -223,11 +224,11 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
        Argument_value(argument_value_double),
        Argument_value(argument_value_float),
        Argument_value(argument_value_string,
-                      Argument_value::String_type::TString),
+                      Argument_value::String_type::k_string),
        Argument_value(argument_value_octet,
-                      Argument_value::String_type::TOctets),
+                      Argument_value::String_type::k_octets),
        Argument_value(argument_value_decimal,
-                      Argument_value::String_type::TDecimal),
+                      Argument_value::String_type::k_decimal),
        Argument_value()},
       &out_error);
 
@@ -269,8 +270,9 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
                                        "         key: \"key3\" "
                                        "         value { "
                                        "           type: SCALAR scalar { "
-                                       "             type: V_BOOL "
-                                       "             v_bool: true "
+                                       "             type: V_STRING "
+                                       "             v_string { "
+                                       "               value: \"str1\" } "
                                        "       } } } "
                                        "} }"),
                                _))
@@ -321,8 +323,9 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
                                        "       } } "
                                        "       value { "
                                        "         type: SCALAR scalar { "
-                                       "           type: V_BOOL "
-                                       "           v_bool: true "
+                                       "             type: V_STRING "
+                                       "             v_string { "
+                                       "               value: \"str1\" } "
                                        "       } } "
                                        "} }"),
                                _))
@@ -335,8 +338,8 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
 
   auto query_result = m_sut->execute_stmt(
       "s", expected_sql,
-      {Argument_value{Arguments{argument_value_int, argument_value_double,
-                                argument_value_string}}},
+      {Argument_value{Argument_array{argument_value_int, argument_value_double,
+                                     argument_value_string}}},
       &out_error);
 
   ASSERT_EQ(dummy_result_ptr, query_result.get());

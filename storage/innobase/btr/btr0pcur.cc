@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -294,7 +294,6 @@ void btr_pcur_t::move_to_next_page(mtr_t *mtr) {
 
   switch (mode) {
     case BTR_SEARCH_TREE:
-    case BTR_PARALLEL_READ_INIT:
       mode = BTR_SEARCH_LEAF;
       break;
     case BTR_MODIFY_TREE:
@@ -422,4 +421,23 @@ void btr_pcur_t::open_on_user_rec(dict_index_t *index, const dtuple_t *tuple,
 
     ut_error;
   }
+}
+
+void btr_pcur_t::open_on_user_rec(const page_cur_t &page_cursor,
+                                  page_cur_mode_t mode, ulint latch_mode) {
+  auto btr_cur = get_btr_cur();
+
+  btr_cur->index = const_cast<dict_index_t *>(page_cursor.index);
+
+  auto page_cur = get_page_cur();
+
+  memcpy(page_cur, &page_cursor, sizeof(*page_cur));
+
+  m_search_mode = mode;
+
+  m_pos_state = BTR_PCUR_IS_POSITIONED;
+
+  m_latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
+
+  m_trx_if_known = nullptr;
 }

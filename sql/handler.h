@@ -107,12 +107,27 @@ namespace dd {
 enum class enum_column_types;
 class Table;
 class Tablespace;
-struct sdi_key;
-struct sdi_vector;
-
-typedef sdi_key sdi_key_t;
-typedef sdi_vector sdi_vector_t;
 }  // namespace dd
+
+/** Id for identifying Table SDIs */
+constexpr const uint32 SDI_TYPE_TABLE = 1;
+
+/** Id for identifying Tablespace SDIs */
+constexpr const uint32 SDI_TYPE_TABLESPACE = 2;
+
+/** Key to identify a dictionary object */
+struct sdi_key_t {
+  /** Type of Object, For ex: column, index, etc */
+  uint32 type;
+
+  /** Object id which should be unique in tablespsace */
+  uint64 id;
+};
+
+using sdi_container = std::vector<sdi_key_t>;
+struct sdi_vector_t {
+  sdi_container m_vec;
+};
 
 typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                    uint key_length, ulonglong *engine_data);
@@ -127,6 +142,7 @@ class ha_tablespace_statistics;
 namespace AQP {
 class Join_plan;
 }
+class Unique_on_insert;
 
 extern ulong savepoint_alloc_size;
 
@@ -209,9 +225,8 @@ enum enum_alter_inplace_result {
 #define HA_CAN_GEOMETRY (1 << 4)
 /*
   Reading keys in random order is as fast as reading keys in sort order
-  (Used in records.cc to decide if we should use a record cache and by
-  filesort to decide if we should sort key + data or key + pointer-to-row.
-  For further explanation see intro to init_read_record.
+  (Used by filesort to decide if we should sort key + data or key +
+  pointer-to-row.)
 */
 #define HA_FAST_KEY_READ (1 << 5)
 /*
@@ -270,12 +285,8 @@ enum enum_alter_inplace_result {
 */
 #define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16)
 #define HA_CAN_RTREEKEYS (1 << 17)
-/*
-  Seems to be an old MyISAM feature that is no longer used. No handler
-  has it defined but it is checked in init_read_record. Further investigation
-  needed.
-*/
-#define HA_NOT_DELETE_WITH_CACHE (1 << 18)
+/// Not in use.
+#define HA_UNUSED18
 /*
   The following is we need to a primary key to delete (and update) a row.
   If there is no primary key, all columns needs to be read on update and delete
@@ -495,6 +506,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_NO_INDEX_ACCESS (1LL << 54)
 
+/**
+  Supports multi-valued index
+*/
+#define HA_MULTI_VALUED_KEY_SUPPORT (1LL << 55)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.
@@ -675,7 +691,6 @@ enum enum_binlog_command {
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
   LOGCOM_DROP_DB,
-  LOGCOM_ACL_NOTIFY
 };
 
 enum class enum_sampling_method { SYSTEM };
@@ -961,6 +976,7 @@ class Ha_clone_cbk {
         m_desc_len(),
         m_src_name(),
         m_dest_name(),
+        m_state_estimate(),
         m_flag() {}
 
  public:
@@ -982,6 +998,12 @@ class Ha_clone_cbk {
   @param[in]  to_file  destination file to write data
   @return error code */
   virtual int apply_file_cbk(Ha_clone_file to_file) = 0;
+
+  /** Callback to get data in buffer.
+  @param[out]  to_buffer  data buffer
+  @param[out]  len        data length
+  @return error code */
+  virtual int apply_buffer_cbk(uchar *&to_buffer, uint &len) = 0;
 
   /** virtual destructor. */
   virtual ~Ha_clone_cbk() {}
@@ -1057,7 +1079,7 @@ class Ha_clone_cbk {
 
   /** Check if ACK is needed for the data transfer
   @return true if ACK is needed */
-  bool is_ack_needed() { return (m_flag & HA_CLONE_ACK); }
+  bool is_ack_needed() const { return (m_flag & HA_CLONE_ACK); }
 
   /** Mark that the file descriptor is opened for read/write
   with OS buffer cache. For O_DIRECT, the flag is not set. */
@@ -1067,13 +1089,32 @@ class Ha_clone_cbk {
   buffer cache. Currently clone avoids using zero copy (sendfile on linux),
   if SE is using O_DIRECT. This improves data copy performance.
   @return true if O_DIRECT is not used */
-  bool is_os_buffer_cache() { return (m_flag & HA_CLONE_FILE_CACHE); }
+  bool is_os_buffer_cache() const { return (m_flag & HA_CLONE_FILE_CACHE); }
 
   /** Mark that the file can be transferred with zero copy. */
   void set_zero_copy() { m_flag |= HA_CLONE_ZERO_COPY; }
 
   /** Check if zero copy optimization is suggested. */
-  bool is_zero_copy() { return (m_flag & HA_CLONE_ZERO_COPY); }
+  bool is_zero_copy() const { return (m_flag & HA_CLONE_ZERO_COPY); }
+
+  /** Mark that data needs secure transfer. */
+  void set_secure() { m_flag |= HA_CLONE_SECURE; }
+
+  /** Check if data needs secure transfer. */
+  bool is_secure() const { return (m_flag & HA_CLONE_SECURE); }
+
+  /** Set state information and notify state change.
+  @param[in]	estimate	estimated bytes for current state. */
+  void mark_state_change(uint64_t estimate) {
+    m_flag |= HA_CLONE_STATE_CHANGE;
+    m_state_estimate = estimate;
+  }
+
+  /** Check if SE notified state change. */
+  bool is_state_change(uint64_t &estimate) {
+    estimate = m_state_estimate;
+    return (m_flag & HA_CLONE_STATE_CHANGE);
+  }
 
  private:
   /** Handlerton for the SE */
@@ -1087,6 +1128,8 @@ class Ha_clone_cbk {
 
   /** SE's Serialized data descriptor */
   const uchar *m_data_desc;
+
+  /** SE's Serialized descriptor length. */
   uint m_desc_len;
 
   /** Current source file name */
@@ -1094,6 +1137,9 @@ class Ha_clone_cbk {
 
   /** Current destination file name */
   const char *m_dest_name;
+
+  /** Estimated bytes to be transferred. */
+  uint64_t m_state_estimate;
 
   /** Flag storing data related options */
   int m_flag;
@@ -1106,6 +1152,12 @@ class Ha_clone_cbk {
 
   /** Data file can be transferred with zero copy. */
   const int HA_CLONE_ZERO_COPY = 0x04;
+
+  /** Data needs to be transferred securely over SSL connection. */
+  const int HA_CLONE_SECURE = 0x08;
+
+  /** State change notification by SE. */
+  const int HA_CLONE_STATE_CHANGE = 0x10;
 };
 
 /**
@@ -1433,6 +1485,9 @@ typedef void (*binlog_log_query_t)(handlerton *hton, THD *thd,
                                    const char *query, uint query_length,
                                    const char *db, const char *table_name);
 
+typedef void (*acl_notify_t)(THD *thd,
+                             const class Acl_change_notification *notice);
+
 typedef int (*discover_t)(handlerton *hton, THD *thd, const char *db,
                           const char *name, uchar **frmblob, size_t *frmlen);
 
@@ -1491,7 +1546,7 @@ typedef bool (*sdi_drop_t)(dd::Tablespace *tablespace);
   @retval         true        failure
 */
 typedef bool (*sdi_get_keys_t)(const dd::Tablespace &tablespace,
-                               dd::sdi_vector_t &vector);
+                               sdi_vector_t &vector);
 
 /**
   Retrieve SDI for a given SDI key.
@@ -1519,8 +1574,7 @@ typedef bool (*sdi_get_keys_t)(const dd::Tablespace &tablespace,
   @retval         true        failure
 */
 typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
-                          const dd::sdi_key_t *sdi_key, void *sdi,
-                          uint64 *sdi_len);
+                          const sdi_key_t *sdi_key, void *sdi, uint64 *sdi_len);
 
 /**
   Insert/Update SDI for a given SDI key.
@@ -1534,7 +1588,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
                           by SE
 */
 typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
-                          const dd::Table *table, const dd::sdi_key_t *sdi_key,
+                          const dd::Table *table, const sdi_key_t *sdi_key,
                           const void *sdi, uint64 sdi_len);
 
 /**
@@ -1546,8 +1600,7 @@ typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
                           by SE
 */
 typedef bool (*sdi_delete_t)(const dd::Tablespace &tablespace,
-                             const dd::Table *table,
-                             const dd::sdi_key_t *sdi_key);
+                             const dd::Table *table, const sdi_key_t *sdi_key);
 
 /**
   Check if the DDSE is started in a way that leaves thd DD being read only.
@@ -2302,6 +2355,7 @@ struct handlerton {
 
   binlog_func_t binlog_func;
   binlog_log_query_t binlog_log_query;
+  acl_notify_t acl_notify;
   discover_t discover;
   find_files_t find_files;
   table_exists_in_engine_t table_exists_in_engine;
@@ -2375,6 +2429,16 @@ struct handlerton {
   uint32 foreign_keys_flags;
 
   check_fk_column_compat_t check_fk_column_compat;
+
+  /**
+    Suffix for auto-generated foreign key names for tables using this storage
+    engine. If such suffix is specified by SE then its generated foreign key
+    names follow (table name)(SE-specific FK name suffix)(FK number) pattern.
+    Length of such suffix should not exceed MAX_FK_NAME_SUFFIX_LENGTH bytes.
+    If no suffix is specified then FK_NAME_DEFAULT_SUFFIX is used as
+    default.
+  */
+  LEX_CSTRING fk_name_suffix;
 
   /**
     Pointer to a function that prepares a secondary engine for executing a
@@ -2524,6 +2588,30 @@ static const uint32 HTON_FKS_WITH_ANY_PREFIX_SUPPORTING_KEYS = (1 << 2);
 static const uint32 HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS =
     (1 << 3);
 
+/**
+  Engine takes into account hidden part of key (coming from primary key)
+  when determines if it can serve as parent key for a foreign key.
+
+  Implies HTON_FKS_WITH_PREFIX_PARENT_KEYS and is related to
+  HTON_SUPPORTS_EXTENDED_KEYS.
+*/
+
+static const uint32 HTON_FKS_WITH_EXTENDED_PARENT_KEYS = (1 << 4);
+
+/**
+  Maximum possible length of SE-specific suffixes for auto-generated
+  foreign key names.
+*/
+static const size_t MAX_FK_NAME_SUFFIX_LENGTH = 16;
+
+/**
+  Suffix for auto-generated foreign key names for tables in SE's which
+  don't specify own suffix. I.e. for foreign keys on tables in such
+  SE's generated names follow (table name)FK_NAME_DEFAULT_SUFFIX(FK number)
+  pattern.
+*/
+static const LEX_CSTRING FK_NAME_DEFAULT_SUFFIX = {STRING_WITH_LEN("_fk_")};
+
 enum enum_tx_isolation : int {
   ISO_READ_UNCOMMITTED,
   ISO_READ_COMMITTED,
@@ -2567,7 +2655,7 @@ struct HA_CREATE_INFO {
    * Secondary engine of the table.
    * Is nullptr if no secondary engine defined.
    */
-  LEX_STRING secondary_engine{nullptr, 0};
+  LEX_CSTRING secondary_engine{nullptr, 0};
 
   const char *data_file_name{nullptr};
   const char *index_file_name{nullptr};
@@ -2958,6 +3046,12 @@ class Alter_inplace_info {
   KEY_PAIR *index_rename_buffer;
   KEY_PAIR *index_altered_visibility_buffer;
 
+  /** Number of virtual columns to be added. */
+  uint virtual_column_add_count;
+
+  /** number of virtual columns to be dropped. */
+  uint virtual_column_drop_count;
+
   /**
      Context information to allow handlers to keep context between in-place
      alter API calls.
@@ -3033,6 +3127,8 @@ class Alter_inplace_info {
         index_rename_count(0),
         index_altered_visibility_count(0),
         index_rename_buffer(NULL),
+        virtual_column_add_count(0),
+        virtual_column_drop_count(0),
         handler_ctx(NULL),
         group_commit_ctx(NULL),
         handler_flags(0),
@@ -4127,8 +4223,14 @@ class handler {
     lower-level function and does not need to be re-done (which is why
     we need this status flag: to avoid redundant calculations, for
     performance).
+
+    Note that when updating generated fields, the NULL row status in
+    the underlying TABLE objects matter, so be sure to reset them if needed!
   */
   bool m_update_generated_read_fields;
+
+  /* Filter row ids to weed out duplicates when multi-valued index is used */
+  Unique_on_insert *m_unique;
 
  public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
@@ -4158,7 +4260,8 @@ class handler {
         m_psi_locker(NULL),
         m_lock_type(F_UNLCK),
         ha_share(NULL),
-        m_update_generated_read_fields(false) {
+        m_update_generated_read_fields(false),
+        m_unique(nullptr) {
     DBUG_PRINT("info", ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
                         F_UNLCK, F_RDLCK, F_WRLCK));
   }
@@ -4170,6 +4273,11 @@ class handler {
     DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
+
+  /**
+    Return extra handler specific text for EXPLAIN.
+  */
+  virtual std::string explain_extra() const { return ""; }
 
   /*
     @todo reorganize functions, make proper public/protected/private qualifiers
@@ -4222,6 +4330,7 @@ class handler {
   int ha_rnd_init(bool scan);
   int ha_rnd_end();
   int ha_rnd_next(uchar *buf);
+  // See the comment on m_update_generated_read_fields.
   int ha_rnd_pos(uchar *buf, uchar *pos);
   int ha_index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
                         enum ha_rkey_function find_flag);
@@ -4291,17 +4400,20 @@ class handler {
 
   int ha_load_table(const TABLE &table);
 
-  int ha_unload_table(const char *db_name, const char *table_name);
+  int ha_unload_table(const char *db_name, const char *table_name,
+                      bool error_if_not_loaded);
 
   /**
-        Initializes a parallel scan. It creates a parallel_scan_ctx that has to
-        be used across all parallel_scan methods. Also, gets the number of
-     threads that would be spawned for parallel scan.
-        @return error code
-        @retval 0 on success
+    Initializes a parallel scan. It creates a parallel_scan_ctx that has to
+    be used across all parallel_scan methods. Also, gets the number of
+    threads that would be spawned for parallel scan.
+    @param[out] scan_ctx   The parallel scan context.
+    @param[out] num_threads Number of threads used for the scan.
+    @return error code
+    @retval 0 on success
   */
-  virtual int pread_adapter_parallel_scan_start(void *& /* parallel_scan_ctx */,
-                                                size_t & /* num_threads */) {
+  virtual int parallel_scan_init(void *&scan_ctx MY_ATTRIBUTE((unused)),
+                                 size_t &num_threads MY_ATTRIBUTE((unused))) {
     return (0);
   }
 
@@ -4324,9 +4436,9 @@ class handler {
                        memory of this array belongs to the caller and will be
                      free-ed after the pload_end_cbk call.
   */
-  using pread_adapter_pload_init_cbk = std::function<bool(
-      void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
-      ulong *null_byte_offsets, ulong *null_bitmasks)>;
+  using Load_init_cbk = std::function<bool(
+      void *cookie, ulong ncols, ulong row_len, const ulong *col_offsets,
+      const ulong *null_byte_offsets, const ulong *null_bitmasks)>;
 
   /**
     This callback is called by each parallel load thread when processing
@@ -4335,39 +4447,46 @@ class handler {
     @param[in] nrows     The nrows that are available
     @param[in] rowdata   The mysql-in-memory row data buffer. This is a memory
                          buffer for nrows records. The length of each record
-                         is fixed and communicated via
-                         pread_adapter_pload_init_cbk.
+                         is fixed and communicated via Load_init_cbk
     @returns true if there is an error, false otherwise.
   */
-  using pread_adapter_pload_row_cbk =
-      std::function<bool(void *cookie, uint nrows, void *rowdata)>;
+  using Load_cbk = std::function<bool(void *cookie, uint nrows, void *rowdata)>;
 
   /**
     This callback is called by each parallel load thread when processing
     of rows has ended for the adapter scan.
     @param[in] cookie    The cookie for this thread
   */
-  using pread_adapter_pload_end_cbk = std::function<void(void *cookie)>;
+  using Load_end_cbk = std::function<void(void *cookie)>;
 
   /**
     Run the parallel read of data.
+    @param[in]  scan_ctx Scan context of the parallel read.
+    @param[in,out] thread_ctxs Caller thread contexts.
+    @param[in]  init_fn  Callback called by each parallel load
+                         thread at the beginning of the parallel load.
+    @param[in]  load_fn  Callback called by each parallel load
+                         thread when processing of rows is required.
+    @param[in]  end_fn   Callback called by each parallel load
+                         thread when processing of rows has ended.
     @return error code
     @retval 0 on success
   */
-  virtual int pread_adapter_parallel_scan_run(
-      void * /* parallel_scan_ctx */, void ** /* thread_contexts */,
-      pread_adapter_pload_init_cbk /* load_init_fn */,
-      pread_adapter_pload_row_cbk /* load_rows_fn */,
-      pread_adapter_pload_end_cbk /* load_end_fn */) {
+  virtual int parallel_scan(void *scan_ctx MY_ATTRIBUTE((unused)),
+                            void **thread_ctxs MY_ATTRIBUTE((unused)),
+                            Load_init_cbk init_fn MY_ATTRIBUTE((unused)),
+                            Load_cbk load_fn MY_ATTRIBUTE((unused)),
+                            Load_end_cbk end_fn MY_ATTRIBUTE((unused))) {
     return (0);
   }
 
   /**
-    Run the parallel read of data.
+    End of the parallel scan.
+    @param[in]      scan_ctx      A scan context created by parallel_scan_init.
     @return error code
     @retval 0 on success
   */
-  virtual int pread_adapter_parallel_scan_end(void * /* parallel_scan_ctx */) {
+  virtual int parallel_scan_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
     return (0);
   }
 
@@ -4962,9 +5081,33 @@ class handler {
     DBUG_ASSERT(0);
     return 0;
   }
+  /**
+    Request storage engine to do an extra operation: enable,disable or run some
+    functionality.
+
+    @param  operation  the operation to perform
+
+    @returns
+      0     on success
+      error otherwise
+  */
+  int ha_extra(enum ha_extra_function operation);
+
+ private:
+  /**
+    Storage engine specific implementation of ha_extra()
+
+    @param  operation  the operation to perform
+
+    @returns
+      0     on success
+      error otherwise
+  */
   virtual int extra(enum ha_extra_function operation MY_ATTRIBUTE((unused))) {
     return 0;
   }
+
+ public:
   virtual int extra_opt(enum ha_extra_function operation,
                         ulong cache_size MY_ATTRIBUTE((unused))) {
     return extra(operation);
@@ -4990,18 +5133,49 @@ class handler {
   }
 
   /**
-    In an UPDATE or DELETE, if the row under the cursor was locked by another
-    transaction, and the engine used an optimistic read of the last
-    committed row value under the cursor, then the engine returns 1 from this
-    function. MySQL must NOT try to update this optimistic value. If the
-    optimistic value does not match the WHERE condition, MySQL can decide to
-    skip over this row. Currently only works for InnoDB. This can be used to
-    avoid unnecessary lock waits.
+    Normally, when running UPDATE or DELETE queries, we need to wait for other
+    transactions to release their locks on a given row before we can read it and
+    potentially update it. However, in READ UNCOMMITTED and READ COMMITTED, we
+    can ignore these locks if we don't intend to modify the row (e.g., because
+    it failed a WHERE). This is signaled through enabling “semi-consistent
+    read”, by calling try_semi_consistent_read(true) (and then setting it back
+    to false after finishing the query).
 
-    If this method returns nonzero, it will also signal the storage
-    engine that the next read will be a locking re-read of the row.
-  */
-  virtual bool was_semi_consistent_read() { return 0; }
+    If semi-consistent read is enabled, and we are in READ UNCOMMITTED or READ
+    COMMITTED, the storage engine is permitted to return rows that are locked
+    and thus un-updatable. If the optimizer doesn't want the row, e.g., because
+    it got filtered out, it can call unlock_row() as usual. However, if it
+    intends to update the row, it needs to call was_semi_consistent_read()
+    before doing so. If was_semi_consistent_read() returns false, the row was
+    never locked to begin with and can be updated as usual. However, if it
+    returns 1, it was read optimistically, must be discarded (ie., do not try to
+    update the row) and must be re-read with locking enabled. The next read call
+    after was_semi_consistent_read() will automatically re-read the same row,
+    this time with locking enabled.
+
+    Thus, typical use in an UPDATE scenario would look like this:
+
+        file->try_semi_consistent_read(true);
+        file->ha_rnd_init(true);
+        while (file->ha_rnd_next(table->record[0]) == 0) {
+          if (row is filtered...) {
+            file->unlock_row();
+            continue;
+          }
+          if (file->was_semi_consistent_read()) {
+            // Discard the row; next ha_rnd_next() will read it again with
+            // locking.
+            continue;
+          }
+          // Process row here.
+        }
+        file->ha_rnd_end();
+        file->try_semi_consistent_read(false);
+
+    If the transaction isolation level is REPEATABLE READ or SERIALIZABLE,
+    enabling this flag has no effect.
+   */
+  virtual bool was_semi_consistent_read() { return false; }
   /**
     Tell the engine whether it should avoid unnecessary lock waits.
     If yes, in an UPDATE or DELETE, if the row under the cursor was locked
@@ -5473,7 +5647,7 @@ class handler {
     In the latter special case SE might require call to
     handlerton::dict_cache_reset() in order to invalidate its internal table
     definition cache after rollback.
-    b) If we have failed to upgrade lock or any errors have occured during
+    b) If we have failed to upgrade lock or any errors have occurred during
     the handler functions calls (including commit), we call
     handler::ha_commit_inplace_alter_table() to rollback all changes which
     were done during previous steps.
@@ -6025,13 +6199,18 @@ class handler {
   /**
    * Unloads a table from its defined secondary storage engine.
    *
-   * @param db_name    Database name.
-   * @param table_name Table name.
-   *
+   * @param db_name             Database name.
+   * @param table_name          Table name.
+   * @param error_if_not_loaded If true, then errors will be reported by this
+   *                            function. If false, no errors will be reported
+   *                            (silently fail). This case of false is useful
+   *                            during DROP TABLE where a failure to unload
+   *                            should not prevent dropping the whole table.
    * @return 0 if success, error code otherwise.
    */
   virtual int unload_table(const char *db_name MY_ATTRIBUTE((unused)),
-                           const char *table_name MY_ATTRIBUTE((unused))) {
+                           const char *table_name MY_ATTRIBUTE((unused)),
+                           bool error_if_not_loaded MY_ATTRIBUTE((unused))) {
     /* purecov: begin inspected */
     DBUG_ASSERT(false);
     return HA_ERR_WRONG_COMMAND;
@@ -6269,7 +6448,9 @@ class handler {
   static bool my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
                                              const char *table_name,
                                              const MY_BITMAP *const fields,
-                                             uchar *record);
+                                             uchar *record,
+                                             const char **mv_data_ptr,
+                                             ulong *mv_length);
 
   /**
     Callback for computing generated column values.
@@ -6287,13 +6468,17 @@ class handler {
                           After calling this function, it will be
                           used to return the value of the generated
                           columns.
+    @param[out]           mv_data_ptr When given (not null) and the field
+                          needs to be calculated is a typed array field, it
+                          will contain pointer to field's calculated value.
+    @param[out]           mv_length Length of the data above
 
     @retval true in case of error
     @retval false on success
   */
   static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
-                                   const MY_BITMAP *const fields,
-                                   uchar *record);
+                                   const MY_BITMAP *const fields, uchar *record,
+                                   const char **mv_data_ptr, ulong *mv_length);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
   virtual Partition_handler *get_partition_handler() { return NULL; }
@@ -6327,6 +6512,37 @@ class handler {
     engine.
   */
   handler *ha_get_primary_handler() const { return m_primary_handler; }
+
+  /**
+    Return max limits for a single set of multi-valued keys
+
+    @param[out]  num_keys      number of keys to store
+    @param[out]  keys_length   total length of keys, bytes
+  */
+  void ha_mv_key_capacity(uint *num_keys, size_t *keys_length) const {
+    return mv_key_capacity(num_keys, keys_length);
+  }
+
+ private:
+  /**
+    Engine-specific function for ha_can_store_mv_keys().
+    Dummy function. SE's overloaded method is used instead.
+  */
+  /* purecov: begin inspected */
+  virtual void mv_key_capacity(uint *num_keys, size_t *keys_length) const {
+    *num_keys = 0;
+    *keys_length = 0;
+  }
+  /* purecov: end */
+
+  /**
+    Filter duplicate records when multi-valued index is used for retrieval
+
+    @returns
+      true  duplicate, such row id was already seen
+      false row id is seen for the first time
+  */
+  bool filter_dup_records();
 
  protected:
   Handler_share *get_ha_share_ptr();
@@ -6461,7 +6677,7 @@ handlerton *ha_default_temp_handlerton(THD *thd);
   @return plugin or NULL if not found.
 */
 plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name);
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name,
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
                               bool is_temp_table);
 plugin_ref ha_lock_engine(THD *thd, const handlerton *hton);
 handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type);
@@ -6613,6 +6829,7 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command, const char *query,
                          size_t query_length, const char *db,
                          const char *table_name);
+void ha_acl_notify(THD *thd, class Acl_change_notification *);
 void ha_binlog_wait(THD *thd);
 
 /* It is required by basic binlog features on both MySQL server and libmysqld */

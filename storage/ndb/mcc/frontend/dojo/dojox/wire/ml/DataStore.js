@@ -1,9 +1,9 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dijit/_Widget,dojox/wire/_base"],function(_1,_2,_3){
-_2.provide("dojox.wire.ml.DataStore");
-_2.require("dijit._Widget");
-_2.require("dojox.wire._base");
-_2.declare("dojox.wire.ml.DataStore",_1._Widget,{storeClass:"",postCreate:function(){
+define("dojox/wire/ml/DataStore",["dojo","dijit","dojox","dojo/require!dijit/_Widget,dojox/wire/_base"],function(_1,_2,_3){
+_1.provide("dojox.wire.ml.DataStore");
+_1.require("dijit._Widget");
+_1.require("dojox.wire._base");
+_1.declare("dojox.wire.ml.DataStore",_2._Widget,{storeClass:"",postCreate:function(){
 this.store=this._createStore();
 },_createStore:function(){
 if(!this.storeClass){

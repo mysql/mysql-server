@@ -16,6 +16,14 @@ FOLDERID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 , PRIMARY KEY ( FOLDERID )
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE INDEX FFOLDERID_IDX ON t1 (FOLDERID);
 CREATE INDEX CMFLDRPARNT_IDX ON t1 (PARENTID);
 INSERT INTO t1 VALUES("0c9aab05b15048c59bc35c8461507deb", "System", "System", "2003-06-05 16:30:00", "The system content repository folder.", "3", "2003-06-05 16:30:00", "System", "0", NULL, "9c9aab05b15048c59bc35c8461507deb", "1");
@@ -71,6 +79,9 @@ c char(3) default NULL,
 PRIMARY KEY  (id),
 KEY t2i1 (b)
 ) ENGINE=innodb DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
 CREATE TABLE t2 (
 id int(11) NOT NULL default '0',
@@ -79,6 +90,9 @@ c char(3) default NULL,
 PRIMARY KEY  (id),
 KEY t2i (b)
 ) ENGINE=innodb DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (0,0,'GPL'),(1,0,'GPL'),(2,1,'GPL'),(3,2,'GPL');
 select (select max(id) from t2 where b=1 group by b) as x,b from t1 where b=1;
 x	b
@@ -168,6 +182,12 @@ DOCID VARCHAR(32)BINARY NOT NULL
 , PRIMARY KEY ( DOCID )
 ) charset utf8mb4 ENGINE=InnoDB
 ;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t1 (DOCID) VALUES ("1"), ("2");
 Warnings:
 Warning	1364	Field 'UUID' doesn't have a default value
@@ -195,6 +215,19 @@ DOCID VARCHAR(32)BINARY NOT NULL
 , PRIMARY KEY ( DOCID )
 ) charset utf8mb4 ENGINE=InnoDB
 ;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE INDEX DDOCTYPEID_IDX ON t2 (DOCTYPEID);
 CREATE INDEX DFOLDERID_IDX ON t2 (FOLDERID);
 CREATE TABLE t3
@@ -213,6 +246,14 @@ FOLDERID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 , PRIMARY KEY ( FOLDERID )
 ) charset utf8mb4 ENGINE=InnoDB;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE INDEX FFOLDERID_IDX ON t3 (FOLDERID);
 CREATE INDEX CMFLDRPARNT_IDX ON t3 (PARENTID);
 CREATE TABLE t4
@@ -226,6 +267,11 @@ DOCTYPEID VARCHAR(32)BINARY NOT NULL
 , ORIGINATOR INTEGER
 , PRIMARY KEY ( DOCTYPEID )
 ) charset utf8mb4 ENGINE=InnoDB;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t2 VALUES("c373e9f59cf15a6c3e57444553544200", "c373e9f59cf15a6c3e57444553544200", "340d243d45f111d497b00010a4ef934d", "2f6161e879db43c1a5b82c21ddc49089", NULL, "2003-06-06 07:48:42", NULL, NULL, NULL, "2003-06-06 07:48:42", "2003-06-06 07:48:42", NULL, NULL, NULL, "03eea05112b845949f3fd03278b5fe43", "2003-06-06 07:48:42", "admin", "0", NULL);
 INSERT INTO t2 VALUES("c373e9f5a472f43ba45e444553544200", "c373e9f5a472f43ba45e444553544200", "340d243d45f111d497b00010a4ef934d", "2f6161e879db43c1a5b82c21ddc49089", NULL, "2003-06-07 18:50:12", NULL, NULL, NULL, "2003-06-07 18:50:12", "2003-06-07 18:50:12", NULL, NULL, NULL, "03eea05112b845949f3fd03278b5fe43", "2003-06-07 18:50:12", "admin", "0", NULL);
 INSERT INTO t2 VALUES("c373e9f5a4a0f56014eb444553544200", "c373e9f5a4a0f56014eb444553544200", "340d243d45f111d497b00010a4ef934d", "2f6161e879db43c1a5b82c21ddc49089", NULL, "2003-06-07 19:39:26", NULL, NULL, NULL, "2003-06-07 19:39:26", "2003-06-07 19:39:26", NULL, NULL, NULL, "03eea05112b845949f3fd03278b5fe43", "2003-06-07 19:39:26", "admin", "0", NULL);
@@ -396,11 +442,19 @@ NULL
 drop procedure p1;
 drop tables t1,t2,t3;
 CREATE TABLE t1 (a int(10) , PRIMARY KEY (a)) Engine=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1),(2);
 CREATE TABLE t2 (a int(10), PRIMARY KEY (a)) Engine=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1);
 CREATE TABLE t3 (a int(10), b int(10), c int(10),
 PRIMARY KEY (a)) Engine=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,2,1);
 SELECT t1.* FROM t1 WHERE (SELECT COUNT(*) FROM t3,t2 WHERE t3.c=t2.a 
 and t2.a='1' AND t1.a=t3.b) > 0;
@@ -470,12 +524,12 @@ SELECT 1 FROM t1 WHERE NOT EXISTS
 EXPLAIN SELECT 1 FROM t1 WHERE NOT EXISTS
 (SELECT 1 FROM t2 WHERE d = (SELECT d FROM t2 WHERE a >= 1) ORDER BY d);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY,d	PRIMARY	1	func	1	100.00	Using where
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t2	NULL	eq_ref	PRIMARY,d	PRIMARY	1	func	1	100.00	Using where; Not exists
 3	DEPENDENT SUBQUERY	t2	NULL	index	NULL	d	2	NULL	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (not(exists(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = (/* select#3 */ select `test`.`t2`.`d` from `test`.`t2` where (`test`.`t1`.`a` >= 1))))))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` anti join (`test`.`t2`) on(((/* select#3 */ select `test`.`t2`.`d` from `test`.`t2` where (`test`.`t1`.`a` >= 1)) = `test`.`t2`.`d`)) where true
 DROP TABLE t2;
 CREATE TABLE t2 (b INT, c INT, UNIQUE KEY (b), UNIQUE KEY (b, c )) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1, 1);

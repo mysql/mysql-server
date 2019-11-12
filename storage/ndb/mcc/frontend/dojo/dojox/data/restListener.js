@@ -1,6 +1,6 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.data.restListener");
+define("dojox/data/restListener",["dojo","dijit","dojox"],function(_1,_2,_3){
+_1.provide("dojox.data.restListener");
 _3.data.restListener=function(_4){
 var _5=_4.channel;
 var jr=_3.rpc.JsonRest;

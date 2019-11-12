@@ -8,8 +8,6 @@ Level	Code	Message
 Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 *********************************
 * restore tables w/ new column from big endian
 *********************************
@@ -20,5 +18,3 @@ Level	Code	Message
 Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
 Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1
 Error	1146	Table 'test.t1' doesn't exist
-Warning	1296	Table definition contains obsolete data types such as old temporal or decimal types
-Warning	1296	Failed to discover table 't1' from NDB, could not upgrade table with extra metadata version 1

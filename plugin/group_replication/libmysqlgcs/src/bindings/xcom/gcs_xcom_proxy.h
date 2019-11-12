@@ -373,15 +373,22 @@ class Gcs_xcom_proxy {
     server_key_file  - Path of file that contains the server's X509 key in PEM
                        format.
     server_cert_file - Path of file that contains the server's X509 certificate
-    in PEM format. client_key_file  - Path of file that contains the client's
-    X509 key in PEM format. client_cert_file - Path of file that contains the
-    client's X509 certificate in PEM format. ca_file          - Path of file
-    that contains list of trusted SSL CAs. ca_path          - Path of directory
-    that contains trusted SSL CA certificates in PEM format. crl_file         -
-    Path of file that contains certificate revocation lists. crl_path         -
-    Path of directory that contains certificate revocation list files. cipher
-    - List of permitted ciphers to use for connection encryption. tls_version
-    - Protocols permitted for secure connections.
+                       in PEM format.
+    client_key_file  - Path of file that contains the client's X509 key in PEM
+                       format.
+    client_cert_file - Path of file that contains the client's X509 certificate
+                       in PEM format.
+    ca_file          - Path of file that contains list of trusted SSL CAs.
+    ca_path          - Path of directory that contains trusted SSL CA
+                       certificates in PEM format.
+    crl_file         - Path of file that contains certificate revocation lists.
+    crl_path         - Path of directory that contains certificate revocation
+                       list files.
+    cipher           - List of permitted ciphers to use for connection
+                       encryption.
+    tls_version      - Protocols permitted for secure connections.
+    tls_ciphersuites - List of permitted ciphersuites to use for TLS 1.3
+                       connection encryption.
 
     Note that only the server_key_file/server_cert_file and the client_key_file/
     client_cert_file are required and the rest of the pointers can be NULL.
@@ -391,11 +398,23 @@ class Gcs_xcom_proxy {
     The caller can free the parameters after the SSL is started
     if this is necessary.
   */
-  virtual void xcom_set_ssl_parameters(
-      const char *server_key_file, const char *server_cert_file,
-      const char *client_key_file, const char *client_cert_file,
-      const char *ca_file, const char *ca_path, const char *crl_file,
-      const char *crl_path, const char *cipher, const char *tls_version) = 0;
+  struct ssl_parameters {
+    const char *server_key_file;
+    const char *server_cert_file;
+    const char *client_key_file;
+    const char *client_cert_file;
+    const char *ca_file;
+    const char *ca_path;
+    const char *crl_file;
+    const char *crl_path;
+    const char *cipher;
+  };
+  struct tls_parameters {
+    const char *tls_version;
+    const char *tls_ciphersuites;
+  };
+  virtual void xcom_set_ssl_parameters(ssl_parameters ssl,
+                                       tls_parameters tls) = 0;
 
   virtual site_def const *find_site_def(synode_no synode) = 0;
 
@@ -662,7 +681,7 @@ class Gcs_xcom_proxy {
   /**
    Function to retrieve the application payloads decided on a set of synodes.
 
-   @param[in] xcom_instace The XCom instance to connect to
+   @param[in] xcom_instance The XCom instance to connect to
    @param[in] group_id_hash Hash of group identifier.
    @param[in] synode_set The desired synodes
    @param[out] reply Where the requested payloads will be written to
@@ -725,10 +744,18 @@ class Gcs_xcom_proxy {
   /**
    * Opens the input channel to XCom.
    *
+   * @param address address to connect to
+   * @param port port to connect to
    * @retval true if successful
    * @retval false otherwise
    */
-  virtual bool xcom_input_connect() = 0;
+  virtual bool xcom_input_connect(std::string const &address,
+                                  xcom_port port) = 0;
+
+  /**
+   * Closes the input channel to XCom.
+   */
+  virtual void xcom_input_disconnect() = 0;
 
   /**
    * Attempts to send the command @c data to XCom. (Called by GCS.)
@@ -865,13 +892,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   bool xcom_init_ssl();
   void xcom_destroy_ssl();
   bool xcom_use_ssl();
-  void xcom_set_ssl_parameters(const char *server_key_file,
-                               const char *server_cert_file,
-                               const char *client_key_file,
-                               const char *client_cert_file,
-                               const char *ca_file, const char *ca_path,
-                               const char *crl_file, const char *crl_path,
-                               const char *cipher, const char *tls_version);
+  void xcom_set_ssl_parameters(ssl_parameters ssl, tls_parameters tls);
   site_def const *find_site_def(synode_no synode);
 
   enum_gcs_error xcom_wait_ready();
@@ -895,7 +916,8 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   bool get_should_exit();
   void set_should_exit(bool should_exit);
 
-  bool xcom_input_connect();
+  bool xcom_input_connect(std::string const &address, xcom_port port);
+  void xcom_input_disconnect();
   bool xcom_input_try_push(app_data_ptr data);
   Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
       app_data_ptr data);
@@ -934,11 +956,40 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   const char *m_crl_path;
   const char *m_cipher;
   const char *m_tls_version;
+  const char *m_tls_ciphersuites;
 
   std::atomic_bool m_should_exit;
 
   /* Input channel to XCom */
   Gcs_xcom_input_queue m_xcom_input_queue;
+
+  /*
+    Auxiliary function for the "xcom_wait_*" functions. Executes the actual
+    timed wait for the variable associated with the condition to be changed
+    and performs error checking.
+
+    The function will lock @c condition_lock, so it must be unlocked when the
+    function is called.
+
+    @param condition Cond variable on which we want to wait.
+    @param condition_lock Lock to access the @c condition variable.
+    @param need_to_wait A function implemented by the caller that verifies if
+                        the wait shall be executed. The function must return
+                        true when the wait must be executed, false otherwise.
+    @param condition_event A function that returns the string identifying the
+                           event associated with the cond. The string will be
+                           printed as a suffix to the error messages:
+                           "<error code> while waiting for <cond_event string>"
+                           The function receives the error code of the timed
+                           wait as an argument.
+
+    @retval GCS_OK if the wait is successful;
+            GCS_NOK if the timed wait terminates with an error.
+   */
+  enum_gcs_error xcom_wait_for_condition(
+      My_xp_cond_impl &condition, My_xp_mutex_impl &condition_lock,
+      std::function<bool(void)> need_to_wait,
+      std::function<const std::string(int res)> condition_event);
 
   /*
     Disabling the copy constructor and assignment operator.

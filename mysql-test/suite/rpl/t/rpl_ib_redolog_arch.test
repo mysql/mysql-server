@@ -1,0 +1,69 @@
+# ***************************************************************
+# wl#12348 : This testcase is to test the functionality of the
+# Red-Log Archiving in replication mode.
+# ***************************************************************
+--source include/master-slave.inc
+
+--let $IRLA_DIRECTORY_1  = $MYSQLTEST_VARDIR/log/redo_log_archive_1
+--mkdir $IRLA_DIRECTORY_1
+
+--echo [Connection Master]
+--connection master
+--let $saved_master_dirs = `SELECT @@global.innodb_redo_log_archive_dirs`
+
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+
+--echo # Start redo log archiving on Master side
+SELECT innodb_redo_log_archive_start('label1');
+
+CREATE TABLE tab(c1 int , c2 text) ;
+
+INSERT INTO tab VALUES(1, 'test the wl');
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+--let $saved_slave_dirs = `SELECT @@global.innodb_redo_log_archive_dirs`
+
+SELECT COUNT(*) FROM tab;
+
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label2:$IRLA_DIRECTORY_1';
+
+--echo # Start redo log archiving on Slave side
+Do innodb_redo_log_archive_start("label2");
+
+--echo [Connection Master]
+--connection master
+
+INSERT INTO tab SELECT * FROM tab;
+
+INSERT INTO tab SELECT * FROM tab;
+
+--echo # Stop redo log archiving on Master side
+DO innodb_redo_log_archive_stop();
+
+--echo # Set Default value on master side 
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_master_dirs';
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT COUNT(*) FROM tab;
+
+--echo # Stop redo log archiving on Slave side
+DO innodb_redo_log_archive_stop();
+
+--echo # Set Default value on slave side 
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_slave_dirs';
+
+--echo [Connection Master]
+--connection master
+
+DROP TABLE tab;
+
+--remove_files_wildcard $IRLA_DIRECTORY_1/ archive*
+--rmdir $IRLA_DIRECTORY_1
+
+--source include/rpl_end.inc
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,15 +24,24 @@
 
 #include "plugin/x/ngs/include/ngs/protocol_flusher.h"
 
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/protocol/encoders/encoding_buffer.h"
+#include "plugin/x/protocol/encoders/encoding_xmessages.h"
+
 namespace ngs {
+
+constexpr int k_number_of_pages_that_trigger_flush = 5;
+
+// Alias for return types
+using Result = xpl::iface::Protocol_flusher::Result;
 
 namespace details {
 
-class Write_visitor : public Page_visitor {
+class Write_visitor {
  public:
-  Write_visitor(Vio_interface *vio) : m_vio(vio) {}
+  explicit Write_visitor(Vio_interface *vio) : m_vio(vio) {}
 
-  bool visit(const char *buffer, ssize_t size) override {
+  bool visit(const char *buffer, ssize_t size) {
     while (size > 0) {
       const ssize_t result =
           m_vio->write(reinterpret_cast<const uchar *>(buffer), size);
@@ -59,29 +68,53 @@ class Write_visitor : public Page_visitor {
 
 }  // namespace details
 
-void Protocol_flusher::mark_flush() { m_flush = true; }
-void Protocol_flusher::on_message(const uint8_t type) {
+void Protocol_flusher::trigger_flush_required() { m_flush = true; }
+
+template <uint8_t repeat>
+bool check_pages_count(protocol::Page *page) {
+  return page->m_next_page ? check_pages_count<repeat - 1>(page->m_next_page)
+                           : false;
+}
+
+template <>
+bool check_pages_count<0>(protocol::Page *page) {
+  return true;
+}
+
+void Protocol_flusher::trigger_on_message(const uint8_t type) {
   if (m_flush) return;
 
   const bool can_buffer =
       ((type == Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA) ||
        (type == Mysqlx::ServerMessages::RESULTSET_ROW) ||
        (type == Mysqlx::ServerMessages::NOTICE) ||
-       (type == Mysqlx::ServerMessages::RESULTSET_FETCH_DONE));
+       (type == Mysqlx::ServerMessages::RESULTSET_FETCH_DONE) ||
+       (type == Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS) ||
+       (type == Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS) ||
+       (type == Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED));
 
+  // Let check if flusher holds `k_number_of_pages_that_trigger_flush` pages.
+  //
+  // Thus its good to guard if we don't use too many memory for buffering also
+  // filling too large buffer might have a negative influence on performance.
+  //
+  // Number of page that trigger a flush should be benchmarked.
   const bool buffer_too_big =
-      m_page_output_stream->ByteCount() > BUFFER_PAGE_SIZE * 4;
+      check_pages_count<k_number_of_pages_that_trigger_flush>(
+          m_encoder->m_buffer->m_front);
 
   m_flush = !can_buffer || buffer_too_big;
 }
 
-bool Protocol_flusher::try_flush() {
+Result Protocol_flusher::try_flush() {
+  if (m_io_error) return Result::k_error;
+
   if (m_flush) {
     m_flush = false;
-    return flush();
+    return flush() ? Result::k_flushed : Result::k_error;
   }
 
-  return true;
+  return Result::k_not_flushed;
 }
 
 bool Protocol_flusher::flush() {
@@ -93,19 +126,31 @@ bool Protocol_flusher::flush() {
     m_socket->set_timeout_in_ms(ngs::Vio_interface::Direction::k_write,
                                 m_write_timeout * 1000);
 
-    m_page_output_stream->visit_buffers(&writter);
+    auto page = m_encoder->m_buffer->m_front;
+
+    if (0 == page->get_used_bytes()) {
+      return true;
+    }
+
+    while (page) {
+      if (!writter.visit(reinterpret_cast<const char *>(page->m_begin_data),
+                         page->get_used_bytes()))
+        break;
+      page = page->m_next_page;
+    }
+
+    m_encoder->buffer_reset();
 
     const ssize_t result = writter.get_result();
     if (result <= 0) {
       log_debug("Error writing to client: %s (%i)", strerror(errno), errno);
+      m_io_error = true;
       m_on_error(errno);
       return false;
     }
 
     m_protocol_monitor->on_send(static_cast<long>(writter.get_result()));
   }
-
-  m_page_output_stream->reset();
 
   return true;
 }

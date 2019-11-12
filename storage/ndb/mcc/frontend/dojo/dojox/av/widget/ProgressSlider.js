@@ -1,20 +1,20 @@
 //>>built
-define("dojox/av/widget/ProgressSlider",["dojo","dijit","dijit/_Widget","dijit/_TemplatedMixin"],function(_1,_2){
-_1.declare("dojox.av.widget.ProgressSlider",[_2._Widget,_2._TemplatedMixin],{templateString:_1.cache("dojox.av.widget","resources/ProgressSlider.html"),postCreate:function(){
+define("dojox/av/widget/ProgressSlider",["dojo","dijit","dijit/_Widget","dijit/_TemplatedMixin"],function(_1,_2,_3,_4){
+return _1.declare("dojox.av.widget.ProgressSlider",[_3,_4],{templateString:_1.cache("dojox.av.widget","resources/ProgressSlider.html"),postCreate:function(){
 this.seeking=false;
 this.handleWidth=_1.marginBox(this.handle).w;
-var _3=_1.coords(this.domNode);
-this.finalWidth=_3.w;
-this.width=_3.w-this.handleWidth;
-this.x=_3.x;
+var _5=_1.coords(this.domNode);
+this.finalWidth=_5.w;
+this.width=_5.w-this.handleWidth;
+this.x=_5.x;
 _1.setSelectable(this.domNode,false);
 _1.setSelectable(this.handle,false);
-},setMedia:function(_4,_5){
-this.playerWidget=_5;
-this.media=_4;
-_1.connect(this.media,"onMetaData",this,function(_6){
-if(_6&&_6.duration){
-this.duration=_6.duration;
+},setMedia:function(_6,_7){
+this.playerWidget=_7;
+this.media=_6;
+_1.connect(this.media,"onMetaData",this,function(_8){
+if(_8&&_8.duration){
+this.duration=_8.duration;
 }
 });
 _1.connect(this.media,"onEnd",this,function(){
@@ -24,12 +24,12 @@ this.setHandle(this.duration);
 _1.connect(this.media,"onStart",this,function(){
 this.posCon=_1.connect(this.media,"onPosition",this,"setHandle");
 });
-_1.connect(this.media,"onDownloaded",this,function(_7){
-this.setLoadedPosition(_7*0.01);
-this.width=this.finalWidth*0.01*_7;
+_1.connect(this.media,"onDownloaded",this,function(_9){
+this.setLoadedPosition(_9*0.01);
+this.width=this.finalWidth*0.01*_9;
 });
-},onDrag:function(_8){
-var x=_8.clientX-this.x;
+},onDrag:function(_a){
+var x=_a.clientX-this.x;
 if(x<0){
 x=0;
 }
@@ -55,25 +55,24 @@ if(this.cup){
 _1.disconnect(this.cup);
 }
 this.handleOut();
-},setHandle:function(_9){
+},setHandle:function(_b){
 if(!this.seeking){
 var w=this.width-this.handleWidth;
-var p=_9/this.duration;
+var p=_b/this.duration;
 var x=p*w;
 _1.style(this.handle,"marginLeft",x+"px");
 _1.style(this.progressPosition,"width",x+"px");
 }
-},setLoadedPosition:function(_a){
-_1.style(this.progressLoaded,"width",(this.finalWidth*_a)+"px");
+},setLoadedPosition:function(_c){
+_1.style(this.progressLoaded,"width",(this.finalWidth*_c)+"px");
 },handleOver:function(){
 _1.addClass(this.handle,"over");
 },handleOut:function(){
 if(!this.seeking){
 _1.removeClass(this.handle,"over");
 }
-},onResize:function(_b){
-var _c=_1.coords(this.domNode);
-this.finalWidth=_c.w;
+},onResize:function(_d){
+var _e=_1.coords(this.domNode);
+this.finalWidth=_e.w;
 }});
-return dojox.av.widget.ProgressSlider;
 });

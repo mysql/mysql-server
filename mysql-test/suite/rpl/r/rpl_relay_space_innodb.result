@@ -7,11 +7,16 @@ SHOW VARIABLES LIKE 'relay_log_space_limit';
 Variable_name	Value
 relay_log_space_limit	0
 CREATE TABLE t1 (name varchar(64), age smallint(3))ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SET name='Andy', age=31;
 INSERT INTO t1 SET name='Jacob', age=2;
 INSERT INTO t1 SET name='Caleb', age=1;
 ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY,
 ALGORITHM=COPY;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT * FROM t1 ORDER BY id;
 name	age	id
 Andy	31	00000001

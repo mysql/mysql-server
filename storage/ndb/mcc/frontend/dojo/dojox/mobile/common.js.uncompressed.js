@@ -1,6 +1,4 @@
-//>>built
 define("dojox/mobile/common", [
-	"dojo/_base/kernel", // to test dojo.hash
 	"dojo/_base/array",
 	"dojo/_base/config",
 	"dojo/_base/connect",
@@ -8,28 +6,16 @@ define("dojox/mobile/common", [
 	"dojo/_base/window",
 	"dojo/dom-class",
 	"dojo/dom-construct",
-	"dojo/dom-style",
-//	"dojo/hash", // optionally prereq'ed
 	"dojo/ready",
-	"dijit/registry",	// registry.toArray
+	"dijit/registry",
 	"./sniff",
-	"./uacss"
-], function(dojo, array, config, connect, lang, win, domClass, domConstruct, domStyle, ready, registry, has, uacss){
-
-	var dm = lang.getObject("dojox.mobile", true);
-/*=====
-	var dm = dojox.mobile;
-=====*/
+	"./uacss" // (no direct references)
+], function(array, config, connect, lang, win, domClass, domConstruct, ready, registry, has){
 
 	// module:
 	//		dojox/mobile/common
-	// summary:
-	//		A common module for dojox.mobile.
-	// description:
-	//		This module includes common utility functions that are used by
-	//		dojox.mobile widgets. Also, it provides functions that are commonly
-	//		necessary for mobile web applications, such as the hide address bar
-	//		function.
+
+	var dm = lang.getObject("dojox.mobile", true);
 
 	dm.getScreenSize = function(){
 		// summary:
@@ -42,7 +28,7 @@ define("dojox/mobile/common", [
 
 	dm.updateOrient = function(){
 		// summary:
-		//		Updates the orientation specific css classes, 'dj_portrait' and
+		//		Updates the orientation specific CSS classes, 'dj_portrait' and
 		//		'dj_landscape'.
 		var dim = dm.getScreenSize();
 		domClass.replace(win.doc.documentElement,
@@ -56,12 +42,16 @@ define("dojox/mobile/common", [
 		// summary:
 		//		Detects the screen size and determines if the screen is like
 		//		phone or like tablet. If the result is changed,
-		//		it sets either of the following css class to <html>
-		//			- 'dj_phone'
-		//			- 'dj_tablet'
-		//		and it publishes either of the following events.
-		//			- '/dojox/mobile/screenSize/phone'
-		//			- '/dojox/mobile/screenSize/tablet'
+		//		it sets either of the following css class to `<html>`:
+		//
+		//		- 'dj_phone'
+		//		- 'dj_tablet'
+		//
+		//		and it publishes either of the following events:
+		//
+		//		- '/dojox/mobile/screenSize/phone'
+		//		- '/dojox/mobile/screenSize/tablet'
+
 		var dim = dm.getScreenSize();
 		var sz = Math.min(dim.w, dim.h);
 		var from, to;
@@ -80,99 +70,92 @@ define("dojox/mobile/common", [
 	};
 	dm.detectScreenSize();
 
-	dm.setupIcon = function(/*DomNode*/iconNode, /*String*/iconPos){
-		// summary:
-		//		Sets up CSS sprite for a foreground image.
-		if(iconNode && iconPos){
-			var arr = array.map(iconPos.split(/[ ,]/),function(item){return item-0});
-			var t = arr[0]; // top
-			var r = arr[1] + arr[2]; // right
-			var b = arr[0] + arr[3]; // bottom
-			var l = arr[1]; // left
-			domStyle.set(iconNode, {
-				clip: "rect("+t+"px "+r+"px "+b+"px "+l+"px)",
-				top: (iconNode.parentNode ? domStyle.get(iconNode, "top") : 0) - t + "px",
-				left: -l + "px"
-			});
-		}
-	};
-
-	// dojox.mobile.hideAddressBarWait: Number
+	// dojox/mobile.hideAddressBarWait: Number
 	//		The time in milliseconds to wait before the fail-safe hiding address
 	//		bar runs. The value must be larger than 800.
 	dm.hideAddressBarWait = typeof(config["mblHideAddressBarWait"]) === "number" ?
 		config["mblHideAddressBarWait"] : 1500;
 
-	dm.hide_1 = function(force){
+	dm.hide_1 = function(){
 		// summary:
 		//		Internal function to hide the address bar.
+		// tags:
+		//		private
 		scrollTo(0, 1);
-		var h = dm.getScreenSize().h + "px";
-		if(has("android")){
-			if(force){
-				win.body().style.minHeight = h;
-			}
-			dm.resizeAll();
-		}else{
-			if(force || dm._h === h && h !== win.body().style.minHeight){
-				win.body().style.minHeight = h;
+		dm._hidingTimer = (dm._hidingTimer == 0) ? 200 : dm._hidingTimer * 2;
+		setTimeout(function(){ // wait for a while for "scrollTo" to finish
+			if(dm.isAddressBarHidden() || dm._hidingTimer > dm.hideAddressBarWait){
+				// Succeeded to hide address bar, or failed but timed out 
 				dm.resizeAll();
+				dm._hiding = false;
+			}else{
+				// Failed to hide address bar, so retry after a while
+				setTimeout(dm.hide_1, dm._hidingTimer);
 			}
-		}
-		dm._h = h;
+		}, 50); //50ms is an experiential value
 	};
 
-	dm.hide_fs = function(){
-		// summary:
-		//		Internal function to hide the address bar for fail-safe.
-		// description:
-		//		Resets the height of the body, performs hiding the address
-		//		bar, and calls resizeAll().
-		//		This is for fail-safe, in case of failure to complete the
-		//		address bar hiding in time.
-		var t = win.body().style.minHeight;
-		win.body().style.minHeight = (dm.getScreenSize().h * 2) + "px"; // to ensure enough height for scrollTo to work
-		scrollTo(0, 1);
-		setTimeout(function(){
-			dm.hide_1(1);
-			dm._hiding = false;
-		}, 1000);
-	};
 	dm.hideAddressBar = function(/*Event?*/evt){
 		// summary:
 		//		Hides the address bar.
 		// description:
-		//		Tries hiding of the address bar a couple of times to do it as
-		//		quick as possible while ensuring resize is done after the hiding
+		//		Tries to hide the address bar a couple of times. The purpose is to do 
+		//		it as quick as possible while ensuring the resize is done after the hiding
 		//		finishes.
 		if(dm.disableHideAddressBar || dm._hiding){ return; }
 		dm._hiding = true;
-		dm._h = 0;
-		win.body().style.minHeight = (dm.getScreenSize().h * 2) + "px"; // to ensure enough height for scrollTo to work
-		setTimeout(dm.hide_1, 0);
-		setTimeout(dm.hide_1, 200);
-		setTimeout(dm.hide_1, 800);
-		setTimeout(dm.hide_fs, dm.hideAddressBarWait);
+		dm._hidingTimer = has('iphone') ? 200 : 0; // Need to wait longer in case of iPhone
+		var minH = screen.availHeight;
+		if(has('android')){
+			minH = outerHeight / devicePixelRatio;
+			// On some Android devices such as Galaxy SII, minH might be 0 at this time.
+			// In that case, retry again after a while. (200ms is an experiential value)
+			if(minH == 0){
+				dm._hiding = false;
+				setTimeout(function(){ dm.hideAddressBar(); }, 200);
+			}
+			// On some Android devices such as HTC EVO, "outerHeight/devicePixelRatio"
+			// is too short to hide address bar, so make it high enough
+			if(minH <= innerHeight){ minH = outerHeight; }
+			// On Android 2.2/2.3, hiding address bar fails when "overflow:hidden" style is
+			// applied to html/body element, so force "overflow:visible" style
+			if(has('android') < 3){
+				win.doc.documentElement.style.overflow = win.body().style.overflow = "visible";
+			}
+		}
+		if(win.body().offsetHeight < minH){ // to ensure enough height for scrollTo to work
+			win.body().style.minHeight = minH + "px";
+			dm._resetMinHeight = true;
+		}
+		setTimeout(dm.hide_1, dm._hidingTimer);
+	};
+
+	dm.isAddressBarHidden = function(){
+		return pageYOffset === 1;
 	};
 
 	dm.resizeAll = function(/*Event?*/evt, /*Widget?*/root){
 		// summary:
-		//		Call the resize() method of all the top level resizable widgets.
+		//		Calls the resize() method of all the top level resizable widgets.
 		// description:
-		//		Find all widgets that do not have a parent or the parent does not
-		//		have the resize() method, and call resize() for them.
-		//		If a widget has a parent that has resize(), call of the widget's
+		//		Finds all widgets that do not have a parent or the parent does not
+		//		have the resize() method, and calls resize() for them.
+		//		If a widget has a parent that has resize(), calling widget's
 		//		resize() is its parent's responsibility.
 		// evt:
 		//		Native event object
 		// root:
-		//		If specified, search the specified widget recursively for top level
+		//		If specified, searches the specified widget recursively for top-level
 		//		resizable widgets.
 		//		root.resize() is always called regardless of whether root is a
 		//		top level widget or not.
-		//		If omitted, search the entire page.
+		//		If omitted, searches the entire page.
 		if(dm.disableResizeAll){ return; }
-		connect.publish("/dojox/mobile/resizeAll", [evt, root]);
+		connect.publish("/dojox/mobile/resizeAll", [evt, root]); // back compat
+		connect.publish("/dojox/mobile/beforeResizeAll", [evt, root]);
+		if(dm._resetMinHeight){
+			win.body().style.minHeight = dm.getScreenSize().h + "px";
+		} 
 		dm.updateOrient();
 		dm.detectScreenSize();
 		var isTopLevel = function(w){
@@ -192,306 +175,135 @@ define("dojox/mobile/common", [
 			array.forEach(array.filter(registry.toArray(), isTopLevel),
 					function(w){ w.resize(); });
 		}
+		connect.publish("/dojox/mobile/afterResizeAll", [evt, root]);
 	};
 
 	dm.openWindow = function(url, target){
 		// summary:
-		//		Opens a new browser window with the given url.
+		//		Opens a new browser window with the given URL.
 		win.global.open(url, target || "_blank");
 	};
 
-	dm.createDomButton = function(/*DomNode*/refNode, /*Object?*/style, /*DomNode?*/toNode){
-		// summary:
-		//		Creates a DOM button.
-		// description:
-		//		DOM button is a simple graphical object that consists of one or
-		//		more nested DIV elements with some CSS styling. It can be used
-		//		in place of an icon image on ListItem, IconItem, and so on.
-		//		The kind of DOM button to create is given as a class name of
-		//		refNode. The number of DIVs to create is searched from the style
-		//		sheets in the page. However, if the class name has a suffix that
-		//		starts with an underscore, like mblDomButtonGoldStar_5, then the
-		//		suffixed number is used instead. A class name for DOM button
-		//		must starts with 'mblDomButton'.
-		// refNode:
-		//		A node that has a DOM button class name.
-		// style:
-		//		A hash object to set styles to the node.
-		// toNode:
-		//		A root node to create a DOM button. If omitted, refNode is used.
-
-		if(!dm._domButtons){
-			if(has("webkit")){
-				var findDomButtons = function(sheet, dic){
-					// summary:
-					//		Searches the style sheets for DOM buttons.
-					// description:
-					//		Returns a key-value pair object whose keys are DOM
-					//		button class names and values are the number of DOM
-					//		elements they need.
-					var i, j;
-					if(!sheet){
-						var dic = {};
-						var ss = dojo.doc.styleSheets;
-						for (i = 0; i < ss.length; i++){
-							ss[i] && findDomButtons(ss[i], dic);
-						}
-						return dic;
-					}
-					var rules = sheet.cssRules || [];
-					for (i = 0; i < rules.length; i++){
-						var rule = rules[i];
-						if(rule.href && rule.styleSheet){
-							findDomButtons(rule.styleSheet, dic);
-						}else if(rule.selectorText){
-							var sels = rule.selectorText.split(/,/);
-							for (j = 0; j < sels.length; j++){
-								var sel = sels[j];
-								var n = sel.split(/>/).length - 1;
-								if(sel.match(/(mblDomButton\w+)/)){
-									var cls = RegExp.$1;
-									if(!dic[cls] || n > dic[cls]){
-										dic[cls] = n;
-									}
-								}
-							}
-						}
-					}
-				}
-				dm._domButtons = findDomButtons();
-			}else{
-				dm._domButtons = {};
-			}
-		}
-
-		var s = refNode.className;
-		var node = toNode || refNode;
-		if(s.match(/(mblDomButton\w+)/) && s.indexOf("/") === -1){
-			var btnClass = RegExp.$1;
-			var nDiv = 4;
-			if(s.match(/(mblDomButton\w+_(\d+))/)){
-				nDiv = RegExp.$2 - 0;
-			}else if(dm._domButtons[btnClass] !== undefined){
-				nDiv = dm._domButtons[btnClass];
-			}
-			var props = null;
-			if(has("bb") && config["mblBBBoxShadowWorkaround"] !== false){
-				// Removes box-shadow because BlackBerry incorrectly renders it.
-				props = {style:"-webkit-box-shadow:none"};
-			}
-			for(var i = 0, p = node; i < nDiv; i++){
-				p = p.firstChild || domConstruct.create("DIV", props, p);
-			}
-			if(toNode){
-				setTimeout(function(){
-					domClass.remove(refNode, btnClass);
-				}, 0);
-				domClass.add(toNode, btnClass);
-			}
-		}else if(s.indexOf(".") !== -1){ // file name
-			domConstruct.create("IMG", {src:s}, node);
-		}else{
-			return null;
-		}
-		domClass.add(node, "mblDomButton");
-		if(config["mblAndroidWorkaround"] !== false && has("android") >= 2.2){
-			// Android workaround for the issue that domButtons' -webkit-transform styles sometimes invalidated
-			// by applying -webkit-transform:translated3d(x,y,z) style programmatically to non-ancestor elements,
-			// which results in breaking domButtons.
-			domStyle.set(node, "webkitTransform", "translate3d(0,0,0)");
-		}
-		!!style && domStyle.set(node, style);
-		return node;
-	};
-	
-	dm.createIcon = function(/*String*/icon, /*String*/iconPos, /*DomNode*/node, /*String?*/title, /*DomNode?*/parent){
-		// summary:
-		//		Creates or updates an icon node
-		// description:
-		//		If node exists, updates the existing node. Otherwise, creates a new one.
-		// icon:
-		//		Path for an image, or DOM button class name.
-		if(icon && icon.indexOf("mblDomButton") === 0){
-			// DOM button
-			if(node && node.className.match(/(mblDomButton\w+)/)){
-				domClass.remove(node, RegExp.$1);
-			}else{
-				node = domConstruct.create("DIV");
-			}
-			node.title = title;
-			domClass.add(node, icon);
-			dm.createDomButton(node);
-		}else if(icon && icon !== "none"){
-			// Image
-			if(!node || node.nodeName !== "IMG"){
-				node = domConstruct.create("IMG", {
-					alt: title
-				});
-			}
-			node.src = (icon || "").replace("${theme}", dm.currentTheme);
-			dm.setupIcon(node, iconPos);
-			if(parent && iconPos){
-				var arr = iconPos.split(/[ ,]/);
-				domStyle.set(parent, {
-					width: arr[2] + "px",
-					height: arr[3] + "px"
-				});
-			}
-		}
-		if(parent){
-			parent.appendChild(node);
-		}
-		return node;
-	};
-
-	// flag for iphone flicker workaround
-	dm._iw = config["mblIosWorkaround"] !== false && has("iphone");
-	if(dm._iw){
-		dm._iwBgCover = domConstruct.create("div"); // Cover to hide flicker in the background
+	if(config["mblApplyPageStyles"] !== false){
+		domClass.add(win.doc.documentElement, "mobile");
 	}
-	
-	if(config.parseOnLoad){
-		ready(90, function(){
-			// avoid use of query
-			/*
-			var list = query('[lazy=true] [dojoType]', null);
-			list.forEach(function(node, index, nodeList){
-				node.setAttribute("__dojoType", node.getAttribute("dojoType"));
-				node.removeAttribute("dojoType");
-			});
-			*/
-		
-			var nodes = win.body().getElementsByTagName("*");
-			var i, len, s;
-			len = nodes.length;
-			for(i = 0; i < len; i++){
-				s = nodes[i].getAttribute("dojoType");
-				if(s){
-					if(nodes[i].parentNode.getAttribute("lazy") == "true"){
-						nodes[i].setAttribute("__dojoType", s);
-						nodes[i].removeAttribute("dojoType");
-					}
-				}
-			}
-		});
+	if(has('chrome')){
+		// dojox/mobile does not load uacss (only _compat does), but we need dj_chrome.
+		domClass.add(win.doc.documentElement, "dj_chrome");
 	}
-	
+
+	if(win.global._no_dojo_dm){
+		// deviceTheme seems to be loaded from a script tag (= non-dojo usage)
+		var _dm = win.global._no_dojo_dm;
+		for(var i in _dm){
+			dm[i] = _dm[i];
+		}
+		dm.deviceTheme.setDm(dm);
+	}
+
+	// flag for Android transition animation flicker workaround
+	has.add('mblAndroidWorkaround', 
+			config["mblAndroidWorkaround"] !== false && has('android') < 3, undefined, true);
+	has.add('mblAndroid3Workaround', 
+			config["mblAndroid3Workaround"] !== false && has('android') >= 3, undefined, true);
+
 	ready(function(){
 		dm.detectScreenSize(true);
-		if(config["mblApplyPageStyles"] !== false){
-			domClass.add(win.doc.documentElement, "mobile");
+
+		if(config["mblAndroidWorkaroundButtonStyle"] !== false && has('android')){
+			// workaround for the form button disappearing issue on Android 2.2-4.0
+			domConstruct.create("style", {innerHTML:"BUTTON,INPUT[type='button'],INPUT[type='submit'],INPUT[type='reset'],INPUT[type='file']::-webkit-file-upload-button{-webkit-appearance:none;}"}, win.doc.head, "first");
 		}
-		if(has("chrome")){
-			// dojox.mobile does not load uacss (only _compat does), but we need dj_chrome.
-			domClass.add(win.doc.documentElement, "dj_chrome");
+		if(has('mblAndroidWorkaround')){
+			// add a css class to show view offscreen for android flicker workaround
+			domConstruct.create("style", {innerHTML:".mblView.mblAndroidWorkaround{position:absolute;top:-9999px !important;left:-9999px !important;}"}, win.doc.head, "last");
 		}
 
-		if(config["mblAndroidWorkaround"] !== false && has("android") >= 2.2){ // workaround for android screen flicker problem
-			if(config["mblAndroidWorkaroundButtonStyle"] !== false){
-				// workaround to avoid buttons disappear due to the side-effect of the webkitTransform workaroud below
-				domConstruct.create("style", {innerHTML:"BUTTON,INPUT[type='button'],INPUT[type='submit'],INPUT[type='reset'],INPUT[type='file']::-webkit-file-upload-button{-webkit-appearance:none;}"}, win.doc.head, "first");
-			}
-			if(has("android") < 3){ // for Android 2.2.x and 2.3.x
-				domStyle.set(win.doc.documentElement, "webkitTransform", "translate3d(0,0,0)");
-				// workaround for auto-scroll issue when focusing input fields
-				connect.connect(null, "onfocus", null, function(e){
-					domStyle.set(win.doc.documentElement, "webkitTransform", "");
-				});
-				connect.connect(null, "onblur", null, function(e){
-					domStyle.set(win.doc.documentElement, "webkitTransform", "translate3d(0,0,0)");
-				});
-			}else{ // for Android 3.x
-				if(config["mblAndroid3Workaround"] !== false){
-					domStyle.set(win.doc.documentElement, {
-						webkitBackfaceVisibility: "hidden",
-						webkitPerspective: 8000
-					});
-				}
-			}
-		}
-	
-		//	You can disable hiding the address bar with the following djConfig.
-		//	var djConfig = { mblHideAddressBar: false };
+		//	You can disable hiding the address bar with the following dojoConfig.
+		//	var dojoConfig = { mblHideAddressBar: false };
 		var f = dm.resizeAll;
-		if(config["mblHideAddressBar"] !== false &&
-			navigator.appVersion.indexOf("Mobile") != -1 ||
-			config["mblForceHideAddressBar"] === true){
+		// Address bar hiding
+		var isHidingPossible =
+			navigator.appVersion.indexOf("Mobile") != -1 && // only mobile browsers
+			// #17455: hiding Safari's address bar works in iOS < 7 but this is 
+			// no longer possible since iOS 7. Hence, exclude iOS 7 and later: 
+			!(has("iphone") >= 7);
+		// You can disable the hiding of the address bar with the following dojoConfig:
+		// var dojoConfig = { mblHideAddressBar: false };
+		// If unspecified, the flag defaults to true.
+		if((config.mblHideAddressBar !== false && isHidingPossible) ||
+			config.mblForceHideAddressBar === true){
 			dm.hideAddressBar();
-			if(config["mblAlwaysHideAddressBar"] === true){
+			if(config.mblAlwaysHideAddressBar === true){
 				f = dm.hideAddressBar;
 			}
 		}
-		connect.connect(null, (win.global.onorientationchange !== undefined && !has("android"))
-			? "onorientationchange" : "onresize", null, f);
-	
-		// avoid use of query
-		/*
-		var list = query('[__dojoType]', null);
-		list.forEach(function(node, index, nodeList){
-			node.setAttribute("dojoType", node.getAttribute("__dojoType"));
-			node.removeAttribute("__dojoType");
-		});
-		*/
-	
-		var nodes = win.body().getElementsByTagName("*");
-		var i, len = nodes.length, s;
-		for(i = 0; i < len; i++){
-			s = nodes[i].getAttribute("__dojoType");
-			if(s){
-				nodes[i].setAttribute("dojoType", s);
-				nodes[i].removeAttribute("__dojoType");
-			}
-		}
-	
-		if(dojo.hash){
-			// find widgets under root recursively
-			var findWidgets = function(root){
-				if(!root){ return []; }
-				var arr = registry.findWidgets(root);
-				var widgets = arr;
-				for(var i = 0; i < widgets.length; i++){
-					arr = arr.concat(findWidgets(widgets[i].containerNode));
+
+		var ios6 = has('iphone') >= 6; // Full-screen support for iOS6 or later 
+		if((has('android') || ios6) && win.global.onorientationchange !== undefined){
+			var _f = f;
+			var curSize, curClientWidth, curClientHeight;
+			if(ios6){
+				curClientWidth = win.doc.documentElement.clientWidth;
+				curClientHeight = win.doc.documentElement.clientHeight;
+			}else{ // Android
+				// Call resize for the first resize event after orientationchange
+				// because the size information may not yet be up to date when the 
+				// event orientationchange occurs.
+				f = function(evt){
+					var _conn = connect.connect(null, "onresize", null, function(e){
+						connect.disconnect(_conn);
+						_f(e);
+					});
 				}
-				return arr;
+				curSize = dm.getScreenSize();
 			};
-			connect.subscribe("/dojo/hashchange", null, function(value){
-				var view = dm.currentView;
-				if(!view){ return; }
-				var params = dm._params;
-				if(!params){ // browser back/forward button was pressed
-					var moveTo = value ? value : dm._defaultView.id;
-					var widgets = findWidgets(view.domNode);
-					var dir = 1, transition = "slide";
-					for(i = 0; i < widgets.length; i++){
-						var w = widgets[i];
-						if("#"+moveTo == w.moveTo){
-							// found a widget that has the given moveTo
-							transition = w.transition;
-							dir = (w instanceof dm.Heading) ? -1 : 1;
-							break;
-						}
+			// Android: Watch for resize events when the virtual keyboard is shown/hidden.
+			// The heuristic to detect this is that the screen width does not change
+			// and the height changes by more than 100 pixels.
+			//
+			// iOS >= 6: Watch for resize events when entering or existing the new iOS6 
+			// full-screen mode. The heuristic to detect this is that clientWidth does not
+			// change while the clientHeight does change.
+			connect.connect(null, "onresize", null, function(e){
+				if(ios6){
+					var newClientWidth = win.doc.documentElement.clientWidth,
+						newClientHeight = win.doc.documentElement.clientHeight;
+					if(newClientWidth == curClientWidth && newClientHeight != curClientHeight){
+						// full-screen mode has been entered/exited (iOS6)
+						_f(e);
 					}
-					params = [ moveTo, dir, transition ];
+					curClientWidth = newClientWidth;
+					curClientHeight = newClientHeight;
+				}else{ // Android
+					var newSize = dm.getScreenSize();
+					if(newSize.w == curSize.w && Math.abs(newSize.h - curSize.h) >= 100){
+						// keyboard has been shown/hidden (Android)
+						_f(e);
+					}
+					curSize = newSize;
 				}
-				view.performTransition.apply(view, params);
-				dm._params = null;
 			});
 		}
-	
+		
+		connect.connect(null, win.global.onorientationchange !== undefined
+			? "onorientationchange" : "onresize", null, f);
 		win.body().style.visibility = "visible";
 	});
 
-	// To search _parentNode first.  TODO:1.8 reconsider this redefinition.
-	registry.getEnclosingWidget = function(node){
-		while(node){
-			var id = node.getAttribute && node.getAttribute("widgetId");
-			if(id){
-				return registry.byId(id);
-			}
-			node = node._parentNode || node.parentNode;
-		}
-		return null;
-	};
+	// TODO: return functions declared above in this hash, rather than
+	// dojox.mobile.
 
+	/*=====
+	return {
+		// summary:
+		//		A common module for dojox/mobile.
+		// description:
+		//		This module includes common utility functions that are used by
+		//		dojox/mobile widgets. Also, it provides functions that are commonly
+		//		necessary for mobile web applications, such as the hide address bar
+		//		function.
+	};
+	=====*/
 	return dm;
 });

@@ -27,6 +27,7 @@
 #include <string>
 #include <vector>
 
+#include "compression.h"
 #include "my_io.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
@@ -149,6 +150,25 @@ class Recovery_state_transfer {
   }
 
   /**
+    @return Is recovery configured to use SSL
+  */
+  bool get_recovery_use_ssl() { return this->recovery_use_ssl; }
+
+  /**
+    Get SSL options configured for recovery
+
+    @param[out]  ssl_ca    the ssl ca
+    @param[out]  ssl_cert  the ssl cert
+    @param[out]  ssl_key   the ssl key
+  */
+  void get_recovery_base_ssl_options(std::string *ssl_ca, std::string *ssl_cert,
+                                     std::string *ssl_key) {
+    ssl_ca->assign(recovery_ssl_ca);
+    ssl_cert->assign(recovery_ssl_cert);
+    ssl_key->assign(recovery_ssl_key);
+  }
+
+  /**
     Sets the recovery shutdown timeout.
 
     @param[in]  timeout      the timeout
@@ -167,6 +187,16 @@ class Recovery_state_transfer {
 
   /** Get preference to get public key */
   void set_recovery_get_public_key(bool set) { recovery_get_public_key = set; }
+
+  /** Set compression algorithm */
+  void set_recovery_compression_algorithm(const char *name) {
+    memcpy(recovery_compression_algorithm, name, strlen(name) + 1);
+  }
+
+  /** Set compression level */
+  void set_recovery_zstd_compression_level(uint level) {
+    recovery_zstd_compression_level = level;
+  }
 
   // Methods that update the state transfer process
 
@@ -388,5 +418,9 @@ class Recovery_state_transfer {
   long max_connection_attempts_to_donors;
   /* Sleep time between connection attempts to all possible donors*/
   long donor_reconnect_interval;
+  /* compression algorithm to be used for communication */
+  char recovery_compression_algorithm[COMPRESSION_ALGORITHM_NAME_LENGTH_MAX];
+  /* compression level to be used for compression */
+  uint recovery_zstd_compression_level;
 };
 #endif /* RECOVERY_INCLUDE */

@@ -40,15 +40,12 @@ B	Bremen
 C	Celle
 D	Dortmund
 H	Hannover
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C of default:
+Here are the memcached results with D,B,H,C of default:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
 Cottbus|West
-Here the memcached results with D,B,H,C of t2:
+Here are the memcached results with D,B,H,C of t2:
 Dortmund
 Bremen
 Hannover
@@ -64,9 +61,9 @@ B	Bremen
 C	Celle
 D	Dortmund
 H	Hannover
-Here the memcached results after set in default:
+Here are the memcached results after set in default:
 Essen|Ost
-Here the memcached results after set in t2:
+Here are the memcached results after set in t2:
 Essen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -82,9 +79,9 @@ C	Celle
 D	Dortmund
 E	Essen
 H	Hannover
-Here the memcached results after add:
+Here are the memcached results after add:
 Frankfurt|Sachsenhause
-Here the memcached results after add in t2:
+Here are the memcached results after add in t2:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -100,9 +97,9 @@ C	Celle
 D	Dortmund
 E	Essen
 H	Hannover
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
-Here the memcached results after replace in t2:
+Here are the memcached results after replace in t2:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -118,8 +115,8 @@ C	Celle
 D	Dortmund
 E	Essen
 H	Hannover
-Here the memcached results after delete:
-Here the memcached results after delete in t2:
+Here are the memcached results after delete:
+Here are the memcached results after delete in t2:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -134,9 +131,9 @@ C	Celle
 D	Dortmund
 E	Essen
 H	Hannover
-Here the memcached results after add Frankfurt|:
+Here are the memcached results after add Frankfurt|:
 Frankfurt|
-Here the memcached results after add |Airport:
+Here are the memcached results after add |Airport:
 Frankfurt|
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -153,9 +150,9 @@ C	Celle
 D	Dortmund
 E	Essen
 H	Hannover
-Here the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Frankfurt a.M.:
 Frankfurt a. M.|
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results after replace Sachsenhausen:
 |Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -189,9 +186,9 @@ D	0	City
 E	0	Ost
 F	NULL	Sachsenhausen
 H	0	Norderstedt
-Here the memcached results after add Frankfurt|:
+Here are the memcached results after add Frankfurt|:
 |Sachsenhausen
-Here the memcached results after add |Airport:
+Here are the memcached results after add |Airport:
 |Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -201,7 +198,7 @@ D	0	City
 E	0	Ost
 F	NULL	Sachsenhausen
 H	0	Norderstedt
-Here the memcached results after flush_all:
+Here are the memcached results after flush_all:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 DROP TABLE t1,t2;

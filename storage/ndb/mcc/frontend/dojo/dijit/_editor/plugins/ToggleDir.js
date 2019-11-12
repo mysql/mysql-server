@@ -3,7 +3,7 @@ define("dijit/_editor/plugins/ToggleDir",["dojo/_base/declare","dojo/dom-style",
 _3.experimental("dijit._editor.plugins.ToggleDir");
 var _7=_1("dijit._editor.plugins.ToggleDir",_5,{useDefaultCommand:false,command:"toggleDir",buttonClass:_6,_initButton:function(){
 this.inherited(arguments);
-this.editor.onLoadDeferred.addCallback(_4.hitch(this,function(){
+this.editor.onLoadDeferred.then(_4.hitch(this,function(){
 var _8=this.editor.editorObject.contentWindow.document.documentElement;
 _8=_8.getElementsByTagName("body")[0];
 var _9=_2.getComputedStyle(_8).direction=="ltr";

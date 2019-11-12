@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,8 @@
 #include "plugin/semisync/semisync.h"
 #include "plugin/semisync/semisync_master.h"
 #include "plugin/semisync/semisync_master_socket_listener.h"
+#include "sql/protocol_classic.h"
+#include "sql/sql_class.h"
 
 extern ReplSemiSyncMaster *repl_semisync;
 
@@ -138,7 +140,17 @@ bool Ack_receiver::add_slave(THD *thd) {
 
   slave.thread_id = thd->thread_id();
   slave.server_id = thd->server_id;
-  slave.net_compress = thd->get_protocol_classic()->get_compression();
+  slave.compress_ctx.algorithm = enum_compression_algorithm::MYSQL_UNCOMPRESSED;
+  char *cmp_algorithm_name = thd->get_protocol()->get_compression_algorithm();
+  if (cmp_algorithm_name != nullptr) {
+    enum enum_compression_algorithm algorithm =
+        get_compression_algorithm(cmp_algorithm_name);
+    if (algorithm != enum_compression_algorithm::MYSQL_UNCOMPRESSED &&
+        algorithm != enum_compression_algorithm::MYSQL_INVALID)
+      mysql_compress_context_init(
+          &slave.compress_ctx, algorithm,
+          thd->get_protocol_classic()->get_compression_level());
+  }
   slave.is_leaving = false;
   slave.vio = thd->get_protocol_classic()->get_vio();
   slave.vio->mysql_socket.m_psi = NULL;
@@ -197,7 +209,11 @@ void Ack_receiver::remove_slave(THD *thd) {
       if (it->thread_id == thd->thread_id()) break;
     }
   }
-  if (it != m_slaves.end()) m_slaves.erase(it);
+  if (it != m_slaves.end()) {
+    mysql_compress_context_deinit(&it->compress_ctx);
+    m_slaves.erase(it);
+  }
+
   m_slaves_changed = true;
   mysql_mutex_unlock(&m_mutex);
   function_exit(kWho);
@@ -233,6 +249,12 @@ void Ack_receiver::run() {
   LogErr(INFORMATION_LEVEL, ER_SEMISYNC_STARTING_ACK_RECEIVER_THD);
 
   init_net(&net, net_buff, REPLY_MESSAGE_MAX_LENGTH);
+  NET_SERVER server_extn;
+  server_extn.m_user_data = nullptr;
+  server_extn.m_before_header = nullptr;
+  server_extn.m_after_header = nullptr;
+  server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
+  net.extension = &server_extn;
 
   mysql_mutex_lock(&m_mutex);
   m_slaves_changed = true;
@@ -279,7 +301,12 @@ void Ack_receiver::run() {
           Set compress flag. This is needed to support
           Slave_compress_protocol flag enabled Slaves
         */
-        net.compress = slave_obj.net_compress;
+
+        NET_SERVER *server_extension = static_cast<NET_SERVER *>(net.extension);
+        server_extension->compress_ctx = slave_obj.compress_ctx;
+        net.compress =
+            (server_extension->compress_ctx.algorithm == MYSQL_ZLIB) ||
+            (server_extension->compress_ctx.algorithm == MYSQL_ZSTD);
 
         do {
           net_clear(&net, 0);

@@ -89,19 +89,25 @@ sub is_child {
 
 # Find the safe process binary or script
 sub find_bin {
-  my ($bindir) = @_;
+  my ($bindir, $client_bindir) = @_;
   if (IS_WIN32PERL or IS_CYGWIN) {
     # Use mysqltest_safe_process.exe
-    my $exe = my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
+    my $exe = my_find_bin($client_bindir, [ "" ], "mysqltest_safe_process",
+                          NOT_REQUIRED) ||
+              my_find_bin($bindir, [ "runtime_output_directory", "bin" ],
                           "mysqltest_safe_process");
     push(@safe_process_cmd, $exe);
 
     # Use mysqltest_safe_kill.exe
-    $safe_kill = my_find_bin($bindir,  [ "runtime_output_directory", "bin" ],
-			     "mysqltest_safe_kill");
+    $safe_kill = my_find_bin($client_bindir,  [ "" ], "mysqltest_safe_kill",
+                             NOT_REQUIRED) ||
+                 my_find_bin($bindir,  [ "runtime_output_directory", "bin" ],
+                             "mysqltest_safe_kill");
   } else {
     # Use mysqltest_safe_process
-    my $exe = my_find_bin($bindir,  [ "runtime_output_directory", "bin" ],
+    my $exe = my_find_bin($client_bindir, [ "" ], "mysqltest_safe_process",
+                          NOT_REQUIRED) ||
+              my_find_bin($bindir,  [ "runtime_output_directory", "bin" ],
                           "mysqltest_safe_process");
     push(@safe_process_cmd, $exe);
   }

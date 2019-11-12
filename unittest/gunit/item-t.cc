@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,9 +45,9 @@
 
 namespace item_unittest {
 
-using ::testing::Return;
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
+using ::testing::Return;
 
 class ItemTest : public ::testing::Test {
  protected:
@@ -507,7 +507,7 @@ TEST_F(ItemTest, ItemFuncSetUserVar) {
   Item_decimal *item_dec = new Item_decimal(val1, false);
   Item_string *item_str = new Item_string("1", 1, &my_charset_latin1);
 
-  LEX_STRING var_name = {C_STRING_WITH_LEN("a")};
+  LEX_CSTRING var_name = {STRING_WITH_LEN("a")};
   Item_func_set_user_var *user_var =
       new Item_func_set_user_var(var_name, item_str, false);
   EXPECT_FALSE(user_var->set_entry(thd(), true));
@@ -575,7 +575,7 @@ TEST_F(ItemTest, ItemFuncXor) {
   item_xor->print(thd(), &print_buffer, QT_ORDINARY);
   EXPECT_STREQ("(0 xor 1)", print_buffer.c_ptr_safe());
 
-  Item *neg_xor = item_xor->neg_transformer(thd());
+  Item *neg_xor = item_xor->truth_transformer(thd(), Item::BOOL_NEGATED);
   EXPECT_FALSE(neg_xor->fix_fields(thd(), NULL));
   EXPECT_EQ(0, neg_xor->val_int());
   EXPECT_DOUBLE_EQ(0.0, neg_xor->val_real());

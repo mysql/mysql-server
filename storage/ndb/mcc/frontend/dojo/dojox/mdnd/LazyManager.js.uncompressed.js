@@ -1,13 +1,16 @@
-//>>built
 define("dojox/mdnd/LazyManager", [
-	"dojo/_base/kernel",	// dojo.addOnUnload
-	"dojo/_base/lang",	// dojo.hitch
+	"dojo/_base/kernel",	
 	"dojo/_base/declare",
-	"dojo/_base/html",	// dojo.create, dojo.attr, dojo.addClass
+	"dojo/_base/lang",	// dojo.hitch
+	"dojo/dom-class",
+	"dojo/dom-construct",
+	"dojo/dom-attr",
+	"dojo/dnd/common",
 	"dojo/dnd/Manager",
-	"./PureSource"
-],function(dojo){
-	return dojo.declare(
+	"./PureSource",
+	"dojo/_base/unload"  // dojo.addOnUnload
+],function(dojo, declare, lang, domClass, domConstruct, domAttr, dnd, Manager, PureSource){
+	return declare(
 		"dojox.mdnd.LazyManager",
 		null,
 	{
@@ -18,12 +21,12 @@ define("dojox/mdnd/LazyManager", [
 			//console.log("dojox.mdnd.LazyManager ::: constructor");
 			this._registry = {};
 			// initialization of the _fakeSource to enabled DragAndDrop :
-			this._fakeSource = new dojox.mdnd.PureSource(dojo.create("div"), {
+			this._fakeSource = new PureSource(domConstruct.create("div"), {
 				'copyOnly': false
 			});
 			this._fakeSource.startup();
-			dojo.addOnUnload(dojo.hitch(this, "destroy"));
-			this.manager = dojo.dnd.manager();
+			dojo.addOnUnload(lang.hitch(this, "destroy"));
+			this.manager = Manager.manager();
 		},
 		
 		getItem: function(/*DOMNode*/draggedNode){
@@ -45,9 +48,9 @@ define("dojox/mdnd/LazyManager", [
 				var m = this.manager,
 					object = this.getItem(draggedNode);
 				if(draggedNode.id == ""){
-					dojo.attr(draggedNode, "id", dojo.dnd.getUniqueId());
+				  domAttr.set(draggedNode, "id", dnd.getUniqueId());
 				}
-				dojo.addClass(draggedNode, "dojoDndItem");
+				domClass.add(draggedNode, "dojoDndItem");
 				this._fakeSource.setItem(draggedNode.id, object);
 				m.startDrag(this._fakeSource, [draggedNode], false);
 				m.onMouseMove(e);

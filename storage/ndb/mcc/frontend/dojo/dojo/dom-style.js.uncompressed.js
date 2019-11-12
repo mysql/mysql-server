@@ -1,9 +1,6 @@
-//>>built
-define("dojo/dom-style", ["./_base/sniff", "./dom"], function(has, dom){
+define("dojo/dom-style", ["./sniff", "./dom"], function(has, dom){
 	// module:
 	//		dojo/dom-style
-	// summary:
-	//		This module defines the core dojo DOM style API.
 
 	// =============================
 	// Style Functions
@@ -18,8 +15,43 @@ define("dojo/dom-style", ["./_base/sniff", "./dom"], function(has, dom){
 	// This way, calling code can access computedStyle once, and then pass the reference to
 	// multiple API functions.
 
+	// Although we normally eschew argument validation at this
+	// level, here we test argument 'node' for (duck)type,
+	// by testing nodeType, ecause 'document' is the 'parentNode' of 'body'
+	// it is frequently sent to this function even
+	// though it is not Element.
+	var getComputedStyle, style = {
+		// summary:
+		//		This module defines the core dojo DOM style API.
+	};
+	if(has("webkit")){
+		getComputedStyle = function(/*DomNode*/ node){
+			var s;
+			if(node.nodeType == 1){
+				var dv = node.ownerDocument.defaultView;
+				s = dv.getComputedStyle(node, null);
+				if(!s && node.style){
+					node.style.display = "";
+					s = dv.getComputedStyle(node, null);
+				}
+			}
+			return s || {};
+		};
+	}else if(has("ie") && (has("ie") < 9 || has("quirks"))){
+		getComputedStyle = function(node){
+			// IE (as of 7) doesn't expose Element like sane browsers
+			// currentStyle can be null on IE8!
+			return node.nodeType == 1 /* ELEMENT_NODE*/ && node.currentStyle ? node.currentStyle : {};
+		};
+	}else{
+		getComputedStyle = function(node){
+			return node.nodeType == 1 /* ELEMENT_NODE*/ ?
+				node.ownerDocument.defaultView.getComputedStyle(node, null) : {};
+		};
+	}
+	style.getComputedStyle = getComputedStyle;
 	/*=====
-	dojo.getComputedStyle = function(node){
+	style.getComputedStyle = function(node){
 		// summary:
 		//		Returns a "computed style" object.
 		//
@@ -48,28 +80,138 @@ define("dojo/dom-style", ["./_base/sniff", "./dom"], function(has, dom){
 		//	|	var cs = dojo.getComputedStyle(dojo.byId("someNode"));
 		//	|	var w = cs.width, h = cs.height;
 		return; // CSS2Properties
-	}
+	};
 	=====*/
 
+	var toPixel;
+	if(!has("ie")){
+		toPixel = function(element, value){
+			// style values can be floats, client code may want
+			// to round for integer pixels.
+			return parseFloat(value) || 0;
+		};
+	}else{
+		toPixel = function(element, avalue){
+			if(!avalue){ return 0; }
+			// on IE7, medium is usually 4 pixels
+			if(avalue == "medium"){ return 4; }
+			// style values can be floats, client code may
+			// want to round this value for integer pixels.
+			if(avalue.slice && avalue.slice(-2) == 'px'){ return parseFloat(avalue); }
+			var s = element.style, rs = element.runtimeStyle, cs = element.currentStyle,
+				sLeft = s.left, rsLeft = rs.left;
+			rs.left = cs.left;
+			try{
+				// 'avalue' may be incompatible with style.left, which can cause IE to throw
+				// this has been observed for border widths using "thin", "medium", "thick" constants
+				// those particular constants could be trapped by a lookup
+				// but perhaps there are more
+				s.left = avalue;
+				avalue = s.pixelLeft;
+			}catch(e){
+				avalue = 0;
+			}
+			s.left = sLeft;
+			rs.left = rsLeft;
+			return avalue;
+		};
+	}
+	style.toPixelValue = toPixel;
 	/*=====
-	dojo.toPixelValue = function(node, value){
+	style.toPixelValue = function(node, value){
 		// summary:
-		//      converts style value to pixels on IE or return a numeric value.
+		//		converts style value to pixels on IE or return a numeric value.
 		// node: DOMNode
 		// value: String
 		// returns: Number
 	};
 	=====*/
 
-	/*=====
-	dojo._toPixelValue = function(node, value){
-		// summary:
-		//		Existing alias for `dojo._toPixelValue`. Deprecated, will be removed in 2.0.
-	};
-	=====*/
+	// FIXME: there opacity quirks on FF that we haven't ported over. Hrm.
 
-	/*=====
-	dojo.getStyle = function(node, name){
+	var astr = "DXImageTransform.Microsoft.Alpha";
+	var af = function(n, f){
+		try{
+			return n.filters.item(astr);
+		}catch(e){
+			return f ? {} : null;
+		}
+	};
+
+	var _getOpacity =
+		has("ie") < 9 || (has("ie") < 10 && has("quirks")) ? function(node){
+			try{
+				return af(node).Opacity / 100; // Number
+			}catch(e){
+				return 1; // Number
+			}
+		} :
+		function(node){
+			return getComputedStyle(node).opacity;
+		};
+
+	var _setOpacity =
+		has("ie") < 9 || (has("ie") < 10 && has("quirks")) ? function(/*DomNode*/ node, /*Number*/ opacity){
+			var ov = opacity * 100, opaque = opacity == 1;
+			node.style.zoom = opaque ? "" : 1;
+
+			if(!af(node)){
+				if(opaque){
+					return opacity;
+				}
+				node.style.filter += " progid:" + astr + "(Opacity=" + ov + ")";
+			}else{
+				af(node, 1).Opacity = ov;
+			}
+
+			// on IE7 Alpha(Filter opacity=100) makes text look fuzzy so disable it altogether (bug #2661),
+			//but still update the opacity value so we can get a correct reading if it is read later.
+			af(node, 1).Enabled = !opaque;
+
+			if(node.tagName.toLowerCase() == "tr"){
+				for(var td = node.firstChild; td; td = td.nextSibling){
+					if(td.tagName.toLowerCase() == "td"){
+						_setOpacity(td, opacity);
+					}
+				}
+			}
+			return opacity;
+		} :
+		function(node, opacity){
+			return node.style.opacity = opacity;
+		};
+
+	var _pixelNamesCache = {
+		left: true, top: true
+	};
+	var _pixelRegExp = /margin|padding|width|height|max|min|offset/; // |border
+	function _toStyleValue(node, type, value){
+		//TODO: should we really be doing string case conversion here? Should we cache it? Need to profile!
+		type = type.toLowerCase();
+		if(has("ie") || has("trident")){
+			if(value == "auto"){
+				if(type == "height"){ return node.offsetHeight; }
+				if(type == "width"){ return node.offsetWidth; }
+			}
+			if(type == "fontweight"){
+				switch(value){
+					case 700: return "bold";
+					case 400:
+					default: return "normal";
+				}
+			}
+		}
+		if(!(type in _pixelNamesCache)){
+			_pixelNamesCache[type] = _pixelRegExp.test(type);
+		}
+		return _pixelNamesCache[type] ? toPixel(node, value) : value;
+	}
+
+	var _floatAliases = {cssFloat: 1, styleFloat: 1, "float": 1};
+
+	// public API
+
+	style.get = function getStyle(/*DOMNode|String*/ node, /*String?*/ name){
 		// summary:
 		//		Accesses styles on a node.
 		// description:
@@ -92,11 +234,17 @@ define("dojo/dom-style", ["./_base/sniff", "./dom"], function(has, dom){
 		//		Passing a node and a style property returns the current
 		//		normalized, computed value for that property:
 		//	|	dojo.getStyle("thinger", "opacity"); // 1 by default
-	};
-	=====*/
 
-	/*=====
-	dojo.setStyle = function(node, name, value){
+		var n = dom.byId(node), l = arguments.length, op = (name == "opacity");
+		if(l == 2 && op){
+			return _getOpacity(n);
+		}
+		name = _floatAliases[name] ? "cssFloat" in n.style ? "cssFloat" : "styleFloat" : name;
+		var s = style.getComputedStyle(n);
+		return (l == 1) ? s : _toStyleValue(n, name, s[name] || n.style[name]); /* CSS2Properties||String||Number */
+	};
+
+	style.set = function setStyle(/*DOMNode|String*/ node, /*String|Object*/ name, /*String?*/ value){
 		// summary:
 		//		Sets styles on a node.
 		// node: DOMNode|String
@@ -133,182 +281,17 @@ define("dojo/dom-style", ["./_base/sniff", "./dom"], function(has, dom){
 		//	|	});
 		//
 		// example:
-		//		dojo.NodeList implements .style() using the same syntax, omitting the "node" parameter, calling
-		//		dojo.style() on every element of the list. See: `dojo.query()` and `dojo.NodeList()`
+		//		dojo/NodeList implements .style() using the same syntax, omitting the "node" parameter, calling
+		//		dojo.style() on every element of the list. See: `dojo.query()` and `dojo/NodeList`
 		//	|	dojo.query(".someClassName").style("visibility","hidden");
 		//	|	// or
 		//	|	dojo.query("#baz > div").style({
 		//	|		opacity:0.75,
 		//	|		fontSize:"13pt"
 		//	|	});
-	};
-	=====*/
 
-	// Although we normally eschew argument validation at this
-	// level, here we test argument 'node' for (duck)type,
-	// by testing nodeType, ecause 'document' is the 'parentNode' of 'body'
-	// it is frequently sent to this function even
-	// though it is not Element.
-	var getComputedStyle, style = {};
-		if(has("webkit")){
-			getComputedStyle = function(/*DomNode*/node){
-			var s;
-			if(node.nodeType == 1){
-				var dv = node.ownerDocument.defaultView;
-				s = dv.getComputedStyle(node, null);
-				if(!s && node.style){
-					node.style.display = "";
-					s = dv.getComputedStyle(node, null);
-				}
-			}
-			return s || {};
-		};
-		}else if(has("ie") && (has("ie") < 9 || has("quirks"))){
-		getComputedStyle = function(node){
-			// IE (as of 7) doesn't expose Element like sane browsers
-			return node.nodeType == 1 /* ELEMENT_NODE*/ ? node.currentStyle : {};
-		};
-	}else{
-		getComputedStyle = function(node){
-			return node.nodeType == 1 ?
-				node.ownerDocument.defaultView.getComputedStyle(node, null) : {};
-		};
-	}
-		style.getComputedStyle = getComputedStyle;
-
-	var toPixel;
-		if(!has("ie")){
-			toPixel = function(element, value){
-			// style values can be floats, client code may want
-			// to round for integer pixels.
-			return parseFloat(value) || 0;
-		};
-		}else{
-		toPixel = function(element, avalue){
-			if(!avalue){ return 0; }
-			// on IE7, medium is usually 4 pixels
-			if(avalue == "medium"){ return 4; }
-			// style values can be floats, client code may
-			// want to round this value for integer pixels.
-			if(avalue.slice && avalue.slice(-2) == 'px'){ return parseFloat(avalue); }
-			var s = element.style, rs = element.runtimeStyle, cs = element.currentStyle,
-				sLeft = s.left, rsLeft = rs.left;
-			rs.left = cs.left;
-			try{
-				// 'avalue' may be incompatible with style.left, which can cause IE to throw
-				// this has been observed for border widths using "thin", "medium", "thick" constants
-				// those particular constants could be trapped by a lookup
-				// but perhaps there are more
-				s.left = avalue;
-				avalue = s.pixelLeft;
-			}catch(e){
-				avalue = 0;
-			}
-			s.left = sLeft;
-			rs.left = rsLeft;
-			return avalue;
-		}
-	}
-		style.toPixelValue = toPixel;
-
-	// FIXME: there opacity quirks on FF that we haven't ported over. Hrm.
-
-		var astr = "DXImageTransform.Microsoft.Alpha";
-	var af = function(n, f){
-		try{
-			return n.filters.item(astr);
-		}catch(e){
-			return f ? {} : null;
-		}
-	};
-
-		var _getOpacity =
-			has("ie") < 9 || (has("ie") && has("quirks")) ? function(node){
-			try{
-				return af(node).Opacity / 100; // Number
-			}catch(e){
-				return 1; // Number
-			}
-		} :
-			function(node){
-			return getComputedStyle(node).opacity;
-		};
-
-	var _setOpacity =
-				has("ie") < 9 || (has("ie") && has("quirks")) ? function(/*DomNode*/node, /*Number*/opacity){
-			var ov = opacity * 100, opaque = opacity == 1;
-			node.style.zoom = opaque ? "" : 1;
-
-			if(!af(node)){
-				if(opaque){
-					return opacity;
-				}
-				node.style.filter += " progid:" + astr + "(Opacity=" + ov + ")";
-			}else{
-				af(node, 1).Opacity = ov;
-			}
-
-			// on IE7 Alpha(Filter opacity=100) makes text look fuzzy so disable it altogether (bug #2661),
-			//but still update the opacity value so we can get a correct reading if it is read later.
-			af(node, 1).Enabled = !opaque;
-
-			if(node.tagName.toLowerCase() == "tr"){
-				for(var td = node.firstChild; td; td = td.nextSibling){
-					if(td.tagName.toLowerCase() == "td"){
-						_setOpacity(td, opacity);
-					}
-				}
-			}
-			return opacity;
-		} :
-				function(node, opacity){
-			return node.style.opacity = opacity;
-		};
-
-	var _pixelNamesCache = {
-		left: true, top: true
-	};
-	var _pixelRegExp = /margin|padding|width|height|max|min|offset/; // |border
-	function _toStyleValue(node, type, value){
-		//TODO: should we really be doing string case conversion here? Should we cache it? Need to profile!
-		type = type.toLowerCase();
-				if(has("ie")){
-			if(value == "auto"){
-				if(type == "height"){ return node.offsetHeight; }
-				if(type == "width"){ return node.offsetWidth; }
-			}
-			if(type == "fontweight"){
-				switch(value){
-					case 700: return "bold";
-					case 400:
-					default: return "normal";
-				}
-			}
-		}
-				if(!(type in _pixelNamesCache)){
-			_pixelNamesCache[type] = _pixelRegExp.test(type);
-		}
-		return _pixelNamesCache[type] ? toPixel(node, value) : value;
-	}
-
-	var _floatStyle = has("ie") ? "styleFloat" : "cssFloat",
-		_floatAliases = {"cssFloat": _floatStyle, "styleFloat": _floatStyle, "float": _floatStyle};
-
-	// public API
-
-	style.get = function getStyle(/*DOMNode|String*/ node, /*String?*/ name){
 		var n = dom.byId(node), l = arguments.length, op = (name == "opacity");
-		if(l == 2 && op){
-			return _getOpacity(n);
-		}
-		name = _floatAliases[name] || name;
-		var s = style.getComputedStyle(n);
-		return (l == 1) ? s : _toStyleValue(n, name, s[name] || n.style[name]); /* CSS2Properties||String||Number */
-	};
-
-	style.set = function setStyle(/*DOMNode|String*/ node, /*String|Object*/ name, /*String?*/ value){
-		var n = dom.byId(node), l = arguments.length, op = (name == "opacity");
-		name = _floatAliases[name] || name;
+		name = _floatAliases[name] ? "cssFloat" in n.style ? "cssFloat" : "styleFloat" : name;
 		if(l == 3){
 			return op ? _setOpacity(n, value) : n.style[name] = value; // Number
 		}

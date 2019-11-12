@@ -81,24 +81,22 @@ static Check_table_intact table_intact;
   Column definitions for 5.7 mysql.event table (5.7.13 and up).
 */
 const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("db")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("name")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("body")}, {C_STRING_WITH_LEN("longblob")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("definer")},
-     {C_STRING_WITH_LEN("char(93)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("execute_at")},
-     {C_STRING_WITH_LEN("datetime")},
+    {{STRING_WITH_LEN("db")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("name")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("definer")},
+     {STRING_WITH_LEN("char(93)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("interval_value")},
+     {STRING_WITH_LEN("int(11)")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("interval_value")},
-     {C_STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("interval_field")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("interval_field")},
+     {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
          "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR'"
          ","
@@ -107,25 +105,21 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
          "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
          "'SECOND_MICROSECOND')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("created")},
-     {C_STRING_WITH_LEN("timestamp")},
+    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("last_executed")},
+     {STRING_WITH_LEN("datetime")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("modified")},
-     {C_STRING_WITH_LEN("timestamp")},
+    {{STRING_WITH_LEN("starts")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("ends")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("status")},
+     {STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("last_executed")},
-     {C_STRING_WITH_LEN("datetime")},
+    {{STRING_WITH_LEN("on_completion")},
+     {STRING_WITH_LEN("enum('DROP','PRESERVE')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("starts")}, {C_STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("ends")}, {C_STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("status")},
-     {C_STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("on_completion")},
-     {C_STRING_WITH_LEN("enum('DROP','PRESERVE')")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("sql_mode")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("sql_mode")},
+     {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
          "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_"
          "SUBTRACTION',"
@@ -139,27 +133,23 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] = {
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("comment")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("originator")},
-     {C_STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("time_zone")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("latin1")}},
-    {{C_STRING_WITH_LEN("character_set_client")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("collation_connection")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("db_collation")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("body_utf8")},
-     {C_STRING_WITH_LEN("longblob")},
-     {NULL, 0}}};
+    {{STRING_WITH_LEN("comment")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("time_zone")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("latin1")}},
+    {{STRING_WITH_LEN("character_set_client")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("collation_connection")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("db_collation")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
 
 static const TABLE_FIELD_DEF event_table_def = {ET_FIELD_COUNT,
                                                 event_table_fields};
@@ -169,24 +159,22 @@ static const TABLE_FIELD_DEF event_table_def = {ET_FIELD_COUNT,
 */
 
 static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("db")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("name")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("body")}, {C_STRING_WITH_LEN("longblob")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("definer")},
-     {C_STRING_WITH_LEN("char(77)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("execute_at")},
-     {C_STRING_WITH_LEN("datetime")},
+    {{STRING_WITH_LEN("db")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("name")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("definer")},
+     {STRING_WITH_LEN("char(77)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("execute_at")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("interval_value")},
+     {STRING_WITH_LEN("int(11)")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("interval_value")},
-     {C_STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("interval_field")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("interval_field")},
+     {STRING_WITH_LEN(
          "enum('YEAR','QUARTER','MONTH','DAY',"
          "'HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR'"
          ","
@@ -195,25 +183,21 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
          "'DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND',"
          "'SECOND_MICROSECOND')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("created")},
-     {C_STRING_WITH_LEN("timestamp")},
+    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("last_executed")},
+     {STRING_WITH_LEN("datetime")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("modified")},
-     {C_STRING_WITH_LEN("timestamp")},
+    {{STRING_WITH_LEN("starts")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("ends")}, {STRING_WITH_LEN("datetime")}, {NULL, 0}},
+    {{STRING_WITH_LEN("status")},
+     {STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("last_executed")},
-     {C_STRING_WITH_LEN("datetime")},
+    {{STRING_WITH_LEN("on_completion")},
+     {STRING_WITH_LEN("enum('DROP','PRESERVE')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("starts")}, {C_STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("ends")}, {C_STRING_WITH_LEN("datetime")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("status")},
-     {C_STRING_WITH_LEN("enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("on_completion")},
-     {C_STRING_WITH_LEN("enum('DROP','PRESERVE')")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("sql_mode")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("sql_mode")},
+     {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
          "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_"
          "SUBTRACTION',"
@@ -227,27 +211,23 @@ static const TABLE_FIELD_TYPE event_table_fields_old[ET_FIELD_COUNT] = {
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("comment")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("originator")},
-     {C_STRING_WITH_LEN("int(10)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("time_zone")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("latin1")}},
-    {{C_STRING_WITH_LEN("character_set_client")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("collation_connection")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("db_collation")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("body_utf8")},
-     {C_STRING_WITH_LEN("longblob")},
-     {NULL, 0}}};
+    {{STRING_WITH_LEN("comment")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("originator")}, {STRING_WITH_LEN("int(10)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("time_zone")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("latin1")}},
+    {{STRING_WITH_LEN("character_set_client")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("collation_connection")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("db_collation")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
 
 static const TABLE_FIELD_DEF event_table_def_old = {ET_FIELD_COUNT,
                                                     event_table_fields_old};
@@ -299,7 +279,8 @@ static void load_event_creation_context(THD *thd, TABLE *table,
 */
 
 static bool update_event_timing_fields(THD *thd, TABLE *table,
-                                       char *event_db_name, char *event_name) {
+                                       const char *event_db_name,
+                                       const char *event_name) {
   dd::Event *new_event = nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -342,13 +323,14 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   @retval >=0  Ordinal position.
 */
 
-static int find_string_in_array(const LEX_STRING *haystack,
-                                const LEX_STRING *needle,
+static int find_string_in_array(const LEX_CSTRING *haystack,
+                                const LEX_CSTRING *needle,
                                 const CHARSET_INFO *cs) {
-  const LEX_STRING *pos;
+  const LEX_CSTRING *pos;
   for (pos = haystack; pos->str; pos++) {
-    if (!cs->coll->strnncollsp(cs, (uchar *)pos->str, pos->length,
-                               (uchar *)needle->str, needle->length)) {
+    if (!cs->coll->strnncollsp(
+            cs, pointer_cast<const uchar *>(pos->str), pos->length,
+            pointer_cast<const uchar *>(needle->str), needle->length)) {
       return static_cast<int>(pos - haystack);
     }
   }
@@ -393,7 +375,7 @@ static bool set_status_and_interval_for_event(THD *thd, TABLE *table,
     int i;
     char buff[MAX_FIELD_WIDTH];
     String str(buff, sizeof(buff), &my_charset_bin);
-    LEX_STRING tmp;
+    LEX_CSTRING tmp;
 
     table->field[ET_FIELD_TRANSIENT_INTERVAL]->val_str(&str);
     if (!(tmp.length = str.length())) return true;
@@ -557,16 +539,15 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
 
 bool migrate_events_to_dd(THD *thd) {
   TABLE *event_table;
-  TABLE_LIST tables, *table_list;
   int error = 0;
   uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
   DML_prelocking_strategy prelocking_strategy;
   MEM_ROOT records_mem_root;
   Thd_mem_root_guard root_guard(thd, &records_mem_root);
 
-  tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
+  TABLE_LIST tables("mysql", "event", TL_READ);
+  auto table_list = &tables;
 
-  table_list = &tables;
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy)) {
     LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     return true;

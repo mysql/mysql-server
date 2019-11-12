@@ -18,7 +18,7 @@ this.setContent(_11);
 this.setContent(_11.message,_11.type,_11.duration);
 }
 },setContent:function(_12,_13,_14){
-_14=_14||this.duration;
+_14=(_14===undefined)?this.duration:_14;
 if(this.slideAnim){
 if(this.slideAnim.status()!="playing"){
 this.slideAnim.stop();
@@ -138,7 +138,9 @@ _1e.left=0+"px";
 _1e.clip="rect(0px, "+_1d.w+"px, "+_1d.h+"px, 0px)";
 if(_d("ie")){
 if(!this.bgIframe){
+if(!this.clipNode.id){
 this.clipNode.id=_8.getUniqueId("dojox_widget_Toaster_clipNode");
+}
 this.bgIframe=new _b(this.clipNode);
 }
 var _1f=this.bgIframe.iframe;

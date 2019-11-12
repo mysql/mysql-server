@@ -1,10 +1,12 @@
 # Collection for valgrind platform on weekly-trunk
 # Run all suites with big-test and debug-server option
-# Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --timer --big-test --non-parallel-test --debug-server --force  --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30
-
+# Run with --non-parallel-test option so that non parallel tests are also run. Run rpl tests separately.
+perl mysql-test-run.pl --timer --big-test --debug-server --force --non-parallel-test --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30
+# Run rpl suites with explict --parallel
+perl mysql-test-run.pl --timer --big-test --debug-server --force --non-parallel-test --parallel=6 --comment=rpl-valgrind --vardir=var-rpl-valgrind --suite=rpl,rpl_gtid,rpl_nogtid
 
 # Run all non default suites with big-test
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server  --comment=funcs1-debug  --vardir=var-funcs1-big  --suite=funcs_1
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server  --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server  --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server  --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp

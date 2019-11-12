@@ -149,7 +149,7 @@
 	width: 20em;
 }
 .tundra .dojoxFilePickerItem .dijitMenuItemIcon {
-	background-image: url(../../widget/FilePicker/images/tundraFileIcons.gif);
+	background-image: url("../../widget/FilePicker/images/tundraFileIcons.gif");
 	background-repeat: no-repeat;
 }
 .tundra .dojoxFilePickerItem .dojoxEmpty {
@@ -168,7 +168,7 @@
 	background-position: -48px;
 }
 .soria .dojoxFilePickerItem .dijitMenuItemIcon {
-	background-image: url(../../widget/FilePicker/images/soriaFileIcons.gif);
+	background-image: url("../../widget/FilePicker/images/soriaFileIcons.gif");
 	background-repeat: no-repeat;
 }
 .soria .dojoxFilePickerItem .dojoxEmpty {
@@ -187,7 +187,7 @@
 	background-position: -48px;
 }
 .nihilo .dojoxFilePickerItem .dijitMenuItemIcon {
-	background-image: url(../../widget/FilePicker/images/nihiloFileIcons.gif);
+	background-image: url("../../widget/FilePicker/images/nihiloFileIcons.gif");
 	background-repeat: no-repeat;
 }
 .nihilo .dojoxFilePickerItem .dojoxEmpty {

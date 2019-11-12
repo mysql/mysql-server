@@ -924,6 +924,9 @@ CREATE TABLE t1 (
 c1 int(11) DEFAULT NULL,
 c2 int(11) GENERATED ALWAYS AS ((c1 * 2)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON c2 WITH 2 BUCKETS;
 Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'c2'.
@@ -1088,7 +1091,7 @@ DROP TABLE not_encrypted2;
 # Bug#26114424 WL8943:SIG11 IN DROP_HISTOGRAMS AT SQL/SQL_TABLE.CC
 #
 # Create a non-transactional table with a trigger.
-CREATE TABLE t1 (i INT, at INT, k INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT, at INT, k INT) ENGINE=InnoDB;
 CREATE TRIGGER ai AFTER INSERT ON t1 FOR EACH ROW SET @a:= NEW.at;
 ALTER TABLE t1 ADD PRIMARY KEY (i);
 DROP TABLE t1;
@@ -1110,6 +1113,11 @@ eighty int(11) DEFAULT NULL,
 KEY idx3 (twenty,ten),
 KEY idx (ten)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (6,16,36,76), (5,15,35,35), (9,19,39,79), (1,1,1,41), (7,17,17,17),
 (3,13,33,73), (7,17,37,37), (1,1,1,1), (9,9,9,9), (0,0,20,60), (5,15,35,75),
@@ -1231,6 +1239,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 tenPercent int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (6),(5),(9),(1),(7);
 UPDATE mysql.innodb_table_stats SET n_rows = 5
 WHERE database_name = "test" AND table_name = "t1";
@@ -1278,9 +1288,12 @@ KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key),
 KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO k VALUES (1,
 'wrhhsy',
@@ -1325,7 +1338,10 @@ KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key)
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO a VALUES (NULL,
 '2008-10-25 07:07:49',
@@ -1370,7 +1386,10 @@ KEY col_datetime_key (col_datetime_key)
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO g VALUES ('o',
 '2009-05-15 00:00:00',
@@ -1444,6 +1463,10 @@ KEY col_varchar_key (col_varchar_key),
 KEY col_date_key (col_date_key),
 KEY test_idx (col_int_key,col_int)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO table1 VALUES ('2000-09-05 00:00:00',
 '2003-11-25 11:17:04',
 1,
@@ -1510,6 +1533,10 @@ KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key),
 KEY test_idx (col_int_key,pk)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO table2 VALUES ('10:39:59',
 'tymjpskqjjap',
 9,
@@ -1569,6 +1596,10 @@ KEY col_varchar_key (col_varchar_key),
 KEY col_time_key (col_time_key),
 KEY col_date_key (col_date_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO table3 VALUES (6,
 '2003-08-27 00:00:00',
 1,
@@ -1638,6 +1669,10 @@ KEY col_date_key (col_date_key),
 KEY col_datetime_key (col_datetime_key),
 KEY test_idx (pk,col_int_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO table4 VALUES ('2009-05-17 00:00:00',
 '00:20:03',
 '00:20:04',
@@ -1819,6 +1854,10 @@ col_varchar_key varchar(2) GENERATED ALWAYS AS
 PRIMARY KEY (pk),
 KEY col_date_key (col_date_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (pk, col_int, col_date, col_datetime, col_time, col_varchar)
 VALUES (10,8,'2006-08-19','2001-07-04
 14:30:59','23:33:39','v'),(11,8,'2006-08-13','2006-12-15
@@ -1867,6 +1906,10 @@ col_varchar_key varchar(2) GENERATED ALWAYS AS
 PRIMARY KEY (pk),
 KEY col_date_key (col_date_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 (pk, col_int, col_date, col_datetime, col_time, col_varchar)
 VALUES (1,2,'2002-10-13','1900-01-01
 00:00:00','00:00:00','s'),(2,4,'1900-01-01','2005-08-15
@@ -1946,6 +1989,10 @@ col_varchar_key varchar(2) GENERATED ALWAYS AS (concat(col_varchar,col_varchar))
 PRIMARY KEY (pk),
 KEY col_date_key (col_date_key) /*!80000 INVISIBLE */
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (pk, col_int, col_date, col_datetime, col_time, col_varchar) VALUES
 (10,3,'2007-02-04','2006-02-10 18:41:38',NULL,'t'),
 (11,48,'1900-01-01','2009-02-16 14:58:58',NULL,'d'),
@@ -1990,6 +2037,10 @@ col_varchar_key varchar(2) GENERATED ALWAYS AS (concat(col_varchar,col_varchar))
 PRIMARY KEY (pk),
 KEY col_date_key (col_date_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 (pk, col_int, col_date, col_datetime, col_time, col_varchar) VALUES
 (10,7,'2006-03-07','2008-03-04 06:14:13','13:08:22','b'),
 (11,8,'2001-10-15','2001-03-17 00:00:00','12:54:48','m'),

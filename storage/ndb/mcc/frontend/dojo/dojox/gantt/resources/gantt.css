@@ -1,26 +1,26 @@
 .ganttToolbarZoomIn {
-	background-image: url("images/zoomIn.png");
+	background-image: url("images/zoomin.png");
 	background-repeat: no-repeat;
 	height: 30px;
 	width: 30px;
 	padding: 2px;
 }
 .ganttToolbarZoomOut {
-	background-image: url("images/zoomOut.png");
+	background-image: url("images/zoomout.png");
 	background-repeat: no-repeat;
 	height: 30px;
 	width: 30px;
 	padding: 2px;
 }
 .ganttToolbarMicro {
-	background-image: url("images/zoomInTime.png");
+	background-image: url("images/zoomintime.png");
 	background-repeat: no-repeat;
 	height: 30px;
 	width: 30px;
 	padding: 2px;
 }
 .ganttToolbarTele {
-	background-image: url("images/zoomOutTime.png");
+	background-image: url("images/zoomouttime.png");
 	background-repeat: no-repeat;
 	height: 30px;
 	width: 30px;
@@ -42,7 +42,7 @@
 }
 .ganttToolbarActionHover{
 	border: 2px solid blue;
-	padding: 0px;
+	padding: 0;
 }
 .ganttToolbar {
 	cursor: pointer;
@@ -125,13 +125,13 @@
 	text-align: center;
 	z-index: 7;
 	position: absolute;
-	left: 0px;
-	top: 0px;
+	left: 0;
+	top: 0;
 }
 .ganttTblTime {
 	background-color: transparent;
 	cursor: pointer;
-	margin-top: 0px;
+	margin-top: 0;
 }
 .ganttHourNumber {
 	font-size: 7px;
@@ -204,8 +204,8 @@
 	font-family: Tahoma, Arial;
 	font-size: 12px;
 	border: 1px solid #b5bcc7;
-	margin: 0px;
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	background-color: #fff;
 	background-repeat: repeat-x;
 	border-collapse: separate;
@@ -213,7 +213,7 @@
 }
 .ganttContextMenuItem {
 	background-image: url("images/menuHighlight.png");
-	background-position:0px -40px;
+	background-position:0 -40px;
 	background-repeat:repeat-x;
 	padding: 3px 10px 4px;
 	height:18px;
@@ -222,7 +222,7 @@
 	border:solid 1px #769dc0;
 	padding: 2px 9px 3px;
 	background-color: #9dcfff;
-	background-position:0px 0px;
+	background-position:0 0;
 	color:#000;
 }
 .ganttMenuDialogDescCell{
@@ -257,7 +257,7 @@
 	font-family: Tahoma, Arial;
 	background: url("images/resourceHeader.png") repeat scroll 0 0 transparent;
 	color: black;
-	padding: 3px 0px 0px 6px;
+	padding: 3px 0 0 6px;
 	height: 25px;
 	font-weight: bold;
 	position:relative;
@@ -318,7 +318,7 @@
 	border-top: solid 1px black;
 	border-bottom: solid 1px black;
 	position:absolute;
-	top:0px;
+	top:0;
 }
 .ganttRowHighlight {
 	background: url("images/rowHighlight.png") repeat scroll 0 0 transparent;
@@ -339,30 +339,30 @@
 	margin: 15px 63px 0;
 }
 .ganttTaskLineVerticalLeft{
-	border-width: 0px 0px 0px 1px; 
+	border-width: 0 0 0 1px;
 	border-style: dotted; 
 	border-color: #86A3BE; 
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	z-index:10;
 	position: absolute;
 }
 .ganttTaskLineHorizontalLeft{
 	position: absolute;
-	border-width: 1px 0px 0px 0px;
+	border-width: 1px 0 0 0;
 	font-size: 1px;
 	border-style: dotted; 
 	border-color: #86A3BE;
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	z-index:10;
 }
 .ganttTaskLineVerticalRight{
-	border-width: 0px 0px 0px 1px; 
+	border-width: 0 0 0 1px;
 	border-style: solid; 
 	border-color: #4A8F43;
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	z-index:6;
 	font-size: 1px;
 	position: absolute;
@@ -371,26 +371,26 @@
 	height:1px;
 	border-color: #4A8F43;
 	border-style: solid;
-	border-width: 1px 0px 0px 0px;
-	margin: 0px; 
-	padding: 0px;
+	border-width: 1px 0 0 0;
+	margin: 0;
+	padding: 0;
 	z-index:6;
 	position: absolute;
 }
 .ganttTaskArrowImg{
 	z-index:6;
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	width:7px;
 	height:14px;
 	position: absolute;
 }
 .ganttTaskLineVerticalRightPlus{
-	border-width: 0px 0px 0px 1px; 
+	border-width: 0 0 0 1px;
 	border-style: solid; 
 	border-color: #519145;
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	z-index:6;
 	font-size: 1px;
 	position: absolute;
@@ -399,16 +399,16 @@
 	height:1px;
 	border-color: #519145;
 	border-style: solid;
-	border-width: 1px 0px 0px 0px;
-	margin: 0px; 
-	padding: 0px;
+	border-width: 1px 0 0 0;
+	margin: 0;
+	padding: 0;
 	z-index:6;
 	position: absolute;
 }
 .ganttTaskArrowImgPlus{
 	z-index:6;
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	width:7px;
 	height:14px;
 	position: absolute;
@@ -420,8 +420,8 @@
 .ganttTaskDivTaskItem{
 	z-index:6;
 	position: absolute;
-	left:0px;
-	top:0px;
+	left:0;
+	top:0;
 }
 .ganttTaskTblTaskItem{
 	border: solid 1px #5FF55F;
@@ -431,14 +431,14 @@
 	font-size:9px;
 	z-index:7;
 	position: absolute;
-	left:0px;
-	top:0px;
+	left:0;
+	top:0;
 }
 .ganttTaskDivTaskName{
 	z-index:7;
 	position: absolute;
-	left:0px;
-	top:0px;
+	left:0;
+	top:0;
 }
 .ganttTaskDivMoveInput{
 	visibility:hidden;
@@ -453,7 +453,7 @@
 .ganttTaskDivResize{
 	z-index:10;
 	position: absolute;
-	top:0px;
+	top:0;
 }
 .ganttTaskTaskNameItem{
 	font-family: Tahoma, Arial;
@@ -487,7 +487,7 @@
 	-khtml-border-radius: 20px;
 	-webkit-border-radius: 20px;
 	border-radius: 20px;
-	padding: 0px 3px;
+	padding: 0 3px;
 	cursor:pointer;
 	white-space:nowrap;
 	height:14px;
@@ -519,11 +519,11 @@
 	position: relative;
 }
 .ganttResourceLineVerticalLeft{
-	border-width: 0px 0px 0px 1px; 
+	border-width: 0 0 0 1px;
 	border-style: dotted; 
 	border-color: #86A3BE; 
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 	z-index:10;
 	position: absolute;
 }
@@ -531,12 +531,12 @@
 	z-index:10;
 	height:1px;
 	position: absolute;
-	border-width: 1px 0px 0px 0px;
+	border-width: 1px 0 0 0;
 	font-size: 1px;
 	border-style: dotted; 
 	border-color: #86A3BE;
-	margin: 0px; 
-	padding: 0px;
+	margin: 0;
+	padding: 0;
 }
 .ganttResourceTreeImage{
 	cursor: pointer;

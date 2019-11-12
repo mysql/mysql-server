@@ -31,6 +31,10 @@ KEY col_int_key (col_int_key),
 KEY col_blob_key (col_blob_key(255)),
 KEY col_date_key (col_date_key)
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE AA (
 col_varchar varchar(1) DEFAULT NULL,
 col_date date DEFAULT NULL,
@@ -53,6 +57,10 @@ KEY col_time_key (col_time_key),
 KEY col_int_key (col_int_key),
 KEY col_blob_key (col_blob_key(255))
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE BB (
 col_date date DEFAULT NULL,
 col_blob_key blob,
@@ -75,6 +83,10 @@ KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_date_key (col_date_key)
 ) AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE D (
 col_varchar_key varchar(1) DEFAULT NULL,
 col_datetime datetime DEFAULT NULL,
@@ -97,6 +109,10 @@ KEY col_blob_key (col_blob_key(255)),
 KEY col_datetime_key (col_datetime_key),
 KEY col_time_key (col_time_key)
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 WITH RECURSIVE cte AS (
 SELECT    alias1 . `col_blob_key` AS field1, 0 AS cycle
 FROM ( BB AS alias1 , ( D AS alias2 , AA AS alias3 ) )

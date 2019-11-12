@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ parse_mask(const char *str, T& mask)
     {
       return -3;
     }
-    char * delim = (char*)strchr(list[i].c_str(), '-');
+    char * delim = const_cast<char*>(strchr(list[i].c_str(), '-'));
     unsigned first = 0;
     unsigned last = 0;
     if (delim == 0)

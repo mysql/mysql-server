@@ -1,8 +1,7 @@
-//>>built
-define("dojox/color/_base", ["dojo/_base/kernel", "../main", "dojo/_base/lang", "dojo/_base/Color", "dojo/colors"], 
-	function(dojo, dojox, lang, Color, colors){
+define("dojox/color/_base", ["../main", "dojo/_base/lang", "dojo/_base/Color", "dojo/colors"],
+	function(dojox, lang, Color, colors){
 
-var cx = lang.getObject("dojox.color", true);
+var cx = lang.getObject("color", true, dojox);
 /*===== cx = dojox.color =====*/
 		
 //	alias all the dojo.Color mechanisms
@@ -18,9 +17,9 @@ cx.greyscale=colors.makeGrey;
 
 lang.mixin(cx,{
 	fromCmy: function(/* Object|Array|int */cyan, /*int*/magenta, /*int*/yellow){
-		//	summary
-		//	Create a dojox.color.Color from a CMY defined color.
-		//	All colors should be expressed as 0-100 (percentage)
+		// summary:
+		//		Create a dojox.color.Color from a CMY defined color.
+		//		All colors should be expressed as 0-100 (percentage)
 	
 		if(lang.isArray(cyan)){
 			magenta=cyan[1], yellow=cyan[2], cyan=cyan[0];
@@ -34,9 +33,9 @@ lang.mixin(cx,{
 	},
 	
 	fromCmyk: function(/* Object|Array|int */cyan, /*int*/magenta, /*int*/yellow, /*int*/black){
-		//	summary
-		//	Create a dojox.color.Color from a CMYK defined color.
-		//	All colors should be expressed as 0-100 (percentage)
+		// summary:
+		//		Create a dojox.color.Color from a CMYK defined color.
+		//		All colors should be expressed as 0-100 (percentage)
 	
 		if(lang.isArray(cyan)){
 			magenta=cyan[1], yellow=cyan[2], black=cyan[3], cyan=cyan[0];
@@ -52,9 +51,9 @@ lang.mixin(cx,{
 	},
 		
 	fromHsl: function(/* Object|Array|int */hue, /* int */saturation, /* int */luminosity){
-		//	summary
-		//	Create a dojox.color.Color from an HSL defined color.
-		//	hue from 0-359 (degrees), saturation and luminosity 0-100.
+		// summary:
+		//		Create a dojox.color.Color from an HSL defined color.
+		//		hue from 0-359 (degrees), saturation and luminosity 0-100.
 	
 		if(lang.isArray(hue)){
 			saturation=hue[1], luminosity=hue[2], hue=hue[0];
@@ -91,9 +90,9 @@ lang.mixin(cx,{
 });
 	
 cx.fromHsv = function(/* Object|Array|int */hue, /* int */saturation, /* int */value){
-	//	summary
-	//	Create a dojox.color.Color from an HSV defined color.
-	//	hue from 0-359 (degrees), saturation and value 0-100.
+	// summary:
+	//		Create a dojox.color.Color from an HSV defined color.
+	//		hue from 0-359 (degrees), saturation and value 0-100.
 
 	if(lang.isArray(hue)){
 		saturation=hue[1], value=hue[2], hue=hue[0];
@@ -126,15 +125,15 @@ cx.fromHsv = function(/* Object|Array|int */hue, /* int */saturation, /* int */v
 };
 lang.extend(Color,{
 	toCmy: function(){
-		//	summary
-		//	Convert this Color to a CMY definition.
+		// summary:
+		//		Convert this Color to a CMY definition.
 		var cyan=1-(this.r/255), magenta=1-(this.g/255), yellow=1-(this.b/255);
 		return { c:Math.round(cyan*100), m:Math.round(magenta*100), y:Math.round(yellow*100) };		//	Object
 	},
 		
 	toCmyk: function(){
-		//	summary
-		//	Convert this Color to a CMYK definition.
+		// summary:
+		//		Convert this Color to a CMYK definition.
 		var cyan, magenta, yellow, black;
 		var r=this.r/255, g=this.g/255, b=this.b/255;
 		black = Math.min(1-r, 1-g, 1-b);
@@ -145,8 +144,8 @@ lang.extend(Color,{
 	},
 		
 	toHsl: function(){
-		//	summary
-		//	Convert this Color to an HSL definition.
+		// summary:
+		//		Convert this Color to an HSL definition.
 		var r=this.r/255, g=this.g/255, b=this.b/255;
 		var min = Math.min(r, b, g), max = Math.max(r, g, b);
 		var delta = max-min;
@@ -170,8 +169,8 @@ lang.extend(Color,{
 	},
 	
 	toHsv: function(){
-		//	summary
-		//	Convert this Color to an HSV definition.
+		// summary:
+		//		Convert this Color to an HSV definition.
 		var r=this.r/255, g=this.g/255, b=this.b/255;
 		var min = Math.min(r, b, g), max = Math.max(r, g, b);
 		var delta = max-min;

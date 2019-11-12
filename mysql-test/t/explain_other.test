@@ -370,7 +370,7 @@ connection ce;
 CREATE TABLE h2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
 
 insert into h2 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 
@@ -396,7 +396,7 @@ CREATE TABLE t1 (
   pk int(11),
   col_int_key int(11) DEFAULT NULL,
   KEY col_int_key (col_int_key)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 VALUES (NULL,NULL);
 INSERT INTO t1 VALUES (6,NULL);

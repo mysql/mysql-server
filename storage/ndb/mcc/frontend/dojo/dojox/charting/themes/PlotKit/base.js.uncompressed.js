@@ -1,6 +1,5 @@
-//>>built
-define("dojox/charting/themes/PlotKit/base", ["dojo/_base/kernel","dojo/_base/lang","../../Theme", "../common"], 
-	function(dojo, lang, Theme, themes){
+define("dojox/charting/themes/PlotKit/base", ["dojo/_base/lang", "dojo/_base/Color", "../../Theme", "../common"],
+	function(lang, Color, Theme, themes){
 
 	// the baseline theme for all PlotKIt themes
 	var pk = lang.getObject("PlotKit", true, themes);
@@ -42,9 +41,11 @@ define("dojox/charting/themes/PlotKit/base", ["dojo/_base/kernel","dojo/_base/la
 			theme.marker.outline = {width: 2, color: "#fff"};
 			theme.series.stroke.width = 3.5;
 			theme.marker.stroke.width = 2;
-		} else if (elementType == "candlestick"){
+		}else if(elementType == "candlestick"){
 			theme.series.stroke.width = 1;
-		} else {
+		}else if(theme.series.stroke.color && (theme.series.stroke.color.toString() ==
+				new Color(this.colors[(this._current-1) % this.colors.length]).toString())){
+			// if the user did not override the stroke, let's force blank
 			theme.series.stroke.color = "#fff";
 		}
 		return theme;

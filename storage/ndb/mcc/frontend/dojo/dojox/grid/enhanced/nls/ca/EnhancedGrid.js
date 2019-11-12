@@ -1,17 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	singleSort: "Ordre únic",
-	nestedSort: "Ordre imbricat",
-	ascending: "Ascendent",
-	descending: "Descendent",
-	sortingState: "${0} - ${1}",
-	unsorted: "No ordenis aquesta finestra",
-	indirectSelectionRadio: "Fila ${0}, selecció única, quadre d'opció",
-	indirectSelectionCheckBox: "Fila ${0}, selecció múltiple, quadre de selecció",
-	selectAll: "Seleccionar-ho tot"
-})
-//end v1.x content
-);
-
+define("dojox/grid/enhanced/nls/ca/EnhancedGrid",({singleSort:"Ordre únic",nestedSort:"Ordre imbricat",ascending:"Feu clic per ordenar de forma ascendent",descending:"Feu clic per ordenar de forma descendent",sortingState:"${0} - ${1}",unsorted:"No ordenis aquesta finestra",indirectSelectionRadio:"Fila ${0}, selecció individual, quadre d'opció",indirectSelectionCheckBox:"Fila ${0}, selecció múltiple, quadre de selecció",selectAll:"Selecciona-ho tot"}));

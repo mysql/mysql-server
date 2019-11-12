@@ -183,8 +183,8 @@ class Item_func_regexp : public Item_func {
     const char *end_not_used;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0.0;
-    return my_strntod(res->charset(), const_cast<char *>(res->ptr()),
-                      res->length(), &end_not_used, &err_not_used);
+    return my_strntod(res->charset(), res->ptr(), res->length(), &end_not_used,
+                      &err_not_used);
   }
 
   longlong convert_str_to_int() {
@@ -214,14 +214,6 @@ class Item_func_regexp : public Item_func {
   bool set_pattern();
 
   unique_ptr_destroy_only<regexp::Regexp_facade> m_facade;
-
- private:
-  /**
-    The collation that is supposed to be used if you were to compare the
-    pattern and the subject strings. We use this only for figuring out whether
-    regular expression matching should be case-sensitive or not.
-  */
-  DTCollation m_cmp_collation;
 };
 
 class Item_func_regexp_instr : public Item_func_regexp {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,8 @@ printLQHKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "NoTriggers ");
   if(LqhKeyReq::getUtilFlag(reqInfo))
     fprintf(output, "UtilFlag ");
+  if(LqhKeyReq::getNoWaitFlag(reqInfo))
+    fprintf(output, "NoWait ");
 
   fprintf(output, "ScanInfo/noFiredTriggers: H\'%x\n", sig->scanInfo);
   

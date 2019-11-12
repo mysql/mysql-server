@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,7 +346,7 @@ bool create_event(THD *thd, const Schema &schema, const String_type &event_name,
                   const String_type &event_body,
                   const String_type &event_body_utf8, const LEX_USER *definer,
                   Event_parse_data *event_data) {
-  DBUG_ENTER("dd::create_event");
+  DBUG_TRACE;
 
   std::unique_ptr<dd::Event> event(schema.create_event(thd));
 
@@ -354,7 +354,7 @@ bool create_event(THD *thd, const Schema &schema, const String_type &event_name,
   set_event_attributes(thd, schema, event.get(), event_name, event_body,
                        event_body_utf8, definer, event_data, false);
 
-  DBUG_RETURN(thd->dd_client()->store(event.get()));
+  return thd->dd_client()->store(event.get());
 }
 
 bool update_event(THD *thd, Event *event, const dd::Schema &schema,
@@ -363,11 +363,11 @@ bool update_event(THD *thd, Event *event, const dd::Schema &schema,
                   const String_type &new_event_body,
                   const String_type &new_event_body_utf8,
                   const LEX_USER *definer, Event_parse_data *event_data) {
-  DBUG_ENTER("dd::update_event");
+  DBUG_TRACE;
 
   // Check whether alter event was given dates that are in the past.
   if (event_data->check_dates(thd, static_cast<int>(event->on_completion())))
-    DBUG_RETURN(true);
+    return true;
 
   // Update Schema Id if there is a dbname change.
   if (new_schema != nullptr) event->set_schema_id(new_schema->id());
@@ -378,19 +378,19 @@ bool update_event(THD *thd, Event *event, const dd::Schema &schema,
       new_event_name != "" ? new_event_name : event->name(), new_event_body,
       new_event_body_utf8, definer, event_data, true);
 
-  DBUG_RETURN(thd->dd_client()->update(event));
+  return thd->dd_client()->update(event);
 }
 
 bool update_event_time_and_status(THD *thd, Event *event,
                                   my_time_t last_executed, ulonglong status) {
-  DBUG_ENTER("dd::update_event_time_and_status");
+  DBUG_TRACE;
 
   event->set_event_status_null(false);
   event->set_event_status(get_enum_event_status(status));
   event->set_last_executed_null(false);
   event->set_last_executed(last_executed);
 
-  DBUG_RETURN(thd->dd_client()->update(event));
+  return thd->dd_client()->update(event);
 }
 
 }  // namespace dd

@@ -43,16 +43,20 @@ using namespace std;
  *                            be attempted, when a connection attempt fails.
  * @param ttl The TTL of the cached data.
  * @param ssl_options SSL related options for connections
+ * @param use_gr_notifications Flag indicating if the metadata cache should
+ *                             use GR notifications as an additional trigger
+ *                             for metadata refresh
  */
 MockNG::MockNG(const std::string &user, const std::string &password,
                int connect_timeout, int read_timeout, int connection_attempts,
                std::chrono::milliseconds ttl,
-               const mysqlrouter::SSLOptions &ssl_options)
+               const mysqlrouter::SSLOptions &ssl_options,
+               const bool use_gr_notifications)
     : ClusterMetadata(user, password, connect_timeout, read_timeout,
-                      connection_attempts, ttl, ssl_options) {
+                      connection_attempts, ttl, ssl_options,
+                      use_gr_notifications) {
   ms1.replicaset_name = "replicaset-1";
   ms1.mysql_server_uuid = "instance-1";
-  ms1.location = "us.wa.seattle";
   ms1.host = "host-1";
   ms1.port = 3306;
   ms1.xport = 33060;
@@ -63,7 +67,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms2.replicaset_name = "replicaset-1";
   ms2.mysql_server_uuid = "instance-2";
-  ms2.location = "us.ca.cupertino";
   ms2.host = "host-2";
   ms2.port = 3306;
   ms2.xport = 33060;
@@ -74,7 +77,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms3.replicaset_name = "replicaset-1";
   ms3.mysql_server_uuid = "instance-3";
-  ms3.location = "us.wi.madison";
   ms3.host = "host-3";
   ms3.port = 3306;
   ms3.xport = 33060;
@@ -85,7 +87,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms4.replicaset_name = "replicaset-2";
   ms4.mysql_server_uuid = "instance-4";
-  ms4.location = "us.wi.madison";
   ms4.host = "host-4";
   ms4.port = 3306;
   ms4.xport = 33060;
@@ -96,7 +97,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms5.replicaset_name = "replicaset-2";
   ms5.mysql_server_uuid = "instance-5";
-  ms5.location = "us.wi.madison";
   ms5.host = "host-5";
   ms5.port = 3306;
   ms5.xport = 33060;
@@ -107,7 +107,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms6.replicaset_name = "replicaset-2";
   ms6.mysql_server_uuid = "instance-6";
-  ms6.location = "us.wi.madison";
   ms6.host = "host-6";
   ms6.port = 3306;
   ms6.xport = 33060;
@@ -118,7 +117,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms7.replicaset_name = "replicaset-3";
   ms7.mysql_server_uuid = "instance-7";
-  ms7.location = "us.wi.madison";
   ms7.host = "host-7";
   ms7.port = 3306;
   ms7.xport = 33060;
@@ -129,7 +127,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms8.replicaset_name = "replicaset-3";
   ms8.mysql_server_uuid = "instance-8";
-  ms8.location = "us.wi.madison";
   ms8.host = "host-8";
   ms8.port = 3306;
   ms8.xport = 33060;
@@ -140,7 +137,6 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   ms9.replicaset_name = "replicaset-3";
   ms9.mysql_server_uuid = "instance-9";
-  ms9.location = "us.wi.madison";
   ms9.host = "host-9";
   ms9.port = 3306;
   ms9.xport = 33060;

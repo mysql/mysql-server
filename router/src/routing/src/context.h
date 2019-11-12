@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -105,11 +105,13 @@ class MySQLRoutingContext {
    */
   const std::vector<ClientIpArray> get_blocked_client_hosts() const;
 
-  void increase_active_thread_counter();
-  void decrease_active_thread_counter();
   void increase_info_active_routes();
   void decrease_info_active_routes();
   void increase_info_handled_routes();
+
+  uint16_t get_active_routes() { return info_active_routes_; }
+  uint64_t get_handled_routes() { return info_handled_routes_; }
+  uint64_t get_max_connect_errors() { return max_connect_errors_; }
 
   mysql_harness::SocketOperationsBase *get_socket_operations() {
     return socket_operations_;
@@ -181,11 +183,6 @@ class MySQLRoutingContext {
 
   /** @brief Max connect errors blocking hosts when handshake not completed */
   unsigned long long max_connect_errors_;
-
-  /** number of active client threads. */
-  uint64_t active_client_threads_{0};
-  std::condition_variable active_client_threads_cond_;
-  std::mutex active_client_threads_cond_m_;
 
   /** @brief Number of active routes */
   std::atomic<uint16_t> info_active_routes_{0};

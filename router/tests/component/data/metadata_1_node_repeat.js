@@ -38,7 +38,7 @@ var common_responses = common_stmts.prepare_statement_responses([
 var router_select_metadata =
   common_stmts.get("router_select_metadata", options);
 
-if(mysqld.global.md_query_count == undefined){
+if(mysqld.global.md_query_count === undefined){
     mysqld.global.md_query_count = 0;
 }
 

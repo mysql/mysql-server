@@ -26,9 +26,13 @@
 #include "plugin/x/src/sql_data_context.h"
 
 #include <algorithm>
+#include <cinttypes>
+#include <sstream>
+#include <string>
 
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
+#include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/query_string_builder.h"
@@ -37,7 +41,7 @@
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_resultset.h"
 
-#include "my_systime.h"  // my_sleep()
+#include "my_systime.h"  // my_sleep() NOLINT(build/include_subdir)
 
 namespace xpl {
 
@@ -104,20 +108,20 @@ bool Sql_data_context::kill() {
       MYSQL_SECURITY_CONTEXT scontext;
 
       if (thd_get_security_context(srv_session_info_get_thd(session),
-                                   &scontext))
+                                   &scontext)) {
         log_warning(ER_XPLUGIN_FAILED_TO_GET_SECURITY_CTX);
-      else {
+      } else {
         const char *user = MYSQL_SESSION_USER;
         const char *host = MYSQLXSYS_HOST;
-        if (security_context_lookup(scontext, user, host, NULL, NULL))
+        if (security_context_lookup(scontext, user, host, NULL, NULL)) {
           log_warning(ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX, user);
-        else {
+        } else {
           COM_DATA data;
           Callback_command_delegate deleg;
           Query_string_builder qb;
           qb.put("KILL ").put(mysql_session_id());
 
-          data.com_query.query = (char *)qb.get().c_str();
+          data.com_query.query = qb.get().c_str();
           data.com_query.length = static_cast<unsigned int>(qb.get().length());
 
           if (!command_service_run_command(
@@ -144,8 +148,8 @@ ngs::Error_code Sql_data_context::set_connection_type(
   enum_vio_type vio_type = Connection_type_helper::convert_type(type);
 
   if (NO_VIO_TYPE == vio_type)
-    return ngs::Error(ER_X_SESSION, "Connection type not known. type=%i",
-                      (int)type);
+    return ngs::Error(ER_X_SESSION, "Connection type not known. type=%" PRIu32,
+                      static_cast<uint32_t>(type));
 
   if (0 != srv_session_info_set_connection_type(m_mysql_session, vio_type))
     return ngs::Error_code(ER_X_SESSION,
@@ -184,6 +188,8 @@ ngs::Error_code Sql_data_context::authenticate(
     const std::string &passwd,
     const ngs::Authentication_interface &account_verification,
     bool allow_expired_passwords) {
+  m_password_expired = false;
+
   ngs::Error_code error = switch_to_user(user, host, ip, db);
 
   if (error) return ngs::SQLError_access_denied();
@@ -211,13 +217,9 @@ ngs::Error_code Sql_data_context::authenticate(
     // disconnect these users
     if (error.severity == ngs::Error_code::FATAL && !allow_expired_passwords)
       return error;
-
-    // if client supports expired password mode, then pwd expired is not fatal
-    // we send a notice and move on
-    notices::send_account_expired(*m_proto);
-  } else if (error)
-    return error;
-
+  } else {
+    if (error) return error;
+  }
   error = switch_to_user(user, host, ip, db);
 
   if (!error) {
@@ -225,7 +227,8 @@ ngs::Error_code Sql_data_context::authenticate(
       COM_DATA data;
 
       data.com_init_db.db_name = db;
-      data.com_init_db.length = static_cast<unsigned long>(strlen(db));
+      data.com_init_db.length =
+          static_cast<unsigned long>(strlen(db));  // NOLINT(runtime/int)
 
       Callback_command_delegate callback_delegate;
       if (command_service_run_command(m_mysql_session, COM_INIT_DB, &data,
@@ -269,18 +272,18 @@ ngs::Error_code Sql_data_context::authenticate(
 
 template <typename Result_type>
 bool get_security_context_value(MYSQL_THD thd, const char *option,
-                                Result_type &result) {
+                                Result_type *result) {
   MYSQL_SECURITY_CONTEXT scontext;
 
   if (thd_get_security_context(thd, &scontext)) return false;
 
-  return false == security_context_get_option(scontext, option, &result);
+  return false == security_context_get_option(scontext, option, result);
 }
 
 bool Sql_data_context::is_acl_disabled() {
   MYSQL_LEX_CSTRING value{"", 0};
 
-  if (get_security_context_value(get_thd(), "priv_user", value)) {
+  if (get_security_context_value(get_thd(), "priv_user", &value)) {
     return 0 != value.length && NULL != strstr(value.str, "skip-grants ");
   }
 
@@ -289,7 +292,7 @@ bool Sql_data_context::is_acl_disabled() {
 
 bool Sql_data_context::has_authenticated_user_a_super_priv() const {
   my_svc_bool value = 0;
-  if (get_security_context_value(get_thd(), "privilege_super", value))
+  if (get_security_context_value(get_thd(), "privilege_super", &value))
     return value != 0;
 
   return false;
@@ -298,7 +301,7 @@ bool Sql_data_context::has_authenticated_user_a_super_priv() const {
 std::string Sql_data_context::get_user_name() const {
   MYSQL_LEX_CSTRING result{"", 0};
 
-  if (get_security_context_value(get_thd(), "user", result)) return result.str;
+  if (get_security_context_value(get_thd(), "user", &result)) return result.str;
 
   return "";
 }
@@ -306,7 +309,7 @@ std::string Sql_data_context::get_user_name() const {
 std::string Sql_data_context::get_host_or_ip() const {
   MYSQL_LEX_CSTRING result{"", 0};
 
-  if (get_security_context_value(get_thd(), "host_or_ip", result))
+  if (get_security_context_value(get_thd(), "host_or_ip", &result))
     return result.str;
 
   return "";
@@ -315,7 +318,7 @@ std::string Sql_data_context::get_host_or_ip() const {
 std::string Sql_data_context::get_authenticated_user_name() const {
   MYSQL_LEX_CSTRING result{"", 0};
 
-  if (get_security_context_value(get_thd(), "priv_user", result))
+  if (get_security_context_value(get_thd(), "priv_user", &result))
     return result.str;
 
   return "";
@@ -324,7 +327,7 @@ std::string Sql_data_context::get_authenticated_user_name() const {
 std::string Sql_data_context::get_authenticated_user_host() const {
   MYSQL_LEX_CSTRING result{"", 0};
 
-  if (get_security_context_value(get_thd(), "priv_host", result))
+  if (get_security_context_value(get_thd(), "priv_host", &result))
     return result.str;
 
   return "";
@@ -335,7 +338,6 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
                                                  const char *address,
                                                  const char *db) {
   MYSQL_SECURITY_CONTEXT scontext;
-  m_auth_ok = false;
 
   if (thd_get_security_context(get_thd(), &scontext))
     return ngs::Fatal(ER_X_SERVICE_ERROR,
@@ -360,8 +362,6 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
                       username);
   }
 
-  m_auth_ok = true;
-
   return ngs::Success();
 }
 
@@ -373,59 +373,10 @@ ngs::Error_code Sql_data_context::execute_kill_sql_session(
   return execute(qb.get().data(), qb.get().length(), &rset);
 }
 
-ngs::Error_code Sql_data_context::execute_sql(const char *sql, size_t length,
-                                              ngs::Command_delegate *deleg) {
-  if (!m_auth_ok && !m_query_without_authentication)
-    throw std::logic_error(
-        "Attempt to execute query in non-authenticated session");
-
-  COM_DATA data;
-
-  data.com_query.query = sql;
-  data.com_query.length = static_cast<unsigned int>(length);
-
-  deleg->reset();
-
-  log_debug("Sql_data_context::execute_sql %s", sql);
-
-  if (command_service_run_command(m_mysql_session, COM_QUERY, &data,
-                                  mysqld::get_charset_utf8mb4_general_ci(),
-                                  deleg->callbacks(), deleg->representation(),
-                                  deleg)) {
-    log_debug("Error running command: %s (%i %s)", sql, m_last_sql_errno,
-              m_last_sql_error.c_str());
-    return ngs::Error_code(ER_X_SERVICE_ERROR,
-                           "Internal error executing query");
-  }
-
-  if (m_password_expired && !deleg->get_error()) {
-    // if a SQL command succeeded while password is expired, it means the user
-    // probably changed the password
-    // we run a command to check just in case... (some commands are still
-    // allowed in expired password mode)
-    Callback_command_delegate d;
-    data.com_query.query = "select 1";
-    data.com_query.length =
-        static_cast<unsigned int>(strlen(data.com_query.query));
-    if (false == command_service_run_command(
-                     m_mysql_session, COM_QUERY, &data,
-                     mysqld::get_charset_utf8mb4_general_ci(), d.callbacks(),
-                     d.representation(), &d) &&
-        !d.get_error()) {
-      m_password_expired = false;
-    }
-  }
-
-  if (is_killed())
-    throw ngs::Fatal(ER_QUERY_INTERRUPTED, "Query execution was interrupted");
-
-  return deleg->get_error();
-}
-
 void Sql_data_context::default_completion_handler(void *ctx,
                                                   unsigned int sql_errno,
                                                   const char *err_msg) {
-  Sql_data_context *self = (Sql_data_context *)ctx;
+  Sql_data_context *self = reinterpret_cast<Sql_data_context *>(ctx);
   self->m_last_sql_errno = sql_errno;
   self->m_last_sql_error = err_msg ? err_msg : "";
 }
@@ -448,7 +399,31 @@ MYSQL_THD Sql_data_context::get_thd() const {
 
 ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
                                           ngs::Resultset_interface *rset) {
-  return execute_sql(sql, sql_len, &rset->get_callbacks());
+  const auto error = execute_sql(sql, sql_len, rset);
+  if (m_password_expired && !error) {
+    // if a SQL command succeeded while password is expired, it means the user
+    // probably changed the password
+    // we run a command to check just in case... (some commands are still
+    // allowed in expired password mode)
+    Empty_resultset rs;
+    static const std::string cmd("select 1");
+    if (!execute_sql(cmd.c_str(), cmd.length(), &rs))
+      m_password_expired = false;
+  }
+
+  if (is_killed())
+    throw ngs::Fatal(ER_QUERY_INTERRUPTED, "Query execution was interrupted");
+
+  return error;
+}
+
+ngs::Error_code Sql_data_context::execute_sql(const char *sql,
+                                              std::size_t sql_len,
+                                              ngs::Resultset_interface *rset) {
+  COM_DATA data;
+  data.com_query.query = sql;
+  data.com_query.length = static_cast<unsigned int>(sql_len);
+  return execute_server_command(COM_QUERY, data, rset);
 }
 
 ngs::Error_code Sql_data_context::fetch_cursor(const std::uint32_t statement_id,
@@ -494,13 +469,15 @@ ngs::Error_code Sql_data_context::deallocate_prep_stmt(
 }
 
 ngs::Error_code Sql_data_context::execute_prep_stmt(
-    const uint32_t stmt_id, const bool has_cursor, PS_PARAM *parameters,
+    const uint32_t stmt_id, const bool has_cursor, const PS_PARAM *parameters,
     const std::size_t parameters_count, ngs::Resultset_interface *rset) {
   COM_DATA cmd;
-  cmd.com_stmt_execute = {static_cast<unsigned long>(stmt_id),
-                          static_cast<unsigned long>(has_cursor), parameters,
-                          static_cast<unsigned long>(parameters_count),
-                          static_cast<unsigned char>(true)};
+  cmd.com_stmt_execute = {
+      static_cast<unsigned long>(stmt_id),     // NOLINT(runtime/int)
+      static_cast<unsigned long>(has_cursor),  // NOLINT(runtime/int)
+      const_cast<PS_PARAM *>(parameters),
+      static_cast<unsigned long>(parameters_count),  // NOLINT(runtime/int)
+      static_cast<unsigned char>(true)};             // NOLINT(runtime/int)
 
   return execute_server_command(COM_STMT_EXECUTE, cmd, rset);
 }
@@ -539,6 +516,16 @@ ngs::Error_code Sql_data_context::reset() {
     log_debug("Error reseting sql session: (%i %s)", error.error,
               error.message.c_str());
   return error;
+}
+
+bool Sql_data_context::is_sql_mode_set(const std::string &mode) {
+  std::string modes;
+  get_system_variable<std::string>(this, "sql_mode", &modes);
+  std::istringstream str(modes);
+  std::string m;
+  while (std::getline(str, m, ','))
+    if (m == mode) return true;
+  return false;
 }
 
 }  // namespace xpl

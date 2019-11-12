@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,10 +41,19 @@ void Dbtup::init_list_sizes(void)
   c_max_list_size[2]= 4079;
 
   c_min_list_size[3]= 4080;
-  c_max_list_size[3]= 8159;
+  c_max_list_size[3]= 7783;
 
-  c_min_list_size[4]= 0;
-  c_max_list_size[4]= 199;
+  /* The last free list must guarantee space for biggest possible column
+   * size.
+   * Assume varsize may take up the whole row (a slight exaggeration).
+   */
+  static_assert(MAX_EXPANDED_TUPLE_SIZE_IN_WORDS <= 7784, "");
+  c_min_list_size[4]= 7784;
+  c_max_list_size[4]= 8159;
+
+  static_assert(MAX_FREE_LIST == 5, "");
+  c_min_list_size[5]= 0;
+  c_max_list_size[5]= 199;
 }
 
 /*
@@ -424,21 +433,12 @@ Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
 Uint32
 Dbtup::get_alloc_page(Fragrecord* fragPtr, Uint32 alloc_size)
 {
-  Uint32 i, start_index, loop= 0;
+  Uint32 start_index;
   PagePtr pagePtr;
   
-  start_index= calculate_free_list_impl(alloc_size);
-  if (start_index == (MAX_FREE_LIST - 1)) 
-  {
-    jam();
-  } 
-  else 
-  {
-    jam();
-    ndbrequire(start_index < (MAX_FREE_LIST - 1));
-    start_index++;
-  }
-  for (i= start_index; i < MAX_FREE_LIST; i++) 
+  start_index= calculate_free_list_for_alloc(alloc_size);
+  ndbassert(start_index < MAX_FREE_LIST);
+  for (Uint32 i = start_index; i < MAX_FREE_LIST; i++)
   {
     jam();
     if (!fragPtr->free_var_page_array[i].isEmpty()) 
@@ -447,17 +447,26 @@ Dbtup::get_alloc_page(Fragrecord* fragPtr, Uint32 alloc_size)
       return fragPtr->free_var_page_array[i].getFirst();
     }
   }
-  ndbrequire(start_index > 0);
-  i= start_index - 1;
-  Local_Page_list list(c_page_pool, fragPtr->free_var_page_array[i]);
-  for(list.first(pagePtr); !pagePtr.isNull() && loop < 16; )
+  /* If no list with enough guaranteed size of free space is empty, fallback
+   * checking the first 16 entries in the free list which may have an entry
+   * with enough free space.
+   */
+  if (start_index == 0)
   {
     jam();
-    if (pagePtr.p->free_space >= alloc_size) {
+    return RNIL;
+  }
+  start_index--;
+  Local_Page_list list(c_page_pool, fragPtr->free_var_page_array[start_index]);
+  list.first(pagePtr);
+  for(Uint32 loop = 0; !pagePtr.isNull() && loop < 16; loop++)
+  {
+    jam();
+    if (pagePtr.p->free_space >= alloc_size)
+    {
       jam();
       return pagePtr.i;
     }
-    loop++;
     list.next(pagePtr);
   }
   return RNIL;
@@ -548,6 +557,24 @@ Uint32 Dbtup::calculate_free_list_impl(Uint32 free_space_size) const
   }
   ndbabort();
   return 0;
+}
+
+Uint32 Dbtup::calculate_free_list_for_alloc(Uint32 alloc_size) const
+{
+  ndbassert(alloc_size <= MAX_EXPANDED_TUPLE_SIZE_IN_WORDS);
+  for (Uint32 i = 0; i < MAX_FREE_LIST; i++)
+  {
+    jam();
+    if (alloc_size <= c_min_list_size[i])
+    {
+      jam();
+      return i;
+    }
+  }
+  /* Allocation too big, last free list page should always have space for
+   * biggest possible allocation.
+   */
+  ndbabort();
 }
 
 Uint64 Dbtup::calculate_used_var_words(Fragrecord* fragPtr)

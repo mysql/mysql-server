@@ -27,6 +27,24 @@ select * from t1;
 # Wait for all nodes to enter "nostart"
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
 
+let $counter = 500;
+--disable_query_log
+--disable_result_log
+while($mysql_errno != 1296)
+{
+  sleep 1;
+  --error 1296,1297
+  select * from t1;
+  if (!$counter)
+    {
+      die Timeout while waiting for MySQL Server to disconnect from cluster;
+    }
+    dec $counter;
+}
+--enable_query_log
+--enable_result_log
+
+
 connection con1;
 --error 1296
 select * from t1;

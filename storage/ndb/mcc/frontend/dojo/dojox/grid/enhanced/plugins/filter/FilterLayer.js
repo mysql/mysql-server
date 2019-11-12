@@ -1,5 +1,5 @@
 //>>built
-define("dojox/grid/enhanced/plugins/filter/FilterLayer",["dojo/_base/declare","dojo/_base/lang","dojo/_base/window","dojo/_base/json","../_StoreLayer"],function(_1,_2,_3,_4,_5){
+define("dojox/grid/enhanced/plugins/filter/FilterLayer",["dojo/_base/declare","dojo/_base/lang","dojo/_base/kernel","dojo/_base/json","../_StoreLayer"],function(_1,_2,_3,_4,_5){
 var _6="filter",_7="clear",_8=function(_9,_a){
 return _a?_2.hitch(_9||_3.global,_a):function(){
 };

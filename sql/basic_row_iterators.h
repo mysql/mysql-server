@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "sql/mem_root_array.h"
 #include "sql/row_iterator.h"
 
 class Filesort_info;
@@ -142,6 +143,11 @@ class IndexRangeScanIterator final : public TableRowIterator {
   QUICK_SELECT_I *const m_quick;
   QEP_TAB *const m_qep_tab;
   ha_rows *const m_examined_rows;
+
+  // After m_quick has returned EOF, some of its members are destroyed, making
+  // subsequent requests for new rows undefined. We flag EOF so that the
+  // iterator does not request a new row.
+  bool m_seen_eof{false};
 };
 
 // Readers relating to reading sorted data (from filesort).
@@ -167,6 +173,7 @@ template <bool Packed_addon_fields>
 class SortBufferIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
+  // The table is used solely for NULL row flags.
   SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
                      Sort_result *sort_result, ha_rows *examined_rows);
   ~SortBufferIterator() override;
@@ -174,6 +181,7 @@ class SortBufferIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
   std::vector<std::string> DebugString() const override;
+  void UnlockRow() override {}
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
@@ -233,6 +241,7 @@ template <bool Packed_addon_fields>
 class SortFileIterator final : public TableRowIterator {
  public:
   // Takes ownership of tempfile.
+  // The table is used solely for NULL row flags.
   SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                    Filesort_info *sort, ha_rows *examined_rows);
   ~SortFileIterator() override;
@@ -240,6 +249,7 @@ class SortFileIterator final : public TableRowIterator {
   bool Init() override { return false; }
   int Read() override;
   std::vector<std::string> DebugString() const override;
+  void UnlockRow() override {}
 
  private:
   uchar *const m_rec_buf;
@@ -338,6 +348,173 @@ class FakeSingleRowIterator final : public RowIterator {
  private:
   bool m_has_row;
   ha_rows *const m_examined_rows;
+};
+
+/**
+  An iterator for unqualified COUNT(*) (ie., no WHERE, no join conditions,
+  etc.), taking a special fast path in the handler. It returns a single row,
+  much like FakeSingleRowIterator; however, unlike said iterator, it actually
+  does the counting in Read() instead of expecting all fields to already be
+  filled out.
+ */
+class UnqualifiedCountIterator final : public RowIterator {
+ public:
+  UnqualifiedCountIterator(THD *thd, JOIN *join)
+      : RowIterator(thd), m_join(join) {}
+
+  std::vector<std::string> DebugString() const override;
+
+  bool Init() override {
+    m_has_row = true;
+    return false;
+  }
+
+  int Read() override;
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  bool m_has_row;
+  JOIN *const m_join;
+};
+
+/**
+  A simple iterator that takes no input and produces zero output rows.
+  Used when the optimizer has figured out ahead of time that a given table
+  can produce no output (e.g. SELECT ... WHERE 2+2 = 5).
+ */
+class ZeroRowsIterator final : public RowIterator {
+ public:
+  ZeroRowsIterator(THD *thd, const char *reason)
+      : RowIterator(thd), m_reason(reason) {}
+
+  bool Init() override { return false; }
+
+  int Read() override { return -1; }
+
+  std::vector<std::string> DebugString() const override {
+    return {std::string("Zero rows (") + m_reason + ")"};
+  }
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  const char *m_reason;
+};
+
+class SELECT_LEX;
+
+/**
+  Like ZeroRowsIterator, but produces a single output row, since there are
+  aggregation functions present and no GROUP BY. E.g.,
+
+    SELECT SUM(f1) FROM t1 WHERE 2+2 = 5;
+
+  should produce a single row, containing only the value NULL.
+ */
+class ZeroRowsAggregatedIterator final : public RowIterator {
+ public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  ZeroRowsAggregatedIterator(THD *thd, const char *reason, JOIN *join,
+                             ha_rows *examined_rows)
+      : RowIterator(thd),
+        m_reason(reason),
+        m_join(join),
+        m_examined_rows(examined_rows) {}
+
+  bool Init() override {
+    m_has_row = true;
+    return false;
+  }
+
+  int Read() override;
+
+  std::vector<std::string> DebugString() const override {
+    return {std::string("Zero input rows (") + m_reason +
+            "), aggregated into one output row"};
+  }
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  bool m_has_row;
+  const char *const m_reason;
+  JOIN *const m_join;
+  ha_rows *const m_examined_rows;
+};
+
+/**
+  FollowTailIterator is a special version of TableScanIterator that is used
+  as part of WITH RECURSIVE queries. It is designed to read from a temporary
+  table at the same time as MaterializeIterator writes to the same table,
+  picking up new records in the order they come in -- it follows the tail,
+  much like the UNIX tool “tail -f”.
+
+  Furthermore, when materializing a recursive query expression consisting of
+  multiple query blocks, MaterializeIterator needs to run each block several
+  times until convergence. (For a single query block, one iteration suffices,
+  since the iterator sees new records as they come in.) Each such run, the
+  recursive references should see only rows that were added since the last
+  iteration, even though Init() is called anew. FollowTailIterator is thus
+  different from TableScanIterator in that subsequent calls to Init() do not
+  move the cursor back to the start.
+
+  In addition, FollowTailIterator implements the WITH RECURSIVE iteration limit.
+  This is not specified in terms of Init() calls, since one run can encompass
+  many iterations. Instead, it keeps track of the number of records in the table
+  at the start of iteration, and when it has read all of those records, the next
+  iteration is deemed to have begun. If the iteration counter is above the
+  user-set limit, it raises an error to stop runaway queries with infinite
+  recursion.
+ */
+class FollowTailIterator final : public TableRowIterator {
+ public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                     ha_rows *examined_rows);
+  ~FollowTailIterator() override;
+
+  bool Init() override;
+  int Read() override;
+
+  std::vector<std::string> DebugString() const override;
+
+  /**
+    Signal where we can expect to find the number of generated rows for this
+    materialization (this points into the MaterializeIterator's data).
+
+    This must be called when we start materializing the CTE,
+    before Init() runs.
+   */
+  void set_stored_rows_pointer(ha_rows *stored_rows) {
+    m_stored_rows = stored_rows;
+  }
+
+  /**
+    Signal to the iterator that the underlying table was closed and replaced
+    with an InnoDB table with the same data, due to a spill-to-disk
+    (e.g. the table used to be MEMORY and now is InnoDB). This is
+    required so that Read() can continue scanning from the right place.
+    Called by MaterializeIterator::MaterializeRecursive().
+   */
+  bool RepositionCursorAfterSpillToDisk();
+
+ private:
+  uchar *const m_record;
+  QEP_TAB *const m_qep_tab;
+  ha_rows *const m_examined_rows;
+  ha_rows m_read_rows;
+  ha_rows m_end_of_current_iteration;
+  unsigned m_recursive_iteration_count;
+
+  // Points into MaterializeIterator's data; set by BeginMaterialization() only.
+  ha_rows *m_stored_rows = nullptr;
 };
 
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

@@ -1,20 +1,5 @@
 CALL mtr.add_suppression("Could not parse key-value pairs in property string.*");
 #
-# Bug#24487414 - SIG 11 IN DD::INFO_SCHEMA::STATISTICS_CACHE::READ_STAT_BY_OPEN_TABLE
-#
-SET SESSION information_schema_stats_expiry=0;
-CREATE TABLE time_zone(f1 INT PRIMARY KEY) ENGINE=MyISAM;
-INSERT INTO time_zone VALUES (10);
-SET SESSION DEBUG="+d,simulate_kill_query_on_open_table";
-# Without fix, following query results in crash when query is killed while
-# opening "test.time_zone" table.
-SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND
-TABLE_NAME = 'time_zone';
-ERROR 70100: Query execution was interrupted
-SET SESSION DEBUG="-d,simulate_kill_query_on_open_table";
-DROP TABLE time_zone;
-SET SESSION information_schema_stats_expiry=default;
-#
 # Bug#26318759 ASSERT IN ROW_DROP_TABLE_FOR_MYSQL IN ROW/ROW0MYSQL.CC
 #
 SET SESSION information_schema_stats_expiry=0;
@@ -61,3 +46,47 @@ t1
 SET debug = DEFAULT;
 DROP TABLE t1;
 Pattern "Could not parse key-value pairs in property string.*" found
+#
+# Bug#28875646 - ASSERTION `THD->GET_TRANSACTION()->IS_EMPTY(TRANSACTION_CTX::STMT) || (THD->STAT
+#
+CREATE TABLE t1 (f1 INT );
+# Case 1: Test case to verify re-prepare of a prepared statement using
+#         INFORMATION_SCHEMA table in LOCK TABLE mode does not add a SE
+#         to the transaction while opening query tables.
+#         (Scenario reported in the bug page)
+PREPARE stmt FROM 'show events';
+EXECUTE stmt;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+FLUSH TABLES;
+LOCK TABLE t1 READ;
+SET DEBUG_SYNC="after_statement_reprepare SIGNAL flush_tables WAIT_FOR continue";
+EXECUTE stmt;
+SET DEBUG_SYNC="now WAIT_FOR flush_tables";
+SET DEBUG="+d,skip_dd_table_access_check";
+FLUSH TABLES mysql.events;
+SET DEBUG="-d,skip_dd_table_access_check";
+SET DEBUG_SYNC="now SIGNAL continue";
+# Without fix, execution of a prepared statement in the debug build will
+# hit the assert condition to check no SEs added to the transaction while
+# opening query tables. In non-debug build execution continues without
+# any issues.
+# With fix, in debug build "stmt" execution succeeds.
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+# Case 2: Test case added for the coverage.
+#         Test case to verify no SEs added to the transaction when open
+#         table fails after opening INFORMATION_SCHEMA tables in LOCK TABLE
+#         mode. In debug build, assert condition mentioned in the bug
+#         report fails if there are any SEs added to the transaction.
+SELECT * FROM INFORMATION_SCHEMA.EVENTS, t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+UNLOCK TABLES;
+# Case 3: Test case added for the coverage.
+#         Test case to verify no SEs added to the transaction when open
+#         table fails after opening INFORMATION_SCHEMA tables. In debug
+#         build, assert condition mentioned in the bug report fails if
+#         there are any SEs added to the transaction.
+SELECT * FROM INFORMATION_SCHEMA.EVENTS, t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+DROP TABLE t1;
+DROP PREPARE stmt;
+SET DEBUG_SYNC=RESET;

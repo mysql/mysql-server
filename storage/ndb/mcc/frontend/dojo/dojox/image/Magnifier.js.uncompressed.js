@@ -1,4 +1,3 @@
-//>>built
 define("dojox/image/Magnifier", ["dojo/_base/declare", "dojo/dom-construct", "dojo/_base/window", "dojox/gfx", "dojox/gfx/canvas", "./MagnifierLite"], function(declare, construct, window, gfx, canvas, MagnifierLite){
 	
 	return declare("dojox.image.Magnifier", MagnifierLite, {
@@ -7,7 +6,7 @@ define("dojox/image/Magnifier", ["dojo/_base/declare", "dojo/dom-construct", "do
 		//
 		// description:
 		//		An unobtrusive way to add an unstyled overlay
-		// 		above the srcNode image element. The overlay/glass is a
+		//		above the srcNode image element. The overlay/glass is a
 		//		scaled version of the src image (so larger images sized down
 		//		are clearer).
 		//
@@ -15,7 +14,8 @@ define("dojox/image/Magnifier", ["dojo/_base/declare", "dojo/dom-construct", "do
 		//		being sure to create an img node on that surface.
 
 		_createGlass: function(){
-			// summary: create the glassNode, and an img on a dojox.gfx surface
+			// summary:
+			//		create the glassNode, and an img on a dojox.gfx surface
 
 			// images are hard to make into workable templates, so just add outer overlay
 			// and skip using dijit._Templated
@@ -39,7 +39,8 @@ define("dojox/image/Magnifier", ["dojo/_base/declare", "dojo/dom-construct", "do
 		},
 
 		_placeGlass: function(e){
-			// summary: position the overlay centered under the cursor
+			// summary:
+			//		position the overlay centered under the cursor
 			var x = e.pageX - 2,
 				y = e.pageY - 2,
 				xMax = this.offset.x + this.offset.w + 2,
@@ -56,7 +57,8 @@ define("dojox/image/Magnifier", ["dojo/_base/declare", "dojo/dom-construct", "do
 		},
 
 		_setImage: function(e){
-			// summary: set the image's offset in the clipping window relative to the mouse position
+			// summary:
+			//		set the image's offset in the clipping window relative to the mouse position
 
 			var xOff = (e.pageX - this.offset.x) / this.offset.w,
 				yOff = (e.pageY - this.offset.y) / this.offset.h,

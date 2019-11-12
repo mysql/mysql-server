@@ -13,17 +13,18 @@
 }
 .claro .dijitTimePickerItem {
   
-  background-image: url("images/commonHighlight.png");
-  background-position: 0 -1px;
+  background-image: url("images/standardGradient.png");
   background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
   border-top: solid 1px #b5bcc7;
   border-bottom: solid 1px #b5bcc7;
   margin-right: -1px;
   margin-left: -1px;
   margin-top: -1px;
-}
-.dj_ie6 .claro .dijitTimePickerItem {
-  background-image: none;
 }
 .claro .dijitTimePickerTick {
   
@@ -74,12 +75,13 @@
   border-right: none;
   border-color: #b5bcc7;
   background-color: #efefef;
-  background-image: url("images/commonHighlight.png");
-  background-position: 0 -1px;
+  background-image: url("images/standardGradient.png");
   background-repeat: repeat-x;
-}
-.dj_ie6 .claro .dijitTimePicker .dijitButtonNode {
-  background-image: none;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
 }
 .claro .dijitTimePicker .dijitArrowButtonInner {
   height: 100%;

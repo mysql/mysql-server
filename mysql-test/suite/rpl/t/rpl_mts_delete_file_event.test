@@ -17,6 +17,7 @@
 # BUG#19552923: ASSERTION `!WORKER' FAILED FOR DELETE_FILE LOG EVENT IN MTS
 #
 
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc

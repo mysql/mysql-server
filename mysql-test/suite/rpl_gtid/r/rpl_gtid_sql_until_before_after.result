@@ -84,6 +84,7 @@ SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:100', -1);;
 WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:100', -1)
 NULL
 Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
 Warning	1210	Incorrect arguments to WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
 SET @@SESSION.SQL_MODE=@save_sql_mode;
 Test WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function with fractional timeout

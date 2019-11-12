@@ -1,52 +1,70 @@
 html.mobile, .mobile body {
   width: 100%;
-  margin: 0px;
-  padding: 0px;
+  margin: 0;
+  padding: 0;
 }
 .mobile body {
   overflow-x: hidden;
   -webkit-text-size-adjust: none;
-  background-color: #eff1f3;
+  background-color: #d0d0d0;
   font-family: Helvetica;
-  font-size: 14px;
+  font-size: 17px;
+  color: black;
 }
 .mblColorBlue {
-  background-color: #366EDF;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
+  color: white;
+  background-color: #2362dd;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#7a9de9), to(#2362dd));
+}
+.mblColorBlue45 {
+  background-image: -webkit-gradient(linear, left top, right bottom, from(#7a9de9), to(#2362dd));
 }
 .mblColorDefault {
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
+  color: black;
+  background-color: #a4a4a4;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#e2e2e2), to(#a4a4a4));
 }
-.mblColorDefault.mblDomButton {
-  background-color: #5cb0ff;
+.mblColorDefault45 {
+  background-image: -webkit-gradient(linear, left top, right bottom, from(#e2e2e2), to(#a4a4a4));
 }
 .mblColorDefaultSel {
-  background-color: #0064c2;
+  color: white;
+  background-color: #666666;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#bbbbbb), to(#666666));
 }
-.mblColorDefaultSel.mblDomButton {
-  background-color: #0064c2;
+.mblColorDefaultSel45 {
+  background-image: -webkit-gradient(linear, left top, right bottom, from(#bbbbbb), to(#666666));
+}
+.mblSpriteIcon {
+  position: absolute;
+}
+.mblSpriteIconParent {
+  position: relative;
+  font-size: 1px;
+}
+.mblImageIcon {
+  vertical-align: top;
 }
 .mblHeading {
   position: relative;
-  margin: 0px;
+  margin: 0;
   width: 100%;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
   z-index: 1;
   padding: 0;
-  height: 40px;
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(2.5%, #ffffff), color-stop(2.5%, rgba(255, 255, 255, 0.14)), color-stop(5%, rgba(255, 255, 255, 0.14)), color-stop(5%, rgba(255, 255, 255, 0.52)), color-stop(7.5%, rgba(255, 255, 255, 0.52)), color-stop(7.5%, rgba(255, 255, 255, 0.68)), color-stop(10%, rgba(255, 255, 255, 0.68)), color-stop(1, rgba(255, 255, 255, 0)));
-  border-bottom: 1px solid #769dc0;
-  color: #131313;
-  font-size: 18px;
+  height: 42px;
   font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: rgba(0, 0, 0, 0.2) 0px 1px 2px;
+  font-size: 20px;
+  font-weight: bold;
   text-align: center;
-  line-height: 42px;
+  line-height: 44px;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#f6f6f6), to(#dedede));
+  border-top: 1px solid #bfbfbf;
+  border-bottom: 1px solid #bfbfbf;
+  color: black;
+  text-shadow: rgba(255, 255, 255, 0.5) 0 1px 0;
 }
 .mblHeading * {
   z-index: 2;
@@ -55,7 +73,7 @@ html.mobile, .mobile body {
   position: absolute;
   width: 100%;
   display: none;
-  left: 0px;
+  left: 0;
   z-index: 1;
 }
 .mblHeadingCenterTitle .mblHeadingDivTitle {
@@ -64,147 +82,81 @@ html.mobile, .mobile body {
 .mblHeadingCenterTitle .mblHeadingSpanTitle {
   display: none;
 }
-.mblArrowButton {
-  position: relative;
-  float: left;
-  height: 30px;
-  margin: 0px 8px;
-}
-.mblArrowButtonHead {
-  position: absolute;
-  top: 5px;
-  left: 17px;
-  width: 21px;
-  height: 21px;
-  border: 1px solid #b5bcc7;
-  -webkit-transform-origin: left top;
-  -webkit-transform: scale(0.9, 0.99) rotate(45deg);
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, right bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
-}
-.dj_chrome .mblArrowButtonHead {
-  border-style: inset;
-}
-.mblArrowButtonBody {
-  position: absolute;
-  cursor: pointer;
-  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-  top: 5px;
-  left: 17px;
-  padding: 0px 10px 0px 3px;
-  height: 30px;
-  border-width: 1px 1px 1px 0px;
-  border-style: inset;
-  border-color: #b5bcc7;
-  font-size: 14px;
-  font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: none;
-  color: #131313;
-  line-height: 30px;
-  -webkit-border-top-right-radius: 2px;
-  -webkit-border-bottom-right-radius: 2px;
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
-}
-.mblArrowButtonSelected .mblArrowButtonHead, .mblArrowButtonSelected .mblArrowButtonBody {
-  background-color: #0064c2;
-}
-.mblSlide.mblOut {
+.mblSlide {
 	-webkit-transition-property: none;
 	-webkit-transition-duration: 0s;
-	-webkit-transform: translate3d(0%,0px,0px) !important;
 }
-.mblSlide.mblOut.mblTransition {
+.mblSlide.mblTransition {
 	-webkit-transition-property: -webkit-transform;
 	-webkit-transition-duration: .3s;
-	-webkit-transform: translate3d(-100%,0px,0px) !important;
 }
+.mblSlide.mblOut.mblReverse.mblTransition,
 .mblSlide.mblIn {
-	position: absolute !important;
-	-webkit-transition-property: none;
-	-webkit-transition-duration: 0s;
 	-webkit-transform: translate3d(100%,0px,0px) !important;
 }
-.mblSlide.mblIn.mblTransition {
-	-webkit-transition-property: -webkit-transform;
-	-webkit-transition-duration: .3s;
-	-webkit-transform: translate3d(0%,0px,0px) !important;
-}
-.mblSlide.mblOut.mblReverse {
-	-webkit-transition-property: none;
-	-webkit-transform: translate3d(0%,0px,0px) !important;
-}
-.mblSlide.mblOut.mblReverse.mblTransition {
-	-webkit-transition-property: -webkit-transform;
-	-webkit-transform: translate3d(100%,0px,0px) !important;
-}
+.mblSlide.mblOut.mblTransition,
 .mblSlide.mblIn.mblReverse {
 	-webkit-transform: translate3d(-100%,0px,0px) !important;
 }
-.mblSlide.mblIn.mblReverse.mblTransition {
-	-webkit-transition-property: -webkit-transform;
+.mblSlide.mblOut,
+.mblSlide.mblIn.mblTransition {
 	-webkit-transform: translate3d(0%,0px,0px) !important;
 }
-.dj_android.dj_tablet .mblSlide.mblOut.mblTransition,
-.dj_android.dj_tablet .mblSlide.mblIn.mblTransition {
+.dj_android.dj_tablet .mblSlide.mblTransition {
 	-webkit-transition-duration: .6s;
 	-webkit-transition-timing-function: linear;
 }
-.mblFlip.mblOut {
+.mblFlip {
 	-webkit-transition-property: none;
 	-webkit-transition-duration: 0s;
+}
+.mblFlip.mblTransition {
+	-webkit-transition-property: all;
+	-webkit-transition-duration: .2s;
+	-webkit-transition-timing-function: linear;
+}
+.mblFlip.mblOut {
 	opacity: 1;
 	-webkit-transform: scale(1,1) skew(0,0) !important;
 }
 .mblFlip.mblOut.mblTransition {
-	-webkit-transition-property: all;
-	-webkit-transition-duration: .2s;
-	-webkit-transition-timing-function: linear;
 	opacity: 0;
 	-webkit-transform: scale(0,0.8) skew(0,30deg) !important;
 }
 .mblFlip.mblIn {
-	position: absolute;
-	-webkit-transition-property: none;
-	-webkit-transition-duration: 0s;
 	opacity: 0;
 	-webkit-transform: scale(0,0.8) skew(0,-30deg) !important;
 }
 .mblFlip.mblIn.mblTransition {
-	-webkit-transition-property: all;
 	-webkit-transition-delay: .2s;
-	-webkit-transition-duration: .2s;
-	-webkit-transition-timing-function: linear;
 	opacity: 1;
 	-webkit-transform: scale(1,1) skew(0,0) !important;
 }
-.dj_android.dj_tablet .mblFlip.mblOut.mblTransition {
+.dj_android.dj_tablet .mblFlip.mblTransition {
 	-webkit-transition-duration: .4s;
 }
 .dj_android.dj_tablet .mblFlip.mblIn.mblTransition {
 	-webkit-transition-delay: .4s;
-	-webkit-transition-duration: .4s;
 }
-.mblFade.mblOut {
+.mblFade {
 	-webkit-transition-property: none;
 	-webkit-transition-duration: 0s;
+}
+.mblFade.mblTransition {
+	-webkit-transition-property: opacity;
+	-webkit-transition-duration: .6s;
+}
+.mblFade.mblOut {
 	opacity: 1;
 }
 .mblFade.mblOut.mblTransition {
-	-webkit-transition-property: opacity;
-	-webkit-transition-duration: .6s;
 	-webkit-transition-timing-function: ease-out;
 	opacity: 0;
 }
 .mblFade.mblIn {
-	-webkit-transition-property: none;
-	-webkit-transition-duration: 0s;
 	opacity: 0;
 }
 .mblFade.mblIn.mblTransition {
-	-webkit-transition-property: opacity;
-	-webkit-transition-duration: .6s;
 	-webkit-transition-timing-function: ease-in;
 	opacity: 1;
 }
@@ -213,7 +165,7 @@ html.mobile, .mobile body {
   top: 0px;
   left: 0px;
   width: 100%;
-  color: #131313;
+  color: black;
 }
 .mblView.mblIn {
   position: absolute;
@@ -227,109 +179,158 @@ html.mobile, .mobile body {
   z-index: 1;
 }
 .mblToolBarButton {
-  float: left;
+  display: inline-block;
   position: relative;
-  overflow: hidden;
   cursor: pointer;
   -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-  margin: 8px;
-  height: 30px;
-  border: 1px inset #b5bcc7;
-  -webkit-border-radius: 2px;
-  font-size: 14px;
-  font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: none;
-  color: #131313;
-  line-height: 30px;
+  margin: 6px;
+  padding: 0 10px;
+  height: 29px;
+  line-height: 29px;
   text-align: center;
+  font-family: Helvetica;
+  font-size: 13px;
+  font-weight: bold;
+  vertical-align: middle;
+  text-shadow: none;
 }
-.mblToolBarButton.mblArrowButtonText {
-  margin: 6px 8px;
+.mblToolBarButtonHasIcon, .mblToolBarButtonLightIcon {
+  padding: 0;
 }
-.mblToolBarButtonIcon {
-  position: relative;
-  top: 2px;
+.mblHeading .mblToolBarButton {
+  float: left;
 }
-.mblToolBarButtonSpriteIcon {
+.mblHeading span.mblToolBarButtonLightIcon {
+  padding: 0;
+}
+.mblToolBarButtonHasLeftArrow {
+  padding-right: 0;
+  padding-left: 10px;
+}
+.mblToolBarButtonHasRightArrow {
+  padding-left: 0;
+  padding-right: 10px;
+}
+.mblToolBarButtonArrow {
   position: absolute;
+  top: 5px;
+  width: 20px;
+  height: 19px;
+  border-radius: 1px;
+  -webkit-transform: scale(0.7, 1.05) rotate(45deg);
+  border: 1px solid #9b9b9b;
+  border-right-color: #767676;
+  border-bottom-color: #767676;
 }
-.mblToolBarButtonText {
-  padding: 0px 10px;
+.mblToolBarButtonHasLeftArrow .mblToolBarButtonArrow {
+  left: -1px;
+}
+.mblToolBarButtonHasRightArrow .mblToolBarButtonArrow {
+  right: -1px;
+}
+.mblToolBarButtonBody {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0;
+  border: 1px solid #9b9b9b;
+  border-bottom-color: #767676;
+  text-shadow: rgba(255, 255, 255, 0.5) 0 1px 0;
+}
+.mblToolBarButton .mblToolBarButtonBody {
+  width: 100%;
+}
+.mblToolBarButtonBody table {
+  margin: 0 auto;
+}
+.mblToolBarButtonHasLeftArrow .mblToolBarButtonBody {
+  border-left-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.mblToolBarButtonHasRightArrow .mblToolBarButtonBody {
+  border-right-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.mblToolBarButtonText .mblToolBarButtonIcon {
+  padding-left: 10px;
+}
+.mblToolBarButtonText .mblToolBarButtonLabel {
+  padding-right: 10px;
+  height: 29px;
+}
+.mblToolBarButtonHasLeftArrow .mblToolBarButtonIcon {
+  padding-left: 4px;
+}
+.mblToolBarButtonHasRightArrow .mblToolBarButtonLabel {
+  padding-right: 4px;
+}
+.mblToolBarButtonIcon > div {
+  height: 29px;
 }
 .mblRoundRect {
-  margin: 8px 8px 12px;
+  margin: 7px 9px 16px;
   padding: 8px;
-  border: 1px solid #b5bcc7;
-  -webkit-border-radius: 5px;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
   background-color: #ffffff;
-  font-size: 18px;
-  font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: none;
+  color: black;
 }
 .mblRoundRect.mblShadow {
-  -webkit-box-shadow: 5px 5px 5px #b5bcc7;
+  -webkit-box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.2);
 }
 .mblEdgeToEdgeCategory {
   position: relative;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   margin: 0;
-  padding: 0 8px;
-  height: 30px;
-  border-bottom: 1px solid #b5bcc7;
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(2.5%, #ffffff), color-stop(2.5%, rgba(255, 255, 255, 0.14)), color-stop(5%, rgba(255, 255, 255, 0.14)), color-stop(5%, rgba(255, 255, 255, 0.52)), color-stop(7.5%, rgba(255, 255, 255, 0.52)), color-stop(7.5%, rgba(255, 255, 255, 0.68)), color-stop(10%, rgba(255, 255, 255, 0.68)), color-stop(1, rgba(255, 255, 255, 0)));
-  font-size: 18px;
+  padding: 0 10px;
+  overflow: hidden;
   font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: rgba(0, 0, 0, 0.2) 0px 1px 2px;
-  color: #000000;
-  line-height: 32px;
+  font-size: 16px;
+  font-weight: bold;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 22px;
+  background-color: #dedede;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#f6f6f6), to(#dedede));
+  border-bottom: 1px solid #bfbfbf;
+  color: black;
+  text-shadow: rgba(255, 255, 255, 0.5) 0 1px 0;
+  line-height: 22px;
 }
 .mblRoundRectCategory {
+  margin: 18px 0 0 20px;
+  padding: 0;
+  font-family: Helvetica;
+  font-size: 16px;
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
-  margin: 0;
-  padding: 8px 8px 0;
-  font-size: 18px;
-  font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: rgba(0, 0, 0, 0.2) 0px 1px 2px;
-  color: #000000;
-  line-height: 30px;
+  color: black;
 }
 .mblRoundRectList {
-  position: relative;
-  
-  margin: 8px 8px 12px;
+  margin: 7px 9px 16px;
   padding: 0;
-  border: 1px solid #b5bcc7;
-  -webkit-border-radius: 5px;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
   background-color: #ffffff;
-  -webkit-box-shadow: 5px 5px 5px #b5bcc7;
 }
-.mblRoundRectList .mblListItem:first-child {
-  -webkit-border-top-left-radius: 5px;
-  -webkit-border-top-right-radius: 5px;
+.mblRoundRectList .mblListItem:first-child, .mblRoundRectList .mblEdgeToEdgeCategory:first-child {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
-.mblRoundRectList .mblListItem:last-child {
-  border-bottom-width: 0px;
-  -webkit-border-bottom-left-radius: 5px;
-  -webkit-border-bottom-right-radius: 5px;
+.mblRoundRectList .mblListItem:last-child, .mblRoundRectList .mblEdgeToEdgeCategory:last-child {
+  border-bottom-width: 0;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 .mblEdgeToEdgeList {
-  position: relative;
-  
   margin: 0;
   padding: 0;
-  background-color: #ffffff;
+  background-color: black;
 }
 .mblEdgeToEdgeList .mblListItem:last-child {
-  border-bottom-color: #b5bcc7;
+  border-bottom-color: #bfbfbf;
 }
 .mblDomButtonGrayArrow, .mblDomButtonArrow {
 	position: relative;
@@ -363,329 +364,356 @@ html.mobile, .mobile body {
 	-webkit-transform: scaleX(0.7) rotate(135deg);
 	border-width: 3px 4px 0px 0px;
 	border-style: solid;
-	border-color: #314E84;
+	border-color: #314e84;
 }
 .mblListItem {
   position: relative;
-  list-style-type: none;
-  vertical-align: bottom;
+  overflow: hidden;
   
-  padding: 0 0 0 8px;
-  height: 50px;
-  border-bottom: 1px solid #b5bcc7;
-  font-size: 18px;
-  font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: none;
-  color: #131313;
-  line-height: 50px;
+  padding: 0 8px;
+  height: 43px;
+  list-style-type: none;
+  line-height: 43px;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+  border-bottom: 1px solid #cccccc;
+  background-color: #ffffff;
+  color: black;
+  font-weight: bold;
 }
 .mblListItem.mblVariableHeight {
+  padding: 11px 8px;
   height: auto;
-  padding: 11px 0px 10px 6px;
   line-height: normal;
 }
-.mblListItem .mblListItemAnchor {
-  display: block;
-  height: 100%;
-  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-  background-position: 9px 7px;
-  text-decoration: none;
-  padding-right: 7px;
+.mblListItemSelected {
+  color: white;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#bbbbbb), to(#666666));
 }
-.mblListItem .mblListItemAnchor * {
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.2);
-}
-.mblItemSelected {
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
-}
-.mblItemSelected .mblListItemAnchor {
-  color: #000000;
-}
-.mblItemSelected .mblDomButton div {
+.mblListItemSelected .mblDomButton div {
   border-color: white;
 }
-.mblListItemTextBoxSelected {
-  background-color: #5cb0ff;
+.mblListItemLabelSelected {
+  background-color: #048bf4;
 }
 .mblListItemChecked {
-  color: #000000;
+  color: #314e84;
 }
-.mblListItemIcon {
+.mblListItemChecked .mblListItemRightIcon {
+  visibility: visible;
+}
+.mblListItemChecked .mblListItemUncheckIcon {
+  position: absolute;
+  visibility: hidden;
+}
+.mblListItemUnchecked .mblListItemRightIcon {
+  visibility: hidden;
+}
+.mblListItemUnchecked .mblListItemUncheckIcon {
+  visibility: visible;
+}
+.mblListItemDeleteIcon {
+  position: relative;
   float: left;
   line-height: normal;
-  margin-top: 10.5px;
+  margin-top: 7px;
+  margin-bottom: -7px;
   margin-right: 11px;
 }
-.mblListItemSpriteIcon {
-  position: absolute;
-  margin-top: 10.5px;
-  margin-left: 8px;
+.mblListItemIcon {
+  position: relative;
+  float: left;
+  line-height: normal;
+  margin-top: 7px;
+  margin-bottom: -7px;
+  margin-right: 11px;
 }
-.mblListItemRightIcon, .mblListItemRightIcon2 {
+.mblListItemRightIcon, .mblListItemRightIcon2, .mblListItemUncheckIcon {
   position: relative;
   float: right;
   line-height: normal;
-  margin-top: 10.5px;
+  margin-top: 7px;
+  margin-bottom: -7px;
 }
 .mblListItemRightText {
   position: relative;
   float: right;
   line-height: normal;
-  color: #131313;
-  margin: 14px 4px 0 0;
+  margin-right: 4px;
+  color: black;
+  margin-top: 12px;
 }
-.mblListItemTextBox {
+.mblListItemLabel {
+  position: relative;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  height: 100%;
 }
-.mblVariableHeight .mblListItemTextBox {
+.mblVariableHeight .mblListItemLabel {
   white-space: normal;
 }
-.mblSwitch {
-	margin: 0;
-	position: relative;
-	width: 94px;
-	height: 27px;
-	line-height: 29px;
-	overflow: hidden;
-	text-align: left;
-	-webkit-tap-highlight-color: rgba(255,255,255,0);
+.mblListItemSubText {
+  font-size: 14px;
+  color: gray;
 }
-.mblItemSwitch {
-	position: absolute;
-	right: 12px;
+.mblListItemLayoutLeft {
+  position: relative;
+  float: left;
+  margin-right: 11px;
+}
+.mblListItemLayoutCenter {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+}
+.mblListItemLayoutRight {
+  position: relative;
+  float: right;
+}
+.mblListItemFloat {
+  position: absolute;
+  border: 1px solid gray;
+  opacity: 0.5;
+  -webkit-box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+  -webkit-border-radius: 0px !important;
+  -moz-border-radius: 0px !important;
+}
+.mblSwitch {
+  margin: 0;
+  position: relative;
+  display: inline-block;
+  height: 27px;
+  line-height: 29px;
+  overflow: hidden;
+  text-align: left;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+}
+.mblListItem .mblSwitch {
+  position: absolute;
+  right: 12px;
+  top: 8px;
 }
 .mblSwitchInner {
-	position: absolute;
-	top: 0px;
-	height: 27px;
+  position: absolute;
+  top: 0;
+  height: 27px;
 }
 .mblSwitchAnimation .mblSwitchInner {
-	-webkit-transition-property: left;
-	-webkit-transition-duration: .3s;
+  -webkit-transition-property: left;
+  -webkit-transition-duration: .1s;
 }
 .mblSwitchOn .mblSwitchInner {
-	left: 0px;
-}
-.mblSwitchOff .mblSwitchInner {
-	left: -53px;
+  left: 0;
 }
 .mblSwitchBg {
-	position: absolute;
-	top: 0px;
-	height: 27px;
-	border-width: 1px;
-	border-style: inset;
-	border-color: #9CACC0;
-	font-family: Helvetica;
-	font-size: 16px;
-	font-weight: bold;
-	line-height: 29px;
-	-webkit-box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  width: 94px;
+  height: 27px;
+  font-family: Helvetica;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 29px;
+  -webkit-box-sizing: border-box;
+  border: 1px solid #c0c0c0;
+  border-bottom-color: #9b9b9b;
 }
 .mblSwitchBgLeft {
-	left: 0px;
-	width: 94px;
-	color: white;
-	background-color: #3F84EB;
+  left: 0;
+  color: white;
+  background-color: #3f84eb;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#bbbbbb), to(#666666));
 }
 .mblSwitchBgRight {
-	left: 53px;
-	width: 94px;
-	color: #7F7F7F;
+  color: #7f7f7f;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#e2e2e2));
 }
 .mblSwitchKnob {
-	position: absolute;
-	top: 1px;
-	left: 53px;
-	width: 41px;
-	height: 26px;
-	font-size: 1px;
-	border-width: 1px;
-	border-style: solid;
-	border-color: #EFEFEF #A5A5A5 #969696 #325E9E;
-	-webkit-box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  height: 27px;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#e2e2e2), to(#a4a4a4));
+  font-size: 1px;
+  -webkit-box-sizing: border-box;
+  border: 1px solid #9b9b9b;
+  border-bottom-color: #767676;
 }
 .mblSwitchText {
-	position: relative;
-	top: 0px;
-	width: 53px;
-	height: 27px;
-	padding: 0px;
-	line-height: 28px;
-	text-align: center;
+  position: relative;
+  top: 0;
+  width: 53px;
+  height: 27px;
+  padding: 0;
+  line-height: 28px;
+  text-align: center;
 }
 .mblSwitchTextLeft {
-	left: 0px;
+  left: 0;
 }
 .mblSwitchTextRight {
-	left: 40px;
+  left: 40px;
+}
+.mblSwSquareShape {
+  width: 94px;
+}
+.mblSwSquareShape.mblSwitchOff .mblSwitchInner {
+  left: -53px;
+}
+.mblSwSquareShape .mblSwitchBg {
+  border-radius: 2px;
+}
+.mblSwSquareShape .mblSwitchBgRight {
+  left: 53px;
+}
+.mblSwSquareShape .mblSwitchKnob {
+  left: 53px;
+  width: 41px;
+  border-radius: 2px;
+}
+.mblSwSquareShape .mblSwitchText {
+  width: 53px;
+}
+.mblSwSquareShape .mblSwitchTextRight {
+  left: 40px;
 }
 .mblSwRoundShape1 {
-	height: 28px;
-	-webkit-mask-image: -webkit-canvas(mblSwRoundShape1Mask);
-}
-.mblSwRoundShape1.mblItemSwitch {
-	top: 8px;
-}
-.mblSwRoundShape1 .mblSwitchInner {
-	height: 28px;
+  width: 77px;
 }
 .mblSwRoundShape1.mblSwitchOff .mblSwitchInner {
-	left: -67px;
+  left: -50px;
 }
 .mblSwRoundShape1 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 14px;
-}
-.mblSwRoundShape1 .mblSwitchBgLeft {
+  width: 77px;
+  border-radius: 14px;
 }
 .mblSwRoundShape1 .mblSwitchBgRight {
-	left: 67px;
+  left: 50px;
 }
 .mblSwRoundShape1 .mblSwitchKnob {
-	left: 67px;
-	width: 26px;
-	height: 26px;
-	-webkit-border-radius: 13px;
+  left: 50px;
+  width: 27px;
+  border-radius: 13px;
 }
 .mblSwRoundShape1 .mblSwitchText {
-	width: 67px;
-	height: 26px;
+  width: 50px;
 }
 .mblSwRoundShape1 .mblSwitchTextRight {
-	left: 26px;
+  left: 26px;
 }
 .mblSwRoundShape2 {
-	height: 28px;
-	-webkit-mask-image: -webkit-canvas(mblSwRoundShape2Mask);
-}
-.mblSwRoundShape2.mblItemSwitch {
-	top: 8px;
-}
-.mblSwRoundShape2 .mblSwitchInner {
-	height: 28px;
+  width: 94px;
 }
 .mblSwRoundShape2.mblSwitchOff .mblSwitchInner {
-	left: -51px;
+  left: -51px;
 }
 .mblSwRoundShape2 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 14px;
+  border-radius: 14px;
 }
 .mblSwRoundShape2 .mblSwitchBgRight {
-	left: 51px;
+  left: 51px;
 }
 .mblSwRoundShape2 .mblSwitchKnob {
-	left: 51px;
-	width: 42px;
-	height: 26px;
-	-webkit-border-radius: 13px;
+  left: 51px;
+  width: 43px;
+  border-radius: 13px;
 }
 .mblSwRoundShape2 .mblSwitchText {
-	width: 51px;
-	height: 28px;
+  width: 51px;
 }
 .mblSwRoundShape2 .mblSwitchTextRight {
-	left: 42px;
+  left: 42px;
 }
 .mblSwArcShape1 {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
-}
-.mblSwArcShape1.mblItemSwitch {
-	top: 8px;
-}
-.mblSwArcShape1 .mblSwitchInner {
-	height: 28px;
+  width: 77px;
 }
 .mblSwArcShape1.mblSwitchOff .mblSwitchInner {
-	left: -67px;
+  left: -50px;
 }
 .mblSwArcShape1 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
+  width: 77px;
+  border-radius: 5px/14px;
 }
 .mblSwArcShape1 .mblSwitchBgRight {
-	left: 67px;
+  left: 50px;
 }
 .mblSwArcShape1 .mblSwitchKnob {
-	left: 67px;
-	width: 26px;
-	height: 26px;
-	-webkit-border-radius: 5px/13px;
+  left: 50px;
+  width: 27px;
+  border-radius: 5px/13px;
 }
 .mblSwArcShape1 .mblSwitchText {
-	width: 67px;
-	height: 26px;
+  width: 50px;
 }
 .mblSwArcShape1 .mblSwitchTextRight {
-	left: 26px;
+  left: 26px;
 }
 .mblSwArcShape2 {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
-}
-.mblSwArcShape2.mblItemSwitch {
-	top: 8px;
-}
-.mblSwArcShape2 .mblSwitchInner {
-	height: 28px;
+  width: 94px;
 }
 .mblSwArcShape2.mblSwitchOff .mblSwitchInner {
-	left: -51px;
+  left: -51px;
 }
 .mblSwArcShape2 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
+  border-radius: 5px/14px;
 }
 .mblSwArcShape2 .mblSwitchBgRight {
-	left: 51px;
+  left: 51px;
 }
 .mblSwArcShape2 .mblSwitchKnob {
-	left: 51px;
-	width: 42px;
-	height: 26px;
-	-webkit-border-radius: 5px/13px;
+  left: 51px;
+  width: 43px;
+  border-radius: 5px/13px;
 }
 .mblSwArcShape2 .mblSwitchText {
-	width: 51px;
-	height: 26px;
+  width: 51px;
 }
 .mblSwArcShape2 .mblSwitchTextRight {
-	left: 42px;
+  left: 42px;
 }
-.mblItemSwitch {
-  top: 12px;
+.mblSwDefaultShape {
+  width: 94px;
 }
-.mblSwitchBg {
-  border-color: #b5bcc7;
-  -webkit-border-radius: 2px;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
+.mblSwDefaultShape.mblSwitchOff .mblSwitchInner {
+  left: -53px;
 }
-.mblSwitchBgLeft {
-  background-color: #007ef5;
-  color: #131313;
+.mblSwDefaultShape .mblSwitchBg {
+  border-radius: 2px;
 }
-.mblSwitchBgRight {
-  background-color: #8fc9ff;
+.mblSwDefaultShape .mblSwitchBgRight {
+  left: 53px;
 }
-.mblSwitchKnob {
-  border-color: #7b879b;
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
-  -webkit-border-radius: 2px;
+.mblSwDefaultShape .mblSwitchKnob {
+  left: 53px;
+  width: 41px;
+  border-radius: 2px;
+}
+.mblSwDefaultShape .mblSwitchText {
+  width: 53px;
+}
+.mblSwDefaultShape .mblSwitchTextRight {
+  left: 40px;
+}
+.mblProgressIndicator {
+  position: relative;
+  top: 0px;
+}
+.mblHeading .mblProgressIndicator {
+  margin: 5px;
+  float: left;
 }
 .mblProgContainer {
   position: absolute;
-  width: 40px;
-  height: 40px;
+  width: 100%;
+  height: 100%;
+}
+.mblProgressIndicatorCenter {
+  position: absolute;
   top: 180px;
   left: 50%;
-  margin: -18px 0px 0px -18px;
+}
+.mblProgressIndicatorCenter .mblProgContainer {
+  left: -50%;
+  -webkit-transform-origin: 50% 0;
 }
 .mblProg {
   position: absolute;
@@ -696,9 +724,8 @@ html.mobile, .mobile body {
   height: 4px;
   overflow: hidden;
   -webkit-transform-origin: 0 2px;
-  background-color: #C0C0C0;
-  -webkit-border-radius: 2px;
-  -moz-border-radius: 2px;
+  background-color: #c0c0c0;
+  border-radius: 2px;
 }
 .mblProg0 {
   -webkit-transform: translate(18px, 10px) rotate(-90.1deg);
@@ -735,4 +762,76 @@ html.mobile, .mobile body {
 }
 .mblProg11 {
   -webkit-transform: translate(14px, 11px) rotate(240deg);
+}
+.mblProg0Color {
+  background-color: #c0c0c0;
+}
+.mblProg1Color {
+  background-color: #c0c0c0;
+}
+.mblProg2Color {
+  background-color: #c0c0c0;
+}
+.mblProg3Color {
+  background-color: #c0c0c0;
+}
+.mblProg4Color {
+  background-color: #c0c0c0;
+}
+.mblProg5Color {
+  background-color: #c0c0c0;
+}
+.mblProg6Color {
+  background-color: #b8b9b8;
+}
+.mblProg7Color {
+  background-color: #aeafae;
+}
+.mblProg8Color {
+  background-color: #a4a5a4;
+}
+.mblProg9Color {
+  background-color: #9a9a9a;
+}
+.mblProg10Color {
+  background-color: #8e8e8e;
+}
+.mblProg11Color {
+  background-color: #838383;
+}
+.mblProgWhite .mblProg0Color {
+  background-color: #adb9c9;
+}
+.mblProgWhite .mblProg1Color {
+  background-color: #adb9c9;
+}
+.mblProgWhite .mblProg2Color {
+  background-color: #adb9c9;
+}
+.mblProgWhite .mblProg3Color {
+  background-color: #adb9c9;
+}
+.mblProgWhite .mblProg4Color {
+  background-color: #adb9c9;
+}
+.mblProgWhite .mblProg5Color {
+  background-color: #adb9c9;
+}
+.mblProgWhite .mblProg6Color {
+  background-color: #acb9cb;
+}
+.mblProgWhite .mblProg7Color {
+  background-color: #b7c2d2;
+}
+.mblProgWhite .mblProg8Color {
+  background-color: #c4cdda;
+}
+.mblProgWhite .mblProg9Color {
+  background-color: #d1d8e2;
+}
+.mblProgWhite .mblProg10Color {
+  background-color: #dee3ea;
+}
+.mblProgWhite .mblProg11Color {
+  background-color: #eceff3;
 }

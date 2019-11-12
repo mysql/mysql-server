@@ -103,9 +103,9 @@ INSERT INTO t5 VALUES ('K', 'Koeln', 'West', '76543', 'Rhein', 0, 0 ,0);
 INSERT INTO t5 VALUES ('S', 'Stuttgart', 'Nord', '65432', 'Fernsehturm', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11275
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following selects are writing all to  memcache otherwise memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 --sorted_result
@@ -117,8 +117,6 @@ SELECT c1,c2,c21,c22 FROM t4;
 --sorted_result
 SELECT c1,c2,c21,c22,c23 FROM t5;
 
-SELECT SLEEP(2);
-
 perl;
 use DBI;
 use Cache::Memcached;
@@ -127,7 +125,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C of default:\n";
+print "Here are the memcached results with D,B,H,C of default:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -147,7 +145,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C of t1:\n";
+print "Here are the memcached results with D,B,H,C of t1:\n";
 $val = $memd->get('@@desct1.D');
 if ($val) { print "$val\n"; }
 $val = $memd->get("\@\@desct1.B");
@@ -156,7 +154,7 @@ $val = $memd->get('@@desct1.'.'H');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct1.C');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with D,B,H,C of t2:\n";
+print "Here are the memcached results with D,B,H,C of t2:\n";
 $val = $memd->get("\@\@desct2");
 $val = $memd->get("Do");
 if ($val) { print "$val\n"; }
@@ -166,7 +164,7 @@ $val = $memd->get('Ha');
 if ($val) { print "$val\n"; }
 $val = $memd->get('Ce');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with D,B,H,A of t3:\n";
+print "Here are the memcached results with D,B,H,A of t3:\n";
 $val = $memd->get("\@\@desct3.City");
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct3.West');
@@ -175,7 +173,7 @@ $val = $memd->get('@@desct3.Mitte');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct3.Nord');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with D,O,K,S of t5:\n";
+print "Here are the memcached results with D,O,K,S of t5:\n";
 $val = $memd->get("\@\@desct5.D");
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct5.O');
@@ -184,7 +182,7 @@ $val = $memd->get('@@desct5.K');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct5.S');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with Z,B,H,M of t4:\n";
+print "Here are the memcached results with Z,B,H,M of t4:\n";
 $val = $memd->get("\@\@desct4.Z");
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct4.B');
@@ -193,7 +191,7 @@ $val = $memd->get('@@desct4.H');
 if ($val) { print "$val\n"; }
 $val = $memd->get('@@desct4.M');
 if ($val) { print "$val\n"; }
-print "Here the memcached results with D,B,H,C of t2:\n";
+print "Here are the memcached results with D,B,H,C of t2:\n";
 $memd->get("\@\@desct2");
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
@@ -225,29 +223,29 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set in default:\n";
+print "Here are the memcached results after set in default:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set in t2:\n";
+print "Here are the memcached results after set in t2:\n";
 $val = $memd->set("\@\@desct2.E","Es|Essen");
 $val = $memd->get("\@\@desct2.E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set in t5:\n";
+print "Here are the memcached results after set in t5:\n";
 $val = $memd->get("\@\@desct5");
 $val = $memd->set("E","Essen|Mitte|111111|Mahlzeit");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set in t3:\n";
+print "Here are the memcached results after set in t3:\n";
 $val = $memd->set('@@desct3.E',"Essen|Ost");
 $memd->get('@@desct3');
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set in t4:\n";
+print "Here are the memcached results after set in t4:\n";
 $val = $memd->set('@@desct4.E',"Essen|Mitte|111111");
 $val = $memd->get('@@desct4.E');
 if ($val) { print "$val\n"; }
-print "Here the memcached results after set in t5:\n";
+print "Here are the memcached results after set in t5:\n";
 $val = $memd->get("\@\@desct5");
 $val = $memd->set("\@\@desct5.E","Essen|Aussen|111111|Mahlzeit");
 $val = $memd->get("\@\@desct5.E");
@@ -270,5 +268,5 @@ DROP TABLE t1,t2,t3,t4,t5;
 
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

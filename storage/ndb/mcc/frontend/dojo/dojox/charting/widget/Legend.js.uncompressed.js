@@ -1,28 +1,23 @@
-//>>built
-define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/html", "dojo/_base/declare", "dijit/_Widget", "dojox/gfx","dojo/_base/array", 
+define("dojox/charting/widget/Legend", ["dojo/_base/lang", "dojo/_base/declare", "dijit/_WidgetBase", "dojox/gfx","dojo/_base/array",
 		"dojox/lang/functional", "dojox/lang/functional/array", "dojox/lang/functional/fold",
-		"dojo/dom", "dojo/dom-construct", "dojo/dom-class","dijit/_base/manager"], 
-		function(lang, html, declare, Widget, gfx, arrayUtil, df, dfa, dff, 
-				dom, domFactory, domClass, widgetManager){
-/*=====
-var Widget = dijit._Widget;
-=====*/
+		"dojo/dom", "dojo/dom-construct", "dojo/dom-class","dijit/registry"],
+		function(lang, declare, _WidgetBase, gfx, arrayUtil, df, dfa, dff,
+				dom, domFactory, domClass, registry){
 
-	var REVERSED_SERIES = /\.(StackedColumns|StackedAreas|ClusteredBars)$/;
-
-	return declare("dojox.charting.widget.Legend", Widget, {
-		// summary: A legend for a chart. A legend contains summary labels for
-		// each series of data contained in the chart.
-		//
-		// Set the horizontal attribute to boolean false to layout legend labels vertically.
-		// Set the horizontal attribute to a number to layout legend labels in horizontal
-		// rows each containing that number of labels (except possibly the last row).
-		//
-		// (Line or Scatter charts (colored lines with shape symbols) )
-		// -o- Series1		-X- Series2		-v- Series3
-		//
-		// (Area/Bar/Pie charts (letters represent colors))
-		// [a] Series1		[b] Series2		[c] Series3
+	return declare("dojox.charting.widget.Legend", _WidgetBase, {
+		// summary:
+		//		A legend for a chart. A legend contains summary labels for
+		//		each series of data contained in the chart.
+		//		
+		//		Set the horizontal attribute to boolean false to layout legend labels vertically.
+		//		Set the horizontal attribute to a number to layout legend labels in horizontal
+		//		rows each containing that number of labels (except possibly the last row).
+		//		
+		//		(Line or Scatter charts (colored lines with shape symbols) )
+		//		-o- Series1		-X- Series2		-v- Series3
+		//		
+		//		(Area/Bar/Pie charts (letters represent colors))
+		//		[a] Series1		[b] Series2		[c] Series3
 
 		chartRef:   "",
 		horizontal: true,
@@ -31,23 +26,14 @@ var Widget = dijit._Widget;
 		legendBody: null,
 
 		postCreate: function(){
-			if(!this.chart){
-				if(!this.chartRef){ return; }
-				this.chart = widgetManager.byId(this.chartRef);
+			if(!this.chart && this.chartRef){
+				this.chart = registry.byId(this.chartRef) || registry.byNode(dom.byId(this.chartRef));
 				if(!this.chart){
-					var node = dom.byId(this.chartRef);
-					if(node){
-						this.chart = widgetManager.byNode(node);
-					}else{
-						console.log("Could not find chart instance with id: " + this.chartRef);
-						return;
-					}
+					console.log("Could not find chart instance with id: " + this.chartRef);
 				}
-				this.series = this.chart.chart.series;
-			}else{
-				this.series = this.chart.series;
 			}
-
+			// we want original chart
+			this.chart = this.chart.chart || this.chart;
 			this.refresh();
 		},
 		buildRendering: function(){
@@ -56,8 +42,17 @@ var Widget = dijit._Widget;
 			this.legendBody = domFactory.create("tbody", null, this.domNode);
 			this.inherited(arguments);
 		},
+		destroy: function(){
+			if(this._surfaces){
+				arrayUtil.forEach(this._surfaces, function(surface){
+					surface.destroy();
+				});
+			}
+			this.inherited(arguments);
+		},
 		refresh: function(){
-			// summary: regenerates the legend to reflect changes to the chart
+			// summary:
+			//		regenerates the legend to reflect changes to the chart
 
 			// cleanup
 			if(this._surfaces){
@@ -77,7 +72,8 @@ var Widget = dijit._Widget;
 				this._inrow = 0;
 			}
 
-			var s = this.series;
+			// keep trying to reach this.series for compatibility reasons in case the user set them, but could be removed
+			var s = this.series || this.chart.series;
 			if(s.length == 0){
 				return;
 			}
@@ -85,9 +81,6 @@ var Widget = dijit._Widget;
 				var t = s[0].chart.stack[0];
 				if(typeof t.run.data[0] == "number"){
 					var filteredRun = df.map(t.run.data, "Math.max(x, 0)");
-					if(df.every(filteredRun, "<= 0")){
-						return;
-					}
 					var slices = df.map(filteredRun, "/this", df.foldl(filteredRun, "+", 0));
 					arrayUtil.forEach(slices, function(x, i){
 						this._addLabel(t.dyn[i], t._getLabel(x * 100) + "%");
@@ -98,9 +91,6 @@ var Widget = dijit._Widget;
 					}, this);
 				}
 			}else{
-				if(this._isReversal()){
-					s = s.slice(0).reverse();
-				}
 				arrayUtil.forEach(s, function(x){
 					this._addLabel(x.dyn, x.legend || x.name);
 				}, this);
@@ -157,13 +147,8 @@ var Widget = dijit._Widget;
 				if(dyn.marker){
 					// draw marker on top
 					var c = {x: mb.w / 2, y: mb.h / 2};
-					if(dyn.stroke){
-						surface.createPath({path: "M" + c.x + " " + c.y + " " + dyn.marker}).
-							setFill(dyn.stroke.color).setStroke(dyn.stroke);
-					}else{
-						surface.createPath({path: "M" + c.x + " " + c.y + " " + dyn.marker}).
-							setFill(dyn.color).setStroke(dyn.color);
-					}
+					surface.createPath({path: "M" + c.x + " " + c.y + " " + dyn.marker}).
+						setFill(dyn.markerFill).setStroke(dyn.markerStroke);
 				}
 			}else{
 				// nothing
@@ -172,11 +157,6 @@ var Widget = dijit._Widget;
 				surface.createLine({x1: 2, y1: 2, x2: mb.w - 2, y2: mb.h - 2}).setStroke("black");
 				surface.createLine({x1: 2, y1: mb.h - 2, x2: mb.w - 2, y2: 2}).setStroke("black");
 			}
-		},
-		_isReversal: function(){
-			return (!this.horizontal) && arrayUtil.some(this.chart.stack, function(item){
-				return REVERSED_SERIES.test(item.declaredClass);
-			});
 		}
 	});
 });

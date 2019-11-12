@@ -44,7 +44,7 @@ H	Hamburg	Norderstedt
 connection mysqltest1;
 LOCK TABLES t2 READ;
 connection mysqltest2;
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
@@ -58,7 +58,7 @@ H	Hamburg	Norderstedt
 connection mysqltest1;
 UNLOCK TABLES;
 connection mysqltest2;
-Here the memcached results after set:
+Here are the memcached results after set:
 Essen|Ost
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -69,28 +69,28 @@ E	Essen	Ost
 H	Hamburg	Norderstedt
 connection mysqltest1;
 LOCK TABLES t2 WRITE;
-Here the memcached results after add:
+Here are the memcached results after add:
 Frankfurt|Sachsenhause
 SELECT c1,c2,c21 FROM t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT c1,c2,c21 FROM t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
-Here the memcached results after add Frankfurt|:
+Here are the memcached results after add Frankfurt|:
 Frankfurt|
-Here the memcached results after add |Airport:
+Here are the memcached results after add |Airport:
 Frankfurt|
 SELECT c1,c2,c21 FROM t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 connection mysqltest1;
 UNLOCK TABLES;
-Here the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Frankfurt a.M.:
 Frankfurt a. M.|
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results after replace Sachsenhausen:
 |Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21

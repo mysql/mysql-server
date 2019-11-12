@@ -1,9 +1,9 @@
-//>>built
-define("dojox/highlight/languages/css", ["dojox/main", "../_base", "./html"], function(dojox, dh, html){
+define("dojox/highlight/languages/css", ["../_base", "./html"], function(dh, html){
 	
 	var dhc = dh.constants;
 	return dh.languages.css = {
-		// summary: CSS Language definition file. 
+		// summary:
+		//		CSS Language definition file.
 		defaultMode: {
 			contains: ['id', 'class', 'attr_selector', 'rules', 'comment'],
 			keywords: html.HTML_TAGS,

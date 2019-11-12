@@ -1,14 +1,14 @@
-//>>built
 define("dojox/html/ellipsis",["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array", "dojo/_base/Color", "dojo/colors"], function(d){
 	/*=====
-	dojox.html.ellipsis = {
-		// summary: offers cross-browser support for text-overflow: ellipsis
-		//
-		// description: Add "dojoxEllipsis" on any node that you want to ellipsis-ize. In order to function properly,
-		//	the node with the dojoxEllipsis class set on it should be a child of a node with a defined width.
-		//	It should also be a block-level element (i.e. <div>) - it will not work on td elements.
-		//	NOTE: When using the dojoxEllipsis class within tables, the table needs to have the table-layout: fixed style
-	}
+	return {
+		// summary:
+		//		offers cross-browser support for text-overflow: ellipsis
+		// description:
+		//		Add "dojoxEllipsis" on any node that you want to ellipsis-ize. In order to function properly,
+		//		the node with the dojoxEllipsis class set on it should be a child of a node with a defined width.
+		//		It should also be a block-level element (i.e. `<div>`) - it will not work on td elements.
+		//		NOTE: When using the dojoxEllipsis class within tables, the table needs to have the table-layout: fixed style
+	};
 	=====*/
 	
 	if(d.isFF < 7){ //TODO: feature detect text-overflow in computed style?
@@ -50,14 +50,13 @@ define("dojox/html/ellipsis",["dojo/_base/kernel", "dojo/_base/lang", "dojo/_bas
 		var dd = d.doc;
 		var dp = d.place;
 		var iFrame = create("iframe", {className: "dojoxEllipsisIFrame",
-					src: "javascript:'<html><head><script>if(\"loadFirebugConsole\" in window){window.loadFirebugConsole();}</script></head><body></body></html>'"});
+					src: "javascript:'<html><head><script>if(\"loadFirebugConsole\" in window){window.loadFirebugConsole();}</script></head><body></body></html>'", style: {display: "none"}});
 		var rollRange = function(/* W3C Range */ r, /* int? */ cnt){
-			// Summary:
+			// summary:
 			//		Rolls the given range back one character from the end
-			//
-			//	r: W3C Range
+			// r: W3C Range
 			//		The range to roll back
-			//	cnt: int?
+			// cnt: int?
 			//		An optional number of times to roll back (defaults 1)
 			if(r.collapsed){
 				// Do nothing - we are already collapsed
@@ -96,7 +95,7 @@ define("dojox/html/ellipsis",["dojo/_base/kernel", "dojo/_base/lang", "dojo/_bas
 			}
 		};
 		var createIFrameEllipsis = function(/* Node */ n){
-			// Summary:
+			// summary:
 			//		Given a node, it creates an iframe and and ellipsis div and
 			//		sets up the connections so that they will work correctly.
 			//		This function is used when createXULEllipsis is not able

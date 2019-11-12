@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/_SelectStackMixin", [
 	"dojo/_base/lang",
 	"dojo/_base/array",
@@ -21,11 +20,11 @@ return declare("dojox.form._SelectStackMixin", null, {
 	//		avoid running into unique ID constraint issues, a stackPrefix mechanism
 	//		is provided.
 
-	// stackId: string
+	// stackId: String
 	//		The id of the stack that this widget is supposed to control
 	stackId: "",
 
-	// stackPrefix: string
+	// stackPrefix: String
 	//		A prefix to remove from our stack pane ids when setting our options.
 	//		This exists so that we won't run into unique ID constraints.  For
 	//		example, if stackPrefix is set to "foo_", and there are three panes
@@ -37,12 +36,14 @@ return declare("dojox.form._SelectStackMixin", null, {
 	stackPrefix: "",
 
 	_paneIdFromOption: function(/*String*/ oVal){
-		// summary: Gets the pane ID given an option value
+		// summary:
+		//		Gets the pane ID given an option value
 		return (this.stackPrefix || "") + oVal; // String
 	},
 
 	_optionValFromPane: function(/*String*/ id){
-		// summary: Gets the option value given a pane ID
+		// summary:
+		//		Gets the option value given a pane ID
 		var sp = this.stackPrefix;
 		if(sp && id.indexOf(sp) === 0){
 			return id.substring(sp.length); // String
@@ -51,8 +52,9 @@ return declare("dojox.form._SelectStackMixin", null, {
 	},
 
 	_togglePane: function(/*dijit._Widget*/ pane, /*Boolean*/ shown){
-		// summary: called when a pane is either shown or hidden (so that
-		//  we can toggle the widgets on it)
+		// summary:
+		//		called when a pane is either shown or hidden (so that
+		//		we can toggle the widgets on it)
 
 		if(pane._shown != undefined && pane._shown == shown){ return; }
 		var widgets = array.filter(pane.getDescendants(), "return item.name;");
@@ -95,7 +97,8 @@ return declare("dojox.form._SelectStackMixin", null, {
 	},
 
 	onAddChild: function(/*dijit._Widget*/ pane, /*Integer?*/ insertIndex){
-		// summary: Called when the stack container adds a new pane
+		// summary:
+		//		Called when the stack container adds a new pane
 		if(!this._panes[pane.id]){
 			this._panes[pane.id] = pane;
 			var v = this._optionValFromPane(pane.id);
@@ -115,7 +118,7 @@ return declare("dojox.form._SelectStackMixin", null, {
 		}
 		this.inherited(arguments);
 	},
-	attr: function(/*String|Object*/name, /*Object?*/value){
+	attr: function(/*String|Object*/ name, /*Object?*/ value){
 		if(name == "value" && arguments.length == 2 && "_savedValue" in this){
 			this._savedValue = value;
 		}
@@ -123,7 +126,8 @@ return declare("dojox.form._SelectStackMixin", null, {
 	},
 
 	onRemoveChild: function(/*dijit._Widget*/ pane){
-		// summary: Called when the stack container removes a pane
+		// summary:
+		//		Called when the stack container removes a pane
 		if(this._panes[pane.id]){
 			delete this._panes[pane.id];
 			this.removeOption(this._optionValFromPane(pane.id));
@@ -131,12 +135,14 @@ return declare("dojox.form._SelectStackMixin", null, {
 	},
 
 	onSelectChild: function(/*dijit._Widget*/ pane){
-		// summary: Called when the stack container selects a new pane
+		// summary:
+		//		Called when the stack container selects a new pane
 		this._setValueAttr(this._optionValFromPane(pane.id));
 	},
 
 	onStartup: function(/*Object*/ info){
-		// summary: Called when the stack container is started up
+		// summary:
+		//		Called when the stack container is started up
 		var selPane = info.selected;
 		this.addOption(array.filter(array.map(info.children, function(c){
 			var v = this._optionValFromPane(c.id);
@@ -207,7 +213,8 @@ return declare("dojox.form._SelectStackMixin", null, {
 	},
 
 	_handleSelfOnChange: function(/*String*/ val){
-		// summary: Called when form select widget's value has changed
+		// summary:
+		//		Called when form select widget's value has changed
 		var pane = this._panes[this._paneIdFromOption(val)];
 		if(pane){
 			var s = manager.byId(this.stackId);

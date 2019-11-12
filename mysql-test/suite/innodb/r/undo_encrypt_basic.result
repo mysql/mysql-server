@@ -1,11 +1,15 @@
+# WL#9289 InnoDB transparent tablespace data encryption for undo log
 # create bootstrap file
 # Stop the MTR default DB server
+# Test1: bootstrap with 2 undo tablespaces and with keyring.
 # Run the bootstrap command with keyring
 # Start the DB server with undo log encryption disabled, and no keyring plugin.
+# Enable undo log encryption, should report error in server log, since keyring is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = ON;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 # Start the DB server with undo log encryption disabled and keyring plugin loaded. It should success.
+# Enable undo log encryption, shouldn't report error in server log.
 SET GLOBAL innodb_undo_log_encrypt = ON;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION='Y' ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
@@ -102,6 +106,7 @@ INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 SET GLOBAL innodb_undo_log_encrypt = ON;
 INSERT INTO t1 VALUES(9, "jjjjj");
+# Kill and restart to confirm the encryption info can be retrieved properly.
 # Kill the server
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
@@ -123,7 +128,7 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-# Start the DB server with undo log encryption disabled and keyring plugin loaded. It should success.
+# Start the DB server with undo log encryption disabled and keyring plugin loaded. It should succeed.
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -151,5 +156,8 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+# Cleanup
 DROP TABLE t1;
+# restart the server with MTR default
 # restart
+# Remove residue files

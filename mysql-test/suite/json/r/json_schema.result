@@ -1,0 +1,375 @@
+# See that SQL NULL is handled properly
+SELECT JSON_SCHEMA_VALID(NULL, NULL);
+JSON_SCHEMA_VALID(NULL, NULL)
+NULL
+SELECT JSON_SCHEMA_VALID('{}', NULL);
+JSON_SCHEMA_VALID('{}', NULL)
+NULL
+SELECT JSON_SCHEMA_VALID(NULL, '{}');
+JSON_SCHEMA_VALID(NULL, '{}')
+NULL
+# Check some basic scenarios to verify that everything is working as
+# expected. Note that the rapidjson library contains a bunch of tests to
+# verify the correctness of the JSON Schema validation, so we don't do
+# any extensive testing of the validation process itself here.
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": 63
+    },
+    "longitude": {
+      "type": "number"
+    }
+  },
+  "required": ["latitude", "longitude"]
+}','{
+  "latitude": 63.444697,
+  "longitude": 10.445118
+}') AS should_be_valid;
+should_be_valid
+1
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": 63
+    },
+    "longitude": {
+      "type": "number"
+    }
+  },
+  "required": ["latitude", "longitude"]
+}','{
+  "longitude": 10.445118
+}') AS should_be_invalid;
+should_be_invalid
+0
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "minimum": 63
+    },
+    "longitude": {
+      "type": "number"
+    }
+  },
+  "required": ["latitude", "longitude"]
+}','{
+  "latitude": 62,
+  "longitude": 10.445118
+}') AS should_be_invalid;
+should_be_invalid
+0
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "8"
+}') AS should_be_valid;
+should_be_valid
+1
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "4"
+}') AS should_be_invalid;
+should_be_invalid
+0
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": { "$ref": "http://example.com" }
+}','
+{
+  "latitude": 63.444697
+}') AS invalid;
+ERROR 42000: This version of MySQL doesn't yet support 'references in JSON Schema'
+SELECT JSON_SCHEMA_VALID(repeat('[', 100000), json_object());
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_SCHEMA_VALID(json_object(), repeat('[', 100000));
+ERROR 22032: The JSON document exceeds the maximum depth.
+# Check that we can use JSON_SCHEMA_VALID as a CHECK constraint.
+CREATE TABLE t1 (
+geometry JSON,
+CHECK(JSON_SCHEMA_VALID('{
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        }
+      },
+      "required": ["latitude", "longitude"]
+    }', geometry)
+)
+);
+INSERT INTO t1 VALUES ('{"latitude": 0, "longitude": 0}');
+INSERT INTO t1 VALUES ('{"latitude": -90, "longitude": -180}');
+INSERT INTO t1 VALUES ('{"latitude": 90, "longitude": 180}');
+SELECT geometry FROM t1;
+geometry
+{"latitude": 0, "longitude": 0}
+{"latitude": -90, "longitude": -180}
+{"latitude": 90, "longitude": 180}
+INSERT INTO t1  VALUES ('{"latitude": 0}');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+INSERT INTO t1 VALUES ('{"latitude": 181, "longitude": 0}');
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+# Negative test for wrong number of arguments
+SELECT JSON_SCHEMA_VALID();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_SCHEMA_VALID'
+SELECT JSON_SCHEMA_VALID(NULL);
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_SCHEMA_VALID'
+SELECT JSON_SCHEMA_VALID(NULL, NULL, NULL);
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_SCHEMA_VALID'
+# Invalid JSON document in either argument
+SET @invalid_json = '{"foo": "bar"';
+SET @valid_json = '{}';
+SELECT JSON_SCHEMA_VALID(@valid_json, @valid_json) AS should_be_true;
+should_be_true
+1
+SELECT JSON_SCHEMA_VALID(@invalid_json, @valid_json);
+ERROR 22032: Invalid JSON text in argument 1 to function json_schema_valid: "Missing a comma or '}' after an object member." at position 13.
+SELECT JSON_SCHEMA_VALID(@valid_json, @invalid_json);
+ERROR 22032: Invalid JSON text in argument 2 to function json_schema_valid: "Missing a comma or '}' after an object member." at position 13.
+SELECT JSON_SCHEMA_VALID(@invalid_json, @invalid_json);
+ERROR 22032: Invalid JSON text in argument 1 to function json_schema_valid: "Missing a comma or '}' after an object member." at position 13.
+# Invalid regex patterns. rapidjson ignores invalid regex patterns, so
+# they are removed from the validation process.
+SELECT JSON_SCHEMA_VALID('{"type":"string","pattern":"("}', '"abc"') AS should_be_true;
+should_be_true
+1
+SELECT JSON_SCHEMA_VALID('{"type":"string","pattern":"[asdf@123"}', '"abc"') AS should_be_true;
+should_be_true
+1
+# Positive and negative tests for anchored regex patterns
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "a8"
+}') AS should_be_valid;
+should_be_valid
+1
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]"
+    }
+  }
+}','{
+  "a_string": "a8"
+}') AS should_be_invalid;
+should_be_invalid
+0
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]"
+    }
+  }
+}','{
+  "a_string": "8a"
+}') AS should_be_valid;
+should_be_valid
+1
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "[5-9]$"
+    }
+  }
+}','{
+  "a_string": "8a"
+}') AS should_be_invalid;
+should_be_invalid
+0
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]$"
+    }
+  }
+}','{
+  "a_string": "8"
+}') AS should_be_valid;
+should_be_valid
+1
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]$"
+    }
+  }
+}','{
+  "a_string": "a8"
+}') AS should_be_invalid;
+should_be_invalid
+0
+SELECT JSON_SCHEMA_VALID('{
+  "type": "object",
+  "properties": {
+    "a_string": {
+      "type": "string",
+      "pattern": "^[5-9]$"
+    }
+  }
+}','{
+  "a_string": "8a"
+}') AS should_be_invalid;
+should_be_invalid
+0
+# The JSON Schema must be an object, so see that we don't accept any
+# other type as the first argument.
+SELECT JSON_SCHEMA_VALID('[]', '{}');
+ERROR 22032: Invalid JSON type in argument 1 to function json_schema_valid; an object is required.
+SELECT JSON_SCHEMA_VALID(CAST('test' AS JSON), '{}');
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 1.
+SELECT JSON_SCHEMA_VALID('{"type":"object"}', '{');
+ERROR 22032: Invalid JSON text in argument 2 to function json_schema_valid: "Missing a name for object member." at position 1.
+# Test some various scenarios with cached JSON schema (first argument is const)
+CREATE TABLE t1 (col1 JSON);
+INSERT INTO t1 VALUES ('{"latitude": 0, "longitude": 0}');
+INSERT INTO t1 VALUES ('{"latitude": -90, "longitude": -180}');
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('[]');
+INSERT INTO t1 VALUES ('{"latitude": 90, "longitude": 180}');
+# All rows should return SQL NULL
+SELECT JSON_SCHEMA_VALID(NULL, col1) FROM t1;
+JSON_SCHEMA_VALID(NULL, col1)
+NULL
+NULL
+NULL
+NULL
+NULL
+# We should get true, true, null, false, true
+SELECT JSON_SCHEMA_VALID('{"type":"object"}', col1) AS valid FROM t1;
+valid
+1
+1
+NULL
+0
+1
+# Both arguments should be JSON
+SELECT JSON_SCHEMA_VALID(JSON_DEPTH(col1), col1) FROM t1;
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_valid; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALID('{"type":"object"}', JSON_DEPTH(col1)) FROM t1;
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_schema_valid; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALID(123, col1) FROM t1;
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_valid; a JSON string or JSON type is required.
+DROP TABLE t1;
+# Test some scenarios with non-cached JSON schema (first argument is not const)
+CREATE TABLE t1 (col1 JSON);
+INSERT INTO t1 VALUES ('{"type":"object"}');
+INSERT INTO t1 VALUES ('{"type":"array"}');
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES ('{"type":"string"}');
+# All rows should return SQL NULL
+SELECT JSON_SCHEMA_VALID(col1, NULL) FROM t1;
+JSON_SCHEMA_VALID(col1, NULL)
+NULL
+NULL
+NULL
+NULL
+# We should get false, true, null, false
+SELECT JSON_SCHEMA_VALID(col1, '[]') AS valid FROM t1;
+valid
+0
+1
+NULL
+0
+DROP TABLE t1;
+CREATE TABLE t1(s VARCHAR(100), d VARCHAR(100));
+# Invalid JSON document, non-const schema
+INSERT INTO t1 VALUES('{"type":"object"}', '{');
+SELECT JSON_SCHEMA_VALID(s, d) FROM t1;
+ERROR 22032: Invalid JSON text in argument 2 to function json_schema_valid: "Missing a name for object member." at position 1.
+# Invalid, non-const schema
+UPDATE t1 SET s = '{', d = '{}';
+SELECT JSON_SCHEMA_VALID(s, d) FROM t1;
+ERROR 22032: Invalid JSON text in argument 1 to function json_schema_valid: "Missing a name for object member." at position 1.
+DROP TABLE t1;
+# Ensure that our item tree transformation doesn't get stuck forever when
+# using prepared statements.
+PREPARE stmt FROM 'SELECT JSON_SCHEMA_VALID(?, ''{}'') FROM DUAL';
+SET @json_schema = '{"type":"object"}';
+SET @null = NULL;
+EXECUTE stmt USING @json_schema;
+JSON_SCHEMA_VALID(?, '{}')
+1
+EXECUTE stmt USING @null;
+JSON_SCHEMA_VALID(?, '{}')
+NULL
+EXECUTE stmt USING @json_schema;
+JSON_SCHEMA_VALID(?, '{}')
+1
+#
+# Bug#29366780 WL#11999: SIG6 IN SETUP_FIELDS() AT SQL/SQL_BASE.CC
+#
+SELECT JSON_SCHEMA_VALID(CAST('NULL' AS JSON), CAST('NULL' AS JSON));
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.
+# See that we don't accept non-JSON types like geometry, bool, ints etc.
+SELECT JSON_SCHEMA_VALID(JSON_OBJECT(), 123);
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_schema_valid; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALID(JSON_OBJECT(), POINT(1, 1));
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_schema_valid; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALID(JSON_OBJECT(), true);
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_schema_valid; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALID(123, JSON_OBJECT());
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_valid; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALID(POINT(1, 1), JSON_OBJECT());
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_valid; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALID(true, JSON_OBJECT());
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_valid; a JSON string or JSON type is required.
+#
+# Bug#29524331: WL#11999: ASSERTION FAILURE: `!ARGS[0]->CONST_ITEM()'
+# Bug#29528888: WL#11999: SIG6 IN ITEM_FUNC_JSON_SCHEMA_VALID::VAL_BOOL()
+#               AT ITEM_JSON_FUNC.CC
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, j JSON);
+INSERT INTO t1 VALUES (1, '{"key": "foobar"}' );
+SELECT JSON_SCHEMA_VALID(j, j) FROM t1 WHERE pk = 1;
+JSON_SCHEMA_VALID(j, j)
+1
+SELECT JSON_SCHEMA_VALID(t2.j, t2.j)
+FROM t1, (SELECT * FROM t1 WHERE pk = 1) t2;
+JSON_SCHEMA_VALID(t2.j, t2.j)
+1
+DROP TABLE t1;

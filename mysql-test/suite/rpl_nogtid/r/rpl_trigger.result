@@ -90,6 +90,8 @@ insert into t1 set a = now();
 select a=b && a=c from t1;
 a=b && a=c
 1
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 SELECT routine_name, definer
 FROM information_schema.routines
 WHERE routine_name = 'bug12480';
@@ -116,6 +118,8 @@ t1_first	root@localhost
 select a=b && a=c from t1;
 a=b && a=c
 1
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 test
 1
 truncate table t1;
@@ -126,6 +130,8 @@ a=b && a=c
 1
 1
 1
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 drop function bug12480;
 drop table t1;
 create table t1 (i int);
@@ -996,22 +1002,6 @@ a	b
 2	b
 3	c
 drop table t1;
-include/sync_slave_sql_with_master.inc
-include/rpl_reset.inc
-create table t1 ( f int ) engine = innodb;
-create table log ( r int ) engine = myisam;
-create trigger tr
-after insert on t1
-for each row insert into log values ( new.f );
-set autocommit = 0;
-insert into t1 values ( 1 );
-rollback;
-Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
-include/sync_slave_sql_with_master.inc
-include/diff_tables.inc [master:t1, slave:t1]
-include/diff_tables.inc [master:log, slave:log]
-drop table t1, log;
 include/sync_slave_sql_with_master.inc
 #
 # WL#3253: Multiple triggers with the same value TIME/ACTION per table 

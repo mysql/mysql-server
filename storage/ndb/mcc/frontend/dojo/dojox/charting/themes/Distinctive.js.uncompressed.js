@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/Distinctive", ["../Theme", "./common"], function(Theme, themes){
-	
-	themes.Distinctive=new Theme({
+define("dojox/charting/themes/Distinctive", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.Distinctive = new SimpleTheme({
 		colors: [
 			"#497c91",
 			"#ada9d6",
@@ -38,6 +36,5 @@ define("dojox/charting/themes/Distinctive", ["../Theme", "./common"], function(T
 		
 		]
 	});
-	
 	return themes.Distinctive;
 });

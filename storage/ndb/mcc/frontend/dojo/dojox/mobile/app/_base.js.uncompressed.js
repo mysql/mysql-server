@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/_base", ["dijit","dojo","dojox","dojo/require!dijit/_base,dijit/_WidgetBase,dojox/mobile,dojox/mobile/parser,dojox/mobile/Button,dojox/mobile/app/_event,dojox/mobile/app/_Widget,dojox/mobile/app/StageController,dojox/mobile/app/SceneController,dojox/mobile/app/SceneAssistant,dojox/mobile/app/AlertDialog,dojox/mobile/app/List,dojox/mobile/app/ListSelector,dojox/mobile/app/TextBox,dojox/mobile/app/ImageView,dojox/mobile/app/ImageThumbView"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/_base", ["dojo","dijit","dojox","dojo/require!dijit/_base,dijit/_WidgetBase,dojox/mobile,dojox/mobile/parser,dojox/mobile/Button,dojox/mobile/app/_event,dojox/mobile/app/_Widget,dojox/mobile/app/StageController,dojox/mobile/app/SceneController,dojox/mobile/app/SceneAssistant,dojox/mobile/app/AlertDialog,dojox/mobile/app/List,dojox/mobile/app/ListSelector,dojox/mobile/app/TextBox,dojox/mobile/app/ImageView,dojox/mobile/app/ImageThumbView"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app._base");
 dojo.experimental("dojox.mobile.app._base");
 
@@ -134,7 +133,7 @@ dojo.require("dojox.mobile.app.ImageThumbView");
 	dojo.mixin(dojox.mobile.app, {
 		init: function(node){
 			// summary:
-			//    Initializes the mobile app. Creates the
+			//		Initializes the mobile app. Creates the
 
 			rootNode = node || dojo.body();
 			dojox.mobile.app.STAGE_CONTROLLER_ACTIVE = true;

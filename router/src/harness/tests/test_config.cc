@@ -42,11 +42,11 @@
 #include <stdexcept>
 #include <string>
 
+using mysql_harness::bad_option;
+using mysql_harness::bad_section;
 using mysql_harness::Config;
 using mysql_harness::ConfigSection;
 using mysql_harness::Path;
-using mysql_harness::bad_option;
-using mysql_harness::bad_section;
 using mysql_harness::syntax_error;
 
 using testing::ElementsAreArray;

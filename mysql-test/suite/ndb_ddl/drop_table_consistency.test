@@ -1,0 +1,142 @@
+#
+# Check the behavior when a table is dropped from NDB using
+# 'ndb_drop_table' and there's a subsequent attempt to drop
+# the table using an SQL command i.e. DROP TABLE or DROP
+# DATABASE. This test checks if
+# - The table is removed on all the participants
+# - Table events (if any) have been removed in such cases
+#
+
+# Connect to all MySQL Servers
+--source connect.inc
+
+# Create a normal user table in NDB. Such tables always have an
+# associated event created
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE NDB;
+# Check that CREATE TABLE has been distributed
+--let $counter = 1
+while ($counter <= 6)
+{
+  --let $mysqld_name = mysqld$counter
+  --connection $mysqld_name
+  SHOW TABLES;
+  --inc $counter
+}
+
+--echo Drop the table using ndb_drop_table
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+
+--error ER_GET_ERRMSG
+SHOW CREATE TABLE t1;
+SHOW WARNINGS;
+DROP TABLE t1;
+# Check that DROP TABLE has been distributed
+--let $counter = 1
+while ($counter <= 6)
+{
+
+  --let $mysqld_name = mysqld$counter
+  --connection $mysqld_name
+  SHOW TABLES;
+  --inc $counter
+}
+
+# Check that event has been dropped
+--source retrieve_event_list.inc
+let $check_event_dbname = test;
+let $check_event_tabname = t1;
+--source check_event_for_table.inc
+--disable_query_log ONCE
+DROP TABLE event_list;
+
+--connection mysqld2
+# Create a table with hidden PK. Such tables don't have events
+CREATE TABLE t1 (
+  a int,
+  b varchar(255)
+) ENGINE NDB;
+# Check that CREATE TABLE has been distributed
+--let $counter = 1
+while ($counter <= 6)
+{
+  --let $mysqld_name = mysqld$counter
+  --connection $mysqld_name
+  SHOW TABLES;
+  --inc $counter
+}
+
+--echo Drop the table using ndb_drop_table
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+
+--disable_query_log ONCE
+call mtr.add_suppression("Incorrect information in file");
+--error ER_TABLE_DEF_CHANGED
+SHOW CREATE TABLE t1;
+SHOW WARNINGS;
+DROP TABLE t1;
+# Check that DROP TABLE has been distributed
+--let $counter = 1
+while ($counter <= 6)
+{
+
+  --let $mysqld_name = mysqld$counter
+  --connection $mysqld_name
+  SHOW TABLES;
+  --inc $counter
+}
+
+--connection mysqld3
+# Create 1 database and 2 tables
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE NDB;
+CREATE TABLE t2 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE NDB;
+
+# Check that CREATE TABLE has been distributed
+--let $counter = 1
+while ($counter <= 6)
+{
+  --let $mysqld_name = mysqld$counter
+  --connection $mysqld_name
+  SHOW TABLES IN ndb_ddl_test3;
+  --inc $counter
+}
+
+--connection mysqld3
+--echo Drop the table using ndb_drop_table
+--exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test3 t1 >> $NDB_TOOLS_OUTPUT
+
+DROP DATABASE ndb_ddl_test3;
+
+# Check that event has been dropped
+--source retrieve_event_list.inc
+let $check_event_dbname = ndb_ddl_test3;
+let $check_event_tabname = t1;
+--source check_event_for_table.inc
+let $check_event_dbname = ndb_ddl_test3;
+let $check_event_tabname = t2;
+--source check_event_for_table.inc
+--disable_query_log ONCE
+DROP TABLE test.event_list;
+
+--connection mysqld4
+# Now we check if the table has been removed on a participant by creating
+# the same table again
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE NDB;
+DROP DATABASE ndb_ddl_test3;
+
+--remove_file $NDB_TOOLS_OUTPUT

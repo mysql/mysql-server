@@ -17,18 +17,18 @@
  * 		.tabStripButtonDisabled - styles for disabled tab strip buttons
  * 
  * Tab Button:
- * 		.dijitTabContainerTop-tabs .dijitTabInnerDiv/.dijitTabContent     - styles for top tab button container
- * 		.dijitTabContainerBottom-tabs .dijitTabInnerDiv/.dijitTabContent  - styles for bottom tab button container
- * 		.dijitTabContainerLeft-tabs .dijitTabInnerDiv/.dijitTabContent    - styles for left tab button container
- * 		.dijitTabContainerRight-tabs .dijitTabInnerDiv/.dijitTabContent   - styles for right tab button container
+ * 		.dijitTabContainerTop-tabs .dijitTab     - styles for top tab button container
+ * 		.dijitTabContainerBottom-tabs .dijitTab  - styles for bottom tab button container
+ * 		.dijitTabContainerLeft-tabs .dijitTab    - styles for left tab button container
+ * 		.dijitTabContainerRight-tabs .dijitTab   - styles for right tab button container
  * 
- * 		.dijitTabContainerTop-tabs .dijitTabChecked .dijitTabInnerDiv/.dijitTabContent    
+ * 		.dijitTabContainerTop-tabs .dijitTabChecked .dijitTab
  * 				- styles for selected status of top tab button
  * 		same to Bottom, Left, Right Tabs
  * 
- * 		.dijitTabHover .dijitTabInnerDiv   - styles when mouse hover on tab buttons
- * 		.dijitTabActive .dijitTabInnerDiv  - styles when mouse down on tab buttons
- * 		.dijitTabChecked .dijitTabInnerDiv  - styles when on buttons of selected tab		
+ * 		.dijitTabHover .dijitTab   - styles when mouse hover on tab buttons
+ * 		.dijitTabActive .dijitTab  - styles when mouse down on tab buttons
+ * 		.dijitTabChecked .dijitTab  - styles when on buttons of selected tab
  * 
  * 		.dijitTabCloseButton - the close action buttons lie at the right top of each tab button on closable tabs
  * 		.dijitTabCloseButtonHover - styles when mouse hover on close action button
@@ -49,6 +49,13 @@
 
 @import "../variables";
 
+.unselected-tab-gradient (@direction) {
+    // white line, dark line, then fade from light to dark
+	.alpha-white-gradient (@direction, 1,0px, 1,1px, 0.1,2px, 0.6,7px, 0,100%);
+}
+.topBottom-selected-tab-gradient (@direction) {
+	.alpha-white-gradient (@direction, 1,0px,  1,1px, 0,2px, 1,7px);	// white line, blue line, remainder white
+}
 /*** some common features ***/
 .claro .dijitTabPaneWrapper {
 	background:@pane-background-color;
@@ -78,45 +85,37 @@
 	/* set the spacer invisible.  note that height:0 doesn't work on IE/quirks, it's still 10px. */
 	display: none;
 }
-.claro .dijitTabInnerDiv {
+.claro .dijitTab {
+	border: 1px solid @border-color;
 	background-color:@unselected-background-color;
 	.transition-property(background-color, border);
  	.transition-duration(.35s);
 	color:@unselected-text-color;
 }
-.claro .dijitTabHover .dijitTabInnerDiv {
+.claro .dijitTabHover {
+	border-color: @hovered-border-color;
 	background-color:@hovered-background-color;
  	.transition-duration(.25s);
 	color:@hovered-text-color;
 }
-.claro .dijitTabActive .dijitTabInnerDiv {
+.claro .dijitTabActive {
+	border-color: @pressed-border-color;
 	background-color:@pressed-background-color;
 	color:@selected-text-color;
 	.transition-duration(.1s);
 }
-.claro .dijitTabChecked .dijitTabInnerDiv {
-	background-color:@selected-background-color;
-	color:@selected-text-color;
-}
-
-.claro .dijitTabContent {
-	border: 1px solid @border-color;
-}
-.claro .dijitTabHover .dijitTabContent {
-	border-color: @hovered-border-color;
-}
-.claro .dijitTabActive .dijitTabContent {
-	border-color: @pressed-border-color;
-}
-.claro .dijitTabChecked .dijitTabContent {
-	color:@selected-text-color;			// todo: redundant with .claro .dijitTabChecked .dijitTabInnerDiv above?
+.claro .dijitTabChecked {
+    // selected tab
 	border-color: @border-color;			// don't use @selected-border-color because need to match border of TabContainer
+	background-color: @selected-background-color;
+	color: @selected-text-color;
+}
+.claro .dijitTabDisabled {
+	background-color: @tab-disabled-background-color;
 }
 
-.claro .tabStripButton .dijitTabInnerDiv {
+.claro .tabStripButton {
 	background-color: transparent;
-}
-.claro .tabStripButton .dijitTabContent {
 	border: none;
 }
 /*** end common ***/
@@ -124,169 +123,133 @@
 
 /*************** top tab ***************/
 .claro .dijitTabContainerTop-tabs .dijitTab {
+    /* unselected (and not hovered/pressed) tab */
 	top: 1px;	/* used for overlap */
 	margin-right: 1px;
-	padding-top: 3px;
-}
-.dj_ie7 .claro .dijitTabContainerTop-tabs .dijitTab {
-	top: 3px;
-}
-/* for top tab padding. change height when status changes */
-.claro .dijitTabContainerTop-tabs .dijitTabContent {
 	padding:3px 6px;
 	border-bottom-width: 0;
-	background-image:url("../@{image-layout-tab-top}");
-	background-position:0 0;
-	background-repeat:repeat-x;
 	min-width: 60px;
 	text-align: center;
+
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabTopUnselected.png");
+	background-repeat: repeat-x;
+	.unselected-tab-gradient(top);
+
+ 	.box-shadow(0 -1px 1px rgba(0, 0, 0, 0.04));
 }
-.claro .dijitTabContainerTop-tabs .dijitTabChecked .dijitTabContent {
+
+.claro .dijitTabContainerTop-tabs .dijitTabChecked {
+	/* selected tab */
 	padding-bottom: 4px;
-	padding-top: 6px;
-}
+	padding-top: 9px;
 
-/* normal status */
-.claro .dijitTabContainerTop-tabs .dijitTabInnerDiv {
-	background-image:url("../@{image-layout-tab-top}");
-	background-position:0 -248px;
-	background-position:bottom;
-	background-repeat:repeat-x;
-	.box-shadow(0 -1px 1px rgba(0, 0, 0, 0.04));
-}
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabTopSelected.png");
+	.topBottom-selected-tab-gradient (top);
 
-/* checked status */
-.claro .dijitTabContainerTop-tabs .dijitTabChecked .dijitTabInnerDiv {
-	background-image:none;
 	.box-shadow(0 -1px 2px rgba(0, 0, 0, 0.05));
 }
-.claro .dijitTabContainerTop-tabs .dijitTabChecked .dijitTabContent {
-	background-position:0 -102px;
-	background-repeat:repeat-x;
-}
+
 /** end top tab **/
 
 
 /*************** bottom tab ***************/
 .claro .dijitTabContainerBottom-tabs .dijitTab {
+	/* unselected (and not hovered/pressed) tab */
 	top: -1px;	/* used for overlap */
 	margin-right: 1px;
-}
-/* calculate the position and size */
-.claro .dijitTabContainerBottom-tabs .dijitTabContent {
 	padding:3px 6px;
 	border-top-width: 0;
-	background-image: url("../@{image-layout-tab-bottom}");
-	background-position:0 -249px;
-	background-repeat: repeat-x;
-	background-position:bottom;
 	min-width: 60px;
 	text-align: center;
-}
-.claro .dijitTabContainerBottom-tabs .dijitTab {
-	padding-bottom: 3px;
-}
-/* normal status */
-.claro .dijitTabContainerBottom-tabs .dijitTabInnerDiv {
-	background-image: url("../@{image-layout-tab-bottom}");
-	background-position: top;
+
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabBottomUnselected.png");
 	background-repeat: repeat-x;
+	background-position: bottom;
+	.unselected-tab-gradient(bottom);
+
 	.box-shadow(0 1px 1px rgba(0, 0, 0, 0.04));
-	
 }
 
-/* checked status */
-.claro .dijitTabContainerBottom-tabs .dijitTabChecked .dijitTabContent {
-	padding-bottom: 7px;
-	padding-top: 4px;
-	background-position:0 -119px;
-}
+/* selected tab */
 .claro .dijitTabContainerBottom-tabs .dijitTabChecked {
-	padding-bottom: 0;
-}
-.claro .dijitTabContainerBottom-tabs .dijitTabChecked .dijitTabInnerDiv {
-	background-image:none;
+	padding-bottom: 9px;
+	padding-top: 4px;
+
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabBottomSelected.png");
+	.topBottom-selected-tab-gradient (bottom);
+
 	.box-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
 }
 /** end bottom tab **/
 
 /*************** left tab ***************/
 .claro .dijitTabContainerLeft-tabs .dijitTab {
-	border-right-width: 0;
+	/* unselected (and not hovered/pressed) tab */
 	left: 1px;	/* used for overlap */
 	margin-bottom: 1px;
-}
-/* normal status */
-.claro .dijitTabContainerLeft-tabs .dijitTabInnerDiv {
-	background-image: url("../@{image-layout-tab-left}");
-	background-position: -347px -340px;
-	background-repeat: repeat-y;
-}
-.claro .dijitTabContainerLeft-tabs .dijitTabContent {
 	padding:3px 8px 4px 4px;
-	background-image: url("../@{image-layout-tab-left}");
+
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabLeftUnselected.png");
 	background-repeat: repeat-y;
-	background-position:0 0;
+	.unselected-tab-gradient(left);
 }
-/* checked status */
-.claro .dijitTabContainerLeft-tabs .dijitTabChecked .dijitTabContent {
+
+/* selected tab */
+.claro .dijitTabContainerLeft-tabs .dijitTabChecked {
+	border-right-width: 0;
 	padding-right: 9px;
-	border-right: none;
-	background-image: none;
-}
-.claro .dijitTabContainerLeft-tabs .dijitTabChecked .dijitTabInnerDiv {
-	background-position:0 -179px;
-	background-repeat:repeat-y;
+
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabLeftSelected.png");
+	.alpha-white-gradient (left, 0.5,0px, 1,30px);  // 1/2 inch blue gradient, remainder white
+
 	.box-shadow(-1px 0 2px rgba(0, 0, 0, .05));
 }
 /** end left tab **/
 
 /*************** right tab ***************/
 .claro .dijitTabContainerRight-tabs .dijitTab {
-	border-left-width: 0;
+	/* unselected (and not hovered/pressed) tab */
 	left: -1px;	/* used for overlap */
 	margin-bottom: 1px;
-}
-/* normal status */
-.claro .dijitTabContainerRight-tabs .dijitTabInnerDiv {
-	background-image: url("../@{image-layout-tab-right}");
-	background-repeat: repeat-y;
-	background-position: -1px -347px;
-}
-.claro .dijitTabContainerRight-tabs .dijitTabContent {
 	padding:3px 8px 4px 4px;
-	background-image: url("../@{image-layout-tab-right}");
-	background-position:right top;
+
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabRightUnselected.png");
 	background-repeat: repeat-y;
+	background-position: right;
+	.unselected-tab-gradient(right);
 }
-/* checked status */
-.claro .dijitTabContainerRight-tabs .dijitTabChecked .dijitTabContent {
+.claro .dijitTabContainerRight-tabs .dijitTabChecked {
+	/* selected tab */
 	padding-left: 5px;
-	border-left: none;
-	background-image: none;
-}
-.claro .dijitTabContainerRight-tabs .dijitTabChecked .dijitTabInnerDiv {
-	background-position:-348px -179px;
+	border-left-width: 0;
+
+	// gradient (CSS gradient, with backup image for IE6-9)
+	background-image: url("images/tabRightSelected.png");
+	.alpha-white-gradient (right, 0.5,0px, 1,30px);	// 1/2 inch blue gradient, remainder white
+
 	.box-shadow(1px 0 2px rgba(0, 0, 0, 0.07));
 }
 /** end right tab **/
 
 /** round corner **/
-.claro .dijitTabContainerTop-tabs .dijitTabInnerDiv,
-.claro .dijitTabContainerTop-tabs .dijitTabContent {
+.claro .dijitTabContainerTop-tabs .dijitTab {
 	.border-radius(2px 2px 0 0);
 }
-.claro .dijitTabContainerBottom-tabs .dijitTabInnerDiv,
-.claro .dijitTabContainerBottom-tabs .dijitTabContent{
+.claro .dijitTabContainerBottom-tabs .dijitTab {
 	.border-radius(0 0 2px 2px);
 }
-.claro .dijitTabContainerLeft-tabs .dijitTabInnerDiv,
-.claro .dijitTabContainerLeft-tabs .dijitTabContent{
+.claro .dijitTabContainerLeft-tabs .dijitTab {
 	.border-radius(2px 0 0 2px);
 }
 
-.claro .dijitTabContainerRight-tabs .dijitTabInnerDiv,
-.claro .dijitTabContainerRight-tabs .dijitTabContent{
+.claro .dijitTabContainerRight-tabs .dijitTab {
 	.border-radius(0 2px 2px 0);
 }
 
@@ -298,15 +261,12 @@
 .claro .dijitTabListContainer-top .tabStripButton {
 	padding: 4px 3px;
 	margin-top:7px;
-	background-image: url("../@{image-layout-tab-top}");
-	background-position:0 0;
+	.alpha-white-gradient (top, 1,0px, 0.1,1px, 0.6,6px, 0,100%);	// to match unselected tab, but had to tweak numbers
 }
 .claro .dijitTabListContainer-bottom .tabStripButton {
-	padding:5px 3px;
-	margin-bottom:4px;
-	background-image: url("../@{image-layout-tab-top}");
-	background-position:0 -248px;
-	background-position:bottom;
+	padding:4px 3px;
+	margin-bottom:7px;
+	.alpha-white-gradient (bottom, 1,0px, 0.1,1px, 0.6,6px, 0,100%);	// to match unselected tab, but had to tweak numbers
 }
 .claro .tabStripButtonHover {
 	background-color:@hovered-background-color;
@@ -349,10 +309,9 @@
 }
 .claro .dijitTabContainerNested .dijitTabContainerTop-tabs {
 	border-bottom:solid 1px @border-color;
-	padding:1px 2px 4px;
-	margin-top:-2px;
+	padding:2px 2px 4px;
 }
-.claro .dijitTabContainerTabListNested .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTab {
 	background:rgba(255, 255, 255, 0) none repeat scroll 0 0;
 	border: none;
 	padding: 4px;
@@ -361,34 +320,35 @@
  	.transition-duration(.3s);
 	.border-radius(2px);
 }
-.claro .dijitTabContainerTabListNested .dijitTab .dijitTabInnerDiv {
-	/* 4 element selector to override box-shadow setting from above rule:
-	 *		.claro .dijitTabContainerTop-tabs .dijitTabChecked .dijitTabInnerDiv { ... }
-	 */
+.claro .dijitTabContainerTabListNested .dijitTab {
 	background: none;
 	border: none;
 	top: 0;/* to override top: 1px/-1px for normal tabs */
 	.box-shadow(none);
 }
-.claro .dijitTabContainerTabListNested .dijitTabHover .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTabHover {
 	background-color: @nestedtab-hovered-background-color;
 	border:solid 1px @nestedtab-hovered-border-color;
-	padding: 3px;
+	padding: 3px;	// 4px above padding - 1px compensation for border
 	.transition-duration(.2s);
 }
 .claro .dijitTabContainerTabListNested .dijitTabHover .tabLabel {
 	text-decoration: none;
 }
-.claro .dijitTabContainerTabListNested .dijitTabActive .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTabActive {
 	border:solid 1px @nestedtab-selected-border-color;
 	padding: 3px;
-	background: @nestedtab-selected-background-color url("../@{image-layout-tab-nested}") repeat-x;
+
+	// CSS gradient with fallback to image for IE
+	// this is in a weird place, only for active state; mailed Jason about it
+	background: @nestedtab-selected-background-color url("images/tabNested.png") repeat-x;
+	.alpha-white-gradient (0.61,0%, 0,17%, 0,83%, 0.61,100%);
+
 	.transition-duration(.1s);
 }
-.claro .dijitTabContainerTabListNested .dijitTabChecked .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTabChecked {
 	padding: 3px;
 	border:solid 1px @selected-border-color;
-	background-position: 0 105px;
 	background-color:@selected-background-color;
 }
 .claro .dijitTabContainerTabListNested .dijitTabChecked .tabLabel {
@@ -399,10 +359,8 @@
 	border: none;/* prevent double border */
 }
 
-
-.dj_ie6 .claro .dijitTabContent,
-.dj_ie6 .claro .dijitTabInnerDiv,
-.dj_ie6 .dijitTabListContainer-top .tabStripButton,
-.dj_ie6 .dijitTabListContainer-bottom .tabStripButton{
-	background-image: none;
+.claro .dijitTab,
+.claro .tabStripButton {
+    // IE6 can't handle background-image and background-color on same node
+	_background-image: none !important;
 }

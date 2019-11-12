@@ -1,28 +1,20 @@
-//>>built
 define("dijit/form/_FormValueWidget", [
 	"dojo/_base/declare", // declare
-	"dojo/_base/sniff", // has("ie")
+	"dojo/sniff", // has("ie")
 	"./_FormWidget",
 	"./_FormValueMixin"
 ], function(declare, has, _FormWidget, _FormValueMixin){
 
-/*=====
-var _FormWidget = dijit.form._FormWidget;
-var _FormValueMixin = dijit.form._FormValueMixin;
-=====*/
-
 // module:
 //		dijit/form/_FormValueWidget
-// summary:
-//		FormValueWidget
-
 
 return declare("dijit.form._FormValueWidget", [_FormWidget, _FormValueMixin],
 {
 	// summary:
-	//		Base class for widgets corresponding to native HTML elements such as <input> or <select> that have user changeable values.
+	//		Base class for widgets corresponding to native HTML elements such as `<input>` or `<select>`
+	//		that have user changeable values.
 	// description:
-	//		Each _FormValueWidget represents a single input value, and has a (possibly hidden) <input> element,
+	//		Each _FormValueWidget represents a single input value, and has a (possibly hidden) `<input>` element,
 	//		to which it serializes it's input value, so that form submission (either normal submission or via FormBind?)
 	//		works as expected.
 
@@ -46,7 +38,7 @@ return declare("dijit.form._FormValueWidget", [_FormWidget, _FormValueMixin],
 						function(){
 							_this.disconnect(disconnectHandle); // only call once
 							pingNode.style.filter = (new Date()).getMilliseconds(); // set to anything that's unique
-							setTimeout(function(){ pingNode.style.filter = origFilter }, 0); // restore custom filter, if any
+							_this.defer(function(){ pingNode.style.filter = origFilter; }); // restore custom filter, if any
 						}
 					);
 				})();

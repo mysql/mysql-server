@@ -1,5 +1,5 @@
 //>>built
-define("dojox/embed/Quicktime",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/sniff","dojo/_base/window","dojo/dom","dojo/dom-construct","dojo/domReady"],function(_1,_2,_3,_4,_5,_6){
+define("dojox/embed/Quicktime",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/sniff","dojo/_base/window","dojo/dom","dojo/dom-construct","dojo/domReady!"],function(_1,_2,_3,_4,_5,_6){
 var _7,_8={major:0,minor:0,rev:0},_9,_a={width:320,height:240,redirect:null},_b="dojox-embed-quicktime-",_c=0,_d="This content requires the <a href=\"http://www.apple.com/quicktime/download/\" title=\"Download and install QuickTime.\">QuickTime plugin</a>.",_e=_1.getObject("dojox.embed",true);
 function _f(_10){
 _10=_1.mixin(_2.clone(_a),_10||{});
@@ -72,18 +72,18 @@ s+="></embed>";
 return {id:_12.id,markup:s};
 };
 }
-_e.Quicktime=function(_13,_14){
-return _e.Quicktime.place(_13,_14);
+var _13=function(_14,_15){
+return _13.place(_14,_15);
 };
-_1.mixin(_e.Quicktime,{minSupported:6,available:_9,supported:_9,version:_8,initialized:false,onInitialize:function(){
-_e.Quicktime.initialized=true;
-},place:function(_15,_16){
-var o=_7(_15);
-if(!(_16=_5.byId(_16))){
-_16=_6.create("div",{id:o.id+"-container"},_4.body());
+_1.mixin(_13,{minSupported:6,available:_9,supported:_9,version:_8,initialized:false,onInitialize:function(){
+_13.initialized=true;
+},place:function(_16,_17){
+var o=_7(_16);
+if(!(_17=_5.byId(_17))){
+_17=_6.create("div",{id:o.id+"-container"},_4.body());
 }
 if(o){
-_16.innerHTML=o.markup;
+_17.innerHTML=o.markup;
 if(o.id){
 return _3("ie")?dom.byId(o.id):document[o.id];
 }
@@ -91,22 +91,22 @@ return _3("ie")?dom.byId(o.id):document[o.id];
 return null;
 }});
 if(!_3("ie")){
-var id="-qt-version-test",o=_7({testing:true,width:4,height:4}),c=10,top="-1000px",_17="1px";
-function _18(){
+var id="-qt-version-test",o=_7({testing:true,width:4,height:4}),c=10,top="-1000px",_18="1px";
+function _19(){
 setTimeout(function(){
 var qt=document[o.id],n=_5.byId(id);
 if(qt){
 try{
 var v=qt.GetQuickTimeVersion().split(".");
-_e.Quicktime.version={major:parseInt(v[0]||0),minor:parseInt(v[1]||0),rev:parseInt(v[2]||0)};
-if((_e.Quicktime.supported=v[0])){
-_e.Quicktime.onInitialize();
+_13.version={major:parseInt(v[0]||0),minor:parseInt(v[1]||0),rev:parseInt(v[2]||0)};
+if((_13.supported=v[0])){
+_13.onInitialize();
 }
 c=0;
 }
 catch(e){
 if(c--){
-_18();
+_19();
 }
 }
 }
@@ -115,18 +115,15 @@ _6.destroy(n);
 }
 },20);
 };
-if(_4.doc.readyState==="loaded"||_4.doc.readyState==="complete"){
-_6.create("div",{innerHTML:o.markup,id:id,style:{top:top,left:0,width:_17,height:_17,overflow:"hidden",position:"absolute"}},_4.body());
-}else{
-document.write("<div style=\"top:"+top+";left:0;width:"+_17+";height:"+_17+";overflow:hidden;position:absolute\" id=\""+id+"\">"+o.markup+"</div>");
-}
-_18();
+_6.create("div",{innerHTML:o.markup,id:id,style:{top:top,left:0,width:_18,height:_18,overflow:"hidden",position:"absolute"}},_4.body());
+_19();
 }else{
 if(_3("ie")&&_9){
 setTimeout(function(){
-_e.Quicktime.onInitialize();
+_13.onInitialize();
 },10);
 }
 }
-return _e.Quicktime;
+_2.setObject("dojox.embed.Quicktime",_13);
+return _13;
 });

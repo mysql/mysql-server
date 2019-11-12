@@ -94,7 +94,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using filesort
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `b` desc
+Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` limit 2) union all (/* select#2 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`a` limit 1) order by `<union temporary>`.`b` desc
 select count(*) from (
 (select                      a,b from t1 limit 2)  union all (select a,b from t2 order by a)) q;
 count(*)
@@ -103,9 +103,13 @@ count(*)
 a	b
 1	a
 2	b
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 select count(*) from (
 select                      a,b from t1  union all select a,b from t2) q;
 count(*)
@@ -114,9 +118,13 @@ select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 a	b
 1	a
 2	b
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 8
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 explain 
 select * from t1 where a in
 (select a from t1 union select a from t1 order by (select a))
@@ -132,7 +140,7 @@ NULL	UNION RESULT	<union1,5>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; U
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #4 was resolved in SELECT #2
 Note	1276	Field or reference 'a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`) union /* select#3 */ select 1 from `test`.`t1` where (<cache>(`test`.`t1`.`a`) = `test`.`t1`.`a`))) union /* select#5 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by (/* select#6 */ select `<union temporary>`.`a`)
 explain select a,b from t1 union all select a,b from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
@@ -189,44 +197,6 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 1	3
 1	3
 2	1
-CREATE TABLE t1 (
-`pseudo` char(35) NOT NULL default '',
-`pseudo1` char(35) NOT NULL default '',
-`same` tinyint(1) unsigned NOT NULL default '1',
-PRIMARY KEY  (`pseudo1`),
-KEY `pseudo` (`pseudo`)
-) ENGINE=MyISAM;
-INSERT INTO t1 (pseudo,pseudo1,same) VALUES ('joce', 'testtt', 1),('joce', 'tsestset', 1),('dekad', 'joce', 1);
-SELECT pseudo FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo FROM t1 WHERE pseudo='joce';
-pseudo
-dekad
-joce
-SELECT pseudo1 FROM t1 WHERE pseudo1='joce' UNION SELECT pseudo1 FROM t1 WHERE pseudo='joce';
-pseudo1
-joce
-testtt
-tsestset
-SELECT * FROM t1 WHERE pseudo1='joce' UNION SELECT * FROM t1 WHERE pseudo='joce' order by pseudo desc,pseudo1 desc;
-pseudo	pseudo1	same
-joce	tsestset	1
-joce	testtt	1
-dekad	joce	1
-SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT pseudo FROM t1 WHERE pseudo1='joce';
-pseudo1
-testtt
-tsestset
-dekad
-SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION ALL SELECT pseudo FROM t1 WHERE pseudo1='joce';
-pseudo1
-testtt
-tsestset
-dekad
-SELECT pseudo1 FROM t1 WHERE pseudo='joce' UNION SELECT 1;
-pseudo1
-testtt
-tsestset
-1
-drop table t1;
 create table t1 (a int);
 create table t2 (a int);
 insert into t1 values (1),(2),(3),(4),(5);
@@ -261,6 +231,8 @@ cv varchar(250) NOT NULL default '',
 PRIMARY KEY  (cid),
 UNIQUE KEY cv (cv)
 ) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (8,'dummy');
 CREATE TABLE t2 (
 cid bigint(20) unsigned NOT NULL auto_increment,
@@ -268,6 +240,8 @@ cap varchar(255) NOT NULL default '',
 PRIMARY KEY  (cid),
 KEY cap (cap)
 ) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (
 gid bigint(20) unsigned NOT NULL auto_increment,
 gn varchar(255) NOT NULL default '',
@@ -275,6 +249,9 @@ must tinyint(4) default NULL,
 PRIMARY KEY  (gid),
 KEY gn (gn)
 ) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1,'V1',NULL);
 CREATE TABLE t4 (
 uid bigint(20) unsigned NOT NULL default '0',
@@ -287,6 +264,11 @@ KEY rid (rid),
 KEY cid (cid),
 KEY container (gid,rid,cid)
 ) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (1,1,NULL,NULL);
 CREATE TABLE t5 (
 rid bigint(20) unsigned NOT NULL auto_increment,
@@ -294,6 +276,8 @@ rl varchar(255) NOT NULL default '',
 PRIMARY KEY  (rid),
 KEY rl (rl)
 ) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6 (
 uid bigint(20) unsigned NOT NULL auto_increment,
 un varchar(250) NOT NULL default '',
@@ -302,6 +286,9 @@ PRIMARY KEY  (uid),
 UNIQUE KEY nc (un,uc),
 KEY un (un)
 ) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t6 VALUES (1,'test',8);
 SELECT t4.uid, t5.rl, t3.gn as g1, t4.cid, t4.gid as gg FROM t3, t6, t1, t4 left join t5 on t5.rid = t4.rid left join t2 on t2.cid = t4.cid WHERE t3.gid=t4.gid AND t6.uid = t4.uid AND t6.uc  = t1.cid AND t1.cv = "dummy" AND t6.un = "test";
 uid	rl	g1	cid	gg
@@ -352,9 +339,13 @@ COUNT(*)
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2) LIMIT 1;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2)) q;
 COUNT(*)
@@ -363,9 +354,13 @@ COUNT(*)
 a
 1
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2)) q;
 COUNT(*)
@@ -376,9 +371,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1)) q;
 COUNT(*)
@@ -389,9 +388,13 @@ a
 2
 3
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -399,9 +402,13 @@ COUNT(*)
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION all SELECT * FROM t2 LIMIT 2' at line 1
 SELECT COUNT(*) FROM (
@@ -412,9 +419,13 @@ COUNT(*)
 a
 1
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION all SELECT * FROM t2) q;
 COUNT(*)
@@ -423,9 +434,13 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION all SELECT * FROM t2 LIMIT 2;
 a
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -434,9 +449,13 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2;
 a
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -448,9 +467,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
@@ -464,9 +487,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
@@ -479,9 +506,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2 LIMIT 2' at line 1
 SELECT COUNT(*) FROM (
@@ -492,9 +523,13 @@ COUNT(*)
 a
 1
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -503,9 +538,13 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 a
 3
 4
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
@@ -517,9 +556,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 3
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 a
 5
@@ -555,34 +598,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary; Using filesort
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) union (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`) order by `a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `<union temporary>`.`a`
 drop table t1;
-CREATE TABLE t1 (  id int(3) unsigned default '0') ENGINE=MyISAM;
-INSERT INTO t1 (id) VALUES("1");
-CREATE TABLE t2 ( id int(3) unsigned default '0',  id_master int(5) default '0',  text1 varchar(5) default NULL,  text2 varchar(5) default NULL) ENGINE=MyISAM;
-INSERT INTO t2 (id, id_master, text1, text2) VALUES("1", "1",
-"foo1", "bar1");
-INSERT INTO t2 (id, id_master, text1, text2) VALUES("2", "1",
-"foo2", "bar2");
-INSERT INTO t2 (id, id_master, text1, text2) VALUES("3", "1", NULL,
-"bar3");
-INSERT INTO t2 (id, id_master, text1, text2) VALUES("4", "1",
-"foo4", "bar4");
-SELECT 1 AS id_master, 1 AS id, NULL AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
-id_master	id	text1	text2
-1	1	NULL	ABCDE
-1	1	foo1	bar1
-1	2	foo2	bar2
-1	3	NULL	bar3
-1	4	foo4	bar4
-SELECT 1 AS id_master, 1 AS id, 'ABCDE' AS text1, 'ABCDE' AS text2 UNION SELECT id_master, t2.id, text1, text2 FROM t1 LEFT JOIN t2 ON t1.id = t2.id_master;
-id_master	id	text1	text2
-1	1	ABCDE	ABCDE
-1	1	foo1	bar1
-1	2	foo2	bar2
-1	3	NULL	bar3
-1	4	foo4	bar4
-drop table if exists t1,t2;
 create table t1 (a int not null primary key auto_increment, b int, key(b));
 create table t2 (a int not null primary key auto_increment, b int);
 insert into t1 (b) values (1),(2),(2),(3);
@@ -596,7 +613,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where 1)
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true union /* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where true
+explain format=tree (select * from t1 where a=5) union (select * from t2 where a=1);
+EXPLAIN
+-> Table scan on <union temporary>  (cost=2.50 rows=0)
+    -> Union materialize with deduplication
+        -> Zero rows (no matching row in const table)
+        -> Rows fetched before execution
+
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
 1	10
@@ -619,14 +643,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	#	100.00	Using index
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 0) union (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where false union /* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	#	#	NULL
 2	UNION	t1	NULL	ref	b	b	5	const	#	#	Using index
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true union /* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1)
 drop table t1,t2;
 create table `groups` (id int not null auto_increment, primary key (id) ,user_name text );
 create table users (id int not null auto_increment, primary key (id) ,group_name text );
@@ -994,16 +1018,6 @@ show status like 'Slow_queries';
 Variable_name	Value
 Slow_queries	1
 drop table t1;
-create table t1 (   RID int(11) not null default '0',   IID int(11) not null default '0',    nada varchar(50)  not null,NAME varchar(50) not null,PHONE varchar(50) not null) engine=MyISAM;
-insert into t1 ( RID,IID,nada,NAME,PHONE) values (1, 1, 'main', 'a', '111'), (2, 1, 'main', 'b', '222'), (3, 1, 'main', 'c', '333'), (4, 1, 'main', 'd', '444'), (5, 1, 'main', 'e', '555'), (6, 2, 'main', 'c', '333'), (7, 2, 'main', 'd', '454'), (8, 2, 'main', 'e', '555'), (9, 2, 'main', 'f', '666'), (10, 2, 'main', 'g', '777');
-select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 A left join t1 B on A.NAME = B.NAME and B.IID = 2 where A.IID = 1 and (A.PHONE <> B.PHONE or B.NAME is null) union select A.NAME, A.PHONE, B.NAME, B.PHONE from t1 B left join t1 A on B.NAME = A.NAME and A.IID = 1 where B.IID = 2 and (A.PHONE <> B.PHONE or A.NAME is null);
-NAME	PHONE	NAME	PHONE
-NULL	NULL	f	666
-NULL	NULL	g	777
-a	111	NULL	NULL
-b	222	NULL	NULL
-d	444	d	454
-drop  table t1;
 create table t1 (col1 tinyint unsigned, col2 tinyint unsigned);
 insert into t1 values (1,2),(3,4),(5,6),(7,8),(9,10);
 select col1 n from t1 union select col2 n from t1 order by n;
@@ -1078,11 +1092,17 @@ a
 drop table t1, t2;
 set sql_select_limit=default;
 CREATE TABLE t1 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (i int(11) default NULL,c char(1) default NULL,KEY i (i));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 explain (select * from t1) union (select * from t2) order by not_existing_column;
 ERROR 42S22: Unknown column 'not_existing_column' in 'order clause'
 drop table t1, t2;
 CREATE TABLE t1 (uid int(1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SELECT 150;
 SELECT 'a' UNION SELECT uid FROM t1;
 a
@@ -1091,7 +1111,12 @@ a
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
 PARTITIONED_B WHERE PARTITIONED_B.ID=PARTITIONED.ID1) UNION
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
@@ -1382,23 +1407,6 @@ description	f1
 XXXXXXXXXXXXXXXXXXXX	0.000000000000000000000000
 YYYYYYYYYYYYYYYYYYYY	0.000000000000000000000000
 drop table t1;
-create table t1 (a varchar(5)) engine=myisam;
-create table t2 engine=myisam select * from t1 union select 'abcdefghijkl';
-show create table t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-select row_format from information_schema.TABLES where table_schema="test" and table_name="t2";
-ROW_FORMAT
-Dynamic
-alter table t2 ROW_FORMAT=fixed;
-show create table t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a` varchar(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
-drop table t1,t2;
 create table t1 (a varchar(5));
 create table t2 select * from t1 union select 'abcdefghijkl';
 show create table t2;
@@ -1677,13 +1685,21 @@ Field	Type	Null	Key	Default	Extra
 NULL	int(11)	YES		NULL	
 DROP TABLE t1, t2, t3, t4, t5, t6;
 CREATE TABLE t1 (f FLOAT(9,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 AS SELECT f FROM t1 UNION SELECT f FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW FIELDS FROM t2;
 Field	Type	Null	Key	Default	Extra
 f	float(9,6)	YES		NULL	
 DROP TABLE t1, t2;
 CREATE TABLE t1(d DOUBLE(9,6));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 AS SELECT d FROM t1 UNION SELECT d FROM t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SHOW FIELDS FROM t2;
 Field	Type	Null	Key	Default	Extra
 d	double(9,6)	YES		NULL	
@@ -1699,7 +1715,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `<union temporary>`.`a`
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -1754,7 +1770,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`a` + 12)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (`<union temporary>`.`a` + 12)
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
 a
@@ -1790,7 +1806,7 @@ NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (/* select#3 */ select `<union temporary>`.`a` from `test`.`t2` where (`test`.`t2`.`b` = 12))
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY (SELECT a FROM t2 WHERE b = 12);
@@ -2031,6 +2047,15 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT PRIMARY KEY);
 INSERT INTO t2 VALUES (1);
+EXPLAIN FORMAT=tree SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
+EXPLAIN
+-> Append
+    -> Stream results
+        -> Aggregate: sum(t2.a)
+            -> Index scan on t2 using PRIMARY  (cost=0.35 rows=1)
+    -> Stream results
+        -> Zero input rows (No matching min/max row), aggregated into one output row
+
 SELECT a, SUM(a) FROM t2 UNION ALL SELECT a, MIN(a) FROM t1 ;
 a	SUM(a)
 1	1
@@ -2038,6 +2063,8 @@ NULL	NULL
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 DROP TABLE t1, t2;
 # Bug #17669551 CRASH/ASSERT AT SELECT_CREATE::PREPARE2 AT
 # SQL_INSERT.CC
@@ -2063,9 +2090,13 @@ COUNT(*)
 SELECT SQL_CALC_FOUND_ROWS * FROM t2 UNION ALL SELECT * FROM t1;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION ALL SELECT * FROM t2) q;
 COUNT(*)
@@ -2073,9 +2104,13 @@ COUNT(*)
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION ALL SELECT * FROM t2;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 DROP TABLE t1, t2;
 # End of WL1763 tests
 # Bug#18503515 UNION with set function in ORDER BY should be rejected
@@ -2743,14 +2778,20 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT SQL_CALC_FOUND_ROWS c1 FROM t1) UNION ALL
 (SELECT c1 FROM t1) LIMIT 2;
 c1
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 1) UNION ALL
 (SELECT c1 FROM t1 LIMIT 3) LIMIT 2;
 c1
@@ -2759,6 +2800,8 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 1) UNION ALL
 (SELECT c1 FROM t1 LIMIT 1) LIMIT 3;
 c1
@@ -2767,6 +2810,8 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 3) UNION ALL
 (SELECT c1 FROM t1 LIMIT 3) LIMIT 1 OFFSET 4;
 c1
@@ -2774,12 +2819,16 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 1) UNION ALL
 (SELECT c1 FROM t1 LIMIT 1) LIMIT 1 OFFSET 2;
 c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 DROP TABLE t1;
 #End of test for Bug#22602381
 # INSERT SELECT using UNION ALL:
@@ -2851,6 +2900,10 @@ a tinyint(4) DEFAULT NULL,
 b int(11) DEFAULT NULL,
 c bigint(20) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
 `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
 -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
@@ -2859,12 +2912,12 @@ CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
 CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(4)	YES		NULL	
-b	int(11)	YES		NULL	
+a	bigint(4)	YES		NULL	
+b	bigint(11)	YES		NULL	
 c	bigint(20)	YES		NULL	
-1	int(1)	NO		0	
-My_exp_1	int(1)	NO		0	
-My_exp_1_1	int(1)	NO		0	
+1	bigint(2)	NO		0	
+My_exp_1	bigint(2)	NO		0	
+My_exp_1_1	bigint(2)	NO		0	
 DESCRIBE v2;
 Field	Type	Null	Key	Default	Extra
 1	int(1)	NO		0	
@@ -3130,3 +3183,137 @@ foo	foo2
 bar	bar2
 foobar	foobar2
 DROP PROCEDURE p1;
+#
+# Verify that non-nullable columns are properly treated as nullable
+# during implicit aggregation, even in UNIONs, even when involving
+# views. The non-view case is tested by the test for bug #17580869,
+# above.
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT a, a, SUM(a) FROM t2 UNION ALL SELECT a, a+0, MIN(a) FROM v1;
+a	a	SUM(a)
+1	1	1
+NULL	NULL	NULL
+DROP TABLE t1, t2;
+DROP VIEW v1;
+#
+# Bug #29645319: WL#13000: SIG 6 AT AGGREGATOR_DISTINCT::SETUP | SQL/ITEM_SUM.CC
+#
+# Tests that when executing a UNION query during optimization, lex->current_select
+# is properly restored.
+#
+CREATE TABLE t1 (f1 VARCHAR(1));
+INSERT INTO t1 VALUES ('t'),('a');
+SELECT COUNT(DISTINCT f1) FROM t1 WHERE (
+SELECT MAX(f1) FROM t1 WHERE f1 NOT IN ( SELECT 5 UNION SELECT 5 )
+) IS NOT NULL;
+COUNT(DISTINCT f1)
+2
+DROP TABLE t1;
+#
+# Bug #29687893: WL#13000: SIG 6 AT HANDLER::START_PSI_BATCH_MODE() AT SQL/HANDLER.CC
+#
+# Verify that performance schema batch mode is properly disabled even in non-materialized
+# UNIONs.
+#
+CREATE TABLE t1 (f1 varchar(1));
+CREATE INDEX i1 ON t1 (f1);
+CREATE TABLE t2 (f1 varchar(1));
+INSERT INTO t1 VALUES ('d');
+INSERT INTO t2 VALUES ('d');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SELECT t1.f1 FROM t1 LEFT JOIN t2 ON EXISTS ( SELECT * FROM t1, t2 )
+UNION ALL
+SELECT t1.f1 FROM t1;
+f1
+d
+d
+FLUSH TABLES;
+DROP TABLE t1, t2;
+#
+# Bug#22292995 UNION ALL ... LIMIT 1 EVALUATES TOO MANY ROWS IN 5.5/6 AND TWICE MORE IN 5.7
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+INSERT INTO t1 SELECT a+1 FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+32
+FLUSH STATUS;
+SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
+FLUSH STATUS;
+SELECT * FROM t1 UNION ALL SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
+FLUSH STATUS;
+SELECT * FROM t1 UNION DISTINCT SELECT * FROM t1 LIMIT 1;
+a
+1
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	2
+EXPLAIN FORMAT=TREE ( SELECT *, 'a' FROM t1 LIMIT 10 )
+UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
+EXPLAIN
+-> Limit: 3 row(s)
+    -> Append
+        -> Stream results
+            -> Limit: 10 row(s)
+                -> Table scan on t1  (cost=3.45 rows=32)
+        -> Stream results
+            -> Limit: 10 row(s)
+                -> Table scan on t1  (cost=3.45 rows=32)
+
+FLUSH STATUS;
+( SELECT *, 'a' FROM t1 LIMIT 10 )
+UNION ALL ( SELECT *, 'b' FROM t1 LIMIT 10 ) LIMIT 3;
+a	a
+1	a
+2	a
+2	a
+SHOW STATUS LIKE "HANDLER_READ%";
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	3
+DROP TABLE t1;

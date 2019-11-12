@@ -154,6 +154,7 @@ static Value_map_type field_type_to_value_map_type(
     case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_NULL:
+    default:
       return Value_map_type::INVALID;
   }
 
@@ -1458,7 +1459,7 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
         if (item->is_null()) return true;
 
         bool got_warning;
-        char *not_used;
+        const char *not_used;
         uint not_used2;
         ulonglong tmp_value =
             find_set(typelib, str->ptr(), str->length(), str->charset(),

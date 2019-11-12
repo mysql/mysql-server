@@ -1,6 +1,6 @@
 //>>built
 define("dijit/form/NumberTextBox",["dojo/_base/declare","dojo/_base/lang","dojo/number","./RangeBoundTextBox"],function(_1,_2,_3,_4){
-var _5=_1("dijit.form.NumberTextBoxMixin",null,{regExpGen:_3.regexp,value:NaN,editOptions:{pattern:"#.######"},_formatter:_3.format,postMixInProperties:function(){
+var _5=_1("dijit.form.NumberTextBoxMixin",null,{pattern:_3.regexp,value:NaN,editOptions:{pattern:"#.######"},_formatter:_3.format,postMixInProperties:function(){
 this.inherited(arguments);
 this._set("type","text");
 },_setConstraintsAttr:function(_6){
@@ -19,7 +19,7 @@ if(this.focusNode&&this.focusNode.value&&!isNaN(this.value)){
 this.set("value",this.value);
 }
 },_onFocus:function(){
-if(this.disabled){
+if(this.disabled||this.readOnly){
 return;
 }
 var _8=this.get("value");
@@ -55,7 +55,7 @@ return v;
 var v=this.inherited(arguments);
 return isNaN(v)?this.textbox.value:v;
 },filter:function(_f){
-return (_f===null||_f===""||_f===undefined)?NaN:this.inherited(arguments);
+return (_f==null||_f==="")?NaN:this.inherited(arguments);
 },serialize:function(_10,_11){
 return (typeof _10!="number"||isNaN(_10))?"":this.inherited(arguments);
 },_setBlurValue:function(){

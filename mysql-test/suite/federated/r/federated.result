@@ -15,6 +15,8 @@ CREATE TABLE federated.t1 (
 `name` varchar(32) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
 Note	1051	Unknown table 'federated.t1'
@@ -47,6 +49,8 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t3';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT * FROM federated.t1;
 ERROR HY000: The foreign data source you are trying to reference does not exist. Data source error:  error: 1146  'Table 'federated.t3' doesn't exist'
 DROP TABLE federated.t1;
@@ -59,6 +63,8 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://user:pass@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT * FROM federated.t1;
 ERROR HY000: Unable to connect to foreign data source: Access denied for user 'user'@'localhost' (using password: YES)
 DROP TABLE federated.t1;
@@ -71,6 +77,8 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
 INSERT INTO federated.t1 (id, `group`) VALUES (3, 42);
@@ -94,6 +102,8 @@ CREATE TABLE federated.t2 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SHOW CREATE TABLE federated.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -116,6 +126,8 @@ CREATE TABLE federated.`t1%` (
 `name` varchar(32) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
 Note	1051	Unknown table 'federated.t1'
@@ -125,6 +137,8 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1%';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.t1 ORDER BY id,name;
@@ -139,6 +153,8 @@ CREATE TABLE federated.`t1%` (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1%';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.`t1%` (id, name) VALUES (1, 'foo');
 INSERT INTO federated.`t1%` (id, name) VALUES (2, 'fee');
 SELECT * FROM federated.`t1%` ORDER BY id, name;
@@ -158,6 +174,9 @@ CREATE TABLE federated.t1 (
 `created` datetime default '2004-04-04 04:04:04',
 PRIMARY KEY  (`id`))
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
 `name` varchar(32) NOT NULL default '',
@@ -166,6 +185,9 @@ CREATE TABLE federated.t1 (
 PRIMARY KEY  (`id`))
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (name, other) VALUES ('First Name', 11111);
 INSERT INTO federated.t1 (name, other) VALUES ('Second Name', 22222);
 INSERT INTO federated.t1 (name, other) VALUES ('Third Name', 33333);
@@ -294,6 +316,9 @@ key name(`name`),
 key other(`other`),
 key created(`created`))
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
@@ -306,6 +331,9 @@ key other(`other`),
 key created(`created`))
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (name, other, created)
 VALUES ('First Name', 11111, '2004-01-01 01:01:01');
 INSERT INTO federated.t1 (name, other, created)
@@ -437,6 +465,8 @@ CREATE TABLE federated.t1 (
 `name` varchar(32),
 `other` varchar(20),
 PRIMARY KEY  (`id`) );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
@@ -446,6 +476,8 @@ PRIMARY KEY  (`id`) )
 ENGINE="FEDERATED"
   DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (name, other) VALUES ('First Name', 11111);
 INSERT INTO federated.t1 (name, other) VALUES ('Second Name', NULL);
 INSERT INTO federated.t1 (name, other) VALUES ('Third Name', 33333);
@@ -501,6 +533,8 @@ CREATE TABLE federated.t1 (
 `other` varchar(20) NOT NULL DEFAULT '',
 PRIMARY KEY  (`id`),
 KEY nameoth (name, other) );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
@@ -511,6 +545,8 @@ KEY nameoth (name, other))
 ENGINE="FEDERATED" DEFAULT
 CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (name, other) VALUES ('First Name', '1111');
 INSERT INTO federated.t1 (name, other) VALUES ('Second Name', '2222');
 INSERT INTO federated.t1 (name, other) VALUES ('Third Name', '3333');
@@ -602,6 +638,10 @@ key col1(col1),
 key col2(col2),
 key col3(col3),
 key col4(col4));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int NOT NULL auto_increment,
@@ -616,6 +656,10 @@ key col3(col3),
 key col4(col4))
 ENGINE="FEDERATED"
   CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (col1, col2, col3, col4) 
 VALUES (1, 'one One', 11, 1111);
 INSERT INTO federated.t1 (col1, col2, col3, col4) 
@@ -916,6 +960,8 @@ CREATE TABLE federated.t1 (
 `col2` int(8) NOT NULL DEFAULT 0,
 `col3` varchar(8) NOT NULL DEFAULT '',
 primary key (`col1`, `col2`, `col3`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `col1` varchar(8) NOT NULL DEFAULT '',
@@ -1392,6 +1438,9 @@ CREATE TABLE federated.t1 (
 `other` varchar(20),
 PRIMARY KEY  (`id`),
 key (country_id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.countries;
 Warnings:
 Note	1051	Unknown table 'federated.countries'
@@ -1399,6 +1448,8 @@ CREATE TABLE federated.countries (
 `id` int(20) NOT NULL auto_increment,
 `country` varchar(32),
 PRIMARY KEY (id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.countries (country) VALUES ('India');
 INSERT INTO federated.countries (country) VALUES ('Germany');
 INSERT INTO federated.countries (country) VALUES ('Italy');
@@ -1414,6 +1465,9 @@ PRIMARY KEY  (`id`),
 KEY (country_id) )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Kumar', 1, 11111);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Lenz', 2, 22222);
 INSERT INTO federated.t1 (name, country_id, other) VALUES ('Marizio', 3, 33333);
@@ -1497,6 +1551,8 @@ CREATE TABLE federated.normal_table (
 `id` int(4) NOT NULL,
 `name` varchar(10) default NULL
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.alter_me;
 CREATE TABLE federated.alter_me (
 `id` int(4) NOT NULL,
@@ -1504,6 +1560,8 @@ CREATE TABLE federated.alter_me (
 PRIMARY KEY (`id`)
 ) ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/normal_table';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.alter_me (id, name) VALUES (1, 'Monty');
 INSERT INTO federated.alter_me (id, name) VALUES (2, 'David');
 SELECT * FROM federated.alter_me;
@@ -1551,6 +1609,8 @@ Note	1051	Unknown table 'federated.t1'
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL auto_increment,
 PRIMARY KEY  (`id`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 Warnings:
 Note	1051	Unknown table 'federated.t1'
@@ -1560,6 +1620,8 @@ PRIMARY KEY  (`id`)
 )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 VALUES ();
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
@@ -1600,6 +1662,10 @@ KEY `fld_parentid` (`fld_parentid`),
 KEY `fld_delt` (`fld_delt`),
 KEY `fld_cid` (`fld_cid`)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into federated.bug_17377_table( fld_name )
 values
 ("Mats"), ("Sivert"), ("Sigvard"), ("Torgny"), ("Torkel");
@@ -1615,6 +1681,10 @@ KEY `fld_delt` (`fld_delt`),
 KEY `fld_cid` (`fld_cid`)
 ) ENGINE=FEDERATED
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/bug_17377_table';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select * from federated.t1 where fld_parentid=0 and fld_delt=0
 order by fld_name;
 fld_cid	fld_name	fld_parentid	fld_delt
@@ -1639,6 +1709,8 @@ CREATE TABLE federated.test (
 `val2` varchar(255) NOT NULL,
 PRIMARY KEY  (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.test_local;
 DROP TABLE IF EXISTS federated.test_remote;
 CREATE TABLE federated.test_local (
@@ -1647,6 +1719,8 @@ CREATE TABLE federated.test_local (
 `val2` varchar(255) NOT NULL,
 PRIMARY KEY  (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.test_local VALUES (1, 'foo', 'bar'),
 (2, 'bar', 'foo');
 CREATE TABLE federated.test_remote (
@@ -1656,6 +1730,8 @@ CREATE TABLE federated.test_remote (
 PRIMARY KEY  (`id`)
 ) ENGINE=FEDERATED DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/test';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into federated.test_remote select * from federated.test_local;
 select * from federated.test_remote;
 id	val1	val2
@@ -1884,6 +1960,8 @@ PRIMARY KEY (categoryId),
 UNIQUE KEY idx_unique_category_categoryName (domainId, categoryName),
 KEY idx_category_domainId (domainId)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE federated.t1 (
 categoryId int(11) NOT NULL AUTO_INCREMENT,
 domainId varchar(745) NOT NULL DEFAULT '',
@@ -1893,6 +1971,8 @@ UNIQUE KEY idx_unique_category_categoryName (domainId, categoryName),
 KEY idx_category_domainId (domainId)
 ) ENGINE=FEDERATED DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into federated.t1 (domainId, categoryName) values ( '1231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231231  300', '1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345  250');
 insert into federated.t1 (domainId, categoryName) values ( '12312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312312  301', '12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456  250');
 insert into federated.t1 (domainId, categoryName) values ('a', 'b');
@@ -2166,7 +2246,7 @@ CREATE TABLE t1(id VARCHAR(20) NOT NULL, PRIMARY KEY(id)) ENGINE=FEDERATED
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
 # Dump table t1 using mysqldump tool
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t1` (
   `id` varchar(20) NOT NULL,
   PRIMARY KEY (`id`)

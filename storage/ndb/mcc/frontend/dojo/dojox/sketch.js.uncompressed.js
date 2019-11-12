@@ -1,4 +1,3 @@
-//>>built
 define("dojox/sketch", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang", 
@@ -8,5 +7,13 @@ define("dojox/sketch", [
 	"./sketch/Toolbar"
 ], function(dojo){
 	dojo.getObject("sketch", true, dojox);
+
+	/*=====
+	 return {
+	 // summary:
+	 //		Deprecated.  Should require dojox/sketch modules directly rather than trying to access them through
+	 //		this module.
+	 };
+	 =====*/
 	return dojox.sketch;
 });

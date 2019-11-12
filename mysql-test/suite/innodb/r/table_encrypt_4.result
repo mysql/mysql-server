@@ -127,7 +127,7 @@ ALTER TABLE test.t1 DISCARD TABLESPACE;
 # Import without .cfp file
 # copying .cfg and .ibd file
 ALTER TABLE test.t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table is in an encrypted tablespace, but can't find the encryption meta-data file in importing)
+ERROR HY000: Schema mismatch (Table is in an encrypted tablespace, but the encryption meta-data file cannot be found while importing.)
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 # Import without .idb file
 # copying .cfp and .cfg file
@@ -139,7 +139,7 @@ DROP TABLE t1;
 CREATE TABLE test.t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 ALTER TABLE test.t1 DISCARD TABLESPACE;
 ALTER TABLE test.t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Encryption attribute is no matched)
+ERROR HY000: Schema mismatch (Encryption attribute in the file does not match the dictionary.)
 # Import got expected error.
 DROP TABLE t1;
 CREATE TABLE test.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;

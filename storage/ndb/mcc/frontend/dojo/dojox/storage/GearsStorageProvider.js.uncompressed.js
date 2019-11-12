@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/storage/GearsStorageProvider", ["dijit","dojo","dojox","dojo/require!dojo/gears,dojox/storage/Provider,dojox/storage/manager,dojox/sql"], function(dijit,dojo,dojox){
+define("dojox/storage/GearsStorageProvider", ["dojo","dijit","dojox","dojo/require!dojo/gears,dojox/storage/Provider,dojox/storage/manager,dojox/sql"], function(dojo,dijit,dojox){
 dojo.provide("dojox.storage.GearsStorageProvider");
 dojo.require("dojo.gears");
 dojo.require("dojox.storage.Provider");
@@ -19,12 +18,11 @@ if(dojo.gears.available){
 			//		to store data (it is saved into the local SQL database
 			//		provided by Gears, using dojox.sql)
 			// description:
-			//		You can disable this storage provider with the following djConfig
-			//		variable:
-			//		var djConfig = { disableGearsStorage: true };
+			//		You can disable this storage provider with the following djConfig variable:
+			// |		var djConfig = { disableGearsStorage: true };
 			//
 			//		Authors of this storage provider-
-			//			Brad Neuberg, bkn3@columbia.edu
+			//		Brad Neuberg, bkn3@columbia.edu
 			constructor: function(){
 			},
 			// instance methods and properties

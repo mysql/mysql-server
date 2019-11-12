@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,25 +86,22 @@ uchar *AlignmentTest::unaligned_data;
 #define sint4korrgeneric(A)                                            \
   (int32)(((int32)((uchar)(A)[0])) + (((int32)((uchar)(A)[1]) << 8)) + \
           (((int32)((uchar)(A)[2]) << 16)) + (((int32)((int16)(A)[3]) << 24)))
-class Mem_compare_uchar_int
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_uchar_int {
  public:
   // SUPPRESS_UBSAN: only executed on intel, misaligned read works OK.
   bool operator()(const uchar *s1, const uchar *s2) SUPPRESS_UBSAN {
-    return *(int *)s1 < *(int *)s2;
+    return *pointer_cast<const int *>(s1) < *pointer_cast<const int *>(s2);
   }
 };
 
-class Mem_compare_sint4
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_sint4 {
  public:
   bool operator()(const uchar *s1, const uchar *s2) {
     return sint4korr(s1) < sint4korr(s2);
   }
 };
 
-class Mem_compare_sint4_generic
-    : public std::binary_function<const uchar *, const uchar *, bool> {
+class Mem_compare_sint4_generic {
  public:
   bool operator()(const uchar *s1, const uchar *s2) {
     return sint4korrgeneric(s1) < sint4korrgeneric(s2);

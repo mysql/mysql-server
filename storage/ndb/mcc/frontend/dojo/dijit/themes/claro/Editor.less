@@ -28,11 +28,7 @@
 }
 .claro .dijitEditor .dijitEditorIFrameContainer{
 	background-color: @textbox-background-color;
-	background-image: url(@image-form-textbox-background);
 	background-repeat:repeat-x;
-}
-.dj_ie6 .claro .dijitEditor .dijitEditorIFrameContainer{
-	background-image: none;
 }
 .claro .dijitEditorHover .dijitEditorIFrameContainer,
 .claro .dijitEditorHover .dijitEditorIFrameContainer .dijitEditorIFrame{
@@ -40,10 +36,12 @@
 }
 .claro .dijitEditorFocused .dijitEditorIFrameContainer,
 .claro .dijitEditorFocused .dijitEditorIFrameContainer .dijitEditorIFrame{
-	/* TODO: contradicts rule above, which background-color do you want? */
 	background-color: @textbox-focused-background-color;
 }
-
+.claro .dijitEditorHover .dijitEditorIFrameContainer,
+.claro .dijitEditorFocused .dijitEditorIFrameContainer {
+	.textbox-background-image;
+}
 
 /* Disabled */
 .claro .dijitEditorDisabled {

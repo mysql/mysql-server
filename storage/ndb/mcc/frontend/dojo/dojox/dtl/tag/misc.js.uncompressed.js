@@ -1,13 +1,10 @@
-//>>built
 define("dojox/dtl/tag/misc", [
 	"dojo/_base/lang",
 	"dojo/_base/array",
 	"dojo/_base/connect",
 	"../_base"
 ], function(lang,array,connect,dd){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.tag.misc", true);
 
 	var ddtm = dd.tag.misc;
@@ -225,16 +222,19 @@ define("dojox/dtl/tag/misc", [
 
 	lang.mixin(ddtm, {
 		comment: function(parser, token){
-			// summary: Ignore everything between {% comment %} and {% endcomment %}
+			// summary:
+			//		Ignore everything between {% comment %} and {% endcomment %}
 			parser.skip_past("endcomment");
 			return dd._noOpNode;
 		},
 		debug: function(parser, token){
-			// summary: Output the current context, maybe add more stuff later.
+			// summary:
+			//		Output the current context, maybe add more stuff later.
 			return new ddtm.DebugNode(parser.create_text_node());
 		},
 		filter: function(parser, token){
-			// summary: Filter the contents of the blog through variable filters.
+			// summary:
+			//		Filter the contents of the blog through variable filters.
 			var rest = token.contents.split(null, 1)[1];
 			var varnode = parser.create_variable_node("var|" + rest);
 			var nodelist = parser.parse(["endfilter"]);

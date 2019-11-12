@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,10 @@
  * and the Conf signal is sent back
  *
  * NOTE that the signals are identical
+ *
+ * Only local async signal, not global.
+ *
+ * Req signal also sends data nodes bitmask in first section.
  */
 struct CloseComReqConf {
 
@@ -51,7 +55,7 @@ struct CloseComReqConf {
    */
   friend bool printCLOSECOMREQCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
-  STATIC_CONST( SignalLength = 4 + NodeBitmask::Size );
+  STATIC_CONST( SignalLength = 5);
 
   enum RequestType {
     RT_API_FAILURE   = 0,
@@ -64,7 +68,7 @@ struct CloseComReqConf {
   Uint32 failNo;
   
   Uint32 noOfNodes;
-  Uint32 theNodes[NodeBitmask::Size];
+  Uint32 failedNodeId;
 };
 
 

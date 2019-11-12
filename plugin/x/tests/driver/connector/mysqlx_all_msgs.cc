@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,8 @@ static struct init_message_factory {
                       const std::string &full_name) {
     server_msgs_by_name[name] = std::make_pair(&create<T>, id);
     server_msgs_by_id[id] = std::make_pair(&create<T>, name);
-    server_msgs_by_full_name[full_name] = name;
+
+    if (!full_name.empty()) server_msgs_by_full_name[full_name] = name;
   }
 
   template <typename T, typename Message_type_id>
@@ -54,13 +55,17 @@ static struct init_message_factory {
                       const std::string &full_name) {
     client_msgs_by_name[name] = std::make_pair(&create<T>, id);
     client_msgs_by_id[id] = std::make_pair(&create<T>, name);
-    client_msgs_by_full_name[full_name] = name;
+
+    if (!full_name.empty()) client_msgs_by_full_name[full_name] = name;
   }
 
   init_message_factory() {
     server_message<Mysqlx::Connection::Capabilities>(
         Mysqlx::ServerMessages::CONN_CAPABILITIES, "CONN_CAPABILITIES",
         "Mysqlx.Connection.Capabilities");
+    server_message<Mysqlx::Session::AuthenticateContinue>(
+        Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE,
+        "SESS_AUTHENTICATE_CONTINUE", "Mysqlx.Session.AuthenticateContinue");
     server_message<Mysqlx::Error>(Mysqlx::ServerMessages::ERROR, "ERROR",
                                   "Mysqlx.Error");
     server_message<Mysqlx::Notice::Frame>(Mysqlx::ServerMessages::NOTICE,
@@ -72,10 +77,17 @@ static struct init_message_factory {
     server_message<Mysqlx::Resultset::FetchDone>(
         Mysqlx::ServerMessages::RESULTSET_FETCH_DONE, "RESULTSET_FETCH_DONE",
         "Mysqlx.Resultset.FetchDone");
+    server_message<Mysqlx::Resultset::FetchDoneMoreOutParams>(
+        Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS,
+        "RESULTSET_FETCH_DONE_MORE_OUT_PARAMS",
+        "Mysqlx.Resultset.FetchDoneMoreOutParams");
     server_message<Mysqlx::Resultset::FetchDoneMoreResultsets>(
         Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS,
         "RESULTSET_FETCH_DONE_MORE_RESULTSETS",
         "Mysqlx.Resultset.FetchDoneMoreResultsets");
+    server_message<Mysqlx::Resultset::FetchSuspended>(
+        Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED,
+        "RESULTSET_FETCH_SUSPENDED", "Mysqlx.Resultset.FetchSuspended");
     server_message<Mysqlx::Resultset::Row>(
         Mysqlx::ServerMessages::RESULTSET_ROW, "RESULTSET_ROW",
         "Mysqlx.Resultset.Row");

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ public:
 
     Returns:
      true - a line ended with newline was read from socket
-     false - EOF or read timeout occured
+     false - EOF or read timeout occurred
 
   */
   bool gets(BaseString& str);

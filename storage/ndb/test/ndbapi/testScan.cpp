@@ -1972,37 +1972,20 @@ runBug13394788(NDBT_Context* ctx, NDBT_Step* step)
  */
 namespace TupErr
 {
-  static const char* const tabName = "tupErrTab";
   static const int totalRowCount = 2000;
   
   struct Row
   {
     int pk1;
-    int pk2;
-    int a1;
   };
 
   static int
-  createDataBase(NDBT_Context* ctx, NDBT_Step* step)
+  populateTable(NDBT_Context* ctx, NDBT_Step* step)
   {
-    // Create table.
-    NDBT_Attribute pk1("pk1", NdbDictionary::Column::Int, 1, true);
-    NDBT_Attribute pk2("pk2", NdbDictionary::Column::Int, 1, true);
-    NDBT_Attribute a1("a1", NdbDictionary::Column::Int, 1);
-  
-    NdbDictionary::Column* columns[] = {&pk1, &pk2, &a1};
-  
-    const NDBT_Table tabDef(tabName, sizeof columns/sizeof columns[0], 
-                            columns);
     Ndb* const ndb = step->getNdb();
-  
-    NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
-  
-    dictionary->dropTable(tabName);
-    require(dictionary->createTable(tabDef) == 0);
 
     // Populate table.
-    const NdbDictionary::Table* const tab = dictionary->getTable(tabName);
+    const NdbDictionary::Table* const tab = ctx->getTab();
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
@@ -2014,7 +1997,7 @@ namespace TupErr
 
     for (int i = 0; i<totalRowCount; i++)
     {
-      const Row row = {i, 0, i};
+      const Row row = {i};
 
       const NdbOperation* const operation=
         trans->insertTuple(record, reinterpret_cast<const char*>(&row));
@@ -2045,10 +2028,8 @@ namespace TupErr
     // Build query.
     Ndb* const ndb = step->getNdb();
   
-    NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
-    const NdbDictionary::Table* const tab = dictionary->getTable(tabName);
+    const NdbDictionary::Table* const tab = ctx->getTab();
     const NdbRecord* const record = tab->getDefaultRecord();
-
   
     NdbTransaction* const trans = ndb->startTransaction();
     if (trans == NULL)
@@ -2103,7 +2084,6 @@ namespace TupErr
       require(false);
     }
     ndb->closeTransaction(trans);
-    dictionary->dropTable(tabName);
 
     return res;
   }
@@ -2114,8 +2094,7 @@ namespace TupErr
     // Build query.
     Ndb* const ndb = step->getNdb();
   
-    NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
-    const NdbDictionary::Table* const tab = dictionary->getTable(tabName);
+    const NdbDictionary::Table* const tab = ctx->getTab();
     const NdbRecord* const record = tab->getDefaultRecord();
 
     NdbTransaction* const trans = ndb->startTransaction();
@@ -2128,19 +2107,19 @@ namespace TupErr
     NdbInterpretedCode code(tab);
 
     /**
-     * Build an interpreter code sequence that causes rows with pk1==50 to 
-     * abort the scan, and that skips all other rows.
+     * Build an interpreter code sequence that causes rows with kol1==50 to
+     * abort the scan, and that skips all other rows(kol1 is a primary key).
      */ 
-    const NdbDictionary::Column* const col = tab->getColumn("pk1");
+    const NdbDictionary::Column* const col = tab->getColumn("KOL1");
     require(col != NULL);
     require(code.read_attr(1, col) == 0);
     require(code.load_const_u32(2, 50) == 0);
     require(code.branch_eq(1, 2, 0) == 0);
 
-    // Exit here if pk1!=50. Skip this row.
+    // Exit here if kol1!=50. Skip this row.
     require(code.interpret_exit_nok(626) == 0);
 
-    // Go here if pk1==50. Abort scan.
+    // Go here if kol1==50. Abort scan.
     require(code.def_label(0) == 0);
     require(code.interpret_exit_nok(6000) == 0);
     require(code.finalise() == 0);
@@ -2211,7 +2190,6 @@ namespace TupErr
     }
 
     ndb->closeTransaction(trans);
-    dictionary->dropTable(tabName);
 
     return res;
   }
@@ -3398,12 +3376,16 @@ TESTCASE("Bug13394788", "")
   FINALIZER(runClearTable);
 }
 TESTCASE("TupCheckSumError", ""){
-  INITIALIZER(TupErr::createDataBase);
-  INITIALIZER(TupErr::doCheckSumQuery);
+  // TABLE("T1");
+  INITIALIZER(TupErr::populateTable);
+  STEP(TupErr::doCheckSumQuery);
+  FINALIZER(runClearTable);
 }
 TESTCASE("InterpretNok6000", ""){
-  INITIALIZER(TupErr::createDataBase);
-  INITIALIZER(TupErr::doInterpretNok6000Query);
+  // TABLE("T1");
+  INITIALIZER(TupErr::populateTable);
+  STEP(TupErr::doInterpretNok6000Query);
+  FINALIZER(runClearTable);
 }
 TESTCASE("extraNextResultBug11748194",
          "Regression test for bug #11748194")

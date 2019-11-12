@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ class Election_member_info {
 
   /**
     Did the member left the group
-    @param running_channels did the member left the group
+    @param left did the member left the group
   */
   void set_member_left(bool left);
 
@@ -103,9 +103,7 @@ bool send_message(Plugin_gcs_message *message);
 /**
   Kill transactions and enable super_read_only mode
   @param err_msg                  the sql error message
-  @param components_stop_timeout  the timeout when waiting on shutdown
 */
-void kill_transactions_and_leave_on_election_error(std::string &err_msg,
-                                                   ulong stop_wait_timeout);
+void kill_transactions_and_leave_on_election_error(std::string &err_msg);
 
 #endif /* PRIMARY_ELECTION_UTILS_INCLUDED */

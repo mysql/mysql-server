@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ class XMLTestResult(unittest.TextTestResult):
         self._tc['element'].set('status', 'skipped because: {0}'.format(reason))
 
     def addExpectedFailure(self, test, err):
-        """Called when an expected failure/error occured."""
+        """Called when an expected failure/error occurred."""
         super(type(self), self).addExpectedFailure(test, err)
         # TODO - can we utilize this?
 

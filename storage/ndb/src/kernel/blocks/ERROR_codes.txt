@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 949
+Next QMGR 950
 Next NDBCNTR 1008
 Next NDBFS 2002
 Next DBACC 3006
@@ -268,6 +268,7 @@ QMGR
       4) ndb_mgm -e "all start"
 947:  Treat restart error due to a node disconnection as CRASH_INSERTION.
 948:  Cause node to crash when first hearing of a node failure
+949:  Pause before enabling this node to accept connections from API nodes
 
 ERROR CODES FOR TESTING NODE FAILURE, FAILURE IN COPY FRAGMENT PROCESS:
 -----------------------------------------------------------------------
@@ -321,7 +322,7 @@ Delay execution of ABORT signal 2 seconds to generate time-out.
 Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 
 5031: lqhKeyRef, ZNO_TC_CONNECT_ERROR
-5032: lqhKeyRef, ZTEMPORARY_REDO_LOG_FAILURE
+5032: lqhKeyRef, simulate a temporary redo error ZTEMPORARY_REDO_LOG_FAILURE
 5033: lqhKeyRef, ZTAIL_PROBLEM_IN_LOG_ERROR
 
 5034: Don't pop scan queue
@@ -578,9 +579,6 @@ Test failures in various states in take over functionality
 7163: Block take over at sending of UPDATE_TOREQ at end of copy frag
 7164: Block take over at sending of END_TOREQ
 7169: Block take over at sending of UPDATE_TOREQ at end of copy
-
-5008: Crash at reception of EMPTY_LCPREQ (at master take over after NF)
-5009: Crash at sending of EMPTY_LCPCONF (at master take over after NF)
 
 Test Crashes in Handling Graceful Shutdown
 ------------------------------------------

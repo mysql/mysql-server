@@ -1,0 +1,16 @@
+##################################################################
+# Author: Giuseppe                                               #
+# Date: 2006-12-20                                               #
+# Purpose: To test that event effects are replicated.            #
+##################################################################
+
+--source include/not_group_replication_plugin.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+--source include/master-slave.inc
+
+let $engine_type= MyISAM;
+
+--source include/rpl_events.inc
+
+--source include/rpl_end.inc

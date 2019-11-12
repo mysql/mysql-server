@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 #include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
 
 /**
-  @Primary_election_action
+  @class Primary_election_action
   The group action class to do migration to primary mode or elect a primary
 */
 class Primary_election_action : public Group_action, Group_event_observer {

@@ -25,12 +25,12 @@ EOF
 --exec $MYSQLXTEST -ux_root --file=$xtest_file 2>&1
 
 --let $XTESTPARAMS= -u user5_mysqlx --password='auth_string' --file=$xtest_file --ssl-cipher='DHE-RSA-AES256-SHA'
-# each of the below regexps has 3 replaces
+# each of the below regexps has 2 replaces
 # 1: for openssl 1.0
 # 2: for openssl 1.1
-# 3: for wolfSSL 
+# 3: for freebsd openssl 1.0
 --let $ERROR1= /error:14077102:SSL routines:SSL23_GET_SERVER_HELLO:unsupported protocol/protocol version mismatch/ /error:14171102:SSL routines:tls_process_server_hello:unsupported protocol/protocol version mismatch/ /record layer version error/protocol version mismatch/ /error:1425F102:SSL routines:ssl_choose_client_version:unsupported protocol/protocol version mismatch/
---let $ERROR5= /error:00000000:lib\(0\):func\(0\):reason\(0\)/socket layer receive error/ /error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version/socket layer receive error/ /error state on socket/socket layer receive error/
+--let $ERROR5= /error:00000000:lib\(0\):func\(0\):reason\(0\)/socket layer receive error/ /error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version/socket layer receive error/
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1

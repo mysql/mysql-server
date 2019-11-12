@@ -128,7 +128,7 @@
 		border:1px solid #769DC0;
 		border-bottom:none;
         background-color:#cde8ff;
-		background-image: url("../../../dijit/themes/claro/layout/images/accordion.png");
+		background-image: url("../../../dijit/themes/claro/images/standardGradient.png");
         background-position:0px 0px;
         background-repeat:repeat-x;
 		padding: 5px 7px 2px 7px;
@@ -154,7 +154,7 @@
 		background-color: #E6E6E7;
 	}
 	.claro .dojoxExpandoClosed .dojoxExpandoTitle{
-		background-image: url("../../../dijit/themes/claro/layout/images/accordion.png");
+		background-image: url("../../../dijit/themes/claro/images/standardGradient.png");
 		background-position:0 0;
 	}
 	

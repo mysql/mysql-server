@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,13 +98,7 @@ bool SortFileIndirectIterator::Init() {
     return true;
   }
 
-  /*
-    table->sort.addon_field is checked because if we use addon fields,
-    it doesn't make sense to use cache - we don't read from the table
-    and table->sort.io_cache is read sequentially
-  */
-  if (m_using_cache && !table()->sort.using_addon_fields() &&
-      thd()->variables.read_rnd_buff_size &&
+  if (m_using_cache && thd()->variables.read_rnd_buff_size &&
       !(table()->file->ha_table_flags() & HA_FAST_KEY_READ) &&
       (table()->db_stat & HA_READ_ONLY ||
        table()->reginfo.lock_type <= TL_READ_NO_INSERT) &&
@@ -258,7 +252,8 @@ int SortFileIndirectIterator::CachedRead() {
 }
 
 vector<string> SortFileIndirectIterator::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data: Row IDs from file, records from ") +
           table()->alias};
 }
@@ -325,7 +320,8 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 
 template <bool Packed_addon_fields>
 vector<string> SortFileIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data from file (originally from ") +
           table()->alias + ")"};
 }
@@ -386,7 +382,8 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 
 template <bool Packed_addon_fields>
 vector<string> SortBufferIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data from memory (originally from ") +
           table()->alias + ")"};
 }
@@ -451,7 +448,8 @@ int SortBufferIndirectIterator::Read() {
 }
 
 vector<string> SortBufferIndirectIterator::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data: Row IDs from memory, records from ") +
           table()->alias};
 }
@@ -464,7 +462,17 @@ SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
       m_source_iterator(move(source)),
       m_examined_rows(examined_rows) {}
 
-SortingIterator::~SortingIterator() { ReleaseBuffers(); }
+SortingIterator::~SortingIterator() {
+  ReleaseBuffers();
+  CleanupAfterQuery();
+}
+
+void SortingIterator::CleanupAfterQuery() {
+  m_fs_info.free_sort_buffer();
+  my_free(m_fs_info.merge_chunks.array());
+  m_fs_info.merge_chunks = Merge_chunk_array(NULL, 0);
+  m_fs_info.addon_fields = NULL;
+}
 
 void SortingIterator::ReleaseBuffers() {
   m_result_iterator.reset();
@@ -476,13 +484,13 @@ void SortingIterator::ReleaseBuffers() {
   }
   m_sort_result.sorted_result.reset();
   m_sort_result.sorted_result_in_fsbuf = false;
+
+  // Keep the sort buffer in m_fs_info.
 }
 
 bool SortingIterator::Init() {
   QEP_TAB *qep_tab = m_filesort->qep_tab;
   ReleaseBuffers();
-
-  THD_STAGE_INFO(thd(), stage_creating_sort_index);
 
   // Both empty result and error count as errors. (TODO: Why? This is a legacy
   // choice that doesn't always seem right to me, although it should nearly
@@ -520,42 +528,47 @@ bool SortingIterator::Init() {
   TABLE *table = qep_tab->table();
   if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
     // Test if ref-records was used
-    if (table->sort.using_addon_fields()) {
+    if (m_fs_info.using_addon_fields()) {
       DBUG_PRINT("info", ("using SortFileIterator"));
-      if (table->sort.addon_fields->using_packed_addons())
+      if (m_fs_info.addon_fields->using_packed_addons())
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_file_packed_addons)
                 SortFileIterator<true>(thd(), table, m_sort_result.io_cache,
-                                       &table->sort, m_examined_rows));
+                                       &m_fs_info, m_examined_rows));
       else
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_file)
                 SortFileIterator<false>(thd(), table, m_sort_result.io_cache,
-                                        &table->sort, m_examined_rows));
+                                        &m_fs_info, m_examined_rows));
     } else {
+      /*
+        m_fs_info->addon_field is checked because if we use addon fields,
+        it doesn't make sense to use cache - we don't read from the table
+        and m_fs_info->io_cache is read sequentially
+      */
+      bool request_cache = !m_fs_info.using_addon_fields();
       m_result_iterator.reset(
           new (&m_result_iterator_holder.sort_file_indirect)
-              SortFileIndirectIterator(thd(), table, m_sort_result.io_cache,
-                                       /*request_cache=*/true,
-                                       /*ignore_not_found_rows=*/false,
-                                       m_examined_rows));
+              SortFileIndirectIterator(
+                  thd(), table, m_sort_result.io_cache, request_cache,
+                  /*ignore_not_found_rows=*/false, m_examined_rows));
     }
     m_sort_result.io_cache =
         nullptr;  // The result iterator has taken ownership.
   } else {
     DBUG_ASSERT(m_sort_result.has_result_in_memory());
-    if (table->sort.using_addon_fields()) {
+    if (m_fs_info.using_addon_fields()) {
       DBUG_PRINT("info", ("using SortBufferIterator"));
       DBUG_ASSERT(m_sort_result.sorted_result_in_fsbuf);
-      if (table->sort.addon_fields->using_packed_addons())
+      if (m_fs_info.addon_fields->using_packed_addons())
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_buffer_packed_addons)
-                SortBufferIterator<true>(thd(), table, &table->sort,
+                SortBufferIterator<true>(thd(), table, &m_fs_info,
                                          &m_sort_result, m_examined_rows));
       else
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_buffer)
-                SortBufferIterator<false>(thd(), table, &table->sort,
+                SortBufferIterator<false>(thd(), table, &m_fs_info,
                                           &m_sort_result, m_examined_rows));
     } else {
       DBUG_PRINT("info", ("using SortBufferIndirectIterator (sort)"));
@@ -611,19 +624,17 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
     }
   }
 
-  if (join != nullptr) {
+  if (join != nullptr && join->unit->root_iterator() == nullptr) {
     /* Fill schema tables with data before filesort if it's necessary */
     if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
         get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
       return -1;
   }
 
-  ha_rows found_rows, returned_rows;
-  bool error = filesort(thd(), m_filesort, qep_tab->keep_current_rowid,
-                        m_source_iterator.get(), &m_sort_result, &found_rows,
-                        &returned_rows);
-  m_sort_result.found_records = returned_rows;
-  qep_tab->set_records(found_rows);  // For SQL_CALC_ROWS
+  ha_rows found_rows;
+  bool error = filesort(thd(), m_filesort, m_source_iterator.get(), &m_fs_info,
+                        &m_sort_result, &found_rows);
+  qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
   table->set_keyread(false);         // Restore if we used indexes
   if (qep_tab->type() == JT_FT)
     table->file->ft_end();
@@ -653,7 +664,17 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
 }
 
 vector<string> SortingIterator::DebugString() const {
-  string ret = "Sort: ";
+  string ret;
+  if (m_filesort->using_addon_fields()) {
+    ret = "Sort";
+  } else {
+    ret = "Sort row IDs";
+  }
+  if (m_filesort->m_remove_duplicates) {
+    ret += " with duplicate removal: ";
+  } else {
+    ret += ": ";
+  }
 
   bool first = true;
   for (unsigned i = 0; i < m_filesort->sort_order_length(); ++i) {

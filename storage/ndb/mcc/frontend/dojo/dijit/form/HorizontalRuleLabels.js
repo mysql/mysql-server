@@ -6,12 +6,11 @@ return _5;
 return this._positionPrefix+this._calcPosition(_6)+this._positionSuffix+this.labelStyle+this._labelPrefix+this.labels[_7]+this._suffix;
 },getLabels:function(){
 var _8=this.labels;
-if(!_8.length){
+if(!_8.length&&this.srcNodeRef){
 _8=_3("> li",this.srcNodeRef).map(function(_9){
 return String(_9.innerHTML);
 });
 }
-this.srcNodeRef.innerHTML="";
 if(!_8.length&&this.count>1){
 var _a=this.minimum;
 var _b=(this.maximum-_a)/(this.count-1);

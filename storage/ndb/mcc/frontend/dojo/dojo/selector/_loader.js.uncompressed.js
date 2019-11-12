@@ -1,24 +1,37 @@
-//>>built
 define("dojo/selector/_loader", ["../has", "require"],
 		function(has, require){
-// summary:
-//		This module handles loading the appropriate selector engine for the given browser
+
 "use strict";
-var testDiv = document.createElement("div");
-has.add("dom-qsa2.1", !!testDiv.querySelectorAll);
-has.add("dom-qsa3", function(){
-			// test to see if we have a reasonable native selector engine available
-			try{
-				testDiv.innerHTML = "<p class='TEST'></p>"; // test kind of from sizzle
-				// Safari can't handle uppercase or unicode characters when
-				// in quirks mode, IE8 can't handle pseudos like :empty
-				return testDiv.querySelectorAll(".TEST:empty").length == 1;
-			}catch(e){}
-		});
+if (typeof document !== "undefined") {
+	var testDiv = document.createElement("div");
+	has.add("dom-qsa2.1", !!testDiv.querySelectorAll);
+	has.add("dom-qsa3", function(){
+		// test to see if we have a reasonable native selector engine available
+		try{
+			testDiv.innerHTML = "<p class='TEST'></p>"; // test kind of from sizzle
+			// Safari can't handle uppercase or unicode characters when
+			// in quirks mode, IE8 can't handle pseudos like :empty
+			return testDiv.querySelectorAll(".TEST:empty").length == 1;
+		}catch(e){}
+	});
+}
+
 var fullEngine;
 var acme = "./acme", lite = "./lite";
 return {
+	// summary:
+	//		This module handles loading the appropriate selector engine for the given browser
+
 	load: function(id, parentRequire, loaded, config){
+		if (config && config.isBuild) {
+			//Indicate that the optimizer should not wait
+			//for this resource any more and complete optimization.
+			//This resource will be resolved dynamically during
+			//run time in the web browser.
+			loaded();
+			return;
+		}
+
 		var req = require;
 		// here we implement the default logic for choosing a selector engine
 		id = id == "default" ? has("config-selectorEngine") || "css3" : id;

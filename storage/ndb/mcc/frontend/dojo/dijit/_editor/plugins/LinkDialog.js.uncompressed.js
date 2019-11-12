@@ -1,24 +1,19 @@
-//>>built
 define("dijit/_editor/plugins/LinkDialog", [
 	"require",
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.get
 	"dojo/keys", // keys.ENTER
 	"dojo/_base/lang", // lang.delegate lang.hitch lang.trim
-	"dojo/_base/sniff", // has("ie")
+	"dojo/sniff", // has("ie")
+	"dojo/_base/query", // query
 	"dojo/string", // string.substitute
-	"dojo/_base/window", // win.withGlobal
 	"../../_Widget",
 	"../_Plugin",
 	"../../form/DropDownButton",
-	"../range",
-	"../selection"
-], function(require, declare, domAttr, keys, lang, has, string, win,
-	_Widget, _Plugin, DropDownButton, rangeapi, selectionapi){
+	"../range"
+], function(require, declare, domAttr, keys, lang, has, query, string,
+	_Widget, _Plugin, DropDownButton, rangeapi){
 
-/*=====
-	var _Plugin = dijit._editor._Plugin;
-=====*/
 
 // module:
 //		dijit/_editor/plugins/LinkDialog
@@ -30,22 +25,22 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 	// summary:
 	//		This plugin provides the basis for an 'anchor' (link) dialog and an extension of it
 	//		provides the image link dialog.
-	//
 	// description:
 	//		The command provided by this plugin is:
-	//		* createLink
+	//
+	//		- createLink
 
 	// Override _Plugin.buttonClass.   This plugin is controlled by a DropDownButton
 	// (which triggers a TooltipDialog).
 	buttonClass: DropDownButton,
 
-	// Override _Plugin.useDefaultCommand... processing is handled by this plugin, not by dijit.Editor.
+	// Override _Plugin.useDefaultCommand... processing is handled by this plugin, not by dijit/Editor.
 	useDefaultCommand: false,
 
 	// urlRegExp: [protected] String
 	//		Used for validating input as correct URL.  While file:// urls are not terribly
 	//		useful, they are technically valid.
-	urlRegExp: "((https?|ftps?|file)\\://|\./|/|)(/[a-zA-Z]{1,1}:/|)(((?:(?:[\\da-zA-Z](?:[-\\da-zA-Z]{0,61}[\\da-zA-Z])?)\\.)*(?:[a-zA-Z](?:[-\\da-zA-Z]{0,80}[\\da-zA-Z])?)\\.?)|(((\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])|(0[xX]0*[\\da-fA-F]?[\\da-fA-F]\\.){3}0[xX]0*[\\da-fA-F]?[\\da-fA-F]|(0+[0-3][0-7][0-7]\\.){3}0+[0-3][0-7][0-7]|(0|[1-9]\\d{0,8}|[1-3]\\d{9}|4[01]\\d{8}|42[0-8]\\d{7}|429[0-3]\\d{6}|4294[0-8]\\d{5}|42949[0-5]\\d{4}|429496[0-6]\\d{3}|4294967[01]\\d{2}|42949672[0-8]\\d|429496729[0-5])|0[xX]0*[\\da-fA-F]{1,8}|([\\da-fA-F]{1,4}\\:){7}[\\da-fA-F]{1,4}|([\\da-fA-F]{1,4}\\:){6}((\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])))(\\:\\d+)?(/(?:[^?#\\s/]+/)*(?:[^?#\\s/]{0,}(?:\\?[^?#\\s/]*)?(?:#.*)?)?)?",
+	urlRegExp: "((https?|ftps?|file)\\://|\./|\.\./|/|)(/[a-zA-Z]{1,1}:/|)(((?:(?:[\\da-zA-Z](?:[-\\da-zA-Z]{0,61}[\\da-zA-Z])?)\\.)*(?:[a-zA-Z](?:[-\\da-zA-Z]{0,80}[\\da-zA-Z])?)\\.?)|(((\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])|(0[xX]0*[\\da-fA-F]?[\\da-fA-F]\\.){3}0[xX]0*[\\da-fA-F]?[\\da-fA-F]|(0+[0-3][0-7][0-7]\\.){3}0+[0-3][0-7][0-7]|(0|[1-9]\\d{0,8}|[1-3]\\d{9}|4[01]\\d{8}|42[0-8]\\d{7}|429[0-3]\\d{6}|4294[0-8]\\d{5}|42949[0-5]\\d{4}|429496[0-6]\\d{3}|4294967[01]\\d{2}|42949672[0-8]\\d|429496729[0-5])|0[xX]0*[\\da-fA-F]{1,8}|([\\da-fA-F]{1,4}\\:){7}[\\da-fA-F]{1,4}|([\\da-fA-F]{1,4}\\:){6}((\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])\\.){3}(\\d|[1-9]\\d|1\\d\\d|2[0-4]\\d|25[0-5])))(\\:\\d+)?(/(?:[^?#\\s/]+/)*(?:[^?#\\s/]{0,}(?:\\?[^?#\\s/]*)?(?:#.*)?)?)?",
 
 	// emailRegExp: [protected] String
 	//		Used for validating input as correct email address.  Taken from dojox.validate
@@ -73,7 +68,7 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 	// linkDialogTemplate: [protected] String
 	//		Template for contents of TooltipDialog to pick URL
 	linkDialogTemplate: [
-		"<table><tr><td>",
+		"<table role='presentation'><tr><td>",
 		"<label for='${id}_urlInput'>${url}</label>",
 		"</td><td>",
 		"<input data-dojo-type='dijit.form.ValidationTextBox' required='true' " +
@@ -124,6 +119,8 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 				i18n.getLocalization("dijit._editor", "LinkDialog", this.lang));
 			var dropDown = (this.dropDown = this.button.dropDown = new TooltipDialog({
 				title: messages[this.command + "Title"],
+				ownerDocument: this.editor.ownerDocument,
+				dir: this.editor.dir,
 				execute: lang.hitch(this, "setValue"),
 				onOpen: function(){
 					_this._onOpenDialog();
@@ -194,9 +191,9 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 				if(url.indexOf("mailto:") !== 0){
 					if(url.indexOf("/") > 0){
 						if(url.indexOf("://") === -1){
-							// Check that it doesn't start with / or ./, which would
+							// Check that it doesn't start with /, ./, or ../, which would
 							// imply 'target server relativeness'
-							if(url.charAt(0) !== '/' && url.indexOf("./") !== 0){
+							if(url.charAt(0) !== '/' && url.indexOf("./") && url.indexOf("../") !== 0){
 								if(self._hostRxp.test(url)){
 									appendHttp = true;
 								}
@@ -228,7 +225,7 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 	_connectTagEvents: function(){
 		// summary:
 		//		Over-ridable function that connects tag specific events.
-		this.editor.onLoadDeferred.addCallback(lang.hitch(this, function(){
+		this.editor.onLoadDeferred.then(lang.hitch(this, function(){
 			this.connect(this.editor.editNode, "ondblclick", this._onDblClick);
 		}));
 	},
@@ -269,7 +266,8 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 		//		Callback from the dialog when user presses "set" button.
 		// tags:
 		//		private
-		//TODO: prevent closing popup if the text is empty
+		
+		// TODO: prevent closing popup if the text is empty
 		this._onCloseDialog();
 		if(has("ie") < 9){ //see #4151
 			var sel = rangeapi.getSelection(this.editor.window);
@@ -284,8 +282,7 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 			if(a && (a.nodeName && a.nodeName.toLowerCase() !== this.tag)){
 				// Still nothing, one last thing to try on IE, as it might be 'img'
 				// and thus considered a control.
-				a = win.withGlobal(this.editor.window,
-					"getSelectedElement", selectionapi, [this.tag]);
+				a = this.editor._sCall("getSelectedElement", [this.tag]);
 			}
 			if(a && (a.nodeName && a.nodeName.toLowerCase() === this.tag)){
 				// Okay, we do have a match.  IE, for some reason, sometimes pastes before
@@ -295,8 +292,7 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 				if(this.editor.queryCommandEnabled("unlink")){
 					// Select all the link children, then unlink.  The following insert will
 					// then replace the selected text.
-					win.withGlobal(this.editor.window,
-						"selectElementChildren", selectionapi, [a]);
+					this.editor._sCall("selectElementChildren", [a]);
 					this.editor.execCommand("unlink");
 				}
 			}
@@ -305,12 +301,28 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 		args = this._checkValues(args);
 		this.editor.execCommand('inserthtml',
 			string.substitute(this.htmlTemplate, args));
+
+		// IE sometimes leaves a blank link, so we need to fix it up.
+		// Go ahead and do this for everyone just to avoid blank links
+		// in the page.
+		query("a", this.editor.document).forEach(function(a){
+			if(!a.innerHTML && !domAttr.has(a, "name")){
+				// Remove empty anchors that do not have "name" set.
+				// Empty ones with a name set could be a hidden hash
+				// anchor.
+				a.parentNode.removeChild(a);
+			}
+		}, this);
 	},
 
 	_onCloseDialog: function(){
 		// summary:
 		//		Handler for close event on the dialog
-		this.editor.focus();
+
+		if(this.editor.focused){
+			// put focus back in the edit area, unless the dialog closed because the user clicked somewhere else
+			this.editor.focus();
+		}
 	},
 
 	_getCurrentValues: function(a){
@@ -325,9 +337,9 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 			url = a.getAttribute('_djrealurl') || a.getAttribute('href');
 			target = a.getAttribute('target') || "_self";
 			text = a.textContent || a.innerText;
-			win.withGlobal(this.editor.window, "selectElement", selectionapi, [a, true]);
+			this.editor._sCall("selectElement", [a, true]);
 		}else{
-			text = win.withGlobal(this.editor.window, selectionapi.getSelectedText);
+			text = this.editor._sCall("getSelectedText");
 		}
 		return {urlInput: url || '', textInput: text || '', targetSelect: target || ''}; //Object;
 	},
@@ -336,28 +348,48 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 		// summary:
 		//		Handler for when the dialog is opened.
 		//		If the caret is currently in a URL then populate the URL's info into the dialog.
-		var a;
-		if(has("ie") < 9){
-			// IE is difficult to select the element in, using the range unified
+		var a,b,fc;
+		if(has("ie")){
+			// IE, even IE10, is difficult to select the element in, using the range unified
 			// API seems to work reasonably well.
 			var sel = rangeapi.getSelection(this.editor.window);
-			var range = sel.getRangeAt(0);
-			a = range.endContainer;
-			if(a.nodeType === 3){
-				// Text node, may be the link contents, so check parent.
-				// This plugin doesn't really support nested HTML elements
-				// in the link, it assumes all link content is text.
-				a = a.parentNode;
-			}
-			if(a && (a.nodeName && a.nodeName.toLowerCase() !== this.tag)){
-				// Still nothing, one last thing to try on IE, as it might be 'img'
-				// and thus considered a control.
-				a = win.withGlobal(this.editor.window,
-					"getSelectedElement", selectionapi, [this.tag]);
+			if(sel.rangeCount){
+				var range = sel.getRangeAt(0);
+				a = range.endContainer;
+				if(a.nodeType === 3){
+					// Text node, may be the link contents, so check parent.
+					// This plugin doesn't really support nested HTML elements
+					// in the link, it assumes all link content is text.
+					a = a.parentNode;
+				}
+				if(a && (a.nodeName && a.nodeName.toLowerCase() !== this.tag)){
+					// Still nothing, one last thing to try on IE, as it might be 'img'
+					// and thus considered a control.
+					a = this.editor._sCall("getSelectedElement", [this.tag]);
+				}
+				if(!a || (a.nodeName && a.nodeName.toLowerCase() !== this.tag)){
+					// Try another lookup, IE's selection is just terrible.
+					b = this.editor._sCall("getAncestorElement", [this.tag]);
+					if(b && (b.nodeName && b.nodeName.toLowerCase() == this.tag)){
+						// Looks like we found an A tag, use it and make sure just it is
+						// selected.
+						a = b;
+						this.editor._sCall("selectElement", [a]);
+					}else if (range.startContainer === range.endContainer){
+						// STILL nothing.  Trying one more thing.  Lets look at the first child.
+						// It might be an anchor tag in a div by itself or the like.  If it is,
+						// we'll use it otherwise we give up.  The selection is not easily
+						// determinable to be on an existing anchor tag.
+						fc = range.startContainer.firstChild;
+						if(fc && (fc.nodeName && fc.nodeName.toLowerCase() == this.tag)){
+							a = fc;
+							this.editor._sCall("selectElement", [a]);
+						}
+					}
+				}
 			}
 		}else{
-			a = win.withGlobal(this.editor.window,
-				"getAncestorElement", selectionapi, [this.tag]);
+			a = this.editor._sCall("getAncestorElement", [this.tag]);
 		}
 		this.dropDown.reset();
 		this._setButton.set("disabled", true);
@@ -366,7 +398,7 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 
 	_onDblClick: function(e){
 		// summary:
-		// 		Function to define a behavior on double clicks on the element
+		//		Function to define a behavior on double clicks on the element
 		//		type this dialog edits to select it and pop up the editor
 		//		dialog.
 		// e: Object
@@ -375,14 +407,11 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 		//		protected.
 		if(e && e.target){
 			var t = e.target;
-			var tg = t.tagName? t.tagName.toLowerCase() : "";
+			var tg = t.tagName ? t.tagName.toLowerCase() : "";
 			if(tg === this.tag && domAttr.get(t,"href")){
 				var editor = this.editor;
 
-				win.withGlobal(editor.window,
-					 "selectElement",
-					 selectionapi, [t]);
-
+				this.editor._sCall("selectElement", [t]);
 				editor.onDisplayChanged();
 
 				// Call onNormalizedDisplayChange() now, rather than on timer.
@@ -391,7 +420,7 @@ var LinkDialog = declare("dijit._editor.plugins.LinkDialog", _Plugin, {
 				// (actually, all the toolbar buttons), at which point clicking the <input> will close the dialog,
 				// since (for unknown reasons) focus.js ignores disabled controls.
 				if(editor._updateTimer){
-					clearTimeout(editor._updateTimer);
+					editor._updateTimer.remove();
 					delete editor._updateTimer;
 				}
 				editor.onNormalizedDisplayChanged();
@@ -416,15 +445,15 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 	// summary:
 	//		This plugin extends LinkDialog and adds in a plugin for handling image links.
 	//		provides the image link dialog.
-	//
 	// description:
 	//		The command provided by this plugin is:
-	//		* insertImage
+	//
+	//		- insertImage
 
 	// linkDialogTemplate: [protected] String
 	//		Over-ride for template since img dialog doesn't need target that anchor tags may.
 	linkDialogTemplate: [
-		"<table><tr><td>",
+		"<table role='presentation'><tr><td>",
 		"<label for='${id}_urlInput'>${url}</label>",
 		"</td><td>",
 		"<input dojoType='dijit.form.ValidationTextBox' regExp='${urlRegExp}' " +
@@ -443,7 +472,7 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 	].join(""),
 
 	// htmlTemplate: [protected] String
-	//		String used for templating the <img> HTML to insert at the desired point.
+	//		String used for templating the `<img>` HTML to insert at the desired point.
 	htmlTemplate: "<img src=\"${urlInput}\" _djrealurl=\"${urlInput}\" alt=\"${textInput}\" />",
 
 	// tag: [protected] String
@@ -461,12 +490,11 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 		if(img && img.tagName.toLowerCase() === this.tag){
 			url = img.getAttribute('_djrealurl') || img.getAttribute('src');
 			text = img.getAttribute('alt');
-			win.withGlobal(this.editor.window,
-				"selectElement", selectionapi, [img, true]);
+			this.editor._sCall("selectElement", [img, true]);
 		}else{
-			text = win.withGlobal(this.editor.window, selectionapi.getSelectedText);
+			text = this.editor._sCall("getSelectedText", []);
 		}
-		return {urlInput: url || '', textInput: text || ''}; //Object;
+		return {urlInput: url || '', textInput: text || ''}; //Object
 	},
 
 	_isValid: function(){
@@ -481,7 +509,7 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 		// summary:
 		//		Over-ridable function that connects tag specific events.
 		this.inherited(arguments);
-		this.editor.onLoadDeferred.addCallback(lang.hitch(this, function(){
+		this.editor.onLoadDeferred.then(lang.hitch(this, function(){
 			// Use onmousedown instead of onclick.  Seems that IE eats the first onclick
 			// to wrap it in a selector box, then the second one acts as onclick.  See #10420
 			this.connect(this.editor.editNode, "onmousedown", this._selectTag);
@@ -501,9 +529,7 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 			var t = e.target;
 			var tg = t.tagName? t.tagName.toLowerCase() : "";
 			if(tg === this.tag){
-				win.withGlobal(this.editor.window,
-					"selectElement",
-					selectionapi, [t]);
+				this.editor._sCall("selectElement", [t]);
 			}
 		}
 	},
@@ -527,7 +553,7 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 
 	_onDblClick: function(e){
 		// summary:
-		// 		Function to define a behavior on double clicks on the element
+		//		Function to define a behavior on double clicks on the element
 		//		type this dialog edits to select it and pop up the editor
 		//		dialog.
 		// e: Object
@@ -540,9 +566,7 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 			if(tg === this.tag && domAttr.get(t,"src")){
 				var editor = this.editor;
 
-				win.withGlobal(editor.window,
-					 "selectElement",
-					 selectionapi, [t]);
+				this.editor._sCall("selectElement", [t]);
 				editor.onDisplayChanged();
 
 				// Call onNormalizedDisplayChange() now, rather than on timer.
@@ -551,7 +575,7 @@ var ImgLinkDialog = declare("dijit._editor.plugins.ImgLinkDialog", [LinkDialog],
 				// (actually, all the toolbar buttons), at which point clicking the <input> will close the dialog,
 				// since (for unknown reasons) focus.js ignores disabled controls.
 				if(editor._updateTimer){
-					clearTimeout(editor._updateTimer);
+					editor._updateTimer.remove();
 					delete editor._updateTimer;
 				}
 				editor.onNormalizedDisplayChanged();
@@ -582,6 +606,8 @@ _Plugin.registry["insertImage"] = function(){
 
 
 // Export both LinkDialog and ImgLinkDialog
+// TODO for 2.0: either return both classes in a hash, or split this file into two separate files.
+// Then the documentation for the module can be applied to the hash, and will show up in the API doc.
 LinkDialog.ImgLinkDialog = ImgLinkDialog;
 return LinkDialog;
 });

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,23 +68,23 @@
 
   RETURN VALUE
     0  All OK
-    1  An error occured
+    1  An error occurred
 */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
   size_t bytes_in_cache;
-  DBUG_ENTER("my_b_copy_to_file");
+  DBUG_TRACE;
 
   /* Reinit the cache to read from the beginning of the cache */
-  if (reinit_io_cache(cache, READ_CACHE, 0L, false, false)) DBUG_RETURN(1);
+  if (reinit_io_cache(cache, READ_CACHE, 0L, false, false)) return 1;
   bytes_in_cache = my_b_bytes_in_cache(cache);
   do {
     if (my_fwrite(file, cache->read_pos, bytes_in_cache,
                   MYF(MY_WME | MY_NABP)) == (size_t)-1)
-      DBUG_RETURN(1);
+      return 1;
     cache->read_pos = cache->read_end;
   } while ((bytes_in_cache = my_b_fill(cache)));
-  if (cache->error == -1) DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  if (cache->error == -1) return 1;
+  return 0;
 }
 
 /*
@@ -94,7 +94,7 @@ int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
 
 void my_b_seek(IO_CACHE *info, my_off_t pos) {
   my_off_t offset;
-  DBUG_ENTER("my_b_seek");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("pos: %lu", (ulong)pos));
 
   /*
@@ -113,7 +113,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
     if ((ulonglong)offset < (ulonglong)(info->read_end - info->buffer)) {
       /* The read is in the current buffer; Reuse it */
       info->read_pos = info->buffer + offset;
-      DBUG_VOID_RETURN;
+      return;
     } else {
       /* Force a new read on next my_b_read */
       info->read_pos = info->read_end = info->buffer;
@@ -123,7 +123,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
     if ((ulonglong)offset <=
         (ulonglong)(info->write_end - info->write_buffer)) {
       info->write_pos = info->write_buffer + offset;
-      DBUG_VOID_RETURN;
+      return;
     }
     (void)flush_io_cache(info);
     /* Correct buffer end so that we write in increments of IO_SIZE */
@@ -132,7 +132,6 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
   }
   info->pos_in_file = pos;
   info->seek_not_done = 1;
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -153,7 +152,7 @@ size_t my_b_fill(IO_CACHE *info) {
   size_t diff_length, length, max_length;
 
   if (info->seek_not_done) { /* File touched, do seek */
-    if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
+    if (mysql_encryption_file_seek(info, pos_in_file, MY_SEEK_SET, MYF(0)) ==
         MY_FILEPOS_ERROR) {
       info->error = 0;
       return 0;
@@ -171,8 +170,8 @@ size_t my_b_fill(IO_CACHE *info) {
   }
   DBUG_EXECUTE_IF("simulate_my_b_fill_error",
                   { DBUG_SET("+d,simulate_file_read_error"); });
-  if ((length = mysql_file_read(info->file, info->buffer, max_length,
-                                info->myflags)) == (size_t)-1) {
+  if ((length = mysql_encryption_file_read(info, info->buffer, max_length,
+                                           info->myflags)) == (size_t)-1) {
     info->error = -1;
     return 0;
   }

@@ -68,7 +68,6 @@ _d=true;
 if(_c){
 if(_d){
 _c._onclickHandler(null);
-}else{
 }
 this._map.mapObj.marker.show(_c.id);
 }

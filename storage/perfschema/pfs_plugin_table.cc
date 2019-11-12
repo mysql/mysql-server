@@ -1187,6 +1187,15 @@ void set_field_timestamp_v1(PSI_field *f, const char *value, uint len) {
   }
 }
 
+void set_field_timestamp2_v1(PSI_field *f, ulonglong value) {
+  Field *f_ptr = reinterpret_cast<Field *>(f);
+  if (value > 0) {
+    set_field_timestamp(f_ptr, value);
+  } else {
+    f_ptr->set_null();
+  }
+}
+
 void get_field_timestamp_v1(PSI_field *f, char *val, uint *len) {
   Field *f_ptr = reinterpret_cast<Field *>(f);
 
@@ -1444,6 +1453,10 @@ END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v1)
     set_field_timestamp_v1, get_field_timestamp_v1
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v2)
+    set_field_timestamp_v1, set_field_timestamp2_v1, get_field_timestamp_v1
 END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_year_v1)

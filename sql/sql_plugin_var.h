@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ class sys_var_pluginvar : public sys_var {
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
                                 std::nothrow) noexcept {
-    return alloc_root(mem_root, size);
+    return mem_root->Alloc(size);
   }
 
   static void *operator new(size_t size) {
@@ -266,11 +266,11 @@ class sys_var_pluginvar : public sys_var {
   uchar *do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base) {
     return do_value_ptr(thd, thd, type, base);
   }
-  uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                           LEX_STRING *base) {
+  const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                 LEX_STRING *base) {
     return do_value_ptr(running_thd, target_thd, OPT_SESSION, base);
   }
-  uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
+  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
     return do_value_ptr(thd, OPT_GLOBAL, base);
   }
   bool do_check(THD *thd, set_var *var);

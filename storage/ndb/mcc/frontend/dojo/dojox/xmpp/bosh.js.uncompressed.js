@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/xmpp/bosh", ["dijit","dojo","dojox","dojo/require!dojo/io/script,dojo/io/iframe,dojox/xml/parser"], function(dijit,dojo,dojox){
+define("dojox/xmpp/bosh", ["dojo","dijit","dojox","dojo/require!dojo/io/script,dojo/io/iframe,dojox/xml/parser"], function(dojo,dijit,dojox){
 dojo.provide("dojox.xmpp.bosh");
 
 dojo.require("dojo.io.script");
@@ -10,11 +9,11 @@ dojo.require("dojox.xml.parser");
 /*=====
 dojo.declare("dojox.xmpp.bosh.__initArgs", null, {
 	constructor: function(){
-		//	summary:
+		// summary:
 		//		The arguments passed to dojox.xmpp.bosh.initialize
-		//	iframes:
+		// iframes:
 		//		The number of iframes to use for transmission
-		//	load:
+		// load:
 		//		The function called when the first iframe is
 		//		loaded.  Generally used to signal when to send
 		//		login information
@@ -24,12 +23,12 @@ dojo.declare("dojox.xmpp.bosh.__initArgs", null, {
 });
 dojo.declare("dojox.xmpp.bosh.__ioArgs", dojo.__IoArgs, {
 	constructor: function(){
-		//	summary:
+		// summary:
 		//		All the properties described in the dojo.__ioArgs type, apply to this
 		//		type as well, EXCEPT "handleAs". It is not applicable to
 		//		dojox.xmpp.bosh.get() calls, since it is implied that the
 		//		return will be a string of XML.
-		//	rid:
+		// rid:
 		//		The rid of the message being sent.
 		this.rid = rid;
 	}
@@ -95,7 +94,7 @@ dojox.xmpp.bosh = {
 	},
 
 	get: function(/*dojox.xmpp.bosh.__ioArgs*/args){
-		//	summary:
+		// summary:
 		//		sends a get request using a dynamically created script tag.
 		var iframe = this.findOpenIframe();
 		var iframeDoc = dojo.io.iframe.doc(iframe);
@@ -118,8 +117,9 @@ dojox.xmpp.bosh = {
 	},
 
 	remove: function(/*String*/id, /*Document?*/frameDocument){
-		//summary: removes the script element with the given id, from the given frameDocument.
-		//If no frameDocument is passed, the current document is used.
+		// summary:
+		//		removes the script element with the given id, from the given frameDocument.
+		//		If no frameDocument is passed, the current document is used.
 		dojo.destroy(dojo.byId(id, frameDocument));
 
 		//Remove the BOSH callback on dojox.xmpp.bosh, if it exists.
@@ -129,7 +129,7 @@ dojox.xmpp.bosh = {
 	},
 
 	_makeScriptDeferred: function(/*Object*/args){
-		//summary:
+		// summary:
 		//		sets up a Deferred object for an IO request.
 		var dfd = dojo._ioSetArgs(args, this._deferredCancel, this._deferredOk, this._deferredError);
 
@@ -146,7 +146,8 @@ dojox.xmpp.bosh = {
 	},
 
 	_deferredCancel: function(/*Deferred*/dfd){
-		//summary: canceller function for dojo._ioSetArgs call.
+		// summary:
+		//		canceller function for dojo._ioSetArgs call.
 
 		//DO NOT use "this" and expect it to be dojox.xmpp.bosh.
 		dfd.canceled = true;
@@ -156,7 +157,8 @@ dojox.xmpp.bosh = {
 	},
 
 	_deferredOk: function(/*Deferred*/dfd){
-		//summary: okHandler function for dojo._ioSetArgs call.
+		// summary:
+		//		okHandler function for dojo._ioSetArgs call.
 
 		//DO NOT use "this" and expect it to be dojo.xmpp.bosh.
 		var ioArgs = dfd.ioArgs;
@@ -174,7 +176,8 @@ dojox.xmpp.bosh = {
 	},
 
 	_deferredError: function(/*Error*/error, /*Deferred*/dfd){
-		//summary: errHandler function for dojo._ioSetArgs call.
+		// summary:
+		//		errHandler function for dojo._ioSetArgs call.
 
 		if(dfd.ioArgs.canDelete){
 			//DO NOT use "this" and expect it to be dojox.xmpp.bosh
@@ -191,14 +194,16 @@ dojox.xmpp.bosh = {
 
 	_deadScripts: [],
 	_addDeadScript: function(/*Object*/ioArgs){
-		//summary: sets up an entry in the deadScripts array.
+		// summary:
+		//		sets up an entry in the deadScripts array.
 		dojox.xmpp.bosh._deadScripts.push({id: ioArgs.id, frameDoc: ioArgs.frameDoc});
 		//Being extra paranoid about leaks:
 		ioArgs.frameDoc = null;
 	},
 
 	_validCheck: function(/*Deferred*/dfd){
-		//summary: inflight check function to see if dfd is still valid.
+		// summary:
+		//		inflight check function to see if dfd is still valid.
 
 		//Do script cleanup here. We wait for one inflight pass
 		//to make sure we don't get any weird things by trying to remove a script
@@ -219,7 +224,8 @@ dojox.xmpp.bosh = {
 	},
 
 	_ioCheck: function(/*Deferred*/dfd){
-		//summary: inflight check function to see if IO finished.
+		// summary:
+		//		inflight check function to see if IO finished.
 		var ioArgs = dfd.ioArgs;
 		//Check for returned message
 		if(ioArgs.xmppMessage){
@@ -229,7 +235,8 @@ dojox.xmpp.bosh = {
 	},
 
 	_resHandle: function(/*Deferred*/dfd){
-		//summary: inflight function to handle a completed response.
+		// summary:
+		//		inflight function to handle a completed response.
 		if(dojox.xmpp.bosh._ioCheck(dfd)){
 			dfd.callback(dfd);
 		}else{

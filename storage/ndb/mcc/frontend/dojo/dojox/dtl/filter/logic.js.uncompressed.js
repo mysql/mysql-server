@@ -1,24 +1,24 @@
-//>>built
 define("dojox/dtl/filter/logic", [
 	"dojo/_base/lang",
 	"../_base"
 ], function(lang,dd){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.filter.logic", true);
 
 	lang.mixin(dd.filter.logic, {
 		default_: function(value, arg){
-			// summary: If value is unavailable, use given default
+			// summary:
+			//		If value is unavailable, use given default
 			return value || arg || "";
 		},
 		default_if_none: function(value, arg){
-			// summary: If value is null, use given default
+			// summary:
+			//		If value is null, use given default
 			return (value === null) ? arg || "" : value || "";
 		},
 		divisibleby: function(value, arg){
-			// summary: Returns true if the value is devisible by the argument"
+			// summary:
+			//		Returns true if the value is divisible by the argument"
 			return (parseInt(value, 10) % parseInt(arg, 10)) === 0;
 		},
 		_yesno: /\s*,\s*/g,

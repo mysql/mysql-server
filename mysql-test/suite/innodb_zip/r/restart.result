@@ -11,6 +11,8 @@ set global innodb_file_per_table=on;
 #
 CREATE TABLE t1_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=REDUNDANT  ENGINE=InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t1_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
 INSERT INTO t1_restart (SELECT 0, c2, c3, c4, c5 FROM t1_restart);
@@ -34,6 +36,8 @@ count(*)
 #
 CREATE TABLE t2_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=COMPACT  ENGINE=InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t2_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t2_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
@@ -57,6 +61,8 @@ count(*)
 #
 CREATE TABLE t3_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=2  ENGINE=InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t3_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
 INSERT INTO t3_restart (SELECT 0, c2, c3, c4, c5 FROM t3_restart);
@@ -80,6 +86,8 @@ count(*)
 #
 CREATE TABLE t4_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=DYNAMIC  ENGINE=InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t4_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
 INSERT INTO t4_restart (SELECT 0, c2, c3, c4, c5 FROM t4_restart);
@@ -104,6 +112,8 @@ count(*)
 #
 CREATE TABLE t5_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=DYNAMIC  ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t5_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
 INSERT INTO t5_restart (SELECT 0, c2, c3, c4, c5 FROM t5_restart);
@@ -199,6 +209,8 @@ count(*)
 CREATE TABLESPACE s1_restart ADD DATAFILE 's1_restart.ibd';
 CREATE TABLE t8_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=COMPACT  ENGINE=InnoDB TABLESPACE=s1_restart;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t8_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t8_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
@@ -219,6 +231,8 @@ count(*)
 65
 CREATE TABLE t9_restart(c1 DOUBLE AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=DYNAMIC  ENGINE=InnoDB TABLESPACE=s1_restart;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t9_restart VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);
 INSERT INTO t9_restart (SELECT 0, c2, c3, c4, c5 FROM t2_restart);

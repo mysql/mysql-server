@@ -126,24 +126,50 @@ drop table t1, t2;
 
 #
 # Now...lets get nastier 1
-#   create myisam tables on other servers...and then create ndb table
+#   create innodb tables on other servers...and then create ndb table
 #
 connection server2;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
+
+# Suppress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'test.t1' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Failed to rename table definition");
+call mtr.add_suppression("Distribution of CREATE TABLE");
+call mtr.add_suppression("Distribution of ALTER TABLE");
+--enable_query_log
+
 connection server4;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
+
+# Suppress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'test.t1' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Failed to rename table definition");
+call mtr.add_suppression("Distribution of CREATE TABLE");
+call mtr.add_suppression("Distribution of ALTER TABLE");
+--enable_query_log
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 create table t1 (a int) engine = ndb;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 drop table t1;
 --source suite/ndb/include/ndb_share_check_shares.inc
 
 connection server3;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 create table t1 (a int) engine = ndb;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 drop table t1;
 --source suite/ndb/include/ndb_share_check_shares.inc
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 create table t1 (a int) engine = ndb;
 
 connection server2;
@@ -160,15 +186,17 @@ drop table t1;
 
 #
 # Now...lets get nastier 2
-#   create myisam tables on other servers...and then create ndb table
+#   create innodb tables on other servers...and then create ndb table
 #   and off-line alter them
 connection server2;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
 connection server4;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 create table t1 (a int) engine = ndb;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 alter table t1 algorithm=copy, add column b int column_format dynamic;
 
 connection server2;
@@ -185,15 +213,17 @@ drop table t1;
 
 #
 # Now...lets get nastier 3
-#   create myisam tables on other servers...and then create ndb table
+#   create innodb tables on other servers...and then create ndb table
 #   and online alter them
 connection server2;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
 connection server4;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 create table t1 (a int primary key) engine = ndb;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 alter table t1 algorithm=inplace, add column b int column_format dynamic;
 
 connection server2;
@@ -210,14 +240,15 @@ drop table t1;
 
 #
 # Now...lets get nastier 4
-#   create myisam tables on other servers...and then create ndb table
+#   create innodb tables on other servers...and then create ndb table
 #   and rename them
 connection server2;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
 connection server4;
-create table t1 (a int) engine=myisam;
+create table t1 (a int) engine=innodb;
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 create table t1 (a int) engine = ndb;
 rename table t1 to t2;
 

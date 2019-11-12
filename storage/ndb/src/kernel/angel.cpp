@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 
 #include <ndb_global.h>
 #include <ndb_version.h>
+
+#include <memory>
 
 #include "angel.hpp"
 #include "ndbd.hpp"
@@ -600,8 +602,10 @@ angel_run(const char* progname,
   }
   g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
 
-  ndb_mgm_configuration * config = retriever.getConfig(nodeid);
-  NdbAutoPtr<ndb_mgm_configuration> config_autoptr(config);
+  std::unique_ptr<ndb_mgm_configuration, ConfigRetriever::ConfigDeleter>
+      config_autoptr{retriever.getConfig(nodeid)};
+  ndb_mgm_configuration* config{config_autoptr.get()};
+
   if (config == 0)
   {
     g_eventLogger->error("Could not fetch configuration/invalid "

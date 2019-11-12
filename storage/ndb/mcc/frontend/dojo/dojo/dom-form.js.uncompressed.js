@@ -1,84 +1,8 @@
-//>>built
 define("dojo/dom-form", ["./_base/lang", "./dom", "./io-query", "./json"], function(lang, dom, ioq, json){
 	// module:
 	//		dojo/dom-form
-	// summary:
-	//		This module defines form-processing functions.
 
-	/*=====
-	dojo.fieldToObject = function(inputNode){
-		// summary:
-		//		Serialize a form field to a JavaScript object.
-		// description:
-		//		Returns the value encoded in a form field as
-		//		as a string or an array of strings. Disabled form elements
-		//		and unchecked radio and checkboxes are skipped.	Multi-select
-		//		elements are returned as an array of string values.
-		// inputNode: DOMNode|String
-		// returns: Object
-	};
-	=====*/
-
-	/*=====
-    dojo.formToObject = function(formNode){
-        // summary:
-        //		Serialize a form node to a JavaScript object.
-        // description:
-        //		Returns the values encoded in an HTML form as
-        //		string properties in an object which it then returns. Disabled form
-        //		elements, buttons, and other non-value form elements are skipped.
-        //		Multi-select elements are returned as an array of string values.
-		// formNode: DOMNode|String
-		// returns: Object
-        //
-        // example:
-        //		This form:
-        //		|	<form id="test_form">
-        //		|		<input type="text" name="blah" value="blah">
-        //		|		<input type="text" name="no_value" value="blah" disabled>
-        //		|		<input type="button" name="no_value2" value="blah">
-        //		|		<select type="select" multiple name="multi" size="5">
-        //		|			<option value="blah">blah</option>
-        //		|			<option value="thud" selected>thud</option>
-        //		|			<option value="thonk" selected>thonk</option>
-        //		|		</select>
-        //		|	</form>
-        //
-        //		yields this object structure as the result of a call to
-        //		formToObject():
-        //
-        //		|	{
-        //		|		blah: "blah",
-        //		|		multi: [
-        //		|			"thud",
-        //		|			"thonk"
-        //		|		]
-        //		|	};
-    };
-	=====*/
-
-	/*=====
-    dojo.formToQuery = function(formNode){
-        // summary:
-        //		Returns a URL-encoded string representing the form passed as either a
-        //		node or string ID identifying the form to serialize
-		// formNode: DOMNode|String
-		// returns: String
-    };
-	=====*/
-
-	/*=====
-    dojo.formToJson = function(formNode, prettyPrint){
-        // summary:
-        //		Create a serialized JSON string from a form node or string
-        //		ID identifying the form to serialize
-		// formNode: DOMNode|String
-		// prettyPrint: Boolean?
-		// returns: String
-    };
-	=====*/
-
-    function setValue(/*Object*/obj, /*String*/name, /*String*/value){
+    function setValue(/*Object*/ obj, /*String*/ name, /*String*/ value){
         // summary:
         //		For the named property in object, set the value. If a value
         //		already exists and it is a string, convert the value to be an
@@ -102,7 +26,20 @@ define("dojo/dom-form", ["./_base/lang", "./dom", "./io-query", "./json"], funct
 	var exclude = "file|submit|image|reset|button";
 
 	var form = {
+		// summary:
+		//		This module defines form-processing functions.
+
 		fieldToObject: function fieldToObject(/*DOMNode|String*/ inputNode){
+			// summary:
+			//		Serialize a form field to a JavaScript object.
+			// description:
+			//		Returns the value encoded in a form field as
+			//		as a string or an array of strings. Disabled form elements
+			//		and unchecked radio and checkboxes are skipped.	Multi-select
+			//		elements are returned as an array of string values.
+			// inputNode: DOMNode|String
+			// returns: Object
+
 			var ret = null;
 			inputNode = dom.byId(inputNode);
 			if(inputNode){
@@ -141,6 +78,38 @@ define("dojo/dom-form", ["./_base/lang", "./dom", "./io-query", "./json"], funct
 		},
 
 		toObject: function formToObject(/*DOMNode|String*/ formNode){
+			// summary:
+			//		Serialize a form node to a JavaScript object.
+			// description:
+			//		Returns the values encoded in an HTML form as
+			//		string properties in an object which it then returns. Disabled form
+			//		elements, buttons, and other non-value form elements are skipped.
+			//		Multi-select elements are returned as an array of string values.
+			// formNode: DOMNode|String
+			// example:
+			//		This form:
+			//		|	<form id="test_form">
+			//		|		<input type="text" name="blah" value="blah">
+			//		|		<input type="text" name="no_value" value="blah" disabled>
+			//		|		<input type="button" name="no_value2" value="blah">
+			//		|		<select type="select" multiple name="multi" size="5">
+			//		|			<option value="blah">blah</option>
+			//		|			<option value="thud" selected>thud</option>
+			//		|			<option value="thonk" selected>thonk</option>
+			//		|		</select>
+			//		|	</form>
+			//
+			//		yields this object structure as the result of a call to
+			//		formToObject():
+			//
+			//		|	{
+			//		|		blah: "blah",
+			//		|		multi: [
+			//		|			"thud",
+			//		|			"thonk"
+			//		|		]
+			//		|	};
+
 			var ret = {}, elems = dom.byId(formNode).elements;
 			for(var i = 0, l = elems.length; i < l; ++i){
 				var item = elems[i], _in = item.name, type = (item.type || "").toLowerCase();
@@ -155,10 +124,23 @@ define("dojo/dom-form", ["./_base/lang", "./dom", "./io-query", "./json"], funct
 		},
 
 		toQuery: function formToQuery(/*DOMNode|String*/ formNode){
+			// summary:
+			//		Returns a URL-encoded string representing the form passed as either a
+			//		node or string ID identifying the form to serialize
+			// formNode: DOMNode|String
+			// returns: String
+
 			return ioq.objectToQuery(form.toObject(formNode)); // String
 		},
 
-		toJson: function formToJson(/*DOMNode|String*/ formNode, /*Boolean?*/prettyPrint){
+		toJson: function formToJson(/*DOMNode|String*/ formNode, /*Boolean?*/ prettyPrint){
+			// summary:
+			//		Create a serialized JSON string from a form node or string
+			//		ID identifying the form to serialize
+			// formNode: DOMNode|String
+			// prettyPrint: Boolean?
+			// returns: String
+
 			return json.stringify(form.toObject(formNode), null, prettyPrint ? 4 : 0); // String
 		}
 	};

@@ -1,8 +1,11 @@
 
 .mblTextBox {
-  height: 30px;
-  border: #b5bcc7 1px inset;
+  height: 22px;
+  border-width: 1px;
+  border-style: inset;
   font-family: Helvetica;
-  font-size: 14px;
-  -webkit-border-radius: 5px;
+  font-size: 13px;
+  border: 1px solid #c0c0c0;
+  border-bottom-color: #9b9b9b;
+  border-radius: 0;
 }

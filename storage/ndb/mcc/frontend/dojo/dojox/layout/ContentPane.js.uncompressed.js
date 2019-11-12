@@ -1,4 +1,3 @@
-//>>built
 define("dojox/layout/ContentPane", [
 	"dojo/_base/lang",
 	"dojo/_base/xhr",
@@ -7,13 +6,12 @@ define("dojox/layout/ContentPane", [
 	"dojo/_base/declare"
 ], function (lang, xhrUtil, ContentPane, htmlUtil, declare) {
 
-/*===== var ContentPane = dijit.layout.ContentPane =====*/
 return declare("dojox.layout.ContentPane", ContentPane, {
 	// summary:
 	//		An extended version of dijit.layout.ContentPane.
-	//		Supports infile scripts and external ones declared by <script src=''
+	//		Supports infile scripts and external ones declared by `<script src=''...>`
 	//		relative path adjustments (content fetched from a different folder)
-	//		<style> and <link rel='stylesheet' href='..'> tags,
+	//		`<style>` and `<link rel='stylesheet' href='..'>` tags,
 	//		css paths inside cssText is adjusted (if you set adjustPaths = true)
 	//
 	//		NOTE that dojo.require in script in the fetched file isn't recommended
@@ -25,14 +23,12 @@ return declare("dojox.layout.ContentPane", ContentPane, {
 	adjustPaths: false,
 
 	// cleanContent: Boolean
-	//	summary:
-	//		cleans content to make it less likely to generate DOM/JS errors.
-	//	description:
-	//		useful if you send ContentPane a complete page, instead of a html fragment
-	//		scans for
+	//		Cleans content to make it less likely to generate DOM/JS errors.
+	//		Useful if you send ContentPane a complete page, instead of a html fragment
+	//		scans for:
 	//
-	//			* title Node, remove
-	//			* DOCTYPE tag, remove
+	//		- title Node, remove
+	//		- DOCTYPE tag, remove
 	cleanContent: false,
 
 	// renderStyles: Boolean
@@ -45,19 +41,17 @@ return declare("dojox.layout.ContentPane", ContentPane, {
 
 	// scriptHasHooks: Boolean
 	//		replace keyword '_container_' in scripts with 'dijit.byId(this.id)'
-	// NOTE this name might change in the near future
+	//		NOTE this name might change in the near future
 	scriptHasHooks: false,
 
-	constructor: function(){
-		// init per instance properties, initializer doesn't work here because how things is hooked up in dijit._Widget
-		this.ioArgs = {};
-		this.ioMethod = xhrUtil.get;
-	},
+	ioMethod: xhrUtil.get,
 
-	onExecError: function(e){
+	ioArgs: {},
+
+	onExecError: function(/*Event*/ e){
 		// summary:
 		//		event callback, called on script error or on java handler error
-		//		overide and return your own html string if you want a some text
+		//		override and return your own html string if you want a some text
 		//		displayed within the ContentPane
 	},
 
@@ -93,8 +87,16 @@ return declare("dojox.layout.ContentPane", ContentPane, {
 			scriptHookReplacement: "dijit.byId('"+this.id+"')"
 		};
 
-		this.inherited("_setContent", arguments);
-	}
+		return this.inherited("_setContent", arguments);
+	},
 	// could put back _renderStyles by wrapping/aliasing dojox.html._ContentSetter.prototype._renderStyles
+
+	destroy: function () {
+		var setter = this._contentSetter;
+		if (setter) {
+			setter.tearDown();
+		}
+		this.inherited(arguments);
+	}
 });
 });

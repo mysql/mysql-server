@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 
+#include "compression.h"  // COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE
 #include "my_base.h"
 #include "my_io.h"
 #include "mysql_com.h"
@@ -102,6 +103,9 @@ struct st_row_connect_config {
   enum_rpl_yes_no get_public_key;
   char network_namespace[NAME_LEN];
   uint network_namespace_length;
+  char compression_algorithm[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
+  uint compression_algorithm_length;
+  uint zstd_compression_level;
 };
 
 class PFS_index_rpl_connection_config : public PFS_engine_index {

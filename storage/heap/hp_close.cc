@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,16 +31,16 @@
 
 int heap_close(HP_INFO *info) {
   int tmp;
-  DBUG_ENTER("heap_close");
+  DBUG_TRACE;
   mysql_mutex_lock(&THR_LOCK_heap);
   tmp = hp_close(info);
   mysql_mutex_unlock(&THR_LOCK_heap);
-  DBUG_RETURN(tmp);
+  return tmp;
 }
 
 int hp_close(HP_INFO *info) {
   int error = 0;
-  DBUG_ENTER("hp_close");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   if (info->s->changed && heap_check_heap(info, 0)) {
     error = HA_ERR_CRASHED;
@@ -53,5 +53,5 @@ int hp_close(HP_INFO *info) {
   if (!--info->s->open_count && info->s->delete_on_close)
     hp_free(info->s); /* Table was deleted */
   my_free(info);
-  DBUG_RETURN(error);
+  return error;
 }

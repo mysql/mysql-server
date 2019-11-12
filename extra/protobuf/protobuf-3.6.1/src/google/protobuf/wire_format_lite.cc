@@ -810,6 +810,19 @@ size_t WireFormatLite::SInt64Size(const RepeatedField< int64>& value) {
 
 #endif
 
+// Explicit instantiation to avoid linking issues with Clang on Windows
+// when building in optimized mode.
+template uint8*
+WireFormatLite::InternalWriteGroupToArray<google::protobuf::MessageLite>(int,
+                                                                         const MessageLite&,
+                                                                         bool,
+                                                                         uint8*);
+
+template uint8*
+WireFormatLite::InternalWriteMessageToArray<google::protobuf::MessageLite>(int,
+                                                                           const MessageLite&,
+                                                                           bool,
+                                                                           uint8*);
 }  // namespace internal
 }  // namespace protobuf
 }  // namespace google

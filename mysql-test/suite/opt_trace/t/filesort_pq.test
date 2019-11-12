@@ -1,6 +1,8 @@
-#Start server with MyISAM
+# Start server with MyISAM
 --source include/force_myisam_default.inc
-#Want to skip this test from daily Valgrind execution
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
+# Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 # The main testing script
 --source suite/opt_trace/include/filesort_pq.inc

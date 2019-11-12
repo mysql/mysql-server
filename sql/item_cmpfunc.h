@@ -28,8 +28,9 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "field_types.h"
+#include "json_dom.h"  // Json_wrapper
 //#include "extra/regex/my_regex.h"  // my_regex_t
-
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -47,6 +48,7 @@
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -55,33 +57,83 @@
 
 class Arg_comparator;
 class Field;
+class Item_func_eq;
 class Item_in_subselect;
 class Item_subselect;
 class Item_sum_hybrid;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
+class QEP_TAB;
 class SELECT_LEX;
 class THD;
 struct MY_BITMAP;
 
+Item *make_condition(Parse_context *pc, Item *item);
+
 typedef int (Arg_comparator::*arg_cmp_func)();
 
+/// A class that represents a join condition in a hash join. The class holds an
+/// equality condition, as well as a pre-calculated bitmap of the used tables
+/// (Item::used_tables()) for each side of the condition.
+///
+/// The class also contains one Item for each side of the condition. In most
+/// cases, the Item is only a pointer to the left/right Item of the join
+/// condition. But for certain data types (DECIMAL, DOUBLE(M, N), FLOAT(M, N)),
+/// the Item might be a typecast. Either way, the caller should use these Items
+/// when i.e. reading the values from the join condition, so that the values are
+/// read in the right data type context. See the comments for
+/// Item_func_eq::create_cast_if_needed for more details around this.
+class HashJoinCondition {
+ public:
+  HashJoinCondition(Item_func_eq *join_condition, MEM_ROOT *mem_root);
+
+  Item_func_eq *join_condition() const { return m_join_condition; }
+
+  Item *left_extractor() const { return m_left_extractor; }
+  Item *right_extractor() const { return m_right_extractor; }
+  bool left_uses_any_table(table_map tables) const {
+    return (m_left_used_tables & tables) != 0;
+  }
+
+  bool right_uses_any_table(table_map tables) const {
+    return (m_right_used_tables & tables) != 0;
+  }
+
+  size_t max_character_length() const { return m_max_character_length; }
+
+ private:
+  Item_func_eq *m_join_condition;
+  Item *m_left_extractor;
+  Item *m_right_extractor;
+
+  // Item::used_tables() is heavily used during the join to determine which side
+  // of the condition we are to read the value from, so caching the result of
+  // used_tables() gives a nice speedup.
+  const table_map m_left_used_tables;
+  const table_map m_right_used_tables;
+
+  // The maximum number of characters among the two arguments. This is only
+  // relevant when we have a PAD SPACE collation and the SQL mode
+  // PAD_CHAR_TO_FULL_LENGTH enabled, since we will have to pad the shortest
+  // argument to the same length as the longest argument.
+  const size_t m_max_character_length{0};
+};
+
 class Arg_comparator {
-  Item **a, **b;
+  Item **left{nullptr};
+  Item **right{nullptr};
   arg_cmp_func func;
   Item_result_field *owner;
-  Arg_comparator *comparators;  // used only for compare_row()
-  uint16 comparator_count;
+  Arg_comparator *comparators{nullptr};  // used only for compare_row()
+  uint16 comparator_count{0};
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
-  Item *a_cache, *b_cache;  // Cached values of a and b items
-  bool set_null;            // true <=> set owner->null_value
-                            //   when one of arguments is NULL.
-  longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               const Item *warn_item, bool *is_null);
-  longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               const Item *warn_item, bool *is_null);
+  Item *left_cache{nullptr};  // Cached values of "left" and "right" items
+  Item *right_cache{nullptr};
+  bool set_null{true};  // true <=> set owner->null_value
+                        //   when one of arguments is NULL.
+
   bool try_year_cmp_func(Item_result type);
   static bool get_date_from_const(Item *date_arg, Item *str_arg,
                                   ulonglong *const_value);
@@ -91,7 +143,7 @@ class Arg_comparator {
     memory that can be used instead of the heap when converting the
     SQL value to a JSON value.
   */
-  Json_scalar_holder *json_scalar;
+  Json_scalar_holder *json_scalar{nullptr};
 
   /**
      When comparing strings, compare at most these many bytes.
@@ -104,33 +156,43 @@ class Arg_comparator {
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator()
-      : comparators(0),
-        comparator_count(0),
-        a_cache(0),
-        b_cache(0),
-        set_null(true),
-        get_value_a_func(0),
-        get_value_b_func(0),
-        json_scalar(0) {}
-  Arg_comparator(Item **a1, Item **a2)
-      : a(a1),
-        b(a2),
-        comparators(0),
-        comparator_count(0),
-        a_cache(0),
-        b_cache(0),
-        set_null(true),
-        get_value_a_func(0),
-        get_value_b_func(0),
-        json_scalar(0) {}
+  Arg_comparator() = default;
+
+  Arg_comparator(Item **left, Item **right) : left(left), right(right) {}
 
   bool set_compare_func(Item_result_field *owner, Item_result type);
-  bool set_cmp_func(Item_result_field *owner_arg, Item **a1, Item **a2,
+  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
                     Item_result type);
 
-  bool set_cmp_func(Item_result_field *owner_arg, Item **a1, Item **a2,
+  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
                     bool set_null_arg);
+  /**
+     Comparison function are expected to operate on arguments having the
+     same data types. Since MySQL has very loosened up rules, it accepts
+     all kind of arguments which the standard SQL does not allow, and then it
+     converts the arguments internally to ones usable in the comparison.
+     This function transforms these internal conversions to explicit CASTs
+     so that the internally executed query becomes compatible with the standard
+     At the moment nodes are injected only for comparisons between:
+
+        1) temporal types and numeric data types: in which case the
+        comparison is normally done as DOUBLE, so the arguments which are not
+        floating point, will get converted to DOUBLE, and also for
+
+        2) comparisons between temporal types: in which case the
+        comparison happens as DATETIME if the arguments have different data
+        types, so in this case the temporal arguments that are not DATETIME
+        will get wrapped in a CAST to DATETIME.
+
+     WL#12108; This function will limit itself to comparison between regular
+     functions, aggregation functions and fields, all of which are constant
+     for execution (so this excludes stored procedures, stored functions, GC,
+     user defined functions, as well as literals).
+     For const arguments, see type conversions done in fold_condition.
+
+     @return false if successful, true otherwise
+  */
+  bool inject_cast_nodes();
 
   /**
      When comparing strings, compare at most max_length bytes.
@@ -167,9 +229,51 @@ class Arg_comparator {
   */
   inline void set_cmp_context_for_datetime() {
     DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
-    if ((*a)->is_temporal()) (*a)->cmp_context = INT_RESULT;
-    if ((*b)->is_temporal()) (*b)->cmp_context = INT_RESULT;
+    if ((*left)->is_temporal()) (*left)->cmp_context = INT_RESULT;
+    if ((*right)->is_temporal()) (*right)->cmp_context = INT_RESULT;
   }
+
+  Item_result get_compare_type() const { return m_compare_type; }
+
+  /// @returns true if the class has decided that values should be extracted
+  ///   from the Items using function pointers set up by this class.
+  bool use_custom_value_extractors() const {
+    return get_value_a_func != nullptr;
+  }
+
+  // Read the value from one of the Items (decided by "left_argument"), using
+  // the function pointers that this class has set up. This can happen for DATE,
+  // TIME, DATETIME and YEAR values, and the returned value is a temporal value
+  // in packed format.
+  longlong extract_value_from_argument(THD *thd, Item *item, bool left_argument,
+                                       bool *is_null) const;
+
+ private:
+  /// A function pointer that is used for retrieving the value from argument
+  /// "left". This function is only used when we are comparing in a datetime
+  /// context, and it retrieves the value as a DATE, TIME, DATETIME or YEAR,
+  /// depending on the comparison context.
+  ///
+  /// @param thd thread handle. Used to retrieve the SQL mode among other things
+  /// @param item_arg the item to retrieve the value from
+  /// @param cache_arg a pointer to an Item where we can cache the value
+  ///   from "item_arg". Can be nullptr
+  /// @param warn_item if rasing an conversion warning, the warning gets the
+  ///   data type and item name from this item
+  /// @param is_null whether or not "item_arg" returned SQL NULL
+  ///
+  /// @returns a DATE/TIME/YEAR/DATETIME value, in packed format
+  longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
+                               const Item *warn_item, bool *is_null){nullptr};
+
+  // This function does the same as "get_value_a_func", except that it returns
+  // the value from the argument "right" (the right side of the comparison).
+  longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
+                               const Item *warn_item, bool *is_null){nullptr};
+
+  // The data type that is used when comparing the two Items. I.e., if the type
+  // is INT_RESULT, we call val_int() on both sides and compare those.
+  Item_result m_compare_type{INVALID_RESULT};
 };
 
 class Item_bool_func : public Item_int_func {
@@ -199,6 +303,13 @@ class Item_bool_func : public Item_int_func {
   bool created_by_in2exists() const override { return m_created_by_in2exists; }
   void set_created_by_in2exists() { m_created_by_in2exists = true; }
 
+  static const char *bool_transform_names[10];
+  /**
+    Array that transforms a boolean test according to another.
+    First dimension is existing value, second dimension is test to apply
+  */
+  static const Bool_test bool_transform[10][8];
+
  private:
   /**
     True <=> this item was added by IN->EXISTS subquery transformation, and
@@ -208,76 +319,122 @@ class Item_bool_func : public Item_int_func {
 };
 
 /**
-  Abstract Item class, to represent <code>X IS [NOT] (TRUE | FALSE)</code>
+  A predicate that is "always true" or "always false". To be used as a
+  standalone condition or as part of conditions, together with other condition
+  and predicate objects.
+  Mostly used when generating conditions internally.
+*/
+class Item_func_bool_const : public Item_bool_func {
+ public:
+  Item_func_bool_const() : Item_bool_func() {
+    max_length = 1;
+    used_tables_cache = 0;
+    not_null_tables_cache = 0;
+    fixed = true;
+  }
+  explicit Item_func_bool_const(const POS &pos) : Item_bool_func(pos) {
+    max_length = 1;
+    used_tables_cache = 0;
+    not_null_tables_cache = 0;
+    fixed = true;
+  }
+  bool fix_fields(THD *, Item **) override { return false; }
+  bool basic_const_item() const override { return true; }
+  void cleanup() override {}
+};
+
+/// A predicate that is "always true".
+
+class Item_func_true : public Item_func_bool_const {
+ public:
+  Item_func_true() : Item_func_bool_const() {}
+  explicit Item_func_true(const POS &pos) : Item_func_bool_const(pos) {}
+  const char *func_name() const override { return "true"; }
+  bool val_bool() override { return true; }
+  longlong val_int() override { return 1; }
+  void print(const THD *, String *str, enum_query_type) const override {
+    str->append("true");
+  }
+};
+
+/// A predicate that is "always false".
+
+class Item_func_false : public Item_func_bool_const {
+ public:
+  Item_func_false() : Item_func_bool_const() {}
+  explicit Item_func_false(const POS &pos) : Item_func_bool_const(pos) {}
+  const char *func_name() const override { return "false"; }
+  bool val_bool() override { return false; }
+  longlong val_int() override { return 0; }
+  void print(const THD *, String *str, enum_query_type) const override {
+    str->append("false");
+  }
+};
+
+/**
+  Item class, to represent <code>X IS [NOT] (TRUE | FALSE)</code>
   boolean predicates.
 */
+class Item_func_truth final : public Item_bool_func {
+  typedef Item_bool_func super;
 
-class Item_func_truth : public Item_bool_func {
  public:
-  bool val_bool() override;
   longlong val_int() override;
   bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  Item *truth_transformer(THD *, Bool_test test) override {
+    truth_test = super::bool_transform[truth_test][test];
+    return this;
+  }
+  const char *func_name() const override {
+    return super::bool_transform_names[truth_test];
+  }
+  virtual enum Functype functype() const override { return ISTRUTH_FUNC; }
+
+  Item_func_truth(const POS &pos, Item *a, Bool_test truth_test)
+      : super(pos, a), truth_test(truth_test) {
+    null_on_null = false;
+    switch (truth_test) {
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+      case BOOL_NOT_TRUE:
+      case BOOL_NOT_FALSE:
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
+  }
+  Item_func_truth(Item *a, Bool_test truth_test)
+      : super(a), truth_test(truth_test) {
+    null_on_null = false;
+    switch (truth_test) {
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+      case BOOL_NOT_TRUE:
+      case BOOL_NOT_FALSE:
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
+  }
+  void apply_is_true() override {
+    /*
+      This item cannot produce NULL result. But, if the upper item confuses
+      NULL and FALSE, we can do as if NULL input caused a NULL result when it
+      actually causes a FALSE result.
+    */
+    switch (truth_test) {
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+        null_on_null = true;
+      default:
+        break;
+    }
+  }
 
  protected:
-  Item_func_truth(const POS &pos, Item *a, bool a_value, bool a_affirmative)
-      : Item_bool_func(pos, a), value(a_value), affirmative(a_affirmative) {}
-
- private:
-  /**
-    True for <code>X IS [NOT] TRUE</code>,
-    false for <code>X IS [NOT] FALSE</code> predicates.
-  */
-  const bool value;
-  /**
-    True for <code>X IS Y</code>, false for <code>X IS NOT Y</code> predicates.
-  */
-  const bool affirmative;
-};
-
-/**
-  This Item represents a <code>X IS TRUE</code> boolean predicate.
-*/
-
-class Item_func_istrue final : public Item_func_truth {
- public:
-  Item_func_istrue(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, true, true) {}
-  const char *func_name() const override { return "istrue"; }
-};
-
-/**
-  This Item represents a <code>X IS NOT TRUE</code> boolean predicate.
-*/
-
-class Item_func_isnottrue final : public Item_func_truth {
- public:
-  Item_func_isnottrue(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, true, false) {}
-  const char *func_name() const override { return "isnottrue"; }
-};
-
-/**
-  This Item represents a <code>X IS FALSE</code> boolean predicate.
-*/
-
-class Item_func_isfalse final : public Item_func_truth {
- public:
-  Item_func_isfalse(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, false, true) {}
-  const char *func_name() const override { return "isfalse"; }
-};
-
-/**
-  This Item represents a <code>X IS NOT FALSE</code> boolean predicate.
-*/
-
-class Item_func_isnotfalse final : public Item_func_truth {
- public:
-  Item_func_isnotfalse(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, false, false) {}
-  const char *func_name() const override { return "isnotfalse"; }
+  Bool_test truth_test;  ///< The value we're testing for.
 };
 
 static const int UNKNOWN = -1;
@@ -467,7 +624,7 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   void set_max_str_length(size_t max_str_length) {
     return cmp.set_max_str_length(max_str_length);
   }
-  optimize_type select_optimize() const override { return OPTIMIZE_OP; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const override { return rev_functype() != UNKNOWN_FUNC; }
 
@@ -480,12 +637,14 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   const CHARSET_INFO *compare_collation() const override {
     return cmp.cmp_collation.collation;
   }
-  void top_level_item() override { abort_on_null = true; }
-  bool is_top_level_item() const { return abort_on_null; }
+  void apply_is_true() override { abort_on_null = true; }
+  /// Treat UNKNOWN result like FALSE because callers see no difference
+  bool ignore_unknown() const { return abort_on_null; }
   void cleanup() override {
     Item_bool_func::cleanup();
     cmp.cleanup();
   }
+  bool cast_incompatible_args(uchar *) override;
   friend class Arg_comparator;
 };
 
@@ -505,9 +664,12 @@ class Item_func_comparison : public Item_bool_func2 {
     allowed_arg_cols = 0;  // Fetch this value from first argument
   }
 
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   virtual Item *negated_item();
   bool subst_argument_checker(uchar **) override { return true; }
+  bool is_null() override;
+
+  bool has_any_non_equi_join_condition() const override;
 };
 
 /**
@@ -516,6 +678,8 @@ class Item_func_comparison : public Item_bool_func2 {
   Item_cond instead. See WL#5800.
 */
 class Item_func_xor final : public Item_bool_func2 {
+  typedef Item_bool_func2 super;
+
  public:
   Item_func_xor(Item *i1, Item *i2) : Item_bool_func2(i1, i2) {}
   Item_func_xor(const POS &pos, Item *i1, Item *i2)
@@ -523,14 +687,16 @@ class Item_func_xor final : public Item_bool_func2 {
 
   enum Functype functype() const override { return XOR_FUNC; }
   const char *func_name() const override { return "xor"; }
+  bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
-  void top_level_item() override {}
-  Item *neg_transformer(THD *thd) override;
+  void apply_is_true() override {}
+  Item *truth_transformer(THD *, Bool_test) override;
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_not : public Item_bool_func {
@@ -541,7 +707,7 @@ class Item_func_not : public Item_bool_func {
   longlong val_int() override;
   enum Functype functype() const override { return NOT_FUNC; }
   const char *func_name() const override { return "not"; }
-  Item *neg_transformer(THD *) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
 
@@ -551,6 +717,38 @@ class Item_func_not : public Item_bool_func {
                              double rows_in_table) override;
 };
 
+/**
+  Wrapper class when MATCH function is used in WHERE clause.
+  The MATCH clause can be used as a function returning a floating point value
+  in the SELECT list or in the WHERE clause. However, it may also be used as
+  a boolean function in the WHERE clause, where it has different semantics than
+  when used together with a comparison operator. With a comparison operator,
+  the match operation is performed with ranking. To preserve this behavior,
+  the Item_func_match object is wrapped inside an object of class
+  Item_func_match_predicate, which effectively transforms the function into
+  a predicate. The overridden functions implemented in this class generally
+  forward all evaluation to the underlying object.
+*/
+class Item_func_match_predicate : public Item_bool_func {
+ public:
+  Item_func_match_predicate(Item *a) : Item_bool_func(a) {}
+
+  longlong val_int() override { return args[0]->val_int(); }
+  enum Functype functype() const override { return MATCH_FUNC; }
+  const char *func_name() const override { return "match"; }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    args[0]->print(thd, str, query_type);
+  }
+
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table) override {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+};
 class Item_maxmin_subselect;
 class JOIN;
 
@@ -678,7 +876,6 @@ class Item_func_not_all : public Item_func_not {
   Item_sum_hybrid *test_sum_item;
   Item_maxmin_subselect *test_sub_item;
   Item_subselect *subselect;
-
   bool abort_on_null;
 
  public:
@@ -691,8 +888,9 @@ class Item_func_not_all : public Item_func_not {
         subselect(0),
         abort_on_null(0),
         show(0) {}
-  void top_level_item() override { abort_on_null = true; }
-  bool is_top_level_item() const { return abort_on_null; }
+  void apply_is_true() override { abort_on_null = true; }
+  /// Treat UNKNOWN result like FALSE because callers see no difference
+  bool ignore_unknown() const { return abort_on_null; }
   longlong val_int() override;
   enum Functype functype() const override { return NOT_ALL_FUNC; }
   const char *func_name() const override { return "<not>"; }
@@ -710,7 +908,7 @@ class Item_func_not_all : public Item_func_not {
       such as
           left-expr < ALL(subquery)
       into
-          <not>(left-expr >= (subquery)
+          <not>(left-expr >= ANY(subquery)
 
       An inequality usually rejects NULLs from both operands, so the
       not_null_tables() of the inequality is the union of the
@@ -725,7 +923,7 @@ class Item_func_not_all : public Item_func_not {
     return 0;
   }
   bool empty_underlying_subquery();
-  Item *neg_transformer(THD *) override;
+  Item *truth_transformer(THD *, Bool_test) override;
 };
 
 class Item_func_nop_all final : public Item_func_not_all {
@@ -734,7 +932,7 @@ class Item_func_nop_all final : public Item_func_not_all {
   longlong val_int() override;
   const char *func_name() const override { return "<nop>"; }
   table_map not_null_tables() const override { return not_null_tables_cache; }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
 };
 
 /**
@@ -759,6 +957,45 @@ class Item_func_eq : public Item_func_comparison {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+  bool has_any_hash_join_condition(const table_map left_tables,
+                                   const QEP_TAB &right_table) const override;
+
+  /// Read the value from the join condition, and append it to the output vector
+  /// "join_key_buffer". The function will determine which side of the condition
+  /// to read the value from by using the bitmap "tables".
+  ///
+  /// @param thd the thread handler
+  /// @param tables a bitmap that marks the tables that are involved in the join
+  /// @param join_condition an isntance containing the join condition together
+  ///   with some pre-calculated values
+  /// @param[out] join_key_buffer a buffer where the value from the join
+  ///   condition will be appended
+  ///
+  /// @returns true if an SQL NULL was encountered, false otherwise
+  bool append_join_key_for_hash_join(THD *thd, table_map tables,
+                                     const HashJoinCondition &join_condition,
+                                     String *join_key_buffer) const;
+
+  /// Wrap the argument in a typecast, if needed.
+  ///
+  /// When computing a hash of the join value during a hash join, we want to
+  /// create a hash value that is memcmp-able. This is quite straightforward
+  /// for most data types, but it can be tricky for some types. For the
+  /// straightforward cases, this function just returns the argument it was
+  /// given in. For the complex cases, the function returns the given argument,
+  /// wrapped in a typecast node. Which typecast node it is wrapped in is
+  /// determined by the comparison context of this equality condition. The
+  /// comparison context is given by the member "cmp"; a comparator class that
+  /// is set up during query resolving.
+  ///
+  /// @param mem_root the MEM_ROOT where the typecast node is allocated
+  /// @param argument the argument that we might wrap in a typecast. This is
+  ///   either the left or the right side of the Item_func_eq
+  ///
+  /// @returns either the argument it was given, or the argument wrapped in a
+  ///   typecast
+  Item *create_cast_if_needed(MEM_ROOT *mem_root, Item *argument) const;
 };
 
 /**
@@ -785,7 +1022,7 @@ class Item_func_equal final : public Item_func_comparison {
   enum Functype rev_functype() const override { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "<=>"; }
-  Item *neg_transformer(THD *) override { return nullptr; }
+  Item *truth_transformer(THD *, Bool_test) override { return nullptr; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
@@ -882,7 +1119,7 @@ class Item_func_ne final : public Item_func_comparison {
   longlong val_int() override;
   enum Functype functype() const override { return NE_FUNC; }
   cond_result eq_cmp_result() const override { return COND_FALSE; }
-  optimize_type select_optimize() const override { return OPTIMIZE_KEY; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   const char *func_name() const override { return "<>"; }
   Item *negated_item() override;
 
@@ -895,7 +1132,7 @@ class Item_func_ne final : public Item_func_comparison {
 /*
   The class Item_func_opt_neg is defined to factor out the functionality
   common for the classes Item_func_between and Item_func_in. The objects
-  of these classes can express predicates or there negations.
+  of these classes can express predicates or their negations.
   The alternative approach would be to create pairs Item_func_between,
   Item_func_notbetween and Item_func_in, Item_func_notin.
 
@@ -917,9 +1154,10 @@ class Item_func_opt_neg : public Item_int_func {
 
  public:
   inline void negate() { negated = !negated; }
-  inline void top_level_item() override { pred_level = 1; }
-  bool is_top_level_item() const { return pred_level; }
-  Item *neg_transformer(THD *) override {
+  inline void apply_is_true() override { pred_level = 1; }
+  bool ignore_unknown() const { return pred_level; }
+  Item *truth_transformer(THD *, Bool_test test) override {
+    if (test != BOOL_NEGATED) return nullptr;
     negated = !negated;
     return this;
   }
@@ -946,7 +1184,7 @@ class Item_func_between final : public Item_func_opt_neg {
         compare_as_temporal_dates(false),
         compare_as_temporal_times(false) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_KEY; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   enum Functype functype() const override { return BETWEEN; }
   const char *func_name() const override { return "between"; }
   bool fix_fields(THD *, Item **) override;
@@ -973,7 +1211,7 @@ class Item_func_strcmp final : public Item_bool_func2 {
   Item_func_strcmp(const POS &pos, Item *a, Item *b)
       : Item_bool_func2(pos, a, b) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "strcmp"; }
 
   void print(const THD *thd, String *str,
@@ -1053,6 +1291,7 @@ class Item_func_coalesce : public Item_func_numhybrid {
   void set_numeric_type() override {}
   enum Item_result result_type() const override { return hybrid_type; }
   const char *func_name() const override { return "coalesce"; }
+  enum Functype functype() const override { return COALESCE_FUNC; }
 };
 
 class Item_func_ifnull final : public Item_func_coalesce {
@@ -1069,7 +1308,6 @@ class Item_func_ifnull final : public Item_func_coalesce {
   bool time_op(MYSQL_TIME *ltime) override;
   my_decimal *decimal_op(my_decimal *) override;
   bool val_json(Json_wrapper *result) override;
-  bool resolve_type(THD *) override;
   const char *func_name() const override { return "ifnull"; }
   Field *tmp_table_field(TABLE *table) override;
   uint decimal_precision() const override;
@@ -1137,6 +1375,7 @@ class Item_func_nullif final : public Item_bool_func2 {
     return args[0]->decimal_precision();
   }
   const char *func_name() const override { return "nullif"; }
+  enum Functype functype() const override { return NULLIF_FUNC; }
 
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override {
@@ -1149,6 +1388,7 @@ class Item_func_nullif final : public Item_bool_func2 {
     inherit from Item_func instead of Item_bool_func2
   */
   bool is_bool_func() const override { return false; }
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 /* Functions to handle the optimized IN */
@@ -1456,6 +1696,26 @@ class cmp_item_string final : public cmp_item_scalar {
   virtual cmp_item *make_same();
 };
 
+class cmp_item_json final : public cmp_item_scalar {
+ private:
+  /// Cached JSON value to look up
+  Json_wrapper m_value;
+  /// Cache for the value above
+  Json_scalar_holder m_holder;
+  /// String buffer
+  String m_str_value;
+  /// Scalar holder for the RHS value
+  Json_scalar_holder m_itm_holder;
+
+ public:
+  cmp_item_json() {}
+
+  virtual int compare(const cmp_item *ci) const;
+  virtual void store_value(Item *item);
+  virtual int cmp(Item *arg);
+  virtual cmp_item *make_same();
+};
+
 class cmp_item_int final : public cmp_item_scalar {
   longlong value;
 
@@ -1671,12 +1931,12 @@ class Item_func_in final : public Item_func_opt_neg {
   }
 
   void cleanup() override {
-    DBUG_ENTER("Item_func_in::cleanup");
+    DBUG_TRACE;
     Item_int_func::cleanup();
     cleanup_arrays();
-    DBUG_VOID_RETURN;
+    return;
   }
-  optimize_type select_optimize() const override { return OPTIMIZE_KEY; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   enum Functype functype() const override { return IN_FUNC; }
@@ -1786,12 +2046,14 @@ class in_row final : public in_vector {
 /* Functions used by where clause */
 
 class Item_func_isnull : public Item_bool_func {
+  typedef Item_bool_func super;
+
  protected:
   longlong cached_value;
 
  public:
-  Item_func_isnull(Item *a) : Item_bool_func(a) { null_on_null = false; }
-  Item_func_isnull(const POS &pos, Item *a) : Item_bool_func(pos, a) {
+  Item_func_isnull(Item *a) : super(a) { null_on_null = false; }
+  Item_func_isnull(const POS &pos, Item *a) : super(pos, a) {
     null_on_null = false;
   }
   longlong val_int() override;
@@ -1805,8 +2067,10 @@ class Item_func_isnull : public Item_bool_func {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NULL; }
-  Item *neg_transformer(THD *thd) override;
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NULL; }
+  Item *truth_transformer(THD *, Bool_test test) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const CHARSET_INFO *compare_collation() const override {
     return args[0]->collation.collation;
   }
@@ -1838,15 +2102,18 @@ class Item_is_not_null_test final : public Item_func_isnull {
   table_map get_initial_pseudo_tables() const override {
     return RAND_TABLE_BIT;
   }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    Item_bool_func::print(thd, str, query_type);
+  }
 };
 
 class Item_func_isnotnull final : public Item_bool_func {
-  bool abort_on_null;
-
  public:
-  Item_func_isnotnull(Item *a) : Item_bool_func(a), abort_on_null(0) {}
-  Item_func_isnotnull(const POS &pos, Item *a)
-      : Item_bool_func(pos, a), abort_on_null(0) {}
+  Item_func_isnotnull(Item *a) : Item_bool_func(a) { null_on_null = false; }
+  Item_func_isnotnull(const POS &pos, Item *a) : Item_bool_func(pos, a) {
+    null_on_null = false;
+  }
 
   longlong val_int() override;
   enum Functype functype() const override { return ISNOTNULL_FUNC; }
@@ -1856,18 +2123,16 @@ class Item_func_isnotnull final : public Item_bool_func {
     return false;
   }
   const char *func_name() const override { return "isnotnull"; }
-  optimize_type select_optimize() const override { return OPTIMIZE_NULL; }
-  table_map not_null_tables() const override {
-    return abort_on_null ? not_null_tables_cache : 0;
-  }
-  Item *neg_transformer(THD *thd) override;
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NULL; }
+  Item *truth_transformer(THD *, Bool_test test) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   const CHARSET_INFO *compare_collation() const override {
     return args[0]->collation.collation;
   }
-  void top_level_item() override { abort_on_null = true; }
-
+  void apply_is_true() override {
+    null_on_null = true;
+  }  // Same logic as for Item_func_truth's function
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
@@ -1902,11 +2167,13 @@ class Item_func_like final : public Item_bool_func2 {
 
   longlong val_int() override;
   enum Functype functype() const override { return LIKE_FUNC; }
-  optimize_type select_optimize() const override;
+  optimize_type select_optimize(const THD *thd) override;
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "like"; }
   bool fix_fields(THD *thd, Item **ref) override;
+  bool resolve_type(THD *) override;
   void cleanup() override;
+  bool cast_incompatible_args(uchar *) override { return false; }
   /**
     @retval true non default escape char specified
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
@@ -1925,6 +2192,8 @@ class Item_func_like final : public Item_bool_func2 {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+  void update_used_tables() override;
 
  private:
   /**
@@ -1990,17 +2259,18 @@ class Item_cond : public Item_bool_func {
              enum_query_type query_type) const override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields) override;
-  void top_level_item() override { abort_on_null = true; }
+  void apply_is_true() override { abort_on_null = true; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
   void traverse_cond(Cond_traverser, void *arg, traverse_order order) override;
-  void neg_arguments(THD *thd);
+  bool truth_transform_arguments(THD *thd, Bool_test test);
   bool subst_argument_checker(uchar **) override { return true; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t) override;
   bool remove_const_conds(THD *thd, Item *item, Item **new_item);
-  bool is_top_level_item() const { return abort_on_null; }
+  /// Treat UNKNOWN result like FALSE because callers see no difference
+  bool ignore_unknown() const { return abort_on_null; }
   bool equality_substitution_analyzer(uchar **) override { return true; }
 };
 
@@ -2101,7 +2371,7 @@ class Item_equal final : public Item_bool_func {
   bool add(THD *thd, Item *c);
   void add(Item_field *f);
   uint members();
-  bool contains(Field *field);
+  bool contains(const Field *field) const;
   /**
     Get the first field of multiple equality, use for semantic checking.
 
@@ -2114,7 +2384,15 @@ class Item_equal final : public Item_bool_func {
   enum Functype functype() const override { return MULT_EQUAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "multiple equal"; }
-  optimize_type select_optimize() const override { return OPTIMIZE_EQUAL; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_EQUAL; }
+  virtual bool cast_incompatible_args(uchar *) override {
+    // Multiple equality nodes (Item_equal) should have been
+    // converted back to simple equalities (Item_func_eq) by
+    // substitute_for_best_equal_field before cast nodes are injected.
+    DBUG_ASSERT(false);
+    return false;
+  }
+
   /**
     Order field items in multiple equality according to a sorting criteria.
 
@@ -2201,13 +2479,18 @@ class Item_cond_and final : public Item_cond {
       item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+  bool has_any_hash_join_condition(const table_map left_tables,
+                                   const QEP_TAB &right_table) const override;
+
+  bool has_any_non_equi_join_condition() const override;
 };
 
 class Item_cond_or final : public Item_cond {
@@ -2228,7 +2511,7 @@ class Item_cond_or final : public Item_cond {
       item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
@@ -2237,15 +2520,14 @@ class Item_cond_or final : public Item_cond {
                              double rows_in_table) override;
 };
 
-/* Some useful inline functions */
-
+/// Builds condition: (a AND b) IS TRUE
 inline Item *and_conds(Item *a, Item *b) {
   if (!b) return a;
   if (!a) return b;
 
   Item *item = new Item_cond_and(a, b);
   if (item == nullptr) return nullptr;
-  item->top_level_item();
+  item->apply_is_true();
   return item;
 }
 

@@ -142,11 +142,17 @@ CREATE TABLE `t1` (
 `b` int(11) default NULL,
 PRIMARY KEY  (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
 `a` int(11) NOT NULL auto_increment,
 `b` int(11) default NULL,
 PRIMARY KEY  (`a`)
 ) ENGINE=INNODB DEFAULT CHARSET=latin1 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(4,4);
 reset master;

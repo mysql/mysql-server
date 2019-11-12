@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/Printer", [
 	"dojo/_base/declare",
 	"dojo/_base/html",
@@ -24,25 +23,28 @@ var Printer = declare("dojox.grid.enhanced.plugins.Printer", _Plugin, {
 	//	|								{table:"border='border'"}		//tagName:"attrbuteList" pairs, optional,
 	//	|																//control the html tags in the generated html
 	//	|	);
-	
-	// __printArgs: {
-	//		title: String
-	//			A title of the printed page can be specified. Optional.
-	//			If given, it's shown in an <h1> tag at the top of the page.
-	//		cssFiles: Array | String
-	//			CSS file paths. Optional.
-	//			Every row and column is given CSS classes, including:
-	//				grid_row_{row-number}, grid_odd_row, grid_even_row, grid_header,
-	//				grid_col_{col-number}, grid_odd_col, grid_even_col
-	//			{row_number} and {col-number} are both integers starting from 1.
-	//			Row classes are for <thead> and <tbody> tags.
-	//			Column classes are for <th> and <td> tags.
-	//			Users can use these classes in the CSS files, but cannot define their own.
-	//		writerArgs: Object (Association Array)
-	//			Arguments for TableWriter.
-	//		fetchArgs: object?
-	//			Any arguments for store.fetch
-	// }
+
+	/*=====
+	__printArgs: {
+		// title: String
+		//		A title of the printed page can be specified. Optional.
+		//		If given, it's shown in an <h1> tag at the top of the page.
+		// cssFiles: Array|String
+		//		CSS file paths. Optional.
+		//		Every row and column is given CSS classes, including:
+		//
+		//		- grid_row_{row-number}, grid_odd_row, grid_even_row, grid_header,
+		//				grid_col_{col-number}, grid_odd_col, grid_even_col
+		//		- {row_number} and {col-number} are both integers starting from 1.
+		//		- Row classes are for <thead> and <tbody> tags.
+		//		- Column classes are for <th> and <td> tags.
+		//		- Users can use these classes in the CSS files, but cannot define their own.
+		// writerArgs: Object
+		//		 Associative Array, arguments for TableWriter.
+		// fetchArgs: object?
+		//		Any arguments for store.fetch
+	},
+	=====*/
 	
 	// name: String
 	//		Plugin name
@@ -159,7 +161,7 @@ var Printer = declare("dojox.grid.enhanced.plugins.Printer", _Plugin, {
 		if(!window.print){
 			//We don't have a print facility.
 			return;
-		}else if(has("chrome") || has("opera")){
+		}else if(has('chrome') || has('opera')){
 			//referred from dijit._editor.plugins.Print._print()
 			//In opera and chrome the iframe.contentWindow.print
 			//will also print the outside window. So we must create a
@@ -193,7 +195,7 @@ var Printer = declare("dojox.grid.enhanced.plugins.Printer", _Plugin, {
 						border: "none",
 						overflow: "hidden"
 					});
-					if(!has("ie")){
+					if(!has('ie')){
 						html.style(fn, "visibility", "hidden");
 					}
 					dn.appendChild(fn);

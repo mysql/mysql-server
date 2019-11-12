@@ -2,6 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
 

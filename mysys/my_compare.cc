@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,9 @@
 
 #define CMP_NUM(a, b) (((a) < (b)) ? -1 : ((a) == (b)) ? 0 : 1)
 
-int ha_compare_text(const CHARSET_INFO *charset_info, uchar *a, uint a_length,
-                    uchar *b, uint b_length, bool part_key) {
+int ha_compare_text(const CHARSET_INFO *charset_info, const uchar *a,
+                    uint a_length, const uchar *b, uint b_length,
+                    bool part_key) {
   if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length, b,
                                            b_length);
@@ -51,10 +52,10 @@ int ha_compare_text(const CHARSET_INFO *charset_info, uchar *a, uint a_length,
                                        part_key);
 }
 
-static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
-                       bool part_key, bool skip_end_space) {
+static int compare_bin(const uchar *a, uint a_length, const uchar *b,
+                       uint b_length, bool part_key, bool skip_end_space) {
   uint length = MY_MIN(a_length, b_length);
-  uchar *end = a + length;
+  const uchar *end = a + length;
   int flag;
 
   while (a < end)
@@ -84,50 +85,50 @@ static int compare_bin(uchar *a, uint a_length, uchar *b, uint b_length,
   return (int)(a_length - b_length);
 }
 
-  /*
-    Compare two keys
+/*
+  Compare two keys
 
-    SYNOPSIS
-      ha_key_cmp()
-      keyseg	Array of key segments of key to compare
-      a		First key to compare, in format from _mi_pack_key()
-                  This is normally key specified by user
-      b		Second key to compare.  This is always from a row
-      key_length	Length of key to compare.  This can be shorter than
-                  a to just compare sub keys
-      next_flag	How keys should be compared
-                  If bit SEARCH_FIND is not set the keys includes the row
-                  position and this should also be compared
-      diff_pos    OUT Number of first keypart where values differ, counting
-                  from one.
-      diff_pos[1] OUT  (b + diff_pos[1]) points to first value in tuple b
-                        that is different from corresponding value in tuple a.
+  SYNOPSIS
+    ha_key_cmp()
+    keyseg	Array of key segments of key to compare
+    a		First key to compare, in format from _mi_pack_key()
+                This is normally key specified by user
+    b		Second key to compare.  This is always from a row
+    key_length	Length of key to compare.  This can be shorter than
+                a to just compare sub keys
+    next_flag	How keys should be compared
+                If bit SEARCH_FIND is not set the keys includes the row
+                position and this should also be compared
+    diff_pos    OUT Number of first keypart where values differ, counting
+                from one.
+    diff_pos[1] OUT  (b + diff_pos[1]) points to first value in tuple b
+                      that is different from corresponding value in tuple a.
 
-    EXAMPLES
-     Example1: if the function is called for tuples
-       ('aaa','bbb') and ('eee','fff'), then
-       diff_pos[0] = 1 (as 'aaa' != 'eee')
-       diff_pos[1] = 0 (offset from beggining of tuple b to 'eee' keypart).
+  EXAMPLES
+   Example1: if the function is called for tuples
+     ('aaa','bbb') and ('eee','fff'), then
+     diff_pos[0] = 1 (as 'aaa' != 'eee')
+     diff_pos[1] = 0 (offset from beggining of tuple b to 'eee' keypart).
 
-     Example2: if the index function is called for tuples
-       ('aaa','bbb') and ('aaa','fff'),
-       diff_pos[0] = 2 (as 'aaa' != 'eee')
-       diff_pos[1] = 3 (offset from beggining of tuple b to 'fff' keypart,
-                        here we assume that first key part is CHAR(3) NOT NULL)
+   Example2: if the index function is called for tuples
+     ('aaa','bbb') and ('aaa','fff'),
+     diff_pos[0] = 2 (as 'aaa' != 'eee')
+     diff_pos[1] = 3 (offset from beggining of tuple b to 'fff' keypart,
+                      here we assume that first key part is CHAR(3) NOT NULL)
 
-    NOTES
-      Number-keys can't be splited
+  NOTES
+    Number-keys can't be splited
 
-    RETURN VALUES
-      <0	If a < b
-      0	If a == b
-      >0	If a > b
-  */
+  RETURN VALUES
+    <0	If a < b
+    0	If a == b
+    >0	If a > b
+*/
 
 #define FCMP(A, B) ((int)(A) - (int)(B))
 
-int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
-               uint nextflag, uint *diff_pos) {
+int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
+               uint key_length, uint nextflag, uint *diff_pos) {
   int flag;
   int16 s_1, s_2;
   int32 l_1, l_2;
@@ -135,11 +136,11 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
   float f_1, f_2;
   double d_1, d_2;
   uint next_key_length;
-  uchar *orig_b = b;
+  const uchar *orig_b = b;
 
   *diff_pos = 0;
   for (; (int)key_length > 0; key_length = next_key_length, keyseg++) {
-    uchar *end;
+    const uchar *end;
     uint piks = !(keyseg->flag & HA_NO_SORT);
     (*diff_pos)++;
     diff_pos[1] = (uint)(b - orig_b);
@@ -174,9 +175,9 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
     switch ((enum ha_base_keytype)keyseg->type) {
       case HA_KEYTYPE_TEXT: /* Ascii; Key is converted */
         if (keyseg->flag & HA_SPACE_PACK) {
-          int a_length, b_length, pack_length;
-          get_key_length(a_length, a);
-          get_key_pack_length(b_length, pack_length, b);
+          uint pack_length;
+          int a_length = get_key_length(&a);
+          int b_length = get_key_pack_length(&b, &pack_length);
           next_key_length = key_length - b_length - pack_length;
 
           if (piks &&
@@ -201,9 +202,9 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
       case HA_KEYTYPE_BINARY:
       case HA_KEYTYPE_BIT:
         if (keyseg->flag & HA_SPACE_PACK) {
-          int a_length, b_length, pack_length;
-          get_key_length(a_length, a);
-          get_key_pack_length(b_length, pack_length, b);
+          uint pack_length;
+          int a_length = get_key_length(&a);
+          int b_length = get_key_pack_length(&b, &pack_length);
           next_key_length = key_length - b_length - pack_length;
 
           if (piks && (flag = compare_bin(a, a_length, b, b_length,
@@ -227,9 +228,9 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
         break;
       case HA_KEYTYPE_VARTEXT1:
       case HA_KEYTYPE_VARTEXT2: {
-        int a_length, b_length, pack_length;
-        get_key_length(a_length, a);
-        get_key_pack_length(b_length, pack_length, b);
+        uint pack_length;
+        int a_length = get_key_length(&a);
+        int b_length = get_key_pack_length(&b, &pack_length);
         next_key_length = key_length - b_length - pack_length;
 
         if (piks &&
@@ -243,9 +244,9 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
       }
       case HA_KEYTYPE_VARBINARY1:
       case HA_KEYTYPE_VARBINARY2: {
-        int a_length, b_length, pack_length;
-        get_key_length(a_length, a);
-        get_key_pack_length(b_length, pack_length, b);
+        uint pack_length;
+        int a_length = get_key_length(&a);
+        int b_length = get_key_pack_length(&b, &pack_length);
         next_key_length = key_length - b_length - pack_length;
 
         if (piks && (flag = compare_bin(a, a_length, b, b_length,
@@ -257,8 +258,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
         b += b_length;
       } break;
       case HA_KEYTYPE_INT8: {
-        int i_1 = (int)*((signed char *)a);
-        int i_2 = (int)*((signed char *)b);
+        int i_1 = static_cast<signed char>(*a);
+        int i_2 = static_cast<signed char>(*b);
         if (piks && (flag = CMP_NUM(i_1, i_2)))
           return ((keyseg->flag & HA_REVERSE_SORT) ? -flag : flag);
         a = end;
@@ -316,8 +317,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
         b += 3;
         break;
       case HA_KEYTYPE_FLOAT:
-        mi_float4get(f_1, a);
-        mi_float4get(f_2, b);
+        f_1 = mi_float4get(a);
+        f_2 = mi_float4get(b);
         /*
           The following may give a compiler warning about floating point
           comparison not being safe, but this is ok in this context as
@@ -329,8 +330,8 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
         b += 4; /* sizeof(float); */
         break;
       case HA_KEYTYPE_DOUBLE:
-        mi_float8get(d_1, a);
-        mi_float8get(d_2, b);
+        d_1 = mi_float8get(a);
+        d_2 = mi_float8get(b);
         /*
           The following may give a compiler warning about floating point
           comparison not being safe, but this is ok in this context as

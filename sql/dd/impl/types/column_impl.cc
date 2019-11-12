@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,12 +62,8 @@ class Sdi_rcontext;
 class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_option_keys = {
-    "column_format", "geom_type", "interval_count",
-    "not_secondary", "storage",   "treat_bit_as_char"};
-
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // InnoDB keys:
-    "default", "default_null", "nullable", "table_id"};
+    "column_format", "geom_type",         "interval_count", "not_secondary",
+    "storage",       "treat_bit_as_char", "is_array"};
 
 ///////////////////////////////////////////////////////////////////////////
 // Column_impl implementation.
@@ -92,7 +88,7 @@ Column_impl::Column_impl()
       m_default_value_null(true),
       m_default_value_utf8_null(true),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_table(NULL),
       m_elements(),
       m_collation_id(INVALID_OBJECT_ID),
@@ -118,7 +114,7 @@ Column_impl::Column_impl(Abstract_table_impl *table)
       m_default_value_null(true),
       m_default_value_utf8_null(true),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_table(table),
       m_elements(),
       m_collation_id(INVALID_OBJECT_ID),
@@ -400,7 +396,8 @@ bool Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
     m_srs_id = srs_id;
   }
 
-  deserialize_each(rctx, [this]() { return add_element(); }, val, "elements");
+  deserialize_each(
+      rctx, [this]() { return add_element(); }, val, "elements");
 
   read(&m_collation_id, val, "collation_id");
   read(&m_is_explicit_collation, val, "is_explicit_collation");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@
 #include "sql/opt_range.h"  // SQL_SELECT
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/protocol.h"
-#include "sql/records.h"  // init_read_record
+#include "sql/records.h"  // init_table_iterator
 #include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // REPORT_ALL_ERRORS
 #include "sql/sql_bitmap.h"
@@ -121,7 +121,7 @@ enum enum_used_fields {
 static bool init_fields(THD *thd, TABLE_LIST *tables,
                         struct st_find_field *find_fields, uint count) {
   Name_resolution_context *context = &thd->lex->select_lex->context;
-  DBUG_ENTER("init_fields");
+  DBUG_TRACE;
   context->resolve_in_table_list_only(tables);
   for (; count--; find_fields++) {
     /* We have to use 'new' here as field will be re_linked on free */
@@ -131,7 +131,7 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
                                                     REPORT_ALL_ERRORS,
                                                     false,  // No priv checking
                                                     true)))
-      DBUG_RETURN(1);
+      return 1;
     find_fields->field->table->pos_in_table_list->select_lex =
         thd->lex->select_lex;
     bitmap_set_bit(find_fields->field->table->read_set,
@@ -140,7 +140,7 @@ static bool init_fields(THD *thd, TABLE_LIST *tables,
     bitmap_set_bit(find_fields->field->table->write_set,
                    find_fields->field->field_index);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -171,7 +171,7 @@ static void memorize_variant_topic(THD *thd, int count,
                                    struct st_find_field *find_fields,
                                    List<String> *names, String *name,
                                    String *description, String *example) {
-  DBUG_ENTER("memorize_variant_topic");
+  DBUG_TRACE;
   MEM_ROOT *mem_root = thd->mem_root;
   if (count == 0) {
     get_field(mem_root, find_fields[help_topic_name].field, name);
@@ -183,7 +183,6 @@ static void memorize_variant_topic(THD *thd, int count,
     get_field(mem_root, find_fields[help_topic_name].field, new_name);
     names->push_back(new_name);
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -216,21 +215,21 @@ static int search_topics(THD *thd, QEP_TAB *topics,
                          struct st_find_field *find_fields, List<String> *names,
                          String *name, String *description, String *example) {
   int count = 0;
-  READ_RECORD read_record_info;
-  DBUG_ENTER("search_topics");
+  DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, topics, false,
-                       /*ignore_not_found_rows=*/false))
-    DBUG_RETURN(0);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, topics, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return 0;
 
-  while (!read_record_info->Read()) {
+  while (!iterator->Read()) {
     if (!topics->condition()->val_int())  // Doesn't match like
       continue;
     memorize_variant_topic(thd, count, find_fields, names, name, description,
                            example);
     count++;
   }
-  DBUG_RETURN(count);
+  return count;
 }
 
 /*
@@ -255,14 +254,14 @@ static int search_topics(THD *thd, QEP_TAB *topics,
 static int search_keyword(THD *thd, QEP_TAB *keywords,
                           struct st_find_field *find_fields, int *key_id) {
   int count = 0;
-  READ_RECORD read_record_info;
-  DBUG_ENTER("search_keyword");
+  DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, keywords, false,
-                       /*ignore_not_found_rows=*/false))
-    DBUG_RETURN(0);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, keywords, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return 0;
 
-  while (!read_record_info->Read() && count < 2) {
+  while (!iterator->Read() && count < 2) {
     if (!keywords->condition()->val_int())  // Dosn't match like
       continue;
 
@@ -270,7 +269,7 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
 
     count++;
   }
-  DBUG_RETURN(count);
+  return count;
 }
 
 /*
@@ -308,7 +307,7 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   int count = 0;
   int iindex_topic, iindex_relations;
   Field *rtopic_id, *rkey_id;
-  DBUG_ENTER("get_topics_for_keyword");
+  DBUG_TRACE;
 
   if ((iindex_topic = find_type(primary_key_name, &topics->s->keynames,
                                 FIND_TYPE_NO_PREFIX) -
@@ -317,7 +316,7 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
                                     FIND_TYPE_NO_PREFIX) -
                           1) < 0) {
     my_error(ER_CORRUPT_HELP_DB, MYF(0));
-    DBUG_RETURN(-1);
+    return -1;
   }
   rtopic_id = find_fields[help_relation_help_topic_id].field;
   rkey_id = find_fields[help_relation_help_keyword_id].field;
@@ -326,7 +325,7 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
       relations->file->ha_index_init(iindex_relations, 1)) {
     if (topics->file->inited) topics->file->ha_index_end();
     my_error(ER_CORRUPT_HELP_DB, MYF(0));
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   rkey_id->store((longlong)key_id, true);
@@ -351,42 +350,36 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   }
   topics->file->ha_index_end();
   relations->file->ha_index_end();
-  DBUG_RETURN(count);
+  return count;
 }
 
-/*
-  Look for categories by mask
+/**
+  Look for categories by mask.
 
-  SYNOPSIS
-    search_categories()
-    thd			THD for init_read_record
-    categories		Table of categories
-    find_fields         Filled array of info for fields
-    select		Function to test for if matching help topic.
-                        Normally 'help_vategory.name like 'bit%'
-    names		List of found categories names (out)
-    res_id		Primary index of found category (only if
-                        found exactly one category)
+  @param thd          THD for init_table_iterator
+  @param categories   Table of categories
+  @param find_fields  Filled array of info for fields
+  @param names        List of found categories names (out)
+  @param res_id	      Primary index of found category
+                        (only if found exactly one category)
 
-  RETURN VALUES
-    #			Number of categories found
-*/
-
+  @return             Number of categories found
+ */
 static int search_categories(THD *thd, QEP_TAB *categories,
                              struct st_find_field *find_fields,
                              List<String> *names, int16 *res_id) {
   Field *pfname = find_fields[help_category_name].field;
   Field *pcat_id = find_fields[help_category_help_category_id].field;
   int count = 0;
-  READ_RECORD read_record_info;
 
-  DBUG_ENTER("search_categories");
+  DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, categories, false,
-                       /*ignore_not_found_rows=*/false))
-    DBUG_RETURN(0);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, categories, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return 0;
 
-  while (!read_record_info->Read()) {
+  while (!iterator->Read()) {
     if (categories->condition() && !categories->condition()->val_int())
       continue;
     String *lname = new (thd->mem_root) String;
@@ -394,7 +387,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
     if (++count == 1 && res_id) *res_id = (int16)pcat_id->val_int();
     names->push_back(lname);
   }
-  DBUG_RETURN(count);
+  return count;
 }
 
 /*
@@ -411,19 +404,18 @@ static int search_categories(THD *thd, QEP_TAB *categories,
 
 static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
                                        List<String> *res) {
-  READ_RECORD read_record_info;
-  DBUG_ENTER("get_all_items_for_category");
+  DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, items, false,
-                       /*ignore_not_found_rows=*/false))
-    DBUG_VOID_RETURN;
-  while (!read_record_info->Read()) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, items, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return;
+  while (!iterator->Read()) {
     if (!items->condition()->val_int()) continue;
     String *name = new (thd->mem_root) String();
     get_field(thd->mem_root, pfname, name);
     res->push_back(name);
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -451,7 +443,7 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
 */
 
 static int send_answer_1(THD *thd, String *s1, String *s2, String *s3) {
-  DBUG_ENTER("send_answer_1");
+  DBUG_TRACE;
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("name", 64));
   field_list.push_back(new Item_empty_string("description", 1000));
@@ -459,14 +451,14 @@ static int send_answer_1(THD *thd, String *s1, String *s2, String *s3) {
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(1);
+    return 1;
 
   thd->get_protocol()->start_row();
   thd->get_protocol()->store(s1);
   thd->get_protocol()->store(s2);
   thd->get_protocol()->store(s3);
-  if (thd->get_protocol()->end_row()) DBUG_RETURN(-1);
-  DBUG_RETURN(0);
+  if (thd->get_protocol()->end_row()) return -1;
+  return 0;
 }
 
 /*
@@ -491,14 +483,14 @@ static int send_answer_1(THD *thd, String *s1, String *s2, String *s3) {
 */
 
 static int send_header_2(THD *thd, bool for_category) {
-  DBUG_ENTER("send_header_2");
+  DBUG_TRACE;
   List<Item> field_list;
   if (for_category)
     field_list.push_back(new Item_empty_string("source_category_name", 64));
   field_list.push_back(new Item_empty_string("name", 64));
   field_list.push_back(new Item_empty_string("is_it_category", 1));
-  DBUG_RETURN(thd->send_result_metadata(
-      &field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
+  return thd->send_result_metadata(
+      &field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 }
 
 /*
@@ -533,10 +525,10 @@ static int send_header_2(THD *thd, bool for_category) {
 static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
                                List<String> *names, const char *cat,
                                String *source_name) {
-  DBUG_ENTER("send_variant_2_list");
+  DBUG_TRACE;
 
   String **pointers =
-      (String **)alloc_root(mem_root, sizeof(String *) * names->elements);
+      (String **)mem_root->Alloc(sizeof(String *) * names->elements);
   String **pos;
   String **end = pointers + names->elements;
 
@@ -553,11 +545,11 @@ static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
     protocol->start_row();
     if (source_name) protocol->store(source_name);
     protocol->store(*pos);
-    protocol->store(cat, 1, &my_charset_latin1);
-    if (protocol->end_row()) DBUG_RETURN(-1);
+    protocol->store_string(cat, 1, &my_charset_latin1);
+    if (protocol->end_row()) return -1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -638,7 +630,6 @@ static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
 bool mysqld_help(THD *thd, const char *mask) {
   Protocol *protocol = thd->get_protocol();
   st_find_field used_fields[array_elements(init_used_fields)];
-  TABLE_LIST tables[4];
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
   int count_topics, count_categories;
@@ -646,20 +637,13 @@ bool mysqld_help(THD *thd, const char *mask) {
   size_t i;
   MEM_ROOT *mem_root = thd->mem_root;
   SELECT_LEX *const select_lex = thd->lex->select_lex;
-  DBUG_ENTER("mysqld_help");
+  DBUG_TRACE;
 
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_topic"), "help_topic",
-                           TL_READ);
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_category"), "help_category",
-                           TL_READ);
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_relation"), "help_relation",
-                           TL_READ);
-  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_keyword"), "help_keyword",
-                           TL_READ);
+  TABLE_LIST tables[4] = {TABLE_LIST("mysql", "help_topic", TL_READ),
+                          TABLE_LIST("mysql", "help_category", TL_READ),
+                          TABLE_LIST("mysql", "help_relation", TL_READ),
+                          TABLE_LIST("mysql", "help_keyword", TL_READ)};
+
   tables[0].next_global = tables[0].next_local =
       tables[0].next_name_resolution_table = &tables[1];
   tables[1].next_global = tables[1].next_local =
@@ -795,11 +779,11 @@ bool mysqld_help(THD *thd, const char *mask) {
   my_eof(thd);
 
   close_trans_system_tables(thd);
-  DBUG_RETURN(false);
+  return false;
 
 error:
   close_trans_system_tables(thd);
 
 error2:
-  DBUG_RETURN(true);
+  return true;
 }

@@ -1,24 +1,17 @@
 
 .mblRoundRectList {
-  position: relative;
-  
-  margin: 7px 9px 16px 9px;
-  padding: 0px;
-  border: 1px solid #ADAAAD;
-  -webkit-border-radius: 8px;
-  -moz-border-radius: 8px;
+  margin: 7px 9px 16px;
+  padding: 0;
+  border: 1px solid #adaaad;
+  border-radius: 8px;
   background-color: white;
 }
-.mblRoundRectList .mblListItem:first-child {
-  -webkit-border-top-left-radius: 8px;
-  -webkit-border-top-right-radius: 8px;
-  -moz-border-radius-topleft: 8px;
-  -moz-border-radius-topright: 8px;
+.mblRoundRectList .mblListItem:first-child, .mblRoundRectList .mblEdgeToEdgeCategory:first-child {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
 }
-.mblRoundRectList .mblListItem:last-child {
-  border-bottom-width: 0px;
-  -webkit-border-bottom-left-radius: 8px;
-  -webkit-border-bottom-right-radius: 8px;
-  -moz-border-radius-bottomleft: 8px;
-  -moz-border-radius-bottomright: 8px;
+.mblRoundRectList .mblListItem:last-child, .mblRoundRectList .mblEdgeToEdgeCategory:last-child {
+  border-bottom-width: 0;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
 }

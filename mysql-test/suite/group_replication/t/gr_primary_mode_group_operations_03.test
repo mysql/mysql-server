@@ -34,9 +34,27 @@
 #
 #   5. Change to multi primary mode to test action with output of a table.
 #
-#   6. Test group actions with the output of a table. It must match.
+#   6. Create a table to test the functions with SQL outputs
 #
-#   7. Cleanup.
+#   7. Test group_replication_switch_to_single_primary_mode output (SQL parameter).
+#   7.1. With invalid uuid it must fail.
+#   7.2. With an unknown uuid it must fail.
+#   7.3. With NULL it must fail.
+#   7.4. With empty string it must fail.
+#   7.5. Mode switched to single-primary successfully.
+#   7.6. Already in single-primary mode.
+#
+#   8. Test group_replication_switch_to_multi_primary_mode output (SQL parameter).
+#
+#   9. Test group_replication_set_as_primary output (SQL parameter).
+#   9.1. With invalid uuid it must fail.
+#   9.2. With an unknown uuid it must fail.
+#   9.3. With NULL it must fail.
+#   9.4. With empty string it must fail.
+#   9.5. Already the primary member
+#   9.6. Switch to another member
+#
+#   10. Cleanup.
 #
 ###############################################################################
 
@@ -144,7 +162,7 @@ SELECT group_replication_switch_to_multi_primary_mode("$server1_uuid");
 SELECT group_replication_switch_to_multi_primary_mode();
 
 --echo
---echo # 6. Test group action with the output of a table. It must match as expected.
+--echo # 6. Create a table to test the functions with SQL outputs
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b CHAR(36));
 --disable_query_log
@@ -157,61 +175,60 @@ INSERT INTO test.t1 VALUES (4, "");                                     # Empty 
 --enable_query_log
 
 --echo
---echo # Test group_replication_switch_to_single_primary_mode output.
+--echo # 7. Test group_replication_switch_to_single_primary_mode output (SQL parameter).
 
-CREATE TABLE test.tspm (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b CHAR(100));
---disable_query_log
-INSERT INTO test.tspm VALUES (1, "Wrong arguments: The server uuid is not valid.");
-INSERT INTO test.tspm VALUES (2, "The requested uuid is not a member of the group.");
-INSERT INTO test.tspm VALUES (3, "Wrong arguments: You need to specify a server uuid.");
-INSERT INTO test.tspm VALUES (4, "Wrong arguments: You need to specify a server uuid.");
-INSERT INTO test.tspm VALUES (5, "Mode switched to single-primary successfully.");
-INSERT INTO test.tspm VALUES (6, "Already in single-primary mode. Did you mean to use group_replication_set_as_primary?");
---enable_query_log
---source include/rpl_sync.inc
+--echo # 7.1. With invalid uuid it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_single_primary_mode(b) FROM test.t1 WHERE a=1;
 
---let $count= 1
-while ($count < 7)
-{
- --let $expected_message= `SELECT b FROM test.tspm WHERE a=$count;`
- --let $actual_message= `SELECT group_replication_switch_to_single_primary_mode(b) FROM test.t1 WHERE a=$count;`
+--echo # 7.2. With an unknown uuid it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_single_primary_mode(b) FROM test.t1 WHERE a=2;
 
- --let $assert_text= "The message must be: $expected_message"
- --let $assert_cond= "$actual_message" = "$expected_message"
- --source include/assert.inc
- --inc $count
-}
+--echo # 7.3. With NULL it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_single_primary_mode(b) FROM test.t1 WHERE a=3;
+
+--echo # 7.4. With empty string it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_single_primary_mode(b) FROM test.t1 WHERE a=4;
+
+--echo # 7.5. Mode switched to single-primary successfully.
+SELECT group_replication_switch_to_single_primary_mode(b) FROM test.t1 WHERE a=5;
+
+--echo # 7.6. Already in single-primary mode.
+SELECT group_replication_switch_to_single_primary_mode(b) FROM test.t1 WHERE a=6;
 
 --echo
---echo # Test group_replication_switch_to_multi_primary_mode output.
+--echo # 8.Test group_replication_switch_to_multi_primary_mode output.
 --error ER_CANT_INITIALIZE_UDF
 SELECT group_replication_switch_to_multi_primary_mode(b) FROM test.t1 ORDER BY a LIMIT 1;
 
 --echo
---echo # Test group_replication_set_as_primary output.
-CREATE TABLE test.tsap (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b CHAR(100));
---disable_query_log
-INSERT INTO test.tsap VALUES (1, "Wrong arguments: The server uuid is not valid.");
-INSERT INTO test.tsap VALUES (2, "The requested uuid is not a member of the group.");
-INSERT INTO test.tsap VALUES (3, "Wrong arguments: You need to specify a server uuid.");
-INSERT INTO test.tsap VALUES (4, "Wrong arguments: You need to specify a server uuid.");
-INSERT INTO test.tsap VALUES (5, "The requested member is already the current group primary.");
-INSERT INTO test.tsap VALUES (6, "Primary server switched to: MEMBER2_UUID");
---enable_query_log
---source include/rpl_sync.inc
+--echo # 9. Test group_replication_set_as_primary output (SQL parameter).
 
---let $count= 1
-while ($count < 7)
-{
-  --let $expected_message= `SELECT b FROM test.tsap WHERE a=$count;`
-  --replace_result $server2_uuid MEMBER2_UUID
-  --let $actual_message= `SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=$count;`
+--echo # 9.1. With invalid uuid it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=1;
 
-  --let $assert_text= "The message must be: $expected_message"
-  --let $assert_cond= "$actual_message" = "$expected_message"
-  --source include/assert.inc
-  --inc $count
-}
+--echo # 9.2. With an unknown uuid it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=2;
+
+--echo # 9.3. With NULL it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=3;
+
+--echo # 9.4. With empty string it must fail.
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=4;
+
+--echo # 9.5. Already the primary member
+SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=5;
+
+--echo # 9.6. Switch to another member
+--replace_result $server2_uuid MEMBER2_UUID
+SELECT group_replication_set_as_primary(b) FROM test.t1 WHERE a=6;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -224,11 +241,9 @@ while ($count < 7)
 --source include/gr_assert_primary_member.inc
 
 --echo
---echo # 6. Cleanup
---let $count=
+--echo # 10. Cleanup
+
 DROP TABLE test.t1;
-DROP TABLE test.tspm;
-DROP TABLE test.tsap;
 
 --source include/rpl_sync.inc
 

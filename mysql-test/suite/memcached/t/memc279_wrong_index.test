@@ -1,0 +1,91 @@
+source include/not_valgrind.inc;
+source include/have_memcached_plugin.inc;
+source include/not_windows.inc;
+
+
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/log/memcached_wrong_index.err
+
+--disable_query_log
+CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
+CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
+--enable_query_log
+
+--enable_connect_log
+SET @transaction_isolation= @@global.transaction_isolation;
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+
+# Create the memcached tables
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
+
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+				  "innodb_only", "innodb_only", "innodb_only");
+
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO config_options VALUES("table_map_delimiter", ".");
+
+# describe table for memcache
+# This one is wrong because PRIMARY key has two columns
+INSERT INTO containers VALUES ("desct1", "test", "t1", "c1", "c2", "c3", "c4", "c5", "PRIMARY");
+# This one is wrong because PRIMARY is on wrong column
+INSERT INTO containers VALUES ("desct2", "test", "t2", "c1", "c2", "c3", "c4", "c5", "PRIMARY");
+
+# This one is wrong because i1 is not UNIQUE
+INSERT INTO containers VALUES ("desct3", "test", "t1", "c1", "c2", "c3", "c4", "c5", "i1");
+# This one is wrong because i2 is on two columns
+INSERT INTO containers VALUES ("desct4", "test", "t1", "c1", "c2", "c3", "c4", "c5", "i2");
+# This one is wrong because i3 is on wrong column
+INSERT INTO containers VALUES ("desct5", "test", "t1", "c1", "c2", "c3", "c4", "c5", "i3");
+
+# This one is OK
+INSERT INTO containers VALUES ("desct6", "test", "t1", "c1", "c2", "c3", "c4", "c5", "i4");
+
+use test;
+
+CREATE TABLE t1 (
+  c1 VARCHAR(32),
+  c2 VARCHAR(512),
+  c3 INT,
+  c4 BIGINT UNSIGNED,
+  c5 INT,
+  primary key(c1,c5)
+) ENGINE = INNODB;
+
+CREATE TABLE t2 (
+  c1 VARCHAR(32),
+  c2 VARCHAR(512),
+  c3 INT,
+  c4 BIGINT UNSIGNED,
+  c5 INT,
+  primary key(c3)
+) ENGINE = INNODB;
+
+CREATE INDEX i1 ON t1(c1);
+CREATE UNIQUE INDEX i2 ON t1(c1,c5);
+CREATE UNIQUE INDEX i3 ON t1(c5);
+CREATE UNIQUE INDEX i4 ON t1(c1);
+
+# Tables must exist before plugin can be started!
+--let $memcached_address=127.0.0.1:11279
+--source ../include/load_daemon_memcached_expecting_success.inc
+
+--let SEARCH_PATTERN = InnoDB_Memcached: The unique_idx_name_on_key \(PRIMARY\) must be on key column \(c1\) only but it is on 2 columns
+--source include/search_pattern_multiline.inc
+--let SEARCH_PATTERN = InnoDB_Memcached: The unique_idx_name_on_key \(PRIMARY\) must be on key column \(c1\) but it is on \(c3\)
+--source include/search_pattern_multiline.inc
+--let SEARCH_PATTERN = InnoDB_Memcached: Index on key column must be a Unique index
+--source include/search_pattern_multiline.inc
+--let SEARCH_PATTERN = InnoDB_Memcached: The unique_idx_name_on_key \(i2\) must be on key column \(c1\) only but it is on 2 columns
+--source include/search_pattern_multiline.inc
+--let SEARCH_PATTERN = InnoDB_Memcached: The unique_idx_name_on_key \(i3\) must be on key column \(c1\) but it is on \(c5\)
+--source include/search_pattern_multiline.inc
+
+
+DROP TABLE t1,t2;
+
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+
+SET @@global.transaction_isolation= @transaction_isolation;

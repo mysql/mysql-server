@@ -1,11 +1,11 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/_base,dojox/wire/ml/Action"],function(_1,_2,_3){
-_2.provide("dojox.wire.ml.Transfer");
-_2.require("dijit._Widget");
-_2.require("dijit._Container");
-_2.require("dojox.wire._base");
-_2.require("dojox.wire.ml.Action");
-_2.declare("dojox.wire.ml.Transfer",_3.wire.ml.Action,{source:"",sourceStore:"",sourceAttribute:"",sourcePath:"",type:"",converter:"",delimiter:"",target:"",targetStore:"",targetAttribute:"",targetPath:"",_run:function(){
+define("dojox/wire/ml/Transfer",["dojo","dijit","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/_base,dojox/wire/ml/Action"],function(_1,_2,_3){
+_1.provide("dojox.wire.ml.Transfer");
+_1.require("dijit._Widget");
+_1.require("dijit._Container");
+_1.require("dojox.wire._base");
+_1.require("dojox.wire.ml.Action");
+_1.declare("dojox.wire.ml.Transfer",_3.wire.ml.Action,{source:"",sourceStore:"",sourceAttribute:"",sourcePath:"",type:"",converter:"",target:"",targetStore:"",targetAttribute:"",targetPath:"",delimiter:"",_run:function(){
 var _4=this._getWire("source");
 var _5=this._getWire("target");
 _3.wire.transfer(_4,_5,arguments);
@@ -51,7 +51,7 @@ _7=_8;
 }
 return _7;
 }});
-_2.declare("dojox.wire.ml.ChildWire",_1._Widget,{which:"source",object:"",property:"",type:"",converter:"",attribute:"",path:"",name:"",_addWire:function(_b,_c){
+_1.declare("dojox.wire.ml.ChildWire",_2._Widget,{which:"source",object:"",property:"",type:"",converter:"",attribute:"",path:"",name:"",_addWire:function(_b,_c){
 if(this.name){
 if(!_c.children){
 _c.children={};
@@ -66,7 +66,7 @@ _c.children.push(this._getWire(_b));
 },_getWire:function(_d){
 return {object:(this.object?_3.wire.ml._getValue(this.object):undefined),property:this.property,type:this.type,converter:this.converter,attribute:this.attribute,path:this.path};
 }});
-_2.declare("dojox.wire.ml.ColumnWire",_3.wire.ml.ChildWire,{column:"",_addWire:function(_e,_f){
+_1.declare("dojox.wire.ml.ColumnWire",_3.wire.ml.ChildWire,{column:"",_addWire:function(_e,_f){
 if(this.column){
 if(!_f.columns){
 _f.columns={};
@@ -79,7 +79,7 @@ _f.columns=[];
 _f.columns.push(this._getWire(_e));
 }
 }});
-_2.declare("dojox.wire.ml.NodeWire",[_3.wire.ml.ChildWire,_1._Container],{titleProperty:"",titleAttribute:"",titlePath:"",_addWire:function(_10,_11){
+_1.declare("dojox.wire.ml.NodeWire",[_3.wire.ml.ChildWire,_2._Container],{titleProperty:"",titleAttribute:"",titlePath:"",_addWire:function(_10,_11){
 if(!_11.nodes){
 _11.nodes=[];
 }
@@ -99,7 +99,7 @@ _13.children=_14;
 }
 return _13;
 }});
-_2.declare("dojox.wire.ml.SegmentWire",_3.wire.ml.ChildWire,{_addWire:function(_17,_18){
+_1.declare("dojox.wire.ml.SegmentWire",_3.wire.ml.ChildWire,{_addWire:function(_17,_18){
 if(!_18.segments){
 _18.segments=[];
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,14 +47,14 @@ static uint my_get_large_page_size_int(void);
 
 uint my_get_large_page_size(void) {
   uint size;
-  DBUG_ENTER("my_get_large_page_size");
+  DBUG_TRACE;
 
   if (!(size = my_get_large_page_size_int()))
     my_message_local(
         WARNING_LEVEL,
         EE_FAILED_TO_DETERMINE_LARGE_PAGE_SIZE); /* purecov: inspected */
 
-  DBUG_RETURN(size);
+  return size;
 }
 
 /* Linux-specific function to determine the size of large pages */
@@ -63,7 +63,7 @@ uint my_get_large_page_size_int(void) {
   MYSQL_FILE *f;
   uint size = 0;
   char buf[256];
-  DBUG_ENTER("my_get_large_page_size_int");
+  DBUG_TRACE;
 
   if (!(f = mysql_file_fopen(key_file_proc_meminfo, "/proc/meminfo", O_RDONLY,
                              MYF(MY_WME))))
@@ -75,5 +75,5 @@ uint my_get_large_page_size_int(void) {
   mysql_file_fclose(f, MYF(MY_WME));
 
 finish:
-  DBUG_RETURN(size * 1024);
+  return size * 1024;
 }

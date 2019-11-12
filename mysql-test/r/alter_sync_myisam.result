@@ -1,0 +1,45 @@
+#
+# Bug#24571427 MYSQLDUMP & MYSQLPUMP MAY FAIL WHEN
+#              DDL STATEMENTS ARE RUNNING
+#
+SET DEBUG_SYNC= 'RESET';
+DROP SCHEMA IF EXISTS test_i_s;
+CREATE SCHEMA test_i_s;
+USE test_i_s;
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+SET DEBUG_SYNC='alter_table_before_rename_result_table SIGNAL blocked WAIT_FOR i_s_select';
+# Sending ALTER Command
+ALTER TABLE t1 modify column a varchar(30);;
+# Wait until ALTER stopped before renaming the temporary file it created.
+SET DEBUG_SYNC= 'now WAIT_FOR blocked';
+# Verify that #sql... tables are not seen by I_S and SHOW
+SELECT COUNT(TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test_i_s' AND TABLE_NAME like '#sql%';
+COUNT(TABLE_NAME)
+0
+SHOW TABLES FROM test_i_s;
+Tables_in_test_i_s
+t1
+# Check that there exists a hidden table created by ALTER and
+# I_S.TABLES had not listed above. The SHOW EXTENDED syntax was
+# added as part of Bug#24786075.
+SHOW EXTENDED TABLES FROM test_i_s;
+Tables_in_test_i_s
+#sql-xxxxx
+t1
+# Make sure mysqldump/mysqlpump ignores the #sql... tables.
+# mysqldump fails to acquire the lock without the fix.
+# Allow ALTER to continue.
+SET DEBUG_SYNC= 'now SIGNAL i_s_select';
+# Reaping "ALTER ..."
+# Verify if the ALTERed TABLE is not-hidden
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test_i_s';
+TABLE_NAME
+t1
+# Verify if  inplace alter also keeps the table not-hidden.
+ALTER TABLE t1 add column (c2 int);
+SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test_i_s';
+TABLE_NAME
+t1
+SET DEBUG_SYNC= 'RESET';
+SET GLOBAL DEBUG='';
+DROP SCHEMA test_i_s;

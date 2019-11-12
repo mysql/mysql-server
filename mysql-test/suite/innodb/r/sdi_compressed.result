@@ -18,6 +18,8 @@ CREATE TABLE t1 (
 PRIMARY KEY(col_11),
 KEY k1(col_1(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=1 STATS_PERSISTENT=0;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 FLUSH TABLES t1  FOR EXPORT;
 # Copying exported .ibd
 UNLOCK TABLES;

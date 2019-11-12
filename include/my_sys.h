@@ -53,6 +53,7 @@
 
 #include "m_string.h" /* IWYU pragma: keep */
 #include "my_compiler.h"
+#include "my_compress.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h" /* IWYU pragma: keep */
@@ -64,6 +65,7 @@
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/psi_base.h"
+#include "sql/stream_cipher.h"
 
 struct CHARSET_INFO;
 struct MY_CHARSET_LOADER;
@@ -293,6 +295,10 @@ enum flush_type {
   FLUSH_FORCE_WRITE
 };
 
+/*
+ How was this file opened (for debugging purposes).
+ The important part is whether it is UNOPEN or not.
+ */
 enum file_type {
   UNOPEN = 0,
   FILE_BY_OPEN,
@@ -300,7 +306,7 @@ enum file_type {
   STREAM_BY_FOPEN,
   STREAM_BY_FDOPEN,
   FILE_BY_MKSTEMP,
-  FILE_BY_DUP
+  FILE_BY_O_TMPFILE
 };
 
 struct st_my_file_info {
@@ -468,6 +474,10 @@ struct IO_CACHE /* Used when cacheing files */
     somewhere else
   */
   bool alloced_buffer{false};
+  // This is an encryptor for encrypting the temporary file of the IO cache.
+  Stream_cipher *m_encryptor = nullptr;
+  // This is a decryptor for decrypting the temporary file of the IO cache.
+  Stream_cipher *m_decryptor = nullptr;
 };
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
@@ -768,8 +778,10 @@ extern bool open_cached_file(IO_CACHE *cache, const char *dir,
                              myf cache_myflags);
 extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
+
+enum UnlinkOrKeepFile { UNLINK_FILE, KEEP_FILE };
 File create_temp_file(char *to, const char *dir, const char *pfx, int mode,
-                      myf MyFlags);
+                      UnlinkOrKeepFile unlink_or_keep, myf MyFlags);
 
 // Use Prealloced_array or std::vector or something similar in C++
 extern bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key key,
@@ -805,9 +817,10 @@ extern char *strdup_root(MEM_ROOT *root, const char *str);
 extern char *safe_strdup_root(MEM_ROOT *root, const char *str);
 extern char *strmake_root(MEM_ROOT *root, const char *str, size_t len);
 extern void *memdup_root(MEM_ROOT *root, const void *str, size_t len);
-extern bool my_compress(uchar *, size_t *, size_t *);
-extern bool my_uncompress(uchar *, size_t, size_t *);
-extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
+extern bool my_compress(mysql_compress_context *, uchar *, size_t *, size_t *);
+extern bool my_uncompress(mysql_compress_context *, uchar *, size_t, size_t *);
+extern uchar *my_compress_alloc(mysql_compress_context *comp_ctx,
+                                const uchar *packet, size_t *len,
                                 size_t *complen);
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 
@@ -969,4 +982,69 @@ extern MYSQL_FILE *mysql_stdin;
   @} (end of group MYSYS)
 */
 
+// True if the temporary file of binlog cache is encrypted.
+#ifndef DBUG_OFF
+extern bool binlog_cache_temporary_file_is_encrypted;
+#endif
+
+/**
+  This is a wrapper around mysql_file_seek. Seek to a position in the
+  temporary file of a binlog cache, and set the encryption/decryption
+  stream offset if binlog_encryption is on.
+
+  @param cache The handler of a binlog cache to seek.
+  @param pos The expected position (absolute or relative)
+  @param whence A direction parameter and one of
+                {SEEK_SET, SEEK_CUR, SEEK_END}
+  @param flags  The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on.
+
+  @retval The new position in the file, or MY_FILEPOS_ERROR on error.
+*/
+my_off_t mysql_encryption_file_seek(IO_CACHE *cache, my_off_t pos, int whence,
+                                    myf flags);
+/**
+   This is a wrapper around mysql_file_read. Read data from the temporary
+   file of a binlog cache, and take care of decrypting the data if
+   binlog_encryption is on.
+
+
+   @param cache The handler of a binlog cache to read.
+   @param[out] buffer The memory buffer to write to.
+   @param count The length of data in the temporary file to be read in bytes.
+   @param flags The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on.
+
+   @retval The length of bytes to be read, or MY_FILE_ERROR on error.
+*/
+size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
+                                  myf flags);
+/**
+   This is a wrapper around mysql_file_write. Write data in buffer to the
+   temporary file of a binlog cache, and take care of encrypting the data
+   if binlog_encryption is on.
+
+   @param cache The handler of a binlog cache to write.
+   @param buffer The memory buffer to write from.
+   @param count The length of data in buffer to be written in bytes.
+   @param flags The bitmap of different flags
+                MY_WME | MY_FAE | MY_NABP | MY_FNABP |
+                MY_DONT_CHECK_FILESIZE and so on
+
+   if (flags & (MY_NABP | MY_FNABP)) {
+     @retval 0 if count == 0
+     @retval 0 success
+     @retval MY_FILE_ERROR error
+   } else {
+     @retval 0 if count == 0
+     @retval The number of bytes written on success.
+     @retval MY_FILE_ERROR error
+     @retval The actual number of bytes written on partial success (if
+             less than count bytes were written).
+   }
+*/
+size_t mysql_encryption_file_write(IO_CACHE *cache, const uchar *buffer,
+                                   size_t count, myf flags);
 #endif /* _my_sys_h */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -227,7 +227,7 @@ static size_t fill_buffer(LINE_BUFFER *buffer) {
 char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length) {
   char *pos;
   size_t length;
-  DBUG_ENTER("intern_read_line");
+  DBUG_TRACE;
 
   buffer->start_of_line = buffer->end_of_line;
   for (;;) {
@@ -241,9 +241,9 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length) {
         string truncation.
       */
       if (!(length = fill_buffer(buffer))) {
-        if (buffer->eof) DBUG_RETURN(0);
+        if (buffer->eof) return 0;
       } else if (length == (size_t)-1)
-        DBUG_RETURN(NULL);
+        return NULL;
       else
         continue;
       pos--; /* break line here */
@@ -254,6 +254,6 @@ char *intern_read_line(LINE_BUFFER *buffer, ulong *out_length) {
     *out_length = (ulong)(pos + 1 - buffer->eof - buffer->start_of_line);
 
     DBUG_DUMP("Query: ", (unsigned char *)buffer->start_of_line, *out_length);
-    DBUG_RETURN(buffer->start_of_line);
+    return buffer->start_of_line;
   }
 }

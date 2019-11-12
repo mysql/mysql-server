@@ -1,0 +1,137 @@
+Install clone plugin on recipient server
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t_recipient(col1 INT PRIMARY KEY, col2 int);
+INSERT INTO t_recipient VALUES(1, 10);
+CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';
+CREATE TABLESPACE tbs1_recipient ADD DATAFILE 'tbs1_data1.ibd';
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64), FULLTEXT KEY fts_index(col2));
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+SELECT count(*) FROM mysql.general_log;
+count(*)
+0
+SELECT count(*) FROM mysql.slow_log;
+count(*)
+0
+CREATE TABLE t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO t_myisam VALUES(10, 'myisam not cloned row 1');
+SELECT * from t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+CREATE TABLE t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO t_csv VALUES(10, 'csv not cloned row 1');
+SELECT * from t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+CREATE SCHEMA non_innodb;
+CREATE TABLE non_innodb.t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO non_innodb.t_myisam VALUES(10, 'myisam not cloned row 1');
+INSERT INTO non_innodb.t_myisam VALUES(20, 'myisam not cloned row 2');
+INSERT INTO non_innodb.t_myisam VALUES(30, 'myisam not cloned row 3');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+20	myisam not cloned row 2
+30	myisam not cloned row 3
+CREATE TABLE non_innodb.t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO non_innodb.t_csv VALUES(10, 'csv not cloned row 1');
+INSERT INTO non_innodb.t_csv VALUES(20, 'csv not cloned row 2');
+INSERT INTO non_innodb.t_csv VALUES(30, 'csv not cloned row 3');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+20	csv not cloned row 2
+30	csv not cloned row 3
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME LIKE '%clone%';
+PLUGIN_NAME	PLUGIN_STATUS
+clone	ACTIVE
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Completed
+1	RECOVERY	Completed
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+INSERT INTO t1 VALUES(40, 'clone row 4');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+40	clone row 4
+INSERT INTO t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from t_myisam ORDER BY col1;
+col1	col2
+40	myisam not cloned row 4
+INSERT INTO t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from t_csv ORDER BY col1;
+col1	col2
+40	csv not cloned row 4
+INSERT INTO non_innodb.t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+col1	col2
+40	myisam not cloned row 4
+INSERT INTO non_innodb.t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+col1	col2
+40	csv not cloned row 4
+SELECT count(*) FROM mysql.general_log;
+count(*)
+0
+SELECT count(*) FROM mysql.slow_log;
+count(*)
+0
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+DROP TABLE t1;
+DROP TABLE t_myisam;
+DROP TABLE t_csv;
+DROP TABLE non_innodb.t_myisam;
+DROP TABLE non_innodb.t_csv;
+DROP SCHEMA non_innodb;
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' ;
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Completed
+1	RECOVERY	Completed
+Uninstall clone plugin on recipient server
+UNINSTALL PLUGIN clone;
+UNINSTALL PLUGIN clone;

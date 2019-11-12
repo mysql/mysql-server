@@ -254,7 +254,8 @@ bool Foreign_key_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_referenced_table_catalog_name, val, "referenced_table_catalog_name");
   read(&m_referenced_table_schema_name, val, "referenced_table_schema_name");
   read(&m_referenced_table_name, val, "referenced_table_name");
-  deserialize_each(rctx, [this]() { return add_element(); }, val, "elements");
+  deserialize_each(
+      rctx, [this]() { return add_element(); }, val, "elements");
   return false;
 }
 

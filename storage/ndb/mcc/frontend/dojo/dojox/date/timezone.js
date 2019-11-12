@@ -6,11 +6,10 @@ var _4=_1.config;
 var _5=["africa","antarctica","asia","australasia","backward","etcetera","europe","northamerica","pacificnew","southamerica"];
 var _6=1835,_7=2038;
 var _8={},_9={},_a={},_b={};
-var _c=_4.timezoneFileBasePath||_1.moduleUrl("dojox.date","zoneinfo");
-var _d=_4.timezoneLoadingScheme||"preloadAll";
-var _e=_4.defaultZoneFile||((_d=="preloadAll")?_5:"northamerica");
-_1._contentHandlers["olson-zoneinfo"]=function(_f){
-var str=_1._contentHandlers["text"](_f),s="",_10=str.split("\n"),arr=[],_11="",_12=null,_13=null,ret={zones:{},rules:{}};
+var _c=_4.timezoneLoadingScheme||"preloadAll";
+var _d=_4.defaultZoneFile||((_c=="preloadAll")?_5:"northamerica");
+_1._contentHandlers["olson-zoneinfo"]=function(_e){
+var _f=_1._contentHandlers["text"](_e),s="",_10=_f.split("\n"),arr=[],_11="",_12=null,_13=null,ret={zones:{},rules:{}};
 for(var i=0;i<_10.length;i++){
 var l=_10[i];
 if(l.match(/^\s/)){
@@ -59,7 +58,7 @@ _b=_1.mixin(_b,_15.rules||{});
 };
 function _16(_17){
 _8[_17]=true;
-_1.xhrGet({url:_c+"/"+_17,sync:true,handleAs:"olson-zoneinfo",load:_14,error:function(e){
+_1.xhrGet({url:require.toUrl((_4.timezoneFileBasePath||"dojox/date/zoneinfo")+"/"+_17),sync:true,handleAs:"olson-zoneinfo",load:_14,error:function(e){
 console.error("Error loading zone file:",e);
 throw e;
 }});
@@ -353,7 +352,7 @@ res=_48;
 return res;
 };
 _1.setObject("dojox.date.timezone",{getTzInfo:function(dt,tz){
-if(_d=="lazyLoad"){
+if(_c=="lazyLoad"){
 var _4a=_1e(tz);
 if(!_4a){
 throw new Error("Not a valid timezone ID.");
@@ -387,11 +386,11 @@ arr.push(z);
 arr.sort();
 return arr;
 }});
-if(typeof _e=="string"&&_e){
-_e=[_e];
+if(typeof _d=="string"&&_d){
+_d=[_d];
 }
-if(_1.isArray(_e)){
-_1.forEach(_e,_16);
+if(_1.isArray(_d)){
+_1.forEach(_d,_16);
 }
 var _4f=_3.format,_50=_3._getZone;
 _3.format=function(_51,_52){

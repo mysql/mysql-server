@@ -1,14 +1,16 @@
-//>>built
 define("dojo/io-query", ["./_base/lang"], function(lang){
-	// module:
-	//		dojo/io-query
-	// summary:
-	//		This module defines query string processing functions.
 
-    var backstop = {};
+// module:
+//		dojo/io-query
 
-    function objectToQuery(/*Object*/ map){
-        // summary:
+var backstop = {};
+
+return {
+// summary:
+//		This module defines query string processing functions.
+
+	objectToQuery: function objectToQuery(/*Object*/ map){
+		// summary:
         //		takes a name/value mapping object and returns a string representing
         //		a URL-encoded version of that object.
         // example:
@@ -22,7 +24,7 @@ define("dojo/io-query", ["./_base/lang"], function(lang){
         //	|		]
         //	|	};
         //
-        // yields the following query string:
+        //		yields the following query string:
         //
         //	|	"blah=blah&multi=thud&multi=thonk"
 
@@ -42,9 +44,9 @@ define("dojo/io-query", ["./_base/lang"], function(lang){
             }
         }
         return pairs.join("&"); // String
-    }
+    },
 
-    function queryToObject(/*String*/ str){
+	queryToObject: function queryToObject(/*String*/ str){
         // summary:
         //		Create an object representing a de-serialized query section of a
         //		URL. Query keys with multiple values are returned in an array.
@@ -91,9 +93,5 @@ define("dojo/io-query", ["./_base/lang"], function(lang){
         }
         return ret; // Object
     }
-
-    return {
-        objectToQuery: objectToQuery,
-        queryToObject: queryToObject
-    };
+};
 });

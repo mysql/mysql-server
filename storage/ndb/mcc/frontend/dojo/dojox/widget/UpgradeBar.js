@@ -1,25 +1,19 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojo/window,dojo/fx,dojo/cookie,dijit/_Widget,dijit/_Templated"],function(_1,_2,_3){
-_2.provide("dojox.widget.UpgradeBar");
-_2.require("dojo.window");
-_2.require("dojo.fx");
-_2.require("dojo.cookie");
-_2.require("dijit._Widget");
-_2.require("dijit._Templated");
-_2.experimental("dojox.widget.UpgradeBar");
-_2.declare("dojox.widget.UpgradeBar",[_1._Widget,_1._Templated],{notifications:[],buttonCancel:"Close for now",noRemindButton:"Don't Remind Me Again",templateString:_2.cache("dojox.widget","UpgradeBar/UpgradeBar.html","<div class=\"dojoxUpgradeBar\">\n\t<div class=\"dojoxUpgradeBarMessage\" dojoAttachPoint=\"messageNode\">message</div>\n\t<div class=\"dojoxUpgradeBarReminderButton\" dojoAttachPoint=\"dontRemindButtonNode\" dojoAttachEvent=\"onclick:_onDontRemindClick\">${noRemindButton}</div>\n\t<span dojoAttachPoint=\"closeButtonNode\" class=\"dojoxUpgradeBarCloseIcon\" dojoAttachEvent=\"onclick: hide, onmouseenter: _onCloseEnter, onmouseleave: _onCloseLeave\" title=\"${buttonCancel}\"></span>\n</div>"),constructor:function(_4,_5){
-if(!_4.notifications&&_5){
-_2.forEach(_5.childNodes,function(n){
+define("dojox/widget/UpgradeBar",["dojo/_base/kernel","dojo/_base/array","dojo/_base/connect","dojo/_base/declare","dojo/_base/fx","dojo/_base/lang","dojo/_base/sniff","dojo/_base/window","dojo/dom-attr","dojo/dom-class","dojo/dom-construct","dojo/dom-geometry","dojo/dom-style","dojo/cache","dojo/cookie","dojo/domReady","dojo/fx","dojo/window","dijit/_WidgetBase","dijit/_TemplatedMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,_10,fx,win,_11,_12){
+_1.experimental("dojox.widget.UpgradeBar");
+var _13=_4("dojox.widget.UpgradeBar",[_11,_12],{notifications:[],buttonCancel:"Close for now",noRemindButton:"Don't Remind Me Again",templateString:_e("dojox.widget","UpgradeBar/UpgradeBar.html"),constructor:function(_14,_15){
+if(!_14.notifications&&_15){
+_2.forEach(_15.childNodes,function(n){
 if(n.nodeType==1){
-var _6=_2.attr(n,"validate");
+var val=_9.get(n,"validate");
 this.notifications.push({message:n.innerHTML,validate:function(){
-var _7=true;
+var _16=true;
 try{
-_7=_2.eval(_6);
+_16=_1.eval(val);
 }
 catch(e){
 }
-return _7;
+return _16;
 }});
 }
 },this);
@@ -29,8 +23,8 @@ if(!this.notifications.length){
 return;
 }
 for(var i=0;i<this.notifications.length;i++){
-var _8=this.notifications[i].validate();
-if(_8){
+var _17=this.notifications[i].validate();
+if(_17){
 this.notify(this.notifications[i].message);
 break;
 }
@@ -38,57 +32,58 @@ break;
 },postCreate:function(){
 this.inherited(arguments);
 if(this.domNode.parentNode){
-_2.style(this.domNode,"display","none");
+_d.set(this.domNode,"display","none");
 }
-_2.mixin(this.attributeMap,{message:{node:"messageNode",type:"innerHTML"}});
+_6.mixin(this.attributeMap,{message:{node:"messageNode",type:"innerHTML"}});
 if(!this.noRemindButton){
-_2.destroy(this.dontRemindButtonNode);
+_b.destroy(this.dontRemindButtonNode);
 }
-if(_2.isIE==6){
-var _9=this;
-var _a=function(){
-var v=_2.window.getBox();
-_2.style(_9.domNode,"width",v.w+"px");
+if(_7("ie")==6){
+var _18=this;
+var _19=function(){
+var v=win.getBox();
+_d.set(_18.domNode,"width",v.w+"px");
 };
 this.connect(window,"resize",function(){
-_a();
+_19();
 });
-_a();
+_19();
 }
-_2.addOnLoad(this,"checkNotifications");
-},notify:function(_b){
-if(_2.cookie("disableUpgradeReminders")){
+_10(_6.hitch(this,"checkNotifications"));
+},notify:function(msg){
+if(_f("disableUpgradeReminders")){
 return;
 }
 if(!this.domNode.parentNode||!this.domNode.parentNode.innerHTML){
 document.body.appendChild(this.domNode);
 }
-_2.style(this.domNode,"display","");
-if(_b){
-this.set("message",_b);
+_d.set(this.domNode,"display","");
+if(msg){
+this.set("message",msg);
 }
 },show:function(){
-this._bodyMarginTop=_2.style(_2.body(),"marginTop");
-this._size=_2.contentBox(this.domNode).h;
-_2.style(this.domNode,{display:"block",height:0,opacity:0});
+this._bodyMarginTop=_d.get(_8.body(),"marginTop");
+this._size=_c.getContentBox(this.domNode).h;
+_d.set(this.domNode,{display:"block",height:0,opacity:0});
 if(!this._showAnim){
-this._showAnim=_2.fx.combine([_2.animateProperty({node:_2.body(),duration:500,properties:{marginTop:this._bodyMarginTop+this._size}}),_2.animateProperty({node:this.domNode,duration:500,properties:{height:this._size,opacity:1}})]);
+this._showAnim=fx.combine([_5.animateProperty({node:_8.body(),duration:500,properties:{marginTop:this._bodyMarginTop+this._size}}),_5.animateProperty({node:this.domNode,duration:500,properties:{height:this._size,opacity:1}})]);
 }
 this._showAnim.play();
 },hide:function(){
 if(!this._hideAnim){
-this._hideAnim=_2.fx.combine([_2.animateProperty({node:_2.body(),duration:500,properties:{marginTop:this._bodyMarginTop}}),_2.animateProperty({node:this.domNode,duration:500,properties:{height:0,opacity:0}})]);
-_2.connect(this._hideAnim,"onEnd",this,function(){
-_2.style(this.domNode,"display","none");
+this._hideAnim=fx.combine([_5.animateProperty({node:_8.body(),duration:500,properties:{marginTop:this._bodyMarginTop}}),_5.animateProperty({node:this.domNode,duration:500,properties:{height:0,opacity:0}})]);
+_3.connect(this._hideAnim,"onEnd",this,function(){
+_d.set(this.domNode,{display:"none",opacity:1});
 });
 }
 this._hideAnim.play();
 },_onDontRemindClick:function(){
-_2.cookie("disableUpgradeReminders",true,{expires:3650});
+_f("disableUpgradeReminders",true,{expires:3650});
 this.hide();
 },_onCloseEnter:function(){
-_2.addClass(this.closeButtonNode,"dojoxUpgradeBarCloseIcon-hover");
+_a.add(this.closeButtonNode,"dojoxUpgradeBarCloseIcon-hover");
 },_onCloseLeave:function(){
-_2.removeClass(this.closeButtonNode,"dojoxUpgradeBarCloseIcon-hover");
+_a.remove(this.closeButtonNode,"dojoxUpgradeBarCloseIcon-hover");
 }});
+return _13;
 });

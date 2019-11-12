@@ -1,0 +1,122 @@
+# ==== Purpose ====
+#
+# Test that non-deterministic expressions in column default expressions invoked
+# via triggers, are correctly logged with BINLOG_FORMAT=MIXED.
+#
+# ==== Requirements ====
+#
+# R1. If a statement triggers another statement which may modify a table that
+#     has a column with a non-deterministic DEFAULT expression, the statement
+#     should be logged in ROW format when BINLOG_FORMAT is MIXED.
+#
+# R2. If none of the triggered statements modifies a table that has a
+#     non-deterministic DEFAULT expression, and the triggering statement is not
+#     unsafe by itself, the statement should be logged in STATEMENT format when
+#     BINLOG_FORMAT is MIXED.
+#
+# R3. If a statement directly modifies a table with a column that has a
+#     non-deterministic DEFAULT expression, and the statement provides an
+#     explicit value for the column, the statement should be logged in
+#     STATEMENT format when BINLOG_FORMAT is MIXED.
+#
+# ==== Implementation ====
+#
+# Test firing triggers which modify tables with non-deterministic column
+# defaults, and verify that they are logged in the row format.
+#
+# ==== References ====
+#
+# WL#9418: Permit default value to be a function or expression, support for LOBs
+# Bug#28297486: WL#9418: ERROR AND WARNING RELATED ISSUES
+#
+
+--source include/have_binlog_format_mixed.inc
+
+RESET MASTER;
+CREATE TABLE t1 (a DOUBLE DEFAULT (PI()),
+                 b DOUBLE DEFAULT (RAND()));
+CREATE TABLE t2 (x INT);
+CREATE TABLE t3 (y DOUBLE DEFAULT (PI()));
+
+--echo # Test R1.
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1 VALUES ();
+--source include/save_binlog_position.inc
+INSERT INTO t2 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
+--source include/assert_binlog_events.inc
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(a) VALUES (1);
+--source include/save_binlog_position.inc
+INSERT INTO t2 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
+--source include/assert_binlog_events.inc
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(b) VALUES (DEFAULT);
+--source include/save_binlog_position.inc
+INSERT INTO t2 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
+--source include/assert_binlog_events.inc
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(b) VALUES (1);
+--source include/save_binlog_position.inc
+INSERT INTO t2 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Write_rows # Xid
+--source include/assert_binlog_events.inc
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW UPDATE t1 SET a = DEFAULT;
+--source include/save_binlog_position.inc
+INSERT INTO t2 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid
+--source include/assert_binlog_events.inc
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW UPDATE t1 SET b = DEFAULT;
+--source include/save_binlog_position.inc
+INSERT INTO t2 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Table_map # Write_rows # Update_rows # Xid
+--source include/assert_binlog_events.inc
+DROP TRIGGER t2_trigger;
+
+--echo # Test R2.
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t3 VALUES ();
+# Logged in STATEMENT format, since the triggered statement does not touch a
+# table with any non-deterministic DEFAULT expressions.
+--source include/save_binlog_position.inc
+INSERT INTO t2 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Query # Xid
+--source include/assert_binlog_events.inc
+DROP TRIGGER t2_trigger;
+
+--echo # Test R3.
+
+# Logged in ROW format when the DEFAULT expression is used.
+--source include/save_binlog_position.inc
+INSERT INTO t1 VALUES ();
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
+--source include/assert_binlog_events.inc
+--source include/save_binlog_position.inc
+INSERT INTO t1 (b) VALUES (DEFAULT);
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
+--source include/assert_binlog_events.inc
+
+# Logged in STATEMENT format when the DEFAULT expression is not used.
+--source include/save_binlog_position.inc
+INSERT INTO t1 (b) VALUES (1);
+--let $event_sequence = !Gtid_or_anon # !Begin # RAND # Query # Xid
+--source include/assert_binlog_events.inc
+
+# Clean up
+DROP TABLE t1, t2, t3;

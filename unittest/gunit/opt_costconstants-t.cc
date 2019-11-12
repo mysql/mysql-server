@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,11 +73,11 @@ class CostConstantsTest : public ::testing::Test {
     initializer.SetUp();
 
     // Initilize some storage engines
-    LEX_STRING engine_name0 = {C_STRING_WITH_LEN("InnoDB0")};
-    LEX_STRING engine_name1 = {C_STRING_WITH_LEN("InnoDB1")};
-    LEX_STRING engine_name2 = {C_STRING_WITH_LEN("InnoDB2")};
-    LEX_STRING engine_name4 = {C_STRING_WITH_LEN("InnoDB4")};
-    LEX_STRING engine_name7 = {C_STRING_WITH_LEN("InnoDB7")};
+    LEX_CSTRING engine_name0 = {STRING_WITH_LEN("InnoDB0")};
+    LEX_CSTRING engine_name1 = {STRING_WITH_LEN("InnoDB1")};
+    LEX_CSTRING engine_name2 = {STRING_WITH_LEN("InnoDB2")};
+    LEX_CSTRING engine_name4 = {STRING_WITH_LEN("InnoDB4")};
+    LEX_CSTRING engine_name7 = {STRING_WITH_LEN("InnoDB7")};
 
     insert_hton2plugin(0, new st_plugin_int())->name = engine_name0;
     insert_hton2plugin(1, new st_plugin_int())->name = engine_name1;

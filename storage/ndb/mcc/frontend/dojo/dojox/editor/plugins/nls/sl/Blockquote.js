@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"blockquote": "Blokovno besedilo"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/sl/Blockquote",({"blockquote":"Blokovno besedilo"}));

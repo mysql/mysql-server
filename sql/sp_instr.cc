@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,12 +75,10 @@
 #include "sql/trigger_def.h"
 #include "unsafe_string_append.h"
 
-class Cmp_splocal_locations
-    : public std::binary_function<const Item_splocal *, const Item_splocal *,
-                                  bool> {
+class Cmp_splocal_locations {
  public:
   bool operator()(const Item_splocal *a, const Item_splocal *b) {
-    DBUG_ASSERT(a->pos_in_query != b->pos_in_query);
+    DBUG_ASSERT(a == b || a->pos_in_query != b->pos_in_query);
     return a->pos_in_query < b->pos_in_query;
   }
 };
@@ -187,7 +185,7 @@ class Cmp_splocal_locations
 
   @retval true in case of out of memory error.
 */
-static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
+static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   // Stack-local array, does not need instrumentation.
   Prealloced_array<Item_splocal *, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
@@ -211,7 +209,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
   char buffer[512];
   String qbuf(buffer, sizeof(buffer), &my_charset_bin);
   qbuf.length(0);
-  char *cur = query_str->str;
+  const char *cur = query_str.str;
   int prev_pos = 0;
   int res = 0;
   thd->query_name_consts = 0;
@@ -255,7 +253,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
 
     thd->query_name_consts++;
   }
-  if (res || qbuf.append(cur + prev_pos, query_str->length - prev_pos))
+  if (res || qbuf.append(cur + prev_pos, query_str.length - prev_pos))
     return true;
 
   char *pbuf;
@@ -270,10 +268,10 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
   return false;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // Sufficient max length of printed destinations and frame offsets (all
-  // uints).
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// Sufficient max length of printed destinations and frame offsets (all
+// uints).
+///////////////////////////////////////////////////////////////////////////
 
 #define SP_INSTR_UINT_MAXLEN 8
 #define SP_STMT_PRINT_MAXLEN 40
@@ -800,7 +798,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd) {
 }
 
 void sp_lex_instr::get_query(String *sql_query) const {
-  LEX_STRING expr_query = this->get_expr_query();
+  LEX_CSTRING expr_query = get_expr_query();
 
   if (!expr_query.str) {
     sql_query->length(0);
@@ -811,9 +809,9 @@ void sp_lex_instr::get_query(String *sql_query) const {
   sql_query->append(expr_query.str, expr_query.length);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_stmt implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_stmt implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_stmt::psi_info = {0, "stmt", 0, PSI_DOCUMENT_ME};
@@ -825,7 +823,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 
   DBUG_PRINT("info", ("query: '%.*s'", (int)m_query.length, m_query.str));
 
-  MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, m_query.str, m_query.length);
+  thd->set_query_for_display(m_query.str, m_query.length);
 
   const LEX_CSTRING query_backup = thd->query();
 
@@ -876,7 +874,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     If we need to do a substitution but can't (OOM), give up.
   */
 
-  if (need_subst && subst_spvars(thd, this, &m_query)) return true;
+  if (need_subst && subst_spvars(thd, this, m_query)) return true;
 
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF) == 0))
     query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
@@ -898,7 +896,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
       unlikely event of subst_spvars() failing (OOM), we'll try to log
       the unmodified statement instead.
     */
-    if (!need_subst) rc = subst_spvars(thd, this, &m_query);
+    if (!need_subst) rc = subst_spvars(thd, this, m_query);
     /*
       We currently do not support --log-slow-extra for this case,
       and therefore pass in a null-pointer instead of a pointer to
@@ -964,9 +962,9 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp) {
   return rc;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_set implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_set implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_set::psi_info = {0, "set", 0, PSI_DOCUMENT_ME};
@@ -1006,9 +1004,9 @@ void sp_instr_set::print(const THD *thd, String *str) {
   m_value_item->print(thd, str, QT_TO_ARGUMENT_CHARSET);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_set_trigger_field implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_set_trigger_field implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_set_trigger_field::psi_info = {
@@ -1068,9 +1066,9 @@ void sp_instr_set_trigger_field::cleanup_before_parsing(THD *thd) {
   m_trigger_field = NULL;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_jump implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_jump implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_jump::psi_info = {0, "jump", 0, PSI_DOCUMENT_ME};
@@ -1114,9 +1112,9 @@ void sp_instr_jump::opt_move(uint dst, List<sp_branch_instr> *bp) {
   m_ip = dst;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_jump_if_not class implementation
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_jump_if_not class implementation
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_jump_if_not::psi_info = {0, "jump_if_not", 0,
@@ -1196,9 +1194,9 @@ void sp_lex_branch_instr::opt_move(uint dst, List<sp_branch_instr> *bp) {
   m_ip = dst;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_jump_case_when implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_jump_case_when implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_jump_case_when::psi_info = {0, "jump_case_when", 0,
@@ -1268,9 +1266,9 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   return false;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_freturn implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_freturn implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_freturn::psi_info = {0, "freturn", 0,
@@ -1306,9 +1304,9 @@ void sp_instr_freturn::print(const THD *thd, String *str) {
   m_expr_item->print(thd, str, QT_ORDINARY);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_hpush_jump implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_hpush_jump implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_hpush_jump::psi_info = {0, "hpush_jump", 0,
@@ -1381,9 +1379,9 @@ uint sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads) {
   return get_ip() + 1;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_hpop implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_hpop implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_hpop::psi_info = {0, "hpop", 0, PSI_DOCUMENT_ME};
@@ -1395,9 +1393,9 @@ bool sp_instr_hpop::execute(THD *thd, uint *nextp) {
   return false;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_hreturn implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_hreturn implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_hreturn::psi_info = {0, "hreturn", 0,
@@ -1459,9 +1457,9 @@ uint sp_instr_hreturn::opt_mark(sp_head *, List<sp_instr> *) {
   return UINT_MAX;
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_cpush implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_cpush implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_cpush::psi_info = {0, "cpush", 0, PSI_DOCUMENT_ME};
@@ -1502,9 +1500,9 @@ void sp_instr_cpush::print(const THD *, String *str) {
   qs_append(m_cursor_query.str, m_cursor_query.length, str);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_cpop implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_cpop implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_cpop::psi_info = {0, "cpop", 0, PSI_DOCUMENT_ME};
@@ -1524,9 +1522,9 @@ void sp_instr_cpop::print(const THD *, String *str) {
   qs_append(m_count, str);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_copen implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_copen implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_copen::psi_info = {0, "copen", 0, PSI_DOCUMENT_ME};
@@ -1589,9 +1587,9 @@ void sp_instr_copen::print(const THD *, String *str) {
   qs_append(m_cursor_idx, str);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_cclose implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_cclose implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_cclose::psi_info = {0, "cclose", 0,
@@ -1625,9 +1623,9 @@ void sp_instr_cclose::print(const THD *, String *str) {
   qs_append(m_cursor_idx, str);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_cfetch implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_cfetch implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_cfetch::psi_info = {0, "cfetch", 0,
@@ -1670,9 +1668,9 @@ void sp_instr_cfetch::print(const THD *, String *str) {
   }
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_error implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_error implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_error::psi_info = {0, "error", 0, PSI_DOCUMENT_ME};
@@ -1685,9 +1683,9 @@ void sp_instr_error::print(const THD *, String *str) {
   qs_append(m_errcode, str);
 }
 
-  ///////////////////////////////////////////////////////////////////////////
-  // sp_instr_set_case_expr implementation.
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// sp_instr_set_case_expr implementation.
+///////////////////////////////////////////////////////////////////////////
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_statement_info sp_instr_set_case_expr::psi_info = {0, "set_case_expr", 0,

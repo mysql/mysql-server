@@ -9,15 +9,9 @@ var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
 var gr_node_host = "127.0.0.1";
-var gr_node_state = "ONLINE";
 
 var group_replication_membership_online =
-  gr_memberships.single_host(gr_node_host, [
-    [ process.env.PRIMARY_PORT, "ONLINE" ],
-    [ process.env.SECONDARY_1_PORT, "ONLINE" ],
-    [ process.env.SECONDARY_2_PORT, "ONLINE" ],
-    [ process.env.SECONDARY_3_PORT, "ONLINE" ],
-  ]);
+  gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
 
 var options = {
   group_replication_membership: group_replication_membership_online,

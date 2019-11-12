@@ -1,0 +1,85 @@
+Connected to server1 as root
+CREATE DATABASE auth_test_db;
+USE auth_test_db;
+CREATE TABLE t1 (i int primary key not null) engine = ndb;
+CREATE TABLE t2 (i int primary key not null) engine = ndb;
+CREATE TABLE t3 (i int primary key not null) engine = ndb;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1),(2);
+INSERT INTO t3 VALUES(1),(2),(3);
+CREATE USER local_u1@a, local_u2@a, local_u3@a, local_u4@a, local_u5@a;
+CREATE ROLE L1, L2, L3;
+CREATE USER ndb_u1@a;
+CREATE USER ndb_u2@a IDENTIFIED BY 'Helsinki';
+CREATE USER ndb_u3@a, ndb_u4@a, ndb_u5@a, ndb_u6@a;
+CREATE USER ndb_u7@a IDENTIFIED BY 'pass7';
+CREATE ROLE R1, R2, R3;
+GRANT NDB_STORED_USER ON *.* to ndb_u1@a;
+GRANT NDB_STORED_USER ON *.* to ndb_u2@a, ndb_u3@a, ndb_u4@a;
+GRANT ALL ON *.* TO ndb_u5@a;
+GRANT NDB_STORED_USER ON *.* to ndb_u6@a, ndb_u7@a;
+GRANT NDB_STORED_USER ON *.* TO R1, R2, R3;
+GRANT SELECT, INSERT, DELETE ON auth_test_db.t2 to R2;
+GRANT R3 to ndb_u3@a;
+GRANT L3 to local_u3@a;
+GRANT R2 TO ndb_u2@a, local_u2@a;
+GRANT SELECT,INSERT,DELETE ON auth_test_db.t2 to R3, L3;
+GRANT SELECT ON auth_test_db.t1 to ndb_u1@a;
+GRANT SELECT ON auth_test_db.t1 to local_u1@a;
+GRANT INSERT ON auth_test_db.t1 to local_u2@a;
+GRANT SELECT,INSERT ON auth_test_db.t1 to ndb_u2@a,  ndb_u3@a, local_u3@a;
+GRANT ALL ON auth_test_db.* to ndb_u4@a;
+GRANT UPDATE ON auth_test_db.t2 to ndb_u2@a;
+ALTER USER ndb_u5@a IDENTIFIED BY 'pass5';
+ALTER USER local_u5@a IDENTIFIED BY 'pass5';
+ALTER USER ndb_u4@a IDENTIFIED BY 'pass4', local_u4@a IDENTIFIED BY 'pass4';
+ALTER USER ndb_u3@a DEFAULT ROLE R3;
+ALTER USER local_u3@a DEFAULT ROLE L3;
+SET DEFAULT ROLE R2 TO ndb_u2@a, local_u2@a;
+SET PASSWORD FOR local_u3@a = 'Trondheim';
+SET PASSWORD FOR ndb_u3@a = 'Uppsala';
+REVOKE INSERT ON auth_test_db.t1 FROM local_u3@a;
+REVOKE INSERT ON t1 FROM ndb_u3@a;
+REVOKE SELECT ON auth_test_db.t1 FROM ndb_u2@a, local_u2@a;
+REVOKE ALL, GRANT OPTION FROM ndb_u1@a, local_u1@a;
+REVOKE NDB_STORED_USER ON *.* FROM ndb_u6@a;
+DROP ROLE R1;
+DROP ROLE L1;
+DROP ROLE R2, L2;
+DROP USER ndb_u1@a, ndb_u7@a;
+RENAME USER ndb_u3@a TO bob@a, ndb_u2@a TO Monty@localhost, bob@a TO ndb_u2@a;
+RENAME USER ndb_u2@a TO David@localhost;
+RENAME USER ndb_u4@a TO ndb_u4@localhost;
+RENAME USER local_u2@a TO local_u2@localhost;
+RENAME USER ndb_u5@a TO ndb_u5@localhost, local_u5@a TO local_u5@localhost;
+CREATE TABLE ib_table (pk INT PRIMARY KEY, a INT) engine = innodb;
+INSERT INTO ib_table VALUES(0,0),(1,1),(2,2);
+GRANT SELECT ON ib_table TO R3;
+REVOKE SELECT ON ib_table FROM R3;
+GRANT SELECT ON nonexistent_table TO R3;
+ERROR 42S02: Table 'auth_test_db.nonexistent_table' doesn't exist
+REVOKE SELECT ON nonexistent_table FROM R3;
+ERROR 42000: There is no such grant defined for user 'R3' on host '%' on table 'nonexistent_table'
+DELETE FROM t2 where i=3;
+ERROR 42000: DELETE command denied to user 'Monty'@'localhost' for table 't2'
+SELECT * FROM t1;
+ERROR 42000: SELECT command denied to user 'Monty'@'localhost' for table 't1'
+INSERT INTO t1 values (2);
+DELETE FROM t2 where i=3;
+SELECT * FROM t1 ORDER BY i;
+i
+1
+2
+INSERT INTO t1 values (45);
+ERROR 42000: INSERT command denied to user 'David'@'localhost' for table 't1'
+DROP TABLE t1;
+DROP TABLE t2, t3;
+DROP USER ndb_u1@a, ndb_u6@a;
+DROP DATABASE auth_test_db;
+DROP USER local_u1@a, local_u3@a, local_u4@a;
+DROP USER local_u2@localhost, local_u5@localhost;
+DROP ROLE L3;
+DROP USER Monty@localhost, David@localhost;
+DROP USER ndb_u4@localhost, ndb_u5@localhost;
+DROP USER ndb_u6@a;
+DROP ROLE R3;

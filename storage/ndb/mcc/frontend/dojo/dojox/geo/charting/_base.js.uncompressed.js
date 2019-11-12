@@ -1,15 +1,34 @@
-//>>built
-define("dojox/geo/charting/_base", ["dojo/_base/lang","dojo/_base/array","../../main", "dojo/_base/html","dojo/dom-geometry",
-		"dojox/gfx/matrix","dijit/Tooltip","dojo/_base/NodeList","dojo/NodeList-traverse"],
-  function(lang, arr, dojox, html, domGeom, matrix, Tooltip, NodeList, NodeListTraverse) {
+define("dojox/geo/charting/_base", [
+	"dojo/_base/lang",
+	"dojo/_base/array",
+	"../../main",
+	"dojo/_base/html",
+	"dojo/dom-geometry",
+	"dojox/gfx/matrix",
+	"dijit/Tooltip",
+	"dojo/_base/NodeList",
+	"dojo/NodeList-traverse"
+], function(lang, arr, dojox, html, domGeom, matrix, Tooltip, NodeList, NodeListTraverse){
 	var dgc = lang.getObject("geo.charting", true, dojox); 
 
-	dgc.showTooltip = function(/*String*/innerHTML, /*dojox.gfx.shape*/ gfxObject, /*String[]?*/ positions){
+	dgc.showTooltip = function(/*String*/innerHTML, /*dojox/gfx/shape.Shape*/ gfxObject, /*String[]?*/ positions){
+		// summary:
+		//		Show a Tooltip displaying the given HTML message around the given gfx shape.
+		// innerHTML: String
+		//		The message to display as a HTML string.
+		// gfxObject: dojox/gfx/shape.Shape
+		//		The gfx shape around which the tooltip will be placed.
+		// position: String[]?
+		//		The tooltip position.
 		var arroundNode = dgc._normalizeArround(gfxObject);
 		return Tooltip.show(innerHTML, arroundNode, positions);
 	};
 
-	dgc.hideTooltip = function( /*dojox.gfx.shape*/gfxObject){
+	dgc.hideTooltip = function( /*dojox/gfx/shape.Shape*/gfxObject){
+		// summary:
+		//		Hides the tooltip displayed around the given shape.
+		// gfxObject: dojox.gfx.shape.Shape
+		//		A gfx shape.
 		return Tooltip.hide(gfxObject);
 	};
 
@@ -28,9 +47,9 @@ define("dojox/geo/charting/_base", ["dojo/_base/lang","dojo/_base/array","../../
 	};
 
 	dgc._getGfxContainer = function(gfxObject){
-		if (gfxObject.surface) {
+		if(gfxObject.surface){
 			return (new NodeList(gfxObject.surface.rawNode)).parents("div")[0];
-		} else {
+		}else{
 			return (new NodeList(gfxObject.rawNode)).parents("div")[0];
 		}
 	};
@@ -52,4 +71,6 @@ define("dojox/geo/charting/_base", ["dojo/_base/lang","dojo/_base/array","../../
 		}
 		return bboxObject;
 	};
+	
+	return dgc;
 });

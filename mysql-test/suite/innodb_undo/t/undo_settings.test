@@ -333,7 +333,7 @@ SELECT COUNT(*) FROM t3;
 let $restart_parameters = restart: --innodb_read_only  --innodb_rollback_segments=8;
 --source include/restart_mysqld.inc
 disconnect con1;
---error ER_OPEN_AS_READONLY
+--error ER_READ_ONLY_MODE
 CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 SHOW GLOBAL STATUS LIKE '%undo%';

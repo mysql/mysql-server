@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/Data", ["dijit","dojo","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/ml/util"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/Data", ["dojo","dijit","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/ml/util"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.Data");
 
 dojo.require("dijit._Widget");
@@ -8,29 +7,29 @@ dojo.require("dijit._Container");
 dojo.require("dojox.wire.ml.util");
 
 dojo.declare("dojox.wire.ml.Data", [dijit._Widget, dijit._Container], {
-	//	summary:
+	// summary:
 	//		A widget for a data object
-	//	description:
+	// description:
 	//		This widget represents an object with '_properties' property.
 	//		If child 'DataProperty' widgets exist, they are used to initialize
 	//		propertiy values of '_properties' object.
 
 	startup: function(){
-		//	summary:
+		// summary:
 		//		Call _initializeProperties()
-		//	description:
+		// description:
 		//		See _initializeProperties().
 		this._initializeProperties();
 	},
 
 	_initializeProperties: function(/*Boolean*/reset){
-		//	summary:
+		// summary:
 		//		Initialize a data object
-		//	description:
+		// description:
 		//		If this widget has child DataProperty widgets, their getValue()
 		//		methods are called and set the return value to a property
 		//		specified by 'name' attribute of the child widgets.
-		//	reset:
+		// reset:
 		//		A boolean to reset current properties
 		if(!this._properties || reset){
 			this._properties = {};
@@ -45,36 +44,36 @@ dojo.declare("dojox.wire.ml.Data", [dijit._Widget, dijit._Container], {
 	},
 
 	getPropertyValue: function(/*String*/property){
-		//	summary:
+		// summary:
 		//		Return a property value
-		//	description:
+		// description:
 		//		This method returns the value of a property, specified with
 		//		'property' argument, in '_properties' object.
-		//	property:
+		// property:
 		//		A property name
-		//	returns:
+		// returns:
 		//		A property value
 		return this._properties[property]; //anything
 	},
 
 	setPropertyValue: function(/*String*/property, /*anything*/value){
-		//	summary:
+		// summary:
 		//		Store a property value
-		//	description:
+		// description:
 		//		This method stores 'value' as a property, specified with
 		//		'property' argument, in '_properties' object.
-		//	property:
+		// property:
 		//		A property name
-		//	value:
+		// value:
 		//		A property value
 		this._properties[property] = value;
 	}
 });
 
 dojo.declare("dojox.wire.ml.DataProperty", [dijit._Widget, dijit._Container], {
-	//	summary:
+	// summary:
 	//		A widget to define a data property
-	//	description:
+	// description:
 	//		Attributes of this widget are used to add a property to the parent
 	//		Data widget.
 	//		'type' attribute specifies one of "string", "number", "boolean",
@@ -82,11 +81,11 @@ dojo.declare("dojox.wire.ml.DataProperty", [dijit._Widget, dijit._Container], {
 	//		(default to "string").
 	//		If 'type' is "array" or "object", child DataProperty widgets are
 	//		used to initialize the array elements or the object properties.
-	//	name:
+	// name:
 	//		A property name
-	//	type:
+	// type:
 	//		A property type name
-	//	value:
+	// value:
 	//		A property value
 	name: "",
 	type: "",
@@ -97,13 +96,13 @@ dojo.declare("dojox.wire.ml.DataProperty", [dijit._Widget, dijit._Container], {
 	},
 
 	getValue: function(){
-		//	summary:
+		// summary:
 		//		Returns a property value
-		//	description:
+		// description:
 		//		If 'type' is specified, 'value' attribute is converted to
 		//		the specified type and returned.
 		//		Otherwise, 'value' attribute is returned as is.
-		//	returns:
+		// returns:
 		//		A property value
 		var value = this.value;
 		if(this.type){

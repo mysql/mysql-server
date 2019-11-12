@@ -41,3 +41,95 @@ DROP TABLE t1;
 
 # End of 5.1 tests
 
+--echo #
+--echo # Bug#29027883 INCORRECT RESULT OF LEFT JOIN
+--echo #
+
+# test the special, documented behaviour of "not-nullable-DATE-column
+# IS NULL"
+
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_key INT NOT NULL,
+col_date_key date NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key)
+) ENGINE=MyISAM;
+INSERT IGNORE INTO t1 VALUES (14,4,'0000-00-00'), (15,2,'2003-01-13'),
+(16,5,'2006-07-07'), (17,3,'0000-00-00');
+CREATE TABLE t2 (
+pk INT NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1), (2), (3);
+
+CREATE TABLE t3(pk INT NOT NULL);
+
+INSERT INTO t3 VALUES(3),(3);
+
+select * from t3 left join
+(t2 outr2 join t2 outr join t1)
+on (outr.pk = t3.pk) and (t1.col_int_key = t3.pk) and isnull(t1.col_date_key)
+and (outr2.pk <> t3.pk) ;
+
+select * from t3 join
+(t2 outr2 join t2 outr join t1)
+on (outr.pk = t3.pk) and (t1.col_int_key = t3.pk) and isnull(t1.col_date_key)
+and (outr2.pk <> t3.pk) ;
+
+delete from t3;
+INSERT INTO t3 VALUES(3);
+
+# Special behaviour is:
+
+# enabled in WHERE
+let $query=
+select * from t3, t1 where t1.col_date_key is null;
+
+eval EXPLAIN $query;
+eval $query;
+
+# disabled in [LEFT] JOIN ON
+let $query=
+select * from t3 join t1 on t1.col_date_key is null;
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+select * from t3 left join t1 on t1.col_date_key is null;
+
+eval EXPLAIN $query;
+eval $query;
+
+# Combine both:
+let $query=
+select * from t3 left join t1 on t1.col_date_key is null
+where t1.col_date_key is null;
+
+eval EXPLAIN $query;
+eval $query;
+
+# disabled in IS NOT NULL
+let $query=
+select * from t3, t1 where t1.col_date_key is not null;
+
+eval EXPLAIN $query;
+eval $query;
+
+# disabled in NOT (IS NULL)
+let $query=
+select * from t3, t1 where not (t1.col_date_key is null);
+
+eval EXPLAIN $query;
+eval $query;
+
+# enabled in (IS NULL) IS TRUE
+let $query=
+select * from t3, t1 where (t1.col_date_key is null) is true;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;

@@ -1,12 +1,13 @@
-//>>built
 define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array","dojo/_base/Color", "./_base","./svg","./matrix"], 
   function(kernel, lang, arr, Color, g, svg, Matrix){
 
 	kernel.experimental("dojox.gfx.svg_attach");
 	
 	svg.attachNode = function(node){
-		// summary: creates a shape from a Node
-		// node: Node: an SVG node
+		// summary:
+		//		creates a shape from a Node
+		// node: Node
+		//		an SVG node
 		if(!node){
 			return null;
 		}
@@ -61,25 +62,29 @@ define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_b
 			attachStroke(s);
 		}
 		attachTransform(s);
-		return s;	// dojox.gfx.Shape
+		return s;	// dojox/gfx/shape.Shape
 	};
 
 	svg.attachSurface = function(node){
-		// summary: creates a surface from a Node
-		// node: Node: an SVG node
+		// summary:
+		//		creates a surface from a Node
+		// node: Node
+		//		an SVG node
 		var s = new svg.Surface();
 		s.rawNode = node;
 		var def_elems = node.getElementsByTagName("defs");
 		if(def_elems.length == 0){
-			return null;	// dojox.gfx.Surface
+			return null;	// dojox/gfx.Surface
 		}
 		s.defNode = def_elems[0];
-		return s;	// dojox.gfx.Surface
+		return s;	// dojox/gfx.Surface
 	};
 
 	function attachFill(object){
-		// summary: deduces a fill style from a node.
-		// object: dojox.gfx.Shape: an SVG shape
+		// summary:
+		//		deduces a fill style from a node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
 		var fill = object.rawNode.getAttribute("fill");
 		if(fill == "none"){
 			object.fillStyle = null;
@@ -132,8 +137,10 @@ define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_b
 	}
 
 	function attachStroke(object){
-		// summary: deduces a stroke style from a node.
-		// object: dojox.gfx.Shape: an SVG shape
+		// summary:
+		//		deduces a stroke style from a node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
 		var rawNode = object.rawNode, stroke = rawNode.getAttribute("stroke");
 		if(stroke == null || stroke == "none"){
 			object.strokeStyle = null;
@@ -155,8 +162,10 @@ define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_b
 	}
 
 	function attachTransform(object){
-		// summary: deduces a transformation matrix from a node.
-		// object: dojox.gfx.Shape: an SVG shape
+		// summary:
+		//		deduces a transformation matrix from a node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
 		var matrix = object.rawNode.getAttribute("transform");
 		if(matrix.match(/^matrix\(.+\)$/)){
 			var t = matrix.slice(7, -1).split(",");
@@ -171,8 +180,10 @@ define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_b
 	}
 
 	function attachFont(object){
-		// summary: deduces a font style from a Node.
-		// object: dojox.gfx.Shape: an SVG shape
+		// summary:
+		//		deduces a font style from a Node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
 		var fontStyle = object.fontStyle = lang.clone(g.defaultFont),
 			r = object.rawNode;
 		fontStyle.style = r.getAttribute("font-style");
@@ -183,9 +194,12 @@ define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_b
 	}
 
 	function attachShape(object, def){
-		// summary: builds a shape from a node.
-		// object: dojox.gfx.Shape: an SVG shape
-		// def: Object: a default shape template
+		// summary:
+		//		builds a shape from a node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
+		// def: Object
+		//		a default shape template
 		var shape = object.shape = lang.clone(def), r = object.rawNode;
 		for(var i in shape) {
 			shape[i] = r.getAttribute(i);
@@ -193,15 +207,19 @@ define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_b
 	}
 
 	function attachRect(object){
-		// summary: builds a rectangle shape from a node.
-		// object: dojox.gfx.Shape: an SVG shape
+		// summary:
+		//		builds a rectangle shape from a node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
 		attachShape(object, g.defaultRect);
 		object.shape.r = Math.min(object.rawNode.getAttribute("rx"), object.rawNode.getAttribute("ry"));
 	}
 
 	function attachText(object){
-		// summary: builds a text shape from a node.
-		// object: dojox.gfx.Shape: an SVG shape
+		// summary:
+		//		builds a text shape from a node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
 		var shape = object.shape = lang.clone(g.defaultText),
 			r = object.rawNode;
 		shape.x = r.getAttribute("x");
@@ -214,8 +232,10 @@ define("dojox/gfx/svg_attach", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_b
 	}
 
 	function attachTextPath(object){
-		// summary: builds a textpath shape from a node.
-		// object: dojox.gfx.Shape: an SVG shape
+		// summary:
+		//		builds a textpath shape from a node.
+		// object: dojox/gfx/shape.Shape
+		//		an SVG shape
 		var shape = object.shape = lang.clone(g.defaultTextPath),
 			r = object.rawNode;
 		shape.align = r.getAttribute("text-anchor");

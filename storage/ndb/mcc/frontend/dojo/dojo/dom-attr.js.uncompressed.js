@@ -1,23 +1,48 @@
-//>>built
-define("dojo/dom-attr", ["exports", "./_base/sniff", "./_base/lang", "./dom", "./dom-style", "./dom-prop"],
+define("dojo/dom-attr", ["exports", "./sniff", "./_base/lang", "./dom", "./dom-style", "./dom-prop"],
 		function(exports, has, lang, dom, style, prop){
 	// module:
 	//		dojo/dom-attr
 	// summary:
 	//		This module defines the core dojo DOM attributes API.
 
+	// TODOC: summary not showing up in output see https://github.com/csnover/js-doc-parse/issues/42
+
 	// =============================
 	// Element attribute Functions
 	// =============================
 
-	// This module will be obsolete soon. Use dojo.prop instead.
+	// This module will be obsolete soon. Use dojo/prop instead.
 
 	// dojo.attr() should conform to http://www.w3.org/TR/DOM-Level-2-Core/
 
 	// attribute-related functions (to be obsolete soon)
 
-	/*=====
-	dojo.hasAttr = function(node, name){
+	var forcePropNames = {
+			innerHTML:	1,
+			className:	1,
+			htmlFor:	has("ie"),
+			value:		1
+		},
+		attrNames = {
+			// original attribute names
+			classname: "class",
+			htmlfor: "for",
+			// for IE
+			tabindex: "tabIndex",
+			readonly: "readOnly"
+		};
+
+	function _hasAttr(node, name){
+		var attr = node.getAttributeNode && node.getAttributeNode(name);
+		return !!attr && attr.specified; // Boolean
+	}
+
+	// There is a difference in the presence of certain properties and their default values
+	// between browsers. For example, on IE "disabled" is present on all elements,
+	// but it is value is "false"; "tabIndex" of <div> returns 0 by default on IE, yet other browsers
+	// can return -1.
+
+	exports.has = function hasAttr(/*DOMNode|String*/ node, /*String*/ name){
 		// summary:
 		//		Returns true if the requested attribute is specified on the
 		//		given element, and false otherwise.
@@ -28,11 +53,12 @@ define("dojo/dom-attr", ["exports", "./_base/sniff", "./_base/lang", "./dom", ".
 		// returns: Boolean
 		//		true if the requested attribute is specified on the
 		//		given element, and false otherwise
-	};
-	=====*/
 
-	/*=====
-	dojo.getAttr = function(node, name){
+		var lc = name.toLowerCase();
+		return forcePropNames[prop.names[lc] || name] || _hasAttr(dom.byId(node), attrNames[lc] || name);	// Boolean
+	};
+
+	exports.get = function getAttr(/*DOMNode|String*/ node, /*String*/ name){
 		// summary:
 		//		Gets an attribute on an HTML element.
 		// description:
@@ -50,11 +76,28 @@ define("dojo/dom-attr", ["exports", "./_base/sniff", "./_base/lang", "./dom", ".
 		//	|	dojo.getAttr(dojo.byId("nodeId"), "foo");
 		//	|	// or we can just pass the id:
 		//	|	dojo.getAttr("nodeId", "foo");
-	};
-	=====*/
 
-	/*=====
-	dojo.setAttr = function(node, name, value){
+		node = dom.byId(node);
+		var lc = name.toLowerCase(),
+			propName = prop.names[lc] || name,
+			forceProp = forcePropNames[propName],
+			value = node[propName];		// should we access this attribute via a property or via getAttribute()?
+
+		if(forceProp && typeof value != "undefined"){
+			// node's property
+			return value;	// Anything
+		}
+		if(propName != "href" && (typeof value == "boolean" || lang.isFunction(value))){
+			// node's property
+			return value;	// Anything
+		}
+		// node's attribute
+		// we need _hasAttr() here to guard against IE returning a default value
+		var attrName = attrNames[lc] || name;
+		return _hasAttr(node, attrName) ? node.getAttribute(attrName) : null; // Anything
+	};
+
+	exports.set = function setAttr(/*DOMNode|String*/ node, /*String|Object*/ name, /*String?*/ value){
 		// summary:
 		//		Sets an attribute on an HTML element.
 		// description:
@@ -118,85 +161,7 @@ define("dojo/dom-attr", ["exports", "./_base/sniff", "./_base/lang", "./dom", ".
 		//	|
 		//	|	// though shorter to use `dojo.style()` in this case:
 		//	|	dojo.setStyle("someNode", obj);
-	};
-	=====*/
 
-	/*=====
-	dojo.removeAttr = function(node, name){
-		// summary:
-		//		Removes an attribute from an HTML element.
-		// node: DOMNode|String
-		//		id or reference to the element to remove the attribute from
-		// name: String
-		//		the name of the attribute to remove
-	};
-	=====*/
-
-	/*=====
-	dojo.getNodeProp = function(node, name){
-		// summary:
-		//		Returns an effective value of a property or an attribute.
-		// node: DOMNode|String
-		//		id or reference to the element to remove the attribute from
-		// name: String
-		//		the name of the attribute
-		// returns:
-		//      the value of the attribute
-	};
-	=====*/
-
-	var forcePropNames = {
-			innerHTML:	1,
-			className:	1,
-			htmlFor:	has("ie"),
-			value:		1
-		},
-		attrNames = {
-			// original attribute names
-			classname: "class",
-			htmlfor: "for",
-			// for IE
-			tabindex: "tabIndex",
-			readonly: "readOnly"
-		};
-
-	function _hasAttr(node, name){
-		var attr = node.getAttributeNode && node.getAttributeNode(name);
-		return attr && attr.specified; // Boolean
-	}
-
-	// There is a difference in the presence of certain properties and their default values
-	// between browsers. For example, on IE "disabled" is present on all elements,
-	// but it is value is "false"; "tabIndex" of <div> returns 0 by default on IE, yet other browsers
-	// can return -1.
-
-	exports.has = function hasAttr(/*DOMNode|String*/node, /*String*/name){
-		var lc = name.toLowerCase();
-		return forcePropNames[prop.names[lc] || name] || _hasAttr(dom.byId(node), attrNames[lc] || name);	// Boolean
-	};
-
-	exports.get = function getAttr(/*DOMNode|String*/node, /*String*/name){
-		node = dom.byId(node);
-		var lc = name.toLowerCase(),
-			propName = prop.names[lc] || name,
-			forceProp = forcePropNames[propName];
-		// should we access this attribute via a property or via getAttribute()?
-		value = node[propName];
-		if(forceProp && typeof value != "undefined"){
-			// node's property
-			return value;	// Anything
-		}
-		if(propName != "href" && (typeof value == "boolean" || lang.isFunction(value))){
-			// node's property
-			return value;	// Anything
-		}
-		// node's attribute
-		// we need _hasAttr() here to guard against IE returning a default value
-		var attrName = attrNames[lc] || name;
-		return _hasAttr(node, attrName) ? node.getAttribute(attrName) : null; // Anything
-	};
-
-	exports.set = function setAttr(/*DOMNode|String*/node, /*String|Object*/name, /*String?*/value){
 		node = dom.byId(node);
 		if(arguments.length == 2){ // inline'd type check
 			// the object form of setter: the 2nd argument is a dictionary
@@ -214,7 +179,7 @@ define("dojo/dom-attr", ["exports", "./_base/sniff", "./_base/lang", "./dom", ".
 			return node; // DomNode
 		}
 		if(forceProp || typeof value == "boolean" || lang.isFunction(value)){
-			return prop.set(node, name, value)
+			return prop.set(node, name, value);
 		}
 		// node's attribute
 		node.setAttribute(attrNames[lc] || name, value);
@@ -222,10 +187,26 @@ define("dojo/dom-attr", ["exports", "./_base/sniff", "./_base/lang", "./dom", ".
 	};
 
 	exports.remove = function removeAttr(/*DOMNode|String*/ node, /*String*/ name){
+		// summary:
+		//		Removes an attribute from an HTML element.
+		// node: DOMNode|String
+		//		id or reference to the element to remove the attribute from
+		// name: String
+		//		the name of the attribute to remove
+
 		dom.byId(node).removeAttribute(attrNames[name.toLowerCase()] || name);
 	};
 
 	exports.getNodeProp = function getNodeProp(/*DomNode|String*/ node, /*String*/ name){
+		// summary:
+		//		Returns an effective value of a property or an attribute.
+		// node: DOMNode|String
+		//		id or reference to the element to remove the attribute from
+		// name: String
+		//		the name of the attribute
+		// returns:
+		//		the value of the attribute
+
 		node = dom.byId(node);
 		var lc = name.toLowerCase(), propName = prop.names[lc] || name;
 		if((propName in node) && propName != "href"){

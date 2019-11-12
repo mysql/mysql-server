@@ -1,23 +1,22 @@
-//>>built
 define("dojox/layout/ToggleSplitter", ["dojo", "dijit", "dijit/layout/BorderContainer"], function(dojo, dijit) {
 
 dojo.experimental("dojox.layout.ToggleSplitter");
 
-dojo.declare("dojox.layout.ToggleSplitter", dijit.layout._Splitter, {
+var ToggleSplitter = dojo.declare("dojox.layout.ToggleSplitter", dijit.layout._Splitter, {
 	// summary:
-	//		A draggable and clickable spacer between two items in a dijit.layout.BorderContainer`.
+	//		A draggable and clickable spacer between two items in a `dijit.layout.BorderContainer`.
 	// description:
-	//		This is instantiated by `dijit.layout.BorderContainer. Users should not
+	//		This is instantiated by `dijit.layout.BorderContainer`. Users should not
 	//		create it directly.
 	// tags:
 	//		private
 
-/*=====
-	// container: [const] dijit.layout.BorderContainer
+
+	// container: [const] dijit/layout/BorderContainer
 	//		Pointer to the parent BorderContainer
 	container: null,
 
-	// child: [const] dijit.layout._LayoutWidget
+	// child: [const] dijit/layout/_LayoutWidget
 	//		Pointer to the pane associated with this splitter
 	child: null,
 
@@ -25,7 +24,6 @@ dojo.declare("dojox.layout.ToggleSplitter", dijit.layout._Splitter, {
 	//		Region of pane associated with this splitter.
 	//		"top", "bottom", "left", "right".
 	region: null,
-=====*/
 
 	// state: String
 	//		the initial and current state of the splitter (and its attached pane)
@@ -144,7 +142,7 @@ dojo.declare("dojox.layout.ToggleSplitter", dijit.layout._Splitter, {
 	},
 
 	_handleOnChange: function(preState){
-		// summary
+		// summary:
 		//		Effect the state change with the new value of this.state
 		var paneNode = this.child.domNode,
 			openProps, paneStyle,
@@ -221,7 +219,7 @@ dojo.declare("dojox.layout.ToggleSplitter", dijit.layout._Splitter, {
 	},
 
 	_setStateClass: function(){
-		// Summary:
+		// summary:
 		//		Apply the appropriate classes for the current open state
 		var arrow = "&#9652", region = this.region.toLowerCase(),
 			baseClass = this.baseClass,
@@ -248,7 +246,7 @@ dojo.declare("dojox.layout.ToggleSplitter", dijit.layout._Splitter, {
 		this.a11yText.innerHTML = arrow;
 	},
 
-	_setStateAttr: function(/*Strring*/ state){
+	_setStateAttr: function(/*String*/ state){
 		// summary:
 		//		setter for the state property
 		if(!this._started) {
@@ -292,5 +290,7 @@ dojo.extend(dijit._Widget, {
 
 	toggleSplitterCollapsedSize: ""
 });
+
+return ToggleSplitter;
 
 });

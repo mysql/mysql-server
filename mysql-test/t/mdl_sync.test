@@ -2,6 +2,8 @@
 # We need the Debug Sync Facility.
 #
 --source include/have_debug_sync.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 # We need InnoDB tables for some of the tests.
 

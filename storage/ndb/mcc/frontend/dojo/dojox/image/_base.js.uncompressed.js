@@ -1,4 +1,3 @@
-//>>built
 define("dojox/image/_base", ["dojo", "dojox"], function(dojo, dojox){
 	
 	dojo.getObject("image", true, dojox);
@@ -6,21 +5,18 @@ define("dojox/image/_base", ["dojo", "dojox"], function(dojo, dojox){
 	
 	var cacheNode;
 	dojox.image.preload = function(/* Array */urls){
-		// summary: Preload a list of images in the dom.
-		//
+		// summary:
+		//		Preload a list of images in the dom.
 		// urls: Array
 		//		The list of urls to load. Can be any valid .src attribute.
-		//
-		//	example:
-		//	Load two images into cache:
+		// example:
+		//		Load two images into cache:
 		//	|	dojox.image.preload(["foo.png", "bar.gif"]);
-		//
-		//	example:
-		//	Using djConfig:
+		// example:
+		//		Using djConfig:
 		//	|	var djConfig = {
 		//	|		preloadImages:["bar.png", "baz.png", "http://example.com/icon.gif"]
 		//	|	};
-		//
 		// returns: Array
 		//		An Array of DomNodes that have been cached.
 		
@@ -53,8 +49,8 @@ define("dojox/image/_base", ["dojo", "dojox"], function(dojo, dojox){
 	}
 		
 //	dojo.declare("dojox.image.Image", dijit._Widget, {
-//		// summary: an Image widget
-//		//
+//		// summary:
+//		//		an Image widget
 //		// example:
 //		//	| new dojox.Image({ src:"foo.png", id:"bar" });
 //
@@ -63,17 +59,20 @@ define("dojox/image/_base", ["dojo", "dojox"], function(dojo, dojox){
 //		title: "",
 //
 //		onLoad: function(e){
-//			// summary: Stub fired when this image is really ready.
+//			// summary:
+//			//		Stub fired when this image is really ready.
 //		},
 //
 //		_onLoad: function(e){
-//			// summary: private function to normalize `onLoad` for this
-//			//	instance.
+//			// summary:
+//			//		private function to normalize `onLoad` for this
+//			//		instance.
 //			this.onLoad(e);
 //		},
 //
 //		_setSrcAttr: function(newSrc){
-//			// summary: Function so widget.attr('src', someUrl) works
+//			// summary:
+//			//		Function so widget.attr('src', someUrl) works
 //
 //			var ts = this.domNode, os = td.src;
 //			if(os !== newSrc){
@@ -84,10 +83,10 @@ define("dojox/image/_base", ["dojo", "dojox"], function(dojo, dojox){
 //		/* Sugar Functions: */
 //
 //		crossFade: function(newSrc){
-//			// summary: Set this Image to a new src with crossfading
-//			//
+//			// summary:
+//			//		Set this Image to a new src with crossfading
 //			// example:
-//			//	dijit.byId("bar").crossFade("/images/newImage.png");
+//			// |	dijit.byId("bar").crossFade("/images/newImage.png");
 //			//
 //
 //			d.fadeOut({

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,13 +32,7 @@
 #include <openssl/evp.h>
 #include <stddef.h>
 
-#if !defined(HAVE_WOLFSSL)
 #include <openssl/sha.h>
-#endif  // !defined(HAVE_WOLFSSL)
-
-#if defined(HAVE_WOLFSSL) && defined(__cplusplus)
-extern "C" {
-#endif  // defined(HAVE_WOLFSSL) && defined(__cplusplus)
 
 #define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                      \
   unsigned char *SHA_EVP##size(const unsigned char *input_ptr, \
@@ -49,10 +43,6 @@ GEN_OPENSSL_EVP_SHA2_BRIDGE(384)
 GEN_OPENSSL_EVP_SHA2_BRIDGE(256)
 GEN_OPENSSL_EVP_SHA2_BRIDGE(224)
 #undef GEN_OPENSSL_EVP_SHA2_BRIDGE
-
-#if defined(HAVE_WOLFSSL) && defined(__cplusplus)
-}
-#endif  // defined(HAVE_WOLFSSL) && defined(__cplusplus)
 
 #endif /* HAVE_OPENSSL */
 #endif /* included_sha2_h */

@@ -1,9 +1,8 @@
-//>>built
-// wrapped by build app
-define("dojox/widget/rotator/Slide", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.widget.rotator.Slide");
-
-(function(d){
+define("dojox/widget/rotator/Slide", [
+	"dojo/_base/lang",
+	"dojo/_base/fx",
+	"dojo/dom-style"
+], function(lang, baseFx, domStyle){
 
 	// Constants used to identify which edge the pane slides in from.
 	var DOWN = 0,
@@ -12,16 +11,16 @@ dojo.provide("dojox.widget.rotator.Slide");
 		LEFT = 3;
 
 	function _slide(/*int*/type, /*Object*/args){
-		//	summary:
+		// summary:
 		//		Handles the preparation of the dom node and creates the dojo.Animation object.
 		var node = args.node = args.next.node,
 			r = args.rotatorBox,
 			m = type % 2,
 			s = (m ? r.w : r.h) * (type < 2 ? -1 : 1);
 
-		d.style(node, {
+		domStyle.set(node, {
 			display: "",
-			zIndex: (d.style(args.current.node, "zIndex") || 1) + 1
+			zIndex: (domStyle.get(args.current.node, "zIndex") || 1) + 1
 		});
 
 		if(!args.properties){
@@ -32,35 +31,37 @@ dojo.provide("dojox.widget.rotator.Slide");
 			end: 0
 		};
 
-		return d.animateProperty(args); /*dojo.Animation*/
+		return baseFx.animateProperty(args); /*dojo.Animation*/
 	}
 
-	d.mixin(dojox.widget.rotator, {
+	var exports = {
 		slideDown: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that slides in the next rotator pane from the top.
 			return _slide(DOWN, args); /*dojo.Animation*/
 		},
 
 		slideRight: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that slides in the next rotator pane from the right.
 			return _slide(RIGHT, args); /*dojo.Animation*/
 		},
 
 		slideUp: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that slides in the next rotator pane from the bottom.
 			return _slide(UP, args); /*dojo.Animation*/
 		},
 
 		slideLeft: function(/*Object*/args){
-			//	summary:
+			// summary:
 			//		Returns a dojo.Animation that slides in the next rotator pane from the left.
 			return _slide(LEFT, args); /*dojo.Animation*/
 		}
-	});
+	};
 
-})(dojo);
+	// back-compat, remove for 2.0
+	lang.mixin(lang.getObject("dojox.widget.rotator"), exports);
 
+	return exports;
 });

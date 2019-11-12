@@ -1,4 +1,5 @@
-//>>built
+require({cache:{
+'url:dojox/grid/enhanced/templates/FilterBar.html':"<table class=\"dojoxGridFBar\" border=\"0\" cellspacing=\"0\" role=\"presentation\" dojoAttachEvent=\"onclick:_onClickFilterBar, onmouseenter:_onMouseEnter, onmouseleave:_onMouseLeave, onmousemove:_onMouseMove\"\n\t><tr><td class=\"dojoxGridFBarBtnTD\"\n\t\t><span dojoType=\"dijit.form.Button\" class=\"dojoxGridFBarBtn\" dojoAttachPoint=\"defineFilterButton\" label=\"...\" iconClass=\"dojoxGridFBarDefFilterBtnIcon\" showLabel=\"true\" dojoAttachEvent=\"onClick:_showFilterDefDialog, onMouseEnter:_onEnterButton, onMouseLeave:_onLeaveButton, onMouseMove:_onMoveButton\"></span\n\t></td><td class=\"dojoxGridFBarInfoTD\"\n\t\t><span class=\"dojoxGridFBarInner\"\n\t\t\t><span class=\"dojoxGridFBarStatus\" dojoAttachPoint=\"statusBarNode\">${_noFilterMsg}</span\n\t\t\t><span dojoType=\"dijit.form.Button\" class=\"dojoxGridFBarClearFilterBtn\" dojoAttachPoint=\"clearFilterButton\" \n\t\t\t\tlabel=\"${_filterBarClearBtnLabel}\" iconClass=\"dojoxGridFBarClearFilterBtnIcon\" showLabel=\"true\" \n\t\t\t\tdojoAttachEvent=\"onClick:_clearFilterDefDialog, onMouseEnter:_onEnterButton, onMouseLeave:_onLeaveButton, onMouseMove:_onMoveButton\"></span\n\t\t\t><span dojotype=\"dijit.form.Button\" class=\"dojoxGridFBarCloseBtn\" dojoAttachPoint=\"closeFilterBarButton\" \n\t\t\t\tlabel=\"${_closeFilterBarBtnLabel}\" iconClass=\"dojoxGridFBarCloseBtnIcon\" showLabel=\"false\" \n\t\t\t\tdojoAttachEvent=\"onClick:_closeFilterBar, onMouseEnter:_onEnterButton, onMouseLeave:_onLeaveButton, onMouseMove:_onMoveButton\"></span\n\t\t></span\n\t></td></tr\n></table>\n"}});
 define("dojox/grid/enhanced/plugins/filter/FilterBar", [
 	"dojo/_base/declare",
 	"dojo/_base/array",
@@ -8,7 +9,6 @@ define("dojox/grid/enhanced/plugins/filter/FilterBar", [
 	"dojo/_base/event",
 	"dojo/_base/html",
 	"dojo/_base/window",
-	"dojo/cache",
 	"dojo/query",
 	"dijit/_Widget",
 	"dijit/_TemplatedMixin",
@@ -16,8 +16,10 @@ define("dojox/grid/enhanced/plugins/filter/FilterBar", [
 	"dojo/fx",
 	"dojo/_base/fx",
 	"dojo/string",
-	"dijit/focus"
-], function(declare, array, connect, lang, has, event, html, win, cache, query, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, fx, baseFx, string, dijitFocus){
+	"dijit/focus",
+	"dojo/text!../../templates/FilterBar.html"
+], function(declare, array, connect, lang, has, event, html, win, query, _Widget,
+	_TemplatedMixin, _WidgetsInTemplateMixin, fx, baseFx, string, dijitFocus, template){
 
 var _focusClass = "dojoxGridFBarHover",
 	_filteredClass = "dojoxGridFBarFiltered",
@@ -32,7 +34,7 @@ var _focusClass = "dojoxGridFBarHover",
 return declare("dojox.grid.enhanced.plugins.filter.FilterBar", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin],{
 	// summary:
 	//		The filter bar UI.
-	templateString: cache("dojox.grid","enhanced/templates/FilterBar.html"),
+	templateString: template,
 
 	widgetsInTemplate: true,
 	
@@ -126,7 +128,7 @@ return declare("dojox.grid.enhanced.plugins.filter.FilterBar", [_Widget, _Templa
 					"height": {
 						"end": lang.hitch(this, function(){
 							var barHeight = this.domNode.scrollHeight;
-							if(has("ff")){
+							if(has('ff')){
 								barHeight -= 2;
 							}
 							return toShow ? (curHeight - barHeight) : (curHeight + barHeight);
@@ -354,7 +356,9 @@ return declare("dojox.grid.enhanced.plugins.filter.FilterBar", [_Widget, _Templa
 	},
 	_showStatusTooltip: function(){
 		this._handle_statusTooltip = null;
-		this.plugin.filterStatusTip.showDialog(this._tippos.x, this._tippos.y, this.getColumnIdx(this._tippos.x));
+		if(this.plugin){
+			this.plugin.filterStatusTip.showDialog(this._tippos.x, this._tippos.y, this.getColumnIdx(this._tippos.x));
+		}
 	},
 	_highlightHeader: function(/* int */colIdx){
 		if(colIdx != this._previousHeaderIdx){

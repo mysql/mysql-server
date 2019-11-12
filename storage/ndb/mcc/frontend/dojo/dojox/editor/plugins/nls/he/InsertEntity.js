@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	insertEntity: "הוספת סמל "
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/he/InsertEntity",({insertEntity:"הוספת סמל "}));

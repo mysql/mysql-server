@@ -1,11 +1,11 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dijit/layout/StackContainer"],function(_1,_2,_3){
-_2.provide("dojox.layout.ext-dijit.layout.StackContainer-touch");
-_2.experimental("dojox.layout.ext-dijit.layout.StackContainer-touch");
-_2.require("dijit.layout.StackContainer");
-_2.connect(_1.layout.StackContainer.prototype,"postCreate",function(){
+define("dojox/layout/ext-dijit/layout/StackContainer-touch",["dojo","dijit","dojox","dojo/require!dijit/layout/StackContainer"],function(_1,_2,_3){
+_1.provide("dojox.layout.ext-dijit.layout.StackContainer-touch");
+_1.experimental("dojox.layout.ext-dijit.layout.StackContainer-touch");
+_1.require("dijit.layout.StackContainer");
+_1.connect(_2.layout.StackContainer.prototype,"postCreate",function(){
 this.axis=(this.baseClass=="dijitAccordionContainer")?"Y":"X";
-_2.forEach(["touchstart","touchmove","touchend","touchcancel"],function(p){
+_1.forEach(["touchstart","touchmove","touchend","touchcancel"],function(p){
 this.connect(this.domNode,p,function(e){
 switch(e.type){
 case "touchmove":

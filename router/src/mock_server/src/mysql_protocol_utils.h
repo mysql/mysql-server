@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,14 @@
 #ifndef MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED
 #define MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED
 
+#include <system_error>
+
 #include "mysql_protocol_decoder.h"
 #include "mysql_protocol_encoder.h"
+#include "socket_operations.h"
 
-int get_socket_errno();
-std::string get_socket_errno_str();
+using mysql_harness::socket_t;
+
 void send_packet(socket_t client_socket, const uint8_t *data, size_t size,
                  int flags = 0);
 void send_packet(socket_t client_socket,
@@ -38,5 +41,8 @@ void send_packet(socket_t client_socket,
 void read_packet(socket_t client_socket, uint8_t *data, size_t size,
                  int flags = 0);
 int close_socket(socket_t sock);
+bool socket_has_data(socket_t sock, int timeout_ms);
+
+std::error_code get_last_socket_error_code();
 
 #endif  // MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED

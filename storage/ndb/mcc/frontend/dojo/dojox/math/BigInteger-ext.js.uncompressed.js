@@ -1,4 +1,3 @@
-//>>built
 // AMD-ID "dojox/math/BigInteger-ext"
 define("dojox/math/BigInteger-ext", ["dojo", "dojox", "dojox/math/BigInteger"], function(dojo, dojox) {
 	dojo.experimental("dojox.math.BigInteger-ext");

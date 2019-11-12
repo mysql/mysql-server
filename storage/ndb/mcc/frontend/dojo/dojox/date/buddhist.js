@@ -1,174 +1,173 @@
 //>>built
-define("dojox/date/buddhist",["dojo/_base/kernel","dojo/date","./buddhist/Date"],function(_1,dd,_2){
-_1.getObject("date.buddhist",true,dojox);
-_1.experimental("dojox.date.buddhist");
-dojox.date.buddhist.getDaysInMonth=function(_3){
-return dd.getDaysInMonth(_3.toGregorian());
+define("dojox/date/buddhist",["..","dojo/_base/lang","dojo/date","./buddhist/Date"],function(_1,_2,dd,_3){
+var _4=_2.getObject("date.buddhist",true,_1);
+_4.getDaysInMonth=function(_5){
+return dd.getDaysInMonth(_5.toGregorian());
 };
-dojox.date.buddhist.isLeapYear=function(_4){
-return dd.isLeapYear(_4.toGregorian());
+_4.isLeapYear=function(_6){
+return dd.isLeapYear(_6.toGregorian());
 };
-dojox.date.buddhist.compare=function(_5,_6,_7){
-return dd.compare(_5,_6,_7);
+_4.compare=function(_7,_8,_9){
+return dd.compare(_7,_8,_9);
 };
-dojox.date.buddhist.add=function(_8,_9,_a){
-var _b=new _2(_8);
-switch(_9){
+_4.add=function(_a,_b,_c){
+var _d=new _3(_a);
+switch(_b){
 case "day":
-_b.setDate(_8.getDate(true)+_a);
+_d.setDate(_a.getDate(true)+_c);
 break;
 case "weekday":
-var _c,_d;
-var _e=_a%5;
-if(!_e){
-_c=(_a>0)?5:-5;
-_d=(_a>0)?((_a-5)/5):((_a+5)/5);
+var _e,_f;
+var mod=_c%5;
+if(!mod){
+_e=(_c>0)?5:-5;
+_f=(_c>0)?((_c-5)/5):((_c+5)/5);
 }else{
-_c=_e;
-_d=parseInt(_a/5);
+_e=mod;
+_f=parseInt(_c/5);
 }
-var _f=_8.getDay();
+var _10=_a.getDay();
 var adj=0;
-if(_f==6&&_a>0){
+if(_10==6&&_c>0){
 adj=1;
 }else{
-if(_f==0&&_a<0){
+if(_10==0&&_c<0){
 adj=-1;
 }
 }
-var _10=_f+_c;
-if(_10==0||_10==6){
-adj=(_a>0)?2:-2;
+var _11=_10+_e;
+if(_11==0||_11==6){
+adj=(_c>0)?2:-2;
 }
-_a=(7*_d)+_c+adj;
-_b.setDate(_8.getDate(true)+_a);
+_c=(7*_f)+_e+adj;
+_d.setDate(_a.getDate(true)+_c);
 break;
 case "year":
-_b.setFullYear(_8.getFullYear()+_a);
+_d.setFullYear(_a.getFullYear()+_c);
 break;
 case "week":
-_a*=7;
-_b.setDate(_8.getDate(true)+_a);
+_c*=7;
+_d.setDate(_a.getDate(true)+_c);
 break;
 case "month":
-_b.setMonth(_8.getMonth()+_a);
+_d.setMonth(_a.getMonth()+_c);
 break;
 case "hour":
-_b.setHours(_8.getHours()+_a);
+_d.setHours(_a.getHours()+_c);
 break;
 case "minute":
-_b._addMinutes(_a);
+_d._addMinutes(_c);
 break;
 case "second":
-_b._addSeconds(_a);
+_d._addSeconds(_c);
 break;
 case "millisecond":
-_b._addMilliseconds(_a);
+_d._addMilliseconds(_c);
 break;
 }
-return _b;
+return _d;
 };
-dojox.date.buddhist.difference=function(_11,_12,_13){
-_12=_12||new _2();
-_13=_13||"day";
-var _14=_12.getFullYear()-_11.getFullYear();
-var _15=1;
-switch(_13){
+_4.difference=function(_12,_13,_14){
+_13=_13||new _3();
+_14=_14||"day";
+var _15=_13.getFullYear()-_12.getFullYear();
+var _16=1;
+switch(_14){
 case "weekday":
-var _16=Math.round(dojox.date.buddhist.difference(_11,_12,"day"));
-var _17=parseInt(dojox.date.buddhist.difference(_11,_12,"week"));
-var mod=_16%7;
+var _17=Math.round(_4.difference(_12,_13,"day"));
+var _18=parseInt(_4.difference(_12,_13,"week"));
+var mod=_17%7;
 if(mod==0){
-_16=_17*5;
+_17=_18*5;
 }else{
 var adj=0;
-var _18=_11.getDay();
 var _19=_12.getDay();
-_17=parseInt(_16/7);
-mod=_16%7;
-var _1a=new _2(_12);
-_1a.setDate(_1a.getDate(true)+(_17*7));
-var _1b=_1a.getDay();
-if(_16>0){
+var _1a=_13.getDay();
+_18=parseInt(_17/7);
+mod=_17%7;
+var _1b=new _3(_13);
+_1b.setDate(_1b.getDate(true)+(_18*7));
+var _1c=_1b.getDay();
+if(_17>0){
 switch(true){
-case _18==5:
-adj=-1;
-break;
-case _18==6:
-adj=0;
-break;
 case _19==5:
 adj=-1;
 break;
 case _19==6:
+adj=0;
+break;
+case _1a==5:
+adj=-1;
+break;
+case _1a==6:
 adj=-2;
 break;
-case (_1b+mod)>5:
+case (_1c+mod)>5:
 adj=-2;
 }
 }else{
-if(_16<0){
+if(_17<0){
 switch(true){
-case _18==5:
-adj=0;
-break;
-case _18==6:
-adj=1;
-break;
 case _19==5:
-adj=2;
+adj=0;
 break;
 case _19==6:
 adj=1;
 break;
-case (_1b+mod)<0:
+case _1a==5:
+adj=2;
+break;
+case _1a==6:
+adj=1;
+break;
+case (_1c+mod)<0:
 adj=2;
 }
 }
 }
-_16+=adj;
-_16-=(_17*2);
+_17+=adj;
+_17-=(_18*2);
 }
-_15=_16;
+_16=_17;
 break;
 case "year":
-_15=_14;
+_16=_15;
 break;
 case "month":
-var _1c=(_12.toGregorian()>_11.toGregorian())?_12:_11;
-var _1d=(_12.toGregorian()>_11.toGregorian())?_11:_12;
-var _1e=_1c.getMonth();
+var _1d=(_13.toGregorian()>_12.toGregorian())?_13:_12;
+var _1e=(_13.toGregorian()>_12.toGregorian())?_12:_13;
 var _1f=_1d.getMonth();
-if(_14==0){
-_15=_1c.getMonth()-_1d.getMonth();
+var _20=_1e.getMonth();
+if(_15==0){
+_16=_1d.getMonth()-_1e.getMonth();
 }else{
-_15=12-_1f;
-_15+=_1e;
-var i=_1d.getFullYear()+1;
-var e=_1c.getFullYear();
+_16=12-_20;
+_16+=_1f;
+var i=_1e.getFullYear()+1;
+var e=_1d.getFullYear();
 for(i;i<e;i++){
-_15+=12;
+_16+=12;
 }
 }
-if(_12.toGregorian()<_11.toGregorian()){
-_15=-_15;
+if(_13.toGregorian()<_12.toGregorian()){
+_16=-_16;
 }
 break;
 case "week":
-_15=parseInt(dojox.date.buddhist.difference(_11,_12,"day")/7);
+_16=parseInt(_4.difference(_12,_13,"day")/7);
 break;
 case "day":
-_15/=24;
+_16/=24;
 case "hour":
-_15/=60;
+_16/=60;
 case "minute":
-_15/=60;
+_16/=60;
 case "second":
-_15/=1000;
+_16/=1000;
 case "millisecond":
-_15*=_12.toGregorian().getTime()-_11.toGregorian().getTime();
+_16*=_13.toGregorian().getTime()-_12.toGregorian().getTime();
 }
-return Math.round(_15);
+return Math.round(_16);
 };
-return dojox.date.buddhist;
+return _4;
 });

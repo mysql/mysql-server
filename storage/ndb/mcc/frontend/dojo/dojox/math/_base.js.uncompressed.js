@@ -1,4 +1,3 @@
-//>>built
 // AMD-ID "dojox/math/_base"
 define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 	dojo.getObject("math", true, dojox);
@@ -6,30 +5,30 @@ define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 	var m = dojox.math;
 	dojo.mixin(dojox.math, {
 		toRadians: function(/* Number */n){
-			//	summary:
+			// summary:
 			//		Convert the passed number to radians.
 			return (n*Math.PI)/180;	// Number
 		},
 		toDegrees: function(/* Number */n){
-			//	summary:
+			// summary:
 			//		Convert the passed number to degrees.
-			return (n*180)/Math.PI;	//	Number
+			return (n*180)/Math.PI;	// Number
 		},
 		degreesToRadians: function(/* Number */n){
-			//	summary:
+			// summary:
 			//		Deprecated.  Use dojox.math.toRadians.
 			return m.toRadians(n);	// Number
 		},
 		radiansToDegrees: function(/* Number */n){
-			//	summary:
+			// summary:
 			//		Deprecated.  Use dojox.math.toDegrees.
-			return m.toDegrees(n);	//	Number
+			return m.toDegrees(n);	// Number
 		},
 
 		_gamma: function(z){
-			//	summary:
+			// summary:
 			//		Compute the gamma function for the passed number.
-			//		Approximately 14 dijits of precision with non-integers.
+			//		Approximately 14 digits of precision with non-integers.
 			var answer = 1; // 0!
 			// gamma(n+1) = n * gamma(n)
 			while (--z >= 1){
@@ -48,8 +47,8 @@ define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 			// c[0] = sqrt(2*PI) / exp(a)
 			// var kfact = 1
 			// for (var k=1; k < a; k++){
-			//      c[k] = pow(-k + a, k - 0.5) * exp(-k) / kfact
-			//      kfact *= -k  // (-1)^(k-1) * (k-1)!
+			//		c[k] = pow(-k + a, k - 0.5) * exp(-k) / kfact
+			//		kfact *= -k  // (-1)^(k-1) * (k-1)!
 			// }
 			var c = [ // precomputed from the above algorithm
 					 5.6658056015186327e-6,
@@ -74,14 +73,14 @@ define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 		},
 
 		factorial: function(/* Number */n){
-			//	summary:
+			// summary:
 			//		Return the factorial of n
 			return this._gamma(n+1);	// Number
 		},
 
 		permutations: function(/* Number */n, /* Number */k){
-			//	summary:
-			//	TODO
+			// summary:
+			//		TODO
 			if(n==0 || k==0){
 				return 1; 	// Number
 			}
@@ -89,22 +88,22 @@ define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 		},
 
 		combinations: function(/* Number */n, /* Number */r){
-			//	summary:
-			//	TODO
+			// summary:
+			//		TODO
 			if(n==0 || r==0){
-				return 1; 	//	Number
+				return 1; 	// Number
 			}
 			return this.factorial(n) / (this.factorial(n-r) * this.factorial(r));	// Number
 		},
 
 		bernstein: function(/* Number */t, /* Number */n, /* Number */ i){
-			//	summary:
-			//	TODO
-			return this.combinations(n, i) * Math.pow(t, i) * Math.pow(1-t, n-i);	//	Number
+			// summary:
+			//		TODO
+			return this.combinations(n, i) * Math.pow(t, i) * Math.pow(1-t, n-i);	// Number
 		},
 
 		gaussian: function(){
-			//	summary:
+			// summary:
 			//		Return a random number based on the Gaussian algo.
 			var k=2;
 			do{
@@ -112,12 +111,12 @@ define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 				var j=2*Math.random()-1;
 				k = i*i+j*j;
 			}while(k>=1);
-			return i * Math.sqrt((-2*Math.log(k))/k);	//	Number
+			return i * Math.sqrt((-2*Math.log(k))/k);	// Number
 		},
 
-		//	create a range of numbers
+		// create a range of numbers
 		range: function(/* Number */a, /* Number? */b, /* Number? */step){
-			//	summary:
+			// summary:
 			//		Create a range of numbers based on the parameters.
 			if(arguments.length<2){
 				b=a,a=0;
@@ -140,13 +139,13 @@ define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 		},
 
 		distance: function(/* Array */a, /* Array */b){
-			//	summary:
+			// summary:
 			//		Calculate the distance between point A and point B
-			return Math.sqrt(Math.pow(b[0]-a[0],2)+Math.pow(b[1]-a[1],2));	//	Number
+			return Math.sqrt(Math.pow(b[0]-a[0],2)+Math.pow(b[1]-a[1],2));	// Number
 		},
 
 		midpoint: function(/* Array */a, /* Array */b){
-			//	summary:
+			// summary:
 			//		Calculate the midpoint between points A and B.  A and B may be multidimensional.
 			if(a.length!=b.length){
 				console.error("dojox.math.midpoint: Points A and B are not the same dimensionally.", a, b);
@@ -155,7 +154,7 @@ define("dojox/math/_base", ["dojo", "dojox"], function(dojo, dojox) {
 			for(var i=0; i<a.length; i++){
 				m[i]=(a[i]+b[i])/2;
 			}
-			return m;	//	Array
+			return m;	// Array
 		}
 	});
 

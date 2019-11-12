@@ -1,25 +1,25 @@
 //>>built
-define("dojox/charting/widget/SelectableLegend",["dojo/_base/lang","dojo/_base/array","dojo/_base/declare","dojo/query","dojo/_base/html","dojo/_base/connect","dojo/_base/Color","./Legend","dijit/form/CheckBox","../action2d/Highlight","dojox/lang/functional","dojox/gfx/fx","dojo/keys","dojo/_base/event","dojo/dom-construct","dojo/dom-prop"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,df,fx,_b,_c,_d,_e){
-var _f=_3(null,{constructor:function(_10){
-this.legend=_10;
+define("dojox/charting/widget/SelectableLegend",["dojo/_base/array","dojo/_base/declare","dojo/query","dojo/_base/connect","dojo/_base/Color","./Legend","dijit/form/CheckBox","../action2d/Highlight","dojox/lang/functional","dojox/gfx/fx","dojo/keys","dojo/dom-construct","dojo/dom-prop"],function(_1,_2,_3,_4,_5,_6,_7,_8,df,fx,_9,_a,_b){
+var _c=_2(null,{constructor:function(_d){
+this.legend=_d;
 this.index=0;
 this.horizontalLength=this._getHrizontalLength();
-_2.forEach(_10.legends,function(_11,i){
+_1.forEach(_d.legends,function(_e,i){
 if(i>0){
-_4("input",_11).attr("tabindex",-1);
+_3("input",_e).attr("tabindex",-1);
 }
 });
-this.firstLabel=_4("input",_10.legends[0])[0];
-_6.connect(this.firstLabel,"focus",this,function(){
+this.firstLabel=_3("input",_d.legends[0])[0];
+_4.connect(this.firstLabel,"focus",this,function(){
 this.legend.active=true;
 });
-_6.connect(this.legend.domNode,"keydown",this,"_onKeyEvent");
+_4.connect(this.legend.domNode,"keydown",this,"_onKeyEvent");
 },_getHrizontalLength:function(){
-var _12=this.legend.horizontal;
-if(typeof _12=="number"){
-return Math.min(_12,this.legend.legends.length);
+var _f=this.legend.horizontal;
+if(typeof _f=="number"){
+return Math.min(_f,this.legend.legends.length);
 }else{
-if(!_12){
+if(!_f){
 return 1;
 }else{
 return this.legend.legends.length;
@@ -29,30 +29,30 @@ return this.legend.legends.length;
 if(!this.legend.active){
 return;
 }
-if(e.keyCode==_b.TAB){
+if(e.keyCode==_9.TAB){
 this.legend.active=false;
 return;
 }
 var max=this.legend.legends.length;
 switch(e.keyCode){
-case _b.LEFT_ARROW:
+case _9.LEFT_ARROW:
 this.index--;
 if(this.index<0){
 this.index+=max;
 }
 break;
-case _b.RIGHT_ARROW:
+case _9.RIGHT_ARROW:
 this.index++;
 if(this.index>=max){
 this.index-=max;
 }
 break;
-case _b.UP_ARROW:
+case _9.UP_ARROW:
 if(this.index-this.horizontalLength>=0){
 this.index-=this.horizontalLength;
 }
 break;
-case _b.DOWN_ARROW:
+case _9.DOWN_ARROW:
 if(this.index+this.horizontalLength<max){
 this.index+=this.horizontalLength;
 }
@@ -63,112 +63,125 @@ return;
 this._moveToFocus();
 Event.stop(e);
 },_moveToFocus:function(){
-_4("input",this.legend.legends[this.index])[0].focus();
+_3("input",this.legend.legends[this.index])[0].focus();
 }});
-_3("dojox.charting.widget.SelectableLegend",_8,{outline:false,transitionFill:null,transitionStroke:null,postCreate:function(){
+var _10=_2("dojox.charting.widget.SelectableLegend",_6,{outline:false,transitionFill:null,transitionStroke:null,postCreate:function(){
 this.legends=[];
 this.legendAnim={};
+this._cbs=[];
 this.inherited(arguments);
 },refresh:function(){
 this.legends=[];
+this._clearLabels();
 this.inherited(arguments);
 this._applyEvents();
-new _f(this);
-},_addLabel:function(dyn,_13){
+new _c(this);
+},_clearLabels:function(){
+var cbs=this._cbs;
+while(cbs.length){
+cbs.pop().destroyRecursive();
+}
+},_addLabel:function(dyn,_11){
 this.inherited(arguments);
-var _14=_4("td",this.legendBody);
-var _15=_14[_14.length-1];
-this.legends.push(_15);
-var _16=new _9({checked:true});
-_d.place(_16.domNode,_15,"first");
-var _13=_4("label",_15)[0];
-_e.set(_13,"for",_16.id);
+var _12=_3("td",this.legendBody);
+var _13=_12[_12.length-1];
+this.legends.push(_13);
+var _14=new _7({checked:true});
+this._cbs.push(_14);
+_a.place(_14.domNode,_13,"first");
+var _15=_3("label",_13)[0];
+_b.set(_15,"for",_14.id);
 },_applyEvents:function(){
 if(this.chart.dirty){
 return;
 }
-_2.forEach(this.legends,function(_17,i){
-var _18,_19=[],_1a,_1b;
+_1.forEach(this.legends,function(_16,i){
+var _17,_18=[],_19,_1a;
 if(this._isPie()){
-_18=this.chart.stack[0];
-_19.push(_18.group.children[i]);
-_1a=_18.name;
-_1b=this.chart.series[0].name;
+_17=this.chart.stack[0];
+_18.push(_17.group.children[i]);
+_19=_17.name;
+_1a=this.chart.series[0].name;
 }else{
-_18=this.chart.series[i];
-_19=_18.group.children;
-_1a=_18.plot;
-_1b=_18.name;
+_17=this.chart.series[i];
+_18=_17.group.children;
+_19=_17.plot;
+_1a=_17.name;
 }
-var _1c={fills:df.map(_19,"x.getFill()"),strokes:df.map(_19,"x.getStroke()")};
-var _1d=_4(".dijitCheckBox",_17)[0];
-_6.connect(_1d,"onclick",this,function(e){
-this._toggle(_19,i,_17.vanished,_1c,_1b,_1a);
-_17.vanished=!_17.vanished;
+var _1b={fills:df.map(_18,"x.getFill()"),strokes:df.map(_18,"x.getStroke()")};
+var _1c=_3(".dijitCheckBox",_16)[0];
+_4.connect(_1c,"onclick",this,function(e){
+this._toggle(_18,i,_16.vanished,_1b,_1a,_19);
+_16.vanished=!_16.vanished;
 e.stopPropagation();
 });
-var _1e=_4(".dojoxLegendIcon",_17)[0],_1f=this._getFilledShape(this._surfaces[i].children);
-_2.forEach(["onmouseenter","onmouseleave"],function(_20){
-_6.connect(_1e,_20,this,function(e){
-this._highlight(e,_1f,_19,i,_17.vanished,_1c,_1b,_1a);
+var _1d=_3(".dojoxLegendIcon",_16)[0],_1e=this._getFilledShape(this._surfaces[i].children);
+_1.forEach(["onmouseenter","onmouseleave"],function(_1f){
+_4.connect(_1d,_1f,this,function(e){
+this._highlight(e,_1e,_18,i,_16.vanished,_1b,_1a,_19);
 });
 },this);
 },this);
-},_toggle:function(_21,_22,_23,dyn,_24,_25){
-_2.forEach(_21,function(_26,i){
-var _27=dyn.fills[i],_28=this._getTransitionFill(_25),_29=dyn.strokes[i],_2a=this.transitionStroke;
-if(_27){
-if(_28&&(typeof _27=="string"||_27 instanceof _7)){
-fx.animateFill({shape:_26,color:{start:_23?_28:_27,end:_23?_27:_28}}).play();
+},_toggle:function(_20,_21,_22,dyn,_23,_24){
+_1.forEach(_20,function(_25,i){
+var _26=dyn.fills[i],_27=this._getTransitionFill(_24),_28=dyn.strokes[i],_29=this.transitionStroke;
+if(_26){
+if(_27&&(typeof _26=="string"||_26 instanceof _5)){
+fx.animateFill({shape:_25,color:{start:_22?_27:_26,end:_22?_26:_27}}).play();
 }else{
-_26.setFill(_23?_27:_28);
+_25.setFill(_22?_26:_27);
 }
 }
-if(_29&&!this.outline){
-_26.setStroke(_23?_29:_2a);
+if(_28&&!this.outline){
+_25.setStroke(_22?_28:_29);
 }
 },this);
-},_highlight:function(e,_2b,_2c,_2d,_2e,dyn,_2f,_30){
-if(!_2e){
-var _31=this._getAnim(_30),_32=this._isPie(),_33=_34(e.type);
-var _35={shape:_2b,index:_32?"legend"+_2d:"legend",run:{name:_2f},type:_33};
-_31.process(_35);
-_2.forEach(_2c,function(_36,i){
-_36.setFill(dyn.fills[i]);
-var o={shape:_36,index:_32?_2d:i,run:{name:_2f},type:_33};
-_31.duration=100;
-_31.process(o);
+},_highlight:function(e,_2a,_2b,_2c,_2d,dyn,_2e,_2f){
+if(!_2d){
+var _30=this._getAnim(_2f),_31=this._isPie(),_32=_33(e.type);
+var _34={shape:_2a,index:_31?"legend"+_2c:"legend",run:{name:_2e},type:_32};
+_30.process(_34);
+_1.forEach(_2b,function(_35,i){
+_35.setFill(dyn.fills[i]);
+var o={shape:_35,index:_31?_2c:i,run:{name:_2e},type:_32};
+_30.duration=100;
+_30.process(o);
 });
 }
-},_getAnim:function(_37){
-if(!this.legendAnim[_37]){
-this.legendAnim[_37]=new _a(this.chart,_37);
+},_getAnim:function(_36){
+if(!this.legendAnim[_36]){
+this.legendAnim[_36]=new _8(this.chart,_36);
+this.chart.getPlot(_36).dirty=false;
 }
-return this.legendAnim[_37];
-},_getTransitionFill:function(_38){
-if(this.chart.stack[this.chart.plots[_38]].declaredClass.indexOf("dojox.charting.plot2d.Stacked")!=-1){
+return this.legendAnim[_36];
+},_getTransitionFill:function(_37){
+if(this.chart.stack[this.chart.plots[_37]].declaredClass.indexOf("dojox.charting.plot2d.Stacked")!=-1){
 return this.chart.theme.plotarea.fill;
 }
 return null;
-},_getFilledShape:function(_39){
+},_getFilledShape:function(_38){
 var i=0;
-while(_39[i]){
-if(_39[i].getFill()){
-return _39[i];
+while(_38[i]){
+if(_38[i].getFill()){
+return _38[i];
 }
 i++;
 }
+return null;
 },_isPie:function(){
 return this.chart.stack[0].declaredClass=="dojox.charting.plot2d.Pie";
+},destroy:function(){
+this._clearLabels();
+this.inherited(arguments);
 }});
-function _34(_3a){
-if(_3a=="mouseenter"){
+function _33(_39){
+if(_39=="mouseenter"){
 return "onmouseover";
 }
-if(_3a=="mouseleave"){
+if(_39=="mouseleave"){
 return "onmouseout";
 }
-return "on"+_3a;
+return "on"+_39;
 };
-return dojox.charting.widget.SelectableLegend;
+return _10;
 });

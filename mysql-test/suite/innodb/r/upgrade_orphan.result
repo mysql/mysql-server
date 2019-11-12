@@ -39,7 +39,7 @@ view_with_column_names
 SHOW CREATE TABLE mysql.user;
 Table	Create Table
 user	CREATE TABLE `user` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Insert_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
@@ -91,7 +91,7 @@ user	CREATE TABLE `user` (
   `Password_require_current` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `User_attributes` json DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;
 Table	Create Table
 innodb_table_stats	CREATE TABLE `innodb_table_stats` (

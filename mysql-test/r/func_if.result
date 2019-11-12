@@ -3,6 +3,8 @@ select IF(0,"ERROR","this"),IF(1,"is","ERROR"),IF(NULL,"ERROR","a"),IF(1,2,3)|0,
 IF(0,"ERROR","this")	IF(1,"is","ERROR")	IF(NULL,"ERROR","a")	IF(1,2,3)|0	IF(1,2.0,3.0)+0
 this	is	a	2	2.0
 CREATE TABLE t1 (st varchar(255) NOT NULL, u int(11) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('a',1),('A',1),('aa',1),('AA',1),('a',1),('aaa',0),('BBB',0);
 select if(1,st,st) s from t1 order by s;
 s
@@ -74,6 +76,8 @@ select NULLIF(1,NULL), NULLIF(1.0, NULL), NULLIF("test", NULL);
 NULLIF(1,NULL)	NULLIF(1.0, NULL)	NULLIF("test", NULL)
 1	1.0	test
 create table t1 (num  double(12,2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (144.54);
 select sum(if(num is null,0.00,num)) from t1;
 sum(if(num is null,0.00,num))
@@ -99,6 +103,9 @@ CREATE TABLE `t1` (
 `date` int(10) default NULL,
 `text` varchar(32) NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1110000000,'Day 1'),(2,1111000000,'Day 2'),(3,1112000000,'Day 3');
 SELECT id, IF(date IS NULL, '-', FROM_UNIXTIME(date, '%d-%m-%Y')) AS date_ord, text FROM t1 ORDER BY date_ord ASC;
 id	date_ord	text
@@ -242,6 +249,9 @@ CREATE TABLE test_grids_1 (
 unq_id int(11) NOT NULL DEFAULT '0',
 var_fld int(11) DEFAULT '0'
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO test_grids_1 VALUES
 (1,4500),
 (2,6000);
@@ -249,6 +259,9 @@ CREATE TABLE test_grid_dtl_1 (
 dtl_id int(11) NOT NULL DEFAULT '0',
 unq_id int(11) DEFAULT '0'
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO test_grid_dtl_1 VALUES
 (1,1),
 (2,1),

@@ -11,6 +11,7 @@
 --source include/not_log_bin.inc
 
 # Clean gtid_executed so that test can execute after other tests
+FLUSH LOGS;
 RESET MASTER;
 # Initial setup
 connect (connection_for_table_check,127.0.0.1,root,,test,$MASTER_MYPORT);

@@ -1,28 +1,23 @@
-//>>built
 define("dojo/fx/Toggler", ["../_base/lang","../_base/declare","../_base/fx", "../_base/connect"], 
-  function(lang, declare, baseFx, connectUtil) {
+  function(lang, declare, baseFx, connectUtil){
 	// module:
 	//		dojo/fx/Toggler
-	// summary:
-	//		TODOC
 
 return declare("dojo.fx.Toggler", null, {
 	// summary:
 	//		A simple `dojo.Animation` toggler API.
-	//
 	// description:
 	//		class constructor for an animation toggler. It accepts a packed
 	//		set of arguments about what type of animation to use in each
 	//		direction, duration, etc. All available members are mixed into
 	//		these animations from the constructor (for example, `node`,
 	//		`showDuration`, `hideDuration`).
-	//
 	// example:
-	//	|	var t = new dojo.fx.Toggler({
+	//	|	var t = new dojo/fx/Toggler({
 	//	|		node: "nodeId",
 	//	|		showDuration: 500,
 	//	|		// hideDuration will default to "200"
-	//	|		showFunc: dojo.fx.wipeIn,
+	//	|		showFunc: dojo/fx/wipeIn,
 	//	|		// hideFunc will default to "fadeOut"
 	//	|	});
 	//	|	t.show(100); // delay showing for 100ms
@@ -87,16 +82,18 @@ return declare("dojo.fx.Toggler", null, {
 	},
 
 	show: function(delay){
-		// summary: Toggle the node to showing
+		// summary:
+		//		Toggle the node to showing
 		// delay: Integer?
-		//		Ammount of time to stall playing the show animation
+		//		Amount of time to stall playing the show animation
 		return this.showAnim.play(delay || 0);
 	},
 
 	hide: function(delay){
-		// summary: Toggle the node to hidden
+		// summary:
+		//		Toggle the node to hidden
 		// delay: Integer?
-		//		Ammount of time to stall playing the hide animation
+		//		Amount of time to stall playing the hide animation
 		return this.hideAnim.play(delay || 0);
 	}
 });

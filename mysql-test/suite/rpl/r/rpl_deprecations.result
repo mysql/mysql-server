@@ -15,10 +15,42 @@ SET @@global.relay_log_info_repository="FILE";
 Warnings:
 Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
 SET @@global.relay_log_info_repository="TABLE";
+SELECT @@global.log_bin_use_v1_row_events;
+@@global.log_bin_use_v1_row_events
+0
+Warnings:
+Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
+SET @@global.log_bin_use_v1_row_events = TRUE;
+Warnings:
+Warning	1287	'@@log_bin_use_v1_row_events' is deprecated and will be removed in a future release.
+SELECT @@global.relay_log_info_file;
+@@global.relay_log_info_file
+relay-log.info
+Warnings:
+Warning	1287	'@@relay_log_info_file' is deprecated and will be removed in a future release.
+SELECT @@global.slave_rows_search_algorithms;
+@@global.slave_rows_search_algorithms
+SCAN_METHOD,SCAN_METHOD
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_restart_server.inc [server_number=2]
-include/assert_grep.inc [Assert that there is a warning at bootstrap when relay-log-info-repository=FILE]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --relay-log-info-repository=FILE]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --master-info-repository=FILE]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --slave-rows-search-algorithms]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --log-bin-use-v1-row-events]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --relay-log-info-file]
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --master-info-file]
+SET PERSIST_ONLY relay_log_info_repository=FILE;
+SET PERSIST_ONLY master_info_repository=FILE;
+SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
+ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
+SET PERSIST_ONLY relay_log_info_file = "RLI_FILE";
+ERROR HY000: Variable 'relay_log_info_file' is a non persistent read only variable
 include/rpl_restart_server.inc [server_number=2]
-include/assert_grep.inc [Assert that there is a warning at bootstrap when master-info-repository=FILE]
+RESET PERSIST;
 include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 [connection master]

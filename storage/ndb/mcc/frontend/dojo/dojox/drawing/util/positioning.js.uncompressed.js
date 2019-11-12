@@ -1,15 +1,10 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/util/positioning", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.util.positioning");
-
-(function(){
+define("dojox/drawing/util/positioning", ['./common'], function(common){
 	
 	var textOffset = 4;  // distance from line to text box
 	var textYOffset = 20;  // height of text box
 	
-	
-	dojox.drawing.util.positioning.label = function(/*Object*/start, /*Object*/end){
+	var positioning = {};
+	positioning.label = function(/*Object*/start, /*Object*/end){
 		// summary:
 		//		Returns the optimal text positions for annotations.Label.
 		
@@ -18,7 +13,7 @@ dojo.provide("dojox.drawing.util.positioning");
 		var y = 0.5*(start.y+end.y);
 		
 		// move label a set distance from the line
-		var slope = dojox.drawing.util.common.slope(start, end);
+		var slope = common.slope(start, end);
 		var deltay = textOffset/Math.sqrt(1.0+slope*slope);
 		
 		if(end.y>start.y && end.x>start.x || end.y<start.y && end.x<start.x){
@@ -37,15 +32,16 @@ dojo.provide("dojox.drawing.util.positioning");
 		return { x:x, y:y, foo:"bar", align:align}; // Object
 	};
 	
-	dojox.drawing.util.positioning.angle = function(/*Object*/start, /*Object*/end){
+	positioning.angle = function(/*Object*/start, /*Object*/end){
 		// summary:
 		//		Returns the optimal position for annotations.Angle.
-		//
+
 		// angle at first third of vector
-	        var x = 0.7*start.x+0.3*end.x;
-	        var y = 0.7*start.y+0.3*end.y;
+		var x = 0.7*start.x+0.3*end.x;
+		var y = 0.7*start.y+0.3*end.y;
+
 		// move label a set distance from the line
-		var slope = dojox.drawing.util.common.slope(start, end);
+		var slope = common.slope(start, end);
 		var deltay = textOffset/Math.sqrt(1.0+slope*slope);
 		
 		if(end.x<start.x){deltay = -deltay;}
@@ -59,11 +55,8 @@ dojo.provide("dojox.drawing.util.positioning");
 	        y += end.x > start.x ? 0.5*textYOffset :  -0.5*textYOffset;
 		
 		return { x:x, y:y, align:align}; // Object
-	}
+	};
 	
-})();
-
-
-
-
+	return positioning;
 });
+

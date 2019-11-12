@@ -1,4 +1,3 @@
-//>>built
 define("dojox/string/sprintf", [
 	"dojo/_base/kernel",	// dojo.getObject, dojo.mixin
 	"dojo/_base/lang",	// dojo.extend
@@ -305,8 +304,8 @@ define("dojox/string/sprintf", [
 					throw new Error("format argument '" + token.arg + "' not a float; parseFloat returned " + f);
 				}
 				// C99 says that for 'f':
-				//   infinity -> '[-]inf' or '[-]infinity' ('[-]INF' or '[-]INFINITY' for 'F')
-				//   NaN -> a string  starting with 'nan' ('NAN' for 'F')
+				//	 infinity -> '[-]inf' or '[-]infinity' ('[-]INF' or '[-]INFINITY' for 'F')
+				//	 NaN -> a string  starting with 'nan' ('NAN' for 'F')
 				// this is not commonly implemented though.
 				//return '' + f;
 				f = 0;

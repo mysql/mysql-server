@@ -176,7 +176,7 @@ ERROR HY000: You are not owner of thread <CONNECTION_ID>
 DROP PROCEDURE test.role_proc;
 DROP USER baz@localhost;
 REVOKE EXECUTE,SYSTEM_USER ON *.* FROM non_sys_user;
-REVOKE system_user_role ON *.* FROM non_sys_user;
+REVOKE system_user_role FROM non_sys_user;
 #------------------------------------------------------------------------
 # 9. Change the user in current session (COM_CHANGE_USER)
 #------------------------------------------------------------------------

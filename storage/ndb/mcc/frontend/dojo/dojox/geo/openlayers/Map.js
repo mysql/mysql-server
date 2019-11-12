@@ -1,78 +1,54 @@
 //>>built
-define("dojox/geo/openlayers/Map",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/lang","dojo/_base/array","dojo/_base/json","dojo/_base/html","dojox/main","dojox/geo/openlayers/TouchInteractionSupport","dojox/geo/openlayers/Layer","dojox/geo/openlayers/Patch"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a){
+define("dojox/geo/openlayers/Map",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/lang","dojo/_base/array","dojo/_base/json","dojo/dom","dojo/dom-style","./_base","./TouchInteractionSupport","./Layer","./Patch"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b){
 _1.experimental("dojox.geo.openlayers.Map");
-_3.getObject("geo.openlayers",true,_7);
-_7.geo.openlayers.BaseLayerType={OSM:"OSM",WMS:"WMS",GOOGLE:"Google",VIRTUAL_EARTH:"VirtualEarth",BING:"VirtualEarth",YAHOO:"Yahoo",ARCGIS:"ArcGIS"};
-_7.geo.openlayers.EPSG4326=new OpenLayers.Projection("EPSG:4326");
-var re=/^\s*(\d{1,3})[D°]\s*(\d{1,2})[M']\s*(\d{1,2}\.?\d*)\s*(S|"|'')\s*([NSEWnsew]{0,1})\s*$/i;
-_7.geo.openlayers.parseDMS=function(v,_b){
-var _c=re.exec(v);
-if(_c==null||_c.length<5){
-return parseFloat(v);
+_b.patchGFX();
+return _2("dojox.geo.openlayers.Map",null,{olMap:null,_tp:null,constructor:function(_c,_d){
+if(!_d){
+_d={};
 }
-var d=parseFloat(_c[1]);
-var m=parseFloat(_c[2]);
-var s=parseFloat(_c[3]);
-var _d=_c[5];
-if(_b){
-var lc=_d.toLowerCase();
-var dd=d+(m+s/60)/60;
-if(lc=="w"||lc=="s"){
-dd=-dd;
-}
-return dd;
-}
-return [d,m,s,_d];
-};
-_a.patchGFX();
-return _2("dojox.geo.openlayers.Map",null,{olMap:null,_tp:null,constructor:function(_e,_f){
-if(!_f){
-_f={};
-}
-_e=_6.byId(_e);
+_c=_6.byId(_c);
 this._tp={x:0,y:0};
-var _10=_f.openLayersMapOptions;
+var _e=_d.openLayersMapOptions;
+if(!_e){
+_e={controls:[new OpenLayers.Control.ScaleLine({maxWidth:200}),new OpenLayers.Control.Navigation()]};
+}
+if(_d.accessible){
+var _f=new OpenLayers.Control.KeyboardDefaults();
+if(!_e.controls){
+_e.controls=[];
+}
+_e.controls.push(_f);
+}
+var _10=_d.baseLayerType;
 if(!_10){
-_10={controls:[new OpenLayers.Control.ScaleLine({maxWidth:200}),new OpenLayers.Control.Navigation()]};
+_10=_8.BaseLayerType.OSM;
 }
-if(_f.accessible){
-var kbd=new OpenLayers.Control.KeyboardDefaults();
-if(!_10.controls){
-_10.controls=[];
-}
-_10.controls.push(kbd);
-}
-var _11=_f.baseLayerType;
-if(!_11){
-_11=_7.geo.openlayers.BaseLayerType.OSM;
-}
-_6.style(_e,{width:"100%",height:"100%",dir:"ltr"});
-var map=new OpenLayers.Map(_e,_10);
+var map=new OpenLayers.Map(_c,_e);
 this.olMap=map;
 this._layerDictionary={olLayers:[],layers:[]};
-if(_f.touchHandler){
-this._touchControl=new _8(map);
+if(_d.touchHandler){
+this._touchControl=new _9(map);
 }
-var _12=this._createBaseLayer(_f);
-this.addLayer(_12);
-this.initialFit(_f);
-},initialFit:function(_13){
-var o=_13.initialLocation;
+var _11=this._createBaseLayer(_d);
+this.addLayer(_11);
+this.initialFit(_d);
+},initialFit:function(_12){
+var o=_12.initialLocation;
 if(!o){
 o=[-160,70,160,-70];
 }
 this.fitTo(o);
-},setBaseLayerType:function(_14){
-if(_14==this.baseLayerType){
+},setBaseLayerType:function(_13){
+if(_13==this.baseLayerType){
 return null;
 }
 var o=null;
-if(typeof _14=="string"){
-o={baseLayerName:_14,baseLayerType:_14};
-this.baseLayerType=_14;
+if(typeof _13=="string"){
+o={baseLayerName:_13,baseLayerType:_13};
+this.baseLayerType=_13;
 }else{
-if(typeof _14=="object"){
-o=_14;
+if(typeof _13=="object"){
+o=_13;
 this.baseLayerType=o.baseLayerType;
 }
 }
@@ -83,11 +59,11 @@ if(bl!=null){
 var olm=this.olMap;
 var ob=olm.getZoom();
 var oc=olm.getCenter();
-var _15=!!oc&&!!olm.baseLayer&&!!olm.baseLayer.map;
-if(_15){
-var _16=olm.getProjectionObject();
-if(_16!=null){
-oc=oc.transform(_16,_7.geo.openlayers.EPSG4326);
+var _14=!!oc&&!!olm.baseLayer&&!!olm.baseLayer.map;
+if(_14){
+var _15=olm.getProjectionObject();
+if(_15!=null){
+oc=oc.transform(_15,_8.EPSG4326);
 }
 }
 var old=olm.baseLayer;
@@ -98,10 +74,10 @@ this.removeLayer(l);
 if(bl!=null){
 this.addLayer(bl);
 }
-if(_15){
-_16=olm.getProjectionObject();
-if(_16!=null){
-oc=oc.transform(_7.geo.openlayers.EPSG4326,_16);
+if(_14){
+_15=olm.getProjectionObject();
+if(_15!=null){
+oc=oc.transform(_8.EPSG4326,_15);
 }
 olm.setCenter(oc,ob);
 }
@@ -110,116 +86,116 @@ olm.setCenter(oc,ob);
 return bl;
 },getBaseLayerType:function(){
 return this.baseLayerType;
-},getScale:function(_17){
-var _18;
+},getScale:function(_16){
+var _17=null;
 var om=this.olMap;
-if(_17){
-var _19=om.getUnits();
-if(!_19){
+if(_16){
+var _18=om.getUnits();
+if(!_18){
 return null;
 }
-var _1a=OpenLayers.INCHES_PER_UNIT;
-_18=(om.getGeodesicPixelSize().w||0.000001)*_1a["km"]*OpenLayers.DOTS_PER_INCH;
+var _19=OpenLayers.INCHES_PER_UNIT;
+_17=(om.getGeodesicPixelSize().w||0.000001)*_19["km"]*OpenLayers.DOTS_PER_INCH;
 }else{
-_18=om.getScale();
+_17=om.getScale();
 }
-return _18;
+return _17;
 },getOLMap:function(){
 return this.olMap;
-},_createBaseLayer:function(_1b){
-var _1c=null;
-var _1d=_1b.baseLayerType;
-var url=_1b.baseLayerUrl;
-var _1e=_1b.baseLayerName;
-var _1f=_1b.baseLayerOptions;
+},_createBaseLayer:function(_1a){
+var _1b=null;
+var _1c=_1a.baseLayerType;
+var url=_1a.baseLayerUrl;
+var _1d=_1a.baseLayerName;
+var _1e=_1a.baseLayerOptions;
+if(!_1d){
+_1d=_1c;
+}
 if(!_1e){
-_1e=_1d;
+_1e={};
 }
-if(!_1f){
-_1f={};
-}
-switch(_1d){
-case _7.geo.openlayers.BaseLayerType.OSM:
-_1f.transitionEffect="resize";
-_1c=new _9(_1e,{olLayer:new OpenLayers.Layer.OSM(_1e,url,_1f)});
+switch(_1c){
+case _8.BaseLayerType.OSM:
+_1e.transitionEffect="resize";
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.OSM(_1d,url,_1e)});
 break;
-case _7.geo.openlayers.BaseLayerType.WMS:
+case _8.BaseLayerType.WMS:
 if(!url){
 url="http://labs.metacarta.com/wms/vmap0";
-if(!_1f.layers){
-_1f.layers="basic";
+if(!_1e.layers){
+_1e.layers="basic";
 }
 }
-_1c=new _9(_1e,{olLayer:new OpenLayers.Layer.WMS(_1e,url,_1f,{transitionEffect:"resize"})});
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.WMS(_1d,url,_1e,{transitionEffect:"resize"})});
 break;
-case _7.geo.openlayers.BaseLayerType.GOOGLE:
-_1c=new _9(_1e,{olLayer:new OpenLayers.Layer.Google(_1e,_1f)});
+case _8.BaseLayerType.GOOGLE:
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.Google(_1d,_1e)});
 break;
-case _7.geo.openlayers.BaseLayerType.VIRTUAL_EARTH:
-_1c=new _9(_1e,{olLayer:new OpenLayers.Layer.VirtualEarth(_1e,_1f)});
+case _8.BaseLayerType.VIRTUAL_EARTH:
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.VirtualEarth(_1d,_1e)});
 break;
-case _7.geo.openlayers.BaseLayerType.YAHOO:
-_1c=new _9(_1e,{olLayer:new OpenLayers.Layer.Yahoo(_1e,_1f)});
+case _8.BaseLayerType.YAHOO:
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.Yahoo(_1d,_1e)});
 break;
-case _7.geo.openlayers.BaseLayerType.ARCGIS:
+case _8.BaseLayerType.ARCGIS:
 if(!url){
 url="http://server.arcgisonline.com/ArcGIS/rest/services/ESRI_StreetMap_World_2D/MapServer/export";
 }
-_1c=new _9(_1e,{olLayer:new OpenLayers.Layer.ArcGIS93Rest(_1e,url,_1f,{})});
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.ArcGIS93Rest(_1d,url,_1e,{})});
 break;
 }
-if(_1c==null){
-if(_1d instanceof OpenLayers.Layer){
-_1c=_1d;
+if(_1b==null){
+if(_1c instanceof OpenLayers.Layer){
+_1b=_1c;
 }else{
-_1f.transitionEffect="resize";
-_1c=new _9(_1e,{olLayer:new OpenLayers.Layer.OSM(_1e,url,_1f)});
-this.baseLayerType=_7.geo.openlayers.BaseLayerType.OSM;
+_1e.transitionEffect="resize";
+_1b=new _a(_1d,{olLayer:new OpenLayers.Layer.OSM(_1d,url,_1e)});
+this.baseLayerType=_8.BaseLayerType.OSM;
 }
 }
-return _1c;
-},removeLayer:function(_20){
+return _1b;
+},removeLayer:function(_1f){
 var om=this.olMap;
-var i=_4.indexOf(this._layerDictionary.layers,_20);
+var i=_4.indexOf(this._layerDictionary.layers,_1f);
 if(i>0){
 this._layerDictionary.layers.splice(i,1);
 }
-var oll=_20.olLayer;
+var oll=_1f.olLayer;
 var j=_4.indexOf(this._layerDictionary.olLayers,oll);
 if(j>0){
 this._layerDictionary.olLayers.splice(i,j);
 }
 om.removeLayer(oll,false);
-},layerIndex:function(_21,_22){
+},layerIndex:function(_20,_21){
 var olm=this.olMap;
-if(!_22){
-return olm.getLayerIndex(_21.olLayer);
+if(!_21){
+return olm.getLayerIndex(_20.olLayer);
 }
-olm.setLayerIndex(_21.olLayer,_22);
+olm.setLayerIndex(_20.olLayer,_21);
 this._layerDictionary.layers.sort(function(l1,l2){
 return olm.getLayerIndex(l1.olLayer)-olm.getLayerIndex(l2.olLayer);
 });
 this._layerDictionary.olLayers.sort(function(l1,l2){
 return olm.getLayerIndex(l1)-olm.getLayerIndex(l2);
 });
-return _22;
-},addLayer:function(_23){
-_23.dojoMap=this;
+return _21;
+},addLayer:function(_22){
+_22.dojoMap=this;
 var om=this.olMap;
-var ol=_23.olLayer;
+var ol=_22.olLayer;
 this._layerDictionary.olLayers.push(ol);
-this._layerDictionary.layers.push(_23);
+this._layerDictionary.layers.push(_22);
 om.addLayer(ol);
-_23.added();
+_22.added();
 },_getLayer:function(ol){
 var i=_4.indexOf(this._layerDictionary.olLayers,ol);
 if(i!=-1){
 return this._layerDictionary.layers[i];
 }
 return null;
-},getLayer:function(_24,_25){
+},getLayer:function(_23,_24){
 var om=this.olMap;
-var ols=om.getBy("layers",_24,_25);
+var ols=om.getBy("layers",_23,_24);
 var ret=new Array();
 _4.forEach(ols,function(ol){
 ret.push(this._getLayer(ol));
@@ -233,9 +209,9 @@ return 0;
 return om.layers.length;
 },fitTo:function(o){
 var map=this.olMap;
-var _26=_7.geo.openlayers.EPSG4326;
+var _25=_8.EPSG4326;
 if(o==null){
-var c=this.transformXY(0,0,_26);
+var c=this.transformXY(0,0,_25);
 map.setCenter(new OpenLayers.LonLat(c.x,c.y));
 return;
 }
@@ -250,10 +226,10 @@ var lr;
 if(j.hasOwnProperty("bounds")){
 var a=j.bounds;
 b=new OpenLayers.Bounds();
-ul=this.transformXY(a[0],a[1],_26);
+ul=this.transformXY(a[0],a[1],_25);
 b.left=ul.x;
 b.top=ul.y;
-lr=this.transformXY(a[2],a[3],_26);
+lr=this.transformXY(a[2],a[3],_25);
 b.right=lr.x;
 b.bottom=lr.y;
 }
@@ -265,10 +241,10 @@ if(typeof e=="string"){
 e=parseFloat(e);
 }
 b=new OpenLayers.Bounds();
-ul=this.transformXY(p[0]-e,p[1]+e,_26);
+ul=this.transformXY(p[0]-e,p[1]+e,_25);
 b.left=ul.x;
 b.top=ul.y;
-lr=this.transformXY(p[0]+e,p[1]-e,_26);
+lr=this.transformXY(p[0]+e,p[1]-e,_25);
 b.right=lr.x;
 b.bottom=lr.y;
 }
@@ -282,10 +258,10 @@ b.top=o[1];
 b.right=o[2];
 b.bottom=o[3];
 }else{
-ul=this.transformXY(o[0],o[1],_26);
+ul=this.transformXY(o[0],o[1],_25);
 b.left=ul.x;
 b.top=ul.y;
-lr=this.transformXY(o[2],o[3],_26);
+lr=this.transformXY(o[2],o[3],_25);
 b.right=lr.x;
 b.bottom=lr.y;
 }
@@ -294,19 +270,19 @@ b.bottom=lr.y;
 if(b!=null){
 map.zoomToExtent(b,true);
 }
-},transform:function(p,_27,to){
-return this.transformXY(p.x,p.y,_27,to);
-},transformXY:function(x,y,_28,to){
+},transform:function(p,_26,to){
+return this.transformXY(p.x,p.y,_26,to);
+},transformXY:function(x,y,_27,to){
 var tp=this._tp;
 tp.x=x;
 tp.y=y;
-if(!_28){
-_28=_7.geo.openlayers.EPSG4326;
+if(!_27){
+_27=_8.EPSG4326;
 }
 if(!to){
 to=this.olMap.getProjectionObject();
 }
-tp=OpenLayers.Projection.transform(tp,_28,to);
+tp=OpenLayers.Projection.transform(tp,_27,to);
 return tp;
 }});
 });

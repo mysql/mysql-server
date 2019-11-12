@@ -1,12 +1,9 @@
-//>>built
 define("dojox/dtl/filter/dates", [
 	"dojo/_base/lang",
 	"../_base",	
 	"../utils/date"
 ], function(lang,dd,ddud){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.filter.dates", true);
 
 	var ddfd = dd.filter.dates;
@@ -22,7 +19,8 @@ define("dojox/dtl/filter/dates", [
 			return value;
 		},
 		date: function(value, arg){
-			// summary: Formats a date according to the given format
+			// summary:
+			//		Formats a date according to the given format
 			value = ddfd._toDate(value);
 			if(!value){
 				return "";
@@ -31,7 +29,8 @@ define("dojox/dtl/filter/dates", [
 			return ddud.format(value, arg);
 		},
 		time: function(value, arg){
-			// summary: Formats a time according to the given format
+			// summary:
+			//		Formats a time according to the given format
 			value = ddfd._toDate(value);
 			if(!value){
 				return "";
@@ -40,7 +39,8 @@ define("dojox/dtl/filter/dates", [
 			return ddud.format(value, arg);
 		},
 		timesince: function(value, arg){
-			// summary: Formats a date as the time since that date (i.e. "4 days, 6 hours")
+			// summary:
+			//		Formats a date as the time since that date (i.e. "4 days, 6 hours")
 			value = ddfd._toDate(value);
 			if(!value){
 				return "";
@@ -52,7 +52,8 @@ define("dojox/dtl/filter/dates", [
 			return timesince(value);
 		},
 		timeuntil: function(value, arg){
-			// summary: Formats a date as the time until that date (i.e. "4 days, 6 hours")
+			// summary:
+			//		Formats a date as the time until that date (i.e. "4 days, 6 hours")
 			value = ddfd._toDate(value);
 			if(!value){
 				return "";

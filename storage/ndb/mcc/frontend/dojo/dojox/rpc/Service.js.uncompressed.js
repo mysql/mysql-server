@@ -1,4 +1,3 @@
-//>>built
 define("dojox/rpc/Service", ["dojo", "dojox", "dojo/AdapterRegistry", "dojo/_base/url"], function(dojo, dojox) {
 
 dojo.declare("dojox.rpc.Service", null, {
@@ -6,8 +5,11 @@ dojo.declare("dojox.rpc.Service", null, {
 		// summary:
 		//		Take a string as a url to retrieve an smd or an object that is an smd or partial smd to use
 		//		as a definition for the service
-		//
-		//	smd: object
+		// description:
+		//		dojox.rpc.Service must be loaded prior to any plugin services like dojox.rpc.Rest
+		//		dojox.rpc.JsonRpc in order for them to register themselves, otherwise you get
+		//		a "No match found" error.
+		// smd: object
 		//		Takes a number of properties as kwArgs for defining the service.  It also
 		//		accepts a string.  When passed a string, it is treated as a url from
 		//		which it should synchronously retrieve an smd file.  Otherwise it is a kwArgs
@@ -17,11 +19,7 @@ dojo.declare("dojox.rpc.Service", null, {
 		//		matches those defined in the smd.  smdString allows a developer to pass
 		//		a jsonString directly, which will be converted into an object or alternatively
 		//		smdObject is accepts an smdObject directly.
-		//
-		//	description:
-		//		dojox.rpc.Service must be loaded prior to any plugin services like dojox.rpc.Rest
-		// 		dojox.rpc.JsonRpc in order for them to register themselves, otherwise you get
-		// 		a "No match found" error.
+
 		var url;
 		var self = this;
 		function processSmd(smd){
@@ -64,7 +62,7 @@ dojo.declare("dojox.rpc.Service", null, {
 	},
 
 	_generateService: function(serviceName, method){
-		if(this[method]){
+		if(this[serviceName]){
 			throw new Error("WARNING: "+ serviceName+ " already exists for service. Unable to generate function");
 		}
 		method.name = serviceName;
@@ -84,6 +82,7 @@ dojo.declare("dojox.rpc.Service", null, {
 	},
 	_getRequest: function(method,args){
 		var smd = this._smd;
+		var i;
 		var envDef = dojox.rpc.envelopeRegistry.match(method.envelope || smd.envelope || "NONE");
 		var parameters = (method.parameters || []).concat(smd.parameters || []);
 		if(envDef.namedParams){
@@ -94,7 +93,7 @@ dojo.declare("dojox.rpc.Service", null, {
 			}else{
 				// they provided ordered, must convert
 				var data={};
-				for(var i=0;i<method.parameters.length;i++){
+				for(i=0;i<method.parameters.length;i++){
 					if(typeof args[i] != "undefined" || !method.parameters[i].optional){
 						data[method.parameters[i].name]=args[i];
 					}
@@ -147,7 +146,7 @@ dojo.declare("dojox.rpc.Service", null, {
 
 		// this allows to mandate synchronous behavior from elsewhere when necessary, this may need to be changed to be one-shot in FF3 new sync handling model
 		return dojo.mixin(request, {
-			sync: dojox.rpc._sync,
+			sync: this._options.sync || dojox.rpc._sync,
 			contentType: contentType,
 			headers: method.headers || smd.headers || request.headers || {},
 			target: request.target || dojox.rpc.getTarget(smd, method),

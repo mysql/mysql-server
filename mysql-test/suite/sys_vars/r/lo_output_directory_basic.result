@@ -1,0 +1,23 @@
+select @@global.lock_order_output_directory;
+@@global.lock_order_output_directory
+/some/path/to/lock_order_output_directory
+select @@session.lock_order_output_directory;
+ERROR HY000: Variable 'lock_order_output_directory' is a GLOBAL variable
+show global variables like 'lock_order_output_directory';
+Variable_name	Value
+lock_order_output_directory	/some/path/to/lock_order_output_directory
+show session variables like 'lock_order_output_directory';
+Variable_name	Value
+lock_order_output_directory	/some/path/to/lock_order_output_directory
+select * from performance_schema.global_variables
+where variable_name='lock_order_output_directory';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_output_directory	/some/path/to/lock_order_output_directory
+select * from performance_schema.session_variables
+where variable_name='lock_order_output_directory';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_output_directory	/some/path/to/lock_order_output_directory
+set global lock_order_output_directory="foo";
+ERROR HY000: Variable 'lock_order_output_directory' is a read only variable
+set session lock_order_output_directory="foo";
+ERROR HY000: Variable 'lock_order_output_directory' is a read only variable

@@ -1,28 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"findLabel": "Sök:",
-	"findTooltip": "Ange den text du vill söka efter",
-	"replaceLabel": "Ersätt med:",
-	"replaceTooltip": "Ange den text du vill ersätta med",
-	"findReplace": "Sök och ersätt",
-	"matchCase": "Matcha skiftläge",
-	"matchCaseTooltip": "Matcha skiftläge",
-	"backwards": "Bakåt",
-	"backwardsTooltip": "Sök bakåt efter text",
-	"replaceAll": "Alla förekomster",
-	"replaceAllButton": "Ersätt alla",
-	"replaceAllButtonTooltip": "Ersätt all text",
-	"findButton": "Sök",
-	"findButtonTooltip": "Sök efter texten",
-	"replaceButton": "Ersätt",
-	"replaceButtonTooltip": "Ersätt texten",
-	"replaceDialogText": "${0} förekomster ersattes.",
-	"eofDialogText": "Senaste förekomst${0}",
-	"eofDialogTextFind": "hittades",
-	"eofDialogTextReplace": "ersattes"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/sv/FindReplace",({"findLabel":"Sök: ","findTooltip":"Skriv söktexten","replaceLabel":"Ersätt med:","replaceTooltip":"Skriv ersättningstexten","findReplace":"Sök och ersätt","matchCase":"Matcha gemener/versaler","matchCaseTooltip":"Matcha gemener/versaler","backwards":"Bakåt","backwardsTooltip":"Sök bakåt efter text","replaceAllButton":"Ersätt alla","replaceAllButtonTooltip":"Ersätt all text","findButton":"Sök","findButtonTooltip":"Sök efter texten","replaceButton":"Erätt","replaceButtonTooltip":"Ersätt texten","replaceDialogText":"${0} förekomster har ersatts.","eofDialogText":"Sista förekomsten ${0}","eofDialogTextFind":"hittades","eofDialogTextReplace":"ersattes"}));

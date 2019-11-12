@@ -1,31 +1,40 @@
 
-.nihilo .dijitInputContainer input,
-.nihilo .dijitTextBox {
+.nihilo .dijitInputContainer input {
 	margin: 0 0.1em;
 }
+.nihilo .dijitSelect .dijitButtonContents,
+.nihilo .dijitSelect,
 .nihilo .dijitTextBox,
 .nihilo .dijitTextArea {
 	
 	background:#fff url("../images/validationInputBg.png") repeat-x top left;
 	#background:#fff url('../images/validationInputBg.gif') repeat-x top left;
+}
+.nihilo .dijitSelect,
+.nihilo .dijitTextBox,
+.nihilo .dijitTextArea {
 	border:1px solid #d3d3d3;
 }
+.nihilo .dijitSelect .dijitArrowButton,
 .nihilo .dijitComboBox .dijitButtonNode {
-	padding: 0 0.2em !important;
+	padding: 0 0.2em;
 }
+.nihilo .dijitSelect .dijitButtonContents,
 .nihilo .dijitTextBox .dijitButtonNode {
 	
 	border-color: #d3d3d3;
 }
+.nihilo .dijitSelectFocused,
 .nihilo .dijitTextBoxFocused,
 .nihilo .dijitTextAreaFocused {
 	
 	border-color:#b3b3b3;
 }
+.nihilo .dijitSelectFocused TD,
 .nihilo .dijitTextBoxFocused .dijitButtonNode,
 .nihilo .dijitSpinner .dijitUpArrowButtonActive,
 .nihilo .dijitSpinner .dijitDownArrowButtonActive {
-	border-left-color:#d3d3d3;
+	border-color:#d3d3d3;
 }
 .nihilo .dijitSpinnerFocused .dijitDownArrowButton,
 .nihilo .dijitSpinner .dijitUpArrowButtonActive,
@@ -41,7 +50,7 @@
 	background-color:#ff6;
 	background-image:none;
 }
-.nihilo .dijitValidationIcon {
+.nihilo .dijitValidationTextBoxError .dijitValidationIcon {
 	
 	width: 16px;
 	background: transparent url('../images/warning.png') no-repeat center center;

@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-next: "ถัดไป",
-previous: "ก่อนหน้า",
-done: "เสร็จสิ้น"
-})
-//end v1.x content
-);
+define("dojox/widget/nls/th/Wizard",({next:"ถัดไป",previous:"ก่อนหน้านี้",done:"เสร็จแล้ว"}));

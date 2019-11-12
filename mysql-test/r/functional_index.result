@@ -98,7 +98,7 @@ ERROR 42000: Cannot create a functional index on a function that returns a JSON 
 INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
 ERROR 22003: Value is out of range for functional index 'my_functional_index' at row 1
 INSERT INTO t1 (f2) VALUES ("lorem ipsum");
-ERROR 22007: Truncated incorrect CHAR(1) value: 'lorem ipsum'
+ERROR 01000: Data truncated for functional index 'my_functional_index_2' at row 1
 # In non-strict mode, a warning should be printed.
 SET @@sql_mode='';
 INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
@@ -106,7 +106,7 @@ Warnings:
 Warning	3752	Value is out of range for functional index 'my_functional_index' at row 1
 INSERT INTO t1 (f2) VALUES ("lorem ipsum");
 Warnings:
-Warning	1292	Truncated incorrect CHAR(1) value: 'lorem ipsum'
+Warning	3751	Data truncated for functional index 'my_functional_index_2' at row 1
 DROP TABLE t1;
 SET @@sql_mode=DEFAULT;
 CREATE TABLE t1 (t1_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -205,13 +205,10 @@ f1
 {"id": 1}
 {"id": 2}
 {"id": 3}
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 EXPLAIN SELECT * FROM t1 WHERE f1->"$.id" IN (1,2,3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx1	idx1	9	NULL	3	100.00	Using where
 Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$.id') as unsigned) in (1,2,3))
 DROP TABLE t1;
 Test string index over a JSON key
@@ -630,6 +627,10 @@ KEY ind211 ((cast(col_date_nokey as date))),
 KEY ind602 ((is_uuid(col_time_nokey)))
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4
 COLLATE=utf8mb4_0900_ai_ci;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE INDEX ind320 ON t1 ((pk >= col_time_nokey LIKE
 ST_GeomFromGeoJSON(col_varchar_key) ));
 ERROR HY000: Functional index 'ind320' cannot refer to an auto-increment column.
@@ -684,9 +685,9 @@ ERROR HY000: Cannot create a functional index on an expression that returns a BL
 # column that is a part of a functional index.
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, INDEX idx ((col1 + col2 + col3)));
 ALTER TABLE t1 DROP COLUMN col2;
-ERROR HY000: Cannot drop column 'col2' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+ERROR HY000: Column 'col2' has a functional index dependency and cannot be dropped or renamed.
 ALTER TABLE t1 DROP COLUMN col3;
-ERROR HY000: Cannot drop column 'col3' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+ERROR HY000: Column 'col3' has a functional index dependency and cannot be dropped or renamed.
 ALTER TABLE t1 DROP INDEX idx;
 ALTER TABLE t1 DROP COLUMN col3;
 DROP TABLE t1;
@@ -717,3 +718,44 @@ DROP TABLE t1;
 #
 CREATE TABLE t (j JSON, KEY k (((j,j))));
 ERROR HY000: Expression of functional index 'k' cannot refer to a row value.
+#
+# Bug#29360763	WL#1075: FUNCTIONAL INDEX: INCORRECT ERROR MESSAGE REVEALS
+#              HIDDEN COLUMN NAME
+#
+CREATE TABLE t1 (
+j1 JSON,
+j3 JSON,
+KEY my_idx ((CAST(j1->'$[0]' as SIGNED))),
+KEY my_idx_char ((CAST(j3->'$[0]' as CHAR(10))))
+);
+ALTER TABLE t1 RENAME KEY my_idx_char TO my_idx;
+ERROR 42000: Duplicate key name 'my_idx'
+DROP TABLE t1;
+#
+# Bug#29317684 REPLICATION IS SENSITIVE TO ORDER OF HIDDEN COLUMNS FOR
+#              FUNCTIONAL INDEXES
+#
+CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = "t1";
+COLUMN_NAME	ORDINAL_POSITION
+col1	1
+ALTER TABLE t1 ADD COLUMN col2 INT;
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = "t1";
+COLUMN_NAME	ORDINAL_POSITION
+col1	1
+col2	2
+DROP TABLE t1;
+# See that INSTANT ADD COLUMN still works with this bugfix.
+CREATE TABLE t1 (col1 INT, col2 INT AS (col1 + col1), INDEX (col2));
+ALTER TABLE t1 ADD COLUMN new_col INT AFTER col1, ALGORITHM=INSTANT;
+DROP TABLE t1;
+#
+# Bug#29934661 FUNCTIONAL INDEX SEEMS TO MALFUNCTION WITH UNSIGNED COLUMN
+#
+# The hidden column that is added should have a data type that can store
+# the absolute value of an unsigned data type.
+CREATE TABLE t0(c0 INT UNSIGNED, INDEX idx ((ABS(c0))));
+INSERT INTO t0 (c0) VALUES (4294967294);
+DROP TABLE t0;

@@ -242,6 +242,7 @@ bool collect_fk_parents_for_new_fks(
   @param          table_name                    Table name.
   @param          alter_info                    Alter_info object with the
                                                 list of FKs to be added.
+  @param          hton                          Table's storage engine.
   @param          fk_max_generated_name_number  Max value of number component
                                                 among existing generated foreign
                                                 key names.
@@ -253,6 +254,7 @@ bool collect_fk_parents_for_new_fks(
 bool collect_fk_names_for_new_fks(THD *thd, const char *db_name,
                                   const char *table_name,
                                   const Alter_info *alter_info,
+                                  handlerton *hton,
                                   uint fk_max_generated_name_number,
                                   MDL_request_list *mdl_requests);
 
@@ -548,4 +550,21 @@ bool lock_check_constraint_names_for_rename(THD *thd, const char *db,
                                             const char *target_db,
                                             const char *target_table_name);
 
+/**
+  Method to prepare check constraints for the CREATE operation. If name of the
+  check constraint is not specified then name is generated, check constraint
+  is pre-validated and MDL on check constraint is acquired.
+
+  @param            thd                      Thread handle.
+  @param            db_name                  Database name.
+  @param            table_name               Table name.
+  @param            alter_info               Alter_info object with list of
+                                             check constraints to be created.
+
+  @retval           false                    Success.
+  @retval           true                     Failure.
+*/
+bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
+                                          const char *table_name,
+                                          Alter_info *alter_info);
 #endif /* SQL_TABLE_INCLUDED */

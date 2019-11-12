@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/xmpp/sasl", ["dijit","dojo","dojox","dojo/require!dojox/xmpp/util,dojo/AdapterRegistry,dojox/encoding/digests/MD5"], function(dijit,dojo,dojox){
+define("dojox/xmpp/sasl", ["dojo","dijit","dojox","dojo/require!dojox/xmpp/util,dojo/AdapterRegistry,dojox/encoding/digests/MD5"], function(dojo,dijit,dojox){
 dojo.provide("dojox.xmpp.sasl");
 dojo.require("dojox.xmpp.util");
 

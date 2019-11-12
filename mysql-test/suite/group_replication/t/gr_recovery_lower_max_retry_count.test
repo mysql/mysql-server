@@ -47,8 +47,8 @@ CHANGE MASTER TO MASTER_USER="user_does_not_exist" FOR CHANNEL "group_replicatio
 --enable_warnings
 
 SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
-call mtr.add_suppression("Fatal error during the recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 SET SESSION sql_log_bin = 1;
 SET @@GLOBAL.DEBUG='+d,gr_reset_max_connection_attempts_to_donors';
@@ -89,7 +89,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.reset_recovery_retry_count_done";
 
 --let $assert_file = $error_file
 --let $assert_text = Recovery process aborted.
---let $assert_select = Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.
+--let $assert_select = Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.
 --let $assert_count = 1
 --source include/assert_grep.inc
 

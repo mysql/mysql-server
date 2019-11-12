@@ -48,22 +48,23 @@ if(!this.getUrl()){
 console.error("No upload url found.",this);
 return;
 }
-var fd=new FormData();
+var fd=new FormData(),_f=this._getFileFieldName();
 _3.forEach(this._files,function(f,i){
-fd.append(this.name+"s[]",f);
+fd.append(_f,f);
 },this);
 if(_e){
 for(var nm in _e){
 fd.append(nm,_e[nm]);
 }
 }
-var _f=this.createXhr();
-_f.send(fd);
+var xhr=this.createXhr();
+xhr.send(fd);
 },_xhrProgress:function(evt){
 if(evt.lengthComputable){
 var o={bytesLoaded:evt.loaded,bytesTotal:evt.total,type:evt.type,timeStamp:evt.timeStamp};
 if(evt.type=="load"){
-o.percent="100%",o.decimal=1;
+o.percent="100%";
+o.decimal=1;
 }else{
 o.decimal=evt.loaded/evt.total;
 o.percent=Math.ceil((evt.loaded/evt.total)*100)+"%";
@@ -86,7 +87,15 @@ clearInterval(_10);
 xhr.onreadystatechange=_2.hitch(this,function(){
 if(xhr.readyState===4){
 clearInterval(_10);
+try{
 this.onComplete(JSON.parse(xhr.responseText.replace(/^\{\}&&/,"")));
+}
+catch(e){
+var msg="Error parsing server result:";
+console.error(msg,e);
+console.error(xhr.responseText);
+this.onError(msg,e);
+}
 }
 });
 xhr.open("POST",this.getUrl());
@@ -104,9 +113,8 @@ return xhr;
 var EOL="\r\n";
 var _13="";
 _12="--"+_12;
-var _14=[],_15=this._files;
+var _14=[],_15=this._files,_16=this._getFileFieldName();
 _3.forEach(_15,function(f,i){
-var _16=this.name+"s[]";
 var _17=f.fileName;
 var _18;
 try{

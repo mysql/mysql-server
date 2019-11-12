@@ -382,6 +382,9 @@ DECLARE_BOOL_METHOD(register_variable,
   length of the value (as applicable) is returned into the out_length_of_val
   argument.
 
+  In case when the user buffer was too small to copy the value, the call fails
+  and needed buffer size is returned by 'out_length_of_val'.
+
   Typical use (char * variable):
   @code
 
@@ -402,8 +405,9 @@ DECLARE_BOOL_METHOD(register_variable,
   to the value.
   @param[in,out] out_length_of_val On input: the buffer size. On output the
   length of the data copied.
-  @retval true failure
-  @retval false success
+
+  @retval true    failure
+  @retval false   success
 */
 DECLARE_BOOL_METHOD(get_variable, (const char *component_name, const char *name,
                                    void **val, size_t *out_length_of_val));

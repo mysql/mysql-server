@@ -1,8 +1,6 @@
-//>>built
 define("dojox/grid/enhanced/plugins/Filter", [
 	"dojo/_base/declare",
 	"dojo/_base/lang",
-	"dojo/i18n",
 	"../_Plugin",
 	"./Dialog",
 	"./filter/FilterLayer",
@@ -12,53 +10,57 @@ define("dojox/grid/enhanced/plugins/Filter", [
 	"./filter/ClearFilterConfirm",
 	"../../EnhancedGrid",
 	"dojo/i18n!../nls/Filter"
-], function(declare, lang, i18n, _Plugin, Dialog, layers, FilterBar, FilterDefDialog, FilterStatusTip, ClearFilterConfirm, EnhancedGrid){
+], function(declare, lang, _Plugin, Dialog, layers, FilterBar, FilterDefDialog, FilterStatusTip, ClearFilterConfirm, EnhancedGrid, nls){
 
 	var Filter = declare("dojox.grid.enhanced.plugins.Filter", _Plugin, {
 		// summary:
 		//		Provide filter functionality for grid.
 		//
 		//		Acceptable plugin parameters:
-		//		1. itemsName: string
+		//
+		//		1. itemsName: string:
 		//			the name shown on the filter bar.
-		//		2. statusTipTimeout: number
+		//		2. statusTipTimeout: number:
 		//			when does the status tip show.
-		//		3. ruleCount: number
+		//		3. ruleCount: number:
 		//			default to 3, should not change to more. The Claro theme limits it.
-		//		4. disabledConditions: object
+		//		4. disabledConditions: object:
 		//			If you don't need all of the conditions provided for a data type,
 		//			you can explicitly declare them here:
 		//			e.g.: disabledConditions: {string: ["contains", "is"], number: ["equalto"], ...}
-		//		5. isServerSide: boolean
+		//		5. isServerSide: boolean:
 		//			Whether to use server side filtering. Default to false.
-		//		6. isStateful: boolean
+		//		6. isStateful: boolean:
 		//			If isServerSide is true, set the server side filter to be stateful or not. default to false.
-		//		7. url: string
+		//		7. url: string:
 		//			If using stateful, this is the url to send commands. default to store.url.
-		//		8. ruleCountToConfirmClearFilter: Integer | null |Infinity
+		//		8. ruleCountToConfirmClearFilter: Integer | null |Infinity:
 		//			If the filter rule count is larger than or equal to this value, then a confirm dialog will show when clearing filter.
 		//			If set to less than 1 or null, then always show the confirm dialog.
 		//			If set to Infinity, then never show the confirm dialog.
 		//			Default value is 2.
 		//
 		//		Acceptable cell parameters defined in layout:
-		//		1. filterable: boolean
+		//
+		//		1. filterable: boolean:
 		//			The column is not filterable only when this is set to false explicitly.
-		//		2. datatype: string
+		//		2. datatype: string:
 		//			The data type of this column. Can be "string", "number", "date", "time", "boolean".
 		//			Default to "string".
-		//		3. autoComplete: boolean
+		//		3. autoComplete: boolean:
 		//			If need auto-complete in the ComboBox for String type, set this to true.
-		//		4. dataTypeArgs: object
+		//		4. dataTypeArgs: object:
 		//			Some arguments helping convert store data to something the filter UI understands.
 		//			Different data type arguments can be provided to different data types.
 		//			For date/time, this is a dojo.date.locale.__FormatOptions, so the DataTimeBox can understand the store data.
 		//			For boolean, this object contains:
-		//				trueLabel: string
-		//					A label to display in the filter definition dialog for true value. Default to "True".
-		//				falseLable: string
-		//					A label to display in the filter definition dialog for false value. Default to "False".
-		//		5. disabledConditions: object
+		//
+		//			- trueLabel: string:
+		//				A label to display in the filter definition dialog for true value. Default to "True".
+		//			- falseLabel: string:
+		//				A label to display in the filter definition dialog for false value. Default to "False".
+		//
+		//		5. disabledConditions: object:
 		//			If you don't need all of the conditions provided by the filter UI on this column, you can explicitly say it out here.
 		//			e.g.: disabledConditions: ["contains", "is"]
 		//			This will disable the "contains" condition for this column, if this column is of string type.
@@ -89,7 +91,7 @@ define("dojox/grid/enhanced/plugins/Filter", [
 			// summary:
 			//		See constructor of dojox.grid.enhanced._Plugin.
 			this.grid = grid;
-			this.nls = i18n.getLocalization("dojox.grid.enhanced", "Filter");
+			this.nls = nls;
 			
 			args = this.args = lang.isObject(args) ? args : {};
 			if(typeof args.ruleCount != 'number' || args.ruleCount < 0){
@@ -133,7 +135,6 @@ define("dojox/grid/enhanced/plugins/Filter", [
 				this.filterDefDialog.destroy();
 				this.filterDefDialog = null;
 				this.grid = null;
-				this.nls = null;
 				this.args = null;
 			}catch(e){
 				console.warn("Filter.destroy() error:",e);

@@ -1,9 +1,2 @@
 //>>built
-define(
-({
-name: "名前",
-path: "パス",
-size: "サイズ (バイト単位)"
-})
-
-);
+define("dojox/widget/nls/ja/FilePicker",({name:"名前",path:"パス",size:"サイズ (バイト単位)"}));

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/_FocusManager", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",
@@ -21,58 +20,71 @@ var _FocusArea = declare("dojox.grid.enhanced._FocusArea", null, {
 		// name: string
 		//		Name of this area.
 		name: "",
+
+		onFocus: function(event, step){
+			// summary:
+			//		Called when this area logically gets focus.
+			// event: Event object
+			//		May be unavailable, should check before use.
+			// step: Integer
+			//		The distance in the tab sequence from last focused area to this area.
+			// returns:
+			//		whether this area is successfully focused. If not, the next area will get focus.
+
+ 			return true;
+		},
 		
-		// onFocus: function(event, step)
-		//		Called when this area logically gets focus.
-		//		event: Event object
-		//				May be unavailable, should check before use.
-		//		step: Integer
-		//				The distance in the tab sequence from last focused area to this area.
-		//		returns:
-		//				whether this area is successfully focused. If not, the next area will get focus.
-		onFocus: function(event, step){return true;},
+		onBlur: function(event, step){
+			// summary:
+			//		Called when this area logically loses focus.
+			// event: Event object
+			//		May be unavailable, should check before use.
+			// step: Integer
+			//		The distance in the tab sequence from this area to the area to focus.
+			// returns:
+			//		If Boolean, means whether this area has successfully blurred. If not, the next area to focus is still this one.
+			//		If String, means the next area to focus is given by this returned name.
+
+			return true;
+		},
 		
-		// onBlur: function(event, step)
-		//		Called when this area logically loses focus.
-		//		event: Event object
-		//				May be unavailable, should check before use.
-		//		step: Integer
-		//				The distance in the tab sequence from this area to the area to focus.
-		//		returns:
-		//				If Boolean, means whether this area has successfully blurred. If not, the next area to focus is still this one.
-		//				If String, means the next area to focus is given by this returned name.
-		onBlur: function(event, step){return true;},
+		onMove: function(rowStep, colStep, event){
+			// summary:
+			//		Called when focus is moving around within this area.
+			// rowStep: Integer
+			// colStep: Integer
+			// event: Event object
+			//		May be unavailable, should check before use.
+		},
 		
-		// onMove: function(rowStep, colStep, event)
-		//		Called when focus is moving around within this area.
-		//		rowStep: Integer
-		//		colStep: Integer
-		//		event: Event object
-		//				May be unavailable, should check before use.
-		onMove: function(rowStep, colStep, event){},
+		onKey: function(event, isBubble){
+			// summary:
+			//		Called when some key is pressed when focus is logically in this area.
+			// event: Event object
+			// isBubble: Boolean
+			//		Whether is in bubble stage (true) or catch stage (false).
+			// returns:
+			//		If you do NOT want the event to propagate any further along the area stack, return exactly false.
+			//		So if you return nothing (undefined), this event is still propagating.
+			return true;
+		},
 		
-		// onKey: function(event, isBubble)
-		//		Called when some key is pressed when focus is logically in this area.
-		//		event: Event object
-		//		isBubble: Boolean
-		//				Whether is in bubble stage (true) or catch stage (false).
-		//		returns:
-		//				If you do NOT want the event to propagate any further along the area stack, return exactly false.
-		//				So if you return nothing (undefined), this event is still propagating.
-		onKey: function(event, isBubble){return true},
+		getRegions: function(){
+			// summary:
+			//		Define the small regions (dom nodes) in this area.
+			// returns:
+			//		Array of dom nodes.
+		},
 		
-		// getRegions: function()
-		//		Define the small regions (dom nodes) in this area.
-		//		returns: Array of dom nodes.
-		getRegions: function(){},
+		onRegionFocus: function(event){
+			// summary:
+			//		Connected to the onfocus event of the defined regions (if any)
+		},
 		
-		// onRegionFocus: function(event)
-		//		Connected to the onfocus event of the defined regions (if any)
-		onRegionFocus: function(event){},
-		
-		// onRegionBlur: function(event)
-		//		Connected to the onblur event of the defined regions (if any)
-		onRegionBlur: function(event){},
+		onRegionBlur: function(event){
+			// summary:
+			//		Connected to the onblur event of the defined regions (if any)
+		},
 =====*/
 	constructor: function(area, focusManager){
 		this._fm = focusManager;
@@ -400,7 +412,7 @@ return declare("dojox.grid.enhanced._FocusManager", _FocusManager, {
 		// summary:
 		//		Overwritten
 		//		Check whether currently navigating among column headers.
-		// return:
+		// returns:
 		//		true - focus is on a certain column header | false otherwise
 		return this._areaQueue[this._currentAreaIdx] == "header";
 	},
@@ -462,15 +474,16 @@ return declare("dojox.grid.enhanced._FocusManager", _FocusManager, {
 	_delayedHeaderFocus: function(){
 		// summary:
 		//		Overwritten
-		if(this.isNavHeader()){
+		if(this.isNavHeader() && !has('ie')){
 			this.focusHeader();
 		}
 	},
 	_delayedCellFocus: function(){
 		// summary:
 		//		Overwritten
-		this.currentArea("header", true);
-		this.focusArea(this._currentAreaIdx);
+		
+		//If focus header here, the page will scroll to grid when the grid is created.
+		//this.focusArea("header");
 	},
 	_changeMenuBindNode: function(oldBindNode, newBindNode){
 		var hm = this.grid.headerMenu;
@@ -651,7 +664,7 @@ return declare("dojox.grid.enhanced._FocusManager", _FocusManager, {
 				var elems = this._navElems;
 				var firstElem = elems.lowest || elems.first;
 				var lastElem = elems.last || elems.highest || firstElem;
-				var target = has("ie") ? evt.srcElement : evt.target;
+				var target = has('ie') ? evt.srcElement : evt.target;
 				toBlur = target == (step > 0 ? lastElem : firstElem);
 			}
 			if(toBlur){
@@ -754,7 +767,7 @@ return declare("dojox.grid.enhanced._FocusManager", _FocusManager, {
 			if(cell && !cell.editable && cell.navigatable){
 				this._initNavigatableElems();
 				if(this._navElems.lowest || this._navElems.first){
-					var target = has("ie") ? evt.srcElement : evt.target;
+					var target = has('ie') ? evt.srcElement : evt.target;
 					if(target != cell.getNode(evt.rowIndex)){
 						this._isNavigating = true;
 						this.focusArea("editableCell", evt);

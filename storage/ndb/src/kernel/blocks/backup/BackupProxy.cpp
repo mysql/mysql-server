@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,16 +71,19 @@ BackupProxy::newWorker(Uint32 instanceNo)
 void
 BackupProxy::callSTTOR(Signal* signal)
 {
+  jam();
   Ss_READ_NODES_REQ& ss = c_ss_READ_NODESREQ;
   ndbrequire(ss.m_gsn == 0);
 
   const Uint32 startPhase = signal->theData[1];
   switch (startPhase) {
   case 3:
+    jam();
     ss.m_gsn = GSN_STTOR;
     sendREAD_NODESREQ(signal);
     break;
   case 7:
+    jam();
     if (c_typeOfStart == NodeState::ST_INITIAL_START &&
         c_masterNodeId == getOwnNodeId()) {
       jam();
@@ -90,6 +93,7 @@ BackupProxy::callSTTOR(Signal* signal)
     backSTTOR(signal);
     break;
   default:
+    jam();
     backSTTOR(signal);
     break;
   }
@@ -100,6 +104,7 @@ static const Uint32 BACKUP_SEQUENCE = 0x1F000000;
 void
 BackupProxy::sendUTIL_SEQUENCE_REQ(Signal* signal)
 {
+  jam();
   UtilSequenceReq* req = (UtilSequenceReq*)signal->getDataPtrSend();
 
   req->senderData  = RNIL;
@@ -113,6 +118,7 @@ BackupProxy::sendUTIL_SEQUENCE_REQ(Signal* signal)
 void
 BackupProxy::execUTIL_SEQUENCE_CONF(Signal* signal)
 {
+  jam();
   backSTTOR(signal);
 }
 
@@ -137,14 +143,17 @@ void BackupProxy::execDUMP_STATE_ORD(Signal* signal)
   /* Special handling of case used by ALL REPORT BACKUP
    * from MGMD, to ensure 1 result row per node
    */
+  jam();
   if (signal->length() == 2 && 
       signal->theData[0] == DumpStateOrd::BackupStatus)
   {
+    jam();
     /* Special case as part of ALL REPORT BACKUP,
      * which requires 1 report per node.
      */
     if (unlikely(c_ss_SUM_DUMP_STATE_ORD.m_usage != 0))
     {
+      jam();
       /* Got two concurrent DUMP_STATE_ORDs for BackupStatus,
        * let's busy-wait
        */
@@ -163,6 +172,7 @@ void BackupProxy::execDUMP_STATE_ORD(Signal* signal)
   }
   else
   {
+    jam();
     /* Use generic method */
     LocalProxy::execDUMP_STATE_ORD(signal);
   }
@@ -172,6 +182,7 @@ void
 BackupProxy::sendSUM_DUMP_STATE_ORD(Signal* signal, Uint32 ssId,
                                     SectionHandle* handle)
 {
+  jam();
   Ss_SUM_DUMP_STATE_ORD& ss = ssFind<Ss_SUM_DUMP_STATE_ORD>(ssId);
 
   memcpy(signal->theData, ss.m_request, 2 << 2);
@@ -185,6 +196,7 @@ BackupProxy::sendSUM_DUMP_STATE_ORD(Signal* signal, Uint32 ssId,
 void 
 BackupProxy::execEVENT_REP(Signal* signal)
 {
+  jam();
   Ss_SUM_DUMP_STATE_ORD& ss = ssFind<Ss_SUM_DUMP_STATE_ORD>(DumpStateOrdSsId);
   
   recvCONF(signal, ss);
@@ -193,6 +205,7 @@ BackupProxy::execEVENT_REP(Signal* signal)
 void
 BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
 {
+  jam();
   Ss_SUM_DUMP_STATE_ORD& ss = ssFind<Ss_SUM_DUMP_STATE_ORD>(ssId);
   const Uint32 reportLen = 11;
 
@@ -203,6 +216,7 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
   Uint32 startingNode = signal->theData[1];
   if (startingNode != 0)
   {
+    jam();
     ndbrequire(ss.m_report[1] == 0 || 
                ss.m_report[1] == startingNode);
     ss.m_report[1] = startingNode;
@@ -212,6 +226,7 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
   Uint32 backupId = signal->theData[2];
   if (backupId != 0)
   {
+    jam();
     ndbrequire(ss.m_report[2] == 0 || 
                ss.m_report[2] == backupId);
     ss.m_report[2] = backupId;
@@ -222,7 +237,10 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
     ss.m_report[w] += signal->theData[w];
   
   if (!lastReply(ss))
+  {
+    jam();
     return;
+  }
 
   BlockReference clientRef = ss.m_request[1];
   memcpy(signal->theData, ss.m_report, reportLen << 2);
@@ -235,6 +253,7 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
 void
 BackupProxy::execRESTORABLE_GCI_REP(Signal *signal)
 {
+  jam();
   for (Uint32 i = 0; i < c_workers; i++)
   {
     jam();
@@ -262,6 +281,9 @@ BackupProxy::execDEFINE_BACKUP_REQ(Signal* signal)
   const DefineBackupReq* req = (const DefineBackupReq*)signal->getDataPtr();
   ss.m_req = *req;
   ss.masterRef = req->senderRef;
+
+  SectionHandle handle(this, signal);
+  saveSections(ss, handle);
   sendREQ(signal, ss);
 }
 
@@ -274,8 +296,8 @@ BackupProxy::sendDEFINE_BACKUP_REQ(Signal* signal, Uint32 ssId,
   DefineBackupReq* req = (DefineBackupReq*)signal->getDataPtrSend();
   *req = ss.m_req;
   req->senderRef = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_DEFINE_BACKUP_REQ,
-                      signal, DefineBackupReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_DEFINE_BACKUP_REQ,
+                      signal, DefineBackupReq::SignalLength_v1, JBB, handle);
 }
 
 void

@@ -70,6 +70,8 @@ set @b= 1;
 end if;
 return n;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 delete from t4;
 insert into t4 values (1,1), (1,1);
 reset master;

@@ -1,12 +1,12 @@
 //>>built
-define("dojox/widget/FisheyeLite",["dojo","dojox","dijit/_Widget","dojo/fx/easing"],function(_1,_2,_3,_4){
-_1.getObject("widget",true,_2);
-_1.experimental("dojox.widget.FisheyeLite");
-return _1.declare("dojox.widget.FisheyeLite",dijit._Widget,{durationIn:350,easeIn:_4.backOut,durationOut:1420,easeOut:_4.elasticOut,properties:null,units:"px",constructor:function(_5,_6){
-this.properties=_5.properties||{fontSize:2.75};
+define("dojox/widget/FisheyeLite",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/lang","dojo/on","dojo/query","dojo/dom-style","dojo/_base/fx","dijit/_WidgetBase","dojo/fx/easing"],function(_1,_2,_3,on,_4,_5,fx,_6,_7){
+_3.getObject("widget",true,dojox);
+_1.experimental("dojox/widget/FisheyeLite");
+return dojo.declare("dojox.widget.FisheyeLite",[_6],{durationIn:350,easeIn:_7.backOut,durationOut:1420,easeOut:_7.elasticOut,properties:null,units:"px",constructor:function(_8,_9){
+this.properties=_8.properties||{fontSize:2.75};
 },postCreate:function(){
 this.inherited(arguments);
-this._target=_1.query(".fisheyeTarget",this.domNode)[0]||this.domNode;
+this._target=_4(".fisheyeTarget",this.domNode)[0]||this.domNode;
 this._makeAnims();
 this.connect(this.domNode,"onmouseover","show");
 this.connect(this.domNode,"onmouseout","hide");
@@ -18,15 +18,15 @@ this._runningIn.play();
 this._runningIn.stop();
 this._runningOut.play();
 },_makeAnims:function(){
-var _7={},_8={},cs=_1.getComputedStyle(this._target);
+var _a={},_b={},cs=_5.getComputedStyle(this._target);
 for(var p in this.properties){
-var _9=this.properties[p],_a=_1.isObject(_9),v=parseInt(cs[p]);
-_8[p]={end:v,units:this.units};
-_7[p]=_a?_9:{end:_9*v,units:this.units};
+var _c=this.properties[p],_d=_3.isObject(_c),v=parseInt(cs[p]);
+_b[p]={end:v,units:this.units};
+_a[p]=_d?_c:{end:_c*v,units:this.units};
 }
-this._runningIn=_1.animateProperty({node:this._target,easing:this.easeIn,duration:this.durationIn,properties:_7});
-this._runningOut=_1.animateProperty({node:this._target,duration:this.durationOut,easing:this.easeOut,properties:_8});
-this.connect(this._runningIn,"onEnd",_1.hitch(this,"onSelected",this));
+this._runningIn=fx.animateProperty({node:this._target,easing:this.easeIn,duration:this.durationIn,properties:_a});
+this._runningOut=fx.animateProperty({node:this._target,duration:this.durationOut,easing:this.easeOut,properties:_b});
+this.connect(this._runningIn,"onEnd",_3.hitch(this,"onSelected",this));
 },onClick:function(e){
 },onSelected:function(e){
 }});

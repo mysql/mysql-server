@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-greenLabel: "v",
-hueLabel: "t",
-huePickerTitle: "Sélecteur de teinte",
-saturationPickerTitle: "Sélecteur de saturation"
-})
-);
+define("dojox/widget/nls/fr/ColorPicker",({redLabel:"r",greenLabel:"v",blueLabel:"b",hueLabel:"t",saturationLabel:"s",valueLabel:"v",degLabel:"°",hexLabel:"hex",huePickerTitle:"Sélecteur de teinte",saturationPickerTitle:"Sélecteur de saturation"}));

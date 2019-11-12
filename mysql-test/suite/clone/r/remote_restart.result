@@ -1,0 +1,58 @@
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64));
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME LIKE '%clone%';
+PLUGIN_NAME	PLUGIN_STATUS
+clone	ACTIVE
+SET GLOBAL CLONE_MAX_CONCURRENCY = 8;
+SHOW VARIABLES LIKE '%CLONE_MAX_CONCURRENCY%';
+Variable_name	Value
+clone_max_concurrency	8
+SET GLOBAL CLONE_MAX_CONCURRENCY = default;
+SET global debug="+d,clone_restart_apply";
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+SET global debug="-d,clone_restart_apply";
+# restart: --datadir=CLONE_DATADIR
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+INSERT INTO t1 VALUES(40, 'clone row 4');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+40	clone row 4
+# restart:
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+UNINSTALL PLUGIN clone;
+DROP TABLE t1;

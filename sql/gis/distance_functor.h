@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_DISTANCE_FUNCTOR_H_INCLUDED
 #define SQL_GIS_DISTANCE_FUNCTOR_H_INCLUDED
 
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,11 @@ class Distance : public Functor<double> {
  private:
   std::unique_ptr<boost::geometry::strategy::distance::andoyer<
       boost::geometry::srs::spheroid<double>>>
-      m_geographic_strategy;
+      m_geographic_strategy_pp;
+  std::unique_ptr<boost::geometry::strategy::distance::geographic_cross_track<
+      boost::geometry::strategy::andoyer,
+      boost::geometry::srs::spheroid<double>, double>>
+      m_geographic_strategy_non_pp;
 
  public:
   Distance(double major, double minor);
@@ -175,7 +179,52 @@ class Distance : public Functor<double> {
 
   double eval(const Geographic_point *g1, const Geographic_point *g2) const;
   double eval(const Geographic_point *g1,
+              const Geographic_linestring *g2) const;
+  double eval(const Geographic_point *g1, const Geographic_polygon *g2) const;
+  double eval(const Geographic_point *g1,
               const Geographic_multipoint *g2) const;
+  double eval(const Geographic_point *g1,
+              const Geographic_multilinestring *g2) const;
+  double eval(const Geographic_point *g1,
+              const Geographic_multipolygon *g2) const;
+  double eval(const Geographic_point *g1,
+              const Geographic_geometrycollection *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // distance(Geographic_linestring, *)
+
+  double eval(const Geographic_linestring *g1,
+              const Geographic_point *g2) const;
+  double eval(const Geographic_linestring *g1,
+              const Geographic_linestring *g2) const;
+  double eval(const Geographic_linestring *g1,
+              const Geographic_polygon *g2) const;
+  double eval(const Geographic_linestring *g1,
+              const Geographic_multipoint *g2) const;
+  double eval(const Geographic_linestring *g1,
+              const Geographic_multilinestring *g2) const;
+  double eval(const Geographic_linestring *g1,
+              const Geographic_multipolygon *g2) const;
+  double eval(const Geographic_linestring *g1,
+              const Geographic_geometrycollection *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // distance(Geographic_polygon, *)
+
+  double eval(const Geographic_polygon *g1, const Geographic_point *g2) const;
+  double eval(const Geographic_polygon *g1,
+              const Geographic_linestring *g2) const;
+  double eval(const Geographic_polygon *g1, const Geographic_polygon *g2) const;
+  double eval(const Geographic_polygon *g1,
+              const Geographic_multipoint *g2) const;
+  double eval(const Geographic_polygon *g1,
+              const Geographic_multilinestring *g2) const;
+  double eval(const Geographic_polygon *g1,
+              const Geographic_multipolygon *g2) const;
+  double eval(const Geographic_polygon *g1,
+              const Geographic_geometrycollection *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -183,6 +232,63 @@ class Distance : public Functor<double> {
 
   double eval(const Geographic_multipoint *g1,
               const Geographic_point *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_linestring *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_polygon *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_multipoint *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_multilinestring *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_multipolygon *g2) const;
+  double eval(const Geographic_multipoint *g1,
+              const Geographic_geometrycollection *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // distance(Geographic_multilinestring, *)
+
+  double eval(const Geographic_multilinestring *g1,
+              const Geographic_point *g2) const;
+  double eval(const Geographic_multilinestring *g1,
+              const Geographic_linestring *g2) const;
+  double eval(const Geographic_multilinestring *g1,
+              const Geographic_polygon *g2) const;
+  double eval(const Geographic_multilinestring *g1,
+              const Geographic_multipoint *g2) const;
+  double eval(const Geographic_multilinestring *g1,
+              const Geographic_multilinestring *g2) const;
+  double eval(const Geographic_multilinestring *g1,
+              const Geographic_multipolygon *g2) const;
+  double eval(const Geographic_multilinestring *g1,
+              const Geographic_geometrycollection *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // distance(Geographic_multipolygon, *)
+
+  double eval(const Geographic_multipolygon *g1,
+              const Geographic_point *g2) const;
+  double eval(const Geographic_multipolygon *g1,
+              const Geographic_linestring *g2) const;
+  double eval(const Geographic_multipolygon *g1,
+              const Geographic_polygon *g2) const;
+  double eval(const Geographic_multipolygon *g1,
+              const Geographic_multipoint *g2) const;
+  double eval(const Geographic_multipolygon *g1,
+              const Geographic_multilinestring *g2) const;
+  double eval(const Geographic_multipolygon *g1,
+              const Geographic_multipolygon *g2) const;
+  double eval(const Geographic_multipolygon *g1,
+              const Geographic_geometrycollection *g2) const;
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // distance(Geographic_geometrycollection, *)
+
+  double eval(const Geographic_geometrycollection *g1,
+              const Geometry *g2) const;
 };
 
 }  // namespace gis

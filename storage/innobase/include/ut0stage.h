@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -449,48 +449,74 @@ class ut_stage_alter_ts {
 
   void init(int key) {
     ut_ad(key != -1);
+    ut_ad(m_cur_phase == NOT_STARTED);
 
-    change_phase();
     m_progress = nullptr;
     m_work_estimated = 0;
     m_work_done = 0;
-    m_cur_phase = WORK_ESTIMATE;
 
     m_progress = mysql_set_stage(key);
+    /* Change phase to INITIATED */
+    change_phase();
   }
 
   void set_estimate(ulint units) {
-    ut_ad(m_progress != nullptr);
-    ut_ad(m_cur_phase == WORK_ESTIMATE);
+    if (m_progress == NULL) {
+      return;
+    }
 
+    ut_ad(m_cur_phase == INITIATED);
     m_work_estimated = units;
     mysql_stage_set_work_estimated(m_progress, m_work_estimated);
+    /* Change phase to WORK_ESTIMATED */
+    change_phase();
   }
 
   void update_work(ulint units) {
-    ut_ad(m_progress != nullptr);
-    ut_ad(m_cur_phase == WORK_ESTIMATE);
+    if (m_progress == NULL) {
+      return;
+    }
+
+    ut_ad(m_cur_phase == WORK_ESTIMATED);
 
     m_work_done += units;
     ut_ad(m_work_done <= m_work_estimated);
     mysql_stage_set_work_completed(m_progress, m_work_done);
+
+    if (m_work_done == m_work_estimated) {
+      /* Change phase to WORK_COMPLETED */
+      change_phase();
+    }
   }
 
   void change_phase() {
     if (m_progress == NULL) {
+      ut_ad(m_cur_phase == NOT_STARTED);
       return;
     }
 
     switch (m_cur_phase) {
       case NOT_STARTED:
+        m_cur_phase = INITIATED;
         break;
-      case WORK_ESTIMATE:
-        m_cur_phase = WORK_COMPLETE;
+      case INITIATED:
+        m_cur_phase = WORK_ESTIMATED;
         break;
-      case WORK_COMPLETE:
-        m_cur_phase = NOT_STARTED;
+      case WORK_ESTIMATED:
+        m_cur_phase = WORK_COMPLETED;
         break;
+      case WORK_COMPLETED:
+      default:
+        ut_error;
     }
+  }
+
+  bool is_completed() {
+    if (m_progress == NULL) {
+      return true;
+    }
+
+    return (m_cur_phase == WORK_COMPLETED);
   }
 
  private:
@@ -506,8 +532,9 @@ class ut_stage_alter_ts {
   /** Current phase. */
   enum {
     NOT_STARTED = 0,
-    WORK_ESTIMATE = 1,
-    WORK_COMPLETE = 2,
+    INITIATED = 1,
+    WORK_ESTIMATED = 2,
+    WORK_COMPLETED = 3,
   } m_cur_phase;
 };
 

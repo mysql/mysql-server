@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,47 +21,57 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 IF(LIBFUZZER_COMPILE_FLAGS)
-  SET(TARGET routerfuzz_router_uri)
-
   # FIXME: uri.cc depends on split_string() from utils.cc which pulls in
   # the whole harness. utils.cc should be split into a smaller chunks
   # (string, file, ...) to allow to build directly against it.
   #
-  ADD_EXECUTABLE(${TARGET}
+  MYSQL_ADD_EXECUTABLE(routerfuzz_router_uri
     fuzz_router_uri.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
-  )
 
-  TARGET_LINK_LIBRARIES(${TARGET} harness-library ${MySQL_CLIENT_LIB}
-                        ${SSL_LIBRARIES})
-  TARGET_INCLUDE_DIRECTORIES(${TARGET}
+    LINK_LIBRARIES
+    harness-library
+    mysqlclient
+    ${SSL_LIBRARIES}
+
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    SKIP_INSTALL
+    )
+  TARGET_INCLUDE_DIRECTORIES(routerfuzz_router_uri
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/src/router/include/)
+    ${PROJECT_SOURCE_DIR}/src/router/include/
+    )
+  LIBFUZZER_ADD_TEST(routerfuzz_router_uri
+    INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri
+    )
+  ADD_DEPENDENCIES(mysqlrouter_all routerfuzz_router_uri)
 
-  LIBFUZZER_ADD_TEST(${TARGET}
-    INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri)
-  ADD_DEPENDENCIES(mysqlrouter_all ${TARGET})
-
-
-  SET(TARGET routerfuzz_router_uri_tostring)
 
   # FIXME: uri.cc depends on split_string() from utils.cc which pulls in
   # the whole harness. utils.cc should be split into a smaller chunks
   # (string, file, ...) to allow to build directly against it.
   #
-  ADD_EXECUTABLE(${TARGET}
+  MYSQL_ADD_EXECUTABLE(routerfuzz_router_uri_tostring
     fuzz_router_uri_tostring.cc
     ${PROJECT_SOURCE_DIR}/src/router/src/uri.cc
-    ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc)
+    ${PROJECT_SOURCE_DIR}/src/router/src/utils.cc
 
-  TARGET_LINK_LIBRARIES(${TARGET} harness-library ${MySQL_CLIENT_LIB}
-                        ${SSL_LIBRARIES})
-  TARGET_INCLUDE_DIRECTORIES(${TARGET}
+    LINK_LIBRARIES
+    harness-library
+    mysqlclient
+    ${SSL_LIBRARIES}
+
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    SKIP_INSTALL
+    )
+  TARGET_INCLUDE_DIRECTORIES(routerfuzz_router_uri_tostring
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/src/router/include/)
-
-  LIBFUZZER_ADD_TEST(${TARGET}
-    INITIAL_CORPUS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri_tostring)
-  ADD_DEPENDENCIES(mysqlrouter_all ${TARGET})
+    ${PROJECT_SOURCE_DIR}/src/router/include/
+    )
+  LIBFUZZER_ADD_TEST(routerfuzz_router_uri_tostring
+    INITIAL_CORPUS_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/corpus/fuzz_router_uri_tostring
+    )
+  ADD_DEPENDENCIES(mysqlrouter_all routerfuzz_router_uri_tostring)
 ENDIF()

@@ -62,7 +62,7 @@ namespace info_schema {
     Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
     to INT.
 
-  Current 80012: Published in 8.0.12
+  80012: Published in 8.0.12
   ------------------------------------
   Changes from version 80011:
 
@@ -96,7 +96,7 @@ namespace info_schema {
   There are no changes from version 80014. Hence server version 80015 used
   I_S version 80013.
 
-  80016: Current
+  80016: Published in 8.0.16
   ------------------------------------
   Changes from version 80015.
 
@@ -110,14 +110,44 @@ namespace info_schema {
     - information_schema.tables.options UDF definition is changed to pass
       schema default encryption.
 
-  80017: Next IS version number after the previous is public.
-  ----------------------------------------------------------------------------
+  80017: Published in 8.0.17
+  ------------------------------------
   Changes from version 80016:
-  - No changes, this version number is not active yet.
 
+  - WL#12984 INFORMATION_SCHEMA and metadata related to secondary engine.
+    Changes system view definitions of
+    INFORMATION_SCHEMA.TABLES.CREATE_OPTIONS and
+  INFORMATION_SCHEMA.COLUMNS.EXTRA.
+
+  - Bug#29406053: OPTIMIZER_SWITCH DERIVED_MERGE=OFF CAUSES TABLE COMMENTS
+                  "... IS NOT BASE TABLE"
+    Modifies the INFORMATION_SCHEMA.TABLES dynamic column definitions to
+    return NULL, if it finds a view.
+
+  80018: Current
+  ------------------------------------
+  Changes from version 80017:
+
+  - Bug#28278220: wrong column type , view , binary
+    Changes type of following I_S table column's
+      KEY_COLUMN_USAGE:    CONSTRAINT_NAME, POSITION_IN_UNIQUE_CONSTRAINT,
+                           REFERENCED_TABLE_SCHEMA, FIELD_REFERENCED_TABLE_NAME,
+                           REFERENCED_COLUMN_NAME
+
+      TABLE_CONSTRAINTS:   CONSTRAINT_NAME.
+    Column metadata of views on these system views or tables created using
+    CREATE TABLE SELECT from these system views will *not* be similar to one
+    created with previous version of system views.
+
+  - Bug#29870919: INFORMATION SCHEMA STATS EXPIRY RESULTS IN BAD
+                  STATS FOR PARTITIONED TABLES
+    This bug changes definition of I_S.STATISTICS.
+
+  80019: Next IS version number after the previous is public.
+  ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80016;
+static const uint IS_DD_VERSION = 80018;
 
 /**
   Initialize INFORMATION_SCHEMA system views.
@@ -177,6 +207,21 @@ bool store_dynamic_plugin_I_S_metadata(THD *thd, st_plugin_int *plugin_int);
   @return       Upon failure, return true, otherwise false.
 */
 bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name);
+
+/**
+  Get create view definition for the given I_S system view.
+
+  @param schema_name Schema name.
+  @param view_name   I_S view name.
+  @param definition  [out] The CREATE VIEW command to create sytem view.
+                           A pointer to a preallocated string should be
+                           supplied.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool get_I_S_view_definition(const dd::String_type &schema_name,
+                             const dd::String_type &view_name,
+                             dd::String_type *definition);
 
 }  // namespace info_schema
 }  // namespace dd

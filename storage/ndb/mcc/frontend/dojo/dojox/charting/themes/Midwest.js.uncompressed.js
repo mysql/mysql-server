@@ -1,6 +1,4 @@
-//>>built
-define("dojox/charting/themes/Midwest", ["../Theme", "./common"], function(Theme, themes){
-	
+define("dojox/charting/themes/Midwest", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
 	themes.Midwest=new Theme({
 		colors: [
 			"#927b51",
@@ -10,6 +8,5 @@ define("dojox/charting/themes/Midwest", ["../Theme", "./common"], function(Theme
 			"#aebc21"
 		]
 	});
-	
 	return themes.Midwest;
 });

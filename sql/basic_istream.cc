@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,19 +65,19 @@ void IO_CACHE_istream::close() {
 my_off_t IO_CACHE_istream::length() { return my_b_filelength(&m_io_cache); }
 
 ssize_t IO_CACHE_istream::read(unsigned char *buffer, size_t length) {
-  DBUG_ENTER("IO_CACHE_istream::read");
+  DBUG_TRACE;
   if (my_b_read(&m_io_cache, buffer, length) ||
       DBUG_EVALUATE_IF("simulate_magic_header_io_failure", 1, 0))
-    DBUG_RETURN(m_io_cache.error);
-  DBUG_RETURN(static_cast<longlong>(length));
+    return m_io_cache.error;
+  return static_cast<longlong>(length);
 }
 
 bool IO_CACHE_istream::seek(my_off_t offset) {
-  DBUG_ENTER("IO_CACHE_istream::seek");
+  DBUG_TRACE;
   bool res = false;
   my_b_seek(&m_io_cache, offset);
   DBUG_EXECUTE_IF("simulate_seek_failure", res = true;);
-  DBUG_RETURN(res);
+  return res;
 }
 
 Stdin_istream::Stdin_istream() {}

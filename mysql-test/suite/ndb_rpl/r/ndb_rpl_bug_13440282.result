@@ -12,6 +12,8 @@ CREATE TABLE `loadreptable` (
 `xyz` char(255) DEFAULT NULL,
 PRIMARY KEY (`nid`) USING HASH
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE PROCEDURE MAJ ()
 BEGIN
 DECLARE fini INT default 0;

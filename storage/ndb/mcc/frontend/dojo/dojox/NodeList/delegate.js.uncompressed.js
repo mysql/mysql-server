@@ -1,14 +1,14 @@
-//>>built
-define("dojox/NodeList/delegate", ["dojo/_base/lang", "dojo/query", "dojo/_base/NodeList", "dojo/NodeList-traverse"], function(lang, query, NodeList) {
-	// module:
-	//		dojox/NodeList/delegate
-	// summary:
-	//		TODOC
+define("dojox/NodeList/delegate", [
+	"dojo/_base/lang",
+	"dojo/query",
+	"dojo/_base/NodeList",	// for this.connect()
+	"dojo/NodeList-traverse"
+], function(lang, query) {
 
-/*=====
-// doc alias helpers:
-NodeList = dojo.NodeList;
-=====*/
+// module:
+//		dojox/NodeList/delegate
+
+var NodeList = query.NodeList;
 
 lang.extend(NodeList, {
 	delegate: function(/*String*/ selector, /*String*/ eventName, /*Function*/ fn){
@@ -37,7 +37,7 @@ lang.extend(NodeList, {
 		// fn:
 		//		Callback function passed the event object, and where this == the node that matches the selector.
 		//		That means that for example, after setting up a handler via
-		//			 dojo.query("body").delegate("fieldset", "onclick", ...)
+		// |		 dojo.query("body").delegate("fieldset", "onclick", ...)
 		//		clicking on a fieldset or *any nodes inside of a fieldset* will be reported
 		//		as a click on the fieldset itself.
 		// example:
@@ -58,7 +58,7 @@ lang.extend(NodeList, {
 			if(closest.length){
 				fn.call(closest[0], evt);
 			}
-		}); //dojo.NodeList
+		}); //dojo/NodeList
 	}
 });
 

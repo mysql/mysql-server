@@ -21,18 +21,18 @@ ERROR 42000: Not unique table/alias: 'qn'
 WITH qn AS (SELECT b as a FROM t1)
 SELECT qn.a, qn2.a  FROM qn, qn as qn2;
 a	a
-NULL	NULL
+3	3
 3	NULL
 NULL	3
-3	3
+NULL	NULL
 WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.c  FROM qn, qn2;
 a	c
-NULL	NULL
-NULL	4
-3	NULL
 3	4
+3	NULL
+NULL	4
+NULL	NULL
 # qn2 ref qn:
 WITH qn AS (SELECT 10*a as a FROM t1),
 qn2 AS (SELECT 3*a FROM qn)
@@ -49,10 +49,10 @@ WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 a	a
-NULL	NULL
-NULL	3
-3	NULL
 3	3
+3	NULL
+NULL	3
+NULL	NULL
 EXPLAIN WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
@@ -60,7 +60,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where (isnull(`test`.`t1`.`b`) or (`test`.`t1`.`b` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`b` is null) or (`test`.`t1`.`b` > 0))
 # forward ref (should error)
 WITH qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0),
 qn AS (SELECT b as a FROM t1)
@@ -694,6 +694,107 @@ a	a
 1	2
 drop table t1;
 # Must not create more than 64 indexes.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 (select max(c1) from qn where qn.c1=1)	(select max(c2) from qn where qn.c2=1)	(select max(c3) from qn where qn.c3=1)	(select max(c4) from qn where qn.c4=1)	(select max(c5) from qn where qn.c5=1)	(select max(c6) from qn where qn.c6=1)	(select max(c7) from qn where qn.c7=1)	(select max(c8) from qn where qn.c8=1)	(select max(c9) from qn where qn.c9=1)	(select max(c10) from qn where qn.c10=1)	(select max(c11) from qn where qn.c11=1)	(select max(c12) from qn where qn.c12=1)	(select max(c13) from qn where qn.c13=1)	(select max(c14) from qn where qn.c14=1)	(select max(c15) from qn where qn.c15=1)	(select max(c16) from qn where qn.c16=1)	(select max(c17) from qn where qn.c17=1)	(select max(c18) from qn where qn.c18=1)	(select max(c19) from qn where qn.c19=1)	(select max(c20) from qn where qn.c20=1)	(select max(c21) from qn where qn.c21=1)	(select max(c22) from qn where qn.c22=1)	(select max(c23) from qn where qn.c23=1)	(select max(c24) from qn where qn.c24=1)	(select max(c25) from qn where qn.c25=1)	(select max(c26) from qn where qn.c26=1)	(select max(c27) from qn where qn.c27=1)	(select max(c28) from qn where qn.c28=1)	(select max(c29) from qn where qn.c29=1)	(select max(c30) from qn where qn.c30=1)	(select max(c31) from qn where qn.c31=1)	(select max(c32) from qn where qn.c32=1)	(select max(c33) from qn where qn.c33=1)	(select max(c34) from qn where qn.c34=1)	(select max(c35) from qn where qn.c35=1)	(select max(c36) from qn where qn.c36=1)	(select max(c37) from qn where qn.c37=1)	(select max(c38) from qn where qn.c38=1)	(select max(c39) from qn where qn.c39=1)	(select max(c40) from qn where qn.c40=1)	(select max(c41) from qn where qn.c41=1)	(select max(c42) from qn where qn.c42=1)	(select max(c43) from qn where qn.c43=1)	(select max(c44) from qn where qn.c44=1)	(select max(c45) from qn where qn.c45=1)	(select max(c46) from qn where qn.c46=1)	(select max(c47) from qn where qn.c47=1)	(select max(c48) from qn where qn.c48=1)	(select max(c49) from qn where qn.c49=1)	(select max(c50) from qn where qn.c50=1)	(select max(c51) from qn where qn.c51=1)	(select max(c52) from qn where qn.c52=1)	(select max(c53) from qn where qn.c53=1)	(select max(c54) from qn where qn.c54=1)	(select max(c55) from qn where qn.c55=1)	(select max(c56) from qn where qn.c56=1)	(select max(c57) from qn where qn.c57=1)	(select max(c58) from qn where qn.c58=1)	(select max(c59) from qn where qn.c59=1)	(select max(c60) from qn where qn.c60=1)	(select max(c61) from qn where qn.c61=1)	(select max(c62) from qn where qn.c62=1)	(select max(c63) from qn where qn.c63=1)	(select max(c64) from qn where qn.c64=1)	(select max(c65) from qn where qn.c65=1)	(select max(c66) from qn where qn.c66=1)	(select max(c67) from qn where qn.c67=1)	(select max(c68) from qn where qn.c68=1)	(select max(c69) from qn where qn.c69=1)	(select max(c70) from qn where qn.c70=1)	(select max(c71) from qn where qn.c71=1)	(select max(c72) from qn where qn.c72=1)	(select max(c73) from qn where qn.c73=1)	(select max(c74) from qn where qn.c74=1)	(select max(c75) from qn where qn.c75=1)	(select max(c76) from qn where qn.c76=1)	(select max(c77) from qn where qn.c77=1)	(select max(c78) from qn where qn.c78=1)	(select max(c79) from qn where qn.c79=1)	(select max(c80) from qn where qn.c80=1)	(select max(c81) from qn where qn.c81=1)	(select max(c82) from qn where qn.c82=1)	(select max(c83) from qn where qn.c83=1)	(select max(c84) from qn where qn.c84=1)	(select max(c85) from qn where qn.c85=1)	(select max(c86) from qn where qn.c86=1)	(select max(c87) from qn where qn.c87=1)	(select max(c88) from qn where qn.c88=1)	(select max(c89) from qn where qn.c89=1)	(select max(c90) from qn where qn.c90=1)	(select max(c91) from qn where qn.c91=1)	(select max(c92) from qn where qn.c92=1)	(select max(c93) from qn where qn.c93=1)	(select max(c94) from qn where qn.c94=1)	(select max(c95) from qn where qn.c95=1)	(select max(c96) from qn where qn.c96=1)	(select max(c97) from qn where qn.c97=1)	(select max(c98) from qn where qn.c98=1)	(select max(c99) from qn where qn.c99=1)	(select max(c100) from qn where qn.c100=1)
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 drop table t;
@@ -710,7 +811,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and isnull(`t2`.`a`))
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and (`t2`.`a` is null))
 with t2 as
 (select * from t1)
 SELECT /*+ no_merge(t2) */ * FROM t2
@@ -1033,18 +1134,18 @@ ERROR 42000: Not unique table/alias: 'qn'
 WITH qn AS (SELECT b as a FROM t1)
 SELECT qn.a, qn2.a  FROM qn, qn as qn2;
 a	a
-NULL	NULL
+3	3
 3	NULL
 NULL	3
-3	3
+NULL	NULL
 WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.c  FROM qn, qn2;
 a	c
-NULL	NULL
-NULL	4
-3	NULL
 3	4
+3	NULL
+NULL	4
+NULL	NULL
 # qn2 ref qn:
 WITH qn AS (SELECT 10*a as a FROM t1),
 qn2 AS (SELECT 3*a FROM qn)
@@ -1061,10 +1162,10 @@ WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 a	a
-NULL	NULL
-NULL	3
-3	NULL
 3	3
+3	NULL
+NULL	3
+NULL	NULL
 EXPLAIN WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
@@ -1072,7 +1173,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	75.00	Using where
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where (isnull(`test`.`t1`.`b`) or (`test`.`t1`.`b` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `a`,`test`.`t1`.`b` AS `a` from `test`.`t1` join `test`.`t1` where ((`test`.`t1`.`b` is null) or (`test`.`t1`.`b` > 0))
 # forward ref (should error)
 WITH qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0),
 qn AS (SELECT b as a FROM t1)
@@ -1706,6 +1807,107 @@ a	a
 1	2
 drop table t1;
 # Must not create more than 64 indexes.
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 (select max(c1) from qn where qn.c1=1)	(select max(c2) from qn where qn.c2=1)	(select max(c3) from qn where qn.c3=1)	(select max(c4) from qn where qn.c4=1)	(select max(c5) from qn where qn.c5=1)	(select max(c6) from qn where qn.c6=1)	(select max(c7) from qn where qn.c7=1)	(select max(c8) from qn where qn.c8=1)	(select max(c9) from qn where qn.c9=1)	(select max(c10) from qn where qn.c10=1)	(select max(c11) from qn where qn.c11=1)	(select max(c12) from qn where qn.c12=1)	(select max(c13) from qn where qn.c13=1)	(select max(c14) from qn where qn.c14=1)	(select max(c15) from qn where qn.c15=1)	(select max(c16) from qn where qn.c16=1)	(select max(c17) from qn where qn.c17=1)	(select max(c18) from qn where qn.c18=1)	(select max(c19) from qn where qn.c19=1)	(select max(c20) from qn where qn.c20=1)	(select max(c21) from qn where qn.c21=1)	(select max(c22) from qn where qn.c22=1)	(select max(c23) from qn where qn.c23=1)	(select max(c24) from qn where qn.c24=1)	(select max(c25) from qn where qn.c25=1)	(select max(c26) from qn where qn.c26=1)	(select max(c27) from qn where qn.c27=1)	(select max(c28) from qn where qn.c28=1)	(select max(c29) from qn where qn.c29=1)	(select max(c30) from qn where qn.c30=1)	(select max(c31) from qn where qn.c31=1)	(select max(c32) from qn where qn.c32=1)	(select max(c33) from qn where qn.c33=1)	(select max(c34) from qn where qn.c34=1)	(select max(c35) from qn where qn.c35=1)	(select max(c36) from qn where qn.c36=1)	(select max(c37) from qn where qn.c37=1)	(select max(c38) from qn where qn.c38=1)	(select max(c39) from qn where qn.c39=1)	(select max(c40) from qn where qn.c40=1)	(select max(c41) from qn where qn.c41=1)	(select max(c42) from qn where qn.c42=1)	(select max(c43) from qn where qn.c43=1)	(select max(c44) from qn where qn.c44=1)	(select max(c45) from qn where qn.c45=1)	(select max(c46) from qn where qn.c46=1)	(select max(c47) from qn where qn.c47=1)	(select max(c48) from qn where qn.c48=1)	(select max(c49) from qn where qn.c49=1)	(select max(c50) from qn where qn.c50=1)	(select max(c51) from qn where qn.c51=1)	(select max(c52) from qn where qn.c52=1)	(select max(c53) from qn where qn.c53=1)	(select max(c54) from qn where qn.c54=1)	(select max(c55) from qn where qn.c55=1)	(select max(c56) from qn where qn.c56=1)	(select max(c57) from qn where qn.c57=1)	(select max(c58) from qn where qn.c58=1)	(select max(c59) from qn where qn.c59=1)	(select max(c60) from qn where qn.c60=1)	(select max(c61) from qn where qn.c61=1)	(select max(c62) from qn where qn.c62=1)	(select max(c63) from qn where qn.c63=1)	(select max(c64) from qn where qn.c64=1)	(select max(c65) from qn where qn.c65=1)	(select max(c66) from qn where qn.c66=1)	(select max(c67) from qn where qn.c67=1)	(select max(c68) from qn where qn.c68=1)	(select max(c69) from qn where qn.c69=1)	(select max(c70) from qn where qn.c70=1)	(select max(c71) from qn where qn.c71=1)	(select max(c72) from qn where qn.c72=1)	(select max(c73) from qn where qn.c73=1)	(select max(c74) from qn where qn.c74=1)	(select max(c75) from qn where qn.c75=1)	(select max(c76) from qn where qn.c76=1)	(select max(c77) from qn where qn.c77=1)	(select max(c78) from qn where qn.c78=1)	(select max(c79) from qn where qn.c79=1)	(select max(c80) from qn where qn.c80=1)	(select max(c81) from qn where qn.c81=1)	(select max(c82) from qn where qn.c82=1)	(select max(c83) from qn where qn.c83=1)	(select max(c84) from qn where qn.c84=1)	(select max(c85) from qn where qn.c85=1)	(select max(c86) from qn where qn.c86=1)	(select max(c87) from qn where qn.c87=1)	(select max(c88) from qn where qn.c88=1)	(select max(c89) from qn where qn.c89=1)	(select max(c90) from qn where qn.c90=1)	(select max(c91) from qn where qn.c91=1)	(select max(c92) from qn where qn.c92=1)	(select max(c93) from qn where qn.c93=1)	(select max(c94) from qn where qn.c94=1)	(select max(c95) from qn where qn.c95=1)	(select max(c96) from qn where qn.c96=1)	(select max(c97) from qn where qn.c97=1)	(select max(c98) from qn where qn.c98=1)	(select max(c99) from qn where qn.c99=1)	(select max(c100) from qn where qn.c100=1)
 NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 drop table t;
@@ -1722,7 +1924,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	const	1	100.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and isnull(`t2`.`a`))
+Note	1003	with `t2` as (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1`) /* select#1 */ select /*+ NO_MERGE(`t2`@`select#1`) */ `t2`.`a` AS `a`,`t2`.`b` AS `b` from `t2` where (((`t2`.`a` = `t2`.`a`) or (`t2`.`b` <= 6)) and (`t2`.`a` is null))
 with t2 as
 (select * from t1)
 SELECT /*+ no_merge(t2) */ * FROM t2

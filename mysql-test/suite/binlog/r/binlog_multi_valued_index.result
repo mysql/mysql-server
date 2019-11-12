@@ -1,0 +1,122 @@
+include/save_binlog_position.inc
+CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
+UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
+SET @@session.binlog_row_image = MINIMAL;
+INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
+UPDATE t1 SET j = '[9,0]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+SET @@session.binlog_row_image = FULL;
+INSERT INTO t1 VALUES (10, 10, '[10,20,30,40]'), (20, 20, '[50,60,70,80]');
+UPDATE t1 SET j = '[11,12,13,14]' WHERE JSON_CONTAINS(CAST(j AS JSON),'10');
+SET @@session.binlog_row_image = NOBLOB;
+INSERT INTO t1 VALUES (100, 100, '[100,200,300,400]'),
+(200, 200, '[500,600,700,800]');
+UPDATE t1 SET j = '[101,201,301,401]' WHERE JSON_CONTAINS(CAST(j AS JSON),'200');
+DROP TABLE t1;
+FLUSH LOGS;
+include/mysqlbinlog.inc
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=1
+###   @2=1
+###   @3='[1, 2, 3, 4]'
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=2
+###   @2=2
+###   @3='[5, 6, 7, 8]'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1
+###   @2=1
+###   @3='[1, 2, 3, 4]'
+### SET
+###   @3='[9, 0]'
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=10
+###   @2=10
+###   @3='[10, 20, 30, 40]'
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=20
+###   @2=20
+###   @3='[50, 60, 70, 80]'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=10
+###   @2=10
+###   @3='[10, 20, 30, 40]'
+### SET
+###   @1=10
+###   @2=10
+###   @3='[11, 12, 13, 14]'
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=100
+###   @2=100
+###   @3='[100, 200, 300, 400]'
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=200
+###   @2=200
+###   @3='[500, 600, 700, 800]'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=100
+###   @2=100
+###   @3='[100, 200, 300, 400]'
+### SET
+###   @1=100
+###   @2=100
+###   @3='[101, 201, 301, 401]'
+include/save_binlog_position.inc
+# Check that when the only unique NOT NULL index is a functional index,
+# the binary log contains a full before-image regardless of
+# binlog_row_image.
+CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
+UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
+INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
+SET binlog_row_image = MINIMAL;
+UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+SET binlog_row_image = FULL;
+UPDATE t1 SET j = '[2,11,12]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+SET binlog_row_image = NOBLOB;
+UPDATE t1 SET j = '[2,13,14]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+DROP TABLE t1;
+FLUSH LOGS;
+include/mysqlbinlog.inc
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=1
+###   @2=1
+###   @3='[1, 2, 3, 4]'
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=2
+###   @2=2
+###   @3='[5, 6, 7, 8]'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1
+###   @2=1
+###   @3='[1, 2, 3, 4]'
+### SET
+###   @3='[2, 9, 10]'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1
+###   @2=1
+###   @3='[2, 9, 10]'
+### SET
+###   @1=1
+###   @2=1
+###   @3='[2, 11, 12]'
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1
+###   @2=1
+###   @3='[2, 11, 12]'
+### SET
+###   @1=1
+###   @2=1
+###   @3='[2, 13, 14]'

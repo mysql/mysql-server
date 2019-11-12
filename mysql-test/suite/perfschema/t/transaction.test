@@ -11,6 +11,9 @@
 --source include/no_protocol.inc
 --source include/have_log_bin.inc
 --disable_query_log
+# Disable events from GTID background thread
+UPDATE performance_schema.threads
+  SET instrumented='NO' WHERE name like '%clone_gtid_thread%';
 --source ../include/transaction_setup.inc
 --enable_query_log
 
@@ -616,7 +619,7 @@ UPDATE performance_schema.setup_instruments SET timed = 'NO' WHERE name = 'trans
 --echo
 TRUNCATE performance_schema.events_transactions_summary_global_by_event_name;
 
---connection default
+--connection con1
 --echo
 START TRANSACTION;
 INSERT INTO t1 VALUES (1121, 'INSERT 1121');

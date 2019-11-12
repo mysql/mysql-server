@@ -25,6 +25,7 @@
 #include <string.h>
 #include <algorithm>
 
+#include "auth/auth_common.h"  // generate_random_password
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
@@ -37,6 +38,7 @@
 #include "sql/dd/types/column.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/gis/srid.h"
+#include "sql/intrusive_list_iterator.h"
 #include "sql/item_timefunc.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"
@@ -94,9 +96,9 @@ bool PT_option_value_no_option_type_names::contextualize(Parse_context *pc) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-  LEX_STRING names = {C_STRING_WITH_LEN("names")};
+  LEX_CSTRING names = {STRING_WITH_LEN("names")};
 
-  if (pctx && pctx->find_variable(names, false))
+  if (pctx && pctx->find_variable(names.str, names.length, false))
     my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
   else
     error(pc, pos);
@@ -176,58 +178,17 @@ bool PT_group::contextualize(Parse_context *pc) {
 bool PT_order::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
-  THD *thd = pc->thd;
-  LEX *lex = thd->lex;
-  SELECT_LEX_UNIT *const unit = pc->select->master_unit();
-  const bool braces = pc->select->braces;
-
-  if (lex->sql_command != SQLCOM_ALTER_TABLE && !unit->fake_select_lex) {
-    /*
-      A query of the of the form (SELECT ...) ORDER BY order_list is
-      executed in the same way as the query
-      SELECT ... ORDER BY order_list
-      unless the SELECT construct contains ORDER BY or LIMIT clauses.
-      Otherwise we create a fake SELECT_LEX if it has not been created
-      yet.
-    */
-    SELECT_LEX *first_sl = unit->first_select();
-    if (!unit->is_union() &&
-        (first_sl->order_list.elements || first_sl->select_limit)) {
-      if (unit->add_fake_select_lex(lex->thd)) return true;
-      pc->select = unit->fake_select_lex;
-    }
-  }
-
-  bool context_is_pushed = false;
-  if (pc->select->parsing_place == CTX_NONE) {
-    if (unit->is_union() && !braces) {
-      /*
-        At this point we don't know yet whether this is the last
-        select in union or not, but we move ORDER BY to
-        fake_select_lex anyway. If there would be one more select
-        in union mysql_new_select will correctly throw error.
-      */
-      pc->select = unit->fake_select_lex;
-      lex->push_context(&pc->select->context);
-      context_is_pushed = true;
-    }
-    /*
-      To preserve correct markup for the case
-       SELECT group_concat(... ORDER BY (subquery))
-      we do not change parsing_place if it's not NONE.
-    */
-    pc->select->parsing_place = CTX_ORDER_BY;
-  }
+  pc->select->parsing_place = CTX_ORDER_BY;
+  pc->thd->where = "global ORDER clause";
 
   if (order_list->contextualize(pc)) return true;
-
-  if (context_is_pushed) lex->pop_context();
-
   pc->select->order_list = order_list->value;
 
   // Reset parsing place only for ORDER BY
   if (pc->select->parsing_place == CTX_ORDER_BY)
     pc->select->parsing_place = CTX_NONE;
+
+  pc->thd->where = THD::DEFAULT_WHERE;
   return false;
 }
 
@@ -243,7 +204,7 @@ bool PT_internal_variable_name_1d::contextualize(Parse_context *pc) {
   value.base_name = ident;
 
   /* Best effort lookup for system variable. */
-  if (!pctx || !(spv = pctx->find_variable(ident, false))) {
+  if (!pctx || !(spv = pctx->find_variable(ident.str, ident.length, false))) {
     /* Not an SP local variable */
     if (find_sys_var_null_base(thd, &value)) return true;
   } else {
@@ -262,7 +223,7 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
 
-  if (check_reserved_words(&ident1)) {
+  if (check_reserved_words(ident1.str)) {
     error(pc, pos);
     return true;
   }
@@ -286,8 +247,8 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc) {
     value.var = trg_new_row_fake_var;
     value.base_name = ident2;
   } else {
-    const LEX_STRING *domain;
-    const LEX_STRING *variable;
+    LEX_CSTRING *domain;
+    LEX_CSTRING *variable;
     bool is_key_cache_variable = false;
     sys_var *tmp;
     if (ident2.str && is_key_cache_variable_suffix(ident2.str)) {
@@ -321,7 +282,7 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc) {
     if (is_key_cache_variable)
       value.base_name = *variable;
     else
-      value.base_name = null_lex_str;
+      value.base_name = NULL_CSTR;
   }
   return false;
 }
@@ -345,7 +306,7 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
 
     /* We are parsing trigger and this is a trigger NEW-field. */
 
-    LEX_STRING expr_query = EMPTY_STR;
+    LEX_CSTRING expr_query = EMPTY_CSTR;
 
     if (!opt_expr) {
       // This is: SET NEW.x = DEFAULT
@@ -373,9 +334,10 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
     /* We're parsing SP and this is an SP-variable. */
 
     sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-    sp_variable *spv = pctx->find_variable(name->value.base_name, false);
+    sp_variable *spv = pctx->find_variable(name->value.base_name.str,
+                                           name->value.base_name.length, false);
 
-    LEX_STRING expr_query = EMPTY_STR;
+    LEX_CSTRING expr_query = EMPTY_CSTR;
 
     if (!opt_expr) {
       /*
@@ -435,16 +397,18 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   if (!user->host.str) {
     LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
     DBUG_ASSERT(sctx_priv_host.str);
-    user->host.str = (char *)sctx_priv_host.str;
+    user->host.str = sctx_priv_host.str;
     user->host.length = sctx_priv_host.length;
   }
 
   // Current password is specified through the REPLACE clause hence set the flag
   if (current_password != nullptr) user->uses_replace_clause = true;
 
+  if (random_password_generator) password = nullptr;
+
   var = new (thd->mem_root) set_var_password(
       user, const_cast<char *>(password), const_cast<char *>(current_password),
-      retain_current_password);
+      retain_current_password, random_password_generator);
 
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of memory
@@ -462,10 +426,10 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-  LEX_STRING pw = {C_STRING_WITH_LEN("password")};
+  LEX_CSTRING pw = {STRING_WITH_LEN("password")};
   lex->contains_plaintext_password = true;
 
-  if (pctx && pctx->find_variable(pw, false)) {
+  if (pctx && pctx->find_variable(pw.str, pw.length, false)) {
     my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
     return true;
   }
@@ -478,9 +442,12 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
                                    (LEX_STRING *)&sctx_priv_host);
   if (!user) return true;
 
+  if (random_password_generator) password = nullptr;
+
   set_var_password *var = new (thd->mem_root) set_var_password(
       user, const_cast<char *>(password), const_cast<char *>(current_password),
-      retain_current_password);
+      retain_current_password, random_password_generator);
+
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of Memory
   }
@@ -518,7 +485,7 @@ bool PT_select_sp_var::contextualize(Parse_context *pc) {
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
   sp_variable *spv;
 
-  if (!pctx || !(spv = pctx->find_variable(name, false))) {
+  if (!pctx || !(spv = pctx->find_variable(name.str, name.length, false))) {
     my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
     return true;
   }
@@ -561,7 +528,7 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
 static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
                                             TABLE_LIST *tables) {
   TABLE_LIST *match = NULL;
-  DBUG_ENTER("multi_delete_table_match");
+  DBUG_TRACE;
 
   for (TABLE_LIST *elem = tables; elem; elem = elem->next_local) {
     int cmp;
@@ -582,7 +549,7 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
 
     if (match) {
       my_error(ER_NONUNIQ_TABLE, MYF(0), elem->alias);
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     match = elem;
@@ -591,7 +558,7 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
   if (!match)
     my_error(ER_UNKNOWN_TABLE, MYF(0), tbl->table_name, "MULTI DELETE");
 
-  DBUG_RETURN(match);
+  return match;
 }
 
 /**
@@ -606,7 +573,7 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
 
 static bool multi_delete_link_tables(Parse_context *pc,
                                      SQL_I_List<TABLE_LIST> *delete_tables) {
-  DBUG_ENTER("multi_delete_link_tables");
+  DBUG_TRACE;
 
   TABLE_LIST *tables = pc->select->table_list.first;
 
@@ -614,7 +581,7 @@ static bool multi_delete_link_tables(Parse_context *pc,
        target_tbl = target_tbl->next_local) {
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk = multi_delete_table_match(target_tbl, tables);
-    if (!walk) DBUG_RETURN(true);
+    if (!walk) return true;
     if (!walk->is_derived()) {
       target_tbl->table_name = walk->table_name;
       target_tbl->table_name_length = walk->table_name_length;
@@ -626,7 +593,7 @@ static bool multi_delete_link_tables(Parse_context *pc,
     walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_descriptor().type));
     target_tbl->correspondent_table = walk;  // Remember corresponding table
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool PT_delete::add_table(Parse_context *pc, Table_ident *table) {
@@ -978,6 +945,37 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   return false;
 }
 
+bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
+  /*
+    Quick reject test. We don't need to do anything if there are no limit
+    or order by clauses.
+  */
+  if (m_order == nullptr && m_limit == nullptr) return false;
+
+  if (m_body->can_absorb_order_and_limit()) {
+    if (contextualize_safe(pc, m_order, m_limit)) return true;
+  } else {
+    auto lex = pc->thd->lex;
+    DBUG_ASSERT(lex->sql_command != SQLCOM_ALTER_TABLE);
+    auto unit = pc->select->master_unit();
+    if (unit->fake_select_lex == nullptr && unit->add_fake_select_lex(lex->thd))
+      return true;
+
+    auto orig_select_lex = pc->select;
+    pc->select = unit->fake_select_lex;
+    lex->push_context(&pc->select->context);
+    DBUG_ASSERT(pc->select->parsing_place == CTX_NONE);
+
+    bool res = contextualize_safe(pc, m_order, m_limit);
+
+    lex->pop_context();
+    pc->select = orig_select_lex;
+
+    if (res) return true;
+  }
+  return false;
+}
+
 bool PT_table_factor_function::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
 
@@ -1083,47 +1081,16 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc) {
   return false;
 }
 
-/**
-  A SELECT_LEX_UNIT has to be built in a certain order: First the SELECT_LEX
-  representing the left-hand side of the union is built ("contextualized",)
-  then the right hand side, and lastly the "fake" SELECT_LEX is built and made
-  the "current" one. Only then can the order and limit clauses be
-  contextualized, because they are attached to the fake SELECT_LEX. This is a
-  bit unnatural, as these clauses belong to the surrounding `<query
-  expression>`, not the `<query expression body>` which is the union (and
-  represented by this class). For this reason, the PT_query_expression is
-  expected to call `set_containing_qe(this)` on this object, so that during
-  this contextualize() call, a call to contextualize_order_and_limit() can be
-  made at just the right time.
-*/
 bool PT_union::contextualize(Parse_context *pc) {
-  THD *thd = pc->thd;
-
   if (PT_query_expression_body::contextualize(pc)) return true;
 
   if (m_lhs->contextualize(pc)) return true;
 
-  pc->select = pc->thd->lex->new_union_query(pc->select, m_is_distinct, false);
+  pc->select = pc->thd->lex->new_union_query(pc->select, m_is_distinct);
 
   if (pc->select == NULL || m_rhs->contextualize(pc)) return true;
 
-  SELECT_LEX_UNIT *unit = pc->select->master_unit();
-  if (unit->fake_select_lex == NULL && unit->add_fake_select_lex(thd))
-    return true;
-
-  SELECT_LEX *select_lex = pc->select;
-  pc->select = unit->fake_select_lex;
-  pc->select->no_table_names_allowed = true;
-
-  if (m_containing_qe != NULL &&
-      m_containing_qe->contextualize_order_and_limit(pc))
-    return true;
-
-  pc->select->no_table_names_allowed = false;
-  pc->select = select_lex;
-
   pc->thd->lex->pop_context();
-
   return false;
 }
 
@@ -1554,6 +1521,12 @@ bool PT_locking_clause::contextualize(Parse_context *pc) {
 
   return set_lock_for_tables(pc);
 }
+
+using Local_tables_iterator =
+    IntrusiveListIterator<TABLE_LIST, &TABLE_LIST::next_local>;
+
+/// A list interface over the TABLE_LIST::next_local pointer.
+using Local_tables_list = IteratorContainer<Local_tables_iterator>;
 
 bool PT_query_block_locking_clause::set_lock_for_tables(Parse_context *pc) {
   Local_tables_list local_tables(pc->select->table_list.first);
@@ -2343,7 +2316,7 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 m_type->get_type_flags(),      // Type modifier
                 nullptr,                       // Default value
                 nullptr,                       // On update value
-                &EMPTY_STR,                    // Comment
+                &EMPTY_CSTR,                   // Comment
                 nullptr,                       // Change
                 m_type->get_interval_list(),   // Interval list
                 cs,                            // Charset & collation
@@ -2381,6 +2354,10 @@ Sql_cmd *PT_explain_for_connection::make_cmd(THD *thd) {
              "non-standalone EXPLAIN FOR CONNECTION");
     return nullptr;
   }
+  if (thd->lex->is_explain_analyze) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXPLAIN ANALYZE FOR CONNECTION");
+    return nullptr;
+  }
   return &m_cmd;
 }
 
@@ -2395,6 +2372,10 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       break;
     case Explain_format_type::TREE:
       lex->explain_format = new (thd->mem_root) Explain_format_tree;
+      break;
+    case Explain_format_type::TREE_WITH_EXECUTE:
+      lex->explain_format = new (thd->mem_root) Explain_format_tree;
+      lex->is_explain_analyze = true;
       break;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM

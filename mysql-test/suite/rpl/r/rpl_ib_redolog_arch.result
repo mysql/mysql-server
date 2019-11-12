@@ -1,0 +1,40 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[Connection Master]
+SET @@global.innodb_redo_log_archive_dirs = 'label1:IRLA_DIRECTORY_1';
+# Start redo log archiving on Master side
+SELECT innodb_redo_log_archive_start('label1');
+innodb_redo_log_archive_start('label1')
+0
+CREATE TABLE tab(c1 int , c2 text) ;
+INSERT INTO tab VALUES(1, 'test the wl');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM tab;
+COUNT(*)
+1
+SET @@global.innodb_redo_log_archive_dirs = 'label2:IRLA_DIRECTORY_1';
+# Start redo log archiving on Slave side
+Do innodb_redo_log_archive_start("label2");
+[Connection Master]
+INSERT INTO tab SELECT * FROM tab;
+INSERT INTO tab SELECT * FROM tab;
+# Stop redo log archiving on Master side
+DO innodb_redo_log_archive_stop();
+# Set Default value on master side 
+SET @@global.innodb_redo_log_archive_dirs = '';
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+SELECT COUNT(*) FROM tab;
+COUNT(*)
+4
+# Stop redo log archiving on Slave side
+DO innodb_redo_log_archive_stop();
+# Set Default value on slave side 
+SET @@global.innodb_redo_log_archive_dirs = '';
+[Connection Master]
+DROP TABLE tab;
+include/rpl_end.inc

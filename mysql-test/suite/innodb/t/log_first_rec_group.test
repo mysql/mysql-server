@@ -1,0 +1,214 @@
+# Test adjusted to 16k pages.
+--source include/have_innodb_16k.inc
+
+# We use DBUG_EXECUTE_IF.
+--source include/have_debug.inc
+
+# Required for the crash just after COMMIT resulting in recovery without rows.
+--source include/not_log_bin.inc
+
+# Currently valgrind has issues with DBUG_SUICIDE().
+--source include/not_valgrind.inc
+
+--disable_query_log
+--disable_result_log
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQLD_SOCKET= `SELECT @@socket`;
+let $MYSQLD_PORT= `SELECT @@port`;
+
+--echo # Initialization - create table.
+CREATE TABLE t (a INT NOT NULL PRIMARY KEY) ENGINE = InnoDB;
+
+let $debug_test = 0;
+
+--echo #
+--echo # Scenario 1. Crash during recovery crash, when recovery ends in the same block as checkpoint_lsn.
+--echo #
+
+let $pass = 0;
+
+while ($pass != 2) {
+
+  --echo Pass: $pass
+
+  DELETE FROM t;
+  INSERT INTO t (a) VALUES (100);
+
+  # Enable all METRICS within log module
+  SET GLOBAL innodb_monitor_enable = module_log;
+
+  # Disable background threads that could modify pages
+  SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+  SET GLOBAL innodb_master_thread_disabled_debug = 1;
+  SET GLOBAL innodb_purge_stop_now = 1;
+
+  # Execute sharp checkpoint (flush all pages)
+  SET GLOBAL innodb_log_checkpoint_now = 1;
+
+  --echo # 0. Move to the next log block.
+  let $log_fill_block_sql = INSERT INTO t(a) VALUES (101);
+  let $log_fill_block_and_crash = 0;
+  --source ../include/log_fill_block.inc
+  let $start_lsn = $end_lsn;
+
+  --echo # 1. Execute tiny mini transaction in the current block [only pass 0]
+  if ($pass == 0) {
+    SET AUTOCOMMIT = 0;
+    INSERT INTO t (a) VALUES(102);
+
+    if ($debug_test) {
+      --source ../include/log_read_current_lsn.inc
+      --echo State: after writing first mtr to the block
+      --echo LSN: $current_lsn
+    }
+  }
+
+  --echo # 2. Create checkpoint at the current lsn and block further checkpoints
+  SET GLOBAL innodb_log_checkpoint_now = 1;
+  SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+  SET GLOBAL innodb_checkpoint_disabled = 1;
+
+  if ($debug_test) {
+    --source ../include/log_read_current_lsn.inc
+    --source ../include/log_read_checkpoint_lsn.inc
+    --echo State: after checkpoint write
+    --echo LSN: $current_lsn
+    --echo Checkpoint LSN: $checkpoint_lsn
+  }
+
+  --echo # 3. Execute transaction to force non-trivial crash recovery: 103.
+  INSERT INTO t (a) VALUES (103);
+  COMMIT;
+
+  --source ../include/log_read_current_lsn.inc
+  --let $end_lsn = $current_lsn
+  if ($debug_test) {
+    --echo State: after writing 103
+    --echo LSN: $end_lsn
+  }
+
+  --let $assert_text = All must happen within the single log block (this was required for the bug)
+  --let $assert_cond = [SELECT $start_lsn DIV 512] = [SELECT ($end_lsn + 50) DIV 512]
+  --source include/assert.inc
+
+  --echo # 5. Crash when trying to insert B.
+  SET GLOBAL DEBUG="+d,mtr_commit_crash";
+  --source include/expect_crash.inc
+  --error 2013
+  INSERT INTO t (a) VALUES (105);
+
+  --echo # 6. Recover 103, write new redo record X during recovery and crash just before flushing page with 103
+
+  --error 137
+  --exec $MYSQLD --no-defaults --datadir=$MYSQLD_DATADIR --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --skip-mysqlx --debug="+d,log_first_rec_group_test"
+
+  --echo # 7. Start recovery and ensure all is recovered - we must recover 103.
+  --echo #    If first_rec_group was pointing to X we would skip 103.
+  --source include/start_mysqld.inc
+
+  --enable_query_log
+  --enable_result_log
+  SELECT * FROM t;
+  --disable_query_log
+  --disable_result_log
+
+  inc $pass;
+}
+
+# Note that all global settings (disabled purge, dict_stats etc) are reset because
+# we have restarted mysqld.
+
+--echo #
+--echo # Scenario 2. Restart after writing full log block with record ending at boundary,
+--echo #             recovery should start in middle of the last written block (pass 0, 2)
+--echo #             or at the beginning of that block (pass 1, 3) and end before the next
+--echo #             block (pass 0, 1) or just 12 bytes after its beginning (pass 2, 3).
+--echo #
+
+let $pass = 0;
+
+while ($pass != 4) {
+
+  --echo Pass: $pass
+
+  DELETE FROM t;
+  INSERT INTO t (a) VALUES (200);
+
+  # Enable all METRICS within log module
+  SET GLOBAL innodb_monitor_enable = module_log;
+
+  # Disable background threads that could modify pages
+  SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+  SET GLOBAL innodb_master_thread_disabled_debug = 1;
+  SET GLOBAL innodb_purge_stop_now = 1;
+
+  # Execute sharp checkpoint (flush all pages)
+  SET GLOBAL innodb_log_checkpoint_now = 1;
+
+  --echo # 0. Move to the next log block
+  let $log_fill_block_sql = INSERT INTO t(a) VALUES (201);
+  let $log_fill_block_and_crash = 0;
+  --source ../include/log_fill_block.inc
+
+  --echo # 1. Execute tiny mini transaction in the current block [pass 0, 2]
+  let $insert_202 = 0;
+  if ($pass == 0) {
+    let $insert_202 = 1;
+  }
+  if ($pass == 2) {
+    let $insert_202 = 1;
+  }
+  if ($insert_202 == 1) {
+    SET AUTOCOMMIT = 0;
+    INSERT INTO t (a) VALUES (202);
+  }
+
+  # Execute sharp checkpoint (flush all pages) and block further checkpoints
+  SET GLOBAL innodb_log_checkpoint_now = 1;
+  SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+  SET GLOBAL innodb_checkpoint_disabled = 1;
+
+  --echo # 2. Write up to the end of the block.
+  let $crash_at_203 = 0;
+  if ($pass == 0) {
+    let $crash_at_203 = 1;
+  }
+  if ($pass == 1) {
+    let $crash_at_203 = 1;
+  }
+
+  --echo # 3. Crash on writing next 12 bytes of incomplete block [pass 0, 1].
+  let $log_fill_block_and_crash = $crash_at_203;
+  let $log_fill_block_sql = INSERT INTO t(a) VALUES (203);
+  --source ../include/log_fill_block.inc
+  let $log_fill_block_and_crash = 0;
+
+  --echo # 4. If we still haven't crashed, force mtr to crash.
+  if ($crash_at_203 == 0) {
+    SET GLOBAL DEBUG = "+d,mtr_commit_crash";
+    --source include/expect_crash.inc
+    --error 2013
+    INSERT INTO t (a) VALUES (204);
+  }
+
+  --echo # 5. Start MySQL after crash to see how it takes care of recovery
+  --source include/start_mysqld.inc
+
+  --enable_query_log
+  --enable_result_log
+  SELECT * FROM t;
+  --disable_query_log
+  --disable_result_log
+
+  inc $pass;
+}
+
+# Note that all global settings (disabled purge, dict_stats etc) are reset because
+# we have restarted mysqld.
+
+--echo # Cleanup...
+
+DROP TABLE t;
+
+--enable_query_log
+--enable_result_log

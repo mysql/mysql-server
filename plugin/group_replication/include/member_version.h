@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@ class Member_version {
   uint32 get_patch_version() const;
 
   bool operator==(const Member_version &other) const;
+  bool operator!=(const Member_version &other) const;
   bool operator<(const Member_version &other) const;
   bool operator>(const Member_version &other) const;
   bool operator>=(const Member_version &other) const;

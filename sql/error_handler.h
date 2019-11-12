@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -305,7 +305,7 @@ class Strict_error_handler : public Internal_error_handler {
 */
 class Functional_index_error_handler : public Internal_error_handler {
  public:
-  Functional_index_error_handler(Field *field, THD *thd);
+  Functional_index_error_handler(const Field *field, THD *thd);
 
   Functional_index_error_handler(Create_field *field,
                                  const std::string &functional_index_name,

@@ -46,7 +46,7 @@ class Mysql_object_reader_options
   uint64 m_row_group_size;
   const Mysql_chain_element_options *m_mysql_chain_element_options;
 };
-}
+}  // namespace Dump
 }  // namespace Tools
 }  // namespace Mysql
 

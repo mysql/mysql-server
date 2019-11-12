@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -450,7 +450,7 @@ class Incident_event : public Binary_log_event {
   explicit Incident_event(enum_incident incident_arg)
       : Binary_log_event(INCIDENT_EVENT),
         incident(incident_arg),
-        message(NULL),
+        message(nullptr),
         message_length(0) {}
 
   /**
@@ -1186,7 +1186,7 @@ class View_change_event : public Binary_log_event {
   */
   View_change_event(const char *buf, const Format_description_event *fde);
 
-  explicit View_change_event(char *raw_view_id);
+  explicit View_change_event(const char *raw_view_id);
 
   virtual ~View_change_event();
 

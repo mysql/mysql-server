@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
     uint plugin_version = 0x000400;
     uint write_set_algorithm = 1;
     string executed_gtid("aaaa:1-10");
+    string purged_gtid("pppp:1-9");
     uint lower_case_table_names = 0;
     bool default_table_encryption = false;
     string retrieved_gtid("bbbb:1-10");
@@ -61,13 +62,12 @@ class ClusterMemberInfoTest : public ::testing::Test {
 
     Member_version local_member_plugin_version(plugin_version);
     local_node = new Group_member_info(
-        (char *)hostname.c_str(), port, (char *)uuid.c_str(),
-        write_set_algorithm, gcs_member_id->get_member_id(), status,
-        local_member_plugin_version, gtid_assignment_block_size,
-        Group_member_info::MEMBER_ROLE_PRIMARY, in_primary_mode,
-        has_enforces_update_everywhere_checks, member_weight,
+        hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
+        gcs_member_id->get_member_id(), status, local_member_plugin_version,
+        gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
+        in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
         lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
-    local_node->update_gtid_sets(executed_gtid, retrieved_gtid);
+    local_node->update_gtid_sets(executed_gtid, purged_gtid, retrieved_gtid);
   }
 
   virtual void TearDown() {
@@ -99,6 +99,8 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest) {
             decoded_local_node.get_member_version().get_version());
   ASSERT_EQ(local_node->get_gtid_executed(),
             decoded_local_node.get_gtid_executed());
+  ASSERT_EQ(local_node->get_gtid_purged(),
+            decoded_local_node.get_gtid_purged());
   ASSERT_EQ(local_node->get_gtid_retrieved(),
             decoded_local_node.get_gtid_retrieved());
   ASSERT_EQ(local_node->get_gtid_assignment_block_size(),
@@ -133,11 +135,10 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
 
     Member_version local_member_plugin_version(plugin_version);
     local_node = new Group_member_info(
-        (char *)hostname.c_str(), port, (char *)uuid.c_str(),
-        write_set_algorithm, gcs_member_id->get_member_id(), status,
-        local_member_plugin_version, gtid_assignment_block_size,
-        Group_member_info::MEMBER_ROLE_SECONDARY, in_primary_mode,
-        has_enforces_update_everywhere_checks, member_weight,
+        hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
+        gcs_member_id->get_member_id(), status, local_member_plugin_version,
+        gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_SECONDARY,
+        in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
         lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
 
     cluster_member_mgr =
@@ -166,6 +167,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
   uint plugin_version = 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11");
+  string purged_gtid("pppp:1-8");
   string retrieved_gtid("bbbb:1-11");
   ulonglong gtid_assignment_block_size = 9223372036854775807ULL;
   bool in_primary_mode = false;
@@ -177,12 +179,12 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
 
   Member_version local_member_plugin_version(plugin_version);
   Group_member_info *new_member = new Group_member_info(
-      (char *)hostname.c_str(), port, (char *)uuid.c_str(), write_set_algorithm,
+      hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
       lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
-  new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
+  new_member->update_gtid_sets(executed_gtid, purged_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
 
@@ -208,12 +210,14 @@ TEST_F(ClusterMemberInfoManagerTest, UpdateStatusOfLocalObjectTest) {
 
 TEST_F(ClusterMemberInfoManagerTest, UpdateGtidSetsOfLocalObjectTest) {
   string executed_gtid("aaaa:1-10");
+  string purged_gtid("pppp:1-7");
   string retrieved_gtid("bbbb:1-10");
 
   cluster_member_mgr->update_gtid_sets(local_node->get_uuid(), executed_gtid,
-                                       retrieved_gtid);
+                                       purged_gtid, retrieved_gtid);
 
   ASSERT_EQ(executed_gtid, local_node->get_gtid_executed());
+  ASSERT_EQ(purged_gtid, local_node->get_gtid_purged());
   ASSERT_EQ(retrieved_gtid, local_node->get_gtid_retrieved());
 }
 
@@ -247,6 +251,8 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDAfterEncodingTest) {
             retrieved_local_info->get_write_set_extraction_algorithm());
   ASSERT_EQ(local_node->get_gtid_executed(),
             retrieved_local_info->get_gtid_executed());
+  ASSERT_EQ(local_node->get_gtid_purged(),
+            retrieved_local_info->get_gtid_purged());
   ASSERT_EQ(local_node->get_gtid_retrieved(),
             retrieved_local_info->get_gtid_retrieved());
   ASSERT_EQ(local_node->get_gtid_assignment_block_size(),
@@ -279,10 +285,11 @@ TEST_F(ClusterMemberInfoManagerTest,
             local_node->get_recovery_status());
 
   string executed_gtid("cccc:1-11");
+  string purged_gtid("pppp:1-11");
   string retrieved_gtid("dddd:1-11");
 
   cluster_member_mgr->update_gtid_sets(local_node->get_uuid(), executed_gtid,
-                                       retrieved_gtid);
+                                       purged_gtid, retrieved_gtid);
 
   ASSERT_EQ(executed_gtid, local_node->get_gtid_executed());
   ASSERT_EQ(retrieved_gtid, local_node->get_gtid_retrieved());
@@ -310,6 +317,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   uint plugin_version = 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11:12-14:16-20:22-30");
+  string purged_gtid("pppp:1-11:12-14:17-20:26-39:50-78");
   // Add an huge gtid string (bigger then 16 bits )
   string retrieved_gtid(70000, 'a');
   ulonglong gtid_assignment_block_size = 9223372036854775807ULL;
@@ -322,12 +330,12 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
 
   Member_version local_member_plugin_version(plugin_version);
   Group_member_info *new_member = new Group_member_info(
-      (char *)hostname.c_str(), port, (char *)uuid.c_str(), write_set_algorithm,
+      hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
       lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
-  new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
+  new_member->update_gtid_sets(executed_gtid, purged_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
 
@@ -380,6 +388,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
             retrieved_local_info->get_write_set_extraction_algorithm());
   ASSERT_EQ(local_node->get_gtid_executed(),
             retrieved_local_info->get_gtid_executed());
+  ASSERT_EQ(local_node->get_gtid_purged(),
+            retrieved_local_info->get_gtid_purged());
   ASSERT_EQ(local_node->get_gtid_retrieved(),
             retrieved_local_info->get_gtid_retrieved());
   ASSERT_EQ(local_node->get_gtid_assignment_block_size(),

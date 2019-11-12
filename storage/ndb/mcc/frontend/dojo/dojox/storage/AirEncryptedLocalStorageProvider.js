@@ -1,15 +1,15 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
-_2.provide("dojox.storage.AirEncryptedLocalStorageProvider");
-_2.require("dojox.storage.manager");
-_2.require("dojox.storage.Provider");
-if(_2.isAIR){
+define("dojox/storage/AirEncryptedLocalStorageProvider",["dojo","dijit","dojox","dojo/require!dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
+_1.provide("dojox.storage.AirEncryptedLocalStorageProvider");
+_1.require("dojox.storage.manager");
+_1.require("dojox.storage.Provider");
+if(_1.isAIR){
 (function(){
 if(!_4){
 var _4={};
 }
 _4.ByteArray=window.runtime.flash.utils.ByteArray;
-_4.EncryptedLocalStore=window.runtime.flash.data.EncryptedLocalStore,_2.declare("dojox.storage.AirEncryptedLocalStorageProvider",[_3.storage.Provider],{initialize:function(){
+_4.EncryptedLocalStore=window.runtime.flash.data.EncryptedLocalStore,_1.declare("dojox.storage.AirEncryptedLocalStorageProvider",[_3.storage.Provider],{initialize:function(){
 _3.storage.manager.loaded();
 },isAvailable:function(){
 return true;

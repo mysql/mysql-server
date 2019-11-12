@@ -1,0 +1,28 @@
+############################################################
+# By JBM 2006-02-15 Wrapper for rpl_multi_update2.test     #
+# to reuse test code between engine runs                   #
+############################################################
+-- source include/have_ndb.inc
+
+# Run this only for row based replication, as replication of
+# auto_increment values are not supported with NDB as storage engine
+-- source include/have_binlog_format_mixed_or_row.inc
+-- source include/master-slave.inc
+#
+# BUG#13236 multi-update with subquery & --replicate-ignore-table
+#
+
+connection master;
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES (0);
+UPDATE t1, (SELECT 3 as b) AS x SET t1.a = x.b;
+select * from t1;
+
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+select * from t1;
+
+connection master;
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

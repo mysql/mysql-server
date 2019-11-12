@@ -12,27 +12,24 @@ var profile = (function(){
 
 		excludes = [
 			"secure",
-			"cometd",
 			"data/(demos|ItemExplorer|StoreExplorer|restListener)",
-			"drawing",
+			"drawing/plugins/drawing/Silverlight",
 			"editor/plugins/(ResizeTableColumn|SpellCheck)",
 			"embed/(IE)",
-			"flash",
-			"gantt",
+			"flash/_base",
 			"help",
 			"image/(Gallery|SlideShow|ThumbnailPicker)",
 			"jq",
-			"jsonPath",
+			"jsonPath/query",
 			"lang/(aspect|async|docs|observable|oo|typed|functional/(binrec|curry|linrec|listcomp|multirec|numrec|tailrec|util|zip))",
 			"layout/(BorderContainer|dnd|ext-dijit)",
 			"mobile/app/",
 			"rails",
 			"robot",
-			"socket/Reconnect",
-			"storage",
-			"sql",
-			"widget/(AnalogGauge|AutoRotator|BarGauge|Calendar|CalendarFx|CalendarViews|DataPresentation|DocTester|DynamicTooltip|FeedPortlet|FilePicker|FisheyeList|gauge|Iterator|Loader|Pager|Portlet|RollingList|Rotator|rotator|SortList|UpgradeBar)",
-			"wire",
+			"sql/",
+			"storage/",
+			"widget/(AnalogGauge|BarGauge|DataPresentation|DocTester|DynamicTooltip|FeedPortlet|FilePicker|gauge|Iterator|Loader|RollingList|SortList)",
+			"wire/",
 			"xmpp"
 		],
 
@@ -57,12 +54,8 @@ var profile = (function(){
 			},
 
 			miniExclude: function(filename, mid){
-				return 0;
+				return /\/demos\//.test(mid);
 			}
-		},
-
-		trees:[
-			[".", ".", /(\/\.)|(~$)/]
-		]
+		}
 	};
 })();

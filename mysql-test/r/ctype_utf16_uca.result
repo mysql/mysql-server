@@ -33,17 +33,6 @@ binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 select 'c' like '\_' as want0;
 want0
 0
-CREATE TABLE t (
-c char(20) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARACTER SET utf16 COLLATE utf16_unicode_ci;
-INSERT INTO t VALUES ('a'),('ab'),('aba');
-ALTER TABLE t ADD INDEX (c);
-SELECT c FROM t WHERE c LIKE 'a%';
-c
-a
-ab
-aba
-DROP TABLE t;
 create table t1 (c1 char(10) character set utf16 collate utf16_bin);
 insert into t1 values ('A'),('a');
 insert into t1 values ('B'),('b');
@@ -2805,15 +2794,6 @@ Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t1;
-CREATE TABLE t1 (
-c1 text character set utf16 collate utf16_polish_ci NOT NULL
-) ENGINE=MyISAM;
-insert into t1 values (''),('a');
-SELECT COUNT(*), c1 FROM t1 GROUP BY c1;
-COUNT(*)	c1
-1	
-1	a
-DROP TABLE IF EXISTS t1;
 set collation_connection=utf16_unicode_ci;
 drop table if exists t1;
 create table t1 as

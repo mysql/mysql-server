@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,60 +36,75 @@ INCLUDE(ndb_add_executable)
 # Add the ndbcluster plugin
 #
 SET(NDBCLUSTER_SOURCES
-  ../../sql/ha_ndbcluster.cc
-  ../../sql/ha_ndbcluster_cond.cc
-  ../../sql/ha_ndbcluster_push.cc
-  ../../sql/ha_ndbcluster_connection.cc
-  ../../sql/ha_ndbcluster_binlog.cc
-  ../../sql/ha_ndb_index_stat.cc
-  ../../sql/ha_ndb_ddl_fk.cc
-  ../../sql/ha_ndbinfo.cc
-  ../../sql/ndb_local_connection.cc
-  ../../sql/ndb_share.cc
-  ../../sql/ndb_thd.cc
-  ../../sql/ndb_thd_ndb.cc
-  ../../sql/ndb_global_schema_lock.cc
-  ../../sql/ndb_mi.cc
-  ../../sql/ndb_conflict_trans.cc
-  ../../sql/ndb_anyvalue.cc
-  ../../sql/ndb_ndbapi_util.cc
-  ../../sql/ndb_binlog_extra_row_info.cc
-  ../../sql/ndb_event_data.cc
-  ../../sql/ndb_schema_object.cc
-  ../../sql/ndb_schema_dist.cc
-  ../../sql/ndb_component.cc
-  ../../sql/ndb_local_schema.cc
-  ../../sql/ndb_repl_tab.cc
-  ../../sql/ndb_conflict.cc
-  ../../sql/ndb_tdc.cc
-  ../../sql/ndb_log.cc
-  ../../sql/ndb_binlog_thread.cc
-  ../../sql/ndb_name_util.cc
-  ../../sql/ndb_bitmap.cc
-  ../../sql/ndb_table_map.cc
-  ../../sql/ndb_dd.cc
-  ../../sql/ndb_modifiers.cc
-  ../../sql/ndb_dd_client.cc
-  ../../sql/ndb_dd_table.cc
-  ../../sql/ndb_dd_sdi.cc
-  ../../sql/ndb_plugin_reference.cc
-  ../../sql/ndb_server_hooks.cc
-  ../../sql/ndb_binlog_client.cc
-  ../../sql/ndb_metadata.cc
-  ../../sql/ndb_dd_disk_data.cc
-  ../../sql/ndb_dd_upgrade_table.cc
-  ../../sql/ndb_binlog_hooks.cc
-  ../../sql/ndb_util_table.cc
-  ../../sql/ndb_schema_dist_table.cc
-  ../../sql/ndb_fk_util.cpp
-  ../../sql/ndb_schema_trans_guard.cc
-  ../../sql/ndb_create_helper.cc
-  ../../sql/ndb_apply_status_table.cc
-  ../../sql/ndb_metadata_change_monitor.cc
+  plugin/ha_ndbcluster.cc
+  plugin/ha_ndbcluster_cond.cc
+  plugin/ha_ndbcluster_push.cc
+  plugin/ha_ndbcluster_connection.cc
+  plugin/ha_ndbcluster_binlog.cc
+  plugin/ha_ndb_index_stat.cc
+  plugin/ha_ndb_ddl_fk.cc
+  plugin/ha_ndbinfo.cc
+  plugin/ndb_local_connection.cc
+  plugin/ndb_share.cc
+  plugin/ndb_thd.cc
+  plugin/ndb_thd_ndb.cc
+  plugin/ndb_global_schema_lock.cc
+  plugin/ndb_mi.cc
+  plugin/ndb_conflict_trans.cc
+  plugin/ndb_anyvalue.cc
+  plugin/ndb_ndbapi_util.cc
+  plugin/ndb_binlog_extra_row_info.cc
+  plugin/ndb_event_data.cc
+  plugin/ndb_schema_object.cc
+  plugin/ndb_schema_dist.cc
+  plugin/ndb_component.cc
+  plugin/ndb_repl_tab.cc
+  plugin/ndb_conflict.cc
+  plugin/ndb_tdc.cc
+  plugin/ndb_log.cc
+  plugin/ndb_binlog_thread.cc
+  plugin/ndb_name_util.cc
+  plugin/ndb_bitmap.cc
+  plugin/ndb_table_map.cc
+  plugin/ndb_dd.cc
+  plugin/ndb_modifiers.cc
+  plugin/ndb_dd_client.cc
+  plugin/ndb_dd_schema.cc
+  plugin/ndb_dd_table.cc
+  plugin/ndb_dd_sdi.cc
+  plugin/ndb_plugin_reference.cc
+  plugin/ndb_server_hooks.cc
+  plugin/ndb_binlog_client.cc
+  plugin/ndb_metadata.cc
+  plugin/ndb_dd_disk_data.cc
+  plugin/ndb_dd_upgrade_table.cc
+  plugin/ndb_binlog_hooks.cc
+  plugin/ndb_util_table.cc
+  plugin/ndb_schema_dist_table.cc
+  plugin/ndb_fk_util.cpp
+  plugin/ndb_schema_trans_guard.cc
+  plugin/ndb_create_helper.cc
+  plugin/ndb_apply_status_table.cc
+  plugin/ndb_metadata_change_monitor.cc
+  plugin/ndb_schema_result_table.cc
+  plugin/ndb_metadata_sync.cc
+  plugin/ndb_ddl_transaction_ctx.cc
+  plugin/ndb_record_layout.cc
+  plugin/ndb_sql_metadata_table.cc
+  plugin/ndb_stored_grants.cc
 )
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
+
+IF(SOLARIS_INTEL)
+  # Sun Studio 12.6 on x86 machines creates a bogus code
+  # when -xO2 is used and crashes the executable whenever
+  # it calls std::condition_variable::wait_for()
+  STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
+  STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
+  STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
+ENDIF()
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
@@ -156,7 +171,7 @@ ELSE()
   # Turn on NDB tests automatically for "-devbld" debug builds
   # to increase test coverage
   IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
-     CMAKE_BUILD_TYPE MATCHES "Debug")
+     CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
     SET(WITH_NDB_TEST ON)
     MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
@@ -177,7 +192,7 @@ OPTION(WITH_ERROR_INSERT
 OPTION(WITH_NDB_DEBUG
   "Enable special ndb NDB features(including ERROR_INSERT)" OFF)
 
-IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
+IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   MESSAGE(STATUS "Turning on special NDB debug features")
   ADD_DEFINITIONS(-DVM_TRACE)
   ADD_DEFINITIONS(-DNDB_DEBUG)

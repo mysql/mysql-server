@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,71 +38,12 @@
 
 PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 
-namespace {
-/**
-  A local helper function. See comments for get_merge_buffers_cost().
- */
-double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size,
-                      const Cost_model_table *cost_model) {
-  const double io_ops = static_cast<double>(num_elements * elem_size) / IO_SIZE;
-  const double io_cost = cost_model->io_block_read_cost(io_ops);
-  const double cpu_cost =
-      cost_model->key_compare_cost(num_elements * std::log2(num_buffers));
-  return 2 * io_cost + cpu_cost;
-}
-}  // namespace
-
-/**
-  This is a simplified, and faster version of @see get_merge_many_buffs_cost().
-  We calculate the cost of merging buffers, by simulating the actions
-  of @see merge_many_buff. For explanations of formulas below,
-  see comments for get_merge_buffers_cost().
-  TODO: Use this function for Unique::get_use_cost().
-*/
-double get_merge_many_buffs_cost_fast(ha_rows num_rows,
-                                      ha_rows num_keys_per_buffer,
-                                      uint elem_size,
-                                      const Cost_model_table *cost_model) {
-  ha_rows num_buffers = num_rows / num_keys_per_buffer;
-  ha_rows last_n_elems = num_rows % num_keys_per_buffer;
-  double total_cost;
-
-  // Calculate CPU cost of sorting buffers.
-  total_cost =
-      num_buffers * cost_model->key_compare_cost(
-                        num_keys_per_buffer * log(1.0 + num_keys_per_buffer)) +
-      cost_model->key_compare_cost(last_n_elems * log(1.0 + last_n_elems));
-
-  // Simulate behavior of merge_many_buff().
-  while (num_buffers >= MERGEBUFF2) {
-    // Calculate # of calls to merge_buffers().
-    const ha_rows loop_limit = num_buffers - MERGEBUFF * 3 / 2;
-    const ha_rows num_merge_calls = 1 + loop_limit / MERGEBUFF;
-    const ha_rows num_remaining_buffs =
-        num_buffers - num_merge_calls * MERGEBUFF;
-
-    // Cost of merge sort 'num_merge_calls'.
-    total_cost +=
-        num_merge_calls * get_merge_cost(num_keys_per_buffer * MERGEBUFF,
-                                         MERGEBUFF, elem_size, cost_model);
-
-    // # of records in remaining buffers.
-    last_n_elems += num_remaining_buffs * num_keys_per_buffer;
-
-    // Cost of merge sort of remaining buffers.
-    total_cost += get_merge_cost(last_n_elems, 1 + num_remaining_buffs,
-                                 elem_size, cost_model);
-
-    num_buffers = num_merge_calls;
-    num_keys_per_buffer *= MERGEBUFF;
-  }
-
-  // Simulate final merge_buff call.
-  last_n_elems += num_keys_per_buffer * num_buffers;
-  total_cost +=
-      get_merge_cost(last_n_elems, 1 + num_buffers, elem_size, cost_model);
-  return total_cost;
-}
+using std::max;
+using std::min;
+using std::sort;
+using std::stable_sort;
+using std::unique;
+using std::vector;
 
 namespace {
 
@@ -135,7 +76,7 @@ inline bool my_mem_compare_longkey(const uchar *s1, const uchar *s2,
 
 class Mem_compare {
  public:
-  Mem_compare(size_t n) : m_size(n) {}
+  explicit Mem_compare(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) const {
 #ifdef __sun
     // The native memcmp is faster on SUN.
@@ -151,7 +92,7 @@ class Mem_compare {
 
 class Mem_compare_longkey {
  public:
-  Mem_compare_longkey(size_t n) : m_size(n) {}
+  explicit Mem_compare_longkey(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) const {
 #ifdef __sun
     // The native memcmp is faster on SUN.
@@ -180,30 +121,58 @@ class Mem_compare_varlen_key {
   bool use_hash;
 };
 
+template <class Comp>
+class Equality_from_less {
+ public:
+  explicit Equality_from_less(const Comp &comp) : m_comp(comp) {}
+
+  template <class A, class B>
+  bool operator()(const A &a, const B &b) const {
+    return !(m_comp(a, b) || m_comp(b, a));
+  }
+
+ private:
+  const Comp &m_comp;
+};
+
 }  // namespace
 
-void Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
+unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
   const bool force_stable_sort = param->m_force_stable_sort;
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_NONE;
 
-  if (count <= 1) return;
-  if (param->max_compare_length() == 0) return;
+  if (count <= 1) return count;
+  if (param->max_compare_length() == 0) return count;
+
+  const auto it_begin = begin(m_record_pointers);
+  const auto it_end = begin(m_record_pointers) + count;
 
   if (param->using_varlen_keys()) {
+    const Mem_compare_varlen_key comp(param->local_sortorder, param->use_hash);
     if (force_stable_sort) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
-      std::stable_sort(
-          begin(m_record_pointers), begin(m_record_pointers) + count,
-          Mem_compare_varlen_key(param->local_sortorder, param->use_hash));
+      stable_sort(it_begin, it_end, comp);
     } else {
       // TODO: Make more elaborate heuristics than just always picking
       // std::sort.
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-      std::sort(
-          begin(m_record_pointers), begin(m_record_pointers) + count,
-          Mem_compare_varlen_key(param->local_sortorder, param->use_hash));
+      sort(it_begin, it_end, comp);
     }
-    return;
+    if (param->m_remove_duplicates) {
+      return unique(it_begin, it_end,
+                    Equality_from_less<Mem_compare_varlen_key>(comp)) -
+             it_begin;
+    }
+    return count;
+  }
+
+  // If we don't use addon fields, we'll have the record position appended to
+  // the end of each record. This disturbs our equality comparisons, so we'll
+  // have to remove it. (Removing it also makes the comparisons ever so slightly
+  // cheaper.)
+  size_t key_len = param->max_compare_length();
+  if (!param->using_addon_fields()) {
+    key_len -= param->ref_length;
   }
 
   /*
@@ -215,36 +184,44 @@ void Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
   if (count <= 100 && !force_stable_sort) {
     if (param->max_compare_length() < 10) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-      std::sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-                Mem_compare(param->max_compare_length()));
-      return;
+      sort(it_begin, it_end, Mem_compare(key_len));
+      if (param->m_remove_duplicates) {
+        return unique(it_begin, it_end,
+                      Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
+               it_begin;
+      }
+      return count;
     }
     param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-    std::sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-              Mem_compare_longkey(param->max_compare_length()));
-    return;
+    sort(it_begin, it_end, Mem_compare_longkey(param->max_compare_length()));
+    if (param->m_remove_duplicates) {
+      auto new_end = unique(it_begin, it_end,
+                            Equality_from_less<Mem_compare_longkey>(
+                                Mem_compare_longkey(key_len)));
+      return new_end - it_begin;
+    }
+    return count;
   }
 
-  /*
-    stable_sort algorithm will be used. Either for performance reasons, or
-    because force_stable_sort==true. In the latter case, we must exclude from
-    the sort key the ref_length last bytes which were added in
-    init_for_filesort(), so that those bytes do not cause a swapping of
-    otherwise equivalent elements.
-  */
-  uint compare_len = param->max_compare_length();
-  if (force_stable_sort && !param->using_addon_fields()) {
-    DBUG_ASSERT(compare_len > param->ref_length && !param->using_varlen_keys());
-    compare_len -= param->ref_length;  // ref was added last
-  }
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
   // Heuristics here: avoid function overhead call for short keys.
-  if (compare_len < 10)
-    std::stable_sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-                     Mem_compare(compare_len));
-  else
-    std::stable_sort(begin(m_record_pointers), begin(m_record_pointers) + count,
-                     Mem_compare_longkey(compare_len));
+  if (key_len < 10) {
+    stable_sort(it_begin, it_end, Mem_compare(key_len));
+    if (param->m_remove_duplicates) {
+      return unique(it_begin, it_end,
+                    Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
+             it_begin;
+    }
+  } else {
+    stable_sort(it_begin, it_end, Mem_compare_longkey(key_len));
+    if (param->m_remove_duplicates) {
+      return unique(it_begin, it_end,
+                    Equality_from_less<Mem_compare_longkey>(
+                        Mem_compare_longkey(key_len))) -
+             it_begin;
+    }
+  }
+  return count;
 }
 
 void Filesort_buffer::reset() {
@@ -368,7 +345,7 @@ bool Filesort_buffer::allocate_block(size_t num_bytes) {
                   sizeof(m_record_pointers[0]);
   }
 
-  next_block_size = std::min(std::max(next_block_size, num_bytes), space_left);
+  next_block_size = min(max(next_block_size, num_bytes), space_left);
   if (next_block_size < num_bytes) {
     /*
       If we're really out of space, but have at least 32 kB unused in
@@ -425,8 +402,8 @@ void Filesort_buffer::free_sort_buffer() {
   // std::unique_ptr<int> to Filesort_buffer and giving it a value in the
   // constructor; it will leak all over the place.) We should fix that,
   // but for the time being, we have this workaround instead.
-  m_record_pointers = std::vector<uchar *>();
-  m_blocks = std::vector<unique_ptr_my_free<uchar[]>>();
+  m_record_pointers = vector<uchar *>();
+  m_blocks = vector<unique_ptr_my_free<uchar[]>>();
 
   m_space_used_other_blocks = 0;
   m_next_rec_ptr = nullptr;
@@ -448,7 +425,7 @@ Bounds_checked_array<uchar> Filesort_buffer::get_contiguous_buffer() {
 
 void Filesort_buffer::update_peak_memory_used() const {
   m_peak_memory_used =
-      std::max(m_peak_memory_used,
-               m_record_pointers.capacity() * sizeof(m_record_pointers[0]) +
-                   m_current_block_size + m_space_used_other_blocks);
+      max(m_peak_memory_used,
+          m_record_pointers.capacity() * sizeof(m_record_pointers[0]) +
+              m_current_block_size + m_space_used_other_blocks);
 }

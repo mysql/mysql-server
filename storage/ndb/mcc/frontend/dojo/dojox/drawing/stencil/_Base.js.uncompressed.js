@@ -1,61 +1,59 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/stencil/_Base", ["dijit","dojo","dojox","dojo/require!dojo/fx/easing"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.stencil._Base");
-dojo.require("dojo.fx.easing");
+define("dojox/drawing/stencil/_Base", ["dojo", "dojo/fx/easing", "../util/oo", "../annotations/BoxShadow", 
+  "../annotations/Angle", "../annotations/Label", "../defaults"], 
+function(dojo, easing, oo, BoxShadow, Angle, LabelExports, defaults){
 
 /*=====
-StencilArgs = {
-//	container: [readonly] dojo.gfx.group
+var StencilArgs = {
+// container: [readonly] dojo.gfx.group
 //		The parent shape that contains all
 //		shapes used in a Stencil
 container:null,
-//
-//	anchorType: String
+
+// anchorType: String
 //		Optionally blank or 'group'. 'group' tells
 //		an anchor point that it must constrain
 //		itself to other anchor points.
 anchorType:"",
-//
-// 	isText: Boolean
+
+// isText: Boolean
 //		Whether this is a text object or not
 //		(either stencil.text or tools.TextBlock)
 isText:false,
-//
-// 	shortType: String
+
+// shortType: String
 //		The type of stencil that corresponds with the types and
 //		constructors used in Drawing.registerTool
 shortType:"",
-//
-//	annotation: Boolean
+
+// annotation: Boolean
 //		A Stencil used within a Stencil. An annotation
 //		is not selectable or clickable. A Label would
 //		be one example.
 annotation:false,
-//
-//	subShape: Boolean
+
+// subShape: Boolean
 //		A Stencil used within a Stencil. A subShape
 //		is clickable. An arrow head would be an example.
 subShape:false,
-//
-//	style: Object
+
+// style: Object
 //		An instance of the styles and defaults used within
 //		the Stencil.
 style:null,
-//
-//	util: Object
+
+// util: Object
 //		Pointer to util.common
 util:null,
-//
-//	mouse: Object
+
+// mouse: Object
 //		Pointer to the mouse instance
 mouse:null,
-//
-//	keys: Object
+
+// keys: Object
 //		Pointer to the keys class
 keys:null,
-//
-//	points: StencilPoints
+
+// points: StencilPoints
 //		Points is an array of objects that make up the
 //		description of a Stencil. The points to a Rect
 //		that is 100x100 and at x:10 and y:10 would look like:
@@ -64,11 +62,11 @@ keys:null,
 //		they would go in the order that the Stencil would be drawn.
 //		Always when the points Array is set, a data Object is created
 //		as well. So never set points directly, always use setPoints().
-//	See:
-//		setPoints()
-points:[],
 //
-//	data: StencilData
+//		See: setPoints()
+points:[],
+
+// data: StencilData
 //		A data object typically (but not always) resembles the data
 //		that is used to create the dojox.gfx Shape. The same Rect
 //		example shown in points above would look like:
@@ -80,79 +78,73 @@ points:[],
 //		it doesn't provide much benefit.
 //		Always when a data object is set, a set of points is created
 //		as well. So never set data directly, always use setData().
-//	See:
-//		setData()
-data:null,
 //
-// 	marginZero [readonly] Number
-// 		How closely shape can get to y:0 or x:0. Less than zero has
+//		See: setData()
+data:null,
+
+// marginZero [readonly] Number
+//		How closely shape can get to y:0 or x:0. Less than zero has
 //		bugs in VML. This is set with defaults, and should be equal
 //		to half the size of an anchor point (5 px)
 marginZero:0,
-//
-//	created [readonly] Boolean
+
+// created: [readonly] Boolean
 //		Whether the Stencil has been rendered for the first time or
 //		not.
 created: false,
-//
-//	highlighted [readonly] Boolean
+
+// highlighted: [readonly] Boolean
 //		Whether the Stencil is highlighted or not.
 highlighted:false,
-//
-//	selected [readonly] Boolean
+
+// selected: [readonly] Boolean
 //		Whether the Stencil is selected or not.
 selected:false,
-//
-//	draws [readonly] Boolean
+
+// draws: [readonly] Boolean
 //		Whether the Stencil can draw with a mouse drag or can just
 //		be created programmtically. If the Stencil comes from the
 //		stencil package, it should be draw:false. If it comes from
 //		the tools package it should be draw:true.
 draws:false
-}
+};
 
-StencilPoint = {
+var StencilPoint = {
 // summary:
-//	One point Object in the points Array
-//	x: Number
+//		One point Object in the points Array
+// x: Number
 //		x position of point
-//	y: Number
+// y: Number
 //		y position of point
-}
+};
 
-ToolsSetup = {
+var ToolsSetup = {
 // summary:
-//	An object attached to a Tool's constructor
-//	used to inform the toolbar of its information
-//	and properties.
+//		An object attached to a Tool's constructor
+//		used to inform the toolbar of its information
+//		and properties.
 // description:
-//	This object is inserted into the *function* of
-//	a tool (not a stencil). Like: function.ToolsSetup
-//	It must be attached after constructr creation, so
-//	this object is found at the botton of the file.
-//
-//	name:String
+//		This object is inserted into the *function* of
+//		a tool (not a stencil). Like: function.ToolsSetup
+//		It must be attached after constructr creation, so
+//		this object is found at the botton of the file.
+
+// name: String
 //		Fully qualified name of constructor
-//	tooltip: Stirng
+// tooltip: String
 //		Text to display on toolbar button hover
-//	iconClass: String
+// iconClass: String
 //		CSS class with icon information to attach
 //		to toolbar button.
-}
+};
 =====*/
 
-dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
-	// summary:
-	//		The base class used for all Stencils.
-	// description:
-	//		All stencils extend this base class.
-	//		Most methods and events can be found here.
-	//
+var Base = oo.declare(
 	function(options){
 		//console.log("______Base", this.type, options)
 		// clone style so changes are reflected in future shapes
 		dojo.mixin(this, options);
-		this.style = options.style || dojox.drawing.defaults.copy();
+		this.style = options.style || defaults.copy();
 		if(options.stencil){
 			this.stencil = options.stencil;
 			this.util = options.stencil.util;
@@ -218,7 +210,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 
 			// TODO: thinner text selection
 			//this.style.hitSelected.width *= 0.5;
-			//
+
 			// ouch. how verbose. My mixin is weak....
 			this.deleteEmptyCreate = options.deleteEmptyCreate!==undefined ? options.deleteEmptyCreate : this.style.text.deleteEmptyCreate;
 			this.deleteEmptyModify = options.deleteEmptyModify!==undefined ? options.deleteEmptyModify : this.style.text.deleteEmptyModify;
@@ -267,7 +259,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			this._postRenderCon = dojo.connect(this, "render", this, "_onPostRender");
 		}
 		if(this.showAngle){
-			this.angleLabel = new dojox.drawing.annotations.Angle({stencil:this});
+			this.angleLabel = new Angle({stencil:this});
 		}
 
 		if(!this.enabled){
@@ -279,19 +271,24 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 
 	},
 	{
+		// summary:
+		//		The base class used for all Stencils.
+		// description:
+		//		All stencils extend this base class.
+		//		Most methods and events can be found here.
 
 		// type: String
 		//		The type of Stencil this is. Should be overridden
 		//		by extending classes.
-		//	FIXME: should this be declaredClass?
+		//		FIXME: should this be declaredClass?
 		type:"dojox.drawing.stencil",
-		//
-		//	minimumSize: Number
+
+		// minimumSize: Number
 		//		The minimum size allowed for a render. If the size
 		//		is less, the shape is destroyed.
 		minimumSize:10,
-		//
-		//	enabled [readonly] Boolean
+
+		// enabled: [readonly] Boolean
 		//		Whether the Stencil is enabled or not.
 		enabled:true,
 
@@ -335,38 +332,38 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		onModify: function(/*Object*/stencil){
 			// summary:
 			//		Stub - fires on change of any property,
-			// including style properties
+			//		including style properties
 
 		},
 
 		onChangeData: function(/*Object*/ stencil){
 			// summary:
 			//		Stub - fires on change of dimensional
-			//	properties or a text change
+			//		properties or a text change
 		},
 
 		onChangeText: function(value){ // value or 'this' ?
 			// summary:
 			//		Stub - fires on change of text in a
-			//	TextBlock tool only
+			//		TextBlock tool only
 		},
 
 		onRender: function(/*Object*/ stencil){
 			// summary:
 			//		Stub - Fires on creation.
-			// 		Drawing connects to this (once!) to be
-			// 		notified of drag completion. But only if it
+			//		Drawing connects to this (once!) to be
+			//		notified of drag completion. But only if it
 			//		was registered as a Tool. Creating Stencil in and of
-			// 		itself does not register it.
+			//		itself does not register it.
 			//
-			// 		This should fire
-			// 		at the *end* of creation (not during drag)
-			//
+			//		This should fire
+			//		at the *end* of creation (not during drag)
+
 			//	FIXME:
 			//		This should probably be onCreate. It should
 			//		only fire once. But the mechanism for determining
 			//		this is more complicated than it sounds.
-			//
+
 			this._postRenderCon = dojo.connect(this, "render", this, "_onPostRender");
 			this.created = true;
 			this.disconnectMouse();
@@ -384,7 +381,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		onChangeStyle: function(/*Object*/stencil){
 			// summary:
 			//		Fires when styles of shape has changed
-			//
+
 			this._isBeingModified = true; // need this to prevent onRender
 			if(!this.enabled){
 				this.style.current = this.style.disabled;
@@ -411,7 +408,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			}
 
 			// NOTE: Can't just change props like setStroke
-			//	because Silverlight throws error
+			// because Silverlight throws error
 			this.render();
 		},
 
@@ -419,7 +416,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			console.warn("ANIMATE..........................")
 			var d = 	options.d || options.duration || 1000;
 			var ms = 	options.ms || 20;
-			var ease = 	options.ease || dojo.fx.easing.linear;
+			var ease = 	options.ease || easing.linear;
 			var steps = options.steps;
 			var ts = 	new Date().getTime();
 			var w = 	100;
@@ -481,13 +478,13 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			}), ms);
 		},
 
-		attr: function(/*String | Object*/key, /* ? String | Number */value){
-			// summary
+		attr: function(/*String|Object*/ key, /*String|Number?*/value){
+			// summary:
 			//		Changes properties in the style or disabled styles,
 			//		depending on whether the object is enabled.
 			//		Also can be used to change most position and size props.
 
-			// NOTE: JUST A SETTTER!! TODO!
+			// NOTE: JUST A SETTER!! TODO!
 
 			// WARNING:
 			//	Not doing any Stencil-type checking here. Setting a height
@@ -626,7 +623,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		exporter: function(){
 			// summary:
 			//		Exports Stencil data
-			//
+
 			var type = this.type.substring(this.type.lastIndexOf(".")+1).charAt(0).toLowerCase()
 				+ this.type.substring(this.type.lastIndexOf(".")+2);
 			var o = dojo.clone(this.style.norm);
@@ -654,9 +651,9 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 
 
 		//	TODO:
-		// 		Makes these all called by att()
+		//		Makes these all called by att()
 		//		Should points and data be?
-		//
+
 		disable: function(){
 			// summary:
 			//		Disables Stencil so it is not selectable.
@@ -683,7 +680,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			//		calling this just sets the style to the 'selected'
 			//		theme. 'manager.Stencil' should be used for selecting
 			//		Stencils.
-			//
+
 			this.selected = true;
 			this.onChangeStyle(this);
 		},
@@ -695,11 +692,9 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			//		calling this just sets the style to the current
 			//		theme. 'manager.Stencil' should be used for selecting
 			//		and deselecting Stencils.
-			//
-			//	arguments:
-			//		useDelay: Boolean
-			//			Adds  slight delay before the style is set.
-			//
+			// useDelay: Boolean
+			//		Adds  slight delay before the style is set.
+
 			// should not have to render here because the deselection
 			// re-renders after the transform
 			// but... oh well.
@@ -751,21 +746,21 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			// summary:
 			//		Fired at the start of a transform. This would be
 			//		an anchor drag or a selection.
-			//
+
 			this._isBeingModified = true;
 		},
 
 		onTransformEnd: function(/* manager.Anchor */anchor){
 			// summary:
-			// 		Called from anchor point up mouse up
+			//		Called from anchor point up mouse up
 			this._isBeingModified = false;
 			this.onModify(this);
 		},
 
 		onTransform: function(/* ? manager.Anchor */anchor){
 			// summary:
-			// 		Called from anchor point mouse drag
-			// 		also called from plugins.Pan.checkBounds
+			//		Called from anchor point mouse drag
+			//		also called from plugins.Pan.checkBounds
 			if(!this._isBeingModified){
 				this.onTransformBegin();
 			}
@@ -780,10 +775,9 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			//		Moves object to a new X Y location
 			//		mx is additive. So mx.dx=1 will move the stencil
 			//		1 pixel to the right from wherever it was.
-			//
+
 			// An attempt is made to prevent < 0 errors, but
 			// this won't work on all shapes (like Axes)
-			//
 			if(!mx.dx && !mx.dy){
 				// no change
 				return;
@@ -808,16 +802,16 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		applyTransform: function(mx){
 			// summary:
 			//		Applies the transform to the stencil
-			//		NOTE: PARTIALLY IMPLEMENTED
-			//			Only applies x y coords
+			//
+			//		NOTE: PARTIALLY IMPLEMENTED.  Only applies x y coords.
 			this.transformPoints(mx);
 		},
 
 		setTransform: function(/*Object*/mx){
 			// summary:
 			//		Sets the transform to the stencil
-			//		NOTE: PARTIALLY IMPLEMENTED
-			//			Only applies x y coords
+			//
+			//		NOTE: PARTIALLY IMPLEMENTED.  Only applies x y coords.
 			this.attr({
 				x:mx.dx,
 				y:mx.dy
@@ -834,7 +828,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		addShadow: function(/*Object*/args){
 			args = args===true ? {} : args;
 			args.stencil = this;
-			this.shadow = new dojox.drawing.annotations.BoxShadow(args);
+			this.shadow = new BoxShadow(args);
 		},
 
 		removeShadow: function(){
@@ -847,12 +841,10 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			//		If Stencil contains a labelPosition method, that will
 			//		be used for positioning. Otherwise
 			//		dojox.drawing.util.positioning.label is used.
-			// arguments:
-			//		text: String
-			//			The text to set as the label.
-			//
+			// text: String
+			//		The text to set as the label.
 			if(!this._label){
-				this._label = new dojox.drawing.annotations.Label({
+				this._label = new LabelExports.Label({
 					text:text,
 					util:this.util,
 					mouse:this.mouse,
@@ -869,7 +861,6 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		getLabel: function(){
 			// summary:
 			//		Get the text of the label.
-			//
 			if(this._label){
 				return this._label.getText(); // String
 			}
@@ -879,7 +870,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		getAngle: function(){
 			// summary:
 			//		Gets angle of Stencil
-			// NOTE: Only works for Lines, Arrows, Vectors and Axes
+			//		NOTE: Only works for Lines, Arrows, Vectors and Axes
 			//		(works on points, not transforms)
 			var d = this.pointsToData();
 			var obj = {
@@ -897,10 +888,10 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		},
 		getRadius: function(){
 			// summary:
-			//		Gets radius (length) of Stencil
-			// NOTE: Only works for Lines, Arrows and Vectors
-			//	(not for Ellipse, Axes has its own version)
+			//		Gets radius (length) of Stencil.
 			//
+			//		NOTE: Only works for Lines, Arrows and Vectors
+			//		(not for Ellipse, Axes has its own version)
 			var box = this.getBounds(true);
 			var line = {start:{x:box.x1, y:box.y1}, x:box.x2, y:box.y2};
 			return this.util.length(line);
@@ -909,16 +900,16 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			// summary:
 			//		Returns the coordinates of the Stencil. This is often
 			//		different than the data or the points.
-			//		arguments:
-			//			absolute: Boolean
-			//				Keeps lines from flipping (see note).
 			//
-			// NOTE: Won't work for paths or annotations (labels, Axes, arrow tips)
+			//		NOTE: Won't work for paths or annotations (labels, Axes, arrow tips)
 			//		They should overwrite.
-			// NOTE: Primarily used for checking for if shape is off
+			//
+			//		NOTE: Primarily used for checking for if shape is off
 			//		canvas. Therefore Lines could get flipped. Use absolute
 			//		to prevent this.
-			//
+			// absolute: Boolean
+			//		Keeps lines from flipping (see note).
+
 			var p = this.points, x1, y1, x2, y2;
 			if(p.length==2){
 				if(absolute){
@@ -961,7 +952,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			// summary:
 			//		Internal. Prevent item from being drawn/rendered less
 			//		than zero on the X or Y.
-			//
+
 			// if being modified anchors will prevent less than zero.
 			if(this._isBeingModified){ return; }
 			// FIXME: why is this sometimes empty?
@@ -999,7 +990,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			//		Drag-create or programmatic create calls onRender
 			//		and afterwards, _onPostRender is called and
 			//		manages further events.
-			//
+
 			// TODO: can this be onModify? Is that more clear?
 			//
 			//console.info("...........post render.....");
@@ -1029,7 +1020,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			// summary:
 			//		Internal. Sets the rawNode attribute. (Or in Silverlight
 			//		an "object attribute". "stencil" is
-			// 		used by the application to determine if
+			//		used by the application to determine if
 			//		something is selectable or not. This also
 			//		sets the mouse custom events like:
 			//		"onStencilUp". To disable the selectability,
@@ -1044,10 +1035,11 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		destroy: function(){
 			// summary:
 			//		Destroys this Stencil
+
 			// Note:
 			//		Can connect to this, but it's better to
 			//		connect to onDelete
-			//
+
 			// prevent loops:
 			if(this.destroyed){ return; }
 			if(this.data || this.points && this.points.length){
@@ -1064,11 +1056,11 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		remove: function(/*Shape...*/){
 			// summary:
 			//		Removes shape(s), typically before a re-render
-			// 		No args defaults to this.shape
+			//		No args defaults to this.shape
 			//		Pass in multiple args to remove multiple shapes
-			//
+
 			// FIXME: Use an Array of all shapes
-			//
+
 			var a = arguments;
 			if(!a.length){
 				if(!this.shape){ return; }
@@ -1084,9 +1076,9 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		connectMult: function(/*dojo.connect args */){
 			// summary:
 			//		Convenience method for batches of quick connects
-			// 		Handles are not returned and therefore cannot be
+			//		Handles are not returned and therefore cannot be
 			//		disconnected until Shape destroy time
-			//
+
 			if(arguments.length>1){
 				// arguments are the connect params
 				this._cons.push(this.connect.apply(this, arguments));
@@ -1112,7 +1104,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			//		If true, the connection happens only
 			//		once then disconnects. Five args are required
 			//		for this functionality.
-			//
+
 			var c;
 			if(typeof(o)!="object"){
 				if(s){
@@ -1141,7 +1133,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 			return c;
 		},
 
-		disconnect: function(/*handle | Array*/handles){
+		disconnect: function(/*Handle|Array*/handles){
 			// summary:
 			//		Removes connections based on passed
 			//		handles arguments
@@ -1166,8 +1158,8 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		// Should be overwritten by sub class:
 		render: function(){
 			// summary:
-			// 	This Stencil's render description. Often
-			//	calls 'sub render' methods.
+			//		This Stencil's render description. Often
+			//		calls 'sub render' methods.
 		},
 		//renderOutline: function(){},
 		dataToPoints: function(/*Object*/data){
@@ -1181,7 +1173,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		onDown: function(/*EventObject*/obj){
 			// summary:
 			//		Mouse event, fired on mousedown on canvas
-			//
+
 			// by default, object is ready to accept data
 			// turn this off for dragging or onRender will
 			// keep firing and register the shape
@@ -1199,7 +1191,7 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		onDrag: function(/*EventObject*/obj){
 			// summary:
 			//		Mouse event, fired on mousemove while mouse
-			// 		is down on canvas
+			//		is down on canvas
 		},
 		onUp: function(/*EventObject*/obj){
 			// summary:
@@ -1207,6 +1199,6 @@ dojox.drawing.stencil._Base = dojox.drawing.util.oo.declare(
 		}
 	}
 );
-
-
+dojo.setObject("dojox.drawing.stencil._Base", Base);
+return Base;
 });

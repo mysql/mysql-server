@@ -1,10 +1,5 @@
-//>>built
 define("dojox/gauges/GlossyHorizontalGaugeMarker", ["dojo/_base/declare","dojo/_base/Color","./BarLineIndicator"],
   function(declare, Color, BarLineIndicator) {
-
-/*=====
-	BarLineIndicator = dojox.gauges.BarLineIndicator;
-=====*/
 
 return declare("dojox.gauges.GlossyHorizontalGaugeMarker", [BarLineIndicator], {
 	// summary:
@@ -15,15 +10,15 @@ return declare("dojox.gauges.GlossyHorizontalGaugeMarker", [BarLineIndicator], {
 	//		Since the needle is created by the gauges class, you do not have to use this class directly.
 	
 	// interactionMode : String
-	// 		The interactionMode can have two values : "indicator" (the default) or "gauge".
+	//		The interactionMode can have two values : "indicator" (the default) or "gauge".
 	//	 	When the value is "indicator", the user must click on the indicator to change the value.
-	// 		When the value is "gauge", the user can click on the gauge to change the indicator value.
-	// 		If a gauge contains several indicators with the indicatorMode property set to "gauge", then
-	// 		only the first indicator will be moved when clicking the gauge.
+	//		When the value is "gauge", the user can click on the gauge to change the indicator value.
+	//		If a gauge contains several indicators with the indicatorMode property set to "gauge", then
+	//		only the first indicator will be moved when clicking the gauge.
 	interactionMode: "gauge",
 	
 	// color: String
-	// 		The color of the indicator.
+	//		The color of the indicator.
 	color: 'black',
 	
 	_getShapes: function(group){

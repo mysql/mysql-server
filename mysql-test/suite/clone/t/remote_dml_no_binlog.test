@@ -1,0 +1,13 @@
+# Test remote clone with concurrent DML without binary log
+
+--disable_query_log
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+--enable_query_log
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+--let remote_clone = 1
+--let no_binlog = 1
+
+--source local_dml.test

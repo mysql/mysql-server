@@ -75,7 +75,7 @@ count(*)=0
 1
 DROP DATABASE dbredoopt;
 DROP USER 'redo_wl_user'@'localhost';
-# Test with log_writer_before_limits_update
+# Test with log_writer_before_buf_limit_update
 DROP DATABASE IF EXISTS dbredoopt;
 CREATE DATABASE dbredoopt;
 USE dbredoopt;

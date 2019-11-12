@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -7,47 +7,45 @@
 //>>built
 define("dojo/io-query",["./_base/lang"],function(_1){
 var _2={};
-function _3(_4){
-var _5=encodeURIComponent,_6=[];
-for(var _7 in _4){
-var _8=_4[_7];
-if(_8!=_2[_7]){
-var _9=_5(_7)+"=";
-if(_1.isArray(_8)){
-for(var i=0,l=_8.length;i<l;++i){
-_6.push(_9+_5(_8[i]));
+return {objectToQuery:function objectToQuery(_3){
+var _4=encodeURIComponent,_5=[];
+for(var _6 in _3){
+var _7=_3[_6];
+if(_7!=_2[_6]){
+var _8=_4(_6)+"=";
+if(_1.isArray(_7)){
+for(var i=0,l=_7.length;i<l;++i){
+_5.push(_8+_4(_7[i]));
 }
 }else{
-_6.push(_9+_5(_8));
+_5.push(_8+_4(_7));
 }
 }
 }
-return _6.join("&");
-};
-function _a(_b){
-var _c=decodeURIComponent,qp=_b.split("&"),_d={},_e,_f;
-for(var i=0,l=qp.length,_10;i<l;++i){
-_10=qp[i];
-if(_10.length){
-var s=_10.indexOf("=");
+return _5.join("&");
+},queryToObject:function queryToObject(_9){
+var _a=decodeURIComponent,qp=_9.split("&"),_b={},_c,_d;
+for(var i=0,l=qp.length,_e;i<l;++i){
+_e=qp[i];
+if(_e.length){
+var s=_e.indexOf("=");
 if(s<0){
-_e=_c(_10);
-_f="";
+_c=_a(_e);
+_d="";
 }else{
-_e=_c(_10.slice(0,s));
-_f=_c(_10.slice(s+1));
+_c=_a(_e.slice(0,s));
+_d=_a(_e.slice(s+1));
 }
-if(typeof _d[_e]=="string"){
-_d[_e]=[_d[_e]];
+if(typeof _b[_c]=="string"){
+_b[_c]=[_b[_c]];
 }
-if(_1.isArray(_d[_e])){
-_d[_e].push(_f);
+if(_1.isArray(_b[_c])){
+_b[_c].push(_d);
 }else{
-_d[_e]=_f;
+_b[_c]=_d;
 }
 }
 }
-return _d;
-};
-return {objectToQuery:_3,queryToObject:_a};
+return _b;
+}};
 });

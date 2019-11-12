@@ -1,63 +1,80 @@
-//>>built
 define("dijit/form/_ListBase", [
 	"dojo/_base/declare",	// declare
+	"dojo/on",
 	"dojo/window" // winUtils.scrollIntoView
-], function(declare, winUtils){
+], function(declare, on, winUtils){
 
 // module:
 //		dijit/form/_ListBase
-// summary:
-//		Focus-less menu to handle UI events consistently
 
 return declare( "dijit.form._ListBase", null, {
 	// summary:
 	//		Focus-less menu to handle UI events consistently
 	//		Abstract methods that must be defined externally:
-	//			onSelect: item is active (mousedown but not yet mouseup, or keyboard arrow selected but no Enter)
-	//			onDeselect:  cancels onSelect
+	//
+	//		- onSelect: item is active (mousedown but not yet mouseup, or keyboard arrow selected but no Enter)
+	//		- onDeselect:  cancels onSelect
 	// tags:
 	//		private
 
-	// selected: DOMnode
+	// selected: DOMNode
 	//		currently selected node
 	selected: null,
 
-	_getTarget: function(/*Event*/ evt){
-		var tgt = evt.target;
-		var container = this.containerNode;
-		if(tgt == container || tgt == this.domNode){ return null; }
-		while(tgt && tgt.parentNode != container){
-			// recurse to the top
-			tgt = tgt.parentNode;
-		}
-		return tgt;
+	_listConnect: function(/*String|Function*/ eventType, /*String*/ callbackFuncName){
+		// summary:
+		//		Connects 'containerNode' to specified method of this object
+		//		and automatically registers for 'disconnect' on widget destroy.
+		// description:
+		//		Provide widget-specific analog to 'connect'.
+		//		The callback function is called with the normal event object,
+		//		but also a second parameter is passed that indicates which list item
+		//		actually received the event.
+		// returns:
+		//		A handle that can be passed to `disconnect` in order to disconnect
+		//		before the widget is destroyed.
+		// tags:
+		//		private
+
+		var self = this;
+		return self.own(on(self.containerNode,
+			on.selector(
+				function(eventTarget, selector, target){
+					return eventTarget.parentNode == target;
+				},
+				eventType
+			),
+			function(evt){
+				self[callbackFuncName](evt, this);
+			}
+		));
 	},
 
 	selectFirstNode: function(){
 		// summary:
-		// 		Select the first displayed item in the list.
+		//		Select the first displayed item in the list.
 		var first = this.containerNode.firstChild;
 		while(first && first.style.display == "none"){
 			first = first.nextSibling;
 		}
-		this._setSelectedAttr(first);
+		this._setSelectedAttr(first, true);
 	},
 
 	selectLastNode: function(){
 		// summary:
-		// 		Select the last displayed item in the list
+		//		Select the last displayed item in the list
 		var last = this.containerNode.lastChild;
 		while(last && last.style.display == "none"){
 			last = last.previousSibling;
 		}
-		this._setSelectedAttr(last);
+		this._setSelectedAttr(last, true);
 	},
 
 	selectNextNode: function(){
 		// summary:
-		// 		Select the item just below the current selection.
-		// 		If nothing selected, select first node.
-		var selectedNode = this._getSelectedAttr();
+		//		Select the item just below the current selection.
+		//		If nothing selected, select first node.
+		var selectedNode = this.selected;
 		if(!selectedNode){
 			this.selectFirstNode();
 		}else{
@@ -68,17 +85,17 @@ return declare( "dijit.form._ListBase", null, {
 			if(!next){
 				this.selectFirstNode();
 			}else{
-				this._setSelectedAttr(next);
+				this._setSelectedAttr(next, true);
 			}
 		}
 	},
 
 	selectPreviousNode: function(){
 		// summary:
-		// 		Select the item just above the current selection.
-		// 		If nothing selected, select last node (if
-		// 		you select Previous and try to keep scrolling up the list).
-		var selectedNode = this._getSelectedAttr();
+		//		Select the item just above the current selection.
+		//		If nothing selected, select last node (if
+		//		you select Previous and try to keep scrolling up the list).
+		var selectedNode = this.selected;
 		if(!selectedNode){
 			this.selectLastNode();
 		}else{
@@ -89,35 +106,35 @@ return declare( "dijit.form._ListBase", null, {
 			if(!prev){
 				this.selectLastNode();
 			}else{
-				this._setSelectedAttr(prev);
+				this._setSelectedAttr(prev, true);
 			}
 		}
 	},
 
-	_setSelectedAttr: function(/*DomNode*/ node){
+	_setSelectedAttr: function(/*DomNode*/ node, /*Boolean*/ scroll){
 		// summary:
 		//		Does the actual select.
+		// node:
+		//		The option to select
+		// scroll:
+		//		If necessary, scroll node into view.  Set to false for mouse/touch to
+		//		avoid jumping problems on mobile/RTL, see https://bugs.dojotoolkit.org/ticket/17739.
 		if(this.selected != node){
-			var selectedNode = this._getSelectedAttr();
+			var selectedNode = this.selected;
 			if(selectedNode){
 				this.onDeselect(selectedNode);
 				this.selected = null;
 			}
-			if(node && node.parentNode == this.containerNode){
+			if(node){
 				this.selected = node;
-				winUtils.scrollIntoView(node);
+				if(scroll){
+					winUtils.scrollIntoView(node);
+				}
 				this.onSelect(node);
 			}
 		}else if(node){
 			this.onSelect(node);
 		}
-	},
-
-	_getSelectedAttr: function(){
-		// summary:
-		//		Returns the selected node.
-		var v = this.selected;
-		return (v && v.parentNode == this.containerNode) ? v : (this.selected = null);
 	}
 });
 

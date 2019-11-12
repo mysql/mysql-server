@@ -14,6 +14,23 @@ SET @@global.general_log_file = @old_general_log_file;
 Bug#45387: ID match.
 End of 5.1 tests
 #
+# Bug#11748692: LOGGING TO SLOW_LOG TABLE FAILS WITH VERY SLOW QUERIES
+#
+SELECT @@session.long_query_time INTO @old_long_query_time;
+SET GLOBAL slow_query_log = 1;
+TRUNCATE mysql.slow_log;
+# this should get logged. 0 rows are examined.
+SET SESSION long_query_time=0;
+# rows_examined should overflow without the patch, and max out with it.
+SET @@session.debug = '+d,slow_log_table_max_rows_examined';
+SET @@session.long_query_time = @old_long_query_time;
+SET @@session.debug = '-d,slow_log_table_max_rows_examined';
+SELECT rows_examined,db,sql_text FROM mysql.slow_log;
+rows_examined	db	sql_text
+0	test	SET SESSION long_query_time=0
+2147483647	test	SET @@session.debug = '+d,slow_log_table_max_rows_examined'
+End of 8.0 tests
+#
 # Cleanup
 #
 SET global general_log = @old_general_log;

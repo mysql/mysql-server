@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=80016
+DD_VERSION=80017
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -274,7 +274,7 @@ events	CREATE TABLE `events` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `schema_id` bigint(20) unsigned NOT NULL,
   `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
-  `definer` varchar(93) COLLATE utf8_bin NOT NULL,
+  `definer` varchar(288) COLLATE utf8_bin NOT NULL,
   `time_zone` varchar(64) COLLATE utf8_bin NOT NULL,
   `definition` longblob NOT NULL,
   `definition_utf8` longtext COLLATE utf8_bin NOT NULL,
@@ -491,7 +491,7 @@ routines	CREATE TABLE `routines` (
   `is_deterministic` tinyint(1) NOT NULL,
   `sql_data_access` enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA') COLLATE utf8_bin NOT NULL,
   `security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8_bin NOT NULL,
-  `definer` varchar(93) COLLATE utf8_bin NOT NULL,
+  `definer` varchar(288) COLLATE utf8_bin NOT NULL,
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8_bin NOT NULL,
   `client_collation_id` bigint(20) unsigned NOT NULL,
   `connection_collation_id` bigint(20) unsigned NOT NULL,
@@ -522,6 +522,7 @@ schemata	CREATE TABLE `schemata` (
   `last_altered` timestamp NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `default_encryption` enum('NO','YES') COLLATE utf8_bin NOT NULL,
+  `se_private_data` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
   KEY `default_collation_id` (`default_collation_id`),
@@ -624,7 +625,7 @@ tables	CREATE TABLE `tables` (
   `view_is_updatable` enum('NO','YES') COLLATE utf8_bin DEFAULT NULL,
   `view_algorithm` enum('UNDEFINED','TEMPTABLE','MERGE') COLLATE utf8_bin DEFAULT NULL,
   `view_security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8_bin DEFAULT NULL,
-  `view_definer` varchar(93) COLLATE utf8_bin DEFAULT NULL,
+  `view_definer` varchar(288) COLLATE utf8_bin DEFAULT NULL,
   `view_client_collation_id` bigint(20) unsigned DEFAULT NULL,
   `view_connection_collation_id` bigint(20) unsigned DEFAULT NULL,
   `view_column_names` longtext COLLATE utf8_bin,
@@ -676,7 +677,7 @@ triggers	CREATE TABLE `triggers` (
   `created` timestamp(2) NOT NULL,
   `last_altered` timestamp(2) NOT NULL,
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8_bin NOT NULL,
-  `definer` varchar(93) COLLATE utf8_bin NOT NULL,
+  `definer` varchar(288) COLLATE utf8_bin NOT NULL,
   `client_collation_id` bigint(20) unsigned NOT NULL,
   `connection_collation_id` bigint(20) unsigned NOT NULL,
   `schema_collation_id` bigint(20) unsigned NOT NULL,
@@ -718,7 +719,9 @@ SET debug = '-d,skip_dd_table_access_check';
 # with an already recorded checksum.
 ########################################################################
 SET debug = '+d,skip_dd_table_access_check';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80016.
+The schema checksum corresponds to DD version 80017.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

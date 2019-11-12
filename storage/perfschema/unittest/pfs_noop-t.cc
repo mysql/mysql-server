@@ -123,7 +123,7 @@ static void test_noop() {
       NULL, 0, PSI_FILE_OPEN);
   ok(file_locker == NULL, "no file_locker");
   psi_mutex_service->unlock_mutex(NULL);
-  psi_rwlock_service->unlock_rwlock(NULL);
+  psi_rwlock_service->unlock_rwlock(NULL, PSI_RWLOCK_UNLOCK);
   psi_cond_service->signal_cond(NULL);
   psi_cond_service->broadcast_cond(NULL);
   idle_locker = psi_idle_service->start_idle_wait(NULL, NULL, 0);

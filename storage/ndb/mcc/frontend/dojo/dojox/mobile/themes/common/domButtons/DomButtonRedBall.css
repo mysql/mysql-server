@@ -10,6 +10,6 @@
 	left: 4px;
 	width: 14px;
 	height: 14px;
-	-webkit-border-radius: 7px;
-	background: -webkit-gradient(linear, left top, left bottom, from(#EC9B9D), to(#D73C3F));
+	border-radius: 7px;
+	background: -webkit-gradient(linear, left top, left bottom, from(#ec9b9d), to(#d73c3f));
 }

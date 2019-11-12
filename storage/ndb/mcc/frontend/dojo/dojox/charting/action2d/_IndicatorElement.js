@@ -1,10 +1,11 @@
 //>>built
-define("dojox/charting/action2d/_IndicatorElement",["dojo/_base/lang","dojo/_base/declare","../Element","../plot2d/common","../axis2d/common","dojox/gfx"],function(_1,_2,_3,_4,_5,_6){
+define("dojox/charting/action2d/_IndicatorElement",["dojo/_base/lang","dojo/_base/declare","../plot2d/Base","../plot2d/common","../axis2d/common","dojox/gfx"],function(_1,_2,_3,_4,_5,_6){
 var _7=function(_8){
 return _9(_8,_8.getShape().text);
 };
 var _9=function(s,t){
 var c=s.declaredClass;
+var w,h;
 if(c.indexOf("svg")!=-1){
 try{
 return _1.mixin({},s.rawNode.getBBox());
@@ -16,8 +17,8 @@ return null;
 if(c.indexOf("vml")!=-1){
 var _a=s.rawNode,_b=_a.style.display;
 _a.style.display="inline";
-var w=_6.pt2px(parseFloat(_a.currentStyle.width));
-var h=_6.pt2px(parseFloat(_a.currentStyle.height));
+w=_6.pt2px(parseFloat(_a.currentStyle.width));
+h=_6.pt2px(parseFloat(_a.currentStyle.height));
 var sz={x:0,y:0,width:w,height:h};
 _c(s,sz);
 _a.style.display=_b;
@@ -28,10 +29,10 @@ var bb={width:s.rawNode.actualWidth,height:s.rawNode.actualHeight};
 return _c(s,bb,0.75);
 }else{
 if(s.getTextWidth){
-var w=s.getTextWidth();
+w=s.getTextWidth();
 var _d=s.getFont();
 var fz=_d?_d.size:_6.defaultFont.size;
-var h=_6.normalizedLength(fz);
+h=_6.normalizedLength(fz);
 sz={width:w,height:h};
 _c(s,sz,0.75);
 return sz;
@@ -39,6 +40,7 @@ return sz;
 }
 }
 }
+return null;
 };
 var _c=function(s,sz,_e){
 var _f=sz.width,_10=sz.height,sh=s.getShape(),_11=sh.align;
@@ -58,7 +60,7 @@ _e=_e||1;
 sz.y=sh.y-_10*_e;
 return sz;
 };
-return _2("dojox.charting.action2d._IndicatorElement",[_3],{constructor:function(_12,_13){
+return _2(_3,{constructor:function(_12,_13){
 if(!_13){
 _13={};
 }
@@ -152,6 +154,9 @@ cd1=_19.toData(cp1);
 }
 }
 var c1=this._getData(cd1,_1c,v),c2;
+if(c1.y==null){
+return;
+}
 if(cp2){
 if(cd2[n]<_1d.from){
 cp2[_1c]=min[_1c];
@@ -163,6 +168,9 @@ cd2=_19.toData(cp2);
 }
 }
 c2=this._getData(cd2,_1c,v);
+if(c2.y==null){
+cp2=null;
+}
 }
 var t1=this._renderIndicator(c1,cp2?1:0,hn,vn,min,max);
 if(cp2){
@@ -208,9 +216,8 @@ _26.setFill(sf).setStroke(ls);
 if(_21==0){
 var _27=_22.opt.labelFunc?_22.opt.labelFunc(_20,null,_22.opt.fixed,_22.opt.precision):_4.getLabel(v?_20.y:_20.x,_22.opt.fixed,_22.opt.precision);
 this._renderText(_27,_22,t,v?x1:x2+5,v?y2+5:y1,_20);
-}else{
-return v?{x:x1,y:y2+5}:{x:x2+5,y:y1};
 }
+return v?{x:x1,y:y2+5}:{x:x2+5,y:y1};
 },_renderText:function(_28,_29,t,x,y,c1,c2){
 var _2a=_5.createText.gfx(this.chart,this.group,x,y,"middle",_28,_29.opt.font?_29.opt.font:t.indicator.font,_29.opt.fontColor?_29.opt.fontColor:t.indicator.fontColor);
 var b=_7(_2a);
@@ -219,9 +226,7 @@ b.y-=1;
 b.width+=4;
 b.height+=2;
 b.r=_29.opt.radius?_29.opt.radius:t.indicator.radius;
-sh=_29.opt.shadow?_29.opt.shadow:t.indicator.shadow;
-ls=_29.opt.stroke?_29.opt.stroke:t.indicator.stroke;
-ol=_29.opt.outline?_29.opt.outline:t.indicator.outline;
+var sh=_29.opt.shadow?_29.opt.shadow:t.indicator.shadow,ls=_29.opt.stroke?_29.opt.stroke:t.indicator.stroke,ol=_29.opt.outline?_29.opt.outline:t.indicator.outline;
 if(sh){
 this.group.createRect(b).setFill(sh.color).setStroke(sh);
 }
@@ -238,6 +243,8 @@ var _2c=this.chart.getSeries(this.inter.opt.series).data;
 var i,r,l=_2c.length;
 for(i=0;i<l;++i){
 r=_2c[i];
+if(r==null){
+}else{
 if(typeof r=="number"){
 if(i+1>cd[_2b]){
 break;
@@ -245,6 +252,7 @@ break;
 }else{
 if(r[_2b]>cd[_2b]){
 break;
+}
 }
 }
 }
@@ -276,13 +284,8 @@ return {x:x,y:y};
 this.inherited(arguments);
 this.group.moveToFront();
 return this;
-},clear:function(){
-this.dirty=true;
-return this;
 },getSeriesStats:function(){
 return _1.delegate(_4.defaultStats);
-},initializeScalers:function(){
-return this;
 },isDirty:function(){
 return !this._noDirty&&(this.dirty||this.inter.plot.isDirty());
 }});

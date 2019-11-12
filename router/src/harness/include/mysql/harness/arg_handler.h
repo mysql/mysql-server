@@ -68,9 +68,10 @@ struct CmdOption {
   AtEndActionFunc at_end_action;
   bool required{false};
 
-  CmdOption(OptionNames names_, std::string description_,
-            CmdOptionValueReq value_req_, const std::string metavar_,
-            ActionFunc action_, AtEndActionFunc at_end_action_ = [] {})
+  CmdOption(
+      OptionNames names_, std::string description_,
+      CmdOptionValueReq value_req_, const std::string metavar_,
+      ActionFunc action_, AtEndActionFunc at_end_action_ = [] {})
       : names(names_),
         description(description_),
         value_req(value_req_),
@@ -209,11 +210,11 @@ class HARNESS_EXPORT CmdArgHandler {
    * @param action action to perform when the option was found
    * @param at_end_action task to perform after all actions have been done
    */
-  void add_option(const CmdOption::OptionNames &names,
-                  const std::string &description,
-                  const CmdOptionValueReq &value_req,
-                  const std::string &metavar, CmdOption::ActionFunc action,
-                  CmdOption::AtEndActionFunc at_end_action = [] {}) noexcept;
+  void add_option(
+      const CmdOption::OptionNames &names, const std::string &description,
+      const CmdOptionValueReq &value_req, const std::string &metavar,
+      CmdOption::ActionFunc action,
+      CmdOption::AtEndActionFunc at_end_action = [] {}) noexcept;
 
   void add_option(const CmdOption &other) noexcept;
 

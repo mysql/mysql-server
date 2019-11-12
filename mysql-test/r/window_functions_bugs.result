@@ -1058,3 +1058,22 @@ a	b	first	last
 NULL	2	2	NULL
 NULL	NULL	2	NULL
 DROP TABLE t;
+#
+# Bug#29328529 AGGREGATE FUNCTION RESULT IS DEPENDENT BY WINDOW IS
+#              DEFINED DIRECTLY OR AS NAMED
+#
+WITH RECURSIVE cte AS (
+SELECT 1 num
+UNION ALL
+SELECT num+1 FROM cte WHERE num < 5
+)
+SELECT num, COUNT(*) OVER (frame) cnt_named,
+COUNT(*) OVER (ORDER BY num DESC) cnt_direct
+FROM cte
+WINDOW frame AS (ORDER BY num DESC);
+num	cnt_named	cnt_direct
+5	1	1
+4	2	2
+3	3	3
+2	4	4
+1	5	5

@@ -7,7 +7,8 @@ RENAME TO ndb_ddl_test2.t3;
 ALTER TABLE t4
 RENAME TO ndb_ddl_test2.t4_new_name;
 ALTER TABLE t5
-RENAME TO t5_new_name;
+RENAME TO t2;
+ERROR 42S01: Table 't2' already exists
 ALTER TABLE t6
 RENAME TO t6_new_name;
 ALTER TABLE t7

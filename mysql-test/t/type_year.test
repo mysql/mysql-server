@@ -129,10 +129,12 @@ CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
 INSERT IGNORE INTO t1 (s) VALUES ('bad');
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
 
+--sorted_result
 SELECT * FROM t1 ta, t1 tb WHERE ta.y = tb.y;
 SELECT * FROM t1 WHERE t1.y = 0;
 SELECT * FROM t1 WHERE t1.y = 2000;
 
+--sorted_result
 SELECT ta.y AS ta_y, ta.s, tb.y AS tb_y, tb.s FROM t1 ta, t1 tb HAVING ta_y = tb_y;
 
 DROP TABLE t1;
@@ -226,3 +228,20 @@ SELECT COUNT(DISTINCT name), AVG(YEAR(date1)) AS aa, class
   FROM t1 GROUP BY class ORDER BY aa;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29668676 DATA TRUNCATION ERROR OCCURRED ON A WRITE OF
+--echo #              COLUMN 0DATA WAS 0 BYTES LONG AND
+--echo #
+
+CREATE TABLE t(QC_DATE_KEY bigint, QC_DATE date, QC_TIMESTAMP datetime);
+INSERT INTO t VALUES
+
+(1, '1999-02-28', '1999-11-28 14:45:00'),
+(2, '1999-12-31', '2000-01-01 00:00:00');
+
+# used to give an error for negative result (1999 - 2000 above)
+SELECT ((year(QC_DATE) - year(QC_TIMESTAMP))) FROM t
+  WHERE QC_DATE_KEY = 2;
+
+DROP TABLE t;

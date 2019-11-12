@@ -18,6 +18,9 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key),
 KEY col_int_key_2 (col_int_key,col_date_key,col_time_key,col_datetime_key,col_varchar_key)
 ) AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO D_21104470
 VALUES
 (1,'{"int1": "6"}',3,
@@ -90,6 +93,9 @@ KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key),
 KEY col_int_key_2 (col_int_key,col_date_key,col_time_key,col_datetime_key,col_varchar_key)
 ) AUTO_INCREMENT=20 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO DD_21104470
 VALUES
 (10,'{"int1": "6"}',3,
@@ -263,3 +269,14 @@ SUM(col_int)	col_int
 4572643328	NULL
 DROP VIEW view1;
 DROP TABLE D;
+#
+# Bug#29669251: !THD->IS_ERROR() IN JOIN_READ_CONST_TABLE()
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2);
+WITH
+cte1 AS (SELECT STD(a) AS a1 FROM t ),
+cte2 AS (SELECT (JSON_INSERT('$.KEY3', NULL, NULL)) AS a2 FROM t)
+SELECT cte1.a1 FROM cte1,cte2 WHERE cte1.a1 LIKE cte2.a2;
+ERROR 22032: Invalid JSON text in argument 1 to function json_insert: "Invalid value." at position 0.
+DROP TABLE t;

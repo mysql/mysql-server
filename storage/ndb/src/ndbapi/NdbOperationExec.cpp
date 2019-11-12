@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,6 +165,8 @@ NdbOperation::setRequestInfoTCKEYREQ(bool lastFlag,
   TcKeyReq::setScanIndFlag(requestInfo, theScanInfo & 1);
   TcKeyReq::setReadCommittedBaseFlag(requestInfo,
                                  theReadCommittedBaseIndicator & longSignal);
+  TcKeyReq::setNoWaitFlag(requestInfo,
+                          (m_flags & OF_NOWAIT) != 0);
   req->requestInfo = requestInfo;
 }
 
@@ -189,9 +191,28 @@ NdbOperation::doSendKeyReq(int aNodeId,
     ! forceShort;
 
   setRequestInfoTCKEYREQ(lastFlag, sendLong);
+
+  Uint32 keyInfoLen  = secs[0].sz;
+  Uint32 attrInfoLen = (numSecs == 2) ? secs[1].sz : 0;
   if (likely(sendLong))
   {
-    return impl->sendSignal(request, aNodeId, secs, numSecs);
+    const Uint32 long_sections_size = keyInfoLen + attrInfoLen;
+    if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)
+    {
+      return impl->sendSignal(request, aNodeId, secs, numSecs);
+    }
+    else if (ndbd_frag_tckeyreq(tcNodeVersion))
+    {
+      return impl->sendFragmentedSignal(request, aNodeId, secs, numSecs);
+    }
+    else
+    {
+      /* It should not be possible to see a table definition that supports
+       * big rows unless all data nodes that are started also can handle it.
+       */
+      require(ndbd_frag_tckeyreq(tcNodeVersion));
+      return -1;
+    }
   }
   else
   {
@@ -202,10 +223,6 @@ NdbOperation::doSendKeyReq(int aNodeId,
      * overwritten and thus ignored.
      */
     Uint32 sigCount = 1;
-    Uint32 keyInfoLen  = secs[0].sz;
-    Uint32 attrInfoLen = (numSecs == 2)?
-      secs[1].sz : 
-      0;
     
     Uint32 keyInfoInReq = MIN(keyInfoLen, TcKeyReq::MaxKeyInfo);
     Uint32 attrInfoInReq = MIN(attrInfoLen, TcKeyReq::MaxAttrInfo);

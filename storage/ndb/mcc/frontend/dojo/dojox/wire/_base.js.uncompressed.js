@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/_base", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
+define("dojox/wire/_base", ["dojo","dijit","dojox"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire._base");
 
 dojox.wire._defaultWireClass = "dojox.wire.Wire";
@@ -15,14 +14,14 @@ dojox.wire._wireClasses = {
 };
 
 dojox.wire.register = function(/*Function||String*/wireClass, /*String*/key){
-	//	summary:
+	// summary:
 	//		Register a Wire class
-	//	desription:
+	// description:
 	//		The specified Wire class or a class name is registered with
 	//		a key property of arguments to create a Wire
-	//	wireClass:
+	// wireClass:
 	//		A class or full qualified class name
-	//	key:
+	// key:
 	//		A key property of arguments to create a Wire
 	if(!wireClass || !key){
 		return; //undefined
@@ -34,31 +33,31 @@ dojox.wire.register = function(/*Function||String*/wireClass, /*String*/key){
 };
 
 dojox.wire._getClass = function(/*String*/name){
-	//	summary:
+	// summary:
 	//		Returns a class
-	//	description:
+	// description:
 	//		The class is loaded by dojo.require() and returned
 	//		by dojo.getObject().
-	//	name:
+	// name:
 	//		A class name
-	//	returns:
+	// returns:
 	//		A class
 	dojo["require"](name); // use dojo["require"] instead of dojo.require to avoid a build problem
 	return dojo.getObject(name); //Function
 };
 
 dojox.wire.create = function(/*Object*/args){
-	//	summary:
+	// summary:
 	//		Create a Wire from arguments
-	//	description:
+	// description:
 	//		If 'args' specifies 'wireClass', it is used as a class or full
 	//		qualified class name to create a Wire with 'args' as arguments.
 	//		Otherwise, a Wire class is determined by other proeprties of 'args'
 	//		checking if 'args' specifies a key property for a Wire class.
 	//		If no key property found, the default Wire class is used.
-	//	args:
+	// args:
 	//		Arguments to create a Wire
-	//	returns:
+	// returns:
 	//		A Wire
 	if(!args){
 		args = {};
@@ -93,22 +92,22 @@ dojox.wire.create = function(/*Object*/args){
 };
 
 dojox.wire.isWire = function(/*Object*/wire){
-	//	summary:
+	// summary:
 	//		Check if an object is a Wire
-	//	description:
+	// description:
 	//		If the specified object is a Wire, true is returned.
 	//		Otherwise, false is returned.
-	//	wire:
+	// wire:
 	//		An object to check
-	//	returns:
+	// returns:
 	//		True if the object is a Wire, otherwise false
 	return (wire && wire._wireClass); //Boolean
 };
 
 dojox.wire.transfer = function(/*Wire||Object*/source, /*Wire||Object*/target, /*Object?*/defaultObject, /*Object?*/defaultTargetObject){
-	//	summary:
+	// summary:
 	//		Transfer a source value to a target value
-	//	description:
+	// description:
 	//		If 'source' and/or 'target' are not Wires, Wires are created with
 	//		them as arguments.
 	//		A value is got through the source Wire and set through the target
@@ -116,13 +115,14 @@ dojox.wire.transfer = function(/*Wire||Object*/source, /*Wire||Object*/target, /
 	//		'defaultObject' is passed to Wires as a default root object.
 	//		If 'defaultTargetObject' is specified, it is passed to the target
 	//		Wire as a default root object, instead of 'defaultObject'.
-	//	source:
+	// source:
 	//		A Wire or arguments to create a Wire for a source value
-	//	target:
+	// target:
 	//		A Wire or arguments to create a Wire for a target value
-	//	defaultObject:
-	//	defaultTargetObject;
-	//		Optional default root objects passed to Wires
+	// defaultObject:
+	//		Optional default root object passed to Wires
+	// defaultTargetObject:
+	//		Optional default root object passed to Wires
 	if(!source || !target){
 		return; //undefined
 	}
@@ -138,10 +138,10 @@ dojox.wire.transfer = function(/*Wire||Object*/source, /*Wire||Object*/target, /
 };
 
 dojox.wire.connect = function(/*Object*/trigger, /*Wire||Object*/source, /*Wire||Object*/target){
-	//	summary:
+	// summary:
 	//		Transfer a source value to a target value on a trigger event or
 	//		topic
-	//	description:
+	// description:
 	//		If 'trigger' specifies 'topic', the topic is subscribed to transer
 	//		a value on the topic.
 	//		Otherwise, the event specified to 'event' of 'trigger' is listened
@@ -149,13 +149,13 @@ dojox.wire.connect = function(/*Object*/trigger, /*Wire||Object*/source, /*Wire|
 	//		On the specified event or topic, transfer() is called with
 	//		'source', 'target' and the arguments of the event or topic (as
 	//		default root objects).
-	//	trigger:
+	// trigger:
 	//		An event or topic to trigger a transfer
-	//	source:
+	// source:
 	//		A Wire or arguments to create a Wire for a source value
-	//	target:
+	// target:
 	//		A Wire or arguments to create a Wire for a target value
-	//	returns:
+	// returns:
 	//		A connection handle for disconnect()
 	if(!trigger || !source || !target){
 		return; //undefined
@@ -175,12 +175,12 @@ dojox.wire.connect = function(/*Object*/trigger, /*Wire||Object*/source, /*Wire|
 };
 
 dojox.wire.disconnect = function(/*Object*/connection){
-	//	summary:
+	// summary:
 	//		Remove a connection or subscription for transfer
-	//	description:
+	// description:
 	//		If 'handle' has 'topic', the topic is unsubscribed.
 	//		Otherwise, the listener to an event is removed.
-	//	connection:
+	// connection:
 	//		A connection handle returned by connect()
 	if(!connection || !connection.handle){
 		return; //undefined

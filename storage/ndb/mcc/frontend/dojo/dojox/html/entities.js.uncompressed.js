@@ -1,4 +1,3 @@
-//>>built
 define("dojox/html/entities", ["dojo/_base/lang"], function(lang) {
 	// dojox.html.entities.html [public] Array
 	//		Entity characters for HTML, represented as an array of
@@ -143,7 +142,7 @@ define("dojox/html/entities", ["dojo/_base/lang"], function(lang) {
 		["\u22C5","sdot"],["\u2308","lceil"],["\u2309","rceil"],["\u230A","lfloor"],
 		["\u230B","rfloor"],["\u2329","lang"],["\u232A","rang"],["\u25CA","loz"],
 		["\u2660","spades"],["\u2663","clubs"],["\u2665","hearts"],["\u2666","diams"],
-		["\u0152","Elig"],["\u0153","oelig"],["\u0160","Scaron"],["\u0161","scaron"],
+		["\u0152","OElig"],["\u0153","oelig"],["\u0160","Scaron"],["\u0161","scaron"],
 		["\u0178","Yuml"],["\u02C6","circ"],["\u02DC","tilde"],["\u2002","ensp"],
 		["\u2003","emsp"],["\u2009","thinsp"],["\u200C","zwnj"],["\u200D","zwj"],
 		["\u200E","lrm"],["\u200F","rlm"],["\u2013","ndash"],["\u2014","mdash"],

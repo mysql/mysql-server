@@ -49,8 +49,6 @@ Disconnect both mysqld servers from all datanodes -> binlog restarts
 Wait for 'server1' binlog rotate to indicate disconnect
 Wait for 'server2' binlog rotate to indicate disconnect
 Wait for (fast) 'server1' to complete setup and get out of read-only mode
-Reading 'mysql.ndb_schema' on 'server2' announce schema distr. participation as a side effect.
-select * from mysql.ndb_schema where db="" and name="";
 Create table operation on 'server1' grab MDL lock while waiting for
 schema distribution to all subscribing mysqld -> stuck on 'server2'
 create table t1 (a int primary key) engine=ndb;

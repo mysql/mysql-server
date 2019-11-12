@@ -95,6 +95,9 @@
 --echo # There should be no leftovers in the datadir.
 --list_files $TEST_DATADIR
 
+
+--exec $MYSQLD --no-defaults --help --verbose --secure-file-priv="./some_dir" > $LOG_FILE 2>&1
+
 # Cleanup
 --remove_files_wildcard $BUGDIR *
 --rmdir $TEST_DATADIR

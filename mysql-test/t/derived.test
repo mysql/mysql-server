@@ -35,6 +35,7 @@ SELECT a,2 as a FROM (SELECT '1' as a) b HAVING a=1;
 SELECT 1 FROM (SELECT 1) a WHERE a=2;
 --error 1054
 SELECT (SELECT 1) as a FROM (SELECT 1 FROM t1  HAVING a=1) as a;
+--sorted_result
 select * from t1 as x1, (select * from t1) as x2;
 explain select * from t1 as x1, (select * from t1) as x2;
 drop table if exists  t2,t3;
@@ -154,6 +155,7 @@ drop table t1;
 
 create table t1 (a int);
 insert into t1 values (1),(2);
+--sorted_result
 select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 drop table t1;
@@ -531,6 +533,7 @@ EXPLAIN SELECT * FROM (SELECT * FROM t1) tt;
 SELECT * FROM (SELECT * FROM t1) tt;
 --echo  explain for multitable derived
 EXPLAIN SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
+--sorted_result
 SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 --echo  explain for derived with where
 FLUSH STATUS;
@@ -558,6 +561,7 @@ EXPLAIN SELECT * FROM v1;
 SELECT * FROM v1;
 --echo  explain for multitable views
 EXPLAIN SELECT * FROM v2;
+--sorted_result
 SELECT * FROM v2;
 --echo  explain for views with where
 EXPLAIN SELECT * FROM v3 WHERE f11 IN (1,3);
@@ -565,6 +569,7 @@ SELECT * FROM v3 WHERE f11 IN (1,3);
 --echo explain for joined views
 EXPLAIN
   SELECT * FROM v3 JOIN v4 ON f1=f2;
+--sorted_result
 SELECT * FROM v3 JOIN v4 ON f1=f2;
 
 FLUSH STATUS;
@@ -2412,6 +2417,8 @@ FROM t1 RIGHT JOIN
      ON t1.pk = dt.pk;
 
 eval explain $query;
+
+--sorted_result
 eval $query;
 
 SET @@optimizer_switch=@optimizer_switch_saved;

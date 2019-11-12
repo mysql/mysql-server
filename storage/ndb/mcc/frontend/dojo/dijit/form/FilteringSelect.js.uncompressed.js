@@ -1,23 +1,14 @@
-//>>built
 define("dijit/form/FilteringSelect", [
 	"dojo/data/util/filter", // filter.patternToRegExp
 	"dojo/_base/declare", // declare
-	"dojo/_base/Deferred", // Deferred.when
 	"dojo/_base/lang", // lang.mixin
+	"dojo/when",
 	"./MappedTextBox",
 	"./ComboBoxMixin"
-], function(filter, declare, Deferred, lang, MappedTextBox, ComboBoxMixin){
-
-/*=====
-	var MappedTextBox = dijit.form.MappedTextBox;
-	var ComboBoxMixin = dijit.form.ComboBoxMixin;
-=====*/
+], function(filter, declare, lang, when, MappedTextBox, ComboBoxMixin){
 
 	// module:
 	//		dijit/form/FilteringSelect
-	// summary:
-	//		An enhanced version of the HTML SELECT tag, populated dynamically
-
 
 	return declare("dijit.form.FilteringSelect", [MappedTextBox, ComboBoxMixin], {
 		// summary:
@@ -34,17 +25,19 @@ define("dijit/form/FilteringSelect", [
 		//		attribute on 1 of the child OPTION tags.
 		//
 		//		Similar features:
-		//			- There is a drop down list of possible values.
-		//			- You can only enter a value from the drop down list.  (You can't
-		//				enter an arbitrary value.)
-		//			- The value submitted with the form is the hidden value (ex: CA),
-		//				not the displayed value a.k.a. label (ex: California)
+		//
+		//		- There is a drop down list of possible values.
+		//		- You can only enter a value from the drop down list.  (You can't
+		//			enter an arbitrary value.)
+		//		- The value submitted with the form is the hidden value (ex: CA),
+		//			not the displayed value a.k.a. label (ex: California)
 		//
 		//		Enhancements over plain HTML version:
-		//			- If you type in some text then it will filter down the list of
-		//				possible values in the drop down list.
-		//			- List can be specified either as a static list or via a javascript
-		//				function (that can get the list from a server)
+		//
+		//		- If you type in some text then it will filter down the list of
+		//			possible values in the drop down list.
+		//		- List can be specified either as a static list or via a javascript
+		//			function (that can get the list from a server)
 
 		// required: Boolean
 		//		True (default) if user is required to enter a value into this field.
@@ -58,7 +51,7 @@ define("dijit/form/FilteringSelect", [
 
 		isValid: function(){
 			// Overrides ValidationTextBox.isValid()
-			return this.item || (!this.required && this.get('displayedValue') == ""); // #5974
+			return !!this.item || (!this.required && this.get('displayedValue') == ""); // #5974
 		},
 
 		_refreshState: function(){
@@ -142,7 +135,7 @@ define("dijit/form/FilteringSelect", [
 
 				var self = this;
 				this._lastQuery = value;
-				Deferred.when(this.store.get(value), function(item){
+				when(this.store.get(value), function(item){
 					self._callbackSetLabel(item? [item] : [], undefined, undefined, priorityChange);
 				});
 			}else{
@@ -200,8 +193,8 @@ define("dijit/form/FilteringSelect", [
 					// remove this branch for 2.0
 					q = qs;
 				}else{
-					// Query on searchAttr is a regex for benefit of dojo.store.Memory,
-					// but with a toString() method to help dojo.store.JsonRest.
+					// Query on searchAttr is a regex for benefit of dojo/store/Memory,
+					// but with a toString() method to help dojo/store/JsonRest.
 					// Search string like "Co*" converted to regex like /^Co.*$/i.
 					q = filter.patternToRegExp(qs, this.ignoreCase);
 					q.toString = function(){ return qs; };
@@ -217,12 +210,14 @@ define("dijit/form/FilteringSelect", [
 				this._set("displayedValue", label);	// for watch("displayedValue") notification
 				var _this = this;
 				var options = {
-					ignoreCase: this.ignoreCase,
-					deep: true
+					queryOptions: {
+						ignoreCase: this.ignoreCase,
+						deep: true
+					}
 				};
 				lang.mixin(options, this.fetchProperties);
 				this._fetchHandle = this.store.query(query, options);
-				Deferred.when(this._fetchHandle, function(result){
+				when(this._fetchHandle, function(result){
 					_this._fetchHandle = null;
 					_this._callbackSetLabel(result || [], query, options, priorityChange);
 				}, function(err){

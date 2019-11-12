@@ -1,0 +1,4 @@
+# Test clone with concurrent DML on compressed row format table
+--source include/have_innodb_max_16k.inc
+--let row_format_compressed = 1
+--source local_dml.test

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,8 @@ case OPT_SSL_MODE:
   ssl_mode_set_explicitly = true;
   break;
 case OPT_SSL_FIPS_MODE:
-#ifndef HAVE_WOLFSSL
   opt_ssl_fips_mode =
       find_type_or_exit(argument, &ssl_fips_mode_typelib, opt->name) - 1;
-#endif  //#ifndef HAVE_WOLFSSL
   break;
 case OPT_SSL_CA:
 case OPT_SSL_CAPATH:
@@ -51,10 +49,5 @@ case OPT_SSL_CIPHER:
 case OPT_SSL_CRL:
 case OPT_SSL_CRLPATH:
 case OPT_TLS_VERSION:
-#ifdef HAVE_WOLFSSL
-  /* crl has no effect in wolfSSL */
-  opt_ssl_crl = NULL;
-  opt_ssl_crlpath = NULL;
-#endif /* HAVE_WOLFSSL */
   break;
 #endif /* HAVE_OPENSSL */

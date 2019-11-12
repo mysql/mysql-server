@@ -4,7 +4,7 @@ return _1("dojox.grid.Selection",null,{constructor:function(_5){
 this.grid=_5;
 this.selected=[];
 this.setMode(_5.selectionMode);
-},mode:"extended",selected:null,updating:0,selectedIndex:-1,setMode:function(_6){
+},mode:"extended",selected:null,updating:0,selectedIndex:-1,rangeStartIndex:-1,setMode:function(_6){
 if(this.selected.length){
 this.deselectAll();
 }
@@ -176,12 +176,14 @@ this._beginUpdate();
 if(this.mode!="extended"){
 this.select(_20);
 }else{
-var _23=this.selectedIndex;
+if(!_22||this.rangeStartIndex<0){
+this.rangeStartIndex=_20;
+}
 if(!_21){
 this.deselectAll(_20);
 }
 if(_22){
-this.selectRange(_23,_20);
+this.selectRange(this.rangeStartIndex,_20);
 }else{
 if(_21){
 this.toggleSelect(_20);

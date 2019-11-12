@@ -1,45 +1,47 @@
 //>>built
-define("dijit/tree/_dndSelector",["dojo/_base/array","dojo/_base/connect","dojo/_base/declare","dojo/_base/lang","dojo/mouse","dojo/on","dojo/touch","dojo/_base/window","./_dndContainer"],function(_1,_2,_3,_4,_5,on,_6,_7,_8){
-return _3("dijit.tree._dndSelector",_8,{constructor:function(){
+define("dijit/tree/_dndSelector",["dojo/_base/array","dojo/_base/connect","dojo/_base/declare","dojo/_base/Deferred","dojo/_base/kernel","dojo/_base/lang","dojo/cookie","dojo/mouse","dojo/on","dojo/touch","./_dndContainer"],function(_1,_2,_3,_4,_5,_6,_7,_8,on,_9,_a){
+return _3("dijit.tree._dndSelector",_a,{constructor:function(){
 this.selection={};
 this.anchor=null;
-this.tree.domNode.setAttribute("aria-multiselect",!this.singular);
-this.events.push(on(this.tree.domNode,_6.press,_4.hitch(this,"onMouseDown")),on(this.tree.domNode,_6.release,_4.hitch(this,"onMouseUp")),on(this.tree.domNode,_6.move,_4.hitch(this,"onMouseMove")));
-},singular:false,getSelectedTreeNodes:function(){
-var _9=[],_a=this.selection;
-for(var i in _a){
-_9.push(_a[i]);
+if(!this.cookieName&&this.tree.id){
+this.cookieName=this.tree.id+"SaveSelectedCookie";
 }
-return _9;
+this.events.push(on(this.tree.domNode,_9.press,_6.hitch(this,"onMouseDown")),on(this.tree.domNode,_9.release,_6.hitch(this,"onMouseUp")),on(this.tree.domNode,_9.move,_6.hitch(this,"onMouseMove")));
+},singular:false,getSelectedTreeNodes:function(){
+var _b=[],_c=this.selection;
+for(var i in _c){
+_b.push(_c[i]);
+}
+return _b;
 },selectNone:function(){
 this.setSelection([]);
 return this;
 },destroy:function(){
 this.inherited(arguments);
 this.selection=this.anchor=null;
-},addTreeNode:function(_b,_c){
-this.setSelection(this.getSelectedTreeNodes().concat([_b]));
-if(_c){
-this.anchor=_b;
+},addTreeNode:function(_d,_e){
+this.setSelection(this.getSelectedTreeNodes().concat([_d]));
+if(_e){
+this.anchor=_d;
 }
-return _b;
-},removeTreeNode:function(_d){
-this.setSelection(this._setDifference(this.getSelectedTreeNodes(),[_d]));
 return _d;
-},isTreeNodeSelected:function(_e){
-return _e.id&&!!this.selection[_e.id];
-},setSelection:function(_f){
-var _10=this.getSelectedTreeNodes();
-_1.forEach(this._setDifference(_10,_f),_4.hitch(this,function(_11){
-_11.setSelected(false);
-if(this.anchor==_11){
+},removeTreeNode:function(_f){
+this.setSelection(this._setDifference(this.getSelectedTreeNodes(),[_f]));
+return _f;
+},isTreeNodeSelected:function(_10){
+return _10.id&&!!this.selection[_10.id];
+},setSelection:function(_11){
+var _12=this.getSelectedTreeNodes();
+_1.forEach(this._setDifference(_12,_11),_6.hitch(this,function(_13){
+_13.setSelected(false);
+if(this.anchor==_13){
 delete this.anchor;
 }
-delete this.selection[_11.id];
+delete this.selection[_13.id];
 }));
-_1.forEach(this._setDifference(_f,_10),_4.hitch(this,function(_12){
-_12.setSelected(true);
-this.selection[_12.id]=_12;
+_1.forEach(this._setDifference(_11,_12),_6.hitch(this,function(_14){
+_14.setSelected(true);
+this.selection[_14.id]=_14;
 }));
 this._updateSelectionProperties();
 },_setDifference:function(xs,ys){
@@ -54,37 +56,60 @@ delete y["__exclude__"];
 });
 return ret;
 },_updateSelectionProperties:function(){
-var _13=this.getSelectedTreeNodes();
-var _14=[],_15=[];
-_1.forEach(_13,function(_16){
-_15.push(_16);
-_14.push(_16.getTreePath());
+var _15=this.getSelectedTreeNodes();
+var _16=[],_17=[],_18=[];
+_1.forEach(_15,function(_19){
+var ary=_19.getTreePath(),_1a=this.tree.model;
+_17.push(_19);
+_16.push(ary);
+ary=_1.map(ary,function(_1b){
+return _1a.getIdentity(_1b);
+},this);
+_18.push(ary.join("/"));
+},this);
+var _1c=_1.map(_17,function(_1d){
+return _1d.item;
 });
-var _17=_1.map(_15,function(_18){
-return _18.item;
+this.tree._set("paths",_16);
+this.tree._set("path",_16[0]||[]);
+this.tree._set("selectedNodes",_17);
+this.tree._set("selectedNode",_17[0]||null);
+this.tree._set("selectedItems",_1c);
+this.tree._set("selectedItem",_1c[0]||null);
+if(this.tree.persist&&_18.length>0){
+_7(this.cookieName,_18.join(","),{expires:365});
+}
+},_getSavedPaths:function(){
+var _1e=this.tree;
+if(_1e.persist&&_1e.dndController.cookieName){
+var _1f,_20=[];
+_1f=_7(_1e.dndController.cookieName);
+if(_1f){
+_20=_1.map(_1f.split(","),function(_21){
+return _21.split("/");
 });
-this.tree._set("paths",_14);
-this.tree._set("path",_14[0]||[]);
-this.tree._set("selectedNodes",_15);
-this.tree._set("selectedNode",_15[0]||null);
-this.tree._set("selectedItems",_17);
-this.tree._set("selectedItem",_17[0]||null);
+}
+return _20;
+}
 },onMouseDown:function(e){
 if(!this.current||this.tree.isExpandoNode(e.target,this.current)){
 return;
 }
-if(!_5.isLeft(e)){
+if(e.type=="mousedown"&&_8.isLeft(e)){
+e.preventDefault();
+}else{
+if(e.type!="touchstart"){
 return;
 }
-e.preventDefault();
-var _19=this.current,_1a=_2.isCopyKey(e),id=_19.id;
+}
+var _22=this.current,_23=_2.isCopyKey(e),id=_22.id;
 if(!this.singular&&!e.shiftKey&&this.selection[id]){
 this._doDeselect=true;
 return;
 }else{
 this._doDeselect=false;
 }
-this.userSelect(_19,_1a,e.shiftKey);
+this.userSelect(_22,_23,e.shiftKey);
 },onMouseUp:function(e){
 if(!this._doDeselect){
 return;
@@ -114,49 +139,49 @@ throw Error("dijit.tree._compareNodes don't know how to compare two different no
 }
 }
 }
-},userSelect:function(_1b,_1c,_1d){
+},userSelect:function(_24,_25,_26){
 if(this.singular){
-if(this.anchor==_1b&&_1c){
+if(this.anchor==_24&&_25){
 this.selectNone();
 }else{
-this.setSelection([_1b]);
-this.anchor=_1b;
+this.setSelection([_24]);
+this.anchor=_24;
 }
 }else{
-if(_1d&&this.anchor){
-var cr=this._compareNodes(this.anchor.rowNode,_1b.rowNode),_1e,end,_1f=this.anchor;
+if(_26&&this.anchor){
+var cr=this._compareNodes(this.anchor.rowNode,_24.rowNode),_27,end,_28=this.anchor;
 if(cr<0){
-_1e=_1f;
-end=_1b;
+_27=_28;
+end=_24;
 }else{
-_1e=_1b;
-end=_1f;
+_27=_24;
+end=_28;
 }
-var _20=[];
-while(_1e!=end){
-_20.push(_1e);
-_1e=this.tree._getNextNode(_1e);
+var _29=[];
+while(_27!=end){
+_29.push(_27);
+_27=this.tree._getNextNode(_27);
 }
-_20.push(end);
-this.setSelection(_20);
+_29.push(end);
+this.setSelection(_29);
 }else{
-if(this.selection[_1b.id]&&_1c){
-this.removeTreeNode(_1b);
+if(this.selection[_24.id]&&_25){
+this.removeTreeNode(_24);
 }else{
-if(_1c){
-this.addTreeNode(_1b,true);
+if(_25){
+this.addTreeNode(_24,true);
 }else{
-this.setSelection([_1b]);
-this.anchor=_1b;
+this.setSelection([_24]);
+this.anchor=_24;
 }
 }
 }
 }
 },getItem:function(key){
-var _21=this.selection[key];
-return {data:_21,type:["treeNode"]};
+var _2a=this.selection[key];
+return {data:_2a,type:["treeNode"]};
 },forInSelectedItems:function(f,o){
-o=o||_7.global;
+o=o||_5.global;
 for(var id in this.selection){
 f.call(o,this.getItem(id),id,this);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,13 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_CLIENT_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_CLIENT_INTERFACE_H_
 
+#include <memory>
+#include <vector>
+
+#include "plugin/x/ngs/include/ngs/compression_types.h"
 #include "plugin/x/ngs/include/ngs/interface/session_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 
@@ -39,16 +44,16 @@ class Protocol_encoder_interface;
 
 class Client_interface {
  public:
-  typedef uint64_t Client_id;
+  using Client_id = uint64_t;
 
-  enum Client_state {
-    Client_invalid,
-    Client_accepted,
-    Client_accepted_with_session,
-    Client_authenticating_first,
-    Client_running,
-    Client_closing,
-    Client_closed
+  enum class State {
+    k_invalid,
+    k_accepted,
+    k_accepted_with_session,
+    k_authenticating_first,
+    k_running,
+    k_closing,
+    k_closed
   };
 
  public:
@@ -77,7 +82,7 @@ class Client_interface {
 
   virtual void reset_accept_time() = 0;
   virtual xpl::chrono::Time_point get_accept_time() const = 0;
-  virtual Client_state get_state() const = 0;
+  virtual State get_state() const = 0;
   virtual bool supports_expired_passwords() const = 0;
 
   virtual bool is_interactive() const = 0;
@@ -97,7 +102,7 @@ class Client_interface {
   virtual void disconnect_and_trigger_close() = 0;
 
   virtual bool is_handler_thd(const THD *thd) const = 0;
-
+  virtual void handle_message(Message_request *message) = 0;
   virtual void get_capabilities(
       const Mysqlx::Connection::CapabilitiesGet &msg) = 0;
   virtual void set_capabilities(

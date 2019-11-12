@@ -1,6 +1,6 @@
 #ifndef SQL_RECORDS_H
 #define SQL_RECORDS_H
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,60 +38,19 @@ class QEP_TAB;
 class THD;
 struct TABLE;
 
-struct READ_RECORD {
-  RowIterator *operator->() { return iterator.get(); }
+unique_ptr_destroy_only<RowIterator> create_table_iterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
+    bool ignore_not_found_rows, ha_rows *examined_rows, bool *using_table_scan);
 
-  unique_ptr_destroy_only<RowIterator> iterator;
+/**
+  Calls create_table_iterator(), then calls Init() on the resulting iterator.
+  Returns nullptr on failure.
+ */
+unique_ptr_destroy_only<RowIterator> init_table_iterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
+    bool ignore_not_found_rows);
 
-  // Holds one out of all RowIterator implementations (except the ones used
-  // for filesort, which are in sort_holder), so that it is possible to
-  // initialize a RowIterator without heap allocations. (The iterator
-  // member typically points to this union, and is responsible for
-  // running the right destructor.)
-  union IteratorHolder {
-    IteratorHolder() {}
-    ~IteratorHolder() {}
-
-    TableScanIterator table_scan;
-    IndexScanIterator<true> index_scan_reverse;
-    IndexScanIterator<false> index_scan;
-    IndexRangeScanIterator index_range_scan;
-    RefIterator<false> ref;
-    RefIterator<true> ref_reverse;
-    RefOrNullIterator ref_or_null;
-    EQRefIterator eq_ref;
-    ConstIterator const_table;
-    FullTextSearchIterator fts;
-    DynamicRangeIterator dynamic_range_scan;
-    PushedJoinRefIterator pushed_join_ref;
-
-    // Used for unique, for now.
-    SortBufferIndirectIterator sort_buffer_indirect;
-    SortFileIndirectIterator sort_file_indirect;
-  } iterator_holder;
-
-  // Same, when we have sorting. If we sort, SortingIterator will be
-  // responsible for destroying the inner object, but the memory will still be
-  // held in iterator_holder, so we can't put this in the union.
-  char sort_holder[sizeof(SortingIterator)];
-
-  // Same, when we have sorting _and_ filtering.
-  char sort_condition_holder[sizeof(FilterIterator)];
-
-  // Same technique as sort_holder, when we have an AlternativeIterator.
-  char alternative_holder[sizeof(AlternativeIterator)];
-};
-
-void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                       QEP_TAB *qep_tab, bool disable_rr_cache,
-                       bool ignore_not_found_rows, ha_rows *examined_rows);
-
-/** Calls setup_read_record(), then calls Init() on the resulting iterator. */
-bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool disable_rr_cache,
-                      bool ignore_not_found_rows);
-
-void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
-                           bool reverse, QEP_TAB *qep_tab);
+unique_ptr_destroy_only<RowIterator> create_table_iterator_idx(
+    THD *thd, TABLE *table, uint idx, bool reverse, QEP_TAB *qep_tab);
 
 #endif /* SQL_RECORDS_H */

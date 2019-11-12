@@ -1,4 +1,3 @@
-//>>built
 define("dojox/date/posix", ["dojo/_base/kernel", "dojo/date", "dojo/date/locale", "dojo/string", "dojo/cldr/supplemental"],
        function(dojo, dojoDate, dojoDateLocale, dojoString, dojoCldrSupplemental){
 
@@ -234,8 +233,9 @@ dojox.date.posix.strftime = function(/*Date*/dateObject, /*String*/format, /*Str
 };
 
 dojox.date.posix.getStartOfWeek = function(/*Date*/dateObject, /*Number*/firstDay){
-	// summary: Return a date object representing the first day of the given
-	//   date's week.
+	// summary:
+	//		Return a date object representing the first day of the given
+	//		date's week.
 	if(isNaN(firstDay)){
 		firstDay = dojoCldrSupplemental.getFirstDayOfWeek ? dojoCldrSupplemental.getFirstDayOfWeek() : 0;
 	}
@@ -248,13 +248,14 @@ dojox.date.posix.getStartOfWeek = function(/*Date*/dateObject, /*Number*/firstDa
 	var date = new Date(dateObject);
 	date.setHours(0, 0, 0, 0);
 	return dojoDate.add(date, "day", offset); // Date
-}
+};
 
 dojox.date.posix.setIsoWeekOfYear = function(/*Date*/dateObject, /*Number*/week){
-	// summary: Set the ISO8601 week number of the given date.
-	//   The week containing January 4th is the first week of the year.
+	// summary:
+	//		Set the ISO8601 week number of the given date.
+	//		The week containing January 4th is the first week of the year.
 	// week:
-	//   can be positive or negative: -1 is the year's last week.
+	//		can be positive or negative: -1 is the year's last week.
 	if(!week){ return dateObject; }
 	var currentWeek = dojox.date.posix.getIsoWeekOfYear(dateObject);
 	var offset = week - currentWeek;
@@ -263,29 +264,31 @@ dojox.date.posix.setIsoWeekOfYear = function(/*Date*/dateObject, /*Number*/week)
 		offset = (weeks + week + 1) - currentWeek;
 	}
 	return dojoDate.add(dateObject, "week", offset); // Date
-}
+};
 
 dojox.date.posix.getIsoWeekOfYear = function(/*Date*/dateObject){
-	// summary: Get the ISO8601 week number of the given date.
-	//   The week containing January 4th is the first week of the year.
-	//   See http://en.wikipedia.org/wiki/ISO_week_date
+	// summary:
+	//		Get the ISO8601 week number of the given date.
+	//		The week containing January 4th is the first week of the year.
+	//		See http://en.wikipedia.org/wiki/ISO_week_date
 	var weekStart = dojox.date.posix.getStartOfWeek(dateObject, 1);
 	var yearStart = new Date(dateObject.getFullYear(), 0, 4); // January 4th
 	yearStart = dojox.date.posix.getStartOfWeek(yearStart, 1);
 	var diff = weekStart.getTime() - yearStart.getTime();
 	if(diff < 0){ return dojox.date.posix.getIsoWeeksInYear(weekStart); } // Integer
 	return Math.ceil(diff / 604800000) + 1; // Integer
-}
+};
 
 dojox.date.posix.getIsoWeeksInYear = function(/*Date*/dateObject) {
-	// summary: Determine the number of ISO8601 weeks in the year of the given
-	//   date. Most years have 52 but some have 53.
-	//   See http://www.phys.uu.nl/~vgent/calendar/isocalendar_text3.htm
+	// summary:
+	//		Determine the number of ISO8601 weeks in the year of the given
+	//		date. Most years have 52 but some have 53.
+	//		See http://www.phys.uu.nl/~vgent/calendar/isocalendar_text3.htm
 	function p(y) {
 		return y + Math.floor(y/4) - Math.floor(y/100) + Math.floor(y/400);
 	}
 	var y = dateObject.getFullYear();
 	return ( p(y) % 7 == 4 || p(y-1) % 7 == 3 ) ? 53 : 52;	//	Integer
-}
+};
 	return dojox.date.posix;
 });

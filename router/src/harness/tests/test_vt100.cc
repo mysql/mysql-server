@@ -88,7 +88,7 @@ const Vt100Param vt100_params[]{
                  Vt100::FUNC(1),                                            \
                  {ESC LETTER, ESC "[" LETTER, ESC "[1" LETTER}},            \
       Vt100Param {                                                          \
-    #FUNC "_n", Vt100::FUNC(2), { ESC "[2" LETTER }                         \
+#FUNC "_n", Vt100::FUNC(2), { ESC "[2" LETTER }                         \
   }
     //
     G(cursor_up, "A"),

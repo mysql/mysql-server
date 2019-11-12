@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,12 @@
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
 #include "keyring_info.h"
+
+#include <array>
+#include <chrono>
+#include <stdexcept>  // runtime_error
+#include <string>
+
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/config_parser.h"
@@ -37,12 +43,6 @@
 #include "router_config.h"
 #include "utils.h"
 
-#include <stdlib.h>
-#include <string.h>
-#include <algorithm>
-#include <iostream>
-#include <stdexcept>
-
 IMPORT_LOG_FUNCTIONS()
 
 static const unsigned kKeyLength = 32;
@@ -50,9 +50,8 @@ static const char *kDefaultKeyringFileName = "keyring";
 
 using mysql_harness::ProcessLauncher;
 
-std::string KeyringInfo::get_keyring_file(const mysql_harness::Config &config,
-                                          const std::string &directory) const
-    noexcept {
+std::string KeyringInfo::get_keyring_file(
+    const mysql_harness::Config &config) const {
   std::string keyring_file;
 
   if (config.has_default("keyring_path")) {
@@ -60,18 +59,16 @@ std::string KeyringInfo::get_keyring_file(const mysql_harness::Config &config,
   }
 
   if (keyring_file.empty()) {
-    std::string data_dir_path = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_DATA_FOLDER, "{origin}", directory);
-    keyring_file =
-        mysql_harness::Path(data_dir_path).join(kDefaultKeyringFileName).str();
+    keyring_file = mysql_harness::Path(config.get_default("data_folder"))
+                       .join(kDefaultKeyringFileName)
+                       .str();
   }
 
   return keyring_file;
 }
 
-void KeyringInfo::init(mysql_harness::Config &config,
-                       const std::string &origin) noexcept {
-  keyring_file_ = get_keyring_file(config, origin);
+void KeyringInfo::init(mysql_harness::Config &config) {
+  keyring_file_ = get_keyring_file(config);
 
   if (config.has_default("master_key_path"))
     master_key_file_ = config.get_default("master_key_path");
@@ -84,19 +81,17 @@ void KeyringInfo::init(mysql_harness::Config &config,
 }
 
 bool KeyringInfo::read_master_key() noexcept {
-  const char *args[2];
-  args[0] = master_key_reader_.c_str();
-  args[1] = nullptr;
+  std::array<const char *, 2> args = {master_key_reader_.c_str(), nullptr};
 
   auto timeout = std::chrono::steady_clock::now() + rw_timeout_;
 
   try {
-    ProcessLauncher process_launcher(master_key_reader_.c_str(), args);
+    ProcessLauncher process_launcher(master_key_reader_.c_str(), args.data());
     process_launcher.start();
     while (std::chrono::steady_clock::now() < timeout) {
       char output[1024] = {0};
-      int bytes_read = process_launcher.read(output, sizeof(output) - 1,
-                                             rw_timeout_.count());
+      int bytes_read =
+          process_launcher.read(output, sizeof(output) - 1, rw_timeout_);
       if (bytes_read > 0) {
         master_key_ += output;
       } else {
@@ -106,8 +101,7 @@ bool KeyringInfo::read_master_key() noexcept {
     }
 
     auto wait_for_exit = std::chrono::duration_cast<std::chrono::milliseconds>(
-                             timeout - std::chrono::steady_clock::now())
-                             .count();
+        timeout - std::chrono::steady_clock::now());
 
     int exit_code = 0;
     if ((exit_code = process_launcher.wait(wait_for_exit))) {
@@ -138,17 +132,15 @@ bool KeyringInfo::read_master_key() noexcept {
 }
 
 bool KeyringInfo::write_master_key() const noexcept {
-  const char *args[2];
-  args[0] = master_key_writer_.c_str();
-  args[1] = nullptr;
+  std::array<const char *, 2> args = {master_key_writer_.c_str(), nullptr};
 
   try {
-    ProcessLauncher process_launcher(master_key_writer_.c_str(), args);
+    ProcessLauncher process_launcher(master_key_writer_.c_str(), args.data());
     process_launcher.start();
     process_launcher.write(master_key_.c_str(), master_key_.size());
     process_launcher.end_of_write();
     int exit_code = 0;
-    if ((exit_code = process_launcher.wait(rw_timeout_.count()))) {
+    if ((exit_code = process_launcher.wait(rw_timeout_))) {
       if (verbose_) {
         log_error("Cannot execute master key writer '%s'",
                   get_master_key_writer().c_str());

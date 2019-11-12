@@ -1,0 +1,38 @@
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+value INT,
+value2 VARCHAR(50),
+INDEX(value, value2)
+) ENGINE=NDB;
+INSERT INTO t1 VALUES(1, 1, "val1");
+# Switch to second connection
+# Reset all DEBUG_SYNC points
+SET DEBUG_SYNC='RESET';
+# Setup ALTER TABLE to wait after GSL acquired
+SET DEBUG_SYNC='ndb_global_schema_lock_acquired
+                  SIGNAL got_GSL WAIT_FOR alter_continue';
+# Start ALTER TABLE query, should take GSL, reach the synch
+# point, signal and wait
+ALTER TABLE t1 ADD COLUMN value3 BLOB DEFAULT NULL;
+# Switch to default connection
+# Wait for the ALTER TABLE query to signal that it has acquired the GSL
+SET DEBUG_SYNC='now WAIT_FOR got_GSL';
+# Start second ALTER TABLE query which will hang waiting on GSL
+ALTER TABLE t1 ADD COLUMN value4 BLOB DEFAULT NULL;
+# Switch to default connection
+# Kill the hanging ALTER
+KILL QUERY <CONNECTION_ID>;
+# Switch to third connection
+# Complete the killed ALTER TABLE query, it's expected to fail since
+# it was killed
+ERROR HY000: Lock acquisition refused by storage engine.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3177	Lock acquisition refused by storage engine.
+# Tell the ALTER TABLE which holds GSL to continue processing
+SET DEBUG_SYNC='now SIGNAL alter_continue';
+# Switch to second connection
+# Complete the ALTER TABLE query
+# Switch to default connection
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;

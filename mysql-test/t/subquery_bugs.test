@@ -2,6 +2,7 @@
 # Regression tests for bugs in subquery evaluation that need
 # a specific optimizer strategy selection
 #
+
 --echo # Bug#26436185 Assertion 'buf_is_inside_another(data_in_mysql_buf, ...)
 
 CREATE TABLE t1 (
@@ -424,6 +425,99 @@ eval $query;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #29193761: WL#12470: SIG 11 IN MARKUNHANDLEDDUPLICATES() AT SQL/SQL_EXECUTOR.CC
+--echo #
+
+#
+# Tests the case where the iterator executor has to move a weedout
+# to the top because it conflicts with an outer join; the common case
+# is already tested in subquery_sj.inc, but this tests a confluent weedout,
+# which is a special case.
+#
+
+CREATE TABLE t1 (
+  pk integer NOT NULL PRIMARY KEY,
+  f1 varchar(1),
+  KEY k1 (f1)
+);
+
+CREATE TABLE t2 ( pk integer NOT NULL PRIMARY KEY );
+CREATE VIEW v2 AS select * FROM t2;
+
+INSERT INTO t1 VALUES (1, 'G');
+INSERT INTO t1 VALUES (2, 'j');
+INSERT INTO t1 VALUES (3, 'K');
+INSERT INTO t1 VALUES (4, 'v');
+INSERT INTO t1 VALUES (5, 'E');
+
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
+
+DROP TABLE t1, t2;
+DROP VIEW v2;
+
+--echo #
+--echo # Bug #29236241: WL#12470: SIG 6 IN TEMPTABLE::HANDLER::POSITION AT SRC/HANDLER.CC
+--echo #
+
+#
+# Sets up weedout involving a const table, which is a special case
+# (and a nonsensical one; how would it ever return more than one row?).
+# Note that we can't even EXPLAIN this query, as it errors out
+# with “subquery more than one row” during optimization (but nevertheless,
+# it should not crash MySQL).
+#
+# If it suddenly spits out a plan (and that plan doesn't involve weedout
+# of a ConstIterator), probably it changed enough that it's not worth
+# keeping the test around.
+#
+
+CREATE TABLE t1 (
+  f1 varchar(1),
+  KEY k1 (f1)
+);
+
+INSERT INTO t1 VALUES ('6'),('6');
+
+--error ER_SUBQUERY_NO_1_ROW
+EXPLAIN FORMAT=tree SELECT 1 WHERE (
+  SELECT 1
+  FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
+  WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #29231551: WL#12470: SIG 6 QEP_TAB->LAST_INNER() == (-2) CONNECTJOINS()|SQL/SQL_EXECUTOR.CC
+--echo #
+
+#
+# Another case where the optimizer sets up a partially overlapping semijoin
+# and outer join. (If the plan changes to one without weedout as a result of
+# optimizer changes, most likely this test should just be deleted.)
+#
+
+CREATE TABLE t1 (
+  pk integer PRIMARY KEY,
+  f1 integer,
+  f2 varchar(1)
+);
+
+INSERT INTO t1 VALUES (1,100,'x'),(2,200,'y');
+
+CREATE TABLE t2 (
+  f2 varchar(1)
+);
+
+ANALYZE TABLE t1, t2;
+
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
+WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
+
+DROP TABLE t1, t2;
+
+--echo #
 --echo # Bug#29356132:OPTIMIZED-AWAY SUBQUERY IN PREPARED STATEMENT CAUSES ASSERT FAILURE IN EXECUTION
 --echo #
 
@@ -441,3 +535,229 @@ PREPARE prep_stmt FROM "SELECT t2.f1 FROM (t2 LEFT JOIN t1
 EXECUTE prep_stmt ;
 
 DROP TABLE t1,t2;
+
+--echo # Bug#28955216: Assertion 'keyparts > 0' failed
+
+set optimizer_switch='derived_merge=off';
+
+CREATE TABLE t1 (
+ pk INTEGER,
+ col_int_key INTEGER,
+ col_datetime_gckey DATETIME,
+ col_time_gckey TIME,
+ col_varchar_key VARCHAR(15)
+);
+
+CREATE TABLE t2 (
+ pk INTEGER,
+ col_int_key INTEGER,
+ col_varchar_key VARCHAR(15)
+);
+
+let $query=
+SELECT alias1.col_time_gckey AS field1,
+       alias1.col_datetime_gckey AS field2
+FROM t1 AS alias1,
+     (SELECT DISTINCT sq1_alias2.*
+      FROM t1 AS sq1_alias1, t1 AS sq1_alias2
+     ) AS alias2,
+     (SELECT sq2_alias1.*
+      FROM t1 AS sq2_alias1 RIGHT OUTER JOIN
+             t1 AS sq2_alias2 INNER JOIN t2 AS sq2_alias3
+             ON sq2_alias3.col_int_key = sq2_alias2.col_int_key
+           ON sq2_alias3.col_varchar_key = sq2_alias2.col_varchar_key
+     ) AS alias3
+WHERE alias2.col_int_key = SOME
+       (WITH qn AS
+        (SELECT sq3_alias1.pk AS sq3_field1
+         FROM t1 AS sq3_alias1
+         WHERE sq3_alias1.col_int_key = alias3.pk
+        )
+        SELECT /*+ MERGE(qn) */ * FROM qn
+       );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+set optimizer_switch=default;
+
+--echo #
+--echo # Bug #29493026: INCORRECT RESULT FROM QUERY CONTAINING AN IN-SUBQUERY
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER
+);
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 (
+  pk INTEGER PRIMARY KEY
+);
+INSERT INTO t2 VALUES(1);
+
+CREATE TABLE t3 (
+  col_int_key INTEGER,
+  pk INTEGER
+);
+INSERT INTO t3 VALUES (31,4),(2,5),(17,3),(5,2),(17,1);
+
+CREATE TABLE t4 (
+  col_int_key INTEGER,
+  col_int_unique INTEGER,
+  UNIQUE KEY ix2 (col_int_key,col_int_unique)
+);
+INSERT INTO t4 VALUES (6,2),(34,3);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+set optimizer_switch='firstmatch=off';
+
+# Creates a weedout that overlaps with the right side of an outer join.
+# The weedout should then get pushed to the top.
+let $query = SELECT * FROM t1 WHERE pk IN (
+  SELECT t2.pk FROM
+    t4
+    RIGHT JOIN t3 ON t4.col_int_key = t3.pk
+    RIGHT JOIN t2 ON t3.col_int_key <> t2.pk
+);
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
+
+set optimizer_switch=default;
+
+--echo #
+--echo # Bug #29693294: ASSERTION FAILURE M_INDEX_CURSOR.IS_POSITIONED() | SRC/HANDLER.CC
+--echo #
+
+# Sorts inside weedouts need to be by row ID (see JOIN::add_sorting_to_table()).
+# The EXPLAIN demonstrates it, and running the query verifies that it doesn't crash.
+CREATE TABLE t1 ( pk integer, f1 varchar(1) );
+INSERT INTO t1 VALUES (1,'D'), (20,'G');
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29664504 REGRESSION: CRASHING FROM ITEM_FUNC_AS_WKT::VAL_STR_ASCII()
+--echo #
+
+CREATE TABLE t1(a TINYBLOB);
+INSERT INTO t1 VALUES('aaa'),('bbb'),(''),('ccc');
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT DISTINCT * FROM t1
+ORDER BY UUID_TO_BIN(
+  ST_ISEMPTY(
+    ST_POINTFROMTEXT(
+      ST_ASWKT(
+       NOT EXISTS(
+         SELECT 1 FROM t1
+         WHERE IS_UUID(CAST(SHA(a>>0xA7FE1B22)AS JSON)) WINDOW w1 AS()
+       ),'AXIS-ORDER=SRID-DEFINED'
+      ),1,'AXIS-ORDER=LONG-LAT'
+    )
+ )
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29669840 REGRESSION: CRASH IN DECIMAL_ADD()
+--echo #
+
+CREATE TABLE t1(a DATETIME(2));
+INSERT INTO t1 VALUES(NOW(2)),(NOW(2));
+--error ER_USER_LOCK_WRONG_NAME
+SELECT STD(IS_FREE_LOCK(0x2ADA5C38)),1 FROM t1 WHERE a+(EXISTS(SELECT 1));
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29668446 REGRESSION: CRASH IN DO_DIV_MOD()
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2),(3);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t1 WHERE
+(EXISTS(SELECT 1 FROM t1 WHERE (SELECT 1 FROM t1 WINDOW w1 AS())))/1;
+DROP TABLE t1;
+
+--echo # Bug#29525304 Sig 6 at Item_in_subselect::val_int()
+
+CREATE TABLE t1 (vc varchar(1) NOT NULL);
+
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE 5 IN (SELECT 1) IS UNKNOWN;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #29889223: SIG 6 AT TEMPTABLE::HANDLER::UPDATE_ROW | SRC/HANDLER.CC
+--echo #
+
+set optimizer_switch='block_nested_loop=off,batched_key_access=off';
+
+CREATE TABLE t1 (
+  field1 integer
+);
+INSERT INTO t1 VALUES (13);
+
+CREATE TABLE t2 (
+  field2 integer
+);
+INSERT INTO t2 VALUES (18);
+
+CREATE TABLE t3 (
+  field3 integer
+);
+INSERT INTO t3 VALUES (1);
+
+# Set up a query where we have weedout of a streamed materialization,
+# which verifies that we have working row IDs on the temporary table
+# used for streaming.
+#
+# We don't care about the result of the output; it should just not crash.
+UPDATE t3 SET field3 = 9 WHERE field3 IN (
+  SELECT 1
+  FROM ( SELECT * FROM t2 ) AS alias1
+  WHERE EXISTS ( SELECT * FROM t1 WHERE field1 <> alias1.field2 )
+);
+
+DROP TABLE t1, t2, t3;
+set optimizer_switch=default;
+
+--echo #
+--echo # Bug #29836364: WL#13000: SIG 11 AT COST_SKIP_SCAN() | SQL/OPT_RANGE.CC
+--echo #
+
+CREATE TABLE t1 (
+  f1 integer NOT NULL PRIMARY KEY,
+  f2 varchar(1),
+  KEY f2_idx (f2)
+);
+
+INSERT INTO t1 VALUES (20,'2');
+
+ANALYZE TABLE t1;
+
+# Essentially verifies that running the range optimizer on a three-table
+# JOIN during execution (“re-planned for each iteration”) doesn't crash.
+# If it does, it's typically because the range optimizer doesn't know which
+# join it is working over.
+let $query = SELECT (
+        SELECT t2.f2 FROM t1 JOIN (
+                t1 AS t2 LEFT JOIN t1 AS t3 USING (f2)
+        ) ON t3.f2 = t2.f2
+        WHERE t2.f1 > table1.f2
+) FROM t1 AS table1;
+
+eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1;

@@ -1,7 +1,7 @@
 #ifndef GSTREAM_INCLUDED
 #define GSTREAM_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Gis_read_stream {
   ~Gis_read_stream() { my_free(m_err_msg); }
 
   enum enum_tok_types get_next_toc_type();
-  bool get_next_word(LEX_STRING *);
+  bool get_next_word(LEX_CSTRING *);
   bool get_next_number(double *);
   bool check_next_symbol(char);
 

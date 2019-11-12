@@ -142,7 +142,7 @@ static MYSQL_THDVAR_ULONG(session_number,
 static void update_session_version_tokens(MYSQL_THD thd, SYS_VAR *,
                                           void *var_ptr, const void *save) {
   THDVAR(thd, session_number) = 0;
-  *(char **)var_ptr = *(char **)save;
+  *static_cast<char **>(var_ptr) = *static_cast<char *const *>(save);
 }
 
 static MYSQL_THDVAR_STR(session, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -373,9 +373,10 @@ static int parse_vtokens(char *input, enum command type) {
 
       case CHECK_VTOKEN: {
         char error_str[MYSQL_ERRMSG_SIZE];
+        const char *token_name_cstr = token_name.str;
         if (!mysql_acquire_locking_service_locks(
-                thd, VTOKEN_LOCKS_NAMESPACE, (const char **)&(token_name.str),
-                1, LOCKING_SERVICE_READ, LONG_TIMEOUT) &&
+                thd, VTOKEN_LOCKS_NAMESPACE, &(token_name_cstr), 1,
+                LOCKING_SERVICE_READ, LONG_TIMEOUT) &&
             !vtokens_unchanged) {
           auto it = version_tokens_hash->find(to_string(token_name));
           if (it != version_tokens_hash->end()) {

@@ -1,4 +1,4 @@
-%/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+%/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 %
 %   This program is free software; you can redistribute it and/or modify
 %   it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,8 @@ enum cargo_type {
   set_cache_limit,
   get_event_horizon_type,
   set_event_horizon_type,
-  get_synode_app_data_type
+  get_synode_app_data_type,
+  convert_into_local_server_type
 };
 
 typedef node_no node_no_array<NSERVERS>;
@@ -200,6 +201,8 @@ union app_u switch(cargo_type c_t){
    xcom_event_horizon event_horizon;
  case get_synode_app_data_type:
    synode_no_array synodes;
+ case convert_into_local_server_type:
+   void;
  default:
    void;
 };

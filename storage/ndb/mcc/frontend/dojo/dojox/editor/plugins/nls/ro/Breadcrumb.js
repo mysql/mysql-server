@@ -1,15 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"nodeActions": "Acţiuni ${nodeName}",
-	"selectContents": "Selectare conţinut",
-	"selectElement": "Selectare element",
-	"deleteElement": "Ştergere element",
-	"deleteContents": "Ştergere conţinut",
-	"moveStart": "Mutare cursor la început",
-	"moveEnd": "Mutare cursor la sfârşit"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/ro/Breadcrumb",({"nodeActions":"${nodeName} Acţiuni","selectContents":"Selectare conţinut","selectElement":"Selectare element","deleteElement":"Ştergere element","deleteContents":"Ştergere conţinut","moveStart":"Mutaţi cursorul pentru a porni","moveEnd":"Mutaţi cursorul pentru a termina"}));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -113,7 +113,7 @@ buf_block_t *data_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
 @param[in,out]	len	length of data.
 @return number of bytes appended. */
 ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
-  DBUG_ENTER("append_page");
+  DBUG_TRACE;
 
   ulint old_data_len = get_data_len();
 
@@ -121,7 +121,7 @@ ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
   ulint space_available = max_space_available() - old_data_len;
 
   if (space_available == 0 || len == 0) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   ulint written = (len > space_available) ? space_available : len;
@@ -134,7 +134,7 @@ ulint data_page_t::append(trx_id_t trxid, byte *&data, ulint &len) {
   data += written;
   len -= written;
 
-  DBUG_RETURN(written);
+  return written;
 }
 
 ulint data_page_t::space_left() const { return (payload() - get_data_len()); }
@@ -204,7 +204,7 @@ buf_block_t *data_page_t::load_x(page_no_t page_no) {
 @param[in]	want	bytes to read
 @return bytes actually read. */
 ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
-  DBUG_ENTER("data_page_t::read");
+  DBUG_TRACE;
 
   byte *start = data_begin();
   start += offset;
@@ -216,7 +216,7 @@ ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
   DBUG_LOG("lob", "page_no=" << get_page_no());
   DBUG_LOG("lob", PrintBuffer(ptr, copy_len));
 
-  DBUG_RETURN(copy_len);
+  return copy_len;
 }
 
 }  // namespace lob

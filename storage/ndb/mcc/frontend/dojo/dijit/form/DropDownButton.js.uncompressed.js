@@ -1,6 +1,5 @@
-//>>built
 require({cache:{
-'url:dijit/form/templates/DropDownButton.html':"<span class=\"dijit dijitReset dijitInline\"\n\t><span class='dijitReset dijitInline dijitButtonNode'\n\t\tdata-dojo-attach-event=\"ondijitclick:_onClick\" data-dojo-attach-point=\"_buttonNode\"\n\t\t><span class=\"dijitReset dijitStretch dijitButtonContents\"\n\t\t\tdata-dojo-attach-point=\"focusNode,titleNode,_arrowWrapperNode\"\n\t\t\trole=\"button\" aria-haspopup=\"true\" aria-labelledby=\"${id}_label\"\n\t\t\t><span class=\"dijitReset dijitInline dijitIcon\"\n\t\t\t\tdata-dojo-attach-point=\"iconNode\"\n\t\t\t></span\n\t\t\t><span class=\"dijitReset dijitInline dijitButtonText\"\n\t\t\t\tdata-dojo-attach-point=\"containerNode,_popupStateNode\"\n\t\t\t\tid=\"${id}_label\"\n\t\t\t></span\n\t\t\t><span class=\"dijitReset dijitInline dijitArrowButtonInner\"></span\n\t\t\t><span class=\"dijitReset dijitInline dijitArrowButtonChar\">&#9660;</span\n\t\t></span\n\t></span\n\t><input ${!nameAttrSetting} type=\"${type}\" value=\"${value}\" class=\"dijitOffScreen\" tabIndex=\"-1\"\n\t\tdata-dojo-attach-point=\"valueNode\"\n/></span>\n"}});
+'url:dijit/form/templates/DropDownButton.html':"<span class=\"dijit dijitReset dijitInline\"\n\t><span class='dijitReset dijitInline dijitButtonNode'\n\t\tdata-dojo-attach-event=\"ondijitclick:_onClick\" data-dojo-attach-point=\"_buttonNode\"\n\t\t><span class=\"dijitReset dijitStretch dijitButtonContents\"\n\t\t\tdata-dojo-attach-point=\"focusNode,titleNode,_arrowWrapperNode,_popupStateNode\"\n\t\t\trole=\"button\" aria-haspopup=\"true\" aria-labelledby=\"${id}_label\"\n\t\t\t><span class=\"dijitReset dijitInline dijitIcon\"\n\t\t\t\tdata-dojo-attach-point=\"iconNode\"\n\t\t\t></span\n\t\t\t><span class=\"dijitReset dijitInline dijitButtonText\"\n\t\t\t\tdata-dojo-attach-point=\"containerNode\"\n\t\t\t\tid=\"${id}_label\"\n\t\t\t></span\n\t\t\t><span class=\"dijitReset dijitInline dijitArrowButtonInner\"></span\n\t\t\t><span class=\"dijitReset dijitInline dijitArrowButtonChar\">&#9660;</span\n\t\t></span\n\t></span\n\t><input ${!nameAttrSetting} type=\"${type}\" value=\"${value}\" class=\"dijitOffScreen\" tabIndex=\"-1\"\n\t\tdata-dojo-attach-point=\"valueNode\" aria-hidden=\"true\"\n/></span>\n"}});
 define("dijit/form/DropDownButton", [
 	"dojo/_base/declare", // declare
 	"dojo/_base/lang",	// hitch
@@ -13,16 +12,8 @@ define("dijit/form/DropDownButton", [
 	"dojo/text!./templates/DropDownButton.html"
 ], function(declare, lang, query, registry, popup, Button, _Container, _HasDropDown, template){
 
-/*=====
-	Button = dijit.form.Button;
-	_Container = dijit._Container;
-	_HasDropDown = dijit._HasDropDown;
-=====*/
-
 // module:
 //		dijit/form/DropDownButton
-// summary:
-//		A button with a drop down
 
 
 return declare("dijit.form.DropDownButton", [Button, _Container, _HasDropDown], {
@@ -30,13 +21,13 @@ return declare("dijit.form.DropDownButton", [Button, _Container, _HasDropDown], 
 	//		A button with a drop down
 	//
 	// example:
-	// |	<button data-dojo-type="dijit.form.DropDownButton">
+	// |	<button data-dojo-type="dijit/form/DropDownButton">
 	// |		Hello world
-	// |		<div data-dojo-type="dijit.Menu">...</div>
+	// |		<div data-dojo-type="dijit/Menu">...</div>
 	// |	</button>
 	//
 	// example:
-	// |	var button1 = new dijit.form.DropDownButton({ label: "hi", dropDown: new dijit.Menu(...) });
+	// |	var button1 = new DropDownButton({ label: "hi", dropDown: new dijit.Menu(...) });
 	// |	win.body().appendChild(button1);
 	//
 

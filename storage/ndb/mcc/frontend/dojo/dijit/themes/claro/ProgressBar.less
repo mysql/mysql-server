@@ -32,12 +32,18 @@
 }
 .claro .dijitProgressBarEmpty {
 	/* outer container and background of the bar that's not finished yet*/
-	background: @progressbar-empty-background-color url(@image-progressbar-empty) no-repeat left;
+	background-color: @progressbar-empty-background-color;
 	border-color: @progressbar-border-color;
 }
 .claro .dijitProgressBarTile {
 	/* inner container for finished portion when in 'tile' (image) mode */
-	background: @progressbar-full-background-color url(@image-progressbar-full) repeat-x top;	
+	background-color: @progressbar-full-background-color;
+
+	// gradient background using CSS gradient, with fallback to image for IE
+	background-image: url("images/progressBarFull.png");
+	background-repeat: repeat-x;
+	.alpha-white-gradient(0.93,0px, 0.41,1px, 0.7,2px, 0,100%);
+	background-attachment: scroll;	// override strange "fixed" setting from dijit.css
 }
 .dj_ie6 .claro .dijitProgressBarTile {
 	background-image: none;

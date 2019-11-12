@@ -1,6 +1,6 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.drawing.plugins.drawing.Silverlight");
+define("dojox/drawing/plugins/drawing/Silverlight",["dojo","dijit","dojox"],function(_1,_2,_3){
+_1.provide("dojox.drawing.plugins.drawing.Silverlight");
 _3.drawing.plugins.drawing.Silverlight=_3.drawing.util.oo.declare(function(_4){
 if(_3.gfx.renderer!="silverlight"){
 return;
@@ -10,7 +10,7 @@ this.stencils=_4.stencils;
 this.anchors=_4.anchors;
 this.canvas=_4.canvas;
 this.util=_4.util;
-_2.connect(this.stencils,"register",this,function(_5){
+_1.connect(this.stencils,"register",this,function(_5){
 var c1,c2,c3,c4,c5,_6=this;
 var _7=function(){
 c1=_5.container.connect("onmousedown",function(_8){
@@ -19,24 +19,24 @@ _6.mouse.down(_8);
 });
 };
 _7();
-c2=_2.connect(_5,"setTransform",this,function(){
+c2=_1.connect(_5,"setTransform",this,function(){
 });
-c3=_2.connect(_5,"onBeforeRender",function(){
+c3=_1.connect(_5,"onBeforeRender",function(){
 });
-c4=_2.connect(_5,"onRender",this,function(){
+c4=_1.connect(_5,"onRender",this,function(){
 });
-c5=_2.connect(_5,"destroy",this,function(){
-_2.forEach([c1,c2,c3,c4,c5],_2.disconnect,_2);
+c5=_1.connect(_5,"destroy",this,function(){
+_1.forEach([c1,c2,c3,c4,c5],_1.disconnect,_1);
 });
 });
-_2.connect(this.anchors,"onAddAnchor",this,function(_9){
+_1.connect(this.anchors,"onAddAnchor",this,function(_9){
 var c1=_9.shape.connect("onmousedown",this.mouse,function(_a){
 _a.superTarget=_9;
 this.down(_a);
 });
-var c2=_2.connect(_9,"disconnectMouse",this,function(){
-_2.disconnect(c1);
-_2.disconnect(c2);
+var c2=_1.connect(_9,"disconnectMouse",this,function(){
+_1.disconnect(c1);
+_1.disconnect(c2);
 });
 });
 this.mouse._down=function(_b){
@@ -67,7 +67,7 @@ this._lastClickTime=this._clickTime;
 this.mouse.down=function(_f){
 clearTimeout(this.__downInv);
 if(this.util.attr(_f,"drawingType")=="surface"){
-this.__downInv=setTimeout(_2.hitch(this,function(){
+this.__downInv=setTimeout(_1.hitch(this,function(){
 this._down(_f);
 }),500);
 return;
@@ -116,7 +116,7 @@ if(t.tagName){
 if(_11=="drawingType"&&t.tagName.toLowerCase()=="object"){
 return "surface";
 }
-var r=_2.attr(t,_11);
+var r=_1.attr(t,_11);
 }
 var r=t[_11];
 return r;

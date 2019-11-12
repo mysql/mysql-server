@@ -1,4 +1,3 @@
-//>>built
 define("dojox/gfx/attach", ["dojox/gfx"], function(){
 	// TODO: the current implementation is not functional, please implement correctly
 	/*

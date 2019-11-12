@@ -193,7 +193,7 @@ view_with_column_names
 SHOW CREATE TABLE mysql.user;
 Table	Create Table
 user	CREATE TABLE `user` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Insert_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
@@ -245,7 +245,7 @@ user	CREATE TABLE `user` (
   `Password_require_current` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `User_attributes` json DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;
 Table	Create Table
 innodb_table_stats	CREATE TABLE `innodb_table_stats` (
@@ -436,7 +436,7 @@ Field	Type	Null	Key	Default	Extra
 cü	char(1)	YES		NULL	
 SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
-def	test	initial_vü	VIEW	NULL	NULL	NULL	0	0	0	0	0	0	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
+def	test	initial_vü	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
 SET names default;
 #Test case for Bug#26636238
 SHOW CREATE TABLE performance_schema.threads;
@@ -447,7 +447,7 @@ threads	CREATE TABLE `threads` (
   `TYPE` varchar(10) NOT NULL,
   `PROCESSLIST_ID` bigint(20) unsigned DEFAULT NULL,
   `PROCESSLIST_USER` varchar(32) DEFAULT NULL,
-  `PROCESSLIST_HOST` varchar(60) DEFAULT NULL,
+  `PROCESSLIST_HOST` varchar(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL,
   `PROCESSLIST_DB` varchar(64) DEFAULT NULL,
   `PROCESSLIST_COMMAND` varchar(16) DEFAULT NULL,
   `PROCESSLIST_TIME` bigint(20) DEFAULT NULL,
@@ -644,6 +644,11 @@ def	foreign_keys	t5_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	SET NULL	t5	t1
 def	foreign_keys	t6_ibfk_1	def	foreign_keys	PRIMARY	NONE	CASCADE	CASCADE	t6	t1
 def	foreign_keys	t7_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	RESTRICT	t7	t1
 def	foreign_keys	t8_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	CASCADE	t8	t2
+def	foreign_keys	ta_ibfk_1	def	foreign_keys	NULL	NONE	RESTRICT	RESTRICT	ta	t9
+def	foreign_keys	tb_ibfk_1	def	foreign_keys	b	NONE	RESTRICT	RESTRICT	tb	t9
+def	foreign_keys	td_ibfk_1	def	foreign_keys	NULL	NONE	RESTRICT	RESTRICT	td	tc
+def	foreign_keys	te_ibfk_1	def	foreign_keys	NULL	NONE	RESTRICT	RESTRICT	te	te
+def	foreign_keys	tf_ibfk_1	def	foreign_keys	b	NONE	RESTRICT	RESTRICT	tf	tf
 # Check that views with column names are correct
 SHOW CREATE VIEW view_with_column_names.v1;
 View	Create View	character_set_client	collation_connection
@@ -674,6 +679,75 @@ def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int
 def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+# Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY CONSTRAINT.
+# MISSING INDEX FOR CONSTR". Coverage for upgrade scenario. Main part
+# of coverage resides in foreign_key test.
+SHOW CREATE TABLE foreign_keys.t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `pk` int(11) NOT NULL,
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `b` (`b`),
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.ta;
+Table	Create Table
+ta	CREATE TABLE `ta` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `ta_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `t9` (`a`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.tb;
+Table	Create Table
+tb	CREATE TABLE `tb` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `tb_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `t9` (`b`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.tc;
+Table	Create Table
+tc	CREATE TABLE `tc` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.td;
+Table	Create Table
+td	CREATE TABLE `td` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `td_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `tc` (`b`, `a`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.te;
+Table	Create Table
+te	CREATE TABLE `te` (
+  `pk` int(11) NOT NULL,
+  `a` int(11) DEFAULT NULL,
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `a` (`a`),
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `te_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `te` (`a`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.tf;
+Table	Create Table
+tf	CREATE TABLE `tf` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`),
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `tf_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `tf` (`b`, `a`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Restart on the upgraded data dir
 # restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1
 # Execute FTS queries that modify FTS pages
@@ -771,4 +845,19 @@ t_set	CREATE TABLE `t_set` (
 # Restart DB server which was created by MTR default
 # restart: --datadir=MYSQLD_DATADIR2 --innodb_page_size=4K --log-error=MYSQLD_LOG
 # Remove copied files
+# Restart the server with default options.
+# restart
+#
+# Bug#29823053: VERY SMALL TABLE_OPEN_CACHE CAUSES SEGMENTATION FAULT WHEN UPGRADING TO 8.0.16
+#
+# Copy zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Set different paths for --datadir
+# Stop DB server which was created by MTR default
+# Start the DB server to do upgrade. Without the bugfix, the server will fail.
+# Stop the server
+# Remove copied files
+# Restart the server with default options.
+# restart
 # end of test

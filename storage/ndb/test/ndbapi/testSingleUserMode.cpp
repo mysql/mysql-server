@@ -106,7 +106,8 @@ runTestSingleUserMode(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   NdbRestarter restarter;
   char tabName[255];
-  strncpy(tabName, ctx->getTab()->getName(), 255);
+  strncpy(tabName, ctx->getTab()->getName(), sizeof(tabName) - 1);
+  tabName[sizeof(tabName) - 1] = '\0';
   ndbout << "tabName="<<tabName<<endl;
 
   int i = 0;

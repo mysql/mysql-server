@@ -53,6 +53,8 @@ this.setSortIndex(_7);
 break;
 }else{
 this.selection.clickSelect(this.focus.rowIndex,dojo.isCopyKey(e),e.shiftKey);
+this.focus._focusifyCellNode(true);
+this.focus.setFocusCell(this.focus.cell,this.focus.rowIndex);
 }
 _4.stop(e);
 }
@@ -169,7 +171,6 @@ _c=e;
 }
 }
 this.focus.setFocusCell(_c.cell,_c.rowIndex);
-this.onRowClick(_c);
 this.edit.setEditCell(_c.cell,_c.rowIndex);
 this.onRowDblClick(e);
 },onCellContextMenu:function(e){

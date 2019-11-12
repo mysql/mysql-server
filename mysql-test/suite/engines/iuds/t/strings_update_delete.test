@@ -103,12 +103,16 @@ eval INSERT INTO t12 values (" This is a test ","\0 \0 for STRING","functions av
 eval UPDATE t12 SET c1="This is a update test!" WHERE c2 LIKE "\0%";
 --sorted_result
 SELECT LENGTH(c1),LENGTH(c2),LENGTH(c3),LENGTH(c4) FROM t12;
+--replace_regex /[^[:print:]]/#/
 --sorted_result
-SELECT LEFT(c1,5),LEFT(c2,5),LEFT(c3,5),LEFT(c4,5) FROM t12;  
+SELECT LEFT(c1,5),LEFT(c2,5),LEFT(c3,5),LEFT(c4,5) FROM t12;
+--replace_regex /[^[:print:]]/#/
 --sorted_result
-SELECT RTRIM(c1),RTRIM(c2),RTRIM(c3),RTRIM(c4) FROM t12;   
+SELECT RTRIM(c1),RTRIM(c2),RTRIM(c3),RTRIM(c4) FROM t12;
+--replace_regex /[^[:print:]]/#/
 --sorted_result
-SELECT HEX(c1),HEX(c2),HEX(c3),HEX(c4) FROM t12;    
+SELECT HEX(c1),HEX(c2),HEX(c3),HEX(c4) FROM t12;
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT REVERSE(c1),REVERSE(c2),REVERSE(c3),REVERSE(c4) FROM t12;      
 DELETE FROM t12 WHERE C1 LIKE "%update%";

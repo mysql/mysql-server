@@ -198,7 +198,6 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
 
   if (super::contextualize(pc)) return true;
 
-  THD *const thd = pc->thd;
   partition_info *const part_info = pc->part_info;
 
   auto *const curr_part = new (pc->thd->mem_root) partition_element();
@@ -225,11 +224,11 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
       if (part_info->part_type == partition_type::NONE)
         part_info->part_type = partition_type::HASH;
       else if (part_info->part_type == partition_type::RANGE) {
-        errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
+        errorf(&ppc, pos, ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
                "RANGE", "LESS THAN");
         return true;
       } else if (part_info->part_type == partition_type::LIST) {
-        errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
+        errorf(&ppc, pos, ER_THD(pc->thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
                "LIST", "IN");
         return true;
       }
@@ -246,7 +245,8 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
       {
         if (part_info->num_columns && part_info->num_columns != 1U) {
           part_info->print_debug("Kilroy II", NULL);
-          error(&ppc, values_pos, ER_THD(thd, ER_PARTITION_COLUMN_LIST_ERROR));
+          error(&ppc, values_pos,
+                ER_THD(pc->thd, ER_PARTITION_COLUMN_LIST_ERROR));
           return true;
         } else
           part_info->num_columns = 1U;
@@ -266,7 +266,7 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
     } break;
     default:
       DBUG_ASSERT(false);
-      error(&ppc, pos, ER_THD(thd, ER_UNKNOWN_ERROR));
+      error(&ppc, pos, ER_THD(pc->thd, ER_UNKNOWN_ERROR));
       return true;
   }
 
@@ -285,7 +285,7 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
         partition but not on all the subsequent partitions.
       */
       error(&ppc, sub_partitions_pos,
-            ER_THD(thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+            ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
       return true;
     }
   } else {
@@ -296,13 +296,13 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
     if (part_info->num_subparts != 0) {
       if (part_info->num_subparts != ppc.count_curr_subparts) {
         error(&ppc, sub_partitions_pos,
-              ER_THD(thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
         return true;
       }
     } else if (ppc.count_curr_subparts > 0) {
       if (part_info->partitions.elements > 1) {
         error(&ppc, sub_partitions_pos,
-              ER_THD(thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
+              ER_THD(pc->thd, ER_PARTITION_WRONG_NO_SUBPART_ERROR));
         return true;
       }
       part_info->num_subparts = ppc.count_curr_subparts;

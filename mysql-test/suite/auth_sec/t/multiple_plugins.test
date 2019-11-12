@@ -1,4 +1,3 @@
---source include/have_ssl.inc
 
 --echo # Check with caching_sha2_password as --default-authentication-plugin
 let $server_default_authentication_plugin=caching_sha2_password;

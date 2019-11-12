@@ -22,9 +22,13 @@
 
 # This test should run only on debug build
 # (rpl_receive_count.inc's restriction)
+
+# The test cannot run in Valgrind since it generates an assert on the slave
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
+--source include/have_myisam.inc
 # This test script changes SQL thread coordinates in between
 # which is not possible if AUTO_POSITION is active. So disable
 # it for the testing purpose.

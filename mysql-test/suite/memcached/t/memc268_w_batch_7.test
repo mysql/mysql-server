@@ -52,14 +52,14 @@ COMMIT;
 
 connection default;
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11268
+--source ../include/load_daemon_memcached_expecting_success.inc
 SELECT @@global.daemon_memcached_w_batch_size;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@global.daemon_memcached_w_batch_size=100;
 
 connection mysqltest1;
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2,c21 FROM t1;
 COMMIT;
@@ -73,7 +73,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-#print "Here the memcached :\n";
+#print "Here are the memcached :\n";
 $val = $memd->set("B","Berlin|Mitte");
 $val = $memd->get("B");
 if ($val) { print "$val\n"; }
@@ -106,7 +106,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results:\n";
+print "Here are the memcached results:\n";
 $val = $memd->add("M","München|Perlach");
 $val = $memd->get("M");
 if ($val) { print "$val\n"; }
@@ -142,7 +142,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results:\n";
+print "Here are the memcached results:\n";
 $val = $memd->replace("G","Gossen|C");
 if ($val) { print "$val\n"; }
 $val = $memd->get("G");
@@ -177,7 +177,7 @@ disconnect mysqltest1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;
 SET  @@global.autocommit=@auto_commit;
 SET @@global.lock_wait_timeout=@lock_wait;

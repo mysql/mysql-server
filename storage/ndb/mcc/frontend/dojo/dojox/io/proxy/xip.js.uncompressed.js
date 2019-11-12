@@ -1,14 +1,15 @@
-//>>built
 define("dojox/io/proxy/xip", ['dojo/main', 'dojo/io/iframe', 'dojox/data/dom', 'dojo/_base/xhr', 'dojo/_base/url'], function(dojo, iframe, dom){
 	dojo.getObject("io.proxy.xip", true, dojox);
 
 dojox.io.proxy.xip = {
-	//summary: Object that implements the iframe handling for XMLHttpRequest
-	//IFrame Proxying.
-	//description: Do not use this object directly. See the Dojo Book page
-	//on XMLHttpRequest IFrame Proxying:
-	//http://dojotoolkit.org/book/dojo-book-0-4/part-5-connecting-pieces/i-o/cross-domain-xmlhttprequest-using-iframe-proxy
-	//Usage of XHR IFrame Proxying does not work from local disk in Safari.
+	// summary:
+	//		Object that implements the iframe handling for XMLHttpRequest
+	//		IFrame Proxying.
+	//
+	//		Do not use this object directly. See the Dojo Book page
+	//		on XMLHttpRequest IFrame Proxying:
+	//		http://dojotoolkit.org/book/dojo-book-0-4/part-5-connecting-pieces/i-o/cross-domain-xmlhttprequest-using-iframe-proxy
+	//		Usage of XHR IFrame Proxying does not work from local disk in Safari.
 
 	/*
 	This code is really focused on just sending one complete request to the server, and
@@ -54,8 +55,9 @@ dojox.io.proxy.xip = {
 
 
 	send: function(/*Object*/facade){
-		//summary: starts the xdomain request using the provided facade.
-		//This method first does some init work, then delegates to _realSend.
+		// summary:
+		//		starts the xdomain request using the provided facade.
+		//		This method first does some init work, then delegates to _realSend.
 
 		var url = this.xipClientUrl;
 		//Make sure we are not dealing with javascript urls, just to be safe.
@@ -90,7 +92,8 @@ dojox.io.proxy.xip = {
 	},
 
 	_realSend: function(facade){
-		//summary: starts the actual xdomain request using the provided facade.
+		// summary:
+		//		starts the actual xdomain request using the provided facade.
 		var stateId = "XhrIframeProxy" + (this._stateIdCounter++);
 		facade._stateId = stateId;
 
@@ -298,8 +301,8 @@ dojox.io.proxy.xip = {
 	},
 
 	fragmentReceivedEvent: function(evt){
-		//summary: HTML5 document messaging endpoint. Unpack the event to see
-		//if we want to use it.
+		// summary:
+		//		HTML5 document messaging endpoint. Unpack the event to see if we want to use it.
 		if(evt.uri.split("#")[0] == this.fullXipClientUrl){
 			this.fragmentReceived(evt.data);
 		}
@@ -365,11 +368,12 @@ dojo._xhrObj = dojox.io.proxy.xip.createFacade;
 	not use it.
 */
 dojox.io.proxy.xip.XhrIframeFacade = function(ifpServerUrl){
-	//summary: XMLHttpRequest facade object used by dojox.io.proxy.xip.
-	
-	//description: Do not use this object directly. See the Dojo Book page
-	//on XMLHttpRequest IFrame Proxying:
-	//http://dojotoolkit.org/book/dojo-book-0-4/part-5-connecting-pieces/i-o/cross-domain-xmlhttprequest-using-iframe-proxy
+	// summary:
+	//		XMLHttpRequest facade object used by dojox.io.proxy.xip.
+	//
+	//		Do not use this object directly. See the Dojo Book page
+	//		on XMLHttpRequest IFrame Proxying:
+	//		http://dojotoolkit.org/book/dojo-book-0-4/part-5-connecting-pieces/i-o/cross-domain-xmlhttprequest-using-iframe-proxy
 	this._requestHeaders = {};
 	this._allResponseHeaders = null;
 	this._responseHeaders = {};

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,9 +67,10 @@ void Channel_info::send_error_and_close_channel(uint errorcode, int error,
     if (vio_tmp && !my_net_init(&net_tmp, vio_tmp)) {
       if (error)
         snprintf(error_message_buff, sizeof(error_message_buff),
-                 ER_DEFAULT(errorcode), error);
-      net_send_error(&net_tmp, errorcode,
-                     error ? error_message_buff : ER_DEFAULT(errorcode));
+                 ER_DEFAULT_NONCONST(errorcode), error);
+      net_send_error(
+          &net_tmp, errorcode,
+          error ? error_message_buff : ER_DEFAULT_NONCONST(errorcode));
       net_end(&net_tmp);
     }
     if (vio_tmp != NULL) {
@@ -80,8 +81,9 @@ void Channel_info::send_error_and_close_channel(uint errorcode, int error,
   {
     if (error)
       my_safe_snprintf(error_message_buff, sizeof(error_message_buff),
-                       ER_DEFAULT(errorcode), error);
-    my_safe_printf_stderr("[Warning] %s\n",
-                          error ? error_message_buff : ER_DEFAULT(errorcode));
+                       ER_DEFAULT_NONCONST(errorcode), error);
+    my_safe_printf_stderr(
+        "[Warning] %s\n",
+        error ? error_message_buff : ER_DEFAULT_NONCONST(errorcode));
   }
 }

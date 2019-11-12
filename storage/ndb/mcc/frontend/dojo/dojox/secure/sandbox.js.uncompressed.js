@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/secure/sandbox", ["dijit","dojo","dojox","dojo/require!dojox/secure/DOM,dojox/secure/capability,dojo/NodeList-fx,dojo/_base/url"], function(dijit,dojo,dojox){
+define("dojox/secure/sandbox", ["dojo","dijit","dojox","dojo/require!dojox/secure/DOM,dojox/secure/capability,dojo/NodeList-fx,dojo/_base/url"], function(dojo,dijit,dojox){
 dojo.provide("dojox.secure.sandbox");
 dojo.require("dojox.secure.DOM");
 dojo.require("dojox.secure.capability");
@@ -40,18 +39,18 @@ dojo.require("dojo._base.url");
 		return dojo.xhrGet.apply(dojo,arguments);
 	};
 	dojox.secure.sandbox = function(element) {
-		//	summary:
+		// summary:
 		//		Creates a secure sandbox from which scripts and HTML can be loaded that
 		//		will only be able to access the provided element and it's descendants, the
 		//		rest of the DOM and JS environment will not be accessible to the sandboxed
 		//		scripts and HTML.
 		//
-		//	element:
+		// element:
 		//		The DOM element to use as the container for the sandbox
 		//
-		//	description:
+		// description:
 		//		This function will create and return a sandbox object (see dojox.secure.__Sandbox)
-		// 		for the provided element.
+		//		for the provided element.
 		var wrap = dojox.secure.DOM(element);
 		element = wrap(element);
 		var document = element.ownerDocument;
@@ -127,32 +126,32 @@ dojo.require("dojo._base.url");
 		}
 		function Class(/*Function*/superclass, /*Object*/properties, /*Object*/classProperties) {
 			// summary:
-			// 		A safe class constructor
+			//		A safe class constructor
 			//
 			// superclass:
-			// 		There may be zero or more superclass arguments. The constructed class
-			// 		will inherit from any provided superclasses, protypically from the first,
-			// 		via mixin for the subsequent. Later arguments
-			// 		will override properties/methods from earlier arguments
+			//		There may be zero or more superclass arguments. The constructed class
+			//		will inherit from any provided superclasses, protypically from the first,
+			//		via mixin for the subsequent. Later arguments
+			//		will override properties/methods from earlier arguments
 			//
 			// properties:
-			// 		The constructed
-			// 		"class" will also have the methods/properties defined in this argument.
+			//		The constructed
+			//		"class" will also have the methods/properties defined in this argument.
 			//		These methods may utilize the <em>this</em> operator, and they
-			// 		are only the code that has access to <em>this</em>. Inner functions
-			// 		are also prohibited from using <em>this</em>.
+			//		are only the code that has access to <em>this</em>. Inner functions
+			//		are also prohibited from using <em>this</em>.
 			//
-			// 		If no superclasses are provided, this object will be the prototype of the
-			// 		constructed class (no copying
-			// 		will be done). Consequently you can "beget" by calling new (Class(obj)).
-			// 		All methods are "bound", each call results in |this| safety checking call.
+			//		If no superclasses are provided, this object will be the prototype of the
+			//		constructed class (no copying
+			//		will be done). Consequently you can "beget" by calling new (Class(obj)).
+			//		All methods are "bound", each call results in |this| safety checking call.
 			//
 			// classProperties:
-			// 		This properties will be copied to the new class function.
+			//		This properties will be copied to the new class function.
 			//
-			// 		Note that neither dojo.declare nor dojo.extend are acceptable class constructors as
-			// 		they are completely unsecure. This class constructor is conceptually based on declare
-			// 		but also somewhat influenced by base2, prototype, YUI, resig's patterns, etc.
+			//		Note that neither dojo.declare nor dojo.extend are acceptable class constructors as
+			//		they are completely unsecure. This class constructor is conceptually based on declare
+			//		but also somewhat influenced by base2, prototype, YUI, resig's patterns, etc.
 			//
 			// example:
 			// |	var Car = Class({drive:function(speed) { ... } ); // create a Car class with a "drive" method
@@ -255,11 +254,11 @@ dojo.require("dojo._base.url");
 		};
 		return /*===== dojo.declare("dojox.secure.__Sandbox", null, =====*/ { // dojox.secure.__Sandbox
 			loadJS : function(url){
-				//	summary:
-				// 		Loads the script from the given URL using XHR (assuming
-				// 		a plugin system is in place for cross-site requests) within the sandbox
+				// summary:
+				//		Loads the script from the given URL using XHR (assuming
+				//		a plugin system is in place for cross-site requests) within the sandbox
 				//
-				//	url:
+				// url:
 				//		The url of the script to load
 				wrap.rootUrl = url;
 				return xhrGet({url:url,secure:true}).addCallback(function(result) {
@@ -267,12 +266,12 @@ dojo.require("dojo._base.url");
 				});
 			},
 			loadHTML : function(url){
-				//	summary:
+				// summary:
 				//		Loads the web page from the provided URL using XHR (assuming the
 				//		plugin system is in place) within the sandbox. All scripts within the web
 				//		page will also be sandboxed.
 				//
-				//	url:
+				// url:
 				//		The url of the web page to load
 
 				wrap.rootUrl = url;
@@ -281,10 +280,10 @@ dojo.require("dojo._base.url");
 				});
 			},
 			evaluate : function(script){
-				//	summary:
+				// summary:
 				//		Evaluates the given script within the sandbox
 				//
-				//	script:
+				// script:
 				//		The JavaScript text to evaluate
 				return wrap.evaluate(script);
 			}

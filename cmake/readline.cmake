@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,10 +63,10 @@ MACRO (FIND_CURSES)
  IF(NOT CURSES_FOUND)
    SET(ERRORMSG "Curses library not found. Please install appropriate package,
     remove CMakeCache.txt and rerun cmake.")
-   IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    SET(ERRORMSG ${ERRORMSG} 
-    "On Debian/Ubuntu, package name is libncurses5-dev, on Redhat and derivates " 
-    "it is ncurses-devel.")
+   IF(LINUX)
+     SET(ERRORMSG ${ERRORMSG} 
+       "On Debian/Ubuntu, package name is libncurses5-dev, on Redhat and derivates " 
+       "it is ncurses-devel.")
    ENDIF()
    MESSAGE(FATAL_ERROR ${ERRORMSG})
  ENDIF()
@@ -77,7 +77,7 @@ MACRO (FIND_CURSES)
    SET(HAVE_NCURSES_H 1 CACHE INTERNAL "")
  ENDIF()
 
- IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+ IF(LINUX)
    # -Wl,--as-needed breaks linking with -lcurses, e.g on Fedora 
    # Lower-level libcurses calls are exposed by libtinfo
    CHECK_LIBRARY_EXISTS(${CURSES_LIBRARY} tputs "" HAVE_TPUTS_IN_CURSES)

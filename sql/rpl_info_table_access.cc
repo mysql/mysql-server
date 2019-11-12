@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include <stddef.h>
 
-#include "binlog_event.h"
+#include "libbinlogevents/include/binlog_event.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
@@ -50,7 +50,7 @@
 #include "sql_string.h"
 
 void Rpl_info_table_access::before_open(THD *thd) {
-  DBUG_ENTER("Rpl_info_table_access::before_open");
+  DBUG_TRACE;
 
   m_flags = (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
              MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY | MYSQL_OPEN_IGNORE_FLUSH |
@@ -73,8 +73,6 @@ void Rpl_info_table_access::before_open(THD *thd) {
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -94,12 +92,17 @@ void Rpl_info_table_access::before_open(THD *thd) {
   committed. In this case, the changes were not done on behalf of
   any user transaction and if not finished, there would be pending
   changes.
+
+  @return
+    @retval false Success
+    @retval true  Failure
 */
-void Rpl_info_table_access::close_table(THD *thd, TABLE *table,
+bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
                                         Open_tables_backup *backup,
                                         bool error) {
-  DBUG_ENTER("Rpl_info_table_access::close_table");
-  System_table_access::close_table(thd, table, backup, error, thd_created);
+  DBUG_TRACE;
+  bool res =
+      System_table_access::close_table(thd, table, backup, error, thd_created);
 
   DBUG_EXECUTE_IF("slave_crash_after_commit_no_atomic_ddl", {
     if (thd->slave_thread && thd->rli_slave && thd->rli_slave->current_event &&
@@ -112,7 +115,7 @@ void Rpl_info_table_access::close_table(THD *thd, TABLE *table,
     }
   });
 
-  DBUG_VOID_RETURN;
+  return res;
 }
 
 /**
@@ -131,10 +134,10 @@ void Rpl_info_table_access::close_table(THD *thd, TABLE *table,
 */
 enum enum_return_id Rpl_info_table_access::find_info(
     Rpl_info_values *field_values, TABLE *table) {
-  KEY *keyinfo = NULL;
+  KEY *keyinfo = nullptr;
   uchar key[MAX_KEY_LENGTH];
 
-  DBUG_ENTER("Rpl_info_table_access::find_info");
+  DBUG_TRACE;
 
   /*
     Checks if the table has a primary key as expected.
@@ -145,7 +148,7 @@ enum enum_return_id Rpl_info_table_access::find_info(
       This is not supposed to happen and means that someone
       has changed the table or disabled the keys.
     */
-    DBUG_RETURN(ERROR_ID);
+    return ERROR_ID;
   }
 
   keyinfo = table->s->key_info + table->s->primary_key;
@@ -157,7 +160,7 @@ enum enum_return_id Rpl_info_table_access::find_info(
     */
     if (field_values->value[fieldnr].length() >
         table->field[fieldnr]->field_length)
-      DBUG_RETURN(ERROR_ID);
+      return ERROR_ID;
 
     table->field[fieldnr]->store(field_values->value[fieldnr].c_ptr_safe(),
                                  field_values->value[fieldnr].length(),
@@ -167,9 +170,9 @@ enum enum_return_id Rpl_info_table_access::find_info(
 
   if (table->file->ha_index_read_idx_map(table->record[0], 0, key, HA_WHOLE_KEY,
                                          HA_READ_KEY_EXACT))
-    DBUG_RETURN(NOT_FOUND_ID);
+    return NOT_FOUND_ID;
 
-  DBUG_RETURN(FOUND_ID);
+  return FOUND_ID;
 }
 
 /**
@@ -195,9 +198,9 @@ enum enum_return_id Rpl_info_table_access::scan_info(TABLE *table,
   uint counter = 0;
   enum enum_return_id ret = NOT_FOUND_ID;
 
-  DBUG_ENTER("Rpl_info_table_access::scan_info");
+  DBUG_TRACE;
 
-  if ((error = table->file->ha_rnd_init(true))) DBUG_RETURN(ERROR_ID);
+  if ((error = table->file->ha_rnd_init(true))) return ERROR_ID;
 
   do {
     error = table->file->ha_rnd_next(table->record[0]);
@@ -225,7 +228,7 @@ enum enum_return_id Rpl_info_table_access::scan_info(TABLE *table,
 
   table->file->ha_rnd_end();
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -248,9 +251,9 @@ bool Rpl_info_table_access::count_info(TABLE *table, uint *counter) {
   bool end = false;
   int error = 0;
 
-  DBUG_ENTER("Rpl_info_table_access::count_info");
+  DBUG_TRACE;
 
-  if ((error = table->file->ha_rnd_init(true))) DBUG_RETURN(true);
+  if ((error = table->file->ha_rnd_init(true))) return true;
 
   do {
     error = table->file->ha_rnd_next(table->record[0]);
@@ -273,7 +276,7 @@ bool Rpl_info_table_access::count_info(TABLE *table, uint *counter) {
 
   table->file->ha_rnd_end();
 
-  DBUG_RETURN(end ? false : true);
+  return end ? false : true;
 }
 
 /**
@@ -291,19 +294,24 @@ bool Rpl_info_table_access::count_info(TABLE *table, uint *counter) {
 */
 bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
                                              Rpl_info_values *field_values) {
-  DBUG_ENTER("Rpl_info_table_access::load_info_values");
+  DBUG_TRACE;
   char buff[MAX_FIELD_WIDTH];
   String str(buff, sizeof(buff), &my_charset_bin);
 
   uint field_idx = 0;
   while (field_idx < max_num_field) {
-    fields[field_idx]->val_str(&str);
-    field_values->value[field_idx].copy(str.c_ptr_safe(), str.length(),
-                                        &my_charset_bin);
+    if (fields[field_idx]->is_null()) {
+      bitmap_set_bit(&field_values->is_null, field_idx);
+    } else {
+      fields[field_idx]->val_str(&str);
+      field_values->value[field_idx].copy(str.c_ptr_safe(), str.length(),
+                                          &my_charset_bin);
+      bitmap_clear_bit(&field_values->is_null, field_idx);
+    }
     field_idx++;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -322,23 +330,27 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
 bool Rpl_info_table_access::store_info_values(uint max_num_field,
                                               Field **fields,
                                               Rpl_info_values *field_values) {
-  DBUG_ENTER("Rpl_info_table_access::store_info_values");
+  DBUG_TRACE;
   uint field_idx = 0;
 
   while (field_idx < max_num_field) {
-    fields[field_idx]->set_notnull();
+    if (bitmap_is_set(&field_values->is_null, field_idx)) {
+      fields[field_idx]->set_null();
+    } else {
+      fields[field_idx]->set_notnull();
 
-    if (fields[field_idx]->store(field_values->value[field_idx].c_ptr_safe(),
-                                 field_values->value[field_idx].length(),
-                                 &my_charset_bin)) {
-      my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
-               fields[field_idx]->field_name);
-      DBUG_RETURN(true);
+      if (fields[field_idx]->store(field_values->value[field_idx].c_ptr_safe(),
+                                   field_values->value[field_idx].length(),
+                                   &my_charset_bin)) {
+        my_error(ER_RPL_INFO_DATA_TOO_LONG, MYF(0),
+                 fields[field_idx]->field_name);
+        return true;
+      }
     }
     field_idx++;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -355,6 +367,11 @@ THD *Rpl_info_table_access::create_thd() {
   if (!thd) {
     thd = System_table_access::create_thd();
     thd->system_thread = SYSTEM_THREAD_INFO_REPOSITORY;
+    /*
+       Set the skip_readonly_check flag as this thread should not be
+       blocked by super_read_only check during ha_commit_trans.
+    */
+    thd->set_skip_readonly_check();
     thd_created = true;
   }
 
@@ -368,12 +385,11 @@ THD *Rpl_info_table_access::create_thd() {
   @param[in] thd Thread requesting to be destroyed
 */
 void Rpl_info_table_access::drop_thd(THD *thd) {
-  DBUG_ENTER("Rpl_info::drop_thd");
+  DBUG_TRACE;
 
   if (thd_created) {
+    thd->reset_skip_readonly_check();
     System_table_access::drop_thd(thd);
     thd_created = false;
   }
-
-  DBUG_VOID_RETURN;
 }

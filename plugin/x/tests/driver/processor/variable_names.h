@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,5 +40,11 @@ const std::string k_variable_option_port = "%OPTION_CLIENT_PORT%";
 const std::string k_variable_option_ssl_mode = "%OPTION_SSL_MODE%";
 const std::string k_variable_option_ssl_cipher = "%OPTION_SSL_CIPHER%";
 const std::string k_variable_option_tls_version = "%OPTION_TLS_VERSION%";
+const std::string k_variable_option_compression_client_style =
+    "%OPTION_COMPRESSION_STYLE_CLIENT%";
+const std::string k_variable_option_compression_server_style =
+    "%OPTION_COMPRESSION_STYLE_SERVER%";
+const std::string k_variable_option_compression_algorithm =
+    "%OPTION_COMPRESSION_ALGORITHM%";
 
 #endif  // PLUGIN_X_TESTS_DRIVER_PROCESSOR_VARIABLE_NAMES_H_

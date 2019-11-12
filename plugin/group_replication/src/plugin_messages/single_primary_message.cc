@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ Single_primary_message::Single_primary_message(const uchar *buf, size_t len)
 
 void Single_primary_message::decode_payload(const unsigned char *buffer,
                                             const unsigned char *end) {
-  DBUG_ENTER("Single_primary_message::decode_payload");
+  DBUG_TRACE;
 
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
@@ -86,13 +86,11 @@ void Single_primary_message::decode_payload(const unsigned char *buffer,
         }
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Single_primary_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Single_primary_message::encode_payload");
+  DBUG_TRACE;
 
   uint16 single_primary_message_type_aux = (uint16)single_primary_message_type;
   encode_payload_item_int2(buffer, PIT_SINGLE_PRIMARY_MESSAGE_TYPE,
@@ -107,8 +105,6 @@ void Single_primary_message::encode_payload(
     encode_payload_item_int2(buffer, PIT_SINGLE_PRIMARY_ELECTION_MODE,
                              election_mode);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 std::string &Single_primary_message::get_primary_uuid() {

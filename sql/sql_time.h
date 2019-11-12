@@ -58,7 +58,7 @@ class my_decimal;
  */
 struct Date_time_format {
   uchar positions[8];
-  LEX_STRING format;
+  LEX_CSTRING format;
 };
 
 /**
@@ -178,7 +178,7 @@ inline bool str_to_datetime(const String *str, MYSQL_TIME *ltime,
                          flags, status);
 }
 
-extern const LEX_STRING interval_type_to_name[];
+extern const LEX_CSTRING interval_type_to_name[];
 
 my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
                                             enum enum_field_types type,

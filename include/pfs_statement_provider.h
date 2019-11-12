@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
+#ifndef WITH_LOCK_ORDER
 
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -116,6 +117,7 @@ PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker);
 void pfs_digest_end_v2(PSI_digest_locker *locker,
                        const sql_digest_storage *digest);
 
+#endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */

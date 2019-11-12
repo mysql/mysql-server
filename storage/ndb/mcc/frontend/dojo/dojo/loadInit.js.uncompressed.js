@@ -1,4 +1,3 @@
-//>>built
 define("dojo/loadInit", ["./_base/loader"], function(loader){
 	return {
 		dynamic:0,

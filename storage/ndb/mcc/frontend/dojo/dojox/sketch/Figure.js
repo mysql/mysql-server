@@ -148,6 +148,10 @@ this._mm=function(e){
 if(!_4._ctr){
 return;
 }
+if(_4._c&&!_4._c.shape){
+_4._clearMouse();
+return;
+}
 var x=e.clientX-_4._ctr.x;
 var y=e.clientY-_4._ctr.y;
 var dx=x-_4._lp.x;
@@ -166,10 +170,15 @@ _4._ctool.onMouseMove(e,_c);
 };
 this._mu=function(e){
 if(_4._c){
+if(_4._c.shape){
 _4._c.endEdit();
+}
 }else{
 _4._ctool.onMouseUp(e);
 }
+_4._clearMouse();
+};
+this._clearMouse=function(){
 _4._c=_4._ctr=_4._lp=_4._action=_4._prevState=_4._startPoint=null;
 _4._cshape=_4._start=_4._end=_4._absEnd=null;
 };

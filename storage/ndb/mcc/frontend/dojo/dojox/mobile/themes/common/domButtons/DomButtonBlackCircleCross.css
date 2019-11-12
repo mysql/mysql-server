@@ -11,7 +11,7 @@
 	width: 23px;
 	height: 23px;
 	background-color: white;
-	-webkit-border-radius: 12px;
+	border-radius: 12px;
 	-webkit-box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
 }
 .mblDomButtonBlackCircleCross > div > div {
@@ -21,7 +21,7 @@
 	width: 19px;
 	height: 19px;
 	background-color: black;
-	-webkit-border-radius: 10px;
+	border-radius: 10px;
 }
 .mblDomButtonBlackCircleCross > div > div > div {
 	position: absolute;
@@ -34,7 +34,7 @@
 	border-style: none;
 	background-color: white;
 	-webkit-transform: rotate(45deg);
-	-webkit-border-radius: 1px;
+	border-radius: 1px;
 }
 .mblDomButtonBlackCircleCross > div > div > div > div {
 	position: absolute;
@@ -45,5 +45,5 @@
 	margin: 0px;
 	font-size: 1px;
 	background-color: white;
-	-webkit-border-radius: 1px;
+	border-radius: 1px;
 }

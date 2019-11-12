@@ -1,31 +1,25 @@
-//>>built
-define("dojo/date", ["./_base/kernel", "./_base/lang"], function(dojo, lang) {
-	// module:
-	//		dojo/date
+define("dojo/date", ["./has", "./_base/lang"], function(has, lang){
+// module:
+//		dojo/date
+
+var date = {
 	// summary:
-	//		TODOC
+	//		Date manipulation utilities
+};
 
-lang.getObject("date", true, dojo);
-
-/*=====
-dojo.date = {
-	// summary: Date manipulation utilities
-}
-=====*/
-
-dojo.date.getDaysInMonth = function(/*Date*/dateObject){
-	//	summary:
+date.getDaysInMonth = function(/*Date*/dateObject){
+	// summary:
 	//		Returns the number of days in the month used by dateObject
 	var month = dateObject.getMonth();
 	var days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-	if(month == 1 && dojo.date.isLeapYear(dateObject)){ return 29; } // Number
+	if(month == 1 && date.isLeapYear(dateObject)){ return 29; } // Number
 	return days[month]; // Number
 };
 
-dojo.date.isLeapYear = function(/*Date*/dateObject){
-	//	summary:
+date.isLeapYear = function(/*Date*/dateObject){
+	// summary:
 	//		Determines if the year of the dateObject is a leap year
-	//	description:
+	// description:
 	//		Leap years are years with an additional day YYYY-02-29, where the
 	//		year number is a multiple of four with the following exception: If
 	//		a year is a multiple of 100, then it is only a leap year if it is
@@ -37,12 +31,12 @@ dojo.date.isLeapYear = function(/*Date*/dateObject){
 };
 
 // FIXME: This is not localized
-dojo.date.getTimezoneName = function(/*Date*/dateObject){
-	//	summary:
+date.getTimezoneName = function(/*Date*/dateObject){
+	// summary:
 	//		Get the user's time zone as provided by the browser
 	// dateObject:
 	//		Needed because the timezone may vary with time (daylight savings)
-	//	description:
+	// description:
 	//		Try to get time zone info from toString or toLocaleString method of
 	//		the Date object -- UTC offset is not a time zone.  See
 	//		http://www.twinsun.com/tz/tz-link.htm Note: results may be
@@ -83,16 +77,16 @@ dojo.date.getTimezoneName = function(/*Date*/dateObject){
 
 // Utility methods to do arithmetic calculations with Dates
 
-dojo.date.compare = function(/*Date*/date1, /*Date?*/date2, /*String?*/portion){
-	//	summary:
+date.compare = function(/*Date*/date1, /*Date?*/date2, /*String?*/portion){
+	// summary:
 	//		Compare two date objects by date, time, or both.
-	//	description:
-	//  	Returns 0 if equal, positive if a > b, else negative.
-	//	date1:
+	// description:
+	//		Returns 0 if equal, positive if a > b, else negative.
+	// date1:
 	//		Date object
-	//	date2:
+	// date2:
 	//		Date object.  If not specified, the current Date is used.
-	//	portion:
+	// portion:
 	//		A string indicating the "date" or "time" portion of a Date object.
 	//		Compares both "date" and "time" by default.  One of the following:
 	//		"date", "time", "datetime"
@@ -116,16 +110,16 @@ dojo.date.compare = function(/*Date*/date1, /*Date?*/date2, /*String?*/portion){
 	return 0; // int
 };
 
-dojo.date.add = function(/*Date*/date, /*String*/interval, /*int*/amount){
-	//	summary:
+date.add = function(/*Date*/date, /*String*/interval, /*int*/amount){
+	// summary:
 	//		Add to a Date in intervals of different size, from milliseconds to years
-	//	date: Date
+	// date: Date
 	//		Date object to start with
-	//	interval:
+	// interval:
 	//		A string representing the interval.  One of the following:
-	//			"year", "month", "day", "hour", "minute", "second",
-	//			"millisecond", "quarter", "week", "weekday"
-	//	amount:
+	//		"year", "month", "day", "hour", "minute", "second",
+	//		"millisecond", "quarter", "week", "weekday"
+	// amount:
 	//		How much to add to the date.
 
 	var sum = new Date(+date); // convert to Number before copying to accomodate IE (#3112)
@@ -136,7 +130,7 @@ dojo.date.add = function(/*Date*/date, /*String*/interval, /*int*/amount){
 		case "day":
 			break;
 		case "weekday":
-			//i18n FIXME: assumes Saturday/Sunday weekend, but this is not always true.  see dojo.cldr.supplemental
+			//i18n FIXME: assumes Saturday/Sunday weekend, but this is not always true.  see dojo/cldr/supplemental
 
 			// Divide the increment time span into weekspans plus leftover days
 			// e.g., 8 days is one 5-day weekspan / and two leftover days
@@ -209,19 +203,20 @@ dojo.date.add = function(/*Date*/date, /*String*/interval, /*int*/amount){
 	return sum; // Date
 };
 
-dojo.date.difference = function(/*Date*/date1, /*Date?*/date2, /*String?*/interval){
-	//	summary:
+date.difference = function(/*Date*/date1, /*Date?*/date2, /*String?*/interval){
+	// summary:
 	//		Get the difference in a specific unit of time (e.g., number of
 	//		months, weeks, days, etc.) between two dates, rounded to the
 	//		nearest integer.
-	//	date1:
+	// date1:
 	//		Date object
-	//	date2:
+	// date2:
 	//		Date object.  If not specified, the current Date is used.
-	//	interval:
+	// interval:
 	//		A string representing the interval.  One of the following:
-	//			"year", "month", "day", "hour", "minute", "second",
-	//			"millisecond", "quarter", "week", "weekday"
+	//		"year", "month", "day", "hour", "minute", "second",
+	//		"millisecond", "quarter", "week", "weekday"
+	//
 	//		Defaults to "day".
 
 	date2 = date2 || new Date();
@@ -241,8 +236,8 @@ dojo.date.difference = function(/*Date*/date1, /*Date?*/date2, /*String?*/interv
 			delta = q2 - q1;
 			break;
 		case "weekday":
-			var days = Math.round(dojo.date.difference(date1, date2, "day"));
-			var weeks = parseInt(dojo.date.difference(date1, date2, "week"));
+			var days = Math.round(date.difference(date1, date2, "day"));
+			var weeks = parseInt(date.difference(date1, date2, "week"));
 			var mod = days % 7;
 
 			// Even number of weeks
@@ -322,7 +317,7 @@ dojo.date.difference = function(/*Date*/date1, /*Date?*/date2, /*String?*/interv
 		case "week":
 			// Truncate instead of rounding
 			// Don't use Math.floor -- value may be negative
-			delta = parseInt(dojo.date.difference(date1, date2, "day")/7);
+			delta = parseInt(date.difference(date1, date2, "day")/7);
 			break;
 		case "day":
 			delta /= 24;
@@ -344,5 +339,8 @@ dojo.date.difference = function(/*Date*/date1, /*Date?*/date2, /*String?*/interv
 	return Math.round(delta); // Number (integer)
 };
 
-return dojo.date;
+// Don't use setObject() because it may overwrite dojo/date/stamp (if that has already been loaded)
+ 1  && lang.mixin(lang.getObject("dojo.date", true), date);
+
+return date;
 });

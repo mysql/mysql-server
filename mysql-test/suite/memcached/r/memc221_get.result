@@ -22,10 +22,7 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hamburg
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt
 Berlin
 Hamburg
@@ -36,7 +33,7 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hamburg
-Here the memcached results with B:
+Here are the memcached results with B:
 Berlin
 SELECT c1,c2 FROM t1;
 c1	c2
@@ -44,7 +41,7 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hamburg
-Here the memcached results with D,H:
+Here are the memcached results with D,H:
 Darmstadt
 Hamburg
 DROP TABLE t1;

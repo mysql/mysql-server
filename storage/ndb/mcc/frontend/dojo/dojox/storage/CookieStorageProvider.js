@@ -1,23 +1,23 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager,dojo/cookie"],function(_1,_2,_3){
-_2.provide("dojox.storage.CookieStorageProvider");
-_2.require("dojox.storage.Provider");
-_2.require("dojox.storage.manager");
-_2.require("dojo.cookie");
-_2.declare("dojox.storage.CookieStorageProvider",[_3.storage.Provider],{store:null,cookieName:"dojoxStorageCookie",storageLife:730,initialize:function(){
-this.store=_2.fromJson(_2.cookie(this.cookieName))||{};
+define("dojox/storage/CookieStorageProvider",["dojo","dijit","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager,dojo/cookie"],function(_1,_2,_3){
+_1.provide("dojox.storage.CookieStorageProvider");
+_1.require("dojox.storage.Provider");
+_1.require("dojox.storage.manager");
+_1.require("dojo.cookie");
+_1.declare("dojox.storage.CookieStorageProvider",[_3.storage.Provider],{store:null,cookieName:"dojoxStorageCookie",storageLife:730,initialize:function(){
+this.store=_1.fromJson(_1.cookie(this.cookieName))||{};
 this.initialized=true;
 _3.storage.manager.loaded();
 },isAvailable:function(){
-return _2.cookie.isSupported();
+return _1.cookie.isSupported();
 },put:function(_4,_5,_6,_7){
 this._assertIsValidKey(_4);
 _7=_7||this.DEFAULT_NAMESPACE;
 this._assertIsValidNamespace(_7);
 fullKey=this.getFullKey(_4,_7);
-this.store[fullKey]=_2.toJson(_5);
+this.store[fullKey]=_1.toJson(_5);
 this._save();
-var _8=_2.toJson(this.store)===_2.cookie(this.cookieName);
+var _8=_1.toJson(this.store)===_1.cookie(this.cookieName);
 if(!_8){
 this.remove(_4,_7);
 }
@@ -29,7 +29,7 @@ this._assertIsValidKey(_9);
 _a=_a||this.DEFAULT_NAMESPACE;
 this._assertIsValidNamespace(_a);
 _9=this.getFullKey(_9,_a);
-return this.store[_9]?_2.fromJson(this.store[_9]):null;
+return this.store[_9]?_1.fromJson(this.store[_9]):null;
 },getKeys:function(_b){
 _b=_b||this.DEFAULT_NAMESPACE;
 this._assertIsValidNamespace(_b);
@@ -93,7 +93,7 @@ return /^[0-9A-Za-z-]*$/.test(_17);
 },getFullKey:function(key,_18){
 return "__"+_18+"_"+key;
 },_save:function(){
-_2.cookie(this.cookieName,_2.toJson(this.store),{expires:this.storageLife});
+_1.cookie(this.cookieName,_1.toJson(this.store),{expires:this.storageLife});
 },_beginsWith:function(_19,_1a){
 if(_1a.length>_19.length){
 return false;

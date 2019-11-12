@@ -416,7 +416,7 @@ Warnings:
 Note	1276	Field or reference 'test.outr1.pk' of SELECT #2 was resolved in SELECT #1
 Note	1003	Table 'outr1' is not pushable: lock modes other than 'read committed' not implemented
 Note	1003	Can't push table 'outr2' as child, 'type' must be a 'ref' access
-Note	1003	update `test`.`d` `outr1` semi join (`test`.`bb` `innr1`) join `test`.`b` `outr2` set `test`.`outr1`.`col_varchar_nokey` = NULL where ((`test`.`innr1`.`col_varchar_key` = 'b') and (`test`.`innr1`.`col_varchar_nokey` = 't') and (`test`.`outr1`.`pk` = 1))
+Note	1003	update `test`.`d` `outr1` join `test`.`b` `outr2` semi join (`test`.`bb` `innr1`) set `test`.`outr1`.`col_varchar_nokey` = NULL where ((`test`.`innr1`.`col_varchar_key` = 'b') and (`test`.`innr1`.`col_varchar_nokey` = 't') and (`test`.`outr1`.`pk` = 1))
 DROP TABLE IF EXISTS b,bb,d;
 #
 # Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)

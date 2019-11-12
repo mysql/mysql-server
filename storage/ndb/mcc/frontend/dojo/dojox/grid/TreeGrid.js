@@ -443,6 +443,9 @@ this.updateRow(idx);
 },_onDelete:function(_77){
 this._cleanupExpandoCache(this._getItemIndex(_77,true),this.store.getIdentity(_77),_77);
 this.inherited(arguments);
+},_clearData:function(){
+this.inherited(arguments);
+this._by_idty_paths={};
 },_cleanupExpandoCache:function(_78,_79,_7a){
 },_addItem:function(_7b,_7c,_7d,_7e){
 if(!_7e&&this.model&&_4.indexOf(this.model.root.children,_7b)==-1){

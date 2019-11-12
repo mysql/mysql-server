@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,25 @@
 
 #define MYSQL_ROUTER_LOG_DOMAIN "my_domain"
 
+////////////////////////////////////////
+// Standard include files
+#include <ctime>
+#include <stdexcept>
+
 #ifdef _WIN32
 #include <process.h>  // getpid()
+#else
+#include <unistd.h>  // unlink
 #endif
 
 ////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+////////////////////////////////////////
 // Internal interfaces
+#include "../src/utilities.h"  // string_format()
 #include "common.h"
 #include "dim.h"
 #include "include/magic.h"
@@ -40,31 +53,18 @@
 #include "mysql/harness/logging/registry.h"
 #include "test/helpers.h"
 
-////////////////////////////////////////
-// Third-party include files
-MYSQL_HARNESS_DISABLE_WARNINGS()
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-MYSQL_HARNESS_ENABLE_WARNINGS()
-
-////////////////////////////////////////
-// Standard include files
-#include <stdexcept>
-
-#ifndef _WIN32
-#include <unistd.h>  // unlink
-#endif
-
 using mysql_harness::Path;
 using mysql_harness::logging::FileHandler;
-using mysql_harness::logging::LogLevel;
-using mysql_harness::logging::Logger;
-using mysql_harness::logging::Record;
-using mysql_harness::logging::StreamHandler;
+using mysql_harness::logging::Handler;
 using mysql_harness::logging::log_debug;
 using mysql_harness::logging::log_error;
 using mysql_harness::logging::log_info;
 using mysql_harness::logging::log_warning;
+using mysql_harness::logging::Logger;
+using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::LogTimestampPrecision;
+using mysql_harness::logging::Record;
+using mysql_harness::logging::StreamHandler;
 
 #if GTEST_HAS_COMBINE
 // only available if the system has <tr1/tuple> [if not gtest's own, minimal
@@ -91,6 +91,9 @@ const std::string kDateRegex =
 #else
     "[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}";
 #endif
+
+const std::chrono::time_point<std::chrono::system_clock> kDefaultTimepoint =
+    std::chrono::system_clock::from_time_t(0);
 
 // TODO move this and ASSERT_THROW_LIKE from:
 //   tests/helpers/router_test_helpers.h
@@ -329,8 +332,9 @@ TEST(FunctionalTest, LogOnDanglingHandlerReference) {
   // and try to log with the logger still holding a referece to it.
   // Logger::handle() should deal with it properly - it should log
   // to all (still existing) handlers ("z_stayer" in this case).
-  EXPECT_NO_THROW(l.handle(
-      Record{LogLevel::kWarning, getpid(), 0, "my_logger", "Test message"}));
+  EXPECT_NO_THROW(
+      l.handle(Record{LogLevel::kWarning, getpid(), kDefaultTimepoint,
+                      "my_logger", "Test message"}));
   std::string log = buffer.str();
 
   // log message should be something like:
@@ -370,7 +374,8 @@ TEST_F(LoggingTest, StreamHandler) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
+                       "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged after applying format (timestamp, etc)
@@ -397,7 +402,8 @@ TEST_F(LoggingTest, FileHandler) {
   logger.attach_handler("TestFileHandler");
 
   // Log one record
-  logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
+                       "my_module", "Message"});
 
   // Open and read the entire file into memory.
   std::vector<std::string> lines;
@@ -479,7 +485,7 @@ TEST_F(LoggingTest,
   ASSERT_TRUE(dir_path.exists());
   { std::ofstream file(file_path.str()); }
 
-    // set file read-only
+  // set file read-only
 #ifdef _WIN32
   // set file read-only
   if (SetFileAttributes(file_path.c_str(), FILE_ATTRIBUTE_READONLY) == FALSE)
@@ -510,7 +516,8 @@ TEST_F(LoggingTest, HandlerWithDisabledFormatting) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), 0, "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
+                       "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged verbatim
@@ -527,8 +534,8 @@ TEST_F(LoggingTest, Messages) {
                           std::make_shared<StreamHandler>(buffer));
   logger.attach_handler("TestStreamHandler");
 
-  time_t now;
-  time(&now);
+  std::chrono::time_point<std::chrono::system_clock> now =
+      std::chrono::system_clock::now();
 
   auto pid = getpid();
 
@@ -550,6 +557,92 @@ TEST_F(LoggingTest, Messages) {
   check_message("Russel's teapot", LogLevel::kInfo, " INFO ");
   check_message("Bugs galore", LogLevel::kDebug, " DEBUG ");
 
+  // Ensure no truncation of long messages
+  check_message(std::string(512, 'a'), LogLevel::kInfo, " INFO ");
+
+  // clean up
+  g_registry->remove_handler("TestStreamHandler");
+}
+
+TEST_F(LoggingTest, TimestampPrecision) {
+  std::stringstream buffer;
+
+  g_registry->add_handler("TestStreamHandler",
+                          std::make_shared<StreamHandler>(buffer));
+  logger.attach_handler("TestStreamHandler");
+
+  std::chrono::time_point<std::chrono::system_clock> now =
+      std::chrono::system_clock::now();
+  time_t cur = std::chrono::system_clock::to_time_t(now);
+  struct tm cur_localtime;
+#ifdef _WIN32
+  localtime_s(&cur_localtime, &cur);
+#else
+  localtime_r(&cur, &cur_localtime);
+#endif
+
+  // we deliberately calculate the nanoseconds part slightly different here, to
+  // ensure the handler gets the calculation correct
+  const auto nsec_part = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      now - std::chrono::system_clock::from_time_t(cur));
+
+  auto pid = getpid();
+
+  auto check_precision = [this, &buffer, now, pid, cur_localtime, nsec_part](
+                             const std::string &message,
+                             LogTimestampPrecision precision) {
+    std::shared_ptr<Handler> handler =
+        g_registry->get_handler("TestStreamHandler");
+    buffer.str("");
+    ASSERT_THAT((int)buffer.tellp(), Eq(0));
+
+    // Format according to precision
+    std::string dt{mysql_harness::utility::string_format(
+        "%04d-%02d-%02d %02d:%02d:%02d", cur_localtime.tm_year + 1900,
+        cur_localtime.tm_mon + 1, cur_localtime.tm_mday, cur_localtime.tm_hour,
+        cur_localtime.tm_min, cur_localtime.tm_sec)};
+    switch (precision) {
+      case LogTimestampPrecision::kMilliSec:
+        dt.append(mysql_harness::utility::string_format(
+            ".%03lld",
+            static_cast<long long int>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(nsec_part)
+                    .count())));
+        break;
+      case LogTimestampPrecision::kMicroSec:
+        dt.append(mysql_harness::utility::string_format(
+            ".%06lld",
+            static_cast<long long int>(
+                std::chrono::duration_cast<std::chrono::microseconds>(nsec_part)
+                    .count())));
+        break;
+      case LogTimestampPrecision::kNanoSec:
+        dt.append(mysql_harness::utility::string_format(
+            ".%09lld",
+            static_cast<long long int>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(nsec_part)
+                    .count())));
+        break;
+      case LogTimestampPrecision::kSec:
+      case LogTimestampPrecision::kNotSet:
+      default:
+        break;
+    }
+
+    handler->set_timestamp_precision(precision);
+
+    Record record{LogLevel::kDebug, pid, now, "my_module", message};
+    logger.handle(record);
+
+    EXPECT_THAT(buffer.str(), StartsWith(dt));
+  };
+
+  check_precision("Crazy noodles", LogTimestampPrecision::kNotSet);
+  check_precision("Sloth tantrum", LogTimestampPrecision::kSec);
+  check_precision("Russel's teapot", LogTimestampPrecision::kMilliSec);
+  check_precision("Bugs galore", LogTimestampPrecision::kMicroSec);
+  check_precision("Kings knife", LogTimestampPrecision::kNanoSec);
+
   // clean up
   g_registry->remove_handler("TestStreamHandler");
 }
@@ -570,8 +663,8 @@ TEST_P(LogLevelTest, Level) {
       std::make_shared<StreamHandler>(buffer, true, handler_level));
   logger.attach_handler("TestStreamHandler");
 
-  time_t now;
-  time(&now);
+  std::chrono::time_point<std::chrono::system_clock> now =
+      std::chrono::system_clock::now();
 
   auto pid = getpid();
 

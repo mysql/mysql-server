@@ -1,19 +1,16 @@
-//>>built
-define("dojo/AdapterRegistry", ["./_base/kernel", "./_base/lang"], function(dojo, lang) {
-	// module:
-	//		dojo/AdapterRegistry
-	// summary:
-	//		TODOC
+define("dojo/AdapterRegistry", ["./_base/kernel", "./_base/lang"], function(dojo, lang){
+// module:
+//		dojo/AdapterRegistry
 
 var AdapterRegistry = dojo.AdapterRegistry = function(/*Boolean?*/ returnWrappers){
-	//	summary:
+	// summary:
 	//		A registry to make contextual calling/searching easier.
-	//	description:
+	// description:
 	//		Objects of this class keep list of arrays in the form [name, check,
 	//		wrap, directReturn] that are used to determine what the contextual
 	//		result of a set of checked arguments is. All check/wrap functions
 	//		in this registry should be of the same arity.
-	//	example:
+	// example:
 	//	|	// create a new registry
 	//	|	var reg = new dojo.AdapterRegistry();
 	//	|	reg.register("handleString",
@@ -38,30 +35,25 @@ var AdapterRegistry = dojo.AdapterRegistry = function(/*Boolean?*/ returnWrapper
 	this.returnWrappers = returnWrappers || false; // Boolean
 };
 
-/*=====
-// doc alias helpers:
-AdapterRegistry = dojo.AdapterRegistry;
-=====*/
-
 lang.extend(AdapterRegistry, {
 	register: function(/*String*/ name, /*Function*/ check, /*Function*/ wrap, /*Boolean?*/ directReturn, /*Boolean?*/ override){
-		//	summary:
+		// summary:
 		//		register a check function to determine if the wrap function or
 		//		object gets selected
-		//	name:
+		// name:
 		//		a way to identify this matcher.
-		//	check:
+		// check:
 		//		a function that arguments are passed to from the adapter's
 		//		match() function.  The check function should return true if the
 		//		given arguments are appropriate for the wrap function.
-		//	directReturn:
+		// directReturn:
 		//		If directReturn is true, the value passed in for wrap will be
 		//		returned instead of being called. Alternately, the
 		//		AdapterRegistry can be set globally to "return not call" using
 		//		the returnWrappers property. Either way, this behavior allows
 		//		the registry to act as a "search" function instead of a
 		//		function interception library.
-		//	override:
+		// override:
 		//		If override is given and true, the check function will be given
 		//		highest priority. Otherwise, it will be the lowest priority
 		//		adapter.

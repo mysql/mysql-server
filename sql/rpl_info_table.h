@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,15 +109,19 @@ class Rpl_info_table : public Rpl_info_handler {
     @param[in]  nparam           Number of fields in the table.
     @param[in]  param_schema     Table's schema.
     @param[in]  param_table      Table's name.
+    @param[in]  nullable_bitmap  bitmap that holds the fields that are
+                                 allowed to be `NULL`-
     @param[out] counter          Number of entries found.
 
     @retval false Success
     @retval true  Error
   */
   static bool do_count_info(uint nparam, const char *param_schema,
-                            const char *param_table, uint *counter);
+                            const char *param_table,
+                            MY_BITMAP const *nullable_bitmap, uint *counter);
   static int do_reset_info(uint nparam, const char *param_schema,
-                           const char *param_table, const char *channel_name);
+                           const char *param_table, const char *channel_name,
+                           MY_BITMAP const *nullable_bitmap);
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
 
@@ -127,15 +131,39 @@ class Rpl_info_table : public Rpl_info_handler {
   bool do_set_info(const int pos, const ulong value);
   bool do_set_info(const int pos, const float value);
   bool do_set_info(const int pos, const Server_ids *value);
-  bool do_get_info(const int pos, char *value, const size_t size,
-                   const char *default_value);
-  bool do_get_info(const int pos, uchar *value, const size_t size,
-                   const uchar *default_value);
-  bool do_get_info(const int pos, int *value, const int default_value);
-  bool do_get_info(const int pos, ulong *value, const ulong default_value);
-  bool do_get_info(const int pos, float *value, const float default_value);
-  bool do_get_info(const int pos, Server_ids *value,
-                   const Server_ids *default_value);
+  /**
+    Setter needed to set nullable fields to `NULL`.
+
+    @param pos the index of the field to set to `NULL`.
+    @param value unused value, needed to desimbiguate polimorphism.
+
+    @return true if there was an error and false otherwise.
+   */
+  bool do_set_info(const int pos, const std::nullptr_t value);
+  /**
+    Setter needed to set nullable fields to `NULL`.
+
+    @param pos the index of the field to set to `NULL`.
+    @param value unused value, needed to desimbiguate polimorphism.
+    @param size unused value size, needed to desimbiguate polimorphism.
+
+    @return true if there was an error and false otherwise.
+   */
+  bool do_set_info(const int pos, const std::nullptr_t value,
+                   const size_t size);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, char *value, const size_t size, const char *default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, uchar *value, const size_t size,
+      const uchar *default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(const int pos, int *value,
+                                                      const int default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, ulong *value, const ulong default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, float *value, const float default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, Server_ids *value, const Server_ids *default_value);
   char *do_get_description_info();
 
   bool do_is_transactional();
@@ -155,7 +183,8 @@ class Rpl_info_table : public Rpl_info_handler {
 
   Rpl_info_table(uint nparam, const char *param_schema, const char *param_table,
                  const uint param_n_pk_fields = 0,
-                 const uint *param_pk_field_indexes = NULL);
+                 const uint *param_pk_field_indexes = nullptr,
+                 MY_BITMAP const *nullable_bitmap = nullptr);
 
   Rpl_info_table(const Rpl_info_table &info);
   Rpl_info_table &operator=(const Rpl_info_table &info);

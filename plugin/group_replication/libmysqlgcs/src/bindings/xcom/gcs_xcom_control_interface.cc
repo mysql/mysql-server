@@ -372,7 +372,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
     Connect to the local xcom instance.
     This is needed to push data to consensus.
   */
-  xcom_input_open = m_xcom_proxy->xcom_input_connect();
+  xcom_input_open = m_xcom_proxy->xcom_input_connect(
+      m_local_node_address->get_member_ip(), local_port);
   if (!xcom_input_open) {
     /* purecov: begin tested */
     /*
@@ -686,7 +687,7 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
 
   assert(m_xcom_proxy->xcom_is_exit());
 
-  set_terminate_suspicion_thread(true);
+  m_suspicions_manager->wake_suspicions_processing_thread(true);
 
   m_suspicions_processing_thread.join(NULL);
   MYSQL_GCS_LOG_TRACE("The suspicions processing thread has joined.");

@@ -67,21 +67,6 @@ SET @@SESSION.GTID_NEXT= 'MASTER_UUID:19';
 COMMIT;
 include/assert.inc [committed gtids MASTER_UUID:1-6:17-19]
 #
-# Verify that we store gtid into gtid_executed table within
-# each transaction when binlog is disabled.
-#
-SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	1
-MASTER_UUID	2	2
-MASTER_UUID	3	3
-MASTER_UUID	4	4
-MASTER_UUID	5	5
-MASTER_UUID	6	6
-MASTER_UUID	17	17
-MASTER_UUID	18	18
-MASTER_UUID	19	19
-#
 # Verify that the gtid_executed table is compressed.
 #
 SET @debug_save= @@GLOBAL.DEBUG;
@@ -152,6 +137,7 @@ DROP TABLE t1, t2;
 include/sync_slave_sql_with_master.inc
 CREATE TABLE t3 (a INT);
 include/sync_slave_sql_with_master.inc
+FLUSH LOGS;
 #
 # Verify that transaction's gtid is not stored into gtid_executed table
 # and the transaction is rolled back if we encounter an error
@@ -166,23 +152,22 @@ include/stop_slave_io.inc
 #
 # Stored gtids MASTER_UUID:1-15:17-22 in gtid_executed table on slave.
 #
-SELECT * FROM mysql.gtid_executed;
-source_uuid	interval_start	interval_end
-MASTER_UUID	1	6
-MASTER_UUID	7	7
-MASTER_UUID	8	8
-MASTER_UUID	9	9
-MASTER_UUID	10	10
-MASTER_UUID	11	11
-MASTER_UUID	12	12
-MASTER_UUID	13	13
-MASTER_UUID	14	14
-MASTER_UUID	15	15
-MASTER_UUID	17	20
-MASTER_UUID	21	21
-MASTER_UUID	22	22
 include/assert.inc [committed gtids MASTER_UUID:1-15:17-22]
 include/assert.inc [Table t3 must not contain 1]
+#
+# Verify that the gtid_executed table is compressed.
+#
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
+SET @@SESSION.GTID_NEXT= 'MASTER_UUID:23';
+COMMIT;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
+SET GLOBAL DEBUG= @debug_save;
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	15
+MASTER_UUID	17	23
+SET GTID_NEXT='AUTOMATIC';
 DROP TABLE t3;
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 DROP TABLE t3;

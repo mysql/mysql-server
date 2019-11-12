@@ -28,7 +28,8 @@ class DojoExternalInterface{
 		DojoExternalInterface.available = ExternalInterface.available;
 		
 		// make sure we can play nice in XD settings
-		System.security.allowDomain(unescape(_root.xdomain));
+		// Note, this has been commented out as it may expose a cross domain sec issue
+		//System.security.allowDomain(unescape(_root.xdomain));
 	}
 	
 	/** Called when we are finished adding methods through addCallback. */

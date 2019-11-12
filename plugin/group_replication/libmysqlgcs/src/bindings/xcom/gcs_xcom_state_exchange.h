@@ -110,7 +110,7 @@ class Xcom_member_state {
     @param[in] configuration_id Configuration identifier in use when the state
                                 exchange message was created
     @param[in] version Protocol version used to represent the state
-    @param[in] cached_ids Snapshot information currently in use
+    @param[in] snapshot Snapshot information currently in use
     @param[in] data the generic data to be exchanged
     @param[in] data_size data's size
   */
@@ -186,8 +186,8 @@ class Xcom_member_state {
   /**
    Decodes Member State that was sent through the network.
 
-   @param[out] buffer where the data was stored.
-   @param[out] buffer_len pointer to the variable that holds the
+   @param[out] data where the data was stored.
+   @param[out] data_size pointer to the variable that holds the
    data's size.
 
    @return True if for any reason the data could not be exchanged.
@@ -409,6 +409,7 @@ class Gcs_xcom_state_exchange_interface {
     @param[in] current_view   the currently installed view
     @param[in] group          group name
     @param[in] local_info     the local GCS member identifier
+    @param[in] xcom_nodes     list of nodes
 
     @return true if the member is leaving
   */
@@ -427,8 +428,10 @@ class Gcs_xcom_state_exchange_interface {
 
     @param[in] ms_info received Member State
     @param[in] p_id the node that the Member State pertains
-    @param[in] protocol_version protocol version in use by a member during the
-               state exchange phase
+    @param[in] maximum_supported_protocol_version maximum supported protocol
+    version
+    @param[in] used_protocol_version protocol version in use by a member during
+    the state exchange phase
 
     @return true if State Exchanged is to be finished and the view can be
                  installed
@@ -616,7 +619,9 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 
    @param ms_info state
    @param p_id member
-   @param protocol_version protocol version
+   @param[in] maximum_supported_protocol_version maximum supported protocol
+    version
+   @param used_protocol_version protocol version
    */
   void save_member_state(
       Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,

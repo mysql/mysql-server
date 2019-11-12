@@ -14,7 +14,7 @@ explain select uncompressed_length(compress(@test_compress_string))=length(@test
 select uncompressed_length(compress(@test_compress_string));
 select length(compress(@test_compress_string))<length(@test_compress_string);
 
-create table t1 (a blob, b binary(255), c char(4)) engine=myisam;
+create table t1 (a blob, b binary(255), c char(4)) engine=innodb;
 insert into t1 (a,b,c) values (compress(@test_compress_string),compress(@test_compress_string),'d ');
 select uncompress(a) from t1;
 select uncompress(b) from t1;

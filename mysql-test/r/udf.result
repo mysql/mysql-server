@@ -29,7 +29,7 @@ WHERE udf_name = 'metaphon';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	user_defined_functions	NULL	const	PRIMARY	PRIMARY	258	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'function' AS `udf_type` from `performance_schema`.`user_defined_functions` where 1
+Note	1003	/* select#1 */ select 'function' AS `udf_type` from `performance_schema`.`user_defined_functions` where true
 select myfunc_double();
 ERROR HY000: Can't initialize function 'myfunc_double'; myfunc_double must have at least one argument
 select myfunc_double(1);
@@ -597,17 +597,6 @@ name	ret	dl	type
 metaphon	0	UDF_EXAMPLE_LIB	function
 DROP FUNCTION metaphon;
 DROP TABLE t1;
-
-######################################################################
-# C. Check that it is possible to ALTER storage engine for
-#    mysql.func to MyISAM.
-#    This is necessary for mysql_system_tables_fix_for_downgrade.sql
-#    to work.
-######################################################################
-ALTER TABLE mysql.func ENGINE = MYISAM;
-SELECT * FROM mysql.func;
-name	ret	dl	type
-ALTER TABLE mysql.func ENGINE = INNODB;
 #
 # Bug #27270498: DROPPING A UDF FUNCTION DOES NOT REMOVE ENTRY FROM PFS TABLE
 #
@@ -619,4 +608,21 @@ DROP FUNCTION  is_const;
 SELECT * FROM performance_schema.user_defined_functions
 WHERE udf_name = 'is_const';
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
+#
+# BUG#29264874: ASAN ERROR WHEN ACCESSING INFORMATION SCHEMA TABLES FROM
+#               AGGREGATE UDF
+#
+CREATE AGGREGATE FUNCTION avgcost RETURNS REAL
+SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1(fld1 INT);
+SELECT avgcost(T.TABLE_ROWS, 0e0)
+FROM INFORMATION_SCHEMA.TABLES T,
+INFORMATION_SCHEMA.COLUMNS C
+WHERE C.TABLE_SCHEMA = T.TABLE_SCHEMA AND
+C.TABLE_NAME = T.TABLE_NAME
+AND C.TABLE_SCHEMA = DATABASE();
+avgcost(T.TABLE_ROWS, 0e0)
+NULL
+DROP TABLE t1;
+DROP FUNCTION avgcost;
 # End of the 8.0 tests

@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/widget/Wizard/Wizard.html':"<div class=\"dojoxWizard\" dojoAttachPoint=\"wizardNode\">\n    <div class=\"dojoxWizardContainer\" dojoAttachPoint=\"containerNode\"></div>\n    <div class=\"dojoxWizardButtons\" dojoAttachPoint=\"wizardNav\">\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"previousButton\">${previousButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"nextButton\">${nextButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"doneButton\" style=\"display:none\">${doneButtonLabel}</button>\n        <button dojoType=\"dijit.form.Button\" type=\"button\" dojoAttachPoint=\"cancelButton\">${cancelButtonLabel}</button>\n    </div>\n</div>\n"}});
 define("dojox/widget/Wizard", [
@@ -13,14 +12,14 @@ define("dojox/widget/Wizard", [
 	"dojo/i18n",
 	"dojo/text!./Wizard/Wizard.html",
 	"dojo/i18n!dijit/nls/common",
-	"dojo/i18n!./nls/Wizard"
-], function (lang, declare, connect, StackContainer, ContentPane, Button, _TemplatedMixin, _WidgetsInTemplateMixin, i18n, template) {
+	"dojo/i18n!./nls/Wizard",
+	"dojox/widget/WizardPane"
+], function (lang, declare, connect, StackContainer, ContentPane, Button, _TemplatedMixin, _WidgetsInTemplateMixin, i18n, template, wizardPane) {
   
 var Wizard = declare("dojox.widget.Wizard", [StackContainer, _TemplatedMixin, _WidgetsInTemplateMixin], {
 	// summary:
 	//		A set of panels that display sequentially, typically notating a step-by-step
 	//		procedure like an install
-	//
 	
 	templateString: template,
 	
@@ -118,14 +117,16 @@ var Wizard = declare("dojox.widget.Wizard", [StackContainer, _TemplatedMixin, _W
 	},
 
 	_forward: function(){
-		// summary: callback when next button is clicked
+		// summary:
+		//		callback when next button is clicked
 		if(this.selectedChildWidget._checkPass()){
 			this.forward();
 		}
 	},
 	
 	done: function(){
-		// summary: Finish the wizard's operation
+		// summary:
+		//		Finish the wizard's operation
 		this.selectedChildWidget.done();
 	},
 	
@@ -136,75 +137,5 @@ var Wizard = declare("dojox.widget.Wizard", [StackContainer, _TemplatedMixin, _W
 	
 });
 
-declare("dojox.widget.WizardPane", ContentPane, {
-	// summary: A panel in a `dojox.widget.Wizard`
-	//
-	// description:
-	//	An extended ContentPane with additional hooks for passing named
-	//	functions to prevent the pane from going either forward or
-	//	backwards.
-	//
-	// canGoBack: Boolean
-	//		If true, then can move back to a previous panel (by clicking the "Previous" button)
-	canGoBack: true,
-
-	// passFunction: String
-	//		Name of function that checks if it's OK to advance to the next panel.
-	//		If it's not OK (for example, mandatory field hasn't been entered), then
-	//		returns an error message (String) explaining the reason. Can return null (pass)
-	//		or a Boolean (true == pass)
-	passFunction: null,
-	
-	// doneFunction: String
-	//		Name of function that is run if you press the "Done" button from this panel
-	doneFunction: null,
-
-	startup: function(){
-		this.inherited(arguments);
-		if(this.isFirstChild){ this.canGoBack = false; }
-		if(lang.isString(this.passFunction)){
-			this.passFunction = lang.getObject(this.passFunction);
-		}
-		if(lang.isString(this.doneFunction) && this.doneFunction){
-			this.doneFunction = lang.getObject(this.doneFunction);
-		}
-	},
-
-	_onShow: function(){
-		if(this.isFirstChild){ this.canGoBack = false; }
-		this.inherited(arguments);
-	},
-
-	_checkPass: function(){
-		// summary:
-		//		Called when the user presses the "next" button.
-		//		Calls passFunction to see if it's OK to advance to next panel, and
-		//		if it isn't, then display error.
-		//		Returns true to advance, false to not advance. If passFunction
-		//		returns a string, it is assumed to be a custom error message, and
-		//		is alert()'ed
-		var r = true;
-		if(this.passFunction && lang.isFunction(this.passFunction)){
-			var failMessage = this.passFunction();
-			switch(typeof failMessage){
-				case "boolean":
-					r = failMessage;
-					break;
-				case "string":
-					alert(failMessage);
-					r = false;
-					break;
-			}
-		}
-		return r; // Boolean
-	},
-
-	done: function(){
-		if(this.doneFunction && lang.isFunction(this.doneFunction)){ this.doneFunction(); }
-	}
-
-});
-
 return Wizard;
-
 });

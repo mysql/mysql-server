@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/_Selector", [
 	"../main",
 	"dojo/_base/declare",

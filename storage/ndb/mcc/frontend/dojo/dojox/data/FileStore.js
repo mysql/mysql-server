@@ -1,5 +1,5 @@
 //>>built
-define("dojox/data/FileStore",["dojo/_base/declare","dojo/_base/lang","dojo/_base/window","dojo/_base/json","dojo/_base/xhr"],function(_1,_2,_3,_4,_5){
+define("dojox/data/FileStore",["dojo/_base/declare","dojo/_base/lang","dojo/_base/kernel","dojo/_base/json","dojo/_base/xhr"],function(_1,_2,_3,_4,_5){
 return _1("dojox.data.FileStore",null,{constructor:function(_6){
 if(_6&&_6.label){
 this.label=_6.label;

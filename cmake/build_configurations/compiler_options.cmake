@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 INCLUDE(CheckCCompilerFlag)
 INCLUDE(CheckCXXCompilerFlag)
-INCLUDE(cmake/compiler_bugs.cmake)
 INCLUDE(cmake/floating_point.cmake)
 
 IF(SIZEOF_VOIDP EQUAL 4)
@@ -31,18 +30,20 @@ ENDIF()
 IF(SIZEOF_VOIDP EQUAL 8)
   SET(64BIT 1)
 ENDIF()
- 
+
+SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Compiler options
 IF(UNIX)  
 
-  IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
     SET(SECTIONS_FLAG "-ffunction-sections -fdata-sections")
   ELSE()
     SET(SECTIONS_FLAG)
   ENDIF()
 
   # Default GCC flags
-  IF(CMAKE_COMPILER_IS_GNUCC)
+  IF(MY_COMPILER_IS_GNU)
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
@@ -50,14 +51,10 @@ IF(UNIX)
     ENDIF()
     # Disable floating point expression contractions to avoid result differences
     IF(HAVE_C_FLOATING_POINT_FUSED_MADD)
-      SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -ffp-contract=off")
+      STRING_APPEND(COMMON_C_FLAGS   " -ffp-contract=off")
     ENDIF()
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
-    ENDIF()
-  ENDIF()
-  IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-std=c++14 -fno-omit-frame-pointer")
+
+    SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_CXX_FLAGS  "-fno-inline ")
@@ -66,43 +63,30 @@ IF(UNIX)
     IF(HAVE_CXX_FLOATING_POINT_FUSED_MADD)
       STRING_APPEND(COMMON_CXX_FLAGS " -ffp-contract=off")
     ENDIF()
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_CXX_FLAGS "-fPIC ")
-    ENDIF()
   ENDIF()
 
   # Default Clang flags
-  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_CLANG)
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
-    ENDIF()
-  ENDIF()
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(COMMON_CXX_FLAGS               "-std=c++14 -fno-omit-frame-pointer")
-    IF(NOT DISABLE_SHARED)
-      STRING_PREPEND(COMMON_CXX_FLAGS  "-fPIC ")
-    ENDIF()
+    SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
   ENDIF()
 
   # Solaris flags
-  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(SOLARIS)
     # Link mysqld with mtmalloc on Solaris 10 and later
     SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
 
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
       SET(SUNPRO_FLAGS     "")
-      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xbuiltin=%all")
-      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xlibmil")
-      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xatomic=studio")
+      STRING_APPEND(SUNPRO_FLAGS     " -xbuiltin=%all")
+      STRING_APPEND(SUNPRO_FLAGS     " -xlibmil")
+      STRING_APPEND(SUNPRO_FLAGS     " -xatomic=studio")
 
       # Show tags for warnings, so that they can be added to suppression list
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -errtags")
-      IF(NOT DISABLE_SHARED)
-        SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -KPIC")
-      ENDIF()
-      IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -nofstore")
+
+      IF(SOLARIS_INTEL)
+        STRING_APPEND(SUNPRO_FLAGS   " -nofstore")
       ENDIF()
 
       SET(COMMON_C_FLAGS            "${SUNPRO_FLAGS}")
@@ -271,6 +255,3 @@ IF(UNIX)
   STRING_PREPEND(CMAKE_CXX_FLAGS_MINSIZEREL     "${SECTIONS_FLAG} ")
 
 ENDIF()
-
-STRING_APPEND(CMAKE_C_FLAGS   " ${COMMON_C_WORKAROUND_FLAGS}")
-STRING_APPEND(CMAKE_CXX_FLAGS " ${COMMON_CXX_WORKAROUND_FLAGS}")

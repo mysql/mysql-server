@@ -153,6 +153,8 @@ SHOW CREATE TABLE test.t1;
 --enable_warnings
 # Check column storage
 source show_attributes.inc;
+# Drop the tablespace
+DROP TABLESPACE ts_innodb;
 
 #### Try to ALTER from Cluster Disk Data to MyISAM
 
@@ -179,15 +181,19 @@ enable_query_log;
 
 SELECT * FROM test.t1 ORDER BY a1;
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't1' AND partition_name = 'p0';
+SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
+       PARTITION_NAME, PARTITION_ORDINAL_POSITION, TABLESPACE_NAME
+FROM information_schema.partitions
+WHERE table_name= 't1' AND partition_name = 'p0';
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE test.t1 ALGORITHM=INPLACE, ADD a2 FLOAT, ADD a3 DOUBLE;
 ALTER TABLE test.t1 ALGORITHM=COPY, ADD a2 FLOAT, ADD a3 DOUBLE;
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't1' AND partition_name = 'p0';
+SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME,
+       PARTITION_NAME, PARTITION_ORDINAL_POSITION, TABLESPACE_NAME
+FROM information_schema.partitions
+WHERE table_name= 't1' AND partition_name = 'p0';
 
 let $1=20;
 disable_query_log;

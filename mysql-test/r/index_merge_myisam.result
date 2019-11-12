@@ -115,7 +115,7 @@ explain select * from t0 where key2 = 45 or key1 is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	ALL	NULL	NULL	NULL	NULL	1024	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where 1
+Note	1003	/* select#1 */ select `test`.`t0`.`key1` AS `key1`,`test`.`t0`.`key2` AS `key2`,`test`.`t0`.`key3` AS `key3`,`test`.`t0`.`key4` AS `key4`,`test`.`t0`.`key5` AS `key5`,`test`.`t0`.`key6` AS `key6`,`test`.`t0`.`key7` AS `key7`,`test`.`t0`.`key8` AS `key8` from `test`.`t0` where true
 explain select * from t0 where key2 = 45 or key1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t0	NULL	ref	i2	i2	4	const	1	100.00	NULL
@@ -639,6 +639,9 @@ CREATE TABLE `t1` (
 KEY `a` (`a`),
 KEY `b` (`b`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (0, 'filler', 0), (1, 'filler', 1), (2, 'filler', 2), (3, 'filler', 3), 
 (4, 'filler', 4), (5, 'filler', 5), (6, 'filler', 6), (7, 'filler', 7), 
@@ -656,6 +659,9 @@ create table t2(
 KEY USING BTREE (`a`),
 KEY USING BTREE (`b`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 select * from t1;
 must use sort-union rather than union:
 explain select * from t1 where a=4 or b=4;
@@ -708,6 +714,8 @@ SELECT b,a from t1 WHERE (b!='c' AND b!='f' && b!='h') OR
 b	a
 	y
 	z
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 DROP TABLE t1;
 #
 # BUG#40974: Incorrect query results when using clause
@@ -1276,7 +1284,7 @@ key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	10,10	NULL	2	100.00	Using intersect(i1,i2); Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key2a` = 2) and (`test`.`t1`.`key1a` = 2) and isnull(`test`.`t1`.`key1b`) and isnull(`test`.`t1`.`key2b`))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key2a` = 2) and (`test`.`t1`.`key1a` = 2) and (`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key2b` is null))
 select count(*) from t1 where
 key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 count(*)
@@ -1286,7 +1294,7 @@ key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	i1,i3	i1,i3	10,10	NULL	2	100.00	Using intersect(i1,i3); Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key3a` = 2) and (`test`.`t1`.`key1a` = 2) and isnull(`test`.`t1`.`key1b`) and isnull(`test`.`t1`.`key3b`))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`key3a` = 2) and (`test`.`t1`.`key1a` = 2) and (`test`.`t1`.`key1b` is null) and (`test`.`t1`.`key3b` is null))
 select count(*) from t1 where
 key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 count(*)
@@ -1319,6 +1327,12 @@ KEY `fk_bbk_niederlassung` (`fk_bbk_niederlassung`),
 KEY `fk_wochentag` (`fk_wochentag`),
 KEY `ix_version` (`version`)
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert  into t1 values
 (1, 38, 1, '08:00:00', '13:00:00', 0, 1),
 (2, 38, 2, '08:00:00', '13:00:00', 0, 1),
@@ -1449,6 +1463,11 @@ key idx1(a,b,c),
 key idx2(c),
 key idx3(kp1,kp2,kp3,kp4,kp5)
 ) default charset=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @fill=NULL;
 SELECT COUNT(*) FROM t1 WHERE b = 0 AND a = 0 AND c = 13286427 AND
 kp1='279' AND kp2='ELM0678' AND kp3='6' AND kp4='10' AND  kp5 = 'R        ';
@@ -1875,6 +1894,8 @@ TADIRFLAG char(1),
 PRIMARY KEY  (RUNID,SUBMITNR,ORDERNR,PROGRAMM,TESTID,UCCHECK),
 KEY `TVERM~KEY`  (PROGRAMM,TESTID,UCCHECK)
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 update t1 set `ETEXT` = '', `ETEXT_TYPE`='', `INFO`='', `SEVERITY`='', `TADIRFLAG`=''
 WHERE
 `RUNID`= '' AND `SUBMITNR`= '' AND `ORDERNR`='' AND `PROGRAMM`='' AND
@@ -1899,7 +1920,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ref	f2,f3	f2	5	const	1	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `f1` from dual where 1
+Note	1003	/* select#1 */ select '2' AS `f1` from dual where true
 DROP TABLE t1,t2;
 #
 # Bug#19055268 ASSERT `!TABLE || (!TABLE->READ_SET || BITMAP_IS_SET(TABLE->READ_SET,...) FAILED
@@ -1924,6 +1945,10 @@ KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,2,1,'0000-00-00','0000-00-00','00:00:07','00:00:25','0000-00-00 00:00:00','0000-00-00 00:00:00','2','2'),
 (109,25,1,'0000-00-00','0000-00-00','00:00:07','00:00:25','0000-00-00 00:00:00','0000-00-00 00:00:00','1','7');
@@ -1946,6 +1971,10 @@ KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES
 (10,2,4,'2000-04-16','2000-04-16','17:02:34','17:02:34','2009-08-04 02:49:10','2009-08-04 02:49:10','u','u'),
 (11,6,5,'1900-01-01','1900-01-01','12:31:32','12:31:32','2004-05-24 22:22:06','2004-05-24 22:22:06','b','b'),
@@ -2072,19 +2101,19 @@ SET sql_mode = default;
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 set optimizer_switch='index_merge=off,index_merge_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 set optimizer_switch='index_merge_union=on';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=off,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 set optimizer_switch='default,index_merge_sort_union=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=off,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 set optimizer_switch=4;
 set optimizer_switch=NULL;
 ERROR 42000: Variable 'optimizer_switch' can't be set to the value of 'NULL'
@@ -2110,21 +2139,21 @@ set optimizer_switch=default;
 set optimizer_switch='index_merge=off,index_merge_union=off,default';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=off,index_merge_union=off,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 set optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 set @@global.optimizer_switch=default;
 select @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 #
 # Check index_merge's @@optimizer_switch flags
 #
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int, b int, c int, filler char(100), 
@@ -2268,5 +2297,5 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 set optimizer_switch=default;
 show variables like 'optimizer_switch';
 Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 drop table t0, t1;

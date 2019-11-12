@@ -1,6 +1,7 @@
 //>>built
 define("dojox/atom/io/model",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/lang","dojo/date/stamp","dojox/xml/parser"],function(_1,_2,_3,_4,_5){
-var _6=_1.getObject("dojox.atom.io.model",true);
+var _6={};
+_1.setObject("dojox.atom.io.model",_6);
 _6._Constants={"ATOM_URI":"http://www.w3.org/2005/Atom","ATOM_NS":"http://www.w3.org/2005/Atom","PURL_NS":"http://purl.org/atom/app#","APP_NS":"http://www.w3.org/2007/app"};
 _6._actions={"link":function(_7,_8){
 if(_7.links===null){
@@ -100,7 +101,7 @@ _26=_26.substring((_27+1),_26.length);
 }
 return _26;
 }};
-_6.Node=_1.declare(null,{constructor:function(_28,_29,_2a,_2b,_2c){
+_6.Node=_2(null,{constructor:function(_28,_29,_2a,_2b,_2c){
 this.name_space=_28;
 this.name=_29;
 this.attributes=[];
@@ -199,7 +200,7 @@ return xml.join("");
 },addContent:function(_3b){
 this.content.push(_3b);
 }});
-_6.AtomItem=_1.declare(_6.Node,{constructor:function(_3c){
+_6.AtomItem=_2(_6.Node,{constructor:function(_3c){
 this.ATOM_URI=_6._Constants.ATOM_URI;
 this.links=null;
 this.authors=null;
@@ -378,7 +379,7 @@ this.content=null;
 this.extensions=null;
 this.entries=null;
 }});
-_6.Category=_1.declare(_6.Node,{constructor:function(_5e,_5f,_60){
+_6.Category=_2(_6.Node,{constructor:function(_5e,_5f,_60){
 this.scheme=_5e;
 this.term=_5f;
 this.label=_60;
@@ -410,7 +411,7 @@ if(this._postBuild){
 this._postBuild();
 }
 }});
-_6.Content=_1.declare(_6.Node,{constructor:function(_62,_63,src,_64,_65){
+_6.Content=_2(_6.Node,{constructor:function(_62,_63,src,_64,_65){
 this.tagName=_62;
 this.value=_63;
 this.src=src;
@@ -492,7 +493,7 @@ s.push(">"+this.value+"</"+this.tagName+">\n");
 var ret=s.join("");
 return ret;
 }});
-_6.Link=_1.declare(_6.Node,{constructor:function(_69,rel,_6a,_6b,_6c){
+_6.Link=_2(_6.Node,{constructor:function(_69,rel,_6a,_6b,_6c){
 this.href=_69;
 this.hrefLang=_6a;
 this.rel=rel;
@@ -533,7 +534,7 @@ s.push(" type = \""+this.type+"\" ");
 s.push("/>\n");
 return s.join("");
 }});
-_6.Person=_1.declare(_6.Node,{constructor:function(_6e,_6f,_70,uri){
+_6.Person=_2(_6.Node,{constructor:function(_6e,_6f,_70,uri){
 this.author="author";
 this.contributor="contributor";
 if(!_6e){
@@ -592,7 +593,7 @@ s.push("\t<uri>"+this.uri+"</uri>\n");
 s.push("</"+this.personType+">\n");
 return s.join("");
 }});
-_6.Generator=_1.declare(_6.Node,{constructor:function(uri,_74,_75){
+_6.Generator=_2(_6.Node,{constructor:function(uri,_74,_75){
 this.uri=uri;
 this.version=_74;
 this.value=_75;
@@ -618,7 +619,7 @@ s.push(">"+this.value+"</generator>\n");
 var ret=s.join("");
 return ret;
 }});
-_6.Entry=_1.declare(_6.AtomItem,{constructor:function(id){
+_6.Entry=_2(_6.AtomItem,{constructor:function(id){
 this.id=id;
 this._objName="Entry";
 this.feedUrl=null;
@@ -706,7 +707,7 @@ return;
 }
 this.addLink(url,"edit");
 }});
-_6.Feed=_1.declare(_6.AtomItem,{_accepts:{"author":true,"content":true,"category":true,"contributor":true,"created":true,"id":true,"link":true,"published":true,"rights":true,"summary":true,"title":true,"updated":true,"xmlbase":true,"entry":true,"logo":true,"issued":true,"modified":true,"icon":true,"subtitle":true},addEntry:function(_79){
+_6.Feed=_2(_6.AtomItem,{_accepts:{"author":true,"content":true,"category":true,"contributor":true,"created":true,"id":true,"link":true,"published":true,"rights":true,"summary":true,"title":true,"updated":true,"xmlbase":true,"entry":true,"logo":true,"issued":true,"modified":true,"icon":true,"subtitle":true},addEntry:function(_79){
 if(!_79.id){
 throw new Error("The entry object must be assigned an ID attribute.");
 }
@@ -823,7 +824,7 @@ return this.links[x].href;
 }
 return null;
 }});
-_6.Service=_1.declare(_6.AtomItem,{constructor:function(_80){
+_6.Service=_2(_6.AtomItem,{constructor:function(_80){
 this.href=_80;
 },buildFromDom:function(_81){
 var i;
@@ -869,7 +870,7 @@ return _87;
 }
 return null;
 }});
-_6.Workspace=_1.declare(_6.AtomItem,{constructor:function(_88){
+_6.Workspace=_2(_6.AtomItem,{constructor:function(_88){
 this.title=_88;
 this.collections=[];
 },buildFromDom:function(_89){
@@ -899,7 +900,7 @@ this.title=_5.textContent(_8b);
 }
 }
 }});
-_6.Collection=_1.declare(_6.AtomItem,{constructor:function(_8d,_8e){
+_6.Collection=_2(_6.AtomItem,{constructor:function(_8d,_8e){
 this.href=_8d;
 this.title=_8e;
 this.attributes=[];

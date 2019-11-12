@@ -1,6 +1,5 @@
-//>>built
 define("dijit/_base", [
-	".",
+	"./main",
 	"./a11y",	// used to be in dijit/_base/manager
 	"./WidgetSet",	// used to be in dijit/_base/manager
 	"./_base/focus",
@@ -16,8 +15,13 @@ define("dijit/_base", [
 
 	// module:
 	//		dijit/_base
-	// summary:
-	//		Includes all the modules in dijit/_base
+
+	/*=====
+	return {
+		// summary:
+		//		Includes all the modules in dijit/_base
+	};
+	=====*/
 
 	return dijit._base;
 });

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"INDEX_MERGE", false, false, false},
     {"RESOURCE_GROUP", false, false, false},
     {"SKIP_SCAN", false, false, false},
+    {"HASH_JOIN", true, true, false},
     {0, 0, 0, 0}};
 
 /**
@@ -100,7 +101,8 @@ const LEX_CSTRING sys_qb_prefix = {"select#", 7};
 
 static int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
                           const CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, (uchar *)s->str, s->length, (uchar *)t->str,
+  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s->str),
+                               s->length, pointer_cast<const uchar *>(t->str),
                                t->length);
 }
 
@@ -630,8 +632,8 @@ bool Sys_var_hint::add_var(THD *thd, sys_var *sys_var, Item *sys_var_value) {
     }
   }
 
-  set_var *var = new (thd->mem_root) set_var(
-      OPT_SESSION, sys_var, (const LEX_STRING *)&sys_var->name, sys_var_value);
+  set_var *var = new (thd->mem_root)
+      set_var(OPT_SESSION, sys_var, sys_var->name, sys_var_value);
   if (!var) return true;
 
   Hint_set_var *hint_var = new (thd->mem_root) Hint_set_var(var);

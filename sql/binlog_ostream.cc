@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 #include <algorithm>
 #include "my_aes.h"
 #include "my_inttypes.h"
+#include "my_rnd.h"
+#include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysqld_error.h"
@@ -31,14 +33,21 @@
 #include "sql/rpl_log_encryption.h"
 #include "sql/sql_class.h"
 
+#ifndef DBUG_OFF
+bool binlog_cache_is_reset = false;
+#endif
+
 IO_CACHE_binlog_cache_storage::IO_CACHE_binlog_cache_storage() {}
 IO_CACHE_binlog_cache_storage::~IO_CACHE_binlog_cache_storage() { close(); }
 
 bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,
                                          my_off_t cache_size,
                                          my_off_t max_cache_size) {
+  DBUG_TRACE;
   if (open_cached_file(&m_io_cache, dir, prefix, cache_size, MYF(MY_WME)))
     return true;
+
+  if (rpl_encryption.is_enabled()) enable_encryption();
 
   m_max_cache_size = max_cache_size;
   /* Set the max cache size for IO_CACHE */
@@ -50,6 +59,33 @@ void IO_CACHE_binlog_cache_storage::close() { close_cached_file(&m_io_cache); }
 
 bool IO_CACHE_binlog_cache_storage::write(const unsigned char *buffer,
                                           my_off_t length) {
+  /*
+    Enable/disable binlog cache temporary file encryption according to the
+    setting of global binlog_encryption if both binlog cache temporary
+    file encryption and the setting of global binlog_encryption are not
+    consistent on the first writting of binlog cache after changing the
+    setting of global binlog_encryption.
+  */
+  if (unlikely((m_io_cache.m_encryptor == nullptr ||
+                m_io_cache.m_decryptor == nullptr) &&
+               rpl_encryption.is_enabled()) ||
+      unlikely((m_io_cache.m_encryptor != nullptr ||
+                m_io_cache.m_decryptor != nullptr) &&
+               !rpl_encryption.is_enabled())) {
+    /*
+      Make sure the binlog cache temporary file is empty before enabling or
+      disabling the binlog cache temporary file encryption.
+    */
+    if (m_io_cache.file == -1 ||
+        my_seek(m_io_cache.file, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE)) == 0) {
+      if (rpl_encryption.is_enabled()) {
+        if (enable_encryption()) return true;
+        if (setup_ciphers_password()) return true;
+      } else
+        disable_encryption();
+    }
+  }
+
   return my_b_safe_write(&m_io_cache, buffer, length);
 }
 
@@ -82,6 +118,23 @@ bool IO_CACHE_binlog_cache_storage::reset() {
     });
   }
 
+  DBUG_EXECUTE_IF("ensure_binlog_cache_temporary_file_is_encrypted", {
+    /*
+      Reset the binlog_cache_temporary_file_is_encrypted at resetting
+      the binlog cache.
+    */
+    binlog_cache_temporary_file_is_encrypted = false;
+  };);
+
+  DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset",
+                  { binlog_cache_is_reset = true; };);
+
+  if (rpl_encryption.is_enabled()) {
+    if (enable_encryption()) return true;
+    if (setup_ciphers_password()) return true;
+  } else
+    disable_encryption();
+
   m_io_cache.disk_writes = 0;
   return false;
 }
@@ -98,6 +151,19 @@ bool IO_CACHE_binlog_cache_storage::begin(unsigned char **buffer,
                                           my_off_t *length) {
   DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
                   { DBUG_SET("+d,simulate_file_write_error"); });
+
+  DBUG_EXECUTE_IF("ensure_binlog_cache_temporary_file_is_encrypted", {
+    /*
+      Assert that the temporary file of binlog cache is encrypted before
+      writting the content of binlog cache into binlog file.
+    */
+    DBUG_ASSERT(binlog_cache_temporary_file_is_encrypted);
+  };);
+
+  DBUG_EXECUTE_IF("ensure_binlog_cache_temp_file_encryption_is_disabled", {
+    DBUG_ASSERT(m_io_cache.m_encryptor == nullptr &&
+                m_io_cache.m_decryptor == nullptr);
+  };);
 
   if (reinit_io_cache(&m_io_cache, READ_CACHE, 0, false, false)) {
     DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
@@ -131,6 +197,58 @@ my_off_t IO_CACHE_binlog_cache_storage::length() const {
   return m_io_cache.end_of_file;
 }
 
+bool IO_CACHE_binlog_cache_storage::enable_encryption() {
+  /* Return earlier if already enabled */
+  if (m_io_cache.m_encryptor != nullptr && m_io_cache.m_decryptor != nullptr)
+    return false;
+
+  if (rpl_encryption.is_enabled()) {
+    std::unique_ptr<Rpl_encryption_header> header =
+        Rpl_encryption_header::get_new_default_header();
+    const Key_string password_str = header->generate_new_file_password();
+
+    std::unique_ptr<Stream_cipher> encryptor = header->get_encryptor();
+    if (encryptor->open(password_str, 0)) return true;
+
+    std::unique_ptr<Stream_cipher> decryptor = header->get_decryptor();
+    if (decryptor->open(password_str, 0)) return true;
+
+    m_io_cache.m_encryptor = encryptor.release();
+    m_io_cache.m_decryptor = decryptor.release();
+  }
+  return false;
+}
+
+void IO_CACHE_binlog_cache_storage::disable_encryption() {
+  if (m_io_cache.m_encryptor != nullptr) {
+    delete m_io_cache.m_encryptor;
+    m_io_cache.m_encryptor = nullptr;
+  }
+  if (m_io_cache.m_decryptor != nullptr) {
+    delete m_io_cache.m_decryptor;
+    m_io_cache.m_decryptor = nullptr;
+  }
+}
+
+bool IO_CACHE_binlog_cache_storage::setup_ciphers_password() {
+  DBUG_ASSERT(m_io_cache.m_encryptor != nullptr &&
+              m_io_cache.m_decryptor != nullptr);
+
+  unsigned char password[Aes_ctr_encryptor::PASSWORD_LENGTH];
+  Key_string password_str;
+
+  /* Generate password, it is a random string. */
+  if (my_rand_buffer(password, sizeof(password))) return true;
+  password_str.append(password, sizeof(password));
+
+  m_io_cache.m_encryptor->close();
+  m_io_cache.m_decryptor->close();
+
+  if (m_io_cache.m_encryptor->open(password_str, 0)) return true;
+  if (m_io_cache.m_decryptor->open(password_str, 0)) return true;
+  return false;
+}
+
 bool Binlog_cache_storage::open(my_off_t cache_size, my_off_t max_cache_size) {
   const char *LOG_PREFIX = "ML";
 
@@ -141,7 +259,7 @@ bool Binlog_cache_storage::open(my_off_t cache_size, my_off_t max_cache_size) {
 }
 
 void Binlog_cache_storage::close() {
-  m_pipeline_head = NULL;
+  m_pipeline_head = nullptr;
   m_file.close();
 }
 
@@ -195,7 +313,7 @@ bool Binlog_encryption_ostream::open(
 }
 
 std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
-  DBUG_ENTER("Binlog_encryption_ostream::reencrypt");
+  DBUG_TRACE;
   DBUG_ASSERT(m_header != nullptr);
   DBUG_ASSERT(m_down_ostream != nullptr);
   std::string error_message;
@@ -205,12 +323,12 @@ std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
   if (password_str.empty() ||
       DBUG_EVALUATE_IF("fail_to_decrypt_file_password", true, false)) {
     error_message.assign("failed to decrypt the file password");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (m_down_ostream->seek(0) ||
       DBUG_EVALUATE_IF("fail_to_reset_file_stream", true, false)) {
     error_message.assign("failed to reset the file out stream");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   m_header.reset(nullptr);
   m_header = Rpl_encryption_header::get_new_default_header();
@@ -218,27 +336,27 @@ std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
       DBUG_EVALUATE_IF("fail_to_encrypt_file_password", true, false)) {
     error_message.assign(
         "failed to encrypt the file password with current encryption key");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (m_header->serialize(m_down_ostream.get()) ||
       DBUG_EVALUATE_IF("fail_to_write_reencrypted_header", true, false)) {
     error_message.assign("failed to write the new reencrypted file header");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (flush() ||
       DBUG_EVALUATE_IF("fail_to_flush_reencrypted_header", true, false)) {
     error_message.assign("failed to flush the new reencrypted file header");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (sync() ||
       DBUG_EVALUATE_IF("fail_to_sync_reencrypted_header", true, false)) {
     error_message.assign(
         "failed to synchronize the new reencrypted file header");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   close();
 
-  DBUG_RETURN(std::make_pair(false, error_message));
+  return std::make_pair(false, error_message);
 }
 
 void Binlog_encryption_ostream::close() {

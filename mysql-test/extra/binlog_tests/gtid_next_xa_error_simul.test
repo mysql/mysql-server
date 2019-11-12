@@ -98,6 +98,9 @@ if (!$one_phase)
           --eval INSERT INTO mysql.gtid_executed VALUES ('$uuida',$xid,$xid)
 
       --source include/rpl_connection_master.inc
+        --disable_query_log
+        SET @@SESSION.debug = "+d,disable_se_persists_gtid";
+        --enable_query_log
         # The "head" reported error won't be ER_XA_RBROLLBACK
         --let $errno_at_prepare=ER_LOCK_WAIT_TIMEOUT
     }
@@ -128,7 +131,7 @@ if (!$one_phase)
       --echo *** The failed at XA PREPARE trx is rolled back, so XA RECOVER ***
       --echo *** results in empty list: ***
       XA RECOVER;
-     }
+    }
     --source include/rpl_connection_master.inc
     # Display XA specific error among other reported ones incl the "head" one
     SHOW WARNINGS;
@@ -137,6 +140,12 @@ if (!$one_phase)
     if ($log_bin)
     {
        SET @@SESSION.debug = "-d,simulate_xa_failure_prepare";
+    }
+    if (!$log_bin)
+    {
+       --disable_query_log
+       SET @@SESSION.debug = "-d,disable_se_persists_gtid";
+       --enable_query_log
     }
     #
     # Prove that the simulated error in saving GTID does not update
@@ -186,9 +195,9 @@ if (!$one_phase)
 
     # Prove that the prepared XA did not enroll 'mysql.gtid_executed', so
     # its gtid record has been already committed:
-    --eval SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = '$uuida' AND interval_start = $xid AND interval_end = $xid
+    --eval SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = '$uuida' AND interval_end = $xid
     # No rows of the table is being locked by any other (XA) transaction
-    SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
+    SELECT sum(interval_end+1)-sum(interval_start) as "count" FROM mysql.gtid_executed FOR UPDATE;
   }
 
   --source include/rpl_connection_master.inc
@@ -217,6 +226,9 @@ if ($error_simul == "at_commit")
        --eval INSERT INTO mysql.gtid_executed VALUES ('$uuidb',$xid,$xid)
 
      --source include/rpl_connection_master.inc
+     --disable_query_log
+     SET @@SESSION.debug = "+d,disable_se_persists_gtid";
+     --enable_query_log
     # The "head" reported error won't be ER_XA_RBROLLBACK
     --let $errno_at_commit=ER_LOCK_WAIT_TIMEOUT
    }
@@ -244,6 +256,9 @@ if ($error_simul == "at_commit")
     --source include/rpl_connection_master.inc
     # Display XA specific error among other reported ones incl the "head" one
     SHOW WARNINGS;
+    --disable_query_log
+    SET @@SESSION.debug = "-d,disable_se_persists_gtid";
+    --enable_query_log
     #
     # Prove that the simulated error in saving GTID does not update
     # neither 'mysql.gtid_executed' table nor @@global.gtid_executed.

@@ -1,10 +1,5 @@
-//>>built
 define("dojox/gauges/_Indicator", ["dojo/_base/lang","dojo/_base/declare","dojo/_base/fx","dojo/_base/html","dojo/_base/connect","dijit/_Widget","dojo/dom-construct", "dojo/dom-class"], 
 function(lang,declare,fx,html,connect,Widget,dom,domClass) {
-
-/*=====
-	Widget = dijit._Widget;
-=====*/
 
 return declare("dojox.gauges._Indicator",[Widget],{
 	// summary:
@@ -42,20 +37,20 @@ return declare("dojox.gauges._Indicator",[Widget],{
 	//	|	</div>
 
 	// value: Number
-	// 		The value (on the gauge) that this indicator should be placed at
+	//		The value (on the gauge) that this indicator should be placed at
 	value: 0,
 
 	// type: String
-	// 		The type of indicator to draw.  Varies by gauge type.  Some examples include
-	// "line", "arrow", and "bar"
+	//		The type of indicator to draw.  Varies by gauge type.  Some examples include
+	//		"line", "arrow", and "bar"
 	type: '',
 
 	// color: String
-	// 		The color of the indicator.
+	//		The color of the indicator.
 	color: 'black',
 	
 	// strokeColor: String
-	// 		The color to stroke the outline of the indicator.
+	//		The color to stroke the outline of the indicator.
 	strokeColor: '',
 
 	// label: String
@@ -63,60 +58,60 @@ return declare("dojox.gauges._Indicator",[Widget],{
 	label: '',
 
 	// font: Object
-	// 		The font for the indicator. The font is enerally in a format similar to:
-	// 		{family: "Helvetica", weight: "bold", style: "italic", size: "18pt", rotated: true}
+	//		The font for the indicator. The font is enerally in a format similar to:
+	//		{family: "Helvetica", weight: "bold", style: "italic", size: "18pt", rotated: true}
 	font: {family: "sans-serif", size: "12px"},
 
 	// length: Number
-	// 		The length of the indicator.  In the above example, the radius of the AnalogGauge
-	// 		is 125, but the length of the indicator is 135, meaning it would project beyond
-	// 		the edge of the AnalogGauge
+	//		The length of the indicator.  In the above example, the radius of the AnalogGauge
+	//		is 125, but the length of the indicator is 135, meaning it would project beyond
+	//		the edge of the AnalogGauge
 	length: 0,
 
 	// width: Number
-	// 		The width of the indicator.
+	//		The width of the indicator.
 	width: 0,
 
 	// offset: Number
-	// 		The offset of the indicator
+	//		The offset of the indicator
 	offset: 0,
 
 	// hover: String
-	// 		The string to put in the tooltip when this indicator is hovered over.
+	//		The string to put in the tooltip when this indicator is hovered over.
 	hover: '',
 
 	// front: boolean
-	// 		Keep this indicator at the front
+	//		Keep this indicator at the front
 	front: false,
 
 	// onDragMove: String
-	// 		The function to call when this indicator is moved by dragging.
+	//		The function to call when this indicator is moved by dragging.
 	//		onDragMove: '',
 
 	// easing: String|Object
-	// 		indicates the easing function to be used when animating the of an indicator.
+	//		indicates the easing function to be used when animating the of an indicator.
 	easing: fx._defaultEasing,
 
 	// duration: Number
-	// 		indicates how long an animation of the indicator should take
+	//		indicates how long an animation of the indicator should take
 	duration: 1000,
 
 	// hideValues: Boolean
-	// 		Indicates whether the text boxes showing the value of the indicator (as text
-	// 		content) should be hidden or shown.  Default is not hidden, aka shown.
+	//		Indicates whether the text boxes showing the value of the indicator (as text
+	//		content) should be hidden or shown.  Default is not hidden, aka shown.
 	hideValue: false,
 
 	// noChange: Boolean
-	// 		Indicates whether the indicator's value can be changed.  Useful for
-	// 		a static target indicator.  Default is false (that the value can be changed).
+	//		Indicates whether the indicator's value can be changed.  Useful for
+	//		a static target indicator.  Default is false (that the value can be changed).
 	noChange: false,
 
 	// interactionMode: String
-	// 		The interactionMode can have two values: "indicator" (the default) or "gauge".
-	// 		When the value is "indicator", the user must click on the indicator to change the value.
-	// 		When the value is "gauge", the user can click on the gauge to change the indicator value.
-	// 		If a gauge contains several indicators with the indicatorMode property set to "gauge", then
-	// 		only the first indicator will be moved when clicking the gauge.
+	//		The interactionMode can have two values: "indicator" (the default) or "gauge".
+	//		When the value is "indicator", the user must click on the indicator to change the value.
+	//		When the value is "gauge", the user can click on the gauge to change the indicator value.
+	//		If a gauge contains several indicators with the indicatorMode property set to "gauge", then
+	//		only the first indicator will be moved when clicking the gauge.
 	interactionMode: "indicator",
 	
 	_gauge: null,
@@ -144,7 +139,7 @@ return declare("dojox.gauges._Indicator",[Widget],{
 	},
 		
 	buildRendering: function(){
-		// summary: 
+		// summary:
 		//		Overrides _Widget.buildRendering
 		
 		var n = this.domNode = this.srcNodeRef ? this.srcNodeRef: dom.create("div");

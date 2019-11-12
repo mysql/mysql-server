@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ IF(NOT WIN32)
     MESSAGE(STATUS ${ARGV} "Currently LDAP SASL client authentication plug-in is build with only system installed cyrus SASL library.")
   ENDIF()
 
-  IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  IF(FREEBSD)
     INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
     LIST(APPEND CMAKE_REQUIRED_INCLUDES "/usr/local/include")
   ENDIF()

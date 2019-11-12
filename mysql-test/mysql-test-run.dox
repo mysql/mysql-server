@@ -191,7 +191,6 @@
 
   <h3>Table of Contents</h3>
   - @subpage PAGE_TEST_FRAMEWORK_SYSTEM_REQUIREMENTS
-  - @subpage PAGE_TEST_FRAMEWORK_SSL
   - @subpage PAGE_REPORT_BUGS
 
   The MySQL test framework consists of programs that run tests, and
@@ -700,46 +699,6 @@
 */
 
 ###############################################################################
-
-
-
-## The Test Framework and SSL
-
-/**
-  @page PAGE_TEST_FRAMEWORK_SSL The Test Framework and SSL
-
-  When @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" starts, it
-  checks whether <b>mysqld</b> supports SSL connections:
-
-  <ul>
-    <li>
-      If <b>mysqld</b> supports SSL, @ref PAGE_MYSQL_TEST_RUN_PL
-      "mysql-test-run.pl" starts it with the proper
-      <b>`--ssl`-<em>xxx</em></b> options that enable it to
-      accept SSL connections for those test cases that require secure
-      connections (those with “ssl” in their name). As @ref
-      PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" runs test cases, a
-      secure connection to <b>mysqld</b> is initiated for those cases
-      that require one. For those test cases that do not require SSL,
-      an unencrypted connection is initiated.
-    </li>
-
-    <li>
-      If <b>mysqld</b> does not support SSL, @ref PAGE_MYSQL_TEST_RUN_PL
-      "mysql-test-run.pl" skips those test cases that require secure
-      connections.
-    </li>
-  </ul>
-
-  If @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" is started with
-  the <b>`--ssl`</b> option, it sets up a secure connection for all
-  test cases. In this case, if <b>mysqld</b> does not support SSL,
-  @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" exits with an error
-  message: <b>Couldn't find support for SSL</b>.
-*/
-
-###############################################################################
-
 
 
 ## How to Report Bugs from Tests in the MySQL Test Suite
@@ -2257,13 +2216,7 @@
   @page PAGE_INCLUDE_FILES Using Include Files to Simplify Test Cases
 
   The <b>include</b> directory contains many files intended for
-  inclusion into test case files. For example, if a test case needs to
-  verify that the server supports <b>SSL</b> connections, use this
-  line in the test case file:
-
-  @verbatim
-  --source include/have_ssl.inc
-  @endverbatim
+  inclusion into test case files.
 
   These include files serve many purposes, but in general, they
   encapsulate operations of varying complexity into single files so
@@ -3410,7 +3363,6 @@
       public key, see [The SHA-256 Authentication Plugin]
       (https://dev.mysql.com/doc/refman/8.0/en/sha256-authentication-plugin.html).
 
-      This option is available only if MySQL was built using OpenSSL.
     </li>
 
     <li>
@@ -4961,12 +4913,6 @@
     </li>
 
     <li>
-      <tt>`--skip-ssl`</tt>
-
-      Do not start <b>mysqld</b> with support for SSL connections.
-    </li>
-
-    <li>
       <tt>`--skip-test`=<b>regex</b></tt>
 
       Specify a regular expression to be applied to test case names.
@@ -5011,17 +4957,6 @@
 
       Pass the <b>`--sp-protocol`</b> option to @ref PAGE_MYSQLTEST
       "mysqltest".
-    </li>
-
-    <li>
-      <tt>`--ssl`</tt>
-
-      If @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" is started
-      with the <b>`--ssl`</b> option, it sets up a secure connection
-      for all test cases. In this case, if <b>mysqld</b> does not
-      support SSL, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl"
-      exits with an error message: <b>Couldn't find support for
-      SSL</b>
     </li>
 
     <li>
@@ -5956,7 +5891,8 @@
       <tt>connect (<b>name</b>, <b>host_name</b>,
                    <b>user_name</b>, <b>password</b>, <b>db_name</b>
                    [,<b>port_num</b> [,<b>socket</b> [,<b>options</b>
-                   [,<b>default_auth</b>]]]])</tt>
+                   [,<b>default_auth</b> [,<b>compression algorithm</b>,
+                   [,<b>compression level</b>]]]]]])</tt>
 
       Open a connection to the server and make the connection the
       current connection.
@@ -6033,9 +5969,6 @@
               <tt>TCP</tt>: Use the TCP/IP connection protocol.
             </li>
 
-            <li>
-              <tt>SSL</tt>: Use a secure connection.
-            </li>
           </ul>
 
           Passing <b>PIPE</b> or <b>SHM</b> on non-Windows systems
@@ -6051,6 +5984,34 @@
           "mysqltest" does not find the plugin, use the
           <b>--plugin-dir</b> option to specify the directory where
           the plugin is located.
+        </li>
+
+        <li>
+          <b><em>compression algorithm</em></b> is the name of compression
+          algorithm to be used to compress data transferred between client
+          server. It is passed to the <b>mysql_options()</b> C API function
+          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>zstd compression level</em></b> is the extent of compression
+          to be applied when zstd compression algorithm is used. It is passed to
+          the <b>mysql_options()</b> C API function using the
+          <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>compression algorithm</em></b> is the name of compression
+          algorithm to be used to comrpess data transferred between client
+          server. It is passed to the <b>mysql_options()</b> C API function
+          using the <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
+        </li>
+
+        <li>
+          <b><em>compression level</em></b> is the extent of compression to
+          be applied based on the compression algorithm used. It is passed to
+          the <b>mysql_options()</b> C API function using the
+          <b>MYSQL_OPT_COMPRESSION_ALGORITHMS</b> option.
         </li>
       </ul>
 
@@ -7608,6 +7569,21 @@
       having them affect results. This means that care should be taken
       with <b>sorted_result</b> because it has the potential of hiding
       server bugs that result in true problems with result order.
+    </li>
+
+    <li>
+      <tt>partially_sorted_result <b>start_column</b></tt>
+
+      Similarly to <b>sorted_result</b>, but assumes that the first
+      <b>start_column</b> columns are already sorted, sorting only
+      on the remaining ones. This is useful if you wish to verify
+      a partial ordering property, e.g. that <b>SELECT a,b,c ORDER BY
+      a</b>. In this case, you could use <b>partially_sorted_result 1</b>
+      to sort only on b and c, giving deterministic results without
+      masking bugs where sorting on a column would not work correctly.
+
+      <tt>sorted_result</tt> is functionally equal to
+      <tt>partially_sorted_result 0</tt>.
     </li>
 
     <li>

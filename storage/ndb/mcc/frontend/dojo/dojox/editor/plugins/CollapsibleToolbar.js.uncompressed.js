@@ -1,4 +1,3 @@
-//>>built
 define("dojox/editor/plugins/CollapsibleToolbar", [
 	"dojo",
 	"dijit",
@@ -12,9 +11,9 @@ define("dojox/editor/plugins/CollapsibleToolbar", [
 	"dojo/_base/declare",
 	"dojo/i18n",
 	"dojo/i18n!dojox/editor/plugins/nls/CollapsibleToolbar"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, _Widget, _TemplatedMixin, _Plugin) {
 
-dojo.declare("dojox.editor.plugins._CollapsibleToolbarButton", [dijit._Widget, dijit._TemplatedMixin], {
+dojo.declare("dojox.editor.plugins._CollapsibleToolbarButton", [_Widget, _TemplatedMixin], {
 	// summary:
 	//		Simple internal widget for representing a clickable button for expand/collapse
 	//		with A11Y support.
@@ -47,13 +46,13 @@ dojo.declare("dojox.editor.plugins._CollapsibleToolbarButton", [dijit._Widget, d
 });
 
 
-dojo.declare("dojox.editor.plugins.CollapsibleToolbar",dijit._editor._Plugin,{
+dojo.declare("dojox.editor.plugins.CollapsibleToolbar", _Plugin, {
 	// summary:
 	//		This plugin provides a weappable toolbar container to allow expand/collapse
 	//		of the editor toolbars.  This plugin should be registered first in most cases to
 	//		avoid conflicts in toolbar construction.
 
-	// _myWidgets: [private] array
+	// _myWidgets: [private] Array
 	//		Container for widgets I allocate that will need to be destroyed.
 	_myWidgets: null,
 

@@ -5,30 +5,32 @@
   display: block;
   margin: 0;
   padding: 5px;
-  border: #ADAAAD 1px solid;
-  background-color: #8C8A8C;
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#9c9e9c), to(#848284));
-  -webkit-border-radius: 3px;
+  border-width: 1px;
+  border-style: solid;
   opacity: .97;
+  border-color: #adaaad;
+  border-radius: 3px;
+  background-color: #8c8a8c;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#9c9e9c), to(#848284));
 }
 .mblTooltipBubble {
   overflow: visible;
   padding: 3px;
-  background-color: #FFC700;
+  background-color: #306ea1;
   background-image: none;
-  color: black;
+  color: white;
 }
 .mblTooltipBubble.mblTooltipAbove .mblTooltipInnerArrow {
-  border-bottom-color: #FFC700;
+  border-bottom-color: #306ea1;
 }
 .mblTooltipBubble.mblTooltipBelow .mblTooltipInnerArrow {
-  border-top-color: #FFC700;
+  border-top-color: #306ea1;
 }
 .mblTooltipBubble.mblTooltipAfter .mblTooltipInnerArrow {
-  border-left-color: #FFC700;
+  border-left-color: #306ea1;
 }
 .mblTooltipBubble.mblTooltipBefore .mblTooltipInnerArrow {
-  border-right-color: #FFC700;
+  border-right-color: #306ea1;
 }
 .mblTooltip.mblTooltipAfter {
   margin-left: -11px;
@@ -75,7 +77,7 @@
   top: 0;
   bottom: auto;
   border-left-width: 0;
-  border-right-color: #ADAAAD;
+  border-right-color: #adaaad;
 }
 .mblTooltipAfter .mblTooltipArrow {
   left: 1px;
@@ -83,7 +85,7 @@
   top: 0;
   bottom: auto;
   border-right-width: 0;
-  border-left-color: #ADAAAD;
+  border-left-color: #adaaad;
 }
 .mblTooltipAbove .mblTooltipArrow {
   top: auto;
@@ -91,7 +93,7 @@
   left: auto;
   right: auto;
   border-top-width: 0;
-  border-bottom-color: #ADAAAD;
+  border-bottom-color: #adaaad;
 }
 .mblTooltipBelow .mblTooltipArrow {
   top: 1px;
@@ -99,7 +101,7 @@
   left: auto;
   right: auto;
   border-bottom-width: 0;
-  border-top-color: #ADAAAD;
+  border-top-color: #adaaad;
 }
 .mblTooltipInnerArrow {
   position: absolute;
@@ -124,7 +126,7 @@
   bottom: 0;
   left: 0;
   border-top-width: 0;
-  border-bottom-color: #9C9E9C;
+  border-bottom-color: #9c9e9c;
 }
 .mblTooltipBelow .mblTooltipInnerArrow {
   top: 0;
@@ -134,6 +136,10 @@
 }
 .mblTooltipHidden, .mblTooltipHidden * {
   visibility: hidden !important;
+}
+.mblTooltipHidden {
+  top: -99999px !important;
+  left: -99999px !important;
 }
 .mblTooltip .mblHeading {
   padding-bottom: 3px;

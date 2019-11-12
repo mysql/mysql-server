@@ -459,12 +459,16 @@ set names latin1;
 select hex(cast('a' as char(2) binary));
 hex(cast('a' as char(2) binary))
 61
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 select hex(cast('a' as binary(2)));
 hex(cast('a' as binary(2)))
 6100
 select hex(cast('a' as char(2) binary));
 hex(cast('a' as char(2) binary))
 61
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE TABLE t1 (d1 datetime);
 INSERT INTO t1(d1) VALUES ('2007-07-19 08:30:00'), (NULL),
 ('2007-07-19 08:34:00'), (NULL), ('2007-07-19 08:36:00');
@@ -598,3 +602,288 @@ c5
 2
 3
 DROP TABLE t;
+#
+# CAST as DOUBLE/FLOAT/REAL
+#
+SELECT CAST(1/3 AS FLOAT) as float_col,
+CAST(1/3 AS DOUBLE) as double_col,
+CAST(1/3 AS DOUBLE PRECISION) as double_prec_col,
+CAST(1/3 AS REAL) as real_col;
+float_col	double_col	double_prec_col	real_col
+0.333333	0.333333333	0.333333333	0.333333333
+SELECT CAST(1/3 AS FLOAT(10)), CAST(1/3 AS FLOAT(53));
+CAST(1/3 AS FLOAT(10))	CAST(1/3 AS FLOAT(53))
+0.333333	0.333333333
+SELECT CAST(1/3 AS FLOAT(-1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
+SELECT CAST(1/3 AS FLOAT(54));
+ERROR 42000: Too-big precision 54 specified for 'CAST'. Maximum is 53.
+SELECT CAST(1/3 AS DOUBLE(52));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(52))' at line 1
+SELECT CAST(1/3 AS REAL(34));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(34))' at line 1
+SELECT CAST(999.00009 AS FLOAT(7,4)) as float_col;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',4)) as float_col' at line 1
+SELECT CAST(999.00009 AS DOUBLE(7,4)) as double_col;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(7,4)) as double_col' at line 1
+SELECT CAST(999.00009 AS REAL(7,4)) as real_col;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(7,4)) as real_col' at line 1
+SELECT ADDDATE(CAST("20010101235959.9" AS DOUBLE), INTERVAL 1 DAY);
+ADDDATE(CAST("20010101235959.9" AS DOUBLE), INTERVAL 1 DAY)
+2001-01-02 23:59:59.898438
+SELECT TIMEDIFF(CAST("101112" AS DOUBLE), TIME'101010');
+TIMEDIFF(CAST("101112" AS DOUBLE), TIME'101010')
+00:01:02.000000
+SELECT CAST(DATE'2000-01-01' AS FLOAT), CAST(DATE'2000-01-01' AS DOUBLE);
+CAST(DATE'2000-01-01' AS FLOAT)	CAST(DATE'2000-01-01' AS DOUBLE)
+20000100	20000101
+SELECT CAST(TIME'23:59:59' AS FLOAT), CAST(TIME'23:59:59' AS DOUBLE);
+CAST(TIME'23:59:59' AS FLOAT)	CAST(TIME'23:59:59' AS DOUBLE)
+235959	235959
+SELECT CAST(TIME'23:59:59.123456' AS FLOAT),
+CAST(TIME'23:59:59.123456' AS DOUBLE);
+CAST(TIME'23:59:59.123456' AS FLOAT)	CAST(TIME'23:59:59.123456' AS DOUBLE)
+235959	235959.123456
+SELECT CAST(TIMESTAMP'2000-01-01 23:59:59' AS FLOAT),
+CAST(TIMESTAMP'2000-01-01 23:59:59' AS DOUBLE);
+CAST(TIMESTAMP'2000-01-01 23:59:59' AS FLOAT)	CAST(TIMESTAMP'2000-01-01 23:59:59' AS DOUBLE)
+20000100000000	20000101235959
+SELECT CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS FLOAT),
+CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS DOUBLE);
+CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS FLOAT)	CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS DOUBLE)
+20000100000000	20000101235959.125
+CREATE TABLE t1 as SELECT CAST(1/3 AS FLOAT) as float_col,
+CAST(1/3 AS DOUBLE) as double_col,
+CAST(CAST(999.00009 AS DECIMAL(7,4)) AS DOUBLE) as d2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `float_col` float DEFAULT NULL,
+  `double_col` double DEFAULT NULL,
+  `d2` double NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+SELECT PERIOD_ADD(200905, CAST(3.14e19 AS DOUBLE));
+ERROR 22003: BIGINT value is out of range in 'cast(3.14e19 as double)'
+SELECT -1.0 *  CAST(3.14e19 AS DOUBLE);
+-1.0 *  CAST(3.14e19 AS DOUBLE)
+-3.14e19
+SELECT CAST("3.14e100" AS FLOAT);
+ERROR 22003: DOUBLE value is out of range in 'cast('3.14e100' as float)'
+SELECT CAST(-1e308 as FLOAT);
+ERROR 22003: DOUBLE value is out of range in 'cast(-(1e308) as float)'
+SELECT CONCAT("value=", CAST("3.4e5" AS FLOAT));
+CONCAT("value=", CAST("3.4e5" AS FLOAT))
+value=340000
+CREATE VIEW v1 AS SELECT CAST(1/3 AS REAL), CAST(1/3 AS FLOAT(2)), CAST(1/3 AS FLOAT(50));
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast((1 / 3) as double) AS `CAST(1/3 AS REAL)`,cast((1 / 3) as float) AS `CAST(1/3 AS FLOAT(2))`,cast((1 / 3) as double) AS `CAST(1/3 AS FLOAT(50))`	latin1	latin1_swedish_ci
+DROP VIEW v1;
+SELECT CAST(NULL AS REAL), CAST(NULL AS FLOAT), CAST(NULL AS DOUBLE);
+CAST(NULL AS REAL)	CAST(NULL AS FLOAT)	CAST(NULL AS DOUBLE)
+NULL	NULL	NULL
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=REAL_AS_FLOAT;
+CREATE TABLE t AS SELECT CAST(34 AS REAL);
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `CAST(34 AS REAL)` float NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+CREATE TABLE t AS SELECT CAST(34 AS REAL);
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `CAST(34 AS REAL)` double NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t;
+SELECT MAKETIME(1, 2, CAST("1.6" AS FLOAT));
+MAKETIME(1, 2, CAST("1.6" AS FLOAT))
+01:02:01.600000
+#
+# WL#12108: Inject type cast nodes into the item tree to avoid data
+# type mismatches.
+#
+CREATE TABLE dt_t (dt DATETIME, d DATE, t TIME);
+CREATE TABLE n_t (i INT, d DECIMAL, f FLOAT, dc DECIMAL);
+#
+# DATETIME + NUMERICS
+#
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.i;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`dt` as double) = cast(`test`.`n_t`.`i` as double))
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`dt` as double) = cast(`test`.`n_t`.`d` as double))
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.f;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`dt` as double) = `test`.`n_t`.`f`)
+#
+# DATE + NUMERICS
+#
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.i;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = cast(`test`.`n_t`.`i` as double))
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = cast(`test`.`n_t`.`d` as double))
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.f;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = `test`.`n_t`.`f`)
+EXPLAIN SELECT * from dt_t JOIN n_t on dt_t.d = n_t.dc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = cast(`test`.`n_t`.`dc` as double))
+#
+# TIME + NUMERICS
+#
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.i;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`t` as double) = cast(`test`.`n_t`.`i` as double))
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`t` as double) = cast(`test`.`n_t`.`d` as double))
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.f;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`t` as double) = `test`.`n_t`.`f`)
+#
+# DATETIME + DATE
+#
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (`test`.`dt1`.`dt` = cast(`test`.`dt2`.`d` as datetime))
+#
+# DATETIME + TIME
+#
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (`test`.`dt1`.`dt` = cast(`test`.`dt2`.`t` as datetime))
+#
+# DATE + TIME
+#
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (cast(`test`.`dt1`.`d` as datetime) = cast(`test`.`dt2`.`t` as datetime))
+EXPLAIN SELECT * FROM dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (`test`.`dt2`.`d` = `test`.`dt1`.`d`)
+EXPLAIN SELECT dt_t.dt = n_t.i from dt_t, n_t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select (cast(`test`.`dt_t`.`dt` as double) = cast(`test`.`n_t`.`i` as double)) AS `dt_t.dt = n_t.i` from `test`.`dt_t` join `test`.`n_t`
+EXPLAIN SELECT MAX(dt_t.d) AS max_d, MAX(n_t.i) AS max_i
+FROM dt_t, n_t HAVING max_d = max_i;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`dt_t`.`d`) AS `max_d`,max(`test`.`n_t`.`i`) AS `max_i` from `test`.`dt_t` join `test`.`n_t` having (cast(`max_d` as double) = cast(`max_i` as double))
+EXPLAIN SELECT dt=d from dt_t ORDER BY dt = d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`dt_t`.`dt` = cast(`test`.`dt_t`.`d` as datetime)) AS `dt=d` from `test`.`dt_t` order by (`test`.`dt_t`.`dt` = cast(`test`.`dt_t`.`d` as datetime))
+EXPLAIN SELECT * from dt_t ORDER BY dt = d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t` from `test`.`dt_t` order by (`test`.`dt_t`.`dt` = cast(`test`.`dt_t`.`d` as datetime))
+EXPLAIN SELECT d=t, LEAD(d,1) OVER w FROM dt_t WINDOW w AS (ORDER BY d=t);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using filesort
+Warnings:
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select (cast(`test`.`dt_t`.`d` as datetime) = cast(`test`.`dt_t`.`t` as datetime)) AS `d=t`,lead(`test`.`dt_t`.`d`,1) OVER `w` AS `LEAD(d,1) OVER w` from `test`.`dt_t` window `w` AS (ORDER BY (cast(`test`.`dt_t`.`d` as datetime) = cast(`test`.`dt_t`.`t` as datetime)) ) 
+EXPLAIN SELECT LEAD(d,1) OVER w FROM dt_t WINDOW w AS (ORDER BY d=t);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using filesort
+Warnings:
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select lead(`test`.`dt_t`.`d`,1) OVER `w` AS `LEAD(d,1) OVER w` from `test`.`dt_t` window `w` AS (ORDER BY (cast(`test`.`dt_t`.`d` as datetime) = cast(`test`.`dt_t`.`t` as datetime)) ) 
+DROP TABLE dt_t, n_t;
+CREATE TABLE t1 (spID int, userID int, date date);
+INSERT INTO t1 VALUES (1,1,'1998-01-01');
+INSERT INTO t1 VALUES (2,2,'2001-02-03');
+INSERT INTO t1 VALUES (3,1,'1988-12-20');
+INSERT INTO t1 VALUES (4,2,'1972-12-12');
+EXPLAIN SELECT MIN(t1.userID) = MIN(date) FROM t1  GROUP BY userid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select (cast(min(`test`.`t1`.`userID`) as double) = cast(min(`test`.`t1`.`date`) as double)) AS `MIN(t1.userID) = MIN(date)` from `test`.`t1` group by `test`.`t1`.`userID`
+EXPLAIN SELECT FIRST_VALUE(date) OVER (ORDER BY spID = date) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+Warnings:
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select first_value(`test`.`t1`.`date`) OVER (ORDER BY (cast(`test`.`t1`.`spID` as double) = cast(`test`.`t1`.`date` as double)) )  AS `FIRST_VALUE(date) OVER (ORDER BY spID = date)` from `test`.`t1`
+EXPLAIN SELECT date, spid = FIRST_VALUE(date) OVER (ORDER BY date ) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
+Warnings:
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select `test`.`t1`.`date` AS `date`,(cast(`test`.`t1`.`spID` as double) = cast(first_value(`test`.`t1`.`date`) OVER (ORDER BY `test`.`t1`.`date` )  as double)) AS `spid = FIRST_VALUE(date) OVER (ORDER BY date )` from `test`.`t1`
+#
+# No casts when constants or constant functions are involved
+#
+EXPLAIN SELECT * from t1 WHERE userID = DATE'2012-02-20';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`spID` AS `spID`,`test`.`t1`.`userID` AS `userID`,`test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`userID` = DATE'2012-02-20')
+EXPLAIN SELECT * FROM t1 WHERE date = NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`spID` AS `spID`,`test`.`t1`.`userID` AS `userID`,`test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = NULL)
+EXPLAIN SELECT * FROM t1 WHERE date = CAST('20:21:22' AS TIME);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`spID` AS `spID`,`test`.`t1`.`userID` AS `userID`,`test`.`t1`.`date` AS `date` from `test`.`t1` where (`test`.`t1`.`date` = <cache>(cast('20:21:22' as time)))
+DROP TABLE t1;

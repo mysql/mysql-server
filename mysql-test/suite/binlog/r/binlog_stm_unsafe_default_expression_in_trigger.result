@@ -1,0 +1,56 @@
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+CREATE TABLE t1 (a DOUBLE DEFAULT (PI()),
+b DOUBLE DEFAULT (RAND()));
+CREATE TABLE t2 (x INT);
+CREATE TABLE t3 (y DOUBLE DEFAULT (PI()));
+# Test R1.
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1 VALUES ();
+INSERT INTO t2 VALUES ();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP TRIGGER t2_trigger;
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(a) VALUES (1);
+INSERT INTO t2 VALUES ();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP TRIGGER t2_trigger;
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(b) VALUES (DEFAULT);
+INSERT INTO t2 VALUES ();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP TRIGGER t2_trigger;
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(b) VALUES (1);
+INSERT INTO t2 VALUES ();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP TRIGGER t2_trigger;
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW UPDATE t1 SET a = DEFAULT;
+INSERT INTO t2 VALUES ();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP TRIGGER t2_trigger;
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW UPDATE t1 SET b = DEFAULT;
+INSERT INTO t2 VALUES ();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP TRIGGER t2_trigger;
+# Test R2.
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t3 VALUES ();
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+# Test R3.
+INSERT INTO t1 VALUES ();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+INSERT INTO t1 (b) VALUES (DEFAULT);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+INSERT INTO t1 (b) VALUES (1);
+DROP TABLE t1, t2, t3;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -250,8 +250,6 @@ inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
     }
 
     table->acquire();
-
-    MONITOR_INC(MONITOR_TABLE_REFERENCE);
   }
 
   if (!dict_locked) {
@@ -283,8 +281,6 @@ inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
     }
 
     table->acquire();
-
-    MONITOR_INC(MONITOR_TABLE_REFERENCE);
   }
 
   if (!dict_locked) {

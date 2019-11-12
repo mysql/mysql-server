@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,11 @@
 #include <execinfo.h>
 #endif
 
+#ifdef __FreeBSD__
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+#endif
+
 #ifdef __linux__
 /* __bss_start doesn't seem to work on FreeBSD and doesn't exist on OSX/Solaris.
  */
@@ -71,8 +76,8 @@ static const char *heap_start;
 extern char *__bss_start;
 #endif /* __linux */
 
-inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
-                     const char *heap_end MY_ATTRIBUTE((unused))) {
+static inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
+                            const char *heap_end MY_ATTRIBUTE((unused))) {
 #ifdef __linux__
   return p && p >= heap_start && p <= heap_end;
 #else
@@ -180,27 +185,7 @@ void my_safe_puts_stderr(const char *val, size_t max_len) {
   my_safe_printf_stderr("%s", "\n");
 }
 
-#if defined(HAVE_PRINTSTACK)
-
-/* Use Solaris' symbolic stack trace routine. */
-#include <ucontext.h>
-
-void my_print_stacktrace(uchar *stack_bottom MY_ATTRIBUTE((unused)),
-                         ulong thread_stack MY_ATTRIBUTE((unused))) {
-  if (printstack(fileno(stderr)) == -1)
-    my_safe_printf_stderr(
-        "%s", "Error when traversing the stack, stack appears corrupt.\n");
-  else
-    my_safe_printf_stderr(
-        "Please read "
-        "http://dev.mysql.com/doc/refman/%u.%u/en/resolve-stack-dump.html\n"
-        "and follow instructions on how to resolve the stack trace.\n"
-        "Resolved stack trace is much more helpful in diagnosing the\n"
-        "problem, so please do resolve it\n",
-        MYSQL_VERSION_MAJOR, MYSQL_VERSION_MINOR);
-}
-
-#elif defined(HAVE_BACKTRACE)
+#if defined(HAVE_BACKTRACE)
 
 #ifdef HAVE_ABI_CXA_DEMANGLE
 
@@ -228,7 +213,21 @@ static bool my_demangle_symbol(char *line) {
     }
   }
   if (demangled) my_safe_printf_stderr("%s %s %s\n", line, demangled, end + 1);
-#else             // !__APPLE__
+#elif defined(__SUNPRO_CC)  // Solaris has different formatting .....
+  char *begin = strchr(line, '\'');
+  char *end = begin ? strchr(begin, '+') : NULL;
+  if (begin && end) {
+    *begin++ = *end++ = '\0';
+    int status = 0;
+    demangled = my_demangle(begin, &status);
+    if (!demangled || status) {
+      demangled = NULL;
+      begin[-1] = ' ';
+      end[-1] = '+';
+    }
+  }
+  if (demangled) my_safe_printf_stderr("%s %s+%s\n", line, demangled, end);
+#else                       // !__APPLE__ and !__SUNPRO_CC
   char *begin = strchr(line, '(');
   char *end = begin ? strchr(begin, '+') : NULL;
 
@@ -243,12 +242,14 @@ static bool my_demangle_symbol(char *line) {
     }
   }
   if (demangled) my_safe_printf_stderr("%s(%s+%s\n", line, demangled, end);
-#endif            // !__APPLE__
+#endif
   bool ret = (demangled == NULL);
   free(demangled);
   return (ret);
 }
 
+// If it does not start with "_Z" it is a C function, and demangling fails.
+// Print the original line, with modifications done by my_demangle_symbol().
 static void my_demangle_symbols(char **addrs, int n) {
   for (int i = 0; i < n; i++) {
     if (my_demangle_symbol(addrs[i]))  // demangling failed
@@ -258,7 +259,27 @@ static void my_demangle_symbols(char **addrs, int n) {
 
 #endif /* HAVE_ABI_CXA_DEMANGLE */
 
-void my_print_stacktrace(uchar *stack_bottom, ulong thread_stack) {
+void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
+#if defined(__FreeBSD__)
+  static char procname_buffer[2048];
+  unw_cursor_t cursor;
+  unw_context_t uc;
+  unw_word_t ip;
+
+  unw_getcontext(&uc);
+  unw_init_local(&cursor, &uc);
+  unw_word_t offp;
+  while (unw_step(&cursor) > 0) {
+    unw_get_reg(&cursor, UNW_REG_IP, &ip);
+    unw_get_proc_name(&cursor, procname_buffer, sizeof(procname_buffer), &offp);
+    int status;
+    char *demangled = my_demangle(procname_buffer, &status);
+    my_safe_printf_stderr("[0x%lx] %s+0x%lx\n", ip,
+                          demangled ? demangled : procname_buffer, offp);
+    if (demangled) free(demangled);
+  }
+#endif
+
   void *addrs[128];
   char **strings = NULL;
   int n = backtrace(addrs, array_elements(addrs));
@@ -275,7 +296,7 @@ void my_print_stacktrace(uchar *stack_bottom, ulong thread_stack) {
   }
 }
 
-#endif /* HAVE_PRINTSTACK || HAVE_BACKTRACE */
+#endif /* HAVE_BACKTRACE */
 #endif /* HAVE_STACKTRACE */
 
 /* Produce a core for the thread */
@@ -388,7 +409,7 @@ static void get_symbol_path(char *path, size_t size) {
 #define SYMOPT_NO_PROMPTS 0
 #endif
 
-void my_print_stacktrace(uchar *unused1, ulong unused2) {
+void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   HANDLE hProcess = GetCurrentProcess();
   HANDLE hThread = GetCurrentThread();
   static IMAGEHLP_MODULE64 module = {sizeof(module)};

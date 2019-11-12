@@ -42,6 +42,7 @@
 #include "my_macros.h"
 #include "my_sys.h" /* Needed for MY_ERRNO_ERANGE */
 #include "stdarg.h"
+#include "template_utils.h"
 
 /*
   Returns the number of bytes required for strnxfrm().
@@ -629,8 +630,9 @@ noconv:
     Value of number in string
 */
 
-double my_strntod_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *str,
-                       size_t length, const char **end, int *err) {
+double my_strntod_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                       const char *str, size_t length, const char **end,
+                       int *err) {
   if (length == INT_MAX32) length = 65535; /* Should be big enough */
   *end = str + length;
   return my_strtod(str, end, err);
@@ -726,21 +728,23 @@ cnv:
   return len + sign;
 }
 
-  /*
-  ** Compare string against string with wildcard
-  **	0 if matched
-  **	-1 if not matched with wildcard
-  **	 1 if matched with wildcard
-  */
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
 
 #define likeconv(s, A) (uchar)(s)->sort_order[(uchar)(A)]
 #define INC_PTR(cs, A, B) (A)++
 
 static int my_wildcmp_8bit_impl(const CHARSET_INFO *cs, const char *str,
-                                const char *str_end, const char *wildstr,
-                                const char *wildend, int escape, int w_one,
+                                const char *str_end, const char *wildstr_arg,
+                                const char *wildend_arg, int escape, int w_one,
                                 int w_many, int recurse_level) {
   int result = -1; /* Not found, using wildcards */
+  const uchar *wildstr = pointer_cast<const uchar *>(wildstr_arg);
+  const uchar *wildend = pointer_cast<const uchar *>(wildend_arg);
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
   while (wildstr != wildend) {
@@ -787,9 +791,9 @@ static int my_wildcmp_8bit_impl(const CHARSET_INFO *cs, const char *str,
         while (str != str_end && (uchar)likeconv(cs, *str) != cmp) str++;
         if (str++ == str_end) return (-1);
         {
-          int tmp =
-              my_wildcmp_8bit_impl(cs, str, str_end, wildstr, wildend, escape,
-                                   w_one, w_many, recurse_level + 1);
+          int tmp = my_wildcmp_8bit_impl(
+              cs, str, str_end, pointer_cast<const char *>(wildstr),
+              wildend_arg, escape, w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
       } while (str != str_end);

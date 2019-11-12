@@ -1,241 +1,53 @@
+var common_stmts = require("common_statements");
+
+var options = {
+  innodb_cluster_cluster_name: "mycluster",
+  innodb_cluster_insances: [ ["localhost", 5500], ["localhost", 5510], ["localhost", 5520] ],
+};
+
+var common_responses = common_stmts.prepare_statement_responses([
+  "router_select_schema_version",
+  "router_select_group_membership_with_primary_mode",
+  "router_select_group_replication_primary_member",
+  "router_select_metadata",
+  "router_count_clusters_and_replicasets",
+  "router_check_member_state",
+  "router_select_members_count",
+  "router_select_replication_group_name",
+  "router_show_cipher_status",
+  "router_select_cluster_instances",
+  "router_start_transaction",
+  "router_rollback",
+], options);
+
+var common_responses_regex = common_stmts.prepare_statement_responses_regex([
+  "router_select_hosts",
+  "router_insert_into_hosts",
+  "router_insert_into_routers",
+  "router_delete_old_accounts",
+], options);
+
+var create_user_long_name_stmt_regex = "^CREATE USER 'mysql_router.*'@'veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost'.*";
+
 ({
-  "stmts": [
-    {
-      "stmt": "SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "major"
-          },
-          {
-            "type": "LONGLONG",
-            "name": "minor"
-          },
-          {
-            "type": "LONGLONG",
-            "name": "patch"
-          }
-        ],
-        "rows": [
-          [
-            1,
-            0,
-            1
-          ]
-        ]
-      }
-    },
-    {
-      "stmt": "SELECT  ((SELECT count(*) FROM mysql_innodb_cluster_metadata.clusters) <= 1  AND (SELECT count(*) FROM mysql_innodb_cluster_metadata.replicasets) <= 1) as has_one_replicaset, (SELECT attributes->>'$.group_replication_group_name' FROM mysql_innodb_cluster_metadata.replicasets)  = @@group_replication_group_name as replicaset_is_ours",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "has_one_replicaset"
-          },
-          {
-            "type": "LONGLONG",
-            "name": "replicaset_is_ours"
-          }
-        ],
-        "rows": [
-          [
-            1,
-            1
-          ]
-        ]
-      }
-    },
-    {
-      "stmt": "SELECT member_state FROM performance_schema.replication_group_members WHERE member_id = @@server_uuid",
-      "result": {
-        "columns": [
-          {
-            "type": "STRING",
-            "name": "member_state"
-          }
-        ],
-        "rows": [
-          [
-            "ONLINE"
-          ]
-        ]
-      }
-    },
-    {
-      "stmt": "SELECT SUM(IF(member_state = 'ONLINE', 1, 0)) as num_onlines, COUNT(*) as num_total FROM performance_schema.replication_group_members",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "num_onlines"
-          },
-          {
-            "type": "LONGLONG",
-            "name": "num_total"
-          }
-        ],
-        "rows": [
-          [
-            3,
-            3
-          ]
-        ]
-      }
-    },
-    {
-      "stmt": "select @@group_replication_group_name",
-      "result": {
-        "columns": [
-          {
-            "type": "STRING",
-            "name": "@@group_replication_group_name"
-          }
-        ],
-        "rows": [
-          [
-            "replication-1"
-          ]
-        ]
-      }
-    },
-    {
-      "stmt": "show status like 'ssl_cipher'",
-      "result": {
-        "columns": [
-          {
-            "type": "STRING",
-            "name": "Variable_name"
-          },
-          {
-            "type": "STRING",
-            "name": "Value"
-          }
-        ],
-        "rows": [
-          [
-            "Ssl_cipher",
-            ""
-          ]
-        ]
-      }
-    },
-    {
-      "stmt": "SELECT F.cluster_name, R.replicaset_name, R.topology_type, JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) FROM mysql_innodb_cluster_metadata.clusters AS F, mysql_innodb_cluster_metadata.instances AS I, mysql_innodb_cluster_metadata.replicasets AS R WHERE R.replicaset_id = (SELECT replicaset_id FROM mysql_innodb_cluster_metadata.instances WHERE mysql_server_uuid = @@server_uuid)AND I.replicaset_id = R.replicaset_id AND R.cluster_id = F.cluster_id",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "cluster_name"
-          },
-          {
-            "type": "STRING",
-            "name": "replicaset_name"
-          },
-          {
-            "type": "STRING",
-            "name": "topology_type"
-          },
-          {
-            "type": "STRING",
-            "name": "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic'))"
-          }
-        ],
-        "rows": [
-          [
-            "test",
-            "default",
-            "pm",
-            "localhost:5500"
-          ],
-          [
-            "test",
-            "default",
-            "pm",
-            "localhost:5510"
-          ],
-          [
-            "test",
-            "default",
-            "pm",
-            "localhost:5520"
-          ]
-        ]
-      }
-    },
-    {
-      "stmt": "START TRANSACTION",
-      "ok": {}
-    },
-    {
-      "stmt.regex": "SELECT host_id, host_name, ip_address FROM mysql_innodb_cluster_metadata.hosts WHERE host_name = '.*' LIMIT 1",
-      "result": {
-        "columns": [
-          {
-            "type": "STRING",
-            "name": "host_id"
-          },
-          {
-            "type": "STRING",
-            "name": "host_name"
-          },
-          {
-            "type": "STRING",
-            "name": "ip_address"
-          }
-        ]
-      }
-    },
-
-    // register router
-    {
-      "stmt.regex": "^INSERT INTO mysql_innodb_cluster_metadata.hosts.*",
-      "ok": {
-        "last_insert_id": 12 // host_id
-      }
-    },
-    {
-      "stmt.regex": "^INSERT INTO mysql_innodb_cluster_metadata.routers.*",
-      "ok": {
-        "last_insert_id": 34 // router_id
-      }
-    },
-
-
-
-    // delete all old accounts if necessarry (ConfigGenerator::delete_account_for_all_hosts())
-    {
-      "stmt.regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
-      "result": {
-        "columns": [
-          {
-            "type": "LONGLONG",
-            "name": "COUNT..."
-          }
-        ],
-        "rows": []  // to keep it simple, just tell Router there's no old accounts to erase
-      }
-    },
-
-
-
-    // try to create a user with hostname too long
-    {
-      "stmt.regex": "^CREATE USER mysql_router.*'veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost'.*",
-      "error": {
-        "code": 1470,
-        "message": "String 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost' is too long for host name (should be no longer than 60)",
-        "sql_state": "HY000"
-      }
-    },
-    {
-      "stmt": "ROLLBACK",
-      "ok": {}
-    },
-    {
-      "stmt": "ROLLBACK",
-      "ok": {}
+  stmts: function (stmt) {
+    if (common_responses.hasOwnProperty(stmt)) {
+      return common_responses[stmt];
     }
-  ]
+    else if ((res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !== undefined) {
+      return res;
+    }
+    else if (stmt.match(create_user_long_name_stmt_regex)) {
+      return {
+        error: {
+          code: 1470,
+          sql_state: "HY000",
+          message: "String 'veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost' is too long for host name (should be no longer than 60)",
+        }
+      }
+    }
+    else {
+      return common_stmts.unknown_statement_response(stmt);
+    }
+  }
 })

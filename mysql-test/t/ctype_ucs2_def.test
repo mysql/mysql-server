@@ -1,6 +1,3 @@
-# Test needs myisam for subtest for Bug#32705
--- source include/have_myisam.inc
-
 #
 # MySQL Bug#15276: MySQL ignores collation-server
 #
@@ -38,19 +35,6 @@ CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET ucs2 COLLATE ucs2_bin NOT NULL,
 INSERT INTO t1 VALUES('A', 'A'), ('B', 'B'), ('C', 'C');
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES('A ', 'A ');
-DROP TABLE t1;
-
-#
-# Bug#32705 - myisam corruption: Key in wrong position
-#             at page 1024 with ucs2_bin
-#
-CREATE TABLE t1 (
-  c1 CHAR(255) CHARACTER SET UCS2 COLLATE UCS2_BIN NOT NULL,
-  KEY(c1)
-  ) ENGINE=MyISAM;
-INSERT INTO t1 VALUES ('marshall\'s');
-INSERT INTO t1 VALUES ('marsh');
-CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
 --echo End of 5.0 tests

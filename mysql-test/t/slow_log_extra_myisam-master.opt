@@ -1,0 +1,1 @@
+--slow-query-log=1 --long-query-time=1 --log-slow-extra=1

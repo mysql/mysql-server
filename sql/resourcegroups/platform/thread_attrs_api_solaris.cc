@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,8 +133,8 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
 int thread_priority() { return getpriority(PRIO_PROCESS, my_thread_os_id()); }
 
 int thread_priority(my_thread_os_id_t thread_id) {
-  DBUG_ENTER("thread_priority");
-  DBUG_RETURN(getpriority(PRIO_PROCESS, thread_id));
+  DBUG_TRACE;
+  return getpriority(PRIO_PROCESS, thread_id);
 }
 
 bool set_thread_priority(int priority) {
@@ -142,9 +142,9 @@ bool set_thread_priority(int priority) {
 }
 
 bool set_thread_priority(int, my_thread_os_id_t) {
-  DBUG_ENTER("set_thread_priority");
+  DBUG_TRACE;
   // Setting thread priority on solaris is not supported.
-  DBUG_RETURN(false);
+  return false;
 }
 
 uint32_t num_vcpus_using_affinity() {

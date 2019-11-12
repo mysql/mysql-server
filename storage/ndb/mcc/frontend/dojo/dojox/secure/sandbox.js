@@ -1,10 +1,10 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/secure/DOM,dojox/secure/capability,dojo/NodeList-fx,dojo/_base/url"],function(_1,_2,_3){
-_2.provide("dojox.secure.sandbox");
-_2.require("dojox.secure.DOM");
-_2.require("dojox.secure.capability");
-_2.require("dojo.NodeList-fx");
-_2.require("dojo._base.url");
+define("dojox/secure/sandbox",["dojo","dijit","dojox","dojo/require!dojox/secure/DOM,dojox/secure/capability,dojo/NodeList-fx,dojo/_base/url"],function(_1,_2,_3){
+_1.provide("dojox.secure.sandbox");
+_1.require("dojox.secure.DOM");
+_1.require("dojox.secure.capability");
+_1.require("dojo.NodeList-fx");
+_1.require("dojo._base.url");
 (function(){
 var _4=setTimeout;
 var _5=setInterval;
@@ -33,16 +33,16 @@ _6("map");
 _6("some");
 }
 var _9=function(){
-return _2.xhrGet.apply(_2,arguments);
+return _1.xhrGet.apply(_1,arguments);
 };
 _3.secure.sandbox=function(_a){
 var _b=_3.secure.DOM(_a);
 _a=_b(_a);
 var _c=_a.ownerDocument;
-var _d,_2=_3.secure._safeDojoFunctions(_a,_b);
+var _d,_1=_3.secure._safeDojoFunctions(_a,_b);
 var _e=[];
 var _f=["isNaN","isFinite","parseInt","parseFloat","escape","unescape","encodeURI","encodeURIComponent","decodeURI","decodeURIComponent","alert","confirm","prompt","Error","EvalError","RangeError","ReferenceError","SyntaxError","TypeError","Date","RegExp","Number","Object","Array","String","Math","setTimeout","setInterval","clearTimeout","clearInterval","dojo","get","set","forEach","load","evaluate"];
-for(var i in _2){
+for(var i in _1){
 _f.push(i);
 _e.push("var "+i+"=dojo."+i);
 }
@@ -157,7 +157,7 @@ var _26=_b.load=function(url){
 if(url.match(/^[\w\s]*:/)){
 throw new Error("Access denied to cross-site requests");
 }
-return _9({url:(new _2._Url(_b.rootUrl,url))+"",secure:true});
+return _9({url:(new _1._Url(_b.rootUrl,url))+"",secure:true});
 };
 _b.evaluate=function(_27){
 _3.secure.capability.validate(_27,_f,{document:1,element:1});
@@ -186,39 +186,39 @@ _3.secure._safeDojoFunctions=function(_2c,_2d){
 var _2e=["mixin","require","isString","isArray","isFunction","isObject","isArrayLike","isAlien","hitch","delegate","partial","trim","disconnect","subscribe","unsubscribe","Deferred","toJson","style","attr"];
 var doc=_2c.ownerDocument;
 var _2f=_3.secure.unwrap;
-_2.NodeList.prototype.addContent.safetyCheck=function(_30){
+_1.NodeList.prototype.addContent.safetyCheck=function(_30){
 _2d.safeHTML(_30);
 };
-_2.NodeList.prototype.style.safetyCheck=function(_31,_32){
+_1.NodeList.prototype.style.safetyCheck=function(_31,_32){
 if(_31=="behavior"){
 throw new Error("Can not set behavior");
 }
 _2d.safeCSS(_32);
 };
-_2.NodeList.prototype.attr.safetyCheck=function(_33,_34){
+_1.NodeList.prototype.attr.safetyCheck=function(_33,_34){
 if(_34&&(_33=="src"||_33=="href"||_33=="style")){
 throw new Error("Illegal to set "+_33);
 }
 };
 var _35={query:function(_36,_37){
-return _2d(_2.query(_36,_2f(_37||_2c)));
+return _2d(_1.query(_36,_2f(_37||_2c)));
 },connect:function(el,_38){
 var obj=el;
 arguments[0]=_2f(el);
 if(obj!=arguments[0]&&_38.substring(0,2)!="on"){
 throw new Error("Invalid event name for element");
 }
-return _2.connect.apply(_2,arguments);
+return _1.connect.apply(_1,arguments);
 },body:function(){
 return _2c;
 },byId:function(id){
 return _2c.ownerDocument.getElementById(id);
 },fromJson:function(str){
 _3.secure.capability.validate(str,[],{});
-return _2.fromJson(str);
+return _1.fromJson(str);
 }};
 for(var i=0;i<_2e.length;i++){
-_35[_2e[i]]=_2[_2e[i]];
+_35[_2e[i]]=_1[_2e[i]];
 }
 return _35;
 };

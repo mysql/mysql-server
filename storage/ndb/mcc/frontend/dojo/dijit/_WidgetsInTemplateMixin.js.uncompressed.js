@@ -1,15 +1,11 @@
-//>>built
 define("dijit/_WidgetsInTemplateMixin", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
-	"dojo/parser", // parser.parse
-	"dijit/registry"	// registry.findWidgets
-], function(array, declare, parser, registry){
+	"dojo/parser" // parser.parse
+], function(array, declare, parser){
 
 	// module:
 	//		dijit/_WidgetsInTemplateMixin
-	// summary:
-	//		Mixin to supplement _TemplatedMixin when template contains widgets
 
 	return declare("dijit._WidgetsInTemplateMixin", null, {
 		// summary:
@@ -42,7 +38,14 @@ define("dijit/_WidgetsInTemplateMixin", [
 					scope: "dojo"	// even in multi-version mode templates use dojoType/data-dojo-type
 				}));
 
-				this._supportingWidgets = registry.findWidgets(node);
+				if(!cw.isFulfilled()){
+					throw new Error(this.declaredClass + ": parser returned unfilled promise (probably waiting for module auto-load), " +
+						"unsupported by _WidgetsInTemplateMixin.   Must pre-load all supporting widgets before instantiation.");
+				}
+
+				// _WidgetBase::destroy() will destroy any supporting widgets under this.domNode.
+				// If we wanted to, we could call this.own() on anything in this._startupWidgets that was moved outside
+				// of this.domNode (like Dialog, which is moved to <body>).
 
 				this._attachTemplateNodes(cw, function(n,p){
 					return n[p];

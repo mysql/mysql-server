@@ -24,16 +24,19 @@ SET(CLIENT_FULL_LIB_NAME mysqlxclient)
 SET(CLIENT_LITE_LIB_NAME mysqlxclient_lite)
 
 SET(CLIENT_SRC
- "${CMAKE_CURRENT_SOURCE_DIR}/mysql41_hash.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xprotocol_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xrow_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/password_hasher.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/sha256_scramble_generator.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xquery_result_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xsession_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xconnection_impl.cc"
- "${CMAKE_CURRENT_SOURCE_DIR}/xrow.cc"
- "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
+  authentication/mysql41_hash.cc
+  authentication/password_hasher.cc
+  authentication/sha256_scramble_generator.cc
+  xprotocol_impl.cc
+  xrow_impl.cc
+  xquery_result_impl.cc
+  xsession_impl.cc
+  xconnection_impl.cc
+  xcompression_negotiator.cc
+  xcompression_impl.cc
+  xrow.cc
+  validator/capability_compression_validator.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
 )
 
 INCLUDE_DIRECTORIES(
@@ -55,15 +58,18 @@ ADD_COMPILE_FLAGS(${CLIENT_SRC}
   "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
-ADD_CONVENIENCE_LIBRARY(${CLIENT_FULL_LIB_NAME} ${CLIENT_SRC})
+ADD_LIBRARY(${CLIENT_FULL_LIB_NAME} STATIC ${CLIENT_SRC})
 ADD_DEPENDENCIES(${CLIENT_FULL_LIB_NAME} ${MYSQLX_PROTOCOL_FULL_LIB} GenError)
+
+TARGET_LINK_LIBRARIES(${CLIENT_FULL_LIB_NAME} ${LZ4_LIBRARY})
 
 MYSQLX_APPEND_COMPILE_FLAGS(${CLIENT_FULL_LIB_NAME}
   "-DUSE_MYSQLX_FULL_PROTO"
 )
 
-ADD_CONVENIENCE_LIBRARY(${CLIENT_LITE_LIB_NAME} ${CLIENT_SRC})
+ADD_LIBRARY(${CLIENT_LITE_LIB_NAME} STATIC ${CLIENT_SRC})
 ADD_DEPENDENCIES(${CLIENT_LITE_LIB_NAME} ${MYSQLX_PROTOCOL_LITE_LIB} GenError)
+TARGET_LINK_LIBRARIES(${CLIENT_LITE_LIB_NAME} ${LZ4_LIBRARY})
 
 SET(MYSQLX_CLIENT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 SET(MYSQLX_CLIENT_FULL_LIB ${CLIENT_FULL_LIB_NAME} PARENT_SCOPE)

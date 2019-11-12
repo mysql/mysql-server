@@ -1,13 +1,167 @@
-//>>built
-define("dojo/dnd/Moveable", ["../main", "../Evented", "../touch", "./Mover"], function(dojo, Evented, touch) {
-	// module:
-	//		dojo/dnd/Moveable
-	// summary:
-	//		TODOC
+define("dojo/dnd/Moveable", [
+	"../_base/array", "../_base/declare", "../_base/event", "../_base/lang",
+	"../dom", "../dom-class", "../Evented", "../on", "../topic", "../touch", "./common", "./Mover", "../_base/window"
+], function(array, declare, event, lang, dom, domClass, Evented, on, topic, touch, dnd, Mover, win){
 
+// module:
+//		dojo/dnd/Moveable
+
+
+var Moveable = declare("dojo.dnd.Moveable", [Evented], {
+	// summary:
+	//		an object, which makes a node movable
+
+	// object attributes (for markup)
+	handle: "",
+	delay: 0,
+	skip: false,
+
+	constructor: function(node, params){
+		// node: Node
+		//		a node (or node's id) to be moved
+		// params: Moveable.__MoveableArgs?
+		//		optional parameters
+		this.node = dom.byId(node);
+		if(!params){ params = {}; }
+		this.handle = params.handle ? dom.byId(params.handle) : null;
+		if(!this.handle){ this.handle = this.node; }
+		this.delay = params.delay > 0 ? params.delay : 0;
+		this.skip  = params.skip;
+		this.mover = params.mover ? params.mover : Mover;
+		this.events = [
+			on(this.handle, touch.press, lang.hitch(this, "onMouseDown")),
+			// cancel text selection and text dragging
+			on(this.handle, "dragstart",   lang.hitch(this, "onSelectStart")),
+			on(this.handle, "selectstart",   lang.hitch(this, "onSelectStart"))
+		];
+	},
+
+	// markup methods
+	markupFactory: function(params, node, Ctor){
+		return new Ctor(node, params);
+	},
+
+	// methods
+	destroy: function(){
+		// summary:
+		//		stops watching for possible move, deletes all references, so the object can be garbage-collected
+		array.forEach(this.events, function(handle){ handle.remove(); });
+		this.events = this.node = this.handle = null;
+	},
+
+	// mouse event processors
+	onMouseDown: function(e){
+		// summary:
+		//		event processor for onmousedown/ontouchstart, creates a Mover for the node
+		// e: Event
+		//		mouse/touch event
+		if(this.skip && dnd.isFormElement(e)){ return; }
+		if(this.delay){
+			this.events.push(
+				on(this.handle, touch.move, lang.hitch(this, "onMouseMove")),
+				on(this.handle, touch.release, lang.hitch(this, "onMouseUp"))
+			);
+			this._lastX = e.pageX;
+			this._lastY = e.pageY;
+		}else{
+			this.onDragDetected(e);
+		}
+		event.stop(e);
+	},
+	onMouseMove: function(e){
+		// summary:
+		//		event processor for onmousemove/ontouchmove, used only for delayed drags
+		// e: Event
+		//		mouse/touch event
+		if(Math.abs(e.pageX - this._lastX) > this.delay || Math.abs(e.pageY - this._lastY) > this.delay){
+			this.onMouseUp(e);
+			this.onDragDetected(e);
+		}
+		event.stop(e);
+	},
+	onMouseUp: function(e){
+		// summary:
+		//		event processor for onmouseup, used only for delayed drags
+		// e: Event
+		//		mouse event
+		for(var i = 0; i < 2; ++i){
+			this.events.pop().remove();
+		}
+		event.stop(e);
+	},
+	onSelectStart: function(e){
+		// summary:
+		//		event processor for onselectevent and ondragevent
+		// e: Event
+		//		mouse event
+		if(!this.skip || !dnd.isFormElement(e)){
+			event.stop(e);
+		}
+	},
+
+	// local events
+	onDragDetected: function(/*Event*/ e){
+		// summary:
+		//		called when the drag is detected;
+		//		responsible for creation of the mover
+		new this.mover(this.node, e, this);
+	},
+	onMoveStart: function(/*Mover*/ mover){
+		// summary:
+		//		called before every move operation
+		topic.publish("/dnd/move/start", mover);
+		domClass.add(win.body(), "dojoMove");
+		domClass.add(this.node, "dojoMoveItem");
+	},
+	onMoveStop: function(/*Mover*/ mover){
+		// summary:
+		//		called after every move operation
+		topic.publish("/dnd/move/stop", mover);
+		domClass.remove(win.body(), "dojoMove");
+		domClass.remove(this.node, "dojoMoveItem");
+	},
+	onFirstMove: function(/*===== mover, e =====*/){
+		// summary:
+		//		called during the very first move notification;
+		//		can be used to initialize coordinates, can be overwritten.
+		// mover: Mover
+		// e: Event
+
+		// default implementation does nothing
+	},
+	onMove: function(mover, leftTop /*=====, e =====*/){
+		// summary:
+		//		called during every move notification;
+		//		should actually move the node; can be overwritten.
+		// mover: Mover
+		// leftTop: Object
+		// e: Event
+		this.onMoving(mover, leftTop);
+		var s = mover.node.style;
+		s.left = leftTop.l + "px";
+		s.top  = leftTop.t + "px";
+		this.onMoved(mover, leftTop);
+	},
+	onMoving: function(/*===== mover, leftTop =====*/){
+		// summary:
+		//		called before every incremental move; can be overwritten.
+		// mover: Mover
+		// leftTop: Object
+
+		// default implementation does nothing
+	},
+	onMoved: function(/*===== mover, leftTop =====*/){
+		// summary:
+		//		called after every incremental move; can be overwritten.
+		// mover: Mover
+		// leftTop: Object
+
+		// default implementation does nothing
+	}
+});
 
 /*=====
-dojo.declare("dojo.dnd.__MoveableArgs", [], {
+Moveable.__MoveableArgs = declare([], {
 	// handle: Node||String
 	//		A node (or node's id), which is used as a mouse handle.
 	//		If omitted, the node itself is used as a handle.
@@ -23,152 +177,9 @@ dojo.declare("dojo.dnd.__MoveableArgs", [], {
 
 	// mover: Object
 	//		a constructor of custom Mover
-	mover: dojo.dnd.Mover
+	mover: dnd.Mover
 });
 =====*/
 
-dojo.declare("dojo.dnd.Moveable", [Evented], {
-	// object attributes (for markup)
-	handle: "",
-	delay: 0,
-	skip: false,
-
-	constructor: function(node, params){
-		// summary:
-		//		an object, which makes a node moveable
-		// node: Node
-		//		a node (or node's id) to be moved
-		// params: dojo.dnd.__MoveableArgs?
-		//		optional parameters
-		this.node = dojo.byId(node);
-		if(!params){ params = {}; }
-		this.handle = params.handle ? dojo.byId(params.handle) : null;
-		if(!this.handle){ this.handle = this.node; }
-		this.delay = params.delay > 0 ? params.delay : 0;
-		this.skip  = params.skip;
-		this.mover = params.mover ? params.mover : dojo.dnd.Mover;
-		this.events = [
-			dojo.connect(this.handle, touch.press, this, "onMouseDown"),
-			// cancel text selection and text dragging
-			dojo.connect(this.handle, "ondragstart",   this, "onSelectStart"),
-			dojo.connect(this.handle, "onselectstart", this, "onSelectStart")
-		];
-	},
-
-	// markup methods
-	markupFactory: function(params, node, ctor){
-		return new ctor(node, params);
-	},
-
-	// methods
-	destroy: function(){
-		// summary:
-		//		stops watching for possible move, deletes all references, so the object can be garbage-collected
-		dojo.forEach(this.events, dojo.disconnect);
-		this.events = this.node = this.handle = null;
-	},
-
-	// mouse event processors
-	onMouseDown: function(e){
-		// summary:
-		//		event processor for onmousedown/ontouchstart, creates a Mover for the node
-		// e: Event
-		//		mouse/touch event
-		if(this.skip && dojo.dnd.isFormElement(e)){ return; }
-		if(this.delay){
-			this.events.push(
-				dojo.connect(this.handle, touch.move, this, "onMouseMove"),
-				dojo.connect(this.handle, touch.release, this, "onMouseUp")
-			);
-			this._lastX = e.pageX;
-			this._lastY = e.pageY;
-		}else{
-			this.onDragDetected(e);
-		}
-		dojo.stopEvent(e);
-	},
-	onMouseMove: function(e){
-		// summary:
-		//		event processor for onmousemove/ontouchmove, used only for delayed drags
-		// e: Event
-		//		mouse/touch event
-		if(Math.abs(e.pageX - this._lastX) > this.delay || Math.abs(e.pageY - this._lastY) > this.delay){
-			this.onMouseUp(e);
-			this.onDragDetected(e);
-		}
-		dojo.stopEvent(e);
-	},
-	onMouseUp: function(e){
-		// summary:
-		//		event processor for onmouseup, used only for delayed drags
-		// e: Event
-		//		mouse event
-		for(var i = 0; i < 2; ++i){
-			dojo.disconnect(this.events.pop());
-		}
-		dojo.stopEvent(e);
-	},
-	onSelectStart: function(e){
-		// summary:
-		//		event processor for onselectevent and ondragevent
-		// e: Event
-		//		mouse event
-		if(!this.skip || !dojo.dnd.isFormElement(e)){
-			dojo.stopEvent(e);
-		}
-	},
-
-	// local events
-	onDragDetected: function(/* Event */ e){
-		// summary:
-		//		called when the drag is detected;
-		//		responsible for creation of the mover
-		new this.mover(this.node, e, this);
-	},
-	onMoveStart: function(/* dojo.dnd.Mover */ mover){
-		// summary:
-		//		called before every move operation
-		dojo.publish("/dnd/move/start", [mover]);
-		dojo.addClass(dojo.body(), "dojoMove");
-		dojo.addClass(this.node, "dojoMoveItem");
-	},
-	onMoveStop: function(/* dojo.dnd.Mover */ mover){
-		// summary:
-		//		called after every move operation
-		dojo.publish("/dnd/move/stop", [mover]);
-		dojo.removeClass(dojo.body(), "dojoMove");
-		dojo.removeClass(this.node, "dojoMoveItem");
-	},
-	onFirstMove: function(/* dojo.dnd.Mover */ mover, /* Event */ e){
-		// summary:
-		//		called during the very first move notification;
-		//		can be used to initialize coordinates, can be overwritten.
-
-		// default implementation does nothing
-	},
-	onMove: function(/* dojo.dnd.Mover */ mover, /* Object */ leftTop, /* Event */ e){
-		// summary:
-		//		called during every move notification;
-		//		should actually move the node; can be overwritten.
-		this.onMoving(mover, leftTop);
-		var s = mover.node.style;
-		s.left = leftTop.l + "px";
-		s.top  = leftTop.t + "px";
-		this.onMoved(mover, leftTop);
-	},
-	onMoving: function(/* dojo.dnd.Mover */ mover, /* Object */ leftTop){
-		// summary:
-		//		called before every incremental move; can be overwritten.
-
-		// default implementation does nothing
-	},
-	onMoved: function(/* dojo.dnd.Mover */ mover, /* Object */ leftTop){
-		// summary:
-		//		called after every incremental move; can be overwritten.
-
-		// default implementation does nothing
-	}
-});
-
-return dojo.dnd.Moveable;
+return Moveable;
 });

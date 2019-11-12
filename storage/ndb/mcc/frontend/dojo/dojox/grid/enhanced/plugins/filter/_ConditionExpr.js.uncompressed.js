@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/filter/_ConditionExpr", [
 	"dojo/_base/declare",
 	"dojo/_base/lang",
@@ -61,9 +60,8 @@ var _DataExpr = declare("dojox.grid.enhanced.plugins.filter._DataExpr", _Conditi
 	//		this _DataExpr is nothing more than a simple wrapper.
 	//		If the data value to be represent is in a store, then _DataExpr is responsible to extract it
 	//		from the store when this condition is applied to a data row.
-	// private fields:
-	//		_value: anything
-	//		_colArg: anything
+	// _value: [private] anything
+	// _colArg: [private] anything
 	_name: "data",
 
 	constructor: function(/* anything */dataValue,/* bool */isColumn, /* object */convertArgs){
@@ -113,13 +111,10 @@ var _DataExpr = declare("dojox.grid.enhanced.plugins.filter._DataExpr", _Conditi
 	},
 
 	_convertData: function(/* anything */dataValue){
-		// summary:
-		//
 		// tags:
 		//		protected extension
 		// dataValue: anything
 		//		This argument should come from a store.
-		// returns:
 		return dataValue;
 	},
 
@@ -140,7 +135,7 @@ var _OperatorExpr = declare("dojox.grid.enhanced.plugins.filter._OperatorExpr", 
 	//		An operator expression is a _ConditionExpr that represents an operation.
 	_name: "operator",
 
-	constructor: function(/* Array | operand1,operand2,... */){
+	constructor: function(/* Array|operand1,operand2,... */){
 		// summary:
 		//		The arguments are operands (or an array of operands, if the first argument
 		//		is an Array) of this operator, ordering from left to right.

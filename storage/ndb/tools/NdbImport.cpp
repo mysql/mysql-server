@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,6 +261,12 @@ NdbImport::add_table(const char* database, const char* table, uint& tabid)
   return m_impl.add_table(database, table, tabid, m_impl.m_error);
 }
 
+int
+NdbImport::remove_table(const uint table_id)
+{
+  return m_impl.remove_table(table_id);
+}
+
 // job
 
 NdbImport::JobStats::JobStats()
@@ -354,6 +360,14 @@ NdbImport::Job::add_table(const char* database,
   NdbImportImpl& impl = m_imp.m_impl;
   NdbImportImpl::Job* jobImpl = impl.find_job(m_jobno);
   return jobImpl->add_table(database, table, tabid);
+}
+
+int
+NdbImport::Job::remove_table(const uint table_id)
+{
+  NdbImportImpl& impl = m_imp.m_impl;
+  NdbImportImpl::Job* jobImpl = impl.find_job(m_jobno);
+  return jobImpl->remove_table(table_id);
 }
 
 void

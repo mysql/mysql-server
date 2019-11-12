@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,35 +31,23 @@ TempTable custom allocator implementation. */
 
 namespace temptable {
 
-#ifdef TEMPTABLE_PFS_MEMORY
-#ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
-PSI_memory_key mem_key_logical;
-#endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
-
-PSI_memory_key mem_key_physical_disk;
-
-PSI_memory_key mem_key_physical_ram;
-
-PSI_memory_info pfs_info[] = {
-#ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
-    {&mem_key_logical, "logical", 0, 0, PSI_DOCUMENT_ME},
-#endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
-    {&mem_key_physical_disk, "physical_disk", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_physical_ram, "physical_ram", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME},
+/** RAII-managed Allocator thread-resources cleanup class */
+struct End_thread {
+  ~End_thread() {
+    if (!shared_block.is_empty()) {
+      shared_block.destroy();
+    }
+  }
 };
-#endif /* TEMPTABLE_PFS_MEMORY */
 
-#ifdef TEMPTABLE_PFS_MEMORY
-const size_t pfs_info_num_elements = sizeof(pfs_info) / sizeof(pfs_info[0]);
-#endif /* TEMPTABLE_PFS_MEMORY */
+/** Thread-local variable whose destruction will make sure that
+ *  shared memory-block will be destroyed. */
+static thread_local End_thread end_thread;
 
-thread_local uint8_t *shared_block = nullptr;
+/* Global shared memory-block. */
+thread_local Block shared_block;
 
-std::atomic<size_t> bytes_allocated_in_ram(0);
-
-#ifdef TEMPTABLE_USE_LINUX_NUMA
-bool linux_numa_available = false;
-#endif /* TEMPTABLE_USE_LINUX_NUMA */
+/* Initialization of MemoryMonitor static variables. */
+std::atomic<size_t> MemoryMonitor::ram(0);
 
 } /* namespace temptable */

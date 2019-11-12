@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,22 +31,20 @@
 /**
   @class Common_interface
 
-  Common interface that defines the sink, logger and debugger.
+  Common interface that is used to define the sink and logger interfaces.
 */
 class Common_interface {
  public:
   /**
-    The purpose of this method is to force any implementing classes to define
-    a destructor, since it will be used by Gcs_log_manager and Gcs_debug_manager
-    in their finalize methods.
+    Define a virtual destructor as instances of this interface can be
+    polymorphically used.
   */
 
   virtual ~Common_interface() {}
 
   /**
-    The purpose of this method is to initialize any resources used in the
-    logging and debugging system. It is invoked by the
-    Gcs_log_manager::initialize and Gcs_debug_manager::initialize methods.
+    The purpose of this method is to initialize resources used by the objects
+    that implement this interface.
 
     @retval GCS_OK in case everything goes well. Any other value of
             gcs_error in case of error.
@@ -55,14 +53,8 @@ class Common_interface {
   virtual enum_gcs_error initialize() = 0;
 
   /**
-    The purpose of this method is to free any resources used in the logging
-    and debugging system.
-
-    It is invoked by the Gcs_log_manager::finalize and
-    Gcs_debug_manager::finalize methods during the GCS interface termination
-    procedure, and also by the Gcs_log_manager::initialize and
-    Gcs_debug_manager::initialize methods in case a logging system has been
-    previously set up.
+    The purpose of this method is to free any resources used by the objects
+    that implement this interface.
 
     @retval GCS_OK in case everything goes well. Any other value of
             gcs_error in case of error.
@@ -75,23 +67,13 @@ class Common_interface {
   @class Sink_interface
 
   Common sink that may be shared by the logging and debugging systems.
-
-  A typical usage of this interface is the initialization and injection of a
-  logging system:
-
-  @code{.cpp}
-    Sink_interface *sink= new MyGCS_Sink();
-
-    Logger_interface *logger= new MyGCS_Logger(sink);
-    group_if->set_logger(logger);
-  @endcode
 */
 
 class Sink_interface : public Common_interface {
  public:
   /**
-    The purpose of this method is to force any implementing classes to define
-    a destructor.
+    Define a virtual destructor as instances of this interface can be
+    polymorphically used.
   */
 
   virtual ~Sink_interface() {}
@@ -99,19 +81,13 @@ class Sink_interface : public Common_interface {
   /**
     The purpose of this method is to effectively log the information.
 
-    It should be invoked by the logger or debugger objects after the
-    information to be logged has been pre-processed.
-
-    @param[in] message  the message to log
+    @param[in] message the message to log
   */
 
   virtual void log_event(const std::string &message) = 0;
 
   /**
     The purpose of this method is to effectively log the information.
-
-    It should be invoked by the logger or debugger objects after the
-    information to be logged has been pre-processed.
 
     @param[in] message the message to log
     @param[in] message_size message size to log
@@ -141,45 +117,24 @@ static const char *const gcs_log_levels[] = {
 /**
   @class Logger_interface
 
-  Sink that must be implemented and used by any logging systems and inserted
-  in the MySQL GCS logging infrastructure. The actual implementation can be
-  shared between the debugging systems.
-
-  A typical usage of this interface is the initialization and injection of a
-  logging system:
-
-  @code{.cpp}
-    Logger_interface *logger= new MyGCS_Logger();
-    group_if->set_logger(logger);
-  @endcode
-
-  Since the default logging system is initialized in the
-  Gcs_interface::initialize method, this injection should be performed after
-  that step. Otherwise, the injected logger will be finalized and replaced
-  by the default logger.
+  Logger interface that must be used to define a logger object.
 */
 
 class Logger_interface : public Common_interface {
  public:
   /**
-    The purpose of this method is to force any implementing classes to define
-    a destructor, since it will be used by Gcs_log_manager in its finalize
-    method.
+    Define a virtual destructor as instances of this interface can be
+    polymorphically used.
   */
 
   virtual ~Logger_interface() {}
 
   /**
-    The purpose of this method is to deliver to the logging system any event
+    The purpose of this method is to deliver to the logging system any message
     to be logged.
 
-    It shouldn't be invoked directly in the code, as it is wrapped by the
-    MYSQL_GCS_LOG_[LEVEL] macros which deal with the rendering of the logging
-    message into a final string that is then handed alongside with the level to
-    this method.
-
-    @param[in] level  logging level of message
-    @param[in] message  the message to log
+    @param[in] level logging level of message
+    @param[in] message the message to be logged
   */
 
   virtual void log_event(const gcs_log_level_t level,
@@ -189,8 +144,8 @@ class Logger_interface : public Common_interface {
 /**
   @class Gcs_log_manager
 
-  This class sets up and configures the debugging infrastructure, storing the
-  debugger to be used by the application as a singleton.
+  This class sets up and configures the logging infrastructure, storing the
+  logger to be used by the application as a singleton.
 */
 
 class Gcs_log_manager {
@@ -199,13 +154,12 @@ class Gcs_log_manager {
 
  public:
   /**
-    The purpose of this static method is to set the received logging system on
-    the log singleton, and to initialize it, by invoking its implementation of
-    the Logger_interface::initialize method.
+    Set the logger object and initialize it by invoking its initialization
+    method.
 
     This allows any resources needed by the logging system to be initialized,
-    and ensures its usage throughout the lifecycle of the current GCS
-    application.
+    and ensures its usage throughout the lifecycle of the current application,
+    i.e. GCS.
 
     @param[in] logger logging system
     @retval GCS_OK in case everything goes well. Any other value of
@@ -215,21 +169,16 @@ class Gcs_log_manager {
   static enum_gcs_error initialize(Logger_interface *logger);
 
   /**
-    This static method retrieves the currently set logging system, allowing the
-    logging macros to invoke its log_event method.
+    Get a reference to the logger object if there is any.
 
-    @return The current logging system singleton.
+    @return The current logging system.
+
   */
 
   static Logger_interface *get_logger();
 
   /**
-    The purpose of this static method is to free any resources used in the
-    logging system.
-
-    It is invoked by the Gcs_log_manager::finalize method during the GCS
-    interface termination procedure, and also by the Gcs_log_manager::initialize
-    method in case a logging system was set previously.
+    Free any resource used in the logging system.
 
     @retval GCS_OK in case everything goes well. Any other value of
             gcs_error in case of error.
@@ -316,35 +265,45 @@ static const char *const gcs_xcom_debug_strings[] = {
 
 class Gcs_debug_options {
  private:
-  /*
+  /**
     The debug level enabled which is by default GCS_DEBUG_NONE;
-  */
+   */
   static std::atomic<std::int64_t> m_debug_options;
 
-  /*
+  /**
     String that represents the GCS_DEBUG_NONE;
-  */
+   */
   static const std::string m_debug_none;
 
-  /*
+  /**
     String that represents the GCS_DEBUG_ALL;
-  */
+   */
   static const std::string m_debug_all;
 
  public:
-  /*
+  /**
     Atomically load information on debug options.
-  */
+   */
 
   static inline int64_t load_debug_options() {
+    /*
+     We don't need anything stronger than "memory order relaxed" because
+     we are only interested in reading and updating a single variable
+     atomically.
+     */
     return m_debug_options.load(std::memory_order_relaxed);
   }
 
-  /*
+  /**
     Atomically store information on debug options.
-  */
+   */
 
   static inline void store_debug_options(int64_t debug_options) {
+    /*
+     We don't need anything stronger than "memory order relaxed" because
+     we are only interested in reading and updating a single variable
+     atomically.
+    */
     m_debug_options.store(debug_options, std::memory_order_relaxed);
   }
 
@@ -352,6 +311,8 @@ class Gcs_debug_options {
     Verify whether any of the debug options are defined.
 
     @param debug_options Set of debug options to be verified.
+
+    @retval true if it is, false otherwise.
   */
 
   static inline bool test_debug_options(const int64_t debug_options) {
@@ -365,10 +326,8 @@ class Gcs_debug_options {
   static int64_t get_current_debug_options();
 
   /**
-    Get the current set of debug options as a string separated by comma.
-
-    Although, a boolean value is returned in this case it will always
-    return false.
+    Get the current set of debug options as an integer value and as a
+    string separated by comma.
 
     @param[out] res_debug_options String containing the result
   */
@@ -387,6 +346,7 @@ class Gcs_debug_options {
     GCS_DEBUG_NONE and GCS_DEBUG_ALL.
 
     @param[in] debug_options Set of debug options
+    @retval true if success, false otherwise
   */
 
   static bool is_valid_debug_options(const int64_t debug_options);
@@ -396,6 +356,7 @@ class Gcs_debug_options {
     GCS_DEBUG_NONE and GCS_DEBUG_ALL.
 
     @param[in] debug_options Set of debug options
+    @retval false if success, true otherwise.
   */
 
   static bool is_valid_debug_options(const std::string &debug_options);
@@ -408,6 +369,7 @@ class Gcs_debug_options {
 
     @param[in] debug_options Set of debug options
     @param[out] res_debug_options Unsigned integer that contains the result
+    @retval false if success, true otherwise.
   */
 
   static bool get_debug_options(const std::string &debug_options,
@@ -421,6 +383,7 @@ class Gcs_debug_options {
 
     @param[in] debug_options Set of debug options
     @param[out] res_debug_options String that contains the result
+     @retval false if success, true otherwise.
   */
   static bool get_debug_options(const int64_t debug_options,
                                 std::string &res_debug_options);
@@ -433,24 +396,26 @@ class Gcs_debug_options {
 
   /**
     Extend the current set of debug options with new debug options expressed as
-    an unsigned integer parameter.
+    an integer parameter.
 
     If there is any invalid debug option in the debug_options parameter, true
-    is returned.
+    is returned and nothing is changed.
 
     @param[in] debug_options Set of debug options to be added
+    @retval false if success, true otherwise.
   */
 
   static bool set_debug_options(const int64_t debug_options);
 
   /**
     Change the current set of debug options by the new debug options expressed
-    as an unsigned integer parameter.
+    as an integer parameter.
 
     If there is any invalid debug option in the debug_options parameter, true
-    is returned.
+    is returned and nothing is changed.
 
-    @param[in] debug_options Set of debug options to be added
+    @param[in] debug_options Set of debug options to be defined
+    @retval false if success, true otherwise.
   */
 
   static bool force_debug_options(const int64_t debug_options);
@@ -460,9 +425,10 @@ class Gcs_debug_options {
     as a string.
 
     If there is any invalid debug option in the debug_options parameter, true
-    is returned.
+    is returned and nothing is changed.
 
     @param[in] debug_options Set of debug options to be added
+    @retval false if success, true otherwise.
   */
 
   static bool set_debug_options(const std::string &debug_options);
@@ -472,21 +438,24 @@ class Gcs_debug_options {
     as a string.
 
     If there is any invalid debug option in the debug_options parameter, true
-    is returned.
+    is returned and nothing is changed.
 
-    @param[in] debug_options Set of debug options to be added
+    @param[in] debug_options Set of debug options to be defined
+    @retval false if success, true otherwise.
+
   */
 
   static bool force_debug_options(const std::string &debug_options);
 
   /**
     Reduce the current set of debug options by disabling the debug options
-    expressed as an unsigned integer parameter.
+    expressed as an integer parameter.
 
     If there is any invalid debug option in the debug_options parameter, true
-    is returned.
+    is returned and nothing is changed.
 
     @param[in] debug_options Set of debug options to be disabled
+    @retval false if success, true otherwise.
   */
 
   static bool unset_debug_options(const int64_t debug_options);
@@ -496,9 +465,10 @@ class Gcs_debug_options {
     expressed as a string.
 
     If there is any invalid debug option in the debug_options parameter, true
-    is returned.
+    is returned and nothing is changed.
 
     @param[in] debug_options Set of debug options to be disabled
+    @retval false if success, true otherwise.
   */
 
   static bool unset_debug_options(const std::string &debug_options);

@@ -1,0 +1,79 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 2. Bootstrap server1 and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+#######################################################################
+# 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
+[connection server2]
+include/spawn_monitoring_process.inc
+
+############################################################
+# 4. Setup the server so group replication starts on boot
+#    Install the Clone plugin
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 5. Verify clone must not override joiner data.
+#    Joiner must fail to join the group.
+SET GLOBAL group_replication_clone_threshold= 1;
+SET GTID_NEXT= "aaabaaab-bbbb-aaaa-bbbb-aaabaaabaaab:1";
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET GTID_NEXT= "AUTOMATIC";
+include/assert.inc [The member shall contain a local transaction]
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server2]
+DROP TABLE t2;
+RESET MASTER;
+
+############################################################
+# 6. On a empty server2 start group replication
+#    Wait for it to restart and come back
+#    Check clone was completed
+SET GLOBAL group_replication_clone_threshold= 1;
+START GROUP_REPLICATION;
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+include/assert.inc [Clone must be completed]
+include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
+
+############################################################
+# 7. Clone is not allowed on user sessions on group members.
+SET GLOBAL clone_valid_donor_list='localhost:SERVER1_PORT';
+CLONE INSTANCE FROM 'root'@localhost:SERVER1_PORT IDENTIFIED BY '';;
+ERROR HY000: The clone operation cannot be executed when Group Replication is running.
+
+############################################################
+# 8. Cleanup
+SET GLOBAL group_replication_clone_threshold= 9223372036854775807;
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+DROP TABLE t1;
+include/rpl_sync.inc
+set session sql_log_bin=0;
+call mtr.add_suppression(".*This member has more executed transactions *.*");
+call mtr.add_suppression(".*The member contains transactions not present *.*");
+call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+set session sql_log_bin=1;
+include/clean_monitoring_process.inc
+include/group_replication_end.inc

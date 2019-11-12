@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,10 +140,45 @@ public:
   int getBlobVersion() const;
   void setBlobVersion(int blobVersion);
 
+  enum supported_column_changes {
+    COLUMN_NAME = 1
+  };
+  typedef ulonglong column_change_flags;
+  static bool
+  check_change_flag(column_change_flags change_flags,
+                    enum supported_column_changes supported_change)
+  {
+    return (change_flags & (1ULL << supported_change));
+  }
+  static void
+  remove_change_flag(column_change_flags& change_flags,
+                     enum supported_column_changes supported_change)
+  {
+    change_flags &= ~(1ULL << supported_change);
+  }
+  static void
+  add_change_flag(column_change_flags& change_flags,
+                  enum supported_column_changes supported_change)
+  {
+    change_flags |= 1ULL << supported_change;
+  }
+  /**
+   * Compare two columns with optional skipping
+   * of parts of the column properties. This is
+   * to support for changing various parts of columns
+   * as part of an inplace alter table.
+   **/
+  bool equal_skip(const NdbColumnImpl&, column_change_flags&) const;
+
   /**
    * Equality/assign
    */
   bool equal(const NdbColumnImpl&) const;
+
+  /**
+   * Online column alter support
+   */
+  bool alter_supported(const NdbColumnImpl&, column_change_flags&) const;
 
   static NdbColumnImpl & getImpl(NdbDictionary::Column & t);
   static const NdbColumnImpl & getImpl(const NdbDictionary::Column & t);

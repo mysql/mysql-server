@@ -1,8 +1,9 @@
-//>>built
-define("dojox/widget/PlaceholderMenuItem", ["dojo", "dijit", "dojox", "dijit/Menu","dijit/MenuItem"], function(dojo, dijit, dojox){
-dojo.experimental("dojox.widget.PlaceholderMenuItem");
+define("dojox/widget/PlaceholderMenuItem", ["dojo/_base/array", "dojo/_base/declare", "dojo/_base/lang", "dojo/dom-style", "dojo/_base/kernel", "dojo/query", "dijit/registry", "dijit/Menu","dijit/MenuItem"],
+    function(array, declare, lang, style, kernel, query, registry, Menu, MenuItem){
 
-dojo.declare("dojox.widget.PlaceholderMenuItem", dijit.MenuItem, {
+kernel.experimental("dojox.widget.PlaceholderMenuItem");
+
+var PlaceholderMenuItem = declare("dojox.widget.PlaceholderMenuItem", MenuItem, {
 	// summary:
 	//		A menu item that can be used as a placeholder.  Set the label
 	//		of this item to a unique key and you can then use it to add new
@@ -13,7 +14,7 @@ dojo.declare("dojox.widget.PlaceholderMenuItem", dijit.MenuItem, {
 	_isPlaceholder: true,
 
 	postCreate: function(){
-		this.domNode.style.display = "none";
+		style.set(this.domNode, "display", "none");
 		this._replacedWith = [];
 		if(!this.label){
 			this.label = this.containerNode.innerHTML;
@@ -21,7 +22,7 @@ dojo.declare("dojox.widget.PlaceholderMenuItem", dijit.MenuItem, {
 		this.inherited(arguments);
 	},
 	
-	replace: function(/*dijit.MenuItem[]*/ menuItems){
+	replace: function(/*dijit/MenuItem[]*/ menuItems){
 		// summary:
 		//		replaces this menu item with the given menuItems.  The original
 		//		menu item is not actually removed from the menu - so if you want
@@ -35,7 +36,7 @@ dojo.declare("dojox.widget.PlaceholderMenuItem", dijit.MenuItem, {
 
 		var p = this.getParent();
 
-		dojo.forEach(menuItems, function(item){
+		array.forEach(menuItems, function(item){
 			p.addChild(item, index++);
 		});
 		this._replacedWith = menuItems;
@@ -60,7 +61,7 @@ dojo.declare("dojox.widget.PlaceholderMenuItem", dijit.MenuItem, {
 		if(!p){ return []; }
 
 		var r = this._replacedWith;
-		dojo.forEach(this._replacedWith, function(item){
+		array.forEach(this._replacedWith, function(item){
 			p.removeChild(item);
 			if(destroy){
 				item.destroyRecursive();
@@ -69,12 +70,12 @@ dojo.declare("dojox.widget.PlaceholderMenuItem", dijit.MenuItem, {
 		this._replacedWith = [];
 		this._replaced = false;
 
-		return r; // dijit.MenuItem[]
+		return r; // dijit/MenuItem[]
 	}
 });
 
 // Se need to extend dijit.Menu so that we have a getPlaceholders function.
-dojo.extend(dijit.Menu, {
+lang.extend(Menu, {
 	getPlaceholders: function(/*String?*/ label){
 		// summary:
 		//		Returns an array of placeholders with the given label.  There
@@ -87,22 +88,23 @@ dojo.extend(dijit.Menu, {
 		var r = [];
 
 		var children = this.getChildren();
-		dojo.forEach(children, function(child){
+		array.forEach(children, function(child){
 			if(child._isPlaceholder && (!label || child.label == label)){
 				r.push(child);
 			}else if(child._started && child.popup && child.popup.getPlaceholders){
 				r = r.concat(child.popup.getPlaceholders(label));
 			}else if(!child._started && child.dropDownContainer){
-				var node = dojo.query("[widgetId]", child.dropDownContainer)[0];
-				var menu = dijit.byNode(node);
+				var node = query("[widgetId]", child.dropDownContainer)[0];
+				var menu = registry.byNode(node);
 				if(menu.getPlaceholders){
 					r = r.concat(menu.getPlaceholders(label));
 				}
 			}
 		}, this);
-		return r; // dojox.widget.PlaceholderMenuItem[]
+		return r; // dojox/widget/PlaceholderMenuItem[]
 	}
 });
 
-return dojox.widget.PlaceholderMenuItem;
+return PlaceholderMenuItem;
+
 });

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/Selector", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",
@@ -18,11 +17,11 @@ define("dojox/grid/enhanced/plugins/Selector", [
 ], function(dojo, lang, declare, array, event, keys, query, html, win, dijitFocus, _RowSelector, _Plugin, EnhancedGrid){
 
 /*=====
-dojo.declare("__SelectItem", null,{
+declare("__SelectItem", null,{
 	// summary:
 	//		An abstract representation of an item.
 });
-dojo.declare("__SelectCellItem", __SelectItem,{
+declare("__SelectCellItem", __SelectItem,{
 	// summary:
 	//		An abstract representation of a cell.
 	
@@ -34,7 +33,7 @@ dojo.declare("__SelectCellItem", __SelectItem,{
 	//		Column index of this cell
 	col: 0
 });
-dojo.declare("__SelectRowItem", __SelectItem,{
+declare("__SelectRowItem", __SelectItem,{
 	// summary:
 	//		An abstract representation of a row.
 	
@@ -46,7 +45,7 @@ dojo.declare("__SelectRowItem", __SelectItem,{
 	//		An array of column indexes of all the unselected cells in this row.
 	except: []
 });
-dojo.declare("__SelectColItem", __SelectItem,{
+declare("__SelectColItem", __SelectItem,{
 	// summary:
 	//		An abstract representation of a column.
 	
@@ -121,12 +120,13 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	// summary:
 	//		Provides standard extended selection for grid.
 	//		Supports mouse/keyboard selection, multi-selection, and de-selection.
+	//
 	//		Acceptable plugin parameters:
-	//			The whole plugin parameter object is a config object passed to the setupConfig function.
+	//		The whole plugin parameter object is a config object passed to the setupConfig function.
 	//
 	//		Acceptable cell parameters defined in layout:
-	//		1. notselectable: boolean
-	//			Whether this column is (and all the cells in it are) selectable.
+	//
+	//		1. notselectable: Boolean: Whether this column is (and all the cells in it are) selectable.
 	
 	// name: String
 	//		plugin name
@@ -206,12 +206,12 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 		//		Set selection mode for row/col/cell.
 		// config: Object
 		//		An object with the following structure (all properties are optional):
-		//		{
-		//			//Default is "multi", all other values are same as "multi".
-		//			row: false|"disabled"|"single",
-		//			col: false|"disabled"|"single",
-		//			cell: false|"disabled"|"single"
-		//		}
+		// |	{
+		// |		//Default is "multi", all other values are same as "multi".
+		// |		row: false|"disabled"|"single",
+		// |		col: false|"disabled"|"single",
+		// |		cell: false|"disabled"|"single"
+		// |	}
 		if(!config || !lang.isObject(config)){
 			return;
 		}
@@ -235,7 +235,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	isSelected: function(type, rowIndex, colIndex){
 		// summary:
 		//		Check whether a location (a cell, a column or a row) is selected.
-		// tag:
+		// tags:
 		//		public
 		// type: String
 		//		"row" or "col" or "cell"
@@ -244,7 +244,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 		//		If type if "col", this is the column index.
 		// colIndex: Integer?
 		//		Only valid when type is "cell"
-		// return: Boolean
+		// returns: Boolean
 		//		true if selected, false if not. If cell is covered by a selected column, it's selected.
 		return this._isSelected(type, _createItem(type, rowIndex, colIndex));
 	},
@@ -255,7 +255,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	select: function(type, rowIndex, colIndex){
 		// summary:
 		//		Select a location (a cell, a column or a row).
-		// tag:
+		// tags:
 		//		public
 		// type: String
 		//		"row" or "col" or "cell"
@@ -276,14 +276,14 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	selectRange: function(type, start, end, toSelect){
 		// summary:
 		//		Select a continuous range (a block of cells, a set of continuous columns or rows)
-		// tag:
+		// tags:
 		//		public
 		// type: String
 		//		"row" or "col" or "cell"
-		// start: Integer | Object
+		// start: Integer|Object
 		//		If type is "row" or "col", this is the index of the starting row or column.
 		//		If type if "cell", this is the left-top cell of the range.
-		// end: Integer | Object
+		// end: Integer|Object
 		//		If type is "row" or "col", this is the index of the ending row or column.
 		//		If type if "cell", this is the right-bottom cell of the range.
 		this.grid._selectingRange = true;
@@ -297,7 +297,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	clear: function(type){
 		// summary:
 		//		Clear all selections.
-		// tag:
+		// tags:
 		//		public
 		// type: String?
 		//		"row" or "col" or "cell". If omitted, clear all.
@@ -306,11 +306,11 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	isSelecting: function(type){
 		// summary:
 		//		Check whether the user is currently selecting something.
-		// tag:
+		// tags:
 		//		public
 		// type: String
 		//		"row" or "col" or "cell"
-		// return: Boolean
+		// returns: Boolean
 		//		true if is selection, false otherwise.
 		if(typeof type == "undefined"){
 			return this._selecting.col || this._selecting.row || this._selecting.cell;
@@ -321,11 +321,11 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 		// summary:
 		//		Turn on/off this selection functionality if *toEnable* is provided.
 		//		Check whether this selection functionality is enabled if nothing is passed in.
-		// tag:
+		// tags:
 		//		public
 		// toEnable: Boolean?
-		//		To enable or not. Optional.
-		// return: Boolean | undefined
+		//		To enable or not.
+		// returns: Boolean|undefined
 		//		Enabled or not.
 		if(typeof toEnable != "undefined" && !this.isSelecting()){
 			this._enabled = !!toEnable;
@@ -335,13 +335,13 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	getSelected: function(type, includeExceptions){
 		// summary:
 		//		Get an array of selected locations.
-		// tag:
+		// tags:
 		//		public
 		// type: String
 		//		"row" or "col" or "cell"
 		// includeExceptions: Boolean
 		//		Only meaningful for rows/columns. If true, all selected rows/cols, even they are partly selected, are all returned.
-		// return: __SelectItem[]
+		// returns: __SelectItem[]
 		switch(type){
 			case "cell":
 				return array.map(this._selected[type], function(item){ return item; });
@@ -358,13 +358,13 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	getSelectedCount: function(type, includeExceptions){
 		// summary:
 		//		Get the number of selected items.
-		// tag:
+		// tags:
 		//		public
 		// type: String
 		//		"row" or "col" or "cell"
 		// includeExceptions: Boolean
 		//		Only meaningful for rows/columns. If true, all selected rows/cols, even they are partly selected, are all returned.
-		// return: Integer
+		// returns: Integer
 		//		The number of selected items.
 		switch(type){
 			case "cell":
@@ -380,9 +380,9 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	getSelectedType: function(){
 		// summary:
 		//		Get the type of selected items.
-		// tag:
+		// tags:
 		//		public
-		// return: String
+		// returns: String
 		//		"row" or "col" or "cell", or any mix of these (separator is | ).
 		var s = this._selected;
 		return ["",		"cell",		"row",		"row|cell",
@@ -392,9 +392,9 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	getLastSelectedRange: function(type){
 		// summary:
 		//		Get last selected range of the given type.
-		// tag:
+		// tags:
 		//		public
-		// return: Object
+		// returns: Object
 		//		{start: __SelectItem, end: __SelectItem}
 		//		return null if nothing is selected.
 		return this._lastAnchorPoint[type] ? {
@@ -923,7 +923,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 		// summary:
 		//		Clear selection for given type and fire events, but retain the highlight for *reservedItem*,
 		//		thus avoid "flashing".
-		// tag:
+		// tags:
 		//		private
 		// type: String
 		//		"row", "col", or "cell
@@ -959,7 +959,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	_startSelect: function(type, start, extending, isRange, mandatarySelect, toSelect){
 		// summary:
 		//		Start selection, setup start point and current point, fire events.
-		// tag:
+		// tags:
 		//		private
 		// type: String
 		//		"row", "col", or "cell"
@@ -1002,7 +1002,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 			if(type === "row"){
 				this._isUsingRowSelector = true;
 			}
-			this._startPoint[type] = this._lastEndPoint[type];
+			this._startPoint[type] = this._lastAnchorPoint[type];
 			this._highlight(type, this._startPoint[type]);
 			this._isUsingRowSelector = false;
 		}else{
@@ -1019,7 +1019,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	_endSelect: function(type){
 		// summary:
 		//		End selection. Keep records, fire events and cleanup status.
-		// tag:
+		// tags:
 		//		private
 		// type: String
 		//		"row", "col", or "cell"
@@ -1058,6 +1058,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 		// summary:
 		//		Calculate what status should *target* have.
 		//		If *toSelect* is not provided, this is a no op.
+		
 		// This function is time-critical!!
 		if(toSelect !== undefined){
 			var sltd;
@@ -1109,6 +1110,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	_highlightSingle: function(type, toHighlight, target, toSelect, isRefresh){
 		// summary:
 		//		Highlight a single item.
+		
 		// This function is time critical!!
 		var _this = this, toHL, g = _this.grid, cells = g.layout.cells;
 		switch(type){
@@ -1158,6 +1160,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 		//		Highlight from start point to target.
 		// toSelect: Boolean
 		//		Whether we are selecting or deselecting.
+		
 		// This function is time critical!!
 		if(this._selecting[type] && target !== null){
 			var start = this._startPoint[type],
@@ -1224,9 +1227,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 		// summary:
 		//		Blur the current point.
 		var f = this.grid.focus;
-		if(type == "col"){
-			f._blurHeader();
-		}else if(type == "cell"){
+		if(type == "cell"){
 			f._blurContent();
 		}
 	},
@@ -1272,6 +1273,7 @@ var Selector = declare("dojox.grid.enhanced.plugins.Selector", _Plugin, {
 	_forEach: function(type, start, end, func, halfClose){
 		// summary:
 		//		Go through items from *start* point to *end* point.
+		
 		// This function is time critical!!
 		if(!this._isValid(type, start, true) || !this._isValid(type, end, true)){
 			return;

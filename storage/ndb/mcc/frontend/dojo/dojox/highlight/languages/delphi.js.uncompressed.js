@@ -1,5 +1,4 @@
-//>>built
-define("dojox/highlight/languages/delphi", ["dojox/main", "../_base"], function(dojox){
+define("dojox/highlight/languages/delphi", ["../_base"], function(dh){
 
 	var DELPHI_KEYWORDS = {
 		'and': 1, 'safecall': 1, 'cdecl': 1, 'then': 1, 'string': 1,
@@ -38,9 +37,10 @@ define("dojox/highlight/languages/delphi", ["dojox/main", "../_base"], function(
 		'class': 1, 'register': 1, 'xorwrite': 1, 'inline': 1
 	};
 
-	var dh = dojox.highlight, dhc = dh.constants;
+	var dhc = dh.constants;
 	dh.languages.delphi = {
-		// summary: Delphi highlight definitions
+		// summary:
+		//		Delphi highlight definitions
 		defaultMode: {
 			lexems: [dhc.IDENT_RE],
 			illegal: '("|\\$[G-Zg-z]|\\/\\*|</)',

@@ -1,10 +1,5 @@
-//>>built
 define("dojox/gauges/TextIndicator", ["dojo/_base/declare","./_Indicator"],
-  function(declare, Indicator) { 
-
-/*=====
-	Indicator = dojox.gauges._Indicator;
-=====*/
+  function(declare, Indicator) {
 
 return declare("dojox.gauges.TextIndicator", [Indicator], {
 	// summary:
@@ -12,19 +7,19 @@ return declare("dojox.gauges.TextIndicator", [Indicator], {
 	
 	
 	// x: Number
-	// 		The x coordinate of the indicator
+	//		The x coordinate of the indicator
 	x: 0,
 	
 	// y: Number
-	// 		The y coordinate of the indicator
+	//		The y coordinate of the indicator
 	y: 0,
 	
 	// align: String
-	// 		The horizontal alignment of the text, the value can be 'middle' (the default), 'left' or 'right'
+	//		The horizontal alignment of the text, the value can be 'middle' (the default), 'left' or 'right'
 	align: 'middle',
 	
 	// fixedPrecision: Boolean
-	// 		Indicates that the number is displayed in fixed precision or not (precision is defined by the 'precision' property (default is true).
+	//		Indicates that the number is displayed in fixed precision or not (precision is defined by the 'precision' property (default is true).
 	fixedPrecision: true,
 	
 	// precision: Number
@@ -32,7 +27,7 @@ return declare("dojox.gauges.TextIndicator", [Indicator], {
 	precision: 0,
 	
 	draw: function(group, /*Boolean?*/ dontAnimate){
-		// summary: 
+		// summary:
 		//		Override of dojox.gauges._Indicator.draw
 		var v = this.value;
 		

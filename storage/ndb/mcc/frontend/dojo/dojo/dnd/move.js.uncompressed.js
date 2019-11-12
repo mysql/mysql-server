@@ -1,13 +1,14 @@
-//>>built
-define("dojo/dnd/move", ["../main", "./Mover", "./Moveable"], function(dojo) {
-	// module:
-	//		dojo/dnd/move
-	// summary:
-	//		TODOC
+define("dojo/dnd/move", [
+	"../_base/declare",
+	"../dom-geometry", "../dom-style",
+	"./common", "./Mover", "./Moveable"
+], function(declare, domGeom, domStyle, dnd, Mover, Moveable){
 
+// module:
+//		dojo/dnd/move
 
 /*=====
-dojo.declare("dojo.dnd.move.__constrainedMoveableArgs", [dojo.dnd.__MoveableArgs], {
+var __constrainedMoveableArgs = declare([Moveable.__MoveableArgs], {
 	// constraints: Function
 	//		Calculates a constraint box.
 	//		It is called in a context of the moveable object.
@@ -19,7 +20,7 @@ dojo.declare("dojo.dnd.move.__constrainedMoveableArgs", [dojo.dnd.__MoveableArgs
 });
 =====*/
 
-dojo.declare("dojo.dnd.move.constrainedMoveable", dojo.dnd.Moveable, {
+var constrainedMoveable = declare("dojo.dnd.move.constrainedMoveable", Moveable, {
 	// object attributes (for markup)
 	constraints: function(){},
 	within: false,
@@ -29,14 +30,14 @@ dojo.declare("dojo.dnd.move.constrainedMoveable", dojo.dnd.Moveable, {
 		//		an object that makes a node moveable
 		// node: Node
 		//		a node (or node's id) to be moved
-		// params: dojo.dnd.move.__constrainedMoveableArgs?
+		// params: __constrainedMoveableArgs?
 		//		an optional object with additional parameters;
 		//		the rest is passed to the base class
 		if(!params){ params = {}; }
 		this.constraints = params.constraints;
 		this.within = params.within;
 	},
-	onFirstMove: function(/* dojo.dnd.Mover */ mover){
+	onFirstMove: function(/*Mover*/ mover){
 		// summary:
 		//		called during the very first move notification;
 		//		can be used to initialize coordinates, can be overwritten.
@@ -44,12 +45,12 @@ dojo.declare("dojo.dnd.move.constrainedMoveable", dojo.dnd.Moveable, {
 		c.r = c.l + c.w;
 		c.b = c.t + c.h;
 		if(this.within){
-			var mb = dojo._getMarginSize(mover.node);
+			var mb = domGeom.getMarginSize(mover.node);
 			c.r -= mb.w;
 			c.b -= mb.h;
 		}
 	},
-	onMove: function(/* dojo.dnd.Mover */ mover, /* Object */ leftTop){
+	onMove: function(/*Mover*/ mover, /*Object*/ leftTop){
 		// summary:
 		//		called during every move notification;
 		//		should actually move the node; can be overwritten.
@@ -64,14 +65,14 @@ dojo.declare("dojo.dnd.move.constrainedMoveable", dojo.dnd.Moveable, {
 });
 
 /*=====
-dojo.declare("dojo.dnd.move.__boxConstrainedMoveableArgs", [dojo.dnd.move.__constrainedMoveableArgs], {
+var __boxConstrainedMoveableArgs = declare([__constrainedMoveableArgs], {
 	// box: Object
 	//		a constraint box
 	box: {}
 });
 =====*/
 
-dojo.declare("dojo.dnd.move.boxConstrainedMoveable", dojo.dnd.move.constrainedMoveable, {
+var boxConstrainedMoveable = declare("dojo.dnd.move.boxConstrainedMoveable", constrainedMoveable, {
 	// box:
 	//		object attributes (for markup)
 	box: {},
@@ -81,7 +82,7 @@ dojo.declare("dojo.dnd.move.boxConstrainedMoveable", dojo.dnd.move.constrainedMo
 		//		an object, which makes a node moveable
 		// node: Node
 		//		a node (or node's id) to be moved
-		// params: dojo.dnd.move.__boxConstrainedMoveableArgs?
+		// params: __boxConstrainedMoveableArgs?
 		//		an optional object with parameters
 		var box = params && params.box;
 		this.constraints = function(){ return box; };
@@ -89,7 +90,7 @@ dojo.declare("dojo.dnd.move.boxConstrainedMoveable", dojo.dnd.move.constrainedMo
 });
 
 /*=====
-dojo.declare("dojo.dnd.move.__parentConstrainedMoveableArgs", [dojo.dnd.move.__constrainedMoveableArgs], {
+var __parentConstrainedMoveableArgs = declare( [__constrainedMoveableArgs], {
 	// area: String
 	//		A parent's area to restrict the move.
 	//		Can be "margin", "border", "padding", or "content".
@@ -97,7 +98,7 @@ dojo.declare("dojo.dnd.move.__parentConstrainedMoveableArgs", [dojo.dnd.move.__c
 });
 =====*/
 
-dojo.declare("dojo.dnd.move.parentConstrainedMoveable", dojo.dnd.move.constrainedMoveable, {
+var parentConstrainedMoveable = declare("dojo.dnd.move.parentConstrainedMoveable", constrainedMoveable, {
 	// area:
 	//		object attributes (for markup)
 	area: "content",
@@ -107,38 +108,40 @@ dojo.declare("dojo.dnd.move.parentConstrainedMoveable", dojo.dnd.move.constraine
 		//		an object, which makes a node moveable
 		// node: Node
 		//		a node (or node's id) to be moved
-		// params: dojo.dnd.move.__parentConstrainedMoveableArgs?
+		// params: __parentConstrainedMoveableArgs?
 		//		an optional object with parameters
 		var area = params && params.area;
 		this.constraints = function(){
 			var n = this.node.parentNode,
-				s = dojo.getComputedStyle(n),
-				mb = dojo._getMarginBox(n, s);
+				s = domStyle.getComputedStyle(n),
+				mb = domGeom.getMarginBox(n, s);
 			if(area == "margin"){
 				return mb;	// Object
 			}
-			var t = dojo._getMarginExtents(n, s);
+			var t = domGeom.getMarginExtents(n, s);
 			mb.l += t.l, mb.t += t.t, mb.w -= t.w, mb.h -= t.h;
 			if(area == "border"){
 				return mb;	// Object
 			}
-			t = dojo._getBorderExtents(n, s);
+			t = domGeom.getBorderExtents(n, s);
 			mb.l += t.l, mb.t += t.t, mb.w -= t.w, mb.h -= t.h;
 			if(area == "padding"){
 				return mb;	// Object
 			}
-			t = dojo._getPadExtents(n, s);
+			t = domGeom.getPadExtents(n, s);
 			mb.l += t.l, mb.t += t.t, mb.w -= t.w, mb.h -= t.h;
 			return mb;	// Object
 		};
 	}
 });
 
-// patching functions one level up for compatibility
 
-dojo.dnd.constrainedMover = dojo.dnd.move.constrainedMover;
-dojo.dnd.boxConstrainedMover = dojo.dnd.move.boxConstrainedMover;
-dojo.dnd.parentConstrainedMover = dojo.dnd.move.parentConstrainedMover;
+return {
+	// summary:
+	//		TODOC
+	constrainedMoveable: constrainedMoveable,
+	boxConstrainedMoveable: boxConstrainedMoveable,
+	parentConstrainedMoveable: parentConstrainedMoveable
+};
 
-return dojo.dnd.move;
 });

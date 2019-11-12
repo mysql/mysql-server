@@ -10,6 +10,7 @@
 
 # Please update the test case when the variable count changes
 # add/remove variable
+
 let $wait_condition=
   SELECT COUNT(*)=69 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc

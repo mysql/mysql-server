@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/data/ItemExplorer", ["dijit","dojo","dojox","dojo/require!dijit/Tree,dijit/Dialog,dijit/Menu,dijit/form/ValidationTextBox,dijit/form/Textarea,dijit/form/Button,dijit/form/RadioButton,dijit/form/FilteringSelect"], function(dijit,dojo,dojox){
+define("dojox/data/ItemExplorer", ["dojo","dijit","dojox","dojo/require!dijit/Tree,dijit/Dialog,dijit/Menu,dijit/form/ValidationTextBox,dijit/form/Textarea,dijit/form/Button,dijit/form/RadioButton,dijit/form/FilteringSelect"], function(dojo,dijit,dojox){
 dojo.provide("dojox.data.ItemExplorer");
 dojo.require("dijit.Tree");
 dojo.require("dijit.Dialog");
@@ -232,9 +231,9 @@ dojo.declare("dojox.data.ItemExplorer", dijit.Tree, {
 	},
 	_createEditDialog: function(){
 		this._editDialog = new dijit.Dialog({
-			 title: "Edit Property",
-			 execute: dojo.hitch(this, "_updateItem"),
-			 preload: true
+			title: "Edit Property",
+			execute: dojo.hitch(this, "_updateItem"),
+			preload: true
 		});
 		this._editDialog.placeAt(dojo.body());
 		this._editDialog.startup();
@@ -273,7 +272,7 @@ dojo.declare("dojox.data.ItemExplorer", dijit.Tree, {
 		dojo.attr(labelVal, "innerHTML", "Value (JSON):")
 		pane.appendChild(labelVal);
 
-		 // container for value fields
+		// container for value fields
 		var valueDiv = dojo.doc.createElement("div");
 		dojo.addClass(valueDiv, "value");
 
@@ -621,7 +620,6 @@ dojo.declare("dojox.data.ItemExplorer", dijit.Tree, {
 			}else{
 				showDialog();
 			}
-//
 		}
 	}
 });

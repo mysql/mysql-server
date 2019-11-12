@@ -11,9 +11,13 @@ _e[_f]=_10;
 _c.push(s);
 }
 });
-this.mixins=this.mixins.length?_1.map(this.mixins,function(_11){
+if(this.mixins.length){
+this.mixins=_1.map(this.mixins,function(_11){
 return _4.getObject(_11);
-}):[_7,_8,_9];
+});
+}else{
+this.mixins=[_7,_8,_9];
+}
 _e._skipNodeCache=true;
 _e.templateString="<"+_d+" class='"+_a.className+"'"+" data-dojo-attach-point='"+(_a.getAttribute("data-dojo-attach-point")||_a.getAttribute("dojoAttachPoint")||"")+"' data-dojo-attach-event='"+(_a.getAttribute("data-dojo-attach-event")||_a.getAttribute("dojoAttachEvent")||"")+"' >"+_a.innerHTML.replace(/\%7B/g,"{").replace(/\%7D/g,"}")+"</"+_d+">";
 var wc=_3(this.widgetClass,this.mixins,_e);

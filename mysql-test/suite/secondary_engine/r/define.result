@@ -104,6 +104,18 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
 DROP TABLE t1;
 #
+# Attempt to truncate a table after a secondary engine has been defined.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+TRUNCATE TABLE t1;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
+DROP TABLE t1;
+#
 # Attempt to alter table after its secondary engine has been removed.
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
@@ -122,6 +134,24 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Test' SECONDARY_ENGINE=NONEXISTENT
+DROP TABLE t1;
+#
+# Attempt to truncate table after its secondary engine is removed
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+TRUNCATE TABLE t1;
+ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NONEXISTENT
 DROP TABLE t1;
 #
 # Attempt to rename a table with a secondary engine defined.

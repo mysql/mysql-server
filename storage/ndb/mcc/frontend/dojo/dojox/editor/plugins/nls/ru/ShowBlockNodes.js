@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"showBlockNodes": "Показать элементы блока HTML"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/ru/ShowBlockNodes",({"showBlockNodes":"Показать элементы блока HTML"}));

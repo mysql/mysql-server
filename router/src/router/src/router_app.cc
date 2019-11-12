@@ -52,6 +52,7 @@
 #include "mysql/harness/logging/logger_plugin.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/utility/string.h"
 #include "mysql/harness/vt100.h"
 #include "mysql_session.h"
 #include "print_version.h"
@@ -59,8 +60,8 @@
 
 #ifndef _WIN32
 #include <fcntl.h>
-#include <signal.h>
 #include <unistd.h>
+#include <csignal>
 const char dir_sep = '/';
 const std::string path_sep = ":";
 #else
@@ -76,14 +77,15 @@ const std::string path_sep = ";";
 #endif
 
 IMPORT_LOG_FUNCTIONS()
+using namespace std::string_literals;
 
 using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysql_harness::truncate_string;
-using mysqlrouter::SysUserOperations;
-using mysqlrouter::SysUserOperationsBase;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
+using mysqlrouter::SysUserOperations;
+using mysqlrouter::SysUserOperationsBase;
 using mysqlrouter::wrap_string;
 using std::string;
 using std::vector;
@@ -311,7 +313,7 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
   }
   if (needs_keyring) {
     // Initialize keyring
-    keyring_info_.init(config, origin_.str());
+    keyring_info_.init(config);
 
     if (keyring_info_.use_master_key_external_facility()) {
       init_keyring_using_external_facility(config);
@@ -374,7 +376,22 @@ void MySQLRouter::init_keyring_using_prompted_password() {
                                        master_key, false);
 }
 
-static string fixpath(const string &path, const std::string &basedir) {
+/** @brief Returns `<path>` if it is absolute[*], `<basedir>/<path>` otherwise
+ *
+ * [*] `<path>` is considered absolute if it starts with one of:
+ *   Unix:    '/'
+ *   Windows: '/' or '\' or '.:' (where . is any character)
+ *   both:    '{origin}' or 'ENV{'
+ * else:
+ *   it's considered relative (empty `<path>` is also relative in such respect)
+ *
+ * @param path Absolute or relative path; absolute path may start with
+ *        '{origin}' or 'ENV{'
+ * @param basedir Path to grandparent directory of mysqlrouter.exe, i.e.
+ *        for '/path/to/bin/mysqlrouter.exe/' it will be '/path/to'
+ */
+static string ensure_absolute_path(const string &path,
+                                   const std::string &basedir) {
   if (path.empty()) return basedir;
   if (path.compare(0, strlen("{origin}"), "{origin}") == 0) return path;
   if (path.find("ENV{") != std::string::npos) return path;
@@ -399,32 +416,17 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths(
   std::map<std::string, std::string> params = {
       {"program", kProgramName},
       {"origin", origin.str()},
-      {"logging_folder", fixpath(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
-      {"plugin_folder", fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
-      {"runtime_folder", fixpath(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
-      {"config_folder", fixpath(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
-      {"data_folder", fixpath(MYSQL_ROUTER_DATA_FOLDER, basedir)}};
-  // check if the executable is being ran from the install location and if not
-  // set the plugin dir to a path relative to it
-#ifndef _WIN32
-  {
-    mysql_harness::Path install_origin(
-        fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
-      params["plugin_folder"] = fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir);
-    }
-  }
-#else
-  {
-    mysql_harness::Path install_origin(
-        fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
-      params["plugin_folder"] = origin.dirname().join("lib").str();
-    }
-  }
-#endif
+      {"logging_folder",
+       ensure_absolute_path(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
+      {"plugin_folder",
+       ensure_absolute_path(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
+      {"runtime_folder",
+       ensure_absolute_path(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
+      {"config_folder",
+       ensure_absolute_path(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
+      {"data_folder", ensure_absolute_path(MYSQL_ROUTER_DATA_FOLDER, basedir)}};
 
-  // resolve environment variables & relative paths
+  // foreach param, s/{origin}/<basedir>/
   for (auto it : params) {
     std::string &param = params.at(it.first);
     param.assign(
@@ -827,6 +829,15 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(
+      OptionNames({"--conf-use-gr-notifications"}),
+      "Whether to enable handling of cluster state change GR notifications.",
+      CmdOptionValueReq::none, "",
+      [this](const string &) {
+        this->bootstrap_options_["use-gr-notifications"] = "1";
+      },
+      [this] { this->assert_bootstrap_mode("--conf-use-gr-notifications"); });
+
+  arg_handler_.add_option(
       OptionNames({"-d", "--directory"}),
       "Creates a self-contained directory for a new instance of the Router. "
       "(bootstrap)",
@@ -1171,17 +1182,19 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   auto default_paths = get_default_paths();
 
   if (bootstrap_directory_.empty()) {
-    std::string config_file_path = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.conf", "{origin}",
-        origin_.str());
-    std::string state_file_path = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_DATA_FOLDER "/state.json", "{origin}", origin_.str());
-    std::string master_key_path = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.key", "{origin}",
-        origin_.str());
-    std::string default_keyring_file;
-    default_keyring_file = mysqlrouter::substitute_variable(
-        MYSQL_ROUTER_DATA_FOLDER, "{origin}", origin_.str());
+    std::string config_file_path =
+        mysql_harness::Path(default_paths.at("config_folder"s))
+            .join("mysqlrouter.conf"s)
+            .str();
+    std::string state_file_path =
+        mysql_harness::Path(default_paths.at("data_folder"s))
+            .join("state.json"s)
+            .str();
+    std::string master_key_path =
+        mysql_harness::Path(default_paths.at("config_folder"s))
+            .join("mysqlrouter.key"s)
+            .str();
+    std::string default_keyring_file = default_paths.at("data_folder"s);
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
       if (mysql_harness::mkdir(default_keyring_file,
@@ -1214,8 +1227,19 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
   }
 }
 
-void MySQLRouter::show_help() noexcept {
-  FILE *fp;
+// format filename with indent
+//
+// if file isn't readable, wrap it in (...)
+static void markup_configfile(std::ostream &os, const std::string &filename) {
+  const bool file_is_readable = mysql_harness::Path(filename).is_readable();
+
+  os << "  "
+     //
+     << (file_is_readable ? "" : "(") << filename
+     << (file_is_readable ? "" : ")") << std::endl;
+}
+
+void MySQLRouter::show_help() {
   out_stream_ << get_version_line() << std::endl;
   out_stream_ << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
 
@@ -1226,12 +1250,17 @@ void MySQLRouter::show_help() noexcept {
     out_stream_ << line << std::endl;
   }
 
-  for (auto file : default_config_files_) {
-    if ((fp = std::fopen(file.c_str(), "r")) == nullptr) {
-      out_stream_ << "  (" << file << ")" << std::endl;
-    } else {
-      std::fclose(fp);
-      out_stream_ << "  " << file << std::endl;
+  for (const auto &file : default_config_files_) {
+    markup_configfile(out_stream_, file);
+
+    // fallback to .ini for each .conf file
+    const std::string conf_ext(".conf");
+    if (mysql_harness::utility::ends_with(file, conf_ext)) {
+      // replace .conf by .ini
+      std::string ini_filename =
+          file.substr(0, file.size() - conf_ext.size()) + ".ini";
+
+      markup_configfile(out_stream_, ini_filename);
     }
   }
   const std::map<std::string, std::string> paths = get_default_paths();
@@ -1291,6 +1320,7 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--conf-use-sockets",
         "--conf-skip-tcp",
         "--conf-base-port",
+        "--conf-use-gr-notifications",
         "--connect-timeout",
         "--directory",
         "--force",

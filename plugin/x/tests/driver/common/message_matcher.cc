@@ -27,6 +27,10 @@
 
 #include <vector>
 
+#ifdef GetMessage
+#undef GetMessage
+#endif
+
 using Message = xcl::XProtocol::Message;
 using FieldDescriptor = google::protobuf::FieldDescriptor;
 using CppType = FieldDescriptor::CppType;

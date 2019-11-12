@@ -29,8 +29,8 @@
 #include <atomic>
 #include <utility>
 
-#include "binlog_event.h"  // enum_binlog_checksum_alg
-#include "m_string.h"      // llstr
+#include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
+#include "m_string.h"                              // llstr
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -101,7 +101,7 @@ class Stage_manager {
     friend class Stage_manager;
 
    public:
-    Mutex_queue() : m_first(NULL), m_last(&m_first), m_size(0) {}
+    Mutex_queue() : m_first(nullptr), m_last(&m_first), m_size(0) {}
 
     void init(PSI_mutex_key key_LOCK_queue) {
       mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
@@ -109,7 +109,7 @@ class Stage_manager {
 
     void deinit() { mysql_mutex_destroy(&m_lock); }
 
-    bool is_empty() const { return m_first == NULL; }
+    bool is_empty() const { return m_first == nullptr; }
 
     /**
       Append a linked list of threads to the queue.
@@ -183,6 +183,9 @@ class Stage_manager {
   void deinit() {
     for (size_t i = 0; i < STAGE_COUNTER; ++i) m_queue[i].deinit();
     mysql_cond_destroy(&m_cond_done);
+#ifndef DBUG_OFF
+    mysql_cond_destroy(&m_cond_preempt);
+#endif
     mysql_mutex_destroy(&m_lock_done);
   }
 
@@ -298,7 +301,7 @@ class Stage_manager {
   until we have reset thd->current_linfo to NULL;
  */
 struct LOG_INFO {
-  char log_file_name[FN_REFLEN];
+  char log_file_name[FN_REFLEN] = {0};
   my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal;       // if the purge happens to give us a negative offset
@@ -408,7 +411,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   // current file sequence number for load data infile binary logging
   uint file_id;
-  uint open_count;  // For replication
 
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
@@ -682,9 +684,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
   void set_max_size(ulong max_size_arg);
   void signal_update() {
-    DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
+    DBUG_TRACE;
     mysql_cond_broadcast(&update_cond);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void update_binlog_end_pos(bool need_lock = true);
@@ -843,7 +845,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
       bool need_lock_index = true);
   inline char *get_index_fname() { return index_file_name; }
   inline char *get_log_fname() { return log_file_name; }
-  inline char *get_name() { return name; }
+  const char *get_name() const { return name; }
   inline mysql_mutex_t *get_log_lock() { return &LOCK_log; }
   inline mysql_cond_t *get_log_cond() { return &update_cond; }
   inline Binlog_ofile *get_binlog_file() { return m_binlog_file; }
@@ -851,7 +853,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline void lock_index() { mysql_mutex_lock(&LOCK_index); }
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index); }
   inline IO_CACHE *get_index_file() { return &index_file; }
-  inline uint32 get_open_count() { return open_count; }
   static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want

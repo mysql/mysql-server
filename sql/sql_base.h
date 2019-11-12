@@ -196,11 +196,10 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 void close_thread_tables(THD *thd);
-bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
-                                          List<Item> &fields,
-                                          List<Item> &values, TABLE *table,
-                                          enum enum_trigger_event_type event,
-                                          int num_fields);
+bool fill_record_n_invoke_before_triggers(
+    THD *thd, COPY_INFO *optype_info, List<Item> &fields, List<Item> &values,
+    TABLE *table, enum enum_trigger_event_type event, int num_fields,
+    bool raise_autoinc_has_expl_non_null_val, bool *is_row_changed);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values, TABLE *table,
                                           enum enum_trigger_event_type event,
@@ -213,9 +212,11 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &item,
                   ulong privilege, List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update);
 bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+                 bool raise_autoinc_has_expl_non_null_val);
 bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
-                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap,
+                 bool raise_autoinc_has_expl_non_null_val);
 
 bool check_record(THD *thd, Field **ptr);
 
@@ -291,7 +292,6 @@ bool rename_temporary_table(THD *thd, TABLE *table, const char *new_db,
                             const char *table_name);
 bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
 bool open_temporary_table(THD *thd, TABLE_LIST *tl);
-bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
 bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,13 +107,15 @@ class Recovery_module {
     If the thread does not stop in a user designated time interval, a timeout
     is issued.
 
+    @param wait_for_termination  wait for thread termination or not
+
     @note this method only returns when the thread is stopped or on timeout
 
     @return the operation status
       @retval 0      OK
       @retval !=0    Timeout
   */
-  int stop_recovery();
+  int stop_recovery(bool wait_for_termination = true);
 
   /**
     This method decides what action to take when a member exits the group and
@@ -226,6 +228,25 @@ class Recovery_module {
   }
 
   /**
+    @return Is recovery configured to use SSL
+  */
+  bool get_recovery_use_ssl() {
+    return recovery_state_transfer.get_recovery_use_ssl();
+  }
+
+  /**
+    Get SSL options configured for recovery
+
+    @param[out]  ssl_ca    the ssl ca
+    @param[out]  ssl_cert  the ssl cert
+    @param[out]  ssl_key   the ssl key
+  */
+  void get_recovery_base_ssl_options(std::string *ssl_ca, std::string *ssl_cert,
+                                     std::string *ssl_key) {
+    recovery_state_transfer.get_recovery_base_ssl_options(ssl_ca, ssl_cert,
+                                                          ssl_key);
+  }
+  /**
     Sets the recovery shutdown timeout.
 
     @param[in]  timeout      the timeout
@@ -254,6 +275,16 @@ class Recovery_module {
   /** Get public key automatically */
   void set_recovery_get_public_key(bool set) {
     recovery_state_transfer.set_recovery_get_public_key(set);
+  }
+
+  /** Set compression algorithm */
+  void set_recovery_compression_algorithm(const char *name) {
+    recovery_state_transfer.set_recovery_compression_algorithm(name);
+  }
+
+  /** Set compression level */
+  void set_recovery_zstd_compression_level(uint level) {
+    recovery_state_transfer.set_recovery_zstd_compression_level(level);
   }
 
   /**

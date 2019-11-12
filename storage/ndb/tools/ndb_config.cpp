@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,7 @@
 #include "../src/mgmsrv/ConfigInfo.hpp"
 #include <NdbAutoPtr.hpp>
 #include <NdbTCP.h>
+#include <inttypes.h>
 
 #include "my_alloc.h"
 
@@ -466,7 +467,7 @@ print_diff(const Iter& iter)
           parse_str[len] = '\0';
           def_value = atoi(parse_str);
           memory_convert = memory_convert * def_value;
-          BaseString::snprintf(parse_str, 299, "%llu", memory_convert);
+          BaseString::snprintf(parse_str, 299, "%" PRIu64, memory_convert);
           if (!strcmp(str, parse_str))
           {
             continue;

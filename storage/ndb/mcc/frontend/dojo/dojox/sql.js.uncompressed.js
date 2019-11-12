@@ -1,7 +1,9 @@
-//>>built
-// wrapped by build app
-define("dojox/sql", ["dijit","dojo","dojox","dojo/require!dojox/sql/_base"], function(dijit,dojo,dojox){
-dojo.provide("dojox.sql");
-dojo.require("dojox.sql._base");
-
+define("dojox/sql", ['./sql/_base'],function(){
+	/*=====
+	 return {
+	 // summary:
+	 //		Deprecated.  Should require dojox/sql modules directly rather than trying to access them through
+	 //		this module.
+	 };
+	 =====*/
 });

@@ -13,9 +13,13 @@
 .claro .dijitSpinner .dijitArrowButton {
   width: auto;
   background-color: #efefef;
-  background-image: url("../form/images/formHighlight.png");
-  background-position: 0 0;
+  background-image: url("../images/standardGradient.png");
   background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
   overflow: hidden;
 }
 .dj_iequirks .claro .dijitSpinner .dijitArrowButton {
@@ -42,7 +46,10 @@
   margin: -1px 0 -1px 0;
   
 }
-.dj_ie6 .claro .dijitSpinner .dijitArrowButtonInner, .dj_ie7 .claro .dijitSpinner .dijitArrowButtonInner {
+.dj_iequirks .claro .dijitSpinner .dijitArrowButtonInner,
+.dj_ie6 .claro .dijitSpinner .dijitArrowButtonInner,
+.dj_ie7 .claro .dijitSpinner .dijitArrowButtonInner,
+.dj_ie8 .claro .dijitSpinner .dijitArrowButtonInner {
   margin-top: 0;
   
 }
@@ -73,7 +80,13 @@
 }
 .claro .dijitSpinner .dijitDownArrowButtonActive, .claro .dijitSpinner .dijitUpArrowButtonActive {
   background-color: #7dbefa;
-  background-position: 0 -177px;
+  background-image: url("../images/activeGradient.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
 }
 .claro .dijitSpinner .dijitUpArrowButtonActive .dijitArrowButtonInner, .claro .dijitSpinner .dijitDownArrowButtonActive .dijitArrowButtonInner {
   

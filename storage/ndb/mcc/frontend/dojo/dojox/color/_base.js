@@ -1,86 +1,86 @@
 //>>built
-define("dojox/color/_base",["dojo/_base/kernel","../main","dojo/_base/lang","dojo/_base/Color","dojo/colors"],function(_1,_2,_3,_4,_5){
-var cx=_3.getObject("dojox.color",true);
-cx.Color=_4;
-cx.blend=_4.blendColors;
-cx.fromRgb=_4.fromRgb;
-cx.fromHex=_4.fromHex;
-cx.fromArray=_4.fromArray;
-cx.fromString=_4.fromString;
-cx.greyscale=_5.makeGrey;
-_3.mixin(cx,{fromCmy:function(_6,_7,_8){
-if(_3.isArray(_6)){
-_7=_6[1],_8=_6[2],_6=_6[0];
+define("dojox/color/_base",["../main","dojo/_base/lang","dojo/_base/Color","dojo/colors"],function(_1,_2,_3,_4){
+var cx=_2.getObject("color",true,_1);
+cx.Color=_3;
+cx.blend=_3.blendColors;
+cx.fromRgb=_3.fromRgb;
+cx.fromHex=_3.fromHex;
+cx.fromArray=_3.fromArray;
+cx.fromString=_3.fromString;
+cx.greyscale=_4.makeGrey;
+_2.mixin(cx,{fromCmy:function(_5,_6,_7){
+if(_2.isArray(_5)){
+_6=_5[1],_7=_5[2],_5=_5[0];
 }else{
-if(_3.isObject(_6)){
-_7=_6.m,_8=_6.y,_6=_6.c;
+if(_2.isObject(_5)){
+_6=_5.m,_7=_5.y,_5=_5.c;
 }
 }
-_6/=100,_7/=100,_8/=100;
-var r=1-_6,g=1-_7,b=1-_8;
-return new _4({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
-},fromCmyk:function(_9,_a,_b,_c){
-if(_3.isArray(_9)){
-_a=_9[1],_b=_9[2],_c=_9[3],_9=_9[0];
+_5/=100,_6/=100,_7/=100;
+var r=1-_5,g=1-_6,b=1-_7;
+return new _3({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
+},fromCmyk:function(_8,_9,_a,_b){
+if(_2.isArray(_8)){
+_9=_8[1],_a=_8[2],_b=_8[3],_8=_8[0];
 }else{
-if(_3.isObject(_9)){
-_a=_9.m,_b=_9.y,_c=_9.b,_9=_9.c;
+if(_2.isObject(_8)){
+_9=_8.m,_a=_8.y,_b=_8.b,_8=_8.c;
 }
 }
-_9/=100,_a/=100,_b/=100,_c/=100;
+_8/=100,_9/=100,_a/=100,_b/=100;
 var r,g,b;
-r=1-Math.min(1,_9*(1-_c)+_c);
-g=1-Math.min(1,_a*(1-_c)+_c);
-b=1-Math.min(1,_b*(1-_c)+_c);
-return new _4({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
-},fromHsl:function(_d,_e,_f){
-if(_3.isArray(_d)){
-_e=_d[1],_f=_d[2],_d=_d[0];
+r=1-Math.min(1,_8*(1-_b)+_b);
+g=1-Math.min(1,_9*(1-_b)+_b);
+b=1-Math.min(1,_a*(1-_b)+_b);
+return new _3({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
+},fromHsl:function(_c,_d,_e){
+if(_2.isArray(_c)){
+_d=_c[1],_e=_c[2],_c=_c[0];
 }else{
-if(_3.isObject(_d)){
-_e=_d.s,_f=_d.l,_d=_d.h;
+if(_2.isObject(_c)){
+_d=_c.s,_e=_c.l,_c=_c.h;
 }
 }
+_d/=100;
 _e/=100;
-_f/=100;
-while(_d<0){
-_d+=360;
+while(_c<0){
+_c+=360;
 }
-while(_d>=360){
-_d-=360;
+while(_c>=360){
+_c-=360;
 }
 var r,g,b;
-if(_d<120){
-r=(120-_d)/60,g=_d/60,b=0;
+if(_c<120){
+r=(120-_c)/60,g=_c/60,b=0;
 }else{
-if(_d<240){
-r=0,g=(240-_d)/60,b=(_d-120)/60;
+if(_c<240){
+r=0,g=(240-_c)/60,b=(_c-120)/60;
 }else{
-r=(_d-240)/60,g=0,b=(360-_d)/60;
+r=(_c-240)/60,g=0,b=(360-_c)/60;
 }
 }
-r=2*_e*Math.min(r,1)+(1-_e);
-g=2*_e*Math.min(g,1)+(1-_e);
-b=2*_e*Math.min(b,1)+(1-_e);
-if(_f<0.5){
-r*=_f,g*=_f,b*=_f;
+r=2*_d*Math.min(r,1)+(1-_d);
+g=2*_d*Math.min(g,1)+(1-_d);
+b=2*_d*Math.min(b,1)+(1-_d);
+if(_e<0.5){
+r*=_e,g*=_e,b*=_e;
 }else{
-r=(1-_f)*r+2*_f-1;
-g=(1-_f)*g+2*_f-1;
-b=(1-_f)*b+2*_f-1;
+r=(1-_e)*r+2*_e-1;
+g=(1-_e)*g+2*_e-1;
+b=(1-_e)*b+2*_e-1;
 }
-return new _4({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
+return new _3({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
 }});
-cx.fromHsv=function(hue,_10,_11){
-if(_3.isArray(hue)){
-_10=hue[1],_11=hue[2],hue=hue[0];
+cx.fromHsv=function(_f,_10,_11){
+if(_2.isArray(_f)){
+_10=_f[1],_11=_f[2],_f=_f[0];
 }else{
-if(_3.isObject(hue)){
-_10=hue.s,_11=hue.v,hue=hue.h;
+if(_2.isObject(_f)){
+_10=_f.s,_11=_f.v,_f=_f.h;
 }
 }
-if(hue==360){
-hue=0;
+if(_f==360){
+_f=0;
 }
 _10/=100;
 _11/=100;
@@ -88,7 +88,7 @@ var r,g,b;
 if(_10==0){
 r=_11,b=_11,g=_11;
 }else{
-var _12=hue/60,i=Math.floor(_12),f=_12-i;
+var _12=_f/60,i=Math.floor(_12),f=_12-i;
 var p=_11*(1-_10);
 var q=_11*(1-(_10*f));
 var t=_11*(1-(_10*(1-f)));
@@ -113,9 +113,9 @@ r=_11,g=p,b=q;
 break;
 }
 }
-return new _4({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
+return new _3({r:Math.round(r*255),g:Math.round(g*255),b:Math.round(b*255)});
 };
-_3.extend(_4,{toCmy:function(){
+_2.extend(_3,{toCmy:function(){
 var _13=1-(this.r/255),_14=1-(this.g/255),_15=1-(this.b/255);
 return {c:Math.round(_13*100),m:Math.round(_14*100),y:Math.round(_15*100)};
 },toCmyk:function(){

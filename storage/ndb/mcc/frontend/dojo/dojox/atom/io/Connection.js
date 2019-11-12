@@ -1,6 +1,6 @@
 //>>built
-define("dojox/atom/io/Connection",["dojo/_base/kernel","dojo/_base/xhr","dojo/_base/window","./model","dojo/_base/declare"],function(_1,_2,_3,_4){
-return _1.declare("dojox.atom.io.Connection",null,{constructor:function(_5,_6){
+define("dojox/atom/io/Connection",["dojo/_base/declare","dojo/_base/kernel","dojo/_base/xhr","./model"],function(_1,_2,_3,_4){
+return _1("dojox.atom.io.Connection",null,{constructor:function(_5,_6){
 this.sync=_5;
 this.preventCache=_6;
 },preventCache:false,alertsEnabled:false,getFeed:function(_7,_8,_9,_a){
@@ -11,7 +11,7 @@ this._getXmlDoc(_b,"service",new _4.Service(_b),_4._Constants.APP_NS,_c,_d,_e);
 this._getXmlDoc(_f,"entry",new _4.Entry(),_4._Constants.ATOM_NS,_10,_11,_12);
 },_getXmlDoc:function(url,_13,_14,_15,_16,_17,_18){
 if(!_18){
-_18=_3.global;
+_18=_2.global;
 }
 var ae=this.alertsEnabled;
 var _19={url:url,handleAs:"xml",sync:this.sync,preventCache:this.preventCache,load:function(_1a,_1b){
@@ -79,10 +79,10 @@ _19.error=function(){
 throw new Error("The URL requested cannot be accessed");
 };
 }
-_2.get(_19);
+_3.get(_19);
 },updateEntry:function(_21,_22,_23,_24,_25,_26){
 if(!_26){
-_26=_3.global;
+_26=_2.global;
 }
 _21.updated=new Date();
 var url=_21.getEditHref();
@@ -137,14 +137,14 @@ throw new Error("The URL requested cannot be accessed");
 if(_25){
 _28.postData=_21.toString(true);
 _28.headers={"X-Method-Override":"PUT"};
-_2.post(_28);
+_3.post(_28);
 }else{
 _28.putData=_21.toString(true);
-var xhr=_2.put(_28);
+var xhr=_3.put(_28);
 }
 },addEntry:function(_31,url,_32,_33,_34,_35){
 if(!_35){
-_35=_3.global;
+_35=_2.global;
 }
 _31.published=new Date();
 _31.updated=new Date();
@@ -202,10 +202,10 @@ _38.error=function(){
 throw new Error("The URL requested cannot be accessed");
 };
 }
-_2.post(_38);
+_3.post(_38);
 },deleteEntry:function(_41,_42,_43,_44,_45){
 if(!_45){
-_45=_3.global;
+_45=_2.global;
 }
 var url=null;
 if(typeof (_41)=="string"){
@@ -240,7 +240,7 @@ if(_44){
 _46.headers={"X-Method-Override":"DELETE"};
 dhxr.post(_46);
 }else{
-_2.del(_46);
+_3.del(_46);
 }
 }});
 });

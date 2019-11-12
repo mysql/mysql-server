@@ -632,7 +632,7 @@ public:
      * This function is called on node-failure
      */
     Uint32 (Dbspj::*m_execNODE_FAILREP)(Signal*, Ptr<Request>, Ptr<TreeNode>,
-                                        NdbNodeBitmask);
+                                        const NdbNodeBitmask);
     /**
      * This function is called when request/node(s) is/are removed
      *  should only do local cleanup(s)
@@ -1006,6 +1006,13 @@ public:
        * A TRANSID_AI signal is returned for each row found by the datanodes.
        */
       T_EXPECT_TRANSID_AI = 0x80000,
+
+      /**
+       * Results from this TreeNode need to be produced in sorted
+       * order, as defined by the index being used.
+       * (Also require that T_SCAN_PARALLEL is set)
+       */
+      T_SORTED_ORDER = 0x100000,
 
       // End marker...
       T_END = 0

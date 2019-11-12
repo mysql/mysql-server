@@ -1,10 +1,10 @@
-//>>built
 define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 
 	var abs = "absolute",
 		vis = "visibility",
 		getViewport = function(){
-			//	summary: Returns the dimensions and scroll position of the viewable area of a browser window
+			// summary:
+			//		Returns the dimensions and scroll position of the viewable area of a browser window
 			var scrollRoot = (dojo.doc.compatMode == "BackCompat") ? dojo.body() : dojo.doc.documentElement,
 				scroll = dojo._docScroll();
 				return { w: scrollRoot.clientWidth, h: scrollRoot.clientHeight, l: scroll.x, t: scroll.y };
@@ -12,38 +12,36 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 	;
 
 	return dojo.declare("dojox.image.LightboxNano", null, {
-		//	summary:
+		// summary:
 		//		A simple "nano" version of the lightbox.
-		//
-		//	description:
+		// description:
 		//		Very lightweight lightbox which only displays a larger image.  There is
 		//		no support for a caption or description.  The lightbox can be closed by
 		//		clicking any where or pressing any key.  This widget is intended to be
-		//		used on <a> and <img> tags.  Upon creation, if the domNode is <img> tag,
-		//		then it is wrapped in an <a> tag, then a <div class="enlarge"> is placed
-		//		inside the <a> and can be styled to display an icon that the original
+		//		used on `<a>` and `<img>` tags.  Upon creation, if the domNode is `<img>` tag,
+		//		then it is wrapped in an `<a>` tag, then a `<div class="enlarge">` is placed
+		//		inside the `<a>` and can be styled to display an icon that the original
 		//		can be enlarged.
-		//
-		//	example:
+		// example:
 		//	|	<a dojoType="dojox.image.LightboxNano" href="/path/to/largeimage.jpg"><img src="/path/to/thumbnail.jpg"></a>
-		//
-		//	example:
+		// example:
 		//	|	<img dojoType="dojox.image.LightboxNano" src="/path/to/thumbnail.jpg" href="/path/to/largeimage.jpg">
 
-		//	href: string
+		// href: string
 		//		URL to the large image to show in the lightbox.
 		href: "",
 
-		//	duration: int
+		// duration: int
 		//		The delay in milliseconds of the LightboxNano open and close animation.
 		duration: 500,
 
-		//	preloadDelay: int
+		// preloadDelay: int
 		//		The delay in milliseconds after the LightboxNano is created before preloading the larger image.
 		preloadDelay: 5000,
 
 		constructor: function(/*Object?*/p, /*DomNode?*/n){
-			// summary: Initializes the DOM node and connect onload event
+			// summary:
+			//		Initializes the DOM node and connect onload event
 			var _this = this;
 
 			dojo.mixin(_this, p);
@@ -73,7 +71,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		destroy: function(){
-			// summary: Destroys the LightboxNano and it's DOM node
+			// summary:
+			//		Destroys the LightboxNano and it's DOM node
 			var a = this._connects || [];
 			a.push(this._onClickEvt);
 			dojo.forEach(a, dojo.disconnect);
@@ -81,7 +80,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_createDiv: function(/*String*/cssClass, /*DomNode*/refNode, /*boolean*/display){
-			// summary: Creates a div for the enlarge icon and loading indicator layers
+			// summary:
+			//		Creates a div for the enlarge icon and loading indicator layers
 			return dojo.create("div", { // DomNode
 				"class": cssClass,
 				style: {
@@ -92,7 +92,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_load: function(/*Event*/e){
-			// summary: Creates the large image and begins to show it
+			// summary:
+			//		Creates the large image and begins to show it
 			var _this = this;
 
 			e && dojo.stopEvent(e);
@@ -138,7 +139,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_hideLoading: function(){
-			// summary: Hides the animated loading indicator
+			// summary:
+			//		Hides the animated loading indicator
 			if(this._loadingNode){
 				dojo.style(this._loadingNode, "display", "none");
 			}
@@ -146,7 +148,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_show: function(){
-			// summary: The image is now loaded, calculate size and display
+			// summary:
+			//		The image is now loaded, calculate size and display
 			var _this = this,
 				vp = getViewport(),
 				w = _this._img.width,
@@ -207,7 +210,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_sizeBg: function(){
-			// summary: Resize the background to fill the page
+			// summary:
+			//		Resize the background to fill the page
 			var dd = dojo.doc.documentElement;
 			dojo.style(this._bg, {
 				top: 0,
@@ -218,13 +222,15 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_key: function(/*Event*/e){
-			// summary: A key was pressed, so hide the lightbox
+			// summary:
+			//		A key was pressed, so hide the lightbox
 			dojo.stopEvent(e);
 			this._hide();
 		},
 
 		_coords: function(/*Object*/s, /*Object*/e){
-			// summary: Returns animation parameters with the start and end coords
+			// summary:
+			//		Returns animation parameters with the start and end coords
 			return { // Object
 				left:	{ start: s.x, end: e.x },
 				top:	{ start: s.y, end: e.y },
@@ -234,7 +240,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_hide: function(){
-			// summary: Closes the lightbox
+			// summary:
+			//		Closes the lightbox
 			var _this = this;
 			dojo.forEach(_this._connects, dojo.disconnect);
 			_this._connects = [];
@@ -245,7 +252,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_reset: function(){
-			// summary: Destroys the lightbox
+			// summary:
+			//		Destroys the lightbox
 			dojo.style(this._node, vis, "visible");
 			dojo.destroy(this._img);
 			dojo.destroy(this._bg);
@@ -254,7 +262,8 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		},
 
 		_anim: function(/*DomNode*/node, /*Object*/args, /*Function*/onEnd){
-			// summary: Creates the lightbox open/close and background fadein/out animations
+			// summary:
+			//		Creates the lightbox open/close and background fadein/out animations
 			return dojo.animateProperty({ // dojo.Animation
 				node: node,
 				duration: this.duration,
@@ -266,16 +275,15 @@ define("dojox/image/LightboxNano", ["dojo", "dojo/fx"], function(dojo, fx) {
 		show: function(/*Object?*/args){
 			// summary:
 			//		Shows this LightboxNano programatically. Allows passing a new href and
-			//		a programatic origin.
-			//
+			//		a programmatic origin.
 			// args: Object?
 			//		An object with optional members of `href` and `origin`.
 			//		`origin` can be be a String|Id of a DomNode to use when
-			//		animating the openeing of the image (the 'box' effect starts
+			//		animating the opening of the image (the 'box' effect starts
 			//		from this origin point. eg: { origin: e.target })
 			//		If there's no origin, it will use the center of the viewport.
 			//		The `href` member is a string URL for the image to be
-			//		displayed. Omiting either of these members will revert to
+			//		displayed. Omitting either of these members will revert to
 			//		the default href (which could be absent in some cases) and
 			//		the original srcNodeRef for the widget.
 			args = args || {};

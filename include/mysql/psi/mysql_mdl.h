@@ -112,6 +112,6 @@ static inline void inline_mysql_mdl_destroy(PSI_metadata_lock *psi,
 }
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 
-  /** @} (end of group psi_api_mdl) */
+/** @} (end of group psi_api_mdl) */
 
 #endif

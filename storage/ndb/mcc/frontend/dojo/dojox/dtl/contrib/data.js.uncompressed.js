@@ -1,13 +1,10 @@
-//>>built
 define("dojox/dtl/contrib/data", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",
 	"../_base",
 	"dojo/_base/array"
 ], function(kernel,lang,dd,array){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.contrib.data", true);
 
 	var ddcd = dd.contrib.data;
@@ -125,10 +122,11 @@ define("dojox/dtl/contrib/data", [
 			}
 		},
 		bind_data: function(parser, token){
-			// summary: Turns a list of data store items into DTL compatible items
+			// summary:
+			//		Turns a list of data store items into DTL compatible items
 			// example:
-			//	`contextItems` and `contextStore` should be an item list
-			//	and a data store that get assigned to `newVariable`
+			//		`contextItems` and `contextStore` should be an item list
+			//		and a data store that get assigned to `newVariable`
 			//
 			//	|	{% bind_data contextItems to contextStore as newVariable %}
 			var parts = token.contents.split();
@@ -140,12 +138,13 @@ define("dojox/dtl/contrib/data", [
 			return new ddcd.BindDataNode(parts[1], null, parts[3], parts[5]);
 		},
 		bind_query: function(parser, token){
-			// summary: Queries a data store and makes the returned items DTL compatible
+			// summary:
+			//		Queries a data store and makes the returned items DTL compatible
 			// example:
-			//	You can only use this with data stores that work in a synchronous
-			//	way (meaning that `onComplete` is fired during the `fetch` call).
-			//	A `sync` flag is sent to the fetch call so that stores that usually
-			//	work asynchronously make themselves syncrhonous if possible.
+			//		You can only use this with data stores that work in a synchronous
+			//		way (meaning that `onComplete` is fired during the `fetch` call).
+			//		A `sync` flag is sent to the fetch call so that stores that usually
+			//		work asynchronously make themselves syncrhonous if possible.
 			//	|	{% bind_query contextQuery to contextStore as newVariable %}
 			var parts = token.contents.split();
 

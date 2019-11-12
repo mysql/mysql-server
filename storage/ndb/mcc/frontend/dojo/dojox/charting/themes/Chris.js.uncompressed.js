@@ -1,4 +1,3 @@
-//>>built
 define("dojox/charting/themes/Chris", ["../Theme", "dojox/gfx/gradutils", "./common"], function(Theme, gradutils, themes){
 
 	// created by Christopher Anderson

@@ -113,7 +113,7 @@ EXPLAIN SELECT * FROM tbl_int WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_int	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where isnull(`test`.`tbl_int`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_int`.`col1` AS `col1` from `test`.`tbl_int` where (`test`.`tbl_int`.`col1` is null)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_int WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -186,13 +186,13 @@ EXPLAIN SELECT * FROM tbl_varchar WHERE col1 < "🍡";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_varchar	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Warning	1300	Invalid utf8mb4 character string: '\xF0\x9F\x8D\xA1'
+Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA1' from utf8mb4 to utf8
 Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where (`test`.`tbl_varchar`.`col1` < '?')
 EXPLAIN SELECT * FROM tbl_varchar WHERE "🍡" > col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_varchar	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Warning	1300	Invalid utf8mb4 character string: '\xF0\x9F\x8D\xA1'
+Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA1' from utf8mb4 to utf8
 Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where ('?' > `test`.`tbl_varchar`.`col1`)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 < "sierra";
@@ -265,7 +265,7 @@ EXPLAIN SELECT * FROM tbl_varchar WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_varchar	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where isnull(`test`.`tbl_varchar`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where (`test`.`tbl_varchar`.`col1` is null)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -289,14 +289,14 @@ EXPLAIN SELECT * FROM tbl_varchar WHERE col1 IN ("ag", "ef", "🍣");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_varchar	NULL	ALL	NULL	NULL	NULL	NULL	10	30.00	Using where
 Warnings:
-Warning	1300	Invalid utf8mb4 character string: '\xF0\x9F\x8D\xA3'
+Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA3' from utf8mb4 to utf8
 Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where (`test`.`tbl_varchar`.`col1` in ('ag','ef','?'))
 # Expect "50.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_varchar WHERE col1 NOT IN ("ag", "ef", "🍣");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_varchar	NULL	ALL	NULL	NULL	NULL	NULL	10	50.00	Using where
 Warnings:
-Warning	1300	Invalid utf8mb4 character string: '\xF0\x9F\x8D\xA3'
+Warning	1300	Cannot convert string '\xF0\x9F\x8D\xA3' from utf8mb4 to utf8
 Note	1003	/* select#1 */ select `test`.`tbl_varchar`.`col1` AS `col1` from `test`.`tbl_varchar` where (`test`.`tbl_varchar`.`col1` not in ('ag','ef','?'))
 DROP TABLE tbl_varchar;
 #
@@ -414,7 +414,7 @@ EXPLAIN SELECT * FROM tbl_double WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_double	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where isnull(`test`.`tbl_double`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_double`.`col1` AS `col1` from `test`.`tbl_double` where (`test`.`tbl_double`.`col1` is null)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_double WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -563,7 +563,7 @@ EXPLAIN SELECT * FROM tbl_time WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_time	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where isnull(`test`.`tbl_time`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_time`.`col1` AS `col1` from `test`.`tbl_time` where (`test`.`tbl_time`.`col1` is null)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_time WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -712,7 +712,7 @@ EXPLAIN SELECT * FROM tbl_date WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where isnull(`test`.`tbl_date`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_date`.`col1` AS `col1` from `test`.`tbl_date` where (`test`.`tbl_date`.`col1` is null)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_date WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -863,7 +863,7 @@ EXPLAIN SELECT * FROM tbl_datetime WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where isnull(`test`.`tbl_datetime`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`col1` AS `col1` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`col1` is null)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_datetime WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -926,12 +926,12 @@ EXPLAIN SELECT * FROM tbl_decimal WHERE col1 > 100000000000000000000000000000000
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where 0
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where false
 EXPLAIN SELECT * FROM tbl_decimal WHERE 100000000000000000000000000000000000 < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where 0
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where false
 # Expect "10.0" in column "filtered" (we never estimate 0%)
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 < -99999999999999999999999999999999999.999999999999999999999999999999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1014,7 +1014,7 @@ EXPLAIN SELECT * FROM tbl_decimal WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_decimal	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where isnull(`test`.`tbl_decimal`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where (`test`.`tbl_decimal`.`col1` is null)
 # Expect "80.0" in column "filtered"
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1132,7 +1132,7 @@ EXPLAIN SELECT * FROM tbl_enum WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_enum	NULL	ALL	NULL	NULL	NULL	NULL	9	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_enum`.`col1` AS `col1` from `test`.`tbl_enum` where isnull(`test`.`tbl_enum`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_enum`.`col1` AS `col1` from `test`.`tbl_enum` where (`test`.`tbl_enum`.`col1` is null)
 # Expect "66.67" in column "filtered"
 EXPLAIN SELECT * FROM tbl_enum WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1284,7 +1284,7 @@ EXPLAIN SELECT * FROM tbl_set WHERE col1 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_set	NULL	ALL	NULL	NULL	NULL	NULL	11	27.27	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_set`.`col1` AS `col1` from `test`.`tbl_set` where isnull(`test`.`tbl_set`.`col1`)
+Note	1003	/* select#1 */ select `test`.`tbl_set`.`col1` AS `col1` from `test`.`tbl_set` where (`test`.`tbl_set`.`col1` is null)
 # Expect "72.73" in column "filtered"
 EXPLAIN SELECT * FROM tbl_set WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

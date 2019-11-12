@@ -12022,9 +12022,10 @@ EXPLAIN
         "read_cost": "2.70",
         "eval_cost": "1.60",
         "prefix_cost": "4.30",
-        "data_read_per_join": "512"
+        "data_read_per_join": "640"
       },
       "used_columns": [
+        "<hash_field>",
         "i",
         "j",
         "ROW_NUMBER() OVER (ORDER BY j)"
@@ -13154,7 +13155,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,avg(`test`.`t1`.`id`) AS `AVG(id)`,row_number() OVER `w` AS `ROW_NUMBER() OVER w` from `test`.`t1` group by `test`.`t1`.`sex` desc having ((`test`.`t1`.`sex` = 'M') or isnull(`test`.`t1`.`sex`)) window `w` AS (ORDER BY avg(`test`.`t1`.`id`) )  order by `test`.`t1`.`sex` desc
+Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,avg(`test`.`t1`.`id`) AS `AVG(id)`,row_number() OVER `w` AS `ROW_NUMBER() OVER w` from `test`.`t1` group by `test`.`t1`.`sex` desc having ((`test`.`t1`.`sex` = 'M') or (`test`.`t1`.`sex` is null)) window `w` AS (ORDER BY avg(`test`.`t1`.`id`) )  order by `test`.`t1`.`sex` desc
 DROP TABLE t, t1, t11, t2, t22, t3, t5, t6, tj, ss;
 ----------------------------------------------------------------------
 -    ORDER BY + RANK with more than one ordering expression
@@ -13417,13 +13418,13 @@ EXPLAIN
         "used_columns": [
           "s2"
         ],
-        "attached_condition": "isnull(`test`.`t1`.`s2`)"
+        "attached_condition": "(`test`.`t1`.`s2` is null)"
       }
     }
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select count(0) OVER (ORDER BY `test`.`t1`.`s2` )  AS `COUNT(*) OVER (ORDER BY s2)` from `test`.`t1` where isnull(`test`.`t1`.`s2`)
+Note	1003	/* select#1 */ select count(0) OVER (ORDER BY `test`.`t1`.`s2` )  AS `COUNT(*) OVER (ORDER BY s2)` from `test`.`t1` where (`test`.`t1`.`s2` is null)
 EXPLAIN FORMAT=JSON SELECT * FROM (
 SELECT *,DENSE_RANK() OVER (ORDER BY s2 DESC),
 DENSE_RANK() OVER (ORDER BY s2) FROM t1
@@ -14850,6 +14851,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,co
 DROP TABLE t1;
 frame buffer navigation assert
 CREATE TABLE ta (a INT(11) DEFAULT NULL, b INT(11) DEFAULT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO  ta VALUES (1,1), (1,2), (1,3), (2,1), (2,2), (2,3);
 ANALYZE TABLE ta;
 Table	Op	Msg_type	Msg_text
@@ -15341,7 +15345,7 @@ a	SUM(t2.b) OVER(ORDER BY t1.a)
 1	1
 SHOW STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	3
+Created_tmp_tables	2
 EXPLAIN FORMAT=JSON SELECT t1.a, SUM(t2.b) OVER(ORDER BY t1.a) FROM t1, t1 AS t2 ORDER BY t2.a;
 EXPLAIN
 {
@@ -16708,95 +16712,6 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 1,
-                "columns": 5,
-                "row_length": 22,
-                "key_length": 5,
-                "unique_constraint": false,
-                "makes_grouped_rows": true,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
-            "sorting_table_in_plan_at_position": 1,
-            "filesort_information": [
-              {
-                "direction": "asc",
-                "table": "intermediate_tmp_table",
-                "field": "i"
-              }
-            ],
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            },
-            "filesort_execution": [
-            ],
-            "filesort_summary": {
-              "memory_available": 262144,
-              "key_size": "XXX",
-              "row_size": "XXX",
-              "max_rows_per_buffer": 34,
-              "num_rows_estimate": 34,
-              "num_rows_found": 24,
-              "num_initial_chunks_spilled_to_disk": 0,
-              "peak_memory_used": "NNN",
-              "sort_algorithm": "std::stable_sort",
-              "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<fixed_sort_key, rowid>"
-            }
-          },
-          {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 2,
-                "columns": 6,
-                "row_length": 29,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
-            "sorting_table_in_plan_at_position": 2,
-            "filesort_information": [
-              {
-                "direction": "desc",
-                "table": "intermediate_tmp_table",
-                "field": "i"
-              }
-            ],
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            },
-            "filesort_execution": [
-            ],
-            "filesort_summary": {
-              "memory_available": 262144,
-              "key_size": "XXX",
-              "row_size": "XXX",
-              "max_rows_per_buffer": 34,
-              "num_rows_estimate": 34,
-              "num_rows_found": 24,
-              "num_initial_chunks_spilled_to_disk": 0,
-              "peak_memory_used": "NNN",
-              "sort_algorithm": "std::stable_sort",
-              "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<fixed_sort_key, rowid>"
-            }
-          },
-          {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
                 "in_plan_at_position": 3,
                 "columns": 7,
                 "row_length": 45,
@@ -16809,11 +16724,113 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             }
           },
           {
+            "materialize": {
+              "select#": 1,
+              "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 2,
+                      "columns": 6,
+                      "row_length": 29,
+                      "key_length": 0,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    }
+                  }
+                },
+                {
+                  "materialize": {
+                    "select#": 1,
+                    "steps": [
+                      {
+                        "creating_tmp_table": {
+                          "tmp_table_info": {
+                            "in_plan_at_position": 1,
+                            "columns": 5,
+                            "row_length": 22,
+                            "key_length": 5,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": true,
+                            "cannot_insert_duplicates": false,
+                            "location": "TempTable"
+                          }
+                        }
+                      },
+                      {
+                        "materialize": {
+                          "select#": 1,
+                          "steps": [
+                          ]
+                        }
+                      },
+                      {
+                        "sorting_table_in_plan_at_position": 1,
+                        "filesort_information": [
+                          {
+                            "direction": "asc",
+                            "field": "i"
+                          }
+                        ],
+                        "filesort_priority_queue_optimization": {
+                          "usable": false,
+                          "cause": "not applicable (no LIMIT)"
+                        },
+                        "filesort_execution": [
+                        ],
+                        "filesort_summary": {
+                          "memory_available": 262144,
+                          "key_size": "XXX",
+                          "row_size": "XXX",
+                          "max_rows_per_buffer": 34,
+                          "num_rows_estimate": 34,
+                          "num_rows_found": 24,
+                          "num_initial_chunks_spilled_to_disk": 0,
+                          "peak_memory_used": "NNN",
+                          "sort_algorithm": "std::stable_sort",
+                          "sort_mode": "<fixed_sort_key, packed_additional_fields>"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "sorting_table_in_plan_at_position": 2,
+                  "filesort_information": [
+                    {
+                      "direction": "desc",
+                      "field": "i"
+                    }
+                  ],
+                  "filesort_priority_queue_optimization": {
+                    "usable": false,
+                    "cause": "not applicable (no LIMIT)"
+                  },
+                  "filesort_execution": [
+                  ],
+                  "filesort_summary": {
+                    "memory_available": 262144,
+                    "key_size": "XXX",
+                    "row_size": "XXX",
+                    "max_rows_per_buffer": 34,
+                    "num_rows_estimate": 34,
+                    "num_rows_found": 24,
+                    "num_initial_chunks_spilled_to_disk": 0,
+                    "peak_memory_used": "NNN",
+                    "sort_algorithm": "std::stable_sort",
+                    "sort_mode": "<fixed_sort_key, packed_additional_fields>"
+                  }
+                }
+              ]
+            }
+          },
+          {
             "sorting_table_in_plan_at_position": 3,
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "i"
               }
             ],
@@ -16833,8 +16850,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<fixed_sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]

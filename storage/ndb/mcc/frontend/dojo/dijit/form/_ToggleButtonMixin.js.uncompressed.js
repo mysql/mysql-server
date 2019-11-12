@@ -1,4 +1,3 @@
-//>>built
 define("dijit/form/_ToggleButtonMixin", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr" // domAttr.set
@@ -6,15 +5,13 @@ define("dijit/form/_ToggleButtonMixin", [
 
 // module:
 //		dijit/form/_ToggleButtonMixin
-// summary:
-//		A mixin to provide functionality to allow a button that can be in two states (checked or not).
 
 return declare("dijit.form._ToggleButtonMixin", null, {
 	// summary:
 	//		A mixin to provide functionality to allow a button that can be in two states (checked or not).
 
 	// checked: Boolean
-	//		Corresponds to the native HTML <input> element's attribute.
+	//		Corresponds to the native HTML `<input>` element's attribute.
 	//		In markup, specified as "checked='checked'" or just "checked".
 	//		True if the button is depressed, or the checkbox is checked,
 	//		or the radio button is selected, etc.
@@ -33,9 +30,30 @@ return declare("dijit.form._ToggleButtonMixin", null, {
 
 	_setCheckedAttr: function(/*Boolean*/ value, /*Boolean?*/ priorityChange){
 		this._set("checked", value);
-		domAttr.set(this.focusNode || this.domNode, "checked", value);
-		(this.focusNode || this.domNode).setAttribute(this._aria_attr, value ? "true" : "false"); // aria values should be strings
+		var node = this.focusNode || this.domNode;
+		if(this._created){ // IE is not ready to handle checked attribute (affects tab order)
+			// needlessly setting "checked" upsets IE's tab order
+			if(domAttr.get(node, "checked") != !!value){
+				domAttr.set(node, "checked", !!value); // "mixed" -> true
+			}
+		}
+		node.setAttribute(this._aria_attr, String(value)); // aria values should be strings
 		this._handleOnChange(value, priorityChange);
+	},
+
+	postCreate: function(){ // use postCreate instead of startup so users forgetting to call startup are OK
+		this.inherited(arguments);
+		var node = this.focusNode || this.domNode;
+		if(this.checked){
+			// need this here instead of on the template so IE8 tab order works
+			node.setAttribute('checked', 'checked');
+		}
+
+		// Update our reset value if it hasn't yet been set (because this.set()
+		// is only called when there *is* a value)
+		if(this._resetValue === undefined){
+			this._lastValueReported = this._resetValue = this.checked;
+		}
 	},
 
 	reset: function(){

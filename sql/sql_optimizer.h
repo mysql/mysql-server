@@ -276,7 +276,6 @@ class JOIN {
         plan_state(NO_PLAN),
         select_count(false) {
     rollup.state = ROLLUP::STATE_NONE;
-    tmp_table_param.end_write_records = HA_POS_ERROR;
     if (select->order_list.first) explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
     if (select->group_list.first) explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
     if (select->is_distinct()) explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
@@ -708,6 +707,14 @@ class JOIN {
   */
   bool with_json_agg;
 
+  /**
+    If set, "fields" has been replaced with a set of Item_refs for rollup
+    processing; see the AggregateIterator constructor for more details.
+    This is used when constructing iterators only; it is not used during
+    execution.
+   */
+  bool replaced_items_for_rollup = false;
+
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
 
@@ -717,7 +724,7 @@ class JOIN {
   */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
-  int optimize();
+  bool optimize();
   void reset();
   void exec();
   bool prepare_result();
@@ -827,6 +834,12 @@ class JOIN {
   void finalize_derived_keys();
   bool get_best_combination();
   bool attach_join_conditions(plan_idx last_tab);
+
+ private:
+  bool attach_join_condition_to_nest(plan_idx first_inner, plan_idx last_tab,
+                                     Item *join_cond, bool is_sj_mat_cond);
+
+ public:
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(uint idx, ORDER_with_src *order,
                             bool force_stable_sort = false);
@@ -904,10 +917,20 @@ class JOIN {
   unique_ptr_destroy_only<RowIterator> release_root_iterator() {
     return move(m_root_iterator);
   }
+  void set_root_iterator(unique_ptr_destroy_only<RowIterator> iterator) {
+    m_root_iterator = move(iterator);
+  }
 
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN
-  bool executed;   ///< Set by exec(), reset by reset()
+
+  /**
+    Set by exec(), reset by reset(). Note that this needs to be set
+    _during_ the query (not only when it's done executing), or the
+    dynamic range optimizer will not understand which tables have been
+    read.
+   */
+  bool executed;
 
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
@@ -1045,7 +1068,7 @@ class JOIN {
   bool alloc_qep(uint n);
   void unplug_join_tabs();
   bool setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
-                                         const POSITION *inner_pos,
+                                         POSITION *inner_pos,
                                          POSITION *sjm_pos);
 
   bool add_having_as_tmp_table_cond(uint curr_tmp_table);
@@ -1070,7 +1093,7 @@ class JOIN {
     Optimize DISTINCT, GROUP BY, ORDER BY clauses
 
     @retval false ok
-    @retval true  an error occured
+    @retval true  an error occurred
   */
   bool optimize_distinct_group_order();
 
@@ -1099,6 +1122,22 @@ class JOIN {
     nullptr.
    */
   void create_iterators();
+
+  /**
+    Create iterators with the knowledge that there are going to be zero rows
+    coming from tables (before aggregation); typically because we know that
+    all of them would be filtered away by WHERE (e.g. SELECT * FROM t1
+    WHERE 1=2). This will normally yield no output rows, but if we have implicit
+    aggregation, it might yield a single one.
+   */
+  void create_iterators_for_zero_rows();
+
+  /** @{ Helpers for create_iterators. */
+  void create_table_iterators();
+  unique_ptr_destroy_only<RowIterator> create_root_iterator_for_join();
+  unique_ptr_destroy_only<RowIterator> attach_iterators_for_having_and_limit(
+      unique_ptr_destroy_only<RowIterator> iterator);
+  /** @} */
 
   /**
     An iterator you can read from to get all records for this query.
@@ -1162,6 +1201,19 @@ Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
                           table_map used_table, bool exclude_expensive_cond);
 uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                    uint first_unused);
+
+/**
+  Create an order list that consists of all non-const fields and items.
+  This is usable for e.g. converting DISTINCT into GROUP or ORDER BY.
+
+  Try to put the items in "order_list" first, to allow one to optimize away
+  a later ORDER BY.
+ */
+ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
+                                  ORDER *order_list, List<Item> &fields,
+                                  bool skip_aggregates,
+                                  bool convert_bit_fields_to_long,
+                                  bool *all_order_by_fields_used);
 
 /**
    Returns true if arguments are a temporal Field having no date,
@@ -1261,5 +1313,19 @@ class Candidate_table_order {
  private:
   const JOIN *const m_join;
 };
+
+extern const char *antijoin_null_cond;
+
+/**
+  Checks if an Item, which is constant for execution, can be evaluated during
+  optimization. It cannot be evaluated if it contains a subquery and the
+  OPTION_NO_SUBQUERY_DURING_OPTIMIZATION query option is active.
+
+  @param item    the Item to check
+  @param select  the query block that contains the Item
+  @return false if this Item contains a subquery and subqueries cannot be
+  evaluated during optimization, or true otherwise
+*/
+bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select);
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

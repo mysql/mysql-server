@@ -1,4 +1,3 @@
-//>>built
 define("dijit/form/Slider", [
 	"dojo/_base/kernel", // kernel.deprecated
 	"./HorizontalSlider",
@@ -11,9 +10,14 @@ define("dijit/form/Slider", [
 
 	// module:
 	//		dijit/form/Slider
-	// summary:
-	//		Rollup of all the the Slider related widgets
-	//		For back-compat, remove for 2.0
 
 	kernel.deprecated("Call require() for HorizontalSlider / VerticalRule, explicitly rather than 'dijit.form.Slider' itself", "", "2.0");
+
+	/*=====
+	 return {
+		 // summary:
+		 //		Rollup of all the the Slider related widgets
+		 //		For back-compat, remove for 2.0
+	 };
+	 =====*/
 });

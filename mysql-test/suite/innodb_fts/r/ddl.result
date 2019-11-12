@@ -117,6 +117,8 @@ PRIMARY KEY (FTS_DOC_ID),
 UNIQUE KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
 FULLTEXT KEY idx (title,text)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @@auto_increment_increment=10;
 INSERT INTO fts_test (title, text) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...'),

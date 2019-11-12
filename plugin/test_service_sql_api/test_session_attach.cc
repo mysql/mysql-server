@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd) {
 
   plugin_context->log_test_line(test_cmd);
 
-  cmd.com_query.query = (char *)test_cmd;
+  cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
 
   const bool failed =
@@ -174,7 +174,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd) {
 }
 
 static void test_sql() {
-  DBUG_ENTER("test_sql");
+  DBUG_TRACE;
 
   constexpr int number_of_sessions = 10;
   std::array<MYSQL_SESSION, number_of_sessions> sessions;
@@ -262,8 +262,6 @@ static void test_sql() {
   }
 
   plugin_context->log_test_line("Closed all sessions");
-
-  DBUG_VOID_RETURN;
 }
 
 struct test_thread_context {
@@ -361,28 +359,27 @@ bool execute_test_init(UDF_INIT *, UDF_ARGS *, char *error_message_buffer) {
   Required for session variable registration.
 */
 static int test_sql_service_plugin_init(void *p) {
-  DBUG_ENTER("test_sql_service_plugin_init");
+  DBUG_TRACE;
 
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   plugin_context = new Plugin_context(p);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
   Plugin deinitialization function
 */
 static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_sql_service_plugin_deinit");
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
 
   delete plugin_context;
   plugin_context = nullptr;
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static SYS_VAR *plugin_system_variables[] = {MYSQL_SYSVAR(var_int), nullptr};

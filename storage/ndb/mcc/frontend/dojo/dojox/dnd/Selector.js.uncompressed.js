@@ -1,4 +1,3 @@
-//>>built
 define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(dojo, dojox) {
 
 	return dojo.declare('dojox.dnd.Selector', dojo.dnd.Selector, {
@@ -6,9 +5,9 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			conservative: true,
 			
 			isSelected: function(node) {
-				//	summary:
+				// summary:
 				//		checks if node is selected
-				//	node: String|DomNode:
+				// node: String|DomNode
 				//		Node to check (id or DOM Node)
 				var id = dojo.isString(node) ? node : node.id,
 					item = this.getItem(id);
@@ -16,11 +15,11 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			},
 
 			selectNode: function(node, add) {
-				//	summary:
+				// summary:
 				//		selects a node
-				//	node: String|DomNode:
+				// node: String|DomNode
 				//		Node to select (id or DOM Node)
-				//	add: Boolean?:
+				// add: Boolean?
 				//		If true, node is added to selection, otherwise current
 				//		selection is removed, and node will be the only selection.
 				if (!add) {
@@ -39,9 +38,9 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			},
 
 			deselectNode: function(node) {
-				//	summary:
+				// summary:
 				//		deselects a node
-				//	node: String|DomNode:
+				// node: String|DomNode
 				//		Node to deselect (id or DOM Node)
 				var id = dojo.isString(node) ? node : node.id,
 					item = this.getItem(id);
@@ -56,17 +55,17 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			},
 
 			selectByBBox: function(left, top, right, bottom, add) {
-				//	summary:
+				// summary:
 				//		selects nodes by bounding box
-				//	left: Number:
+				// left: Number
 				//		Left coordinate of the bounding box
-				//	top: Number:
+				// top: Number
 				//		Top coordinate of the bounding box
-				//	right: Number:
+				// right: Number
 				//		Right coordinate of the bounding box
-				//	bottom: Number:
+				// bottom: Number
 				//		Bottom coordinate of the bounding box
-				//	add: Boolean?:
+				// add: Boolean?
 				//		If true, node is added to selection, otherwise current
 				//		selection is removed, and node will be the only selection.
 
@@ -85,30 +84,30 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			},
 
 			_isBoundedByBox: function(node, left, top, right, bottom) {
-				//	summary:
+				// summary:
 				//		figures out whether certain coodinates bound a particular
 				//		dom node.
-				//	node: String|DomNode:
+				// node: String|DomNode
 				//		Node to check (id or DOM Node)
-				//	left: Number:
+				// left: Number
 				//		Left coordinate of the bounding box
-				//	top: Number:
+				// top: Number
 				//		Top coordinate of the bounding box
-				//	right: Number:
+				// right: Number
 				//		Right coordinate of the bounding box
-				//	bottom: Number:
+				// bottom: Number
 				//		Bottom coordinate of the bounding box
 				return this.conservative ? this._conservativeBBLogic(node, left, top, right, bottom) : this._liberalBBLogic(node, left, top, right, bottom);
 			},
 
 			shift: function(toNext, add) {
-				//	summary:
+				// summary:
 				//		shifts the currently selected dnd item forwards and backwards.
 				//		One possible use would be to allow a user select different
 				//		dnd items using the right and left keys.
-				//	toNext: Boolean:
+				// toNext: Boolean
 				//		If true, we select the next node, otherwise the previous one.
-				//	add: Boolean?:
+				// add: Boolean?
 				//		If true, add to selection, otherwise current selection is
 				//		removed before adding any nodes.
 				var selectedNodes = this.getSelectedNodes();
@@ -121,11 +120,11 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			},
 
 			_getNodeId: function(nodeId, toNext) {
-				//	summary:
+				// summary:
 				//		finds a next/previous node in relation to nodeId
-				//	nodeId: String:
+				// nodeId: String
 				//		the id of the node to use as the base node
-				//	toNext: Boolean:
+				// toNext: Boolean
 				//		If true, we select the next node, otherwise the previous one.
 				var allNodes = this.getAllNodes(), newId = nodeId;
 				for (var i = 0, l = allNodes.length; i < l; ++i) {
@@ -144,7 +143,7 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			},
 
 			_conservativeBBLogic: function(node, left, top, right, bottom) {
-				//	summary:
+				// summary:
 				//		logic which determines whether a node is bounded by the
 				//		left,top,right,bottom parameters. This function returns true
 				//		only if the coordinates of the node parameter are fully
@@ -165,7 +164,7 @@ define("dojox/dnd/Selector", ["dojo", "dojox", "dojo/dnd/Selector"], function(do
 			},
 
 			_liberalBBLogic: function(node, left, top, right, bottom) {
-				//	summary:
+				// summary:
 				//		logic which determines whether a node is bounded by the
 				//		left,top,right,bottom parameters. Allows for the case where
 				//		any section of the box determined by the left,top,right,bottom parameters

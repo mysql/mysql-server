@@ -1,7 +1,7 @@
 ###############################################################################
 # Bug#17283409  4-WAY DEADLOCK: ZOMBIES, PURGING BINLOGS, SHOW PROCESSLIST,
 #                        SHOW BINLOGS
-# Problem:  A deadlock was occuring when 4 threads were involved in acquiring
+# Problem:  A deadlock was occurring when 4 threads were involved in acquiring
 #                locks
 #     Thread 1: Dump thread ( Slave is reconnecting, so on Master, a new dump
 #                    thread is trying kill zombie dump threads. It acquired

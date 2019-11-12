@@ -113,6 +113,9 @@ SET PERSIST_ONLY slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
 SET PERSIST_ONLY slave_pending_jobs_size_max = @@GLOBAL.slave_pending_jobs_size_max;
 SET PERSIST_ONLY slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
 SET PERSIST_ONLY slave_rows_search_algorithms = @@GLOBAL.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY slave_skip_errors = @@GLOBAL.slave_skip_errors;
 SET PERSIST_ONLY slave_sql_verify_checksum = @@GLOBAL.slave_sql_verify_checksum;
 SET PERSIST_ONLY slave_transaction_retries = @@GLOBAL.slave_transaction_retries;

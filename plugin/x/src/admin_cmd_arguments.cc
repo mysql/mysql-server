@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,13 +33,22 @@
 
 namespace xpl {
 
+namespace {
+using Argument_appearance =
+    Admin_command_handler::Command_arguments::Appearance_type;
+inline bool is_optional(const Argument_appearance appearance) {
+  return appearance == Argument_appearance::k_optional;
+}
+}  // namespace
+
 Admin_command_arguments_list::Admin_command_arguments_list(const List &args)
     : m_args(args), m_current(m_args.begin()), m_args_consumed(0) {}
 
 Admin_command_arguments_list &Admin_command_arguments_list::string_arg(
-    Argument_name_list name, std::string *ret_value, const bool optional) {
+    Argument_name_list name, std::string *ret_value,
+    const Appearance_type appearance) {
   if (check_scalar_arg(name, Mysqlx::Datatypes::Scalar::V_STRING, "string",
-                       optional)) {
+                       appearance)) {
     const std::string &value = m_current->scalar().v_string().value();
     if (memchr(value.data(), 0, value.length())) {
       m_error = ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
@@ -54,10 +63,10 @@ Admin_command_arguments_list &Admin_command_arguments_list::string_arg(
 
 Admin_command_arguments_list &Admin_command_arguments_list::string_list(
     Argument_name_list name, std::vector<std::string> *ret_value,
-    const bool optional) {
+    const Appearance_type appearance) {
   std::string value;
   do {
-    string_arg(name, &value, optional);
+    string_arg(name, &value, appearance);
     ret_value->push_back(value);
     value.clear();
   } while (!is_end());
@@ -65,9 +74,10 @@ Admin_command_arguments_list &Admin_command_arguments_list::string_list(
 }
 
 Admin_command_arguments_list &Admin_command_arguments_list::sint_arg(
-    Argument_name_list name, int64_t *ret_value, const bool optional) {
+    Argument_name_list name, int64_t *ret_value,
+    const Appearance_type appearance) {
   if (check_scalar_arg(name, Mysqlx::Datatypes::Scalar::V_SINT, "signed int",
-                       optional)) {
+                       appearance)) {
     if (m_current->scalar().type() == Mysqlx::Datatypes::Scalar::V_UINT)
       *ret_value = (int64_t)m_current->scalar().v_unsigned_int();
     else if (m_current->scalar().type() == Mysqlx::Datatypes::Scalar::V_SINT)
@@ -78,9 +88,10 @@ Admin_command_arguments_list &Admin_command_arguments_list::sint_arg(
 }
 
 Admin_command_arguments_list &Admin_command_arguments_list::uint_arg(
-    Argument_name_list name, uint64_t *ret_value, const bool optional) {
+    Argument_name_list name, uint64_t *ret_value,
+    const Appearance_type appearance) {
   if (check_scalar_arg(name, Mysqlx::Datatypes::Scalar::V_UINT, "unsigned int",
-                       optional)) {
+                       appearance)) {
     if (m_current->scalar().type() == Mysqlx::Datatypes::Scalar::V_UINT)
       *ret_value = m_current->scalar().v_unsigned_int();
     else if (m_current->scalar().type() == Mysqlx::Datatypes::Scalar::V_SINT)
@@ -91,9 +102,10 @@ Admin_command_arguments_list &Admin_command_arguments_list::uint_arg(
 }
 
 Admin_command_arguments_list &Admin_command_arguments_list::bool_arg(
-    Argument_name_list name, bool *ret_value, const bool optional) {
+    Argument_name_list name, bool *ret_value,
+    const Appearance_type appearance) {
   if (check_scalar_arg(name, Mysqlx::Datatypes::Scalar::V_BOOL, "bool",
-                       optional)) {
+                       appearance)) {
     *ret_value = m_current->scalar().v_bool();
     ++m_current;
   }
@@ -101,7 +113,7 @@ Admin_command_arguments_list &Admin_command_arguments_list::bool_arg(
 }
 
 Admin_command_arguments_list &Admin_command_arguments_list::docpath_arg(
-    Argument_name_list name, std::string *ret_value, bool) {
+    Argument_name_list name, std::string *ret_value, const Appearance_type) {
   m_args_consumed++;
   if (!m_error) {
     if (m_current == m_args.end()) {
@@ -132,8 +144,8 @@ Admin_command_arguments_list &Admin_command_arguments_list::docpath_arg(
 }
 
 Admin_command_arguments_list &Admin_command_arguments_list::object_list(
-    Argument_name_list name, std::vector<Command_arguments *> *ret_value, bool,
-    unsigned expected_members_count) {
+    Argument_name_list name, std::vector<Command_arguments *> *ret_value,
+    const Appearance_type, unsigned expected_members_count) {
   List::difference_type left = m_args.end() - m_current;
   if (left % expected_members_count > 0) {
     m_error = ngs::Error(ER_X_CMD_NUM_ARGUMENTS,
@@ -169,11 +181,11 @@ void Admin_command_arguments_list::arg_type_mismatch(const char *argname,
 
 bool Admin_command_arguments_list::check_scalar_arg(
     const Argument_name_list &argname, Mysqlx::Datatypes::Scalar::Type type,
-    const char *type_name, const bool optional) {
+    const char *type_name, const Appearance_type appearance) {
   m_args_consumed++;
   if (!m_error) {
     if (m_current == m_args.end()) {
-      if (!optional)
+      if (!is_optional(appearance))
         m_error = ngs::Error(ER_X_CMD_NUM_ARGUMENTS,
                              "Insufficient number of arguments");
     } else {
@@ -187,7 +199,7 @@ bool Admin_command_arguments_list::check_scalar_arg(
                    m_current->scalar().type() ==
                        Mysqlx::Datatypes::Scalar::V_UINT &&
                    m_current->scalar().v_unsigned_int() <
-                       static_cast<int64_t>(
+                       static_cast<uint64_t>(
                            std::numeric_limits<int64_t>::max())) {
           return true;
         } else if (type == Mysqlx::Datatypes::Scalar::V_UINT &&
@@ -196,8 +208,9 @@ bool Admin_command_arguments_list::check_scalar_arg(
                    m_current->scalar().v_signed_int() >= 0) {
           return true;
         } else {
-          if (!(optional && m_current->scalar().type() ==
-                                Mysqlx::Datatypes::Scalar::V_NULL)) {
+          if (!(is_optional(appearance) &&
+                m_current->scalar().type() ==
+                    Mysqlx::Datatypes::Scalar::V_NULL)) {
             arg_type_mismatch(*argname.begin(), m_args_consumed, type_name);
           }
         }
@@ -220,28 +233,28 @@ class General_argument_validator {
   void operator()(const T &input, T *output) { *output = input; }
 };
 
-template <typename T, typename V = General_argument_validator<T>>
+template <typename Type, typename Validator = General_argument_validator<Type>>
 class Argument_type_handler {
  public:
-  Argument_type_handler(const char *name, T *value)
+  Argument_type_handler(const char *name, Type *value)
       : m_validator(name, &m_error), m_value(value), m_error(false) {}
 
-  Argument_type_handler(const char *name)
+  explicit Argument_type_handler(const char *name)
       : m_validator(name, &m_error), m_value(nullptr), m_error(false) {}
 
-  void assign(T *value) { m_value = value; }
-  void operator()(const T &value) { m_validator(value, m_value); }
+  void assign(Type *value) { m_value = value; }
+  void operator()(const Type &value) { m_validator(value, m_value); }
   void operator()() { set_error(); }
-  template <typename O>
-  void operator()(const O &) {
+  template <typename Other_type>
+  void operator()(const Other_type &, const uint32_t = 0) {
     this->operator()();
   }
   bool is_error() const { return m_error; }
   void set_error() { m_error = true; }
 
  private:
-  V m_validator;
-  T *m_value;
+  Validator m_validator;
+  Type *m_value;
   bool m_error;
 };
 
@@ -263,16 +276,6 @@ class String_argument_validator {
   bool *m_error;
 };
 
-inline std::string adjust_sql_regex(const char *regex) {
-  if (!regex) return {};
-  std::string str{regex};
-  if (str.size() < 2) return str;
-  for (std::string::size_type b = str.find(R"(\\)", 0); b != std::string::npos;
-       b = str.find(R"(\\)", b))
-    str.erase(++b, 1);
-  return str;
-}
-
 class Docpath_argument_validator : String_argument_validator {
  public:
   Docpath_argument_validator(const char *name, bool *error)
@@ -280,7 +283,7 @@ class Docpath_argument_validator : String_argument_validator {
 
   void operator()(const std::string &input, std::string *output) {
     static const std::string k_doc_member_regex =
-        adjust_sql_regex("^" DOC_MEMBER_REGEX "$");
+        "^" DOC_MEMBER_REGEX_NO_BACKSLASH_ESCAPES "$";
     static const Regex re(k_doc_member_regex.c_str());
     std::string value;
     String_argument_validator::operator()(input, &value);
@@ -327,8 +330,9 @@ void Admin_command_arguments_object::set_arg_value_error(
 
 template <typename H>
 void Admin_command_arguments_object::get_scalar_arg(
-    const Argument_name_list &name, const bool optional, H *handler) {
-  const Object::ObjectField *field = get_object_field(name, optional);
+    const Argument_name_list &name, const Appearance_type appearance,
+    H *handler) {
+  const Object::ObjectField *field = get_object_field(name, appearance);
   if (!field) return;
 
   get_scalar_value(field->value(), handler);
@@ -336,14 +340,14 @@ void Admin_command_arguments_object::get_scalar_arg(
 }
 
 const Admin_command_arguments_object::Object::ObjectField *
-Admin_command_arguments_object::get_object_field(const Argument_name_list &name,
-                                                 const bool optional) {
+Admin_command_arguments_object::get_object_field(
+    const Argument_name_list &name, const Appearance_type appearance) {
   if (m_error) return nullptr;
 
   ++m_args_consumed;
 
   if (!m_is_object) {
-    if (!optional) set_number_args_error(*name.begin());
+    if (!is_optional(appearance)) set_number_args_error(*name.begin());
     return nullptr;
   }
 
@@ -358,7 +362,7 @@ Admin_command_arguments_object::get_object_field(const Argument_name_list &name,
     }
   }
 
-  if (!optional) set_number_args_error(*name.begin());
+  if (!is_optional(appearance)) set_number_args_error(*name.begin());
   return nullptr;
 }
 
@@ -367,23 +371,24 @@ void Admin_command_arguments_object::get_scalar_value(const Any &value,
                                                       H *handler) {
   try {
     ngs::Getter_any::put_scalar_value_to_functor(value, *handler);
-  } catch (const ngs::Error_code &e) {
+  } catch (const ngs::Error_code &) {
     handler->set_error();
   }
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::string_arg(
-    Argument_name_list name, std::string *ret_value, const bool optional) {
+    Argument_name_list name, std::string *ret_value,
+    const Appearance_type appearance) {
   Argument_type_handler<std::string, String_argument_validator> handler(
       *name.begin(), ret_value);
-  get_scalar_arg(name, optional, &handler);
+  get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::string_list(
     Argument_name_list name, std::vector<std::string> *ret_value,
-    const bool optional) {
-  const Object::ObjectField *field = get_object_field(name, optional);
+    const Appearance_type appearance) {
+  const Object::ObjectField *field = get_object_field(name, appearance);
   if (!field) return *this;
 
   if (!field->value().has_type()) {
@@ -427,40 +432,44 @@ Admin_command_arguments_object &Admin_command_arguments_object::string_list(
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::sint_arg(
-    Argument_name_list name, int64_t *ret_value, const bool optional) {
+    Argument_name_list name, int64_t *ret_value,
+    const Appearance_type appearance) {
   Argument_type_handler<google::protobuf::int64> handler(*name.begin(),
                                                          ret_value);
-  get_scalar_arg(name, optional, &handler);
+  get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::uint_arg(
-    Argument_name_list name, uint64_t *ret_value, const bool optional) {
+    Argument_name_list name, uint64_t *ret_value,
+    const Appearance_type appearance) {
   Argument_type_handler<google::protobuf::uint64> handler(*name.begin(),
                                                           ret_value);
-  get_scalar_arg(name, optional, &handler);
+  get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::bool_arg(
-    Argument_name_list name, bool *ret_value, const bool optional) {
+    Argument_name_list name, bool *ret_value,
+    const Appearance_type appearance) {
   Argument_type_handler<bool> handler(*name.begin(), ret_value);
-  get_scalar_arg(name, optional, &handler);
+  get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::docpath_arg(
-    Argument_name_list name, std::string *ret_value, const bool optional) {
+    Argument_name_list name, std::string *ret_value,
+    const Appearance_type appearance) {
   Argument_type_handler<std::string, Docpath_argument_validator> handler(
       *name.begin(), ret_value);
-  get_scalar_arg(name, optional, &handler);
+  get_scalar_arg(name, appearance, &handler);
   return *this;
 }
 
 Admin_command_arguments_object &Admin_command_arguments_object::object_list(
     Argument_name_list name, std::vector<Command_arguments *> *ret_value,
-    const bool optional, unsigned) {
-  const Object::ObjectField *field = get_object_field(name, optional);
+    const Appearance_type appearance, unsigned) {
+  const Object::ObjectField *field = get_object_field(name, appearance);
   if (!field) return *this;
 
   if (!field->value().has_type()) {

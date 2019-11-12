@@ -1,14 +1,15 @@
-//>>built
-define("dojox/charting/BidiSupport", ["dojo/_base/lang", "dojo/_base/html", "dojo/_base/array", "dojo/_base/sniff",
+define("dojox/charting/BidiSupport", ["../main", "dojo/_base/lang", "dojo/dom-style", "dojo/_base/array", "dojo/_base/sniff",
 	"dojo/dom","dojo/dom-construct",
 	"dojox/gfx", "dojox/gfx/_gfxBidiSupport", "./Chart", "./axis2d/common", "dojox/string/BidiEngine", "dojox/lang/functional"], 
-	function(lang, html, arr, has, dom, domConstruct, g, gBidi, Chart, da, BidiEngine, df){
+	function(dojox, lang, domStyle, arr, has, dom, domConstruct, g, gBidi, Chart, da, BidiEngine, df){
 
 	var bidiEngine = new BidiEngine();
+
+	var dc = lang.getObject("charting", true, dojox);
 	
 	lang.extend(Chart, {
 		// summary:
-		//		Add support for bidi scripts.
+		//		Add support for bidi scripts to dojox/charting classes.
 		// description:
 		//		Bidi stands for support for languages with a bidirectional script. 
 		//		There's a special need for displaying BIDI text in rtl direction 
@@ -18,29 +19,31 @@ define("dojox/charting/BidiSupport", ["dojo/_base/lang", "dojo/_base/html", "doj
 		// textDir: String
 		//		Bi-directional support,	the main variable which is responsible for the direction of the text.
 		//		The text direction can be different than the GUI direction by using this parameter.
-		// 		Allowed values:
-		//			1. "ltr"
-		//			2. "rtl"
-		//			3. "auto" - contextual the direction of a text defined by first strong letter.
-		//		By default is as the page direction.		
+		//		Allowed values:
+		//
+		//		1. "ltr"
+		//		2. "rtl"
+		//		3. "auto" - contextual the direction of a text defined by first strong letter.
+		//
+		//		By default is as the page direction.
 		textDir:"",
 		
 		getTextDir: function(/*String*/text){
 			// summary:
 			//		Return direction of the text. 
 			// description:
-			// 		If textDir is ltr or rtl returns the value.
+			//		If textDir is ltr or rtl returns the value.
 			//		If it's auto, calls to another function that responsible 
 			//		for checking the value, and defining the direction.			
 			// text:
 			//		Used in case textDir is "auto", this case the direction is according to the first
 			//		strong (directionally - which direction is strong defined) letter.
-			//	tags:
+			// tags:
 			//		protected.
 			var textDir = this.textDir == "auto" ? bidiEngine.checkContextual(text) : this.textDir;
 			// providing default value
 			if(!textDir){
-				textDir = html.style(this.node,"direction");
+				textDir = domStyle.get(this.node, "direction");
 			}
 			return textDir;
 		},
@@ -56,7 +59,7 @@ define("dojox/charting/BidiSupport", ["dojo/_base/lang", "dojo/_base/html", "doj
 			// validate textDir
 			var textDir = args ? (args["textDir"] ? validateTextDir(args["textDir"]) : "") : "";
 			// if textDir wasn't defined or was defined wrong, apply default value
-			textDir = textDir ? textDir : html.style(this.node,"direction");
+			textDir = textDir ? textDir : domStyle.get(this.node, "direction");
 			this.textDir = textDir;
 
 			this.surface.textDir = textDir;
@@ -157,15 +160,19 @@ define("dojox/charting/BidiSupport", ["dojo/_base/lang", "dojo/_base/html", "doj
 			//		Enables bidi support for truncated labels.
 			// description:
 			//		Can be two types of labels: html or gfx.
-			//		gfx labels: 
-			//			Need to be stored in registry to be used when the textDir will be set dynamically.
-			//			Additional work on truncated labels is needed for case as 111111A (A stands for "bidi" character rtl directioned).
-			//			let say in this case the truncation is "111..." If the textDir is auto, the display should be: "...111" but in gfx
-			//			case we will get "111...". Because this.surface.setTextDir will calculate the dir of truncated
-			//			label, which value is "111..." but th real is "111111A".
-			//			each time we created a gfx truncated label we store it in the truncatedLabelsRegistry.
-			//		html labels:
-			//			no need for repository (stored in another place). Here we only need to update the current dir according to textDir.
+			//
+			//		####gfx labels:
+			//
+			//		Need to be stored in registry to be used when the textDir will be set dynamically.
+			//		Additional work on truncated labels is needed for case as 111111A (A stands for "bidi" character rtl directioned).
+			//		let's say in this case the truncation is "111..." If the textDir is auto, the display should be: "...111" but in gfx
+			//		case we will get "111...". Because this.surface.setTextDir will calculate the dir of truncated
+			//		label, which value is "111..." but th real is "111111A".
+			//		each time we created a gfx truncated label we store it in the truncatedLabelsRegistry.
+			//
+			//		####html labels:
+			//
+			//		no need for repository (stored in another place). Here we only need to update the current dir according to textDir.
 			// tags:
 			//		private
 		
@@ -230,7 +237,7 @@ define("dojox/charting/BidiSupport", ["dojo/_base/lang", "dojo/_base/html", "doj
 		// aditional preprocessing of the labels, needed for rtl base text direction in LTR 
 		// GUI, or for ltr base text direction for RTL GUI.
 
-		var isChartDirectionRtl = (html.style(chart.node,"direction") == "rtl");
+		var isChartDirectionRtl = (domStyle.get(chart.node,"direction") == "rtl");
 		var isBaseTextDirRtl = (chart.getTextDir(label) == "rtl");
 
 		if(isBaseTextDirRtl && !isChartDirectionRtl){
@@ -245,8 +252,8 @@ define("dojox/charting/BidiSupport", ["dojo/_base/lang", "dojo/_base/html", "doj
 
 	// connect labelPreprocess to run before labelTooltip.
 	// patch it only is available
-	if(dojox.charting.axis2d && dojox.charting.axis2d.Default){
-		extendMethod(dojox.charting.axis2d.Default,"labelTooltip",true, labelPreprocess, null);
+	if(dc.axis2d && dc.axis2d.Default){
+		extendMethod(dc.axis2d.Default, "labelTooltip", true, labelPreprocess, null);
 		//extendMethod(dijit,"showTooltip",false, labelPreprocess, null);
 	}
 
@@ -261,5 +268,19 @@ define("dojox/charting/BidiSupport", ["dojo/_base/lang", "dojo/_base/html", "doj
 	function validateTextDir(textDir){
 		return /^(ltr|rtl|auto)$/.test(textDir) ? textDir : null;
 	}
+
+	/*=====
+	return {
+		// summary:
+		//		Add support to dojox/charting for bidi scripts.
+		// description:
+		//		Bidi stands for support for languages with a bidirectional script.
+		//		There's a special need for displaying BIDI text in rtl direction
+		//		in ltr GUI, sometimes needed auto support.
+		//		dojox.charting does not support control over base text direction provided in Dojo.
+	};
+	=====*/
+
+	return Chart;
 		
 });

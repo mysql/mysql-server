@@ -1,10 +1,9 @@
 
 .mblRoundRect {
-  margin: 7px 9px 16px 9px;
+  margin: 7px 9px 16px;
   padding: 8px;
-  border: 1px solid #ADAAAD;
-  -webkit-border-radius: 8px;
-  -moz-border-radius: 8px;
+  border: 1px solid #adaaad;
+  border-radius: 8px;
   background-color: white;
 }
 .mblRoundRect.mblShadow {

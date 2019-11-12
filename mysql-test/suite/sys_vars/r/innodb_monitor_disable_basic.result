@@ -5,6 +5,9 @@ metadata_table_handles_opened	disabled
 metadata_table_handles_closed	disabled
 metadata_table_reference_count	disabled
 lock_deadlocks	disabled
+lock_deadlock_false_positives	disabled
+lock_deadlock_rounds	disabled
+lock_threads_waiting	disabled
 lock_timeouts	disabled
 lock_rec_lock_waits	disabled
 lock_table_lock_waits	disabled
@@ -322,6 +325,9 @@ select name, status from information_schema.innodb_metrics
 where name like "%lock%";
 name	status
 lock_deadlocks	disabled
+lock_deadlock_false_positives	disabled
+lock_deadlock_rounds	disabled
+lock_threads_waiting	disabled
 lock_timeouts	disabled
 lock_rec_lock_waits	disabled
 lock_table_lock_waits	disabled

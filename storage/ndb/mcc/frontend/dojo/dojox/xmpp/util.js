@@ -1,8 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/string/Builder,dojox/encoding/base64"],function(_1,_2,_3){
-_2.provide("dojox.xmpp.util");
-_2.require("dojox.string.Builder");
-_2.require("dojox.encoding.base64");
+define("dojox/xmpp/util",["dojo","dijit","dojox","dojo/require!dojox/string/Builder,dojox/encoding/base64"],function(_1,_2,_3){
+_1.provide("dojox.xmpp.util");
+_1.require("dojox.string.Builder");
+_1.require("dojox.encoding.base64");
 _3.xmpp.util.xmlEncode=function(_4){
 if(_4){
 _4=_4.replace("&","&amp;").replace(">","&gt;").replace("<","&lt;").replace("'","&apos;").replace("\"","&quot;");
@@ -95,7 +95,7 @@ for(var i=0;i<arguments.length;i++){
 return _f.replace(re,"");
 };
 _3.xmpp.util.decodeHtmlEntities=function(str){
-var ta=_2.doc.createElement("textarea");
+var ta=_1.doc.createElement("textarea");
 ta.innerHTML=str.replace(/</g,"&lt;").replace(/>/g,"&gt;");
 return ta.value;
 };
@@ -119,7 +119,7 @@ return _3.encoding.base64.encode(s2b(_10));
 _3.xmpp.util.Base64.decode=function(_11){
 var b2s=function(b){
 var s=[];
-_2.forEach(b,function(c){
+_1.forEach(b,function(c){
 s.push(String.fromCharCode(c));
 });
 return s.join("");

@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/grid/resources/View.html':"<div class=\"dojoxGridView\" role=\"presentation\">\n\t<div class=\"dojoxGridHeader\" dojoAttachPoint=\"headerNode\" role=\"presentation\">\n\t\t<div dojoAttachPoint=\"headerNodeContainer\" style=\"width:9000em\" role=\"presentation\">\n\t\t\t<div dojoAttachPoint=\"headerContentNode\" role=\"row\"></div>\n\t\t</div>\n\t</div>\n\t<input type=\"checkbox\" class=\"dojoxGridHiddenFocus\" dojoAttachPoint=\"hiddenFocusNode\" role=\"presentation\" />\n\t<input type=\"checkbox\" class=\"dojoxGridHiddenFocus\" role=\"presentation\" />\n\t<div class=\"dojoxGridScrollbox\" dojoAttachPoint=\"scrollboxNode\" role=\"presentation\">\n\t\t<div class=\"dojoxGridContent\" dojoAttachPoint=\"contentNode\" hidefocus=\"hidefocus\" role=\"presentation\"></div>\n\t</div>\n</div>\n"}});
 define("dojox/grid/_View", [
@@ -23,7 +22,7 @@ define("dojox/grid/_View", [
 	"dojo/dnd/Avatar",
 	"dojo/dnd/Manager"
 ], function(dojo, dijit, dojox, declare, array, lang, connect, has, query,
-	win, template, Source, _Widget, _TemplatedMixin, metrics, util, html, _Builder, Avatar){
+	win, template, Source, _Widget, _TemplatedMixin, metrics, util, html, _Builder, Avatar, Manager){
 
 	// a private function
 	var getStyleText = function(inNode, inStyleText){
@@ -42,12 +41,11 @@ define("dojox/grid/_View", [
 		defaultWidth: "18em",
 
 		// viewWidth: String
-		// 		Width for the view, in valid css unit
+		//		Width for the view, in valid css unit
 		viewWidth: "",
 
 		templateString: template,
-		
-		themeable: false,
+
 		classTag: 'dojoxGrid',
 		marginBottom: 0,
 		rowPad: 2,
@@ -96,7 +94,7 @@ define("dojox/grid/_View", [
 
 		// focus
 		focus: function(){
-			if(has("ie") || has("webkit") || has("opera")){
+			if(has('ie') || has('webkit') || has('opera')){
 				this.hiddenFocusNode.focus();
 			}else{
 				this.scrollboxNode.focus();
@@ -201,7 +199,7 @@ define("dojox/grid/_View", [
 
 		getColumnsWidth: function(){
 			var h = this.headerContentNode;
-			return h && h.firstChild ? h.firstChild.offsetWidth : 0; // Integer
+			return h && h.firstChild ? (h.firstChild.offsetWidth || html.style(h.firstChild, 'width')) : 0; // Integer
 		},
 
 		setColumnsWidth: function(width){
@@ -290,7 +288,7 @@ define("dojox/grid/_View", [
 								this.grid.headerMenu.onCancel(true);
 							}
 							// IE reports a left click as 1, where everything else reports 0
-							if(e.button === (has("ie") ? 1 : 0)){
+							if(e.button === (has('ie') < 9 ? 1 : 0)){
 								Source.prototype.onMouseDown.call(this.source, e);
 							}
 						}
@@ -380,7 +378,7 @@ define("dojox/grid/_View", [
 		},
 
 		_onDndDropBefore: function(source, nodes, copy){
-			if(dojo.dnd.manager().target !== this.source){
+			if(Manager.manager().target !== this.source){
 				return;
 			}
 			this.source._targetNode = this.source.targetAnchor;
@@ -395,8 +393,8 @@ define("dojox/grid/_View", [
 		},
 
 		_onDndDrop: function(source, nodes, copy){
-			if(dojo.dnd.manager().target !== this.source){
-				if(dojo.dnd.manager().source === this.source){
+			if(Manager.manager().target !== this.source){
+				if(Manager.manager().source === this.source){
 					this._removingColumn = true;
 				}
 				return;
@@ -699,16 +697,20 @@ define("dojox/grid/_View", [
 		// scrolling
 		lastTop: 0,
 		firstScroll:0,
+		_nativeScroll: false,
 
 		doscroll: function(inEvent){
+			if(has('ff') >= 13 || has('chrome')){
+				this._nativeScroll = true;
+			}
 			//var s = dojo.marginBox(this.headerContentNode.firstChild);
 			var isLtr = this.grid.isLeftToRight();
 			if(this.firstScroll < 2){
 				if((!isLtr && this.firstScroll == 1) || (isLtr && this.firstScroll === 0)){
 					var s = html.marginBox(this.headerNodeContainer);
-					if(has("ie")){
+					if(has('ie')){
 						this.headerNodeContainer.style.width = s.w + this.getScrollbarWidth() + 'px';
-					}else if(has("mozilla")){
+					}else if(has('mozilla')){
 						//TODO currently only for FF, not sure for safari and opera
 						this.headerNodeContainer.style.width = s.w - this.getScrollbarWidth() + 'px';
 						//this.headerNodeContainer.style.width = s.w + 'px';
@@ -726,12 +728,16 @@ define("dojox/grid/_View", [
 			if(top !== this.lastTop){
 				this.grid.scrollTo(top);
 			}
+			this._nativeScroll = false;
 		},
 
 		setScrollTop: function(inTop){
 			// 'lastTop' is a semaphore to prevent feedback-loop with doScroll above
 			this.lastTop = inTop;
-			this.scrollboxNode.scrollTop = inTop;
+			if(!this._nativeScroll){
+				//fix #15487
+				this.scrollboxNode.scrollTop = inTop;
+			}
 			return this.scrollboxNode.scrollTop;
 		},
 
@@ -830,23 +836,23 @@ define("dojox/grid/_View", [
 			a.appendChild(b);
 			this.node = a;
 
-			var m = dojo.dnd.manager();
+			var m = Manager.manager();
 			this.oldOffsetY = m.OFFSET_Y;
 			m.OFFSET_Y = 1;
 		},
 		destroy: function(){
-			dojo.dnd.manager().OFFSET_Y = this.oldOffsetY;
+			Manager.manager().OFFSET_Y = this.oldOffsetY;
 			this.inherited(arguments);
 		}
 	});
 
-	var oldMakeAvatar = dojo.dnd.manager().makeAvatar;
-	dojo.dnd.manager().makeAvatar = function(){
+	var oldMakeAvatar = Manager.manager().makeAvatar;
+	Manager.manager().makeAvatar = function(){
 		var src = this.source;
 		if(src.viewIndex !== undefined && !html.hasClass(win.body(),"dijit_a11y")){
 			return new _GridAvatar(this);
 		}
-		return oldMakeAvatar.call(dojo.dnd.manager());
+		return oldMakeAvatar.call(Manager.manager());
 	};
 
 	return _View;

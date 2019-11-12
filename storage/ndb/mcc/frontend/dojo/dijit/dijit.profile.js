@@ -27,11 +27,7 @@ var profile = (function(){
 			miniExclude: function(filename, mid){
 				return /^dijit\/bench\//.test(mid) || /^dijit\/themes\/themeTest/.test(mid);
 			}
-		},
-
-		trees:[
-			[".", ".", /(\/\.)|(~$)/]
-		]
+		}
 	};
 })();
 

@@ -1,21 +1,18 @@
-//>>built
 define("dojox/data/WikipediaStore", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/declare", "dojo/io/script", 
 		"dojo/io-query", "dojox/rpc/Service", "dojox/data/ServiceStore"], 
   function(kernel, lang, declare, scriptIO, ioQuery, Service, ServiceStore) {
 
 kernel.experimental("dojox.data.WikipediaStore");
 
-/*===== var ServiceStore = dojox.data.ServiceStore; =====*/
-
 return declare("dojox.data.WikipediaStore", ServiceStore, {
-	//	summary:
+	// summary:
 	//		Initializer for the Wikipedia data store interface.
-	//	description:
+	// description:
 	//		The WikipediaStore is a data store interface to Wikipedia, using the
 	//		Wikipedia SMD spec from dojox.rpc. It currently is useful only for
 	//		finding articles that contain some particular text or grabbing single
 	//		articles by full name; no wildcards or other filtering are supported.
-	//	example:
+	// example:
 	//		|	var store = new dojox.data.WikipediaStore();
 	//		|	store.fetch({
 	//		|		query: {title:"Dojo Toolkit"},
@@ -35,17 +32,17 @@ return declare("dojox.data.WikipediaStore", ServiceStore, {
 	},
 
 	fetch: function(/* object */ request){
-		//	summary:
+		// summary:
 		//		Fetch a page or some partially-loaded search results from
 		//		Wikipedia. Note that there isn't a way to sort data coming
 		//		in from the API, so we just ignore the *sort* parameter.
-		//	example:
+		// example:
 		//		Loading a page:
 		//		|	store.fetch({
 		//		|		query: {title:"Dojo Toolkit"},
 		//		|		// define your handlers here
 		//		|	});
-		//	example:
+		// example:
 		//		Searching for pages containing "dojo":
 		//		|	store.fetch({
 		//		|		query: {
@@ -54,7 +51,7 @@ return declare("dojox.data.WikipediaStore", ServiceStore, {
 		//		|		},
 		//		|		// define your handlers here
 		//		|	});
-		//	example:
+		// example:
 		//		Searching for the next 50 pages containing "dojo":
 		//		|	store.fetch({
 		//		|		query: {

@@ -42,16 +42,15 @@
 #ifndef MYSQL_ABI_CHECK
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <sys/types.h>
 #endif
 
-// Small extra definitions to avoid pulling in my_inttypes.h in client code.
-// IWYU pragma: no_include "my_inttypes.h"
-#if defined(_WIN32)
-typedef unsigned __int64 my_ulonglong;
-#else
-typedef unsigned long long my_ulonglong;
-#endif /* _WIN32 */
+// Legacy definition for the benefit of old code. Use uint64_t in new code.
+// If you get warnings from printf, use the PRIu64 macro, or, if you need
+// compatibility with older versions of the client library, cast
+// before printing.
+typedef uint64_t my_ulonglong;
 
 #ifndef my_socket_defined
 #define my_socket_defined
@@ -145,7 +144,7 @@ typedef struct MYSQL_FIELD {
 typedef char **MYSQL_ROW;                /* return data as array of strings */
 typedef unsigned int MYSQL_FIELD_OFFSET; /* offset to current field */
 
-#define MYSQL_COUNT_ERROR (~(my_ulonglong)0)
+#define MYSQL_COUNT_ERROR (~(uint64_t)0)
 
 /* backward compatibility define - to be removed eventually */
 #define ER_WARN_DATA_TRUNCATED WARN_DATA_TRUNCATED
@@ -163,7 +162,7 @@ struct MEM_ROOT;
 typedef struct MYSQL_DATA {
   MYSQL_ROWS *data;
   struct MEM_ROOT *alloc;
-  my_ulonglong rows;
+  uint64_t rows;
   unsigned int fields;
 } MYSQL_DATA;
 
@@ -208,7 +207,9 @@ enum mysql_option {
   MYSQL_OPT_RETRY_COUNT,
   MYSQL_OPT_OPTIONAL_RESULTSET_METADATA,
   MYSQL_OPT_SSL_FIPS_MODE,
-  MYSQL_OPT_TLS_CIPHERSUITES
+  MYSQL_OPT_TLS_CIPHERSUITES,
+  MYSQL_OPT_COMPRESSION_ALGORITHMS,
+  MYSQL_OPT_ZSTD_COMPRESSION_LEVEL
 };
 
 /**
@@ -299,9 +300,9 @@ typedef struct MYSQL {
   struct CHARSET_INFO *charset;
   MYSQL_FIELD *fields;
   struct MEM_ROOT *field_alloc;
-  my_ulonglong affected_rows;
-  my_ulonglong insert_id;  /* id if insert on table with NEXTNR */
-  my_ulonglong extra_info; /* Not used */
+  uint64_t affected_rows;
+  uint64_t insert_id;      /* id if insert on table with NEXTNR */
+  uint64_t extra_info;     /* Not used */
   unsigned long thread_id; /* Id for connection in server */
   unsigned long packet_length;
   unsigned int port;
@@ -332,7 +333,7 @@ typedef struct MYSQL {
 } MYSQL;
 
 typedef struct MYSQL_RES {
-  my_ulonglong row_count;
+  uint64_t row_count;
   MYSQL_FIELD *fields;
   struct MYSQL_DATA *data;
   MYSQL_ROWS *data_cursor;
@@ -368,13 +369,13 @@ typedef struct MYSQL_RES {
   @sa mysql_binlog_close()
 */
 typedef struct MYSQL_RPL {
-  size_t file_name_length;     /** Length of the 'file_name' or 0     */
-  const char *file_name;       /** Filename of the binary log to read */
-  my_ulonglong start_position; /** Position in the binary log to      */
-                               /*  start reading from                 */
-  unsigned int server_id;      /** Server ID to use when identifying  */
-                               /*  with the master                    */
-  unsigned int flags;          /** Flags, e.g. MYSQL_RPL_GTID         */
+  size_t file_name_length; /** Length of the 'file_name' or 0     */
+  const char *file_name;   /** Filename of the binary log to read */
+  uint64_t start_position; /** Position in the binary log to      */
+                           /*  start reading from                 */
+  unsigned int server_id;  /** Server ID to use when identifying  */
+                           /*  with the master                    */
+  unsigned int flags;      /** Flags, e.g. MYSQL_RPL_GTID         */
 
   /** Size of gtid set data              */
   size_t gtid_set_encoded_size;
@@ -424,7 +425,7 @@ void STDCALL mysql_thread_end(void);
   Should definitely be used if one uses shared libraries.
 */
 
-my_ulonglong STDCALL mysql_num_rows(MYSQL_RES *res);
+uint64_t STDCALL mysql_num_rows(MYSQL_RES *res);
 unsigned int STDCALL mysql_num_fields(MYSQL_RES *res);
 bool STDCALL mysql_eof(MYSQL_RES *res);
 MYSQL_FIELD *STDCALL mysql_fetch_field_direct(MYSQL_RES *res,
@@ -435,8 +436,8 @@ MYSQL_FIELD_OFFSET STDCALL mysql_field_tell(MYSQL_RES *res);
 enum enum_resultset_metadata STDCALL mysql_result_metadata(MYSQL_RES *result);
 
 unsigned int STDCALL mysql_field_count(MYSQL *mysql);
-my_ulonglong STDCALL mysql_affected_rows(MYSQL *mysql);
-my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql);
+uint64_t STDCALL mysql_affected_rows(MYSQL *mysql);
+uint64_t STDCALL mysql_insert_id(MYSQL *mysql);
 unsigned int STDCALL mysql_errno(MYSQL *mysql);
 const char *STDCALL mysql_error(MYSQL *mysql);
 const char *STDCALL mysql_sqlstate(MYSQL *mysql);
@@ -525,7 +526,7 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
                              const void *arg);
 void STDCALL mysql_free_result(MYSQL_RES *result);
 enum net_async_status STDCALL mysql_free_result_nonblocking(MYSQL_RES *result);
-void STDCALL mysql_data_seek(MYSQL_RES *result, my_ulonglong offset);
+void STDCALL mysql_data_seek(MYSQL_RES *result, uint64_t offset);
 MYSQL_ROW_OFFSET STDCALL mysql_row_seek(MYSQL_RES *result,
                                         MYSQL_ROW_OFFSET offset);
 MYSQL_FIELD_OFFSET STDCALL mysql_field_seek(MYSQL_RES *result,
@@ -677,8 +678,8 @@ typedef struct MYSQL_STMT {
   */
   int (*read_row_func)(struct MYSQL_STMT *stmt, unsigned char **row);
   /* copy of mysql->affected_rows after statement execution */
-  my_ulonglong affected_rows;
-  my_ulonglong insert_id;      /* copy of mysql->insert_id */
+  uint64_t affected_rows;
+  uint64_t insert_id;          /* copy of mysql->insert_id */
   unsigned long stmt_id;       /* Id for prepared statement */
   unsigned long flags;         /* i.e. type of cursor to open */
   unsigned long prefetch_rows; /* number of rows per one COM_FETCH */
@@ -759,10 +760,10 @@ const char *STDCALL mysql_stmt_sqlstate(MYSQL_STMT *stmt);
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_seek(MYSQL_STMT *stmt,
                                              MYSQL_ROW_OFFSET offset);
 MYSQL_ROW_OFFSET STDCALL mysql_stmt_row_tell(MYSQL_STMT *stmt);
-void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, my_ulonglong offset);
-my_ulonglong STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
-my_ulonglong STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
-my_ulonglong STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt);
+void STDCALL mysql_stmt_data_seek(MYSQL_STMT *stmt, uint64_t offset);
+uint64_t STDCALL mysql_stmt_num_rows(MYSQL_STMT *stmt);
+uint64_t STDCALL mysql_stmt_affected_rows(MYSQL_STMT *stmt);
+uint64_t STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt);
 unsigned int STDCALL mysql_stmt_field_count(MYSQL_STMT *stmt);
 
 bool STDCALL mysql_commit(MYSQL *mysql);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,18 @@
 
 static char *group_replication_switch_to_multi_primary_mode(
     UDF_INIT *, UDF_ARGS *, char *result, unsigned long *length,
-    unsigned char *, unsigned char *) {
-  DBUG_ENTER("group_replication_switch_to_multi_primary_mode");
+    unsigned char *is_null, unsigned char *error) {
+  DBUG_TRACE;
+
+  *is_null = 0;  // result is not null
+  *error = 0;
 
   if (local_member_info && !local_member_info->in_primary_mode()) {
     const char *return_message = "The group is already on multi-primary mode.";
     size_t return_length = strlen(return_message);
     strcpy(result, return_message);
     *length = return_length;
-    DBUG_RETURN(result);
+    return result;
   }
 
   my_thread_id udf_thread_id = 0;
@@ -46,60 +49,71 @@ static char *group_replication_switch_to_multi_primary_mode(
   Group_action_diagnostics execution_message_area;
   group_action_coordinator->coordinate_action_execution(
       &group_action, &execution_message_area);
-  log_group_action_result_message(
-      &execution_message_area, "group_replication_switch_to_multi_primary_mode",
-      result, length);
+  if (log_group_action_result_message(
+          &execution_message_area,
+          "group_replication_switch_to_multi_primary_mode", result, length)) {
+    *error = 1;
+  }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 static bool group_replication_switch_to_multi_primary_mode_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message) {
-  DBUG_ENTER("group_replication_switch_to_multi_primary_mode_init");
+  DBUG_TRACE;
 
+  /*
+    Increment only after verifying the plugin is not stopping
+    Do NOT increment before accessing volatile plugin structures.
+    Stop is checked again after increment as the plugin might have stopped
+  */
+  if (get_plugin_is_stopping()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return true;
+  }
   UDF_counter udf_counter;
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (args->arg_count > 0) {
     my_stpcpy(message, "Wrong arguments: This function takes no arguments.");
-    DBUG_RETURN(true);
+    return true;
   }
 
   privilege_result privilege = user_has_gr_admin_privilege();
   bool has_privileges = (privilege.status == privilege_status::ok);
   if (!has_privileges) {
     log_privilege_status_result(privilege, message);
-    DBUG_RETURN(true);
+    return true;
   }
 
   bool has_locked_tables = check_locked_tables(message);
-  if (!has_locked_tables) DBUG_RETURN(true);
+  if (!has_locked_tables) return true;
 
   bool plugin_online = member_online_with_majority();
   if (!plugin_online) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   bool is_a_member_in_recovery = group_contains_recovering_member();
   if (is_a_member_in_recovery) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, recovering_member_on_group_str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   bool is_a_member_unreachable = group_contains_unreachable_member();
   if (is_a_member_unreachable) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, unreachable_member_on_group_str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   initid->maybe_null = 0;
   udf_counter.succeeded();
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void group_replication_switch_to_multi_primary_mode_deinit(UDF_INIT *) {

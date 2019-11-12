@@ -1,11 +1,8 @@
-//>>built
 define("dojox/dtl/filter/lists", [
 	"dojo/_base/lang",
 	"../_base"
 ], function(lang,dd){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.filter.lists", true);
 
 	lang.mixin(dd.filter.lists, {
@@ -16,7 +13,8 @@ define("dojox/dtl/filter/lists", [
 			return (a[0] < b[0]) ? -1 : 1;
 		},
 		dictsort: function(value, arg){
-			// summary: Takes a list of dicts, returns that list sorted by the property given in the argument.
+			// summary:
+			//		Takes a list of dicts, returns that list sorted by the property given in the argument.
 			if(!arg){
 				return value;
 			}
@@ -39,18 +37,21 @@ define("dojox/dtl/filter/lists", [
 			return output;
 		},
 		dictsortreversed: function(value, arg){
-			// summary: Takes a list of dicts, returns that list sorted in reverse order by the property given in the argument.
+			// summary:
+			//		Takes a list of dicts, returns that list sorted in reverse order by the property given in the argument.
 			if(!arg) return value;
 
 			var dictsort = dojox.dtl.filter.lists.dictsort(value, arg);
 			return dictsort.reverse();
 		},
 		first: function(value){
-			// summary: Returns the first item in a list
+			// summary:
+			//		Returns the first item in a list
 			return (value.length) ? value[0] : "";
 		},
 		join: function(value, arg){
-			// summary: Joins a list with a string, like Python's ``str.join(list)``
+			// summary:
+			//		Joins a list with a string, like Python's ``str.join(list)``
 			// description:
 			//		Django throws a compile error, but JS can't do arg checks
 			//		so we're left with run time errors, which aren't wise for something
@@ -58,22 +59,26 @@ define("dojox/dtl/filter/lists", [
 			return value.join(arg || ",");
 		},
 		length: function(value){
-			// summary: Returns the length of the value - useful for lists
+			// summary:
+			//		Returns the length of the value - useful for lists
 			return (isNaN(value.length)) ? (value + "").length : value.length;
 		},
 		length_is: function(value, arg){
-			// summary: Returns a boolean of whether the value's length is the argument
+			// summary:
+			//		Returns a boolean of whether the value's length is the argument
 			return value.length == parseInt(arg);
 		},
 		random: function(value){
-			// summary: Returns a random item from the list
+			// summary:
+			//		Returns a random item from the list
 			return value[Math.floor(Math.random() * value.length)];
 		},
 		slice: function(value, arg){
-			// summary: Returns a slice of the list.
+			// summary:
+			//		Returns a slice of the list.
 			// description:
 			//		Uses the same syntax as Python's list slicing; see
-			//		http://diveintopython.org/native_data_types/lists.html#odbchelper.list.slice
+			//		http://www.diveintopython.net/native_data_types/lists.html#odbchelper.list.slice
 			//		for an introduction.
 			//		Also uses the optional third value to denote every X item.
 			arg = arg || "";
@@ -121,8 +126,8 @@ define("dojox/dtl/filter/lists", [
 		unordered_list: function(value){
 			// summary:
 			//		Recursively takes a self-nested list and returns an HTML unordered list --
-			//		WITHOUT opening and closing <ul> tags.
-			//	description:
+			//		WITHOUT opening and closing `<ul>` tags.
+			// description:
 			//		The list is assumed to be in the proper format. For example, if ``var`` contains
 			//		``['States', [['Kansas', [['Lawrence', []], ['Topeka', []]]], ['Illinois', []]]]``,
 			//		then ``{{ var|unordered_list }}`` would return::

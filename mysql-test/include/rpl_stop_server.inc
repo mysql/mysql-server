@@ -49,26 +49,36 @@ if ($rpl_debug)
 # it until it's told to
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.$rpl_server_number.expect
 
-# Send shutdown to the connected server
---let $shutdown_server_timeout= 60
+# Send shutdown to the connected server.
+
+--let $ss_timeout= 60
+
+if ($shutdown_server_timeout)
+{
+  --let $ss_timeout= $shutdown_server_timeout
+}
+
+--let $timeout_multiplier= 6
+
 if ($VALGRIND_TEST)
 {
-  let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
+  --expr $ss_timeout= $ss_timeout * $timeout_multiplier
 }
 
 let $have_sparc = `select convert(@@version_compile_machine using latin1) IN ('sparc')`;
 if ($have_sparc)
 {
-  let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
+  --expr $ss_timeout= $ss_timeout * $timeout_multiplier
 }
-
 
 if ($rpl_force_stop)
 {
    # if force_stop is set, shutdown server immediately(equal to killing the server)
-   --let $shutdown_server_timeout= 0
+   --let $ss_timeout= 0
 }
-shutdown_server $shutdown_server_timeout;
+
+shutdown_server $ss_timeout;
+
 --source include/wait_until_disconnected.inc
 
 --let $rpl_connection_name= $_rpl_stop_server_old_connection

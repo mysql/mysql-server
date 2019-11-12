@@ -1,0 +1,33 @@
+# Should use myisam
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat';
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
+alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' wait engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
+ERROR HY000: Tablespace ndb_ts1 doesn't exist.
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
+ERROR HY000: Tablespace ndb_ts1 doesn't exist.
+alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
+ERROR HY000: Tablespace ndb_ts1 doesn't exist.
+drop logfile group ndb_lg1 engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+drop logfile group ndb_lg1 engine=myisam;
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
+drop tablespace ndb_ts1 engine=myisam;
+ERROR HY000: Tablespace ndb_ts1 doesn't exist.
+drop tablespace ndb_ts1 engine=myisam;
+ERROR HY000: Tablespace ndb_ts1 doesn't exist.

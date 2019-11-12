@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,7 +294,8 @@ TEST_F(GcsParametersTest, AbsentLocalNode) {
 }
 
 TEST_F(GcsParametersTest, InvalidPeerNodes) {
-  std::string *p = (std::string *)m_params.get_parameter("peer_nodes");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("peer_nodes"));
   std::string save = *p;
 
   // invalid peer
@@ -310,7 +311,8 @@ TEST_F(GcsParametersTest, InvalidPeerNodes) {
 }
 
 TEST_F(GcsParametersTest, InvalidLocalNode) {
-  std::string *p = (std::string *)m_params.get_parameter("local_node");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("local_node"));
   std::string save = *p;
 
   // invalid peer
@@ -320,7 +322,8 @@ TEST_F(GcsParametersTest, InvalidLocalNode) {
 }
 
 TEST_F(GcsParametersTest, InvalidPollSpinLoops) {
-  std::string *p = (std::string *)m_params.get_parameter("poll_spin_loops");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("poll_spin_loops"));
   std::string save = *p;
 
   *p = "Invalid";
@@ -329,8 +332,8 @@ TEST_F(GcsParametersTest, InvalidPollSpinLoops) {
 }
 
 TEST_F(GcsParametersTest, InvalidCompressionThreshold) {
-  std::string *p =
-      (std::string *)m_params.get_parameter("compression_threshold");
+  std::string *p = const_cast<std::string *>(
+      m_params.get_parameter("compression_threshold"));
   std::string save = *p;
 
   *p = "Invalid";
@@ -339,8 +342,8 @@ TEST_F(GcsParametersTest, InvalidCompressionThreshold) {
 }
 
 TEST_F(GcsParametersTest, InvalidFragmentationThreshold) {
-  std::string *p =
-      (std::string *)m_params.get_parameter("fragmentation_threshold");
+  std::string *p = const_cast<std::string *>(
+      m_params.get_parameter("fragmentation_threshold"));
   std::string save = *p;
 
   *p = "Invalid";
@@ -349,7 +352,8 @@ TEST_F(GcsParametersTest, InvalidFragmentationThreshold) {
 }
 
 TEST_F(GcsParametersTest, InvalidLocalNodeAddress) {
-  std::string *p = (std::string *)m_params.get_parameter("local_node");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("local_node"));
   std::string save = *p;
 
   *p = "127.0";
@@ -358,7 +362,8 @@ TEST_F(GcsParametersTest, InvalidLocalNodeAddress) {
 }
 
 TEST_F(GcsParametersTest, InvalidWhitelistIPMask) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.1.1/33";
@@ -367,7 +372,8 @@ TEST_F(GcsParametersTest, InvalidWhitelistIPMask) {
 }
 
 TEST_F(GcsParametersTest, InvalidWhitelistIP) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.1.256/24";
@@ -376,7 +382,8 @@ TEST_F(GcsParametersTest, InvalidWhitelistIP) {
 }
 
 TEST_F(GcsParametersTest, InvalidWhitelistIPs) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.1.222/24,255.257.256.255";
@@ -385,7 +392,8 @@ TEST_F(GcsParametersTest, InvalidWhitelistIPs) {
 }
 
 TEST_F(GcsParametersTest, HalfBakedIP) {
-  std::string *p = (std::string *)m_params.get_parameter("ip_whitelist");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("ip_whitelist"));
   std::string save = *p;
 
   *p = "192.168.";
@@ -394,7 +402,8 @@ TEST_F(GcsParametersTest, HalfBakedIP) {
 }
 
 TEST_F(GcsParametersTest, InvalidLocalNode_IP_not_found) {
-  std::string *p = (std::string *)m_params.get_parameter("local_node");
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("local_node"));
   std::string save = *p;
 
   *p = "8.8.8.8:24844";

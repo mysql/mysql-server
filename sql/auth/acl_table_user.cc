@@ -233,7 +233,7 @@ bool Acl_user_attributes::deserialize(const Json_object &json_object) {
     if (db_restrictions.add(json_object)) return true;
     /* Filtering & warnings */
     report_and_remove_invalid_db_restrictions(
-        db_restrictions, DB_ACLS, WARNING_LEVEL,
+        db_restrictions, DB_OP_ACLS, WARNING_LEVEL,
         ER_WARN_INCORRECT_PRIVILEGE_FOR_DB_RESTRICTIONS);
     report_and_remove_invalid_db_restrictions(db_restrictions, m_global_privs,
                                               WARNING_LEVEL,
@@ -306,9 +306,11 @@ void Acl_user_attributes::update_restrictions(
 bool parse_user_attributes(THD *thd, TABLE *table,
                            User_table_schema *table_schema,
                            Acl_user_attributes &user_attributes) {
-  const Json_object *json_object;
-  Json_wrapper json_wrapper;
-  if (!table->field[table_schema->user_attributes_idx()]->is_null()) {
+  // Read only if the column of type JSON and it is not null.
+  if (table->field[table_schema->user_attributes_idx()]->type() ==
+          MYSQL_TYPE_JSON &&
+      !table->field[table_schema->user_attributes_idx()]->is_null()) {
+    Json_wrapper json_wrapper;
     if ((down_cast<Field_json *>(
              table->field[table_schema->user_attributes_idx()])
              ->val_json(&json_wrapper)))
@@ -318,7 +320,7 @@ bool parse_user_attributes(THD *thd, TABLE *table,
     if (!json_dom || json_dom->json_type() != enum_json_type::J_OBJECT)
       return true;
 
-    json_object = down_cast<const Json_object *>(json_dom);
+    const Json_object *json_object = down_cast<const Json_object *>(json_dom);
     if (user_attributes.deserialize(*json_object)) return true;
   }
   return false;
@@ -384,13 +386,13 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   Acl_table_user_writer_status return_value(m_thd->mem_root);
   Acl_table_user_writer_status err_return_value(m_thd->mem_root);
 
-  DBUG_ENTER("acl_table_user_writer_status Acl_table_user_writer::driver");
+  DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(m_thd));
 
   /* Setup the table for writing */
   if (setup_table(error, builtin_plugin)) {
     return_value.error = error;
-    DBUG_RETURN(return_value);
+    return return_value;
   }
 
   if (m_operation == Acl_table_operation::OP_UPDATE) {
@@ -404,7 +406,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
         we want to skip updates to cache because it's a no-op.
       */
       return_value.error = 0;
-      DBUG_RETURN(return_value);
+      return return_value;
     }
   }
 
@@ -419,7 +421,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
       update_user_resources() || update_password_expiry() ||
       update_password_history() || update_password_reuse() ||
       update_password_require_current() || update_account_locking()) {
-    DBUG_RETURN(err_return_value);
+    return err_return_value;
   }
 
   (void)finish_operation(error);
@@ -429,7 +431,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
     return_value.skip_cache_update = false;
   }
 
-  DBUG_RETURN(return_value);
+  return return_value;
 }
 
 /**
@@ -496,7 +498,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           my_error(ER_NONEXISTING_GRANT, MYF(0), m_combo->user.str,
                    m_combo->host.str);
           /*
-            Return 1 as an indication that expected error occured during
+            Return 1 as an indication that expected error occurred during
             handling of REVOKE statement for an unknown user.
           */
           error = 1;
@@ -1202,10 +1204,10 @@ Acl_table_op_status Acl_table_user_reader::finish_operation(
     @retval true  Error initializing table
 */
 bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
-  DBUG_ENTER("Acl_table_user_reader::setup_table");
-  if (init_read_record(&m_read_record_info, m_thd, m_table, NULL, false,
-                       /*ignore_not_found_rows=*/false))
-    DBUG_RETURN(true);
+  DBUG_TRACE;
+  m_iterator = init_table_iterator(m_thd, m_table, NULL, false,
+                                   /*ignore_not_found_rows=*/false);
+  if (m_iterator == nullptr) return true;
   m_table->use_all_columns();
   clean_user_cache();
 
@@ -1218,7 +1220,7 @@ bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
   is_old_db_layout =
       user_table_schema_factory.is_old_user_table_schema(m_table);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1289,7 +1291,7 @@ bool Acl_table_user_reader::read_authentication_string(ACL_USER &user) {
     user.credentials[PRIMARY_CRED].m_auth_string.length =
         strlen(user.credentials[PRIMARY_CRED].m_auth_string.str);
   } else {
-    user.credentials[PRIMARY_CRED].m_auth_string = EMPTY_STR;
+    user.credentials[PRIMARY_CRED].m_auth_string = EMPTY_CSTR;
   }
 
   return false;
@@ -1523,7 +1525,8 @@ bool Acl_table_user_reader::read_plugin_info(
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
     if (auth->validate_authentication_string(
-            user.credentials[PRIMARY_CRED].m_auth_string.str,
+            const_cast<char *>(
+                user.credentials[PRIMARY_CRED].m_auth_string.str),
             user.credentials[PRIMARY_CRED].m_auth_string.length)) {
       LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
              user.user ? user.user : "",
@@ -1723,17 +1726,14 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       if (additional_password.length()) {
         user.credentials[SECOND_CRED].m_auth_string.length =
             additional_password.length();
-        user.credentials[SECOND_CRED].m_auth_string.str = (char *)alloc_root(
-            &m_mem_root,
-            user.credentials[SECOND_CRED].m_auth_string.length + 1);
-        memcpy(user.credentials[SECOND_CRED].m_auth_string.str,
-               additional_password.c_str(),
+        char *auth_string = static_cast<char *>(m_mem_root.Alloc(
+            user.credentials[SECOND_CRED].m_auth_string.length + 1));
+        memcpy(auth_string, additional_password.c_str(),
                user.credentials[SECOND_CRED].m_auth_string.length);
-        user.credentials[SECOND_CRED]
-            .m_auth_string
-            .str[user.credentials[SECOND_CRED].m_auth_string.length] = 0;
+        auth_string[user.credentials[SECOND_CRED].m_auth_string.length] = 0;
+        user.credentials[SECOND_CRED].m_auth_string.str = auth_string;
       } else {
-        user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+        user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
       }
 
       /* Validate the hash string. */
@@ -1743,7 +1743,8 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       if (plugin) {
         st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
         if (auth->validate_authentication_string(
-                user.credentials[SECOND_CRED].m_auth_string.str,
+                const_cast<char *>(
+                    user.credentials[SECOND_CRED].m_auth_string.str),
                 user.credentials[SECOND_CRED].m_auth_string.length)) {
           LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
                  user.user ? user.user : "",
@@ -1755,11 +1756,11 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       }
     } else {
       // user_attributes column is NULL. So use suitable defaults.
-      user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+      user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
     }
     *m_restrictions = user_attributes.get_restrictions();
   } else {
-    user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+    user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
   }
   return false;
 }
@@ -1815,17 +1816,17 @@ void Acl_table_user_reader::add_row_to_acl_users(ACL_USER &user) {
 bool Acl_table_user_reader::read_row(bool &is_old_db_layout,
                                      bool &super_users_with_empty_plugin) {
   bool password_expired = false;
-  DBUG_ENTER("Acl_table_user_reader::read_row");
+  DBUG_TRACE;
   /* Reading record from mysql.user */
   ACL_USER user;
   reset_acl_user(user);
   read_account_name(user);
-  if (read_authentication_string(user)) DBUG_RETURN(true);
+  if (read_authentication_string(user)) return true;
   read_privileges(user);
   read_ssl_fields(user);
   read_user_resources(user);
   if (read_plugin_info(user, super_users_with_empty_plugin, is_old_db_layout))
-    DBUG_RETURN(false);
+    return false;
   read_password_expiry(user, password_expired);
   read_password_locked(user);
   read_password_last_changed(user);
@@ -1833,14 +1834,14 @@ bool Acl_table_user_reader::read_row(bool &is_old_db_layout,
   read_password_history_fields(user);
   read_password_reuse_time_fields(user);
   read_password_require_current(user);
-  if (read_user_attributes(user)) DBUG_RETURN(false);
+  if (read_user_attributes(user)) return false;
 
   set_user_salt(&user);
   user.password_expired = password_expired;
 
   add_row_to_acl_users(user);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1854,19 +1855,18 @@ bool Acl_table_user_reader::read_row(bool &is_old_db_layout,
     @retval true  Error reading the table. Probably corrupt.
 */
 bool Acl_table_user_reader::driver() {
-  DBUG_ENTER("Acl_table_user_reader::driver");
+  DBUG_TRACE;
   bool is_old_db_layout;
   bool super_users_with_empty_plugin = false;
-  if (setup_table(is_old_db_layout)) DBUG_RETURN(true);
+  if (setup_table(is_old_db_layout)) return true;
   allow_all_hosts = 0;
   int read_rec_errcode;
-  while (!(read_rec_errcode = m_read_record_info->Read())) {
-    if (read_row(is_old_db_layout, super_users_with_empty_plugin))
-      DBUG_RETURN(true);
+  while (!(read_rec_errcode = m_iterator->Read())) {
+    if (read_row(is_old_db_layout, super_users_with_empty_plugin)) return true;
   }
 
-  m_read_record_info.iterator.reset();
-  if (read_rec_errcode > 0) DBUG_RETURN(true);
+  m_iterator.reset();
+  if (read_rec_errcode > 0) return true;
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   acl_users->shrink_to_fit();
   rebuild_cached_acl_users_for_name();
@@ -1875,7 +1875,7 @@ bool Acl_table_user_reader::driver() {
     LogErr(WARNING_LEVEL, ER_NO_SUPER_WITHOUT_USER_PLUGIN);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 }  // namespace acl_table
@@ -1909,7 +1909,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                                               what_to_update, restrictions);
   acl_table::Acl_table_user_writer_status return_value(thd->mem_root);
 
-  DBUG_ENTER("replace_user_table");
+  DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
 
   return_value = user_table.driver();
@@ -1947,7 +1947,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                       combo->auth, password_change_time, combo->alter_status,
                       return_value.restrictions);
   }
-  DBUG_RETURN(return_value.error);
+  return return_value.error;
 }
 
 /**
@@ -1962,9 +1962,9 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
 */
 bool read_user_table(THD *thd, TABLE *m_table) {
   acl_table::Acl_table_user_reader acl_table_user_reader(thd, m_table);
-  DBUG_ENTER("read_user_table");
+  DBUG_TRACE;
 
-  if (acl_table_user_reader.driver()) DBUG_RETURN(true);
+  if (acl_table_user_reader.driver()) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }

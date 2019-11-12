@@ -1,0 +1,106 @@
+################################################################################
+# Validate exit state actions on error when clone fails
+#  - Enabling the offline mode
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Commit some data and then purge all binary logs.
+#    Bootstrap a group on server1.
+# 2. Change the exit state action to OFFLINE_MODE on server 2.
+#    Install clone plugin.
+#    Start GR, cloning is the option chosen as recovery
+#    from binary logs is not possible.
+#    But the donor has no plugin installed so it will error out
+# 3. Cleanup.
+#
+
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = CLONE_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--echo
+--echo ################################################################
+--echo # 1. Commit some data and then purge all binary logs on server 1
+--echo #    Bootstrap a group on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+# Purge binary logs.
+SET sql_log_bin = 0;
+--source include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+FLUSH BINARY LOGS;
+--let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+--replace_result $server_binlog_file_cur CURRENT_BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$server_binlog_file_cur'
+
+--let $assert_text = GTID_PURGED must be equal to GTID_EXECUTED
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_EXECUTED)
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Change the exit state action to OFFLINE_MODE on server 2.
+--echo #    Install clone plugin.
+--echo #    Start GR, cloning is the option chosen as recovery
+--echo #    from binary logs is not possible.
+--echo #    But the donor has no plugin installed so it will error out
+
+# Install the clone plugin
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+# Verify that super_read_only is enabled
+--source include/assert_and_disable_read_only.inc
+
+# Verify that offline_mode is enabled
+--source include/assert_and_disable_offline_mode.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3 Cleanup.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/gtid_utils_end.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+UNINSTALL PLUGIN clone;
+
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs,*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+SET SESSION sql_log_bin=1;
+
+--source include/group_replication_end.inc

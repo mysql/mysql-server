@@ -1,6 +1,5 @@
-//>>built
 define("dojox/css3/fx", [
-	"dojo/_base/kernel",
+	"dojo/_base/lang",
 	"dojo/_base/connect",	// dojo.connect
 	"dojo/dom-style",	// dojo.style
 	"dojo/_base/fx",
@@ -10,15 +9,17 @@ define("dojox/css3/fx", [
 	"dojox/fx/ext-dojo/complex"],
 function(lang,connectUtil,domStyle,baseFx,coreFx,htmlUtil,htmlStyleExt,complexFx){
 	var css3fx = lang.getObject("dojox.css3.fx", true);
-	/*===== css3fx = dojox.css3.fx =====*/
-	
-	return lang.mixin(css3fx, {
-		puff: function(args){
+
+	var css3fxFunctions = {
+		// summary:
+		//		Utilities for animation effects.
+		
+		puff: function(/*Object*/args){
 			// summary:
-			//		Returns an animation that will do a "puff" effect on the given node
+			//		Returns an animation that will do a "puff" effect on the given node.
 			//
 			// description:
-			//		Fades out an element and scales it to args.endScale
+			//		Fades out an element and scales it to args.endScale.
 			//
 			return coreFx.combine([baseFx.fadeOut(args),
 				this.expand({
@@ -28,12 +29,12 @@ function(lang,connectUtil,domStyle,baseFx,coreFx,htmlUtil,htmlStyleExt,complexFx
 			]);
 		},
 
-		expand: function(args){
+		expand: function(/*Object*/args){
 			// summary:
-			//		Returns an animation that expands args.node
+			//		Returns an animation that expands args.node.
 			//
 			// description:
-			//		Scales an element to args.endScale
+			//		Scales an element to args.endScale.
 			//
 			return baseFx.animateProperty({
 				node: args.node,
@@ -43,9 +44,9 @@ function(lang,connectUtil,domStyle,baseFx,coreFx,htmlUtil,htmlStyleExt,complexFx
 			});
 		},
 
-		shrink: function(args){
+		shrink: function(/*Object*/args){
 			// summary:
-			//		Returns an animation that shrinks args.node
+			//		Returns an animation that shrinks args.node.
 			//
 			// description:
 			//		Shrinks an element, same as expand({ node: node, endScale: .01 });
@@ -56,12 +57,12 @@ function(lang,connectUtil,domStyle,baseFx,coreFx,htmlUtil,htmlStyleExt,complexFx
 			});
 		},
 
-		rotate: function(args){
+		rotate: function(/*Object*/args){
 			// summary:
-			//		Returns an animation that rotates an element
+			//		Returns an animation that rotates an element.
 			//
 			// description:
-			//		Rotates an element from args.startAngle to args.endAngle
+			//		Rotates an element from args.startAngle to args.endAngle.
 			//
 			return baseFx.animateProperty({
 				node: args.node,
@@ -72,13 +73,13 @@ function(lang,connectUtil,domStyle,baseFx,coreFx,htmlUtil,htmlStyleExt,complexFx
 			});
 		},
 
-		flip: function(args){
+		flip: function(/*Object*/args){
 			// summary:
-			//		Returns an animation that flips an element around his y axis
+			//		Returns an animation that flips an element around his y axis.
 			//
 			// description:
 			//		Flips an element around his y axis. The default is a 360deg flip
-			//		but it's possible to run a partial flip using args.whichAnims
+			//		but it is possible to run a partial flip using args.whichAnims.
 			//
 			// example:
 			//	|	// half flip
@@ -109,13 +110,13 @@ function(lang,connectUtil,domStyle,baseFx,coreFx,htmlUtil,htmlStyleExt,complexFx
 			return coreFx.chain(anims);
 		},
 
-		bounce: function(args){
+		bounce: function(/*Object*/args){
 			// summary:
-			//		Returns an animation that do a "bounce" effect on args.node
+			//		Returns an animation that does a "bounce" effect on args.node.
 			//
 			// description:
-			//		Vertical bounce animation, the scaleX, scaleY deformation and the
-			//		jump height (args.jumpHeight) can be specified
+			//		Vertical bounce animation. The scaleX, scaleY deformation and the
+			//		jump height (args.jumpHeight) can be specified.
 			//
 			var anims = [],
 				n = args.node,
@@ -188,5 +189,10 @@ function(lang,connectUtil,domStyle,baseFx,coreFx,htmlUtil,htmlStyleExt,complexFx
 
 			return coreFx.chain(anims);
 		}
-	});
+	};
+	
+	/*=====
+	return css3fxFunctions;
+	 =====*/
+	return lang.mixin(css3fx, css3fxFunctions);
 });

@@ -331,13 +331,14 @@ set @v10 = '0123456789';
 set @v100 = concat(@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10,@v10);
 set @v1000 =concat(@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100,@v100);
 set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
-set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
+set @v29000 = concat(@v10000,@v10000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000);
 
 insert into t1 (c1,c500) values (1,@v10000), (2,@v10000), (3,@v10000);
 alter table t1 algorithm=copy, modify c1 int auto_increment;
 alter table t1 algorithm=inplace, add column c501 bit(1) column_format DYNAMIC;
---error ER_TOO_BIG_ROWSIZE
-alter table t1 algorithm=inplace, add column c502 varchar(2000);
+--error ER_GET_ERRMSG
+alter table t1 algorithm=inplace, add column c502 varchar(18001);
+show warnings;
 --sync_slave_with_master
 --connection slave
 select length(c500) from t1 order by 1;
@@ -347,8 +348,8 @@ drop table t1;
 --sync_slave_with_master
 --connection master
 
-create table t1 (a int primary key, b varchar(13000)) engine = ndb charset=latin1;
-insert into t1 values (1,@v13000), (2,@v13000);
+create table t1 (a int primary key, b varchar(29000)) engine = ndb charset=latin1;
+insert into t1 values (1,@v29000), (2,@v29000);
 --sync_slave_with_master
 --connection slave
 select length(b) from t1 order by 1;

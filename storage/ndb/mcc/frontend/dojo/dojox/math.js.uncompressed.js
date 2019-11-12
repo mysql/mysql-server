@@ -1,7 +1,14 @@
-//>>built
 // AMD-ID "dojox/math"
 define("dojox/math", ["dojo", "dojox", "dojox/math/_base"], function(dojo, dojox, math) {
-dojo.getObject("math", true, dojox);
+	dojo.getObject("math", true, dojox);
 
-return dojox.math;
+	/*=====
+	 return {
+	 // summary:
+	 //		Deprecated.  Should require dojox/math modules directly rather than trying to access them through
+	 //		this module.
+	 };
+	 =====*/
+
+	return dojox.math;
 });

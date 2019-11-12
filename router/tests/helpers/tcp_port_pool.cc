@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,11 +48,16 @@
 using mysql_harness::Path;
 using mysqlrouter::get_socket_errno;
 
+const unsigned TcpPortPool::kPortsRange;
+
 #ifndef _WIN32
 bool UniqueId::lock_file(const std::string &file_name) {
   lock_file_fd_ = open(file_name.c_str(), O_RDWR | O_CREAT, 0666);
 
   if (lock_file_fd_ >= 0) {
+    // open() honours umask and we want to make sure this directory is
+    // accessible for every user regardless of umask settings
+    ::chmod(file_name.c_str(), 0666);
 #ifdef __sun
     struct flock fl;
 
@@ -120,6 +125,11 @@ std::string UniqueId::get_lock_file_dir() const {
 UniqueId::UniqueId(unsigned start_from, unsigned range) {
   const std::string lock_file_dir = get_lock_file_dir();
   mysql_harness::mkdir(lock_file_dir, 0777);
+#ifndef _WIN32
+  // mkdir honours umask and we want to make sure this directory is accessible
+  // for every user regardless of umask settings
+  ::chmod(lock_file_dir.c_str(), 0777);
+#endif
 
   for (unsigned i = 0; i < range; i++) {
     id_ = start_from + i;
@@ -142,33 +152,33 @@ UniqueId::~UniqueId() {
     close(lock_file_fd_);
   }
 
-    /*
-     * Removing lock file may result in race condition, both fcntl and flock are
-     * affected by this issue, consider the following scenario.
-     *
-     *           process A           process B
-     *     1. fd_a = open(file)                     // process A opens file
-     *     2. fcntl(fd_a) == 0                      // process A acquires lock
-     * on file
-     *     3.                    fd_b = open(file)  // process B opens file
-     *     4.                    fcntl(fd_b) == -1  // process B fails to
-     * acquire lock
-     *     5. close(fd_a)                           // process A closes file
-     *     6. unlink(file)                          // process A removes file
-     * name
-     *     7. fd_a = open(file)                     // process A opens file once
-     * again
-     *     8. fcntl(fd_a) == 0                      // process A acquires lock
-     * on the file
-     *     9.                    close(fd_b)        // process B closes file
-     *    10.                    unlink(file)       // process B removes file
-     * name
-     *    11.                    fd_b = open(file)  // process B opens file
-     *    12.                    fcntl(fd_b) == 0   // process B acquires lock
-     * on file
-     *
-     *    At this point both process A and process B have lock on the same file.
-     */
+  /*
+   * Removing lock file may result in race condition, both fcntl and flock are
+   * affected by this issue, consider the following scenario.
+   *
+   *           process A           process B
+   *     1. fd_a = open(file)                     // process A opens file
+   *     2. fcntl(fd_a) == 0                      // process A acquires lock
+   * on file
+   *     3.                    fd_b = open(file)  // process B opens file
+   *     4.                    fcntl(fd_b) == -1  // process B fails to
+   * acquire lock
+   *     5. close(fd_a)                           // process A closes file
+   *     6. unlink(file)                          // process A removes file
+   * name
+   *     7. fd_a = open(file)                     // process A opens file once
+   * again
+   *     8. fcntl(fd_a) == 0                      // process A acquires lock
+   * on the file
+   *     9.                    close(fd_b)        // process B closes file
+   *    10.                    unlink(file)       // process B removes file
+   * name
+   *    11.                    fd_b = open(file)  // process B opens file
+   *    12.                    fcntl(fd_b) == 0   // process B acquires lock
+   * on file
+   *
+   *    At this point both process A and process B have lock on the same file.
+   */
 
 #else
   if (lock_file_fd_ != NULL && lock_file_fd_ != INVALID_HANDLE_VALUE) {
@@ -202,12 +212,15 @@ UniqueId::UniqueId(UniqueId &&other) {
  * EACCESS etc.)
  * */
 static bool try_to_connect(uint16_t port,
+                           const std::chrono::milliseconds socket_probe_timeout,
                            const std::string &hostname = "127.0.0.1") {
   struct addrinfo hints, *ainfo;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
+
+  auto socket_ops = mysql_harness::SocketOperations::instance();
 
   int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
                            &hints, &ainfo);
@@ -225,28 +238,61 @@ static bool try_to_connect(uint16_t port,
     throw std::runtime_error("try_to_connect(): socket() failed: " +
                              std::to_string(get_socket_errno()));
   }
-  std::shared_ptr<void> exit_close_socket(nullptr, [&](void *) {
-    mysql_harness::SocketOperations::instance()->close(sock_id);
-  });
+  std::shared_ptr<void> exit_close_socket(
+      nullptr, [&](void *) { socket_ops->close(sock_id); });
 
+  socket_ops->set_socket_blocking(sock_id, false);
   status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
-  return status >= 0;
+  if (status >= 0) {
+    return true;
+  }
+
+  switch (socket_ops->get_errno()) {
+#ifdef _WIN32
+    case WSAEINPROGRESS:
+    case WSAEWOULDBLOCK:
+#else
+    case EINPROGRESS:
+#endif
+      if (0 != socket_ops->connect_non_blocking_wait(
+                   sock_id, std::chrono::milliseconds(socket_probe_timeout))) {
+        return false;
+      }
+
+      {
+        int so_error = 0;
+        return (0 ==
+                socket_ops->connect_non_blocking_status(sock_id, so_error));
+      }
+    default:;
+      // fallback
+  }
+
+  return false;
 }
 
-uint16_t TcpPortPool::get_next_available() {
+uint16_t TcpPortPool::get_next_available(
+    const std::chrono::milliseconds socket_probe_timeout) {
   while (true) {
-    if (number_of_ids_used_ >= kMaxPort) {
-      throw std::runtime_error("No more available ports from UniquePortsGroup");
+    if (number_of_ids_used_ % kPortsPerFile == 0) {
+      number_of_ids_used_ = 0;
+      // need another lock file
+      auto start_from =
+          unique_ids_.empty() ? kPortsStartFrom : unique_ids_.back().get();
+      unique_ids_.emplace_back(start_from + 1, kPortsRange);
     }
 
+    assert(unique_ids_.size() > 0);
+
     // this is the formula that mysql-test also uses to map lock filename to
-    // actual port number
-    unsigned result =
-        10000 + unique_id_.get() * kMaxPort + number_of_ids_used_++;
+    // actual port number, they currently start from 13000 though
+    unsigned result = 10000 + unique_ids_.back().get() * kPortsPerFile +
+                      number_of_ids_used_++;
 
     // there is no lock file for a given port but let's also check if there
     // really is nothing that will accept our connection attempt on that port
-    if (!try_to_connect(result)) return result;
+    if (!try_to_connect(result, socket_probe_timeout, "127.0.0.1"))
+      return result;
 
     std::cerr << "get_next_available(): port " << result
               << " seems busy, not using\n";

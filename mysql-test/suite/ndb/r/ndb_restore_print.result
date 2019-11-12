@@ -12,6 +12,13 @@ create table t1
 ,h1 BINARY(1), h2 BINARY(8), h3 BINARY(255)
 ,i1 VARBINARY(32), i2 VARBINARY(255), i3 VARBINARY(1000)
 ) engine myisam;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values
 (1
 ,0x1, 0x17, 0x789a, 0x789abcde, 0xfedc0001
@@ -241,6 +248,13 @@ create table t1
 ,h1 BINARY(1), h2 BINARY(9), h3 BINARY(255)
 ,i1 VARBINARY(32), i2 VARBINARY(255), i3 VARBINARY(1000)
 ) engine ndb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values
 (1
 ,'1','12345678901234567890123456789012','123456789 '
@@ -323,6 +337,11 @@ small1 decimal (1,0),
 usmall1 decimal (1,0) unsigned,
 small2 decimal (1,1),
 usmall2 decimal (1,1) unsigned) engine=ndb;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values (1,
 -9999999999.9999999999,
 9999999999.9999999999,

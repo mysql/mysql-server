@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,8 @@ void Compatibility_module::add_incompatibility(Member_version &from,
 }
 
 Compatibility_type Compatibility_module::check_local_incompatibility(
-    Member_version &to) {
-  return check_incompatibility(get_local_version(), to);
+    Member_version &to, bool is_lowest_version) {
+  return check_incompatibility(get_local_version(), to, is_lowest_version);
 }
 
 bool Compatibility_module::check_version_range_incompatibility(
@@ -88,8 +88,7 @@ bool Compatibility_module::check_version_range_incompatibility(
 }
 
 Compatibility_type Compatibility_module::check_incompatibility(
-    Member_version &from, Member_version &to) {
-  // Check if they are the same...
+    Member_version &from, Member_version &to, bool do_version_check) {
   if (from == to) return COMPATIBLE;
 
   // Find if the values are present in the statically defined table...
@@ -100,7 +99,6 @@ Compatibility_type Compatibility_module::check_incompatibility(
       search_its;
 
   search_its = this->incompatibilities.equal_range(from.get_version());
-
   for (std::multimap<unsigned int,
                      std::pair<unsigned int, unsigned int>>::iterator it =
            search_its.first;
@@ -111,22 +109,26 @@ Compatibility_type Compatibility_module::check_incompatibility(
     }
   }
 
-  // It was not deemed incompatible by the table rules:
+  // It was not deemed incompatible by the table rules
 
-  /*
-    If they belong to the same major version
-  */
-  if (from.get_major_version() == to.get_major_version()) return COMPATIBLE;
+  /**
+    We have already confirmed versions are not same.
+    If joinee version is higher then group lowest version, its read compatible
+    else joinee version is INCOMPATIBLE with the group.
+   */
+  if (do_version_check) {
+    return check_version_incompatibility(from, to);
+  }
+  return COMPATIBLE;
+}
 
-  // If it has a higher major version then change to read mode
-  if (from.get_major_version() > to.get_major_version()) return READ_COMPATIBLE;
-
-  /*
-    It is a lower version, so it is incompatible lower, meaning
-    that by default it is not compatible, but user may ignore
-    this decision.
-  */
-  return INCOMPATIBLE_LOWER_VERSION;
+/* Compatibility_module is independant, we cannot use local_member_info or
+ * group_mgr. */
+Compatibility_type Compatibility_module::check_version_incompatibility(
+    Member_version from, Member_version to) {
+  return (from == to)
+             ? COMPATIBLE
+             : ((from > to) ? READ_COMPATIBLE : INCOMPATIBLE_LOWER_VERSION);
 }
 
 Compatibility_module::~Compatibility_module() { delete this->local_version; }

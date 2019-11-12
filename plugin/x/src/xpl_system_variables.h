@@ -25,9 +25,15 @@
 #ifndef PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 #define PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 
+#include <stdint.h>
+
 #include <algorithm>
 #include <functional>
+
+#include <memory>
 #include <vector>
+
+#include "my_inttypes.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
@@ -97,7 +103,7 @@ class Plugin_system_variables {
 template <typename Copy_type>
 void Plugin_system_variables::update_func(THD *thd, SYS_VAR *, void *tgt,
                                           const void *save) {
-  *(Copy_type *)tgt = *(Copy_type *)save;
+  *static_cast<Copy_type *>(tgt) = *static_cast<const Copy_type *>(save);
 
   std::for_each(
       m_callbacks.begin(), m_callbacks.end(),

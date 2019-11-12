@@ -7,6 +7,7 @@ plugin/x/tests/driver/
 unittest/gunit/xplugin
 extra/protobuf
 extra/icu
+extra/zstd
 
 router/src/harness/tests/
 router/src/metadata_cache/tests

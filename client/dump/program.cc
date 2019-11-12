@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -166,14 +166,18 @@ int Program::execute(std::vector<std::string> positional_options) {
     delete connection_provider;
     return 0;
   }
-  if (mysql_get_server_version(runner->get_low_level_connection()) < 50708) {
+
+  ulong server_version =
+      mysql_get_server_version(runner->get_low_level_connection());
+  if (server_version < 50646) {
     std::cerr << "Server version is not compatible. Server version should "
-                 "be 5.7.8 or above.";
+                 "be 5.6.46 or above.";
     delete runner;
     delete message_handler;
     delete connection_provider;
     return 0;
   }
+  use_show_create_user = (server_version > 50705);
 
   Simple_id_generator *id_generator = new Simple_id_generator();
 

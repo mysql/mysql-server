@@ -1,6 +1,15 @@
-//>>built
 define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_base/lang", "./dom-class", "./dom-construct", "./dom-geometry", "./dom-attr", "./dom-style"], function(dojo, query, array, lang, domCls, domCtr, domGeom, domAttr, domStyle){
-	/*===== var NodeList = dojo.NodeList; =====*/
+
+	// module:
+	//		dojo/NodeList-dom.js
+
+	/*=====
+	 return function(){
+		 // summary:
+		 //		Adds DOM related methods to NodeList, and returns NodeList constructor.
+	 };
+	 =====*/
+
 	var magicGuard = function(a){
 		// summary:
 		//		the guard function for dojo.attr() and dojo.style()
@@ -39,9 +48,9 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			// description:
 			//		If content is an object, it can have special properties "template" and
 			//		"parse". If "template" is defined, then the template value is run through
-			//		dojo.string.substitute (if dojo.string.substitute has been dojo.required elsewhere),
+			//		dojo.string.substitute (if dojo/string.substitute() has been dojo.required elsewhere),
 			//		or if templateFunc is a function on the content, that function will be used to
-			//		transform the template into a final string to be used for for passing to dojo._toDom.
+			//		transform the template into a final string to be used for for passing to dojo/dom-construct.toDom().
 			//		If content.parse is true, then it is remembered for later, for when the content
 			//		nodes are inserted into the DOM. At that point, the nodes will be parsed for widgets
 			//		(if dojo.parser has been dojo.required elsewhere).
@@ -87,7 +96,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 		_cloneNode: function(/*DOMNode*/ node){
 			// summary:
 			//		private utility to clone a node. Not very interesting in the vanilla
-			//		dojo.NodeList case, but delegates could do interesting things like
+			//		dojo/NodeList case, but delegates could do interesting things like
 			//		clone event handlers if that is derivable from the node.
 			return node.cloneNode(true);
 		},
@@ -135,6 +144,8 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			}
 		},
 
+
+		position: aam(domGeom.position),
 		/*=====
 		position: function(){
 			// summary:
@@ -144,7 +155,10 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 
 			return dojo.map(this, dojo.position); // Array
 		},
+		=====*/
 
+		attr: awc(getSet(domAttr), magicGuard),
+		/*=====
 		attr: function(property, value){
 			// summary:
 			//		gets or sets the DOM attribute for every element in the
@@ -166,10 +180,12 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		innerHTML can be assigned or retrieved as well:
 			//	|	// get the innerHTML (as an array) for each list item
 			//	|	var ih = dojo.query("li.replaceable").attr("innerHTML");
-			return; // dojo.NodeList
-			return; // Array
+			return; // dojo/NodeList|Array
 		},
+		=====*/
 
+		style: awc(getSet(domStyle), magicGuard),
+		/*=====
 		style: function(property, value){
 			// summary:
 			//		gets or sets the CSS property for every element in the NodeList
@@ -181,19 +197,25 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			// returns:
 			//		if no value is passed, the result is an array of strings.
 			//		If a value is passed, the return is this NodeList
-			return; // dojo.NodeList
+			return; // dojo/NodeList
 			return; // Array
 		},
+		=====*/
 
+		addClass: aafe(domCls.add),
+		/*=====
 		addClass: function(className){
 			// summary:
 			//		adds the specified class to every node in the list
 			// className: String|Array
 			//		A String class name to add, or several space-separated class names,
 			//		or an array of class names.
-			return; // dojo.NodeList
+			return; // dojo/NodeList
 		},
+		=====*/
 
+		removeClass: aafe(domCls.remove),
+		/*=====
 		removeClass: function(className){
 			// summary:
 			//		removes the specified class from every node in the list
@@ -202,10 +224,13 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		class names, or an array of class names. If omitted, all class names
 			//		will be deleted.
 			// returns:
-			//		dojo.NodeList, this list
-			return; // dojo.NodeList
+			//		this list
+			return; // dojo/NodeList
 		},
+		=====*/
 
+		toggleClass: aafe(domCls.toggle),
+		/*=====
 		toggleClass: function(className, condition){
 			// summary:
 			//		Adds a class to node if not present, or removes if present.
@@ -214,33 +239,57 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		If passed, true means to add the class, false means to remove.
 			// className: String
 			//		the CSS class to add
-			return; // dojo.NodeList
+			return; // dojo/NodeList
 		},
+		=====*/
 
+		replaceClass: aafe(domCls.replace),
+		/*=====
+		replaceClass: function(addClassStr, removeClassStr){
+			// summary:
+			//		Replaces one or more classes on a node if not present.
+			//		Operates more quickly than calling `removeClass()` and `addClass()`
+			// addClassStr: String|Array
+			//		A String class name to add, or several space-separated class names,
+			//		or an array of class names.
+			// removeClassStr: String|Array?
+			//		A String class name to remove, or several space-separated class names,
+			//		or an array of class names.
+			return; // dojo/NodeList
+		 },
+		 =====*/
+
+		empty: aafe(domCtr.empty),
+		/*=====
 		empty: function(){
 			// summary:
 			//		clears all content from each node in the list. Effectively
 			//		equivalent to removing all child nodes from every item in
 			//		the list.
-			return this.forEach("item.innerHTML='';"); // dojo.NodeList
+			return this.forEach("item.innerHTML='';"); // dojo/NodeList
 			// FIXME: should we be checking for and/or disposing of widgets below these nodes?
 		},
 		=====*/
 
-		// useful html methods
-		attr: awc(getSet(domAttr), magicGuard),
-		style: awc(getSet(domStyle), magicGuard),
-
-		addClass: aafe(domCls.add),
-		removeClass: aafe(domCls.remove),
-		replaceClass: aafe(domCls.replace),
-		toggleClass: aafe(domCls.toggle),
-
-		empty: aafe(domCtr.empty),
 		removeAttr: aafe(domAttr.remove),
+		/*=====
+		 removeAttr: function(name){
+			// summary:
+			//		Removes an attribute from each node in the list.
+			// name: String
+			//		the name of the attribute to remove
+			return;		// dojo/NodeList
+		},
+		=====*/
 
-		position: aam(domGeom.position),
 		marginBox: aam(domGeom.getMarginBox),
+		/*=====
+		marginBox: function(){
+			// summary:
+			//		Returns margin-box size of nodes
+		 	return; // dojo/NodeList
+		 },
+		 =====*/
 
 		// FIXME: connectPublisher()? connectRunOnce()?
 
@@ -263,15 +312,17 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		for relative positioning.
 			// position:
 			//		can be one of:
-			//		|	"last" (default)
-			//		|	"first"
-			//		|	"before"
-			//		|	"after"
-			//		|	"only"
-			//		|	"replace"
+			//
+			//		-	"last" (default)
+			//		-	"first"
+			//		-	"before"
+			//		-	"after"
+			//		-	"only"
+			//		-	"replace"
+			//
 			//		or an offset in the childNodes property
 			var item = query(queryOrNode)[0];
-			return this.forEach(function(node){ domCtr.place(node, item, position); }); // dojo.NodeList
+			return this.forEach(function(node){ domCtr.place(node, item, position); }); // dojo/NodeList
 		},
 
 		orphan: function(/*String?*/ filter){
@@ -281,29 +332,31 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			// filter:
 			//		CSS selector like ".foo" or "div > span"
 			// returns:
-			//		`dojo.NodeList` containing the orphaned elements
-			return (filter ? query._filterResult(this, filter) : this).forEach(orphan); // dojo.NodeList
+			//		NodeList containing the orphaned elements
+			return (filter ? query._filterResult(this, filter) : this).forEach(orphan); // dojo/NodeList
 		},
 
 		adopt: function(/*String||Array||DomNode*/ queryOrListOrNode, /*String?*/ position){
 			// summary:
 			//		places any/all elements in queryOrListOrNode at a
 			//		position relative to the first element in this list.
-			//		Returns a dojo.NodeList of the adopted elements.
+			//		Returns a dojo/NodeList of the adopted elements.
 			// queryOrListOrNode:
 			//		a DOM node or a query string or a query result.
 			//		Represents the nodes to be adopted relative to the
 			//		first element of this NodeList.
 			// position:
 			//		can be one of:
-			//		|	"last" (default)
-			//		|	"first"
-			//		|	"before"
-			//		|	"after"
-			//		|	"only"
-			//		|	"replace"
+			//
+			//		-	"last" (default)
+			//		-	"first"
+			//		-	"before"
+			//		-	"after"
+			//		-	"only"
+			//		-	"replace"
+			//
 			//		or an offset in the childNodes property
-			return query(queryOrListOrNode).place(this[0], position)._stash(this);	// dojo.NodeList
+			return query(queryOrListOrNode).place(this[0], position)._stash(this);	// dojo/NodeList
 		},
 
 		// FIXME: do we need this?
@@ -323,7 +376,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//	|		<p>great comedians may not be funny <span>in person</span></p>
 			//	|	</div>
 			//		If we are presented with the following definition for a NodeList:
-			//	|	var l = new dojo.NodeList(dojo.byId("foo"), dojo.byId("bar"));
+			//	|	var l = new NodeList(dojo.byId("foo"), dojo.byId("bar"));
 			//		it's possible to find all span elements under paragraphs
 			//		contained by these elements with this sub-query:
 			//	|	var spans = l.query("p span");
@@ -339,7 +392,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 					}
 				});
 			});
-			return ret._stash(this);	// dojo.NodeList
+			return ret._stash(this);	// dojo/NodeList
 		},
 
 		filter: function(/*String|Function*/ filter){
@@ -365,12 +418,12 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 				items = query._filterResult(this, a[0]);
 				if(a.length == 1){
 					// if we only got a string query, pass back the filtered results
-					return items._stash(this); // dojo.NodeList
+					return items._stash(this); // dojo/NodeList
 				}
 				// if we got a callback, run it over the filtered items
 				start = 1;
 			}
-			return this._wrap(array.filter(items, a[start], a[start + 1]), this);	// dojo.NodeList
+			return this._wrap(array.filter(items, a[start], a[start + 1]), this);	// dojo/NodeList
 		},
 
 		/*
@@ -382,7 +435,7 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 		},
 		*/
 
-		addContent: function(/*String||DomNode||Object||dojo.NodeList*/ content, /*String||Integer?*/ position){
+		addContent: function(/*String||DomNode||Object||dojo/NodeList*/ content, /*String||Integer?*/ position){
 			// summary:
 			//		add a node, NodeList or some HTML as a string to every item in the
 			//		list.  Returns the original list.
@@ -404,12 +457,14 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//		should be used to transform the "template".
 			// position:
 			//		can be one of:
-			//		|	"last"||"end" (default)
-			//		|	"first||"start"
-			//		|	"before"
-			//		|	"after"
-			//		|	"replace" (replaces nodes in this NodeList with new content)
-			//		|	"only" (removes other children of the nodes so new content is the only child)
+			//
+			//		-	"last"||"end" (default)
+			//		-	"first||"start"
+			//		-	"before"
+			//		-	"after"
+			//		-	"replace" (replaces nodes in this NodeList with new content)
+			//		-	"only" (removes other children of the nodes so new content is the only child)
+			//
 			//		or an offset in the childNodes property
 			// example:
 			//		appends content to the end if the position is omitted
@@ -427,29 +482,28 @@ define("dojo/NodeList-dom", ["./_base/kernel", "./query", "./_base/array", "./_b
 			//	|	dojo.query(".note").addContent(dojo.byId("foo"));
 			// example:
 			//		Append nodes from a templatized string.
-			//		dojo.require("dojo.string");
-			//		dojo.query(".note").addContent({
-			//			template: '<b>${id}: </b><span>${name}</span>',
-			//			id: "user332",
-			//			name: "Mr. Anderson"
-			//		});
+			// |	dojo.require("dojo.string");
+			// |	dojo.query(".note").addContent({
+			// |		template: '<b>${id}: </b><span>${name}</span>',
+			// |		id: "user332",
+			// |		name: "Mr. Anderson"
+			// |	});
 			// example:
 			//		Append nodes from a templatized string that also has widgets parsed.
-			//		dojo.require("dojo.string");
-			//		dojo.require("dojo.parser");
-			//		var notes = dojo.query(".note").addContent({
-			//			template: '<button dojoType="dijit.form.Button">${text}</button>',
-			//			parse: true,
-			//			text: "Send"
-			//		});
+			// |	dojo.require("dojo.string");
+			// |	dojo.require("dojo.parser");
+			// |	var notes = dojo.query(".note").addContent({
+			// |		template: '<button dojoType="dijit/form/Button">${text}</button>',
+			// |		parse: true,
+			// |		text: "Send"
+			// |	});
 			content = this._normalize(content, this[0]);
 			for(var i = 0, node; (node = this[i]); i++){
 				this._place(content, node, position, i > 0);
 			}
-			return this; //dojo.NodeList
+			return this; // dojo/NodeList
 		}
 	});
 
-	/*===== return dojo.NodeList; =====*/
 	return NodeList;
 });

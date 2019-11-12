@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,12 @@ ADD_SUBDIRECTORY(libmysqlgcs)
 
 SET(GROUP_REPLICATION_SOURCES
   src/applier.cc
+  src/applier_channel_state_observer.cc
+  src/asynchronous_channels_state_observer.cc
   src/auto_increment.cc
   src/autorejoin.cc
   src/certifier.cc
+  src/compatibility_module.cc
   src/consistency_manager.cc
   src/delayed_plugin_initialization.cc
   src/gcs_event_handlers.cc
@@ -34,12 +37,19 @@ SET(GROUP_REPLICATION_SOURCES
   src/gcs_operations.cc
   src/gcs_plugin_messages.cc
   src/gcs_view_modification_notifier.cc
+  src/group_actions/communication_protocol_action.cc
   src/group_actions/group_action.cc
   src/group_actions/group_action_coordinator.cc
   src/group_actions/multi_primary_migration_action.cc
   src/group_actions/primary_election_action.cc
-  src/group_actions/communication_protocol_action.cc
+  src/handlers/applier_handler.cc
+  src/handlers/certification_handler.cc
+  src/handlers/event_cataloger.cc
+  src/hold_transactions.cc
+  src/leave_group_on_failure.cc
   src/member_info.cc
+  src/member_version.cc
+  src/mysql_version_gcs_protocol_map.cc
   src/observer_server_actions.cc
   src/observer_server_channels.cc
   src/observer_server_state.cc
@@ -47,31 +57,20 @@ SET(GROUP_REPLICATION_SOURCES
   src/pipeline_factory.cc
   src/pipeline_stats.cc
   src/plugin.cc
-  src/plugin_psi.cc
-  src/plugin_utils.cc
-  src/ps_information.cc
-  src/recovery.cc
-  src/recovery_channel_state_observer.cc
-  src/applier_channel_state_observer.cc
-  src/asynchronous_channels_state_observer.cc
-  src/recovery_state_transfer.cc
-  src/replication_threads_api.cc
-  src/member_version.cc
-  src/mysql_version_gcs_protocol_map.cc
-  src/compatibility_module.cc
-  src/handlers/applier_handler.cc
-  src/handlers/certification_handler.cc
-  src/handlers/event_cataloger.cc
   src/plugin_handlers/group_partition_handling.cc
+  src/plugin_handlers/offline_mode_handler.cc
   src/plugin_handlers/persistent_variables_handler.cc
   src/plugin_handlers/primary_election_invocation_handler.cc
   src/plugin_handlers/primary_election_primary_process.cc
   src/plugin_handlers/primary_election_secondary_process.cc
   src/plugin_handlers/primary_election_utils.cc
+  src/plugin_handlers/primary_election_validation_handler.cc
+  src/plugin_handlers/read_mode_handler.cc
+  src/plugin_handlers/remote_clone_handler.cc
   src/plugin_handlers/server_ongoing_transactions_handler.cc
   src/plugin_handlers/stage_monitor_handler.cc
-  src/plugin_handlers/read_mode_handler.cc
   src/plugin_messages/group_action_message.cc
+  src/plugin_messages/group_service_message.cc
   src/plugin_messages/group_validation_message.cc
   src/plugin_messages/recovery_message.cc
   src/plugin_messages/single_primary_message.cc
@@ -79,36 +78,43 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_messages/transaction_message.cc
   src/plugin_messages/transaction_prepared_message.cc
   src/plugin_messages/transaction_with_guarantee_message.cc
-  src/plugin_handlers/primary_election_validation_handler.cc
   src/plugin_observers/channel_observation_manager.cc
   src/plugin_observers/group_event_observer.cc
   src/plugin_observers/group_transaction_observation_manager.cc
+  src/plugin_psi.cc
+  src/plugin_utils.cc
+  src/ps_information.cc
+  src/recovery.cc
+  src/recovery_channel_state_observer.cc
+  src/recovery_state_transfer.cc
+  src/replication_threads_api.cc
+  src/services/message_service/message_service.cc
+  src/services/notification/notification.cc
+  src/services/registry.cc
+  src/sql_service/sql_command_test.cc
   src/sql_service/sql_resultset.cc
+  src/sql_service/sql_service_command.cc
   src/sql_service/sql_service_context.cc
   src/sql_service/sql_service_context_base.cc
   src/sql_service/sql_service_interface.cc
-  src/sql_service/sql_command_test.cc
-  src/sql_service/sql_service_command.cc
-  src/services/notification/notification.cc
-  src/services/registry.cc
+  src/udf/udf_communication_protocol.cc
   src/udf/udf_multi_primary.cc
   src/udf/udf_registration.cc
   src/udf/udf_single_primary.cc
   src/udf/udf_utils.cc
   src/udf/udf_write_concurrency.cc
-  src/udf/udf_communication_protocol.cc
-  src/hold_transactions.cc
 )
 
 SET(GMS_LISTENER_SERVICE_TEST_SOURCES
-    src/services/notification/impl/gms_listener_test.cc)
+  src/services/notification/impl/gms_listener_test.cc
+  )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
 
 IF(WITH_UNIT_TESTS)
-  ADD_CONVENIENCE_LIBRARY(gr_unit_test_resource
+  ADD_LIBRARY(gr_unit_test_resource STATIC
     src/gcs_plugin_messages.cc
     src/member_info.cc
     src/member_version.cc
@@ -116,18 +122,20 @@ IF(WITH_UNIT_TESTS)
     src/mysql_version_gcs_protocol_map.cc
   )
   SET_TARGET_PROPERTIES(gr_unit_test_resource
-                        PROPERTIES
-                        COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX")
+    PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"
+    )
 ENDIF()
 
 ### Configuration ###
 
 # declare the plugin itself
 MYSQL_ADD_PLUGIN(group_replication
-                 ${GROUP_REPLICATION_SOURCES}
-                 ${GMS_LISTENER_SERVICE_TEST_SOURCES}
-                 LINK_LIBRARIES
-                 ${LZ4_LIBRARY}
-                 ${SSL_LIBRARIES}
-                 ${GCS_LIBRARY}
-                 MODULE_ONLY MODULE_OUTPUT_NAME "group_replication")
+  ${GROUP_REPLICATION_SOURCES}
+  ${GMS_LISTENER_SERVICE_TEST_SOURCES}
+  LINK_LIBRARIES
+  ${LZ4_LIBRARY}
+  ${SSL_LIBRARIES}
+  ${GCS_LIBRARY}
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "group_replication"
+  )

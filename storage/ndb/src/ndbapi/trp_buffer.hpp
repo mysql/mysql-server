@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,16 +31,23 @@
 
 struct TFPage
 {
-  inline Uint32 max_data_bytes() const {
-    return m_size;
+  /* In previous versions the number of data words was calculated such that
+   * sizeof TFPage became 32'768 bytes.  That value is made explicit to more
+   * easily track possible future changes.
+   */
+  static constexpr Uint32 SIZE = 8188 * sizeof(Uint32);
+
+  static constexpr inline Uint32 max_data_bytes()
+  {
+    return SIZE;
   }
 
   inline Uint32 get_free_bytes() const {
-    return m_size - m_bytes;
+    return SIZE - m_bytes;
   }
 
   inline bool is_full() const {
-    return m_bytes == m_size;
+    return m_bytes == SIZE;
   }
 
   inline void init () {
@@ -48,12 +55,6 @@ struct TFPage
     m_start = 0;
     m_ref_count = 0;
     m_next = 0;
-    /*
-      Ensure compiler and developer not adds any fields without
-      ensuring alignment still holds.
-    */
-    STATIC_ASSERT(sizeof(TFPage) ==
-      (sizeof(void*) + 4 * sizeof(Uint16) + 8));
   }
 
   static TFPage* ptr(struct iovec p) {
@@ -73,10 +74,7 @@ struct TFPage
    */
   Uint16 m_start;
 
-  /**
-   * size of page
-   */
-  Uint16 m_size;
+  Uint16 m_unused;
 
   /**
    * ref-count
@@ -84,7 +82,10 @@ struct TFPage
   Uint16 m_ref_count;
 
   /**
-   * Pointer to next page
+   * Pointer to next page.
+   * Note, may be 32bit on some platforms.
+   * alignas(8) for m_data makes sure that struct size still will be equal on
+   * 32bit and 64bit platforms.
    */
   struct TFPage * m_next;
 
@@ -95,7 +96,7 @@ struct TFPage
    * m_data actually houses a full page that is allocated when the
    * data structure is malloc'ed.
    */
-  char m_data[8];
+  alignas(8) char m_data[SIZE];
 };
 
 struct TFBuffer
@@ -172,7 +173,8 @@ public:
   }
 
 protected:
-  STATIC_CONST( SENDBUFFER_DEFAULT_PAGE_SIZE = 32*1024 );
+  static constexpr Uint32 SENDBUFFER_DEFAULT_PAGE_SIZE = 32 * 1024;
+  static_assert(SENDBUFFER_DEFAULT_PAGE_SIZE == sizeof(TFPage), "");
 };
 
 class TFMTPool : private TFPool
@@ -289,7 +291,7 @@ TFPool::try_alloc(struct iovec tmp[], Uint32 cnt)
   {
     p->init();
     tmp[i].iov_base = p->m_data;
-    tmp[i].iov_len = p->m_size;
+    tmp[i].iov_len = p->max_data_bytes();
 
     i++;
     p = p->m_next;

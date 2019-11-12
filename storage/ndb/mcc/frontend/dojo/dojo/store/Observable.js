@@ -1,125 +1,136 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
 define("dojo/store/Observable",["../_base/kernel","../_base/lang","../_base/Deferred","../_base/array"],function(_1,_2,_3,_4){
-var ds=_2.getObject("dojo.store",true);
-return ds.Observable=function(_5){
-var _6,_7=[],_8=0;
-_5.notify=function(_9,_a){
-_8++;
-var _b=_7.slice();
-for(var i=0,l=_b.length;i<l;i++){
-_b[i](_9,_a);
+var _5=function(_6){
+var _7,_8=[],_9=0;
+_6=_2.delegate(_6);
+_6.notify=function(_a,_b){
+_9++;
+var _c=_8.slice();
+for(var i=0,l=_c.length;i<l;i++){
+_c[i](_a,_b);
 }
 };
-var _c=_5.query;
-_5.query=function(_d,_e){
-_e=_e||{};
-var _f=_c.apply(this,arguments);
-if(_f&&_f.forEach){
-var _10=_2.mixin({},_e);
-delete _10.start;
-delete _10.count;
-var _11=_5.queryEngine&&_5.queryEngine(_d,_10);
-var _12=_8;
-var _13=[],_14;
-_f.observe=function(_15,_16){
-if(_13.push(_15)==1){
-_7.push(_14=function(_17,_18){
-_3.when(_f,function(_19){
-var _1a=_19.length!=_e.count;
-var i,l,_15;
-if(++_12!=_8){
+var _d=_6.query;
+_6.query=function(_e,_f){
+_f=_f||{};
+var _10=_d.apply(this,arguments);
+if(_10&&_10.forEach){
+var _11=_2.mixin({},_f);
+delete _11.start;
+delete _11.count;
+var _12=_6.queryEngine&&_6.queryEngine(_e,_11);
+var _13=_9;
+var _14=[],_15;
+_10.observe=function(_16,_17){
+if(_14.push(_16)==1){
+_8.push(_15=function(_18,_19){
+_3.when(_10,function(_1a){
+var _1b=_1a.length!=_f.count;
+var i,l,_16;
+if(++_13!=_9){
 throw new Error("Query is out of date, you must observe() the query prior to any data modifications");
 }
-var _1b,_1c=-1,_1d=-1;
-if(_18!==_6){
-for(i=0,l=_19.length;i<l;i++){
-var _1e=_19[i];
-if(_5.getIdentity(_1e)==_18){
-_1b=_1e;
-_1c=i;
-if(_11||!_17){
-_19.splice(i,1);
+var _1c,_1d=-1,_1e=-1;
+if(_19!==_7){
+for(i=0,l=_1a.length;i<l;i++){
+var _1f=_1a[i];
+if(_6.getIdentity(_1f)==_19){
+_1c=_1f;
+_1d=i;
+if(_12||!_18){
+_1a.splice(i,1);
 }
 break;
 }
 }
 }
-if(_11){
-if(_17&&(_11.matches?_11.matches(_17):_11([_17]).length)){
-var _1f=_1c>-1?_1c:_19.length;
-_19.splice(_1f,0,_17);
-_1d=_4.indexOf(_11(_19),_17);
-_19.splice(_1f,1);
-if((_e.start&&_1d==0)||(!_1a&&_1d==_19.length)){
-_1d=-1;
+if(_12){
+if(_18&&(_12.matches?_12.matches(_18):_12([_18]).length)){
+var _20=_1d>-1?_1d:_1a.length;
+_1a.splice(_20,0,_18);
+_1e=_4.indexOf(_12(_1a),_18);
+_1a.splice(_20,1);
+if((_f.start&&_1e==0)||(!_1b&&_1e==_1a.length)){
+_1e=-1;
 }else{
-_19.splice(_1d,0,_17);
+_1a.splice(_1e,0,_18);
 }
 }
 }else{
-if(_17&&!_e.start){
-_1d=_1c>=0?_1c:(_5.defaultIndex||0);
+if(_18){
+if(_19!==_7){
+_1e=_1d;
+}else{
+if(!_f.start){
+_1e=_6.defaultIndex||0;
+_1a.splice(_1e,0,_18);
 }
 }
-if((_1c>-1||_1d>-1)&&(_16||!_11||(_1c!=_1d))){
-var _20=_13.slice();
-for(i=0;_15=_20[i];i++){
-_15(_17||_1b,_1c,_1d);
+}
+}
+if((_1d>-1||_1e>-1)&&(_17||!_12||(_1d!=_1e))){
+var _21=_14.slice();
+for(i=0;_16=_21[i];i++){
+_16(_18||_1c,_1d,_1e);
 }
 }
 });
 });
 }
-return {cancel:function(){
-var _21=_4.indexOf(_13,_15);
-if(_21>-1){
-_13.splice(_21,1);
-if(!_13.length){
-_7.splice(_4.indexOf(_7,_14),1);
+var _22={};
+_22.remove=_22.cancel=function(){
+var _23=_4.indexOf(_14,_16);
+if(_23>-1){
+_14.splice(_23,1);
+if(!_14.length){
+_8.splice(_4.indexOf(_8,_15),1);
 }
 }
-}};
+};
+return _22;
 };
 }
-return _f;
+return _10;
 };
-var _22;
-function _23(_24,_25){
-var _26=_5[_24];
-if(_26){
-_5[_24]=function(_27){
-if(_22){
-return _26.apply(this,arguments);
+var _24;
+function _25(_26,_27){
+var _28=_6[_26];
+if(_28){
+_6[_26]=function(_29){
+if(_24){
+return _28.apply(this,arguments);
 }
-_22=true;
+_24=true;
 try{
-var _28=_26.apply(this,arguments);
-_3.when(_28,function(_29){
-_25((typeof _29=="object"&&_29)||_27);
+var _2a=_28.apply(this,arguments);
+_3.when(_2a,function(_2b){
+_27((typeof _2b=="object"&&_2b)||_29);
 });
-return _28;
+return _2a;
 }
 finally{
-_22=false;
+_24=false;
 }
 };
 }
 };
-_23("put",function(_2a){
-_5.notify(_2a,_5.getIdentity(_2a));
+_25("put",function(_2c){
+_6.notify(_2c,_6.getIdentity(_2c));
 });
-_23("add",function(_2b){
-_5.notify(_2b);
+_25("add",function(_2d){
+_6.notify(_2d);
 });
-_23("remove",function(id){
-_5.notify(undefined,id);
+_25("remove",function(id){
+_6.notify(undefined,id);
 });
+return _6;
+};
+_2.setObject("dojo.store.Observable",_5);
 return _5;
-};
 });

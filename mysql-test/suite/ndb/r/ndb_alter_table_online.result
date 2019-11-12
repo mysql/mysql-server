@@ -236,7 +236,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD d INT AFTER b;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering column order. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -368,11 +368,40 @@ date_time datetime,
 time_stamp timestamp,
 PRIMARY KEY (auto)
 ) engine=ndb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
-alter table t1 algorithm=inplace, change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+alter table t1 algorithm=inplace, change tiny new_tiny tinyint(4) DEFAULT '0';
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering if field is nullable is not supported. Try ALGORITHM=COPY.
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+alter table t1 change tiny tiny2 tinyint(4) DEFAULT '0' NOT NULL;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+alter table t1 algorithm=inplace, change tiny2 new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+alter table t1 algorithm=inplace, change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
@@ -380,7 +409,10 @@ ndb_show_tables completed.....
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
-alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+alter table t1 change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create index i1 on t1(medium);
 alter table t1 add index i2(new_tiny);
 drop index i1 on t1;
@@ -485,6 +517,7 @@ Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 *******************************
 ALTER TABLE t1 algorithm=inplace, ADD d DOUBLE UNSIGNED;
 Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
 *******************************
 * Add column e as nullable DECIMAL
@@ -551,14 +584,23 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
+DISK stored column b will become fixed
 CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)
 TABLESPACE ts1 STORAGE DISK
 ENGINE=NDB;
 Warnings:
 Warning	1478	DYNAMIC column b with STORAGE DISK is not supported, column will become FIXED
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT FIXED STORAGE MEMORY;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Column storage media is changed. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=inplace, CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
+ALTER TABLE t1 algorithm=inplace, CHANGE b_1 b_2 INT COLUMN_FORMAT DYNAMIC STORAGE DISK;
+ALTER TABLE t1 algorithm=inplace, RENAME COLUMN b_2 TO b;
+ALTER TABLE t1 algorithm=inplace, CHANGE b pk1 INT COLUMN_FORMAT DYNAMIC;
+ERROR 42S21: Duplicate column name 'pk1'
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT DYNAMIC STORAGE DISK;
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT DYNAMIC;
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT;
 ALTER TABLE t1 algorithm=inplace, ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=inplace, ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC;
@@ -639,16 +681,27 @@ create table t1 ( c499 int, c498 int, c497 int, c496 int, c495 int, c494 int, c4
 insert into t1 (c1) values (1), (2), (3);
 alter table t1 algorithm=copy, modify c1 int auto_increment;
 alter table t1 algorithm=inplace, add column c500 bit(1) column_format DYNAMIC;
-alter table t1 algorithm=copy, add column c502 varchar(2000);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-alter table t1 algorithm=inplace, add column c502 varchar(2000);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+alter table t1 algorithm=copy, add column c502 varchar(18001) character set latin1;
+ERROR HY000: Can't create destination table for copying alter table
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 738 'Record too big' from NDB
+Error	1005	Can't create destination table for copying alter table
+alter table t1 algorithm=inplace, add column c502 varchar(18001) character set latin1;
+ERROR HY000: Got error 140 'Record too big' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1478	Converted FIXED field 'c502' to DYNAMIC to enable online ADD COLUMN
+Warning	1296	Got error 738 'Record too big' from NDB
+Error	1296	Got error 140 'Record too big' from NDBCLUSTER
 delete from t1;
 drop table t1;
 create table t1(a int(10) unsigned not null auto_increment,
 b varchar(20) default 'x',
 c varchar(20) default null,
 primary key (a) ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 alter table t1 algorithm=inplace, add e varchar(20) default 'x' column_format dynamic;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
 alter table t1 algorithm=inplace, add e varchar(20) default null column_format dynamic;
@@ -663,6 +716,8 @@ UNIQUE KEY cl_from (cl_from,cl_to),
 KEY cl_sortkey (cl_to,cl_sortkey,cl_from),
 KEY cl_timestamp (cl_to,cl_timestamp)
 ) ENGINE=ndb DEFAULT CHARSET=binary;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE categorylinks
 CHANGE COLUMN cl_sortkey cl_sortkey varbinary(230) NOT NULL default
 '',
@@ -673,6 +728,8 @@ ADD COLUMN cl_type ENUM('page', 'subcat', 'file') NOT NULL default
 ADD INDEX (cl_collation),
 DROP INDEX cl_sortkey,
 ADD INDEX cl_sortkey (cl_to, cl_type, cl_sortkey, cl_from);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE TABLE categorylinks;
 Table	Create Table
 categorylinks	CREATE TABLE `categorylinks` (

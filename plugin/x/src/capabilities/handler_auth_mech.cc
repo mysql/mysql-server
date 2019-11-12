@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ namespace xpl {
 
 bool Capability_auth_mech::is_supported_impl() const { return true; }
 
-void Capability_auth_mech::get_impl(::Mysqlx::Datatypes::Any &any) {
+void Capability_auth_mech::get_impl(::Mysqlx::Datatypes::Any *any) {
   std::vector<std::string> auth_mechs;
 
   m_client.server().get_authentication_mechanisms(auth_mechs, m_client);

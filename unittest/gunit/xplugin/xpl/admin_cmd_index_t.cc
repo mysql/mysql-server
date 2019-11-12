@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@
 namespace xpl {
 namespace test {
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Return;
 using ::testing::StrictMock;
-using ::testing::_;
 
 class Admin_command_index_stub : public Admin_command_index {
  public:
@@ -165,6 +165,8 @@ TEST_F(Admin_command_index_test, drop_missing_index_name) {
 }
 
 TEST_F(Admin_command_index_test, drop_no_schema) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -176,6 +178,8 @@ TEST_F(Admin_command_index_test, drop_no_schema) {
 }
 
 TEST_F(Admin_command_index_test, drop_no_collection) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -187,6 +191,8 @@ TEST_F(Admin_command_index_test, drop_no_collection) {
 }
 
 TEST_F(Admin_command_index_test, drop_no_virtual_column_no_index) {
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(Return(ngs::Success()));
 
@@ -199,6 +205,9 @@ TEST_F(Admin_command_index_test, drop_no_virtual_column_no_index) {
 
 TEST_F(Admin_command_index_test, drop_index_with_column) {
   One_row_resultset column_name{DECIMAL_COLUMN};
+
+  EXPECT_CALL(data_context, is_sql_mode_set(_)).WillOnce(Return(false));
+
   EXPECT_CALL(data_context, execute(Eq(Sql(GET_INDEX_COLUMNS)), _, _))
       .WillOnce(DoAll(SetUpResultset(column_name), Return(ngs::Success())));
 
@@ -319,11 +328,8 @@ TEST_F(Admin_command_index_test, create_bad_constraint) {
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
 
-  set_arguments(Any::Object{SCHEMA,
-                            COLLECTION,
-                            INDEX_NAME,
-                            UNIQUE,
-                            {"constraint", Any::Object{MEMBER}}});
+  set_arguments(Any::Object{
+      SCHEMA, COLLECTION, INDEX_NAME, UNIQUE, {"constraint", Any::Object{}}});
   ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
                     command->create(NAMESPACE, args.get()));
 }

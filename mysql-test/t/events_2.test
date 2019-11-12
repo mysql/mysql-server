@@ -173,7 +173,7 @@ drop event e1;
 ##select release_lock("test_lock3");
 
 #
-# test with very often occuring event
+# test with very often occurring event
 # (disabled for now, locks)
 ##select get_lock("test_lock4", 20);
 ##create event закачка4 on schedule every 1 second do select get_lock("test_lock4", 20);

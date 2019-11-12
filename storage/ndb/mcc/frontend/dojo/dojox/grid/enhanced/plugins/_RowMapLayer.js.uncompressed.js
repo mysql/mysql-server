@@ -1,10 +1,10 @@
-//>>built
 define("dojox/grid/enhanced/plugins/_RowMapLayer", [
-	"dojo/_base/declare",
 	"dojo/_base/array",
+	"dojo/_base/declare",
+	"dojo/_base/kernel",
 	"dojo/_base/lang",
 	"./_StoreLayer"
-], function(declare, array, lang, layers){
+], function(array, declare, kernel, lang, layers){
 
 var _devideToArrays = function(a){
 	a.sort(function(v1, v2){
@@ -21,7 +21,7 @@ var _devideToArrays = function(a){
 	return arr;
 },
 hitchIfCan = function(scope, func){
-	return func ? lang.hitch(scope || lang.global, func) : function(){};
+	return func ? lang.hitch(scope || kernel.global, func) : function(){};
 };
 
 return declare("dojox.grid.enhanced.plugins._RowMapLayer", layers._StoreLayer, {

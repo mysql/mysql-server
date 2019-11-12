@@ -1,6 +1,5 @@
 ## This is test file for connection authentication using mysqlx.
 ##
---source include/have_ssl.inc
 --source include/xplugin_preamble.inc
 --source include/not_windows.inc
 

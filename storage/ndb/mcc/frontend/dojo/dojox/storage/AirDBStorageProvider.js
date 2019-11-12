@@ -1,9 +1,9 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
-_2.provide("dojox.storage.AirDBStorageProvider");
-_2.require("dojox.storage.manager");
-_2.require("dojox.storage.Provider");
-if(_2.isAIR){
+define("dojox/storage/AirDBStorageProvider",["dojo","dijit","dojox","dojo/require!dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
+_1.provide("dojox.storage.AirDBStorageProvider");
+_1.require("dojox.storage.manager");
+_1.require("dojox.storage.Provider");
+if(_1.isAIR){
 (function(){
 if(!_4){
 var _4={};
@@ -11,7 +11,7 @@ var _4={};
 _4.File=window.runtime.flash.filesystem.File;
 _4.SQLConnection=window.runtime.flash.data.SQLConnection;
 _4.SQLStatement=window.runtime.flash.data.SQLStatement;
-_2.declare("dojox.storage.AirDBStorageProvider",[_3.storage.Provider],{DATABASE_FILE:"dojo.db",TABLE_NAME:"__DOJO_STORAGE",initialized:false,_db:null,initialize:function(){
+_1.declare("dojox.storage.AirDBStorageProvider",[_3.storage.Provider],{DATABASE_FILE:"dojo.db",TABLE_NAME:"__DOJO_STORAGE",initialized:false,_db:null,initialize:function(){
 this.initialized=false;
 try{
 this._db=new _4.SQLConnection();

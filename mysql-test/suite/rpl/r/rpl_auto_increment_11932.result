@@ -14,12 +14,16 @@ CREATE TABLE `t1` (
 `fname` varchar(100) default NULL,
 PRIMARY KEY  (`id`)
 ) DEFAULT CHARSET=latin1 AUTO_INCREMENT=2 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t1` VALUES (1, 'blablabla');
 CREATE TABLE `t2` (
 `id` int(10) NOT NULL auto_increment,
 `comment` varchar(255) NOT NULL default '',
 PRIMARY KEY  (`id`)
 ) AUTO_INCREMENT=3 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t2` VALUES (1, 'testtest 1');
 INSERT INTO `t2` VALUES (2, 'test 2');
 CREATE PROCEDURE simpleproc3 ()

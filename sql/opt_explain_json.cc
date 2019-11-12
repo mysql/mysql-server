@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -387,7 +387,7 @@ class context : public Explain_context {
     @returns
       -1   subquery wasn't found
        0   subqusery were added
-       1   error occured
+       1   error occurred
   */
   virtual int add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
                                  SELECT_LEX_UNIT *subquery
@@ -412,6 +412,8 @@ class context : public Explain_context {
   Implements CTX_WHERE, CTX_HAVING, CTX_ORDER_BY_SQ, CTX_GROUP_BY_SQ and
   CTX_OPTIMIZED_AWAY_SUBQUERY context nodes.
   This class hosts underlying join_ctx or uion_ctx.
+
+  Is used for a subquery, a derived table.
 */
 
 class subquery_ctx : virtual public context, public qep_row {
@@ -1449,7 +1451,8 @@ int join_ctx::add_where_subquery(subquery_ctx *ctx, SELECT_LEX_UNIT *subquery) {
 }
 
 /**
-  Context class to group materialized JOIN_TABs to "matirealized" array
+  Context class to group materialized JOIN_TABs to "materialized" array.
+  Is used for semijoin materialization.
 */
 
 class materialize_ctx : public joinable_ctx,
@@ -1513,6 +1516,8 @@ class materialize_ctx : public joinable_ctx,
     add_string_array(json, K_REF, col_ref);
 
     if (!col_rows.is_empty()) obj->add(K_ROWS, col_rows.value);
+
+    format_extra(obj);
 
     /*
       Currently K-REF/col_ref is not shown; it would always be "func", since

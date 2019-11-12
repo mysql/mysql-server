@@ -88,7 +88,13 @@ class Temp_table_param {
     duplicate elimination, etc. There is at most one such index.
   */
   KEY *keyinfo;
-  ha_rows end_write_records;
+
+  /**
+    LIMIT (maximum number of rows) for this temp table, or HA_POS_ERROR
+    for no limit. Enforced by MaterializeIterator when writing to the table.
+   */
+  ha_rows end_write_records{HA_POS_ERROR};
+
   /**
     Number of normal fields in the query, including those referred to
     from aggregate functions. Hence, "SELECT `field1`,
@@ -118,7 +124,17 @@ class Temp_table_param {
   uint sum_func_count;
   uint hidden_field_count;
   uint group_parts, group_length, group_null_parts;
-  uint quick_group;
+  /**
+    Whether we allow running GROUP BY processing into a temporary table,
+    i.e., keeping many different aggregations going at once without
+    having ordered input. This is usually the case, but is currently not
+    supported for aggregation UDFs, aggregates with DISTINCT, or ROLLUP.
+
+    Note that even if this is true, the optimizer may choose to not use
+    a temporary table, as it is often more efficient to just read along
+    an index.
+   */
+  bool allow_group_via_temp_table{true};
   /**
     Number of outer_sum_funcs i.e the number of set functions that are
     aggregated in a query block outer to this subquery.
@@ -160,6 +176,12 @@ class Temp_table_param {
   /// Whether the UNIQUE index can be promoted to PK
   bool can_use_pk_for_unique;
 
+  /// Whether UNIQUE keys should always be implemented by way of a hidden
+  /// hash field, never a unique index. Needed for materialization of mixed
+  /// UNION ALL / UNION DISTINCT queries (see comments in
+  /// create_result_table()).
+  bool force_hash_field_for_unique{false};
+
   /// (Last) window's tmp file step can be skipped
   bool m_window_short_circuit;
 
@@ -175,7 +197,6 @@ class Temp_table_param {
         group_buff(nullptr),
         items_to_copy(nullptr),
         keyinfo(NULL),
-        end_write_records(0),
         field_count(0),
         func_count(0),
         sum_func_count(0),
@@ -183,7 +204,6 @@ class Temp_table_param {
         group_parts(0),
         group_length(0),
         group_null_parts(0),
-        quick_group(1),
         outer_sum_func_count(0),
         using_outer_summary_function(false),
         table_charset(NULL),

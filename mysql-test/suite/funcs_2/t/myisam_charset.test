@@ -1,5 +1,7 @@
-#This is a myisam based testcase hence retained the following line
+# This is a myisam based testcase hence retained the following line
 --source include/force_myisam_default.inc
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
 
 ################################################################################
 # Author:  Serge Kozlov                                                        #

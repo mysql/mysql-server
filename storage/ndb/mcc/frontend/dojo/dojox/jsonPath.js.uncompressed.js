@@ -1,7 +1,9 @@
-//>>built
-// wrapped by build app
-define("dojox/jsonPath", ["dijit","dojo","dojox","dojo/require!dojox/jsonPath/query"], function(dijit,dojo,dojox){
-dojo.provide("dojox.jsonPath");
-dojo.require("dojox.jsonPath.query");
-
+define("dojox/jsonPath", ['./jsonPath/query'],function(){
+	/*=====
+	 return {
+	 // summary:
+	 //		Deprecated.  Should require dojox/jsonPath modules directly rather than trying to access them through
+	 //		this module.
+	 };
+	 =====*/
 });

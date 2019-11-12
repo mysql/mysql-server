@@ -1,4 +1,3 @@
-//>>built
 define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest"], function(dojo, dojox) {
 	var dirtyObjects = [];
 	var Rest = dojox.rpc.Rest;
@@ -113,7 +112,9 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 					dirtyObjects = postCommitDirtyObjects;
 				}
 				else{
-					dirtyObjects = dirtyObject.concat(savingObjects);
+					dojo.forEach(savingObjects, function(obj) {
+						jr.changing(obj.object, !obj.object);
+				    });
 				}
 			});
 			jr.sendToServer(actions, kwArgs);
@@ -280,13 +281,13 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 		deleteObject: function(object){
 			// summary:
 			//		deletes an object
-			//	object:
-			//  	object to delete
+			// object:
+			//		object to delete
 			this.changing(object,true);
 		},
 		getConstructor: function(/*Function|String*/service, schema){
 			// summary:
-			// 		Creates or gets a constructor for objects from this service
+			//		Creates or gets a constructor for objects from this service
 			if(typeof service == 'string'){
 				var servicePath = service;
 				service = new dojox.rpc.Rest(service,true);
@@ -298,8 +299,7 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 			service._constructor = function(data){
 				// summary:
 				//		creates a new object for this table
-				//
-				//	data:
+				// data:
 				//		object to mixed in
 				var self = this;
 				var args = arguments;
@@ -362,8 +362,8 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 		getServiceAndId: function(/*String*/absoluteId){
 			// summary:
 			//		Returns the REST service and the local id for the given absolute id. The result
-			// 		is returned as an object with a service property and an id property
-			//	absoluteId:
+			//		is returned as an object with a service property and an id property
+			// absoluteId:
 			//		This is the absolute id of the object
 			var serviceName = '';
 			
@@ -381,13 +381,13 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 		services:{},
 		schemas:{},
 		registerService: function(/*Function*/ service, /*String*/ servicePath, /*Object?*/ schema){
-			//	summary:
+			// summary:
 			//		Registers a service for as a JsonRest service, mapping it to a path and schema
-			//	service:
+			// service:
 			//		This is the service to register
-			//	servicePath:
+			// servicePath:
 			//		This is the path that is used for all the ids for the objects returned by service
-			//	schema:
+			// schema:
 			//		This is a JSON Schema object to associate with objects returned by this service
 			servicePath = service.servicePath = servicePath || service.servicePath;
 			service._schema = jr.schemas[servicePath] = schema || service._schema || {};
@@ -438,7 +438,7 @@ define("dojox/rpc/JsonRest", ["dojo", "dojox", "dojox/json/ref", "dojox/rpc/Rest
 			});
 		},
 		isDirty: function(item, store){
-			// summary
+			// summary:
 			//		returns true if the item is marked as dirty or true if there are any dirty items
 			if(!item){
 				if(store){

@@ -123,11 +123,13 @@ var ds=v.domNode.style;
 var hs=v.headerNode.style;
 if(!_14.grid.isLeftToRight()){
 ds.right=l+"px";
-if(_2("ff")<4||_2("webkit")){
+if(_2("ff")<4){
 hs.right=l+v.getScrollbarWidth()+"px";
-hs.width=parseInt(hs.width,10)-v.getScrollbarWidth()+"px";
 }else{
 hs.right=l+"px";
+}
+if(!_2("webkit")){
+hs.width=parseInt(hs.width,10)-v.getScrollbarWidth()+"px";
 }
 }else{
 ds.left=l+"px";

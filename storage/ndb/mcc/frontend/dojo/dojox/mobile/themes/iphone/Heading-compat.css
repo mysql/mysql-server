@@ -1,22 +1,10 @@
 
 .mblHeading {
-	background-image: url(compat/heading-bg.png);
+  background-image: url(compat/heading-bg.png);
 }
 .mblHeadingSpanTitle {
-	white-space: normal;
+  white-space: normal;
 }
-.mblArrowButtonHead {
-	position: absolute;
-	top: 6px;
-	left: 3px;
-	width: 19px;
-	height: 29px;
-	border-style: none;
-	background-image: url(compat/arrow-button-head.png);
-}
-.mblArrowButtonBody {
-	padding: 0px 10px 0px 4px;
-	-moz-border-radius-topright: 5px;
-	-moz-border-radius-bottomright: 5px;
-	background-image: url(compat/arrow-button-bg.png);
+.dj_gecko .mblHeading {
+  background-image: -moz-linear-gradient(top, #b0bccd 0%, #889bb3 50%, #8195af 50%, #6d84a2 100%);
 }

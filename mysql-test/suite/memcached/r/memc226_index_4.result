@@ -41,17 +41,14 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-Here the memcached results after set:
+Here are the memcached results after set:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -66,7 +63,7 @@ CREATE UNIQUE INDEX it1 ON t1 (c1);
 connection default;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 connection mysqltest1;
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
@@ -77,7 +74,7 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-Here the memcached results after set:
+Here are the memcached results after set:
 Essen|Ost
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -86,7 +83,7 @@ C	Cottbus	West
 D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
-Here the memcached results after add:
+Here are the memcached results after add:
 Frankfurt|Sachsenhause
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -96,7 +93,7 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt	Sachsenhause
 H	Hamburg	Norderstedt
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -106,7 +103,7 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt a. M.	Sachsenhausen
 H	Hamburg	Norderstedt
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -114,7 +111,7 @@ C	Cottbus	West
 D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
-Here the memcached results after add Frankfurt|Airport:
+Here are the memcached results after add Frankfurt|Airport:
 Frankfurt|Airport
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -124,7 +121,7 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt	Airport
 H	Hamburg	Norderstedt
-Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:
+Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21

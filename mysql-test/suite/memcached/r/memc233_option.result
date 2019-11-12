@@ -28,13 +28,10 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
 SHOW VARIABLES LIKE 'daemon_memcached_option';
 Variable_name	Value
 daemon_memcached_option	-p11233
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt

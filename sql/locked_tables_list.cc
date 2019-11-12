@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,9 +82,11 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
       thd->update_lock_default.
     */
     new (dst_table_list)
-        TABLE_LIST(table, db, db_len, table_name, table_name_len, alias,
-                   src_table_list->table->reginfo.lock_type);
+        TABLE_LIST(table, alias, src_table_list->table->reginfo.lock_type);
 
+    dst_table_list->db = db;
+    dst_table_list->table_name = table_name;
+    dst_table_list->alias = alias;
     dst_table_list->mdl_request.ticket = src_table_list->mdl_request.ticket;
 
     /* Link last into the list of tables */
@@ -98,8 +100,8 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
       in reopen_tables(). reopen_tables() is a critical
       path and we don't want to complicate it with extra allocations.
     */
-    m_reopen_array = (TABLE **)alloc_root(
-        &m_locked_tables_root, sizeof(TABLE *) * (m_locked_tables_count + 1));
+    m_reopen_array = (TABLE **)m_locked_tables_root.Alloc(
+        sizeof(TABLE *) * (m_locked_tables_count + 1));
     if (m_reopen_array == NULL) {
       unlock_locked_tables(0);
       return true;

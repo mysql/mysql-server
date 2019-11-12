@@ -64,8 +64,18 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 
+# Following two lines are added because of Bug#28523025
+# We don't really care about tt's content, nor about the exact body
+# of the TRIGGER. What we care is that the mere fact of processing the
+# TRIGGER before each inserted row, can impact the state of flags set
+# for the transaction and table t1.
+CREATE TABLE tt (i INT) ENGINE = InnoDB;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO tt SELECT a as i FROM t1 WHERE a=0;
+
 --echo # Scenario 3: Interleaved transactions (trx1 conflicts on index b)
-INSERT INTO t1 VALUES (1, 1, 1);
+INSERT INTO t1 VALUES (0,0,0), (1, 1, 1);
 SELECT * FROM t1;
 
 --echo # Connection default:
@@ -107,6 +117,7 @@ SELECT * FROM t1;
 
 --echo # Cleanup
 DROP TABLE t1;
+DROP TABLE tt;
 
 #Test 4
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
@@ -157,6 +168,7 @@ SELECT * FROM t1;
 
 --echo # Cleanup
 DROP TABLE t1;
+
 #Test 6
 CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
 SHOW CREATE TABLE t1;

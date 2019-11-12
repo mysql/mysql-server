@@ -1,0 +1,62 @@
+#
+# The whole point of this test is to produce file lock_order.txt,
+# while having as much plugin code loaded as possible.
+#
+
+--source include/have_semisync_plugin.inc
+
+## FIXME : does not start
+# --source include/have_group_replication_plugin.inc
+# --let $rpl_skip_group_replication_start= 1
+# --source include/group_replication.inc
+
+
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN pfs_example_plugin_employee SONAME '$PFS_EXAMPLE_PLUGIN_EMPLOYEE'
+
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
+
+INSTALL COMPONENT "file://component_pfs_example";
+
+INSTALL COMPONENT "file://component_validate_password";
+
+# About "rwlock/sql/CRYPTO_dynlock_value::lock":
+#
+# SSL keys are declared only when SSL is used,
+# so we must establish a connection to see the instrument name.
+#
+# Note that this depends pn the SSL library used, and the version number
+connect (test_con1,localhost,root,,,,,SSL);
+select "In SSL session";
+
+disconnect test_con1;
+
+--connection default
+
+select "Dumping lock_order.txt file now" as title;
+--exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= debug 2>&1
+
+UNINSTALL COMPONENT "file://component_pfs_example";
+
+UNINSTALL COMPONENT "file://component_validate_password";
+
+UNINSTALL PLUGIN validate_password;
+
+UNINSTALL PLUGIN version_tokens;
+
+UNINSTALL PLUGIN rpl_semi_sync_master;
+
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+
+UNINSTALL PLUGIN pfs_example_plugin_employee;
+

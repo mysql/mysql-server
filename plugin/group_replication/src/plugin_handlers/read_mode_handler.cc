@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,12 @@
 
 long enable_super_read_only_mode(
     Sql_service_command_interface *command_interface) {
-  DBUG_ENTER("set_super_read_only_mode");
+  DBUG_TRACE;
   long error = 0;
 
 #ifndef DBUG_OFF
-  DBUG_EXECUTE_IF("group_replication_skip_read_mode", { DBUG_RETURN(0); });
-  DBUG_EXECUTE_IF("group_replication_read_mode_error", { DBUG_RETURN(1); });
+  DBUG_EXECUTE_IF("group_replication_skip_read_mode", { return 0; });
+  DBUG_EXECUTE_IF("group_replication_read_mode_error", { return 1; });
 #endif
 
   DBUG_ASSERT(command_interface != NULL);
@@ -57,19 +57,19 @@ long enable_super_read_only_mode(
         ER_GRP_RPL_READ_UNABLE_FOR_SUPER_READ_ONLY); /* purecov: inspected */
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long disable_super_read_only_mode(
     Sql_service_command_interface *command_interface) {
-  DBUG_ENTER("reset_super_read_mode");
+  DBUG_TRACE;
   long error = 0;
 
   DBUG_ASSERT(command_interface != NULL);
 
   error = command_interface->reset_read_only();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int enable_server_read_mode(enum_plugin_con_isolation session_isolation) {
@@ -95,7 +95,7 @@ int disable_server_read_mode(enum_plugin_con_isolation session_isolation) {
 long get_read_mode_state(Sql_service_command_interface *sql_command_interface,
                          bool *read_only_enabled,
                          bool *super_read_only_enabled) {
-  DBUG_ENTER("get_read_mode_state");
+  DBUG_TRACE;
 
   long error = 0;
 
@@ -119,12 +119,12 @@ long get_read_mode_state(Sql_service_command_interface *sql_command_interface,
                                                                   inspected */
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 long set_read_mode_state(Sql_service_command_interface *sql_service_command,
                          bool read_only_enabled, bool super_read_only_enabled) {
-  DBUG_ENTER("set_read_mode_state");
+  DBUG_TRACE;
 
   long error = 0;
 
@@ -140,5 +140,5 @@ long set_read_mode_state(Sql_service_command_interface *sql_service_command,
         ER_GRP_RPL_UNABLE_TO_RESET_SERVER_READ_MODE); /* purecov: inspected */
   }
 
-  DBUG_RETURN(error);
+  return error;
 }

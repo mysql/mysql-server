@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/TreeGrid", [
 	"dojo/_base/kernel",
 	"../main",
@@ -19,16 +18,16 @@ define("dojox/grid/TreeGrid", [
 	"./TreeSelection",
 	"./cells/tree",
 	"./_TreeView"
-], function(dojo, dojox, declare, array, lang, event, domAttr, domClass, query, keys, ForestStoreModel, 
+], function(dojo, dojox, declare, array, lang, event, domAttr, domClass, query, keys, ForestStoreModel,
 	DataGrid, _Layout, _FocusManager, _RowManager, _EditManager, TreeSelection, TreeCell){
-		
+
 dojo.experimental("dojox.grid.TreeGrid");
 
 var _TreeAggregator = declare("dojox.grid._TreeAggregator", null, {
 	cells: [],
 	grid: null,
 	childFields: [],
-	
+
 	constructor: function(kwArgs){
 		this.cells = kwArgs.cells || [];
 		this.childFields = kwArgs.childFields || [];
@@ -48,7 +47,7 @@ var _TreeAggregator = declare("dojox.grid._TreeAggregator", null, {
 			delete this.store._cachedAggregates;
 		}
 	},
-	
+
 	cnt: function(cell, level, item){
 		// summary:
 		//		calculates the count of the children of item at the given level
@@ -127,7 +126,7 @@ var _TreeAggregator = declare("dojox.grid._TreeAggregator", null, {
 		}else if(field){
 			return this._cacheValue(typeCache, level, 0);
 		}
-		
+
 		// Calculate it
 		return this._cacheValue(typeCache, level, this[type](cell, level, item));
 	}
@@ -137,12 +136,12 @@ var _TreeLayout = declare("dojox.grid._TreeLayout", _Layout, {
 	// Whether or not we are collapsable - this is calculated when we
 	// set our structure.
 	_isCollapsable: false,
-	
+
 	_getInternalStructure: function(inStructure){
 		//	Create a "Tree View" with 1 row containing references for
 		//		each column (recursively)
 		var g = this.grid;
-		
+
 		var s = inStructure;
 		var cells = s[0].cells[0];
 		var tree = {
@@ -539,22 +538,21 @@ var TreeGrid = declare("dojox.grid.TreeGrid", DataGrid, {
 	//		A grid that supports nesting rows - it provides an expando function
 	//		similar to dijit.Tree.  It also provides mechanisms for aggregating
 	//		the values of subrows
-	//
 	// description:
 	//		TreeGrid currently only works on "simple" structures.  That is,
 	//		single-view structures with a single row in them.
 	//
 	//		The TreeGrid works using the concept of "levels" - level 0 are the
 	//		top-level items.
-	
+
 	// defaultOpen: Boolean
 	//		Whether or not we default to open (all levels).  This defaults to
 	//		false for grids with a treeModel.
 	defaultOpen: true,
 
 	// sortChildItems: Boolean
-	// 		If true, child items will be returned sorted according to the sorting
-	// 		properties of the grid.
+	//		If true, child items will be returned sorted according to the sorting
+	//		properties of the grid.
 	sortChildItems: false,
 
 	// openAtLevels: Array
@@ -563,23 +561,22 @@ var TreeGrid = declare("dojox.grid.TreeGrid", DataGrid, {
 	//		integer (for the # of children to be closed if there are more than
 	//		that)
 	openAtLevels: [],
-	
+
 	// treeModel: dijit.tree.ForestStoreModel
 	//		A dijit.Tree model that will be used instead of using aggregates.
 	//		Setting this value will make the TreeGrid behave like a columnar
 	//		tree.  When setting this value, defaultOpen will default to false,
 	//		and openAtLevels will be ignored.
 	treeModel: null,
-	
+
 	// expandoCell: Integer
 	//		When used in conjunction with a treeModel (see above), this is a 0-based
 	//		index of the cell in which to place the actual expando
 	expandoCell: 0,
-	
-	// private values
+
 	// aggregator: Object
 	//		The aggregator class - it will be populated automatically if we
-	//		are a collapsable grid
+	//		are a collapsible grid
 	aggregator: null,
 
 
@@ -628,6 +625,11 @@ var TreeGrid = declare("dojox.grid.TreeGrid", DataGrid, {
 	_onDelete: function(item){
 		this._cleanupExpandoCache(this._getItemIndex(item, true), this.store.getIdentity(item), item);
 		this.inherited(arguments);
+	},
+
+	_clearData: function() {
+		this.inherited(arguments);
+		this._by_idty_paths = {};
 	},
 
 	_cleanupExpandoCache: function(index, identity, item){},
@@ -701,7 +703,7 @@ var TreeGrid = declare("dojox.grid.TreeGrid", DataGrid, {
 		}
 		return idx;
 	},
-	
+
 	postMixInProperties: function(){
 		if(this.treeModel && !("defaultOpen" in this.params)){
 			// Default open to false for tree models, true for other tree
@@ -732,19 +734,19 @@ var TreeGrid = declare("dojox.grid.TreeGrid", DataGrid, {
 		this._by_idty_paths = {};
 		this.inherited(arguments);
 	},
-	
-    postCreate: function(){
-        this.inherited(arguments);
+
+	postCreate: function(){
+		this.inherited(arguments);
 		if(this.treeModel){
 			this._setModel(this.treeModel);
 		}
-    },
+	},
 
 	setModel: function(treeModel){
 		this._setModel(treeModel);
 		this._refresh(true);
 	},
-	
+
 	_setModel: function(treeModel){
 		if(treeModel && (!ForestStoreModel || !(treeModel instanceof ForestStoreModel))){
 			throw new Error("dojox.grid.TreeGrid: treeModel must be an instance of dijit.tree.ForestStoreModel");
@@ -759,7 +761,7 @@ var TreeGrid = declare("dojox.grid.TreeGrid", DataGrid, {
 		this.inherited(arguments);
 		this.scroller._origDefaultRowHeight = this.scroller.defaultRowHeight;
 	},
-	
+
 	createManagers: function(){
 		// summary:
 		//		create grid managers for various tasks including rows, focus, selection, editing
@@ -781,7 +783,7 @@ var TreeGrid = declare("dojox.grid.TreeGrid", DataGrid, {
 			this.aggregator.store = store;
 		}
 	},
-	
+
 	getDefaultOpenState: function(cellDef, item){
 		// summary:
 		//		Returns the default open state for the given definition and item
@@ -893,7 +895,7 @@ TreeGrid.markupFactory = function(props, node, ctor, cellFunc){
 		}
 		return w;
 	};
-	
+
 	var cellsFromMarkup = function(table){
 		var rows;
 		// Don't support colgroup on our grid - single view, single row only
@@ -910,7 +912,7 @@ TreeGrid.markupFactory = function(props, node, ctor, cellFunc){
 				if(cell.type){
 					cell.type = lang.getObject(cell.type);
 				}
-				
+
 				var subTable = query("> table", th)[0];
 				if(subTable){
 					// If we have a subtable, we are an aggregate and a summary cell
@@ -952,7 +954,7 @@ TreeGrid.markupFactory = function(props, node, ctor, cellFunc){
 		}
 		return [];
 	};
-	
+
 	var rows;
 	if(	!props.structure ){
 		var row = cellsFromMarkup(node);

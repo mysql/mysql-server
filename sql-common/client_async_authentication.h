@@ -26,9 +26,6 @@
 #ifdef HAVE_OPENSSL
 #include <openssl/ossl_typ.h>
 #endif
-#ifdef HAVE_WOLFSSL
-#include <wolfssl/openssl/ssl.h>
-#endif
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
 struct MCPVIO_EXT {

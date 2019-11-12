@@ -1,9 +1,9 @@
-//>>built
-define("dojox/highlight/languages/cpp", ["dojo", "dojox/main", "../_base"], function(dojo, dojox){
+define("dojox/highlight/languages/cpp", ["../_base"], function(dh){
 	
-	var dh = dojox.highlight, dhc = dh.constants;
+	var dhc = dh.constants;
 	dh.languages.cpp = {
-		// summary: C++ highlight definitions
+		// summary:
+		//		C++ highlight definitions
 		defaultMode: {
 			lexems: [dhc.UNDERSCORE_IDENT_RE],
 			illegal: '</',

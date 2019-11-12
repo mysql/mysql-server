@@ -310,6 +310,15 @@ class Partition_handler {
     return 0;
   }
 
+  /**
+    Get partition row type from SE
+    @param       table      partition table
+    @param       part_id    Id of partition for which row type to be retrieved
+    @return      Partition row type.
+  */
+  virtual enum row_type get_partition_row_type(const dd::Table *table,
+                                               uint part_id) = 0;
+
  private:
   /**
     Truncate partition.

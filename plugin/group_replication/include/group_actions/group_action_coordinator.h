@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class Group_action_information {
 };
 
 /**
-  @Group_action_coordinator
+  @class Group_action_coordinator
   The coordinator class where group actions are submitted
 */
 class Group_action_coordinator : public Group_event_observer {
@@ -162,7 +162,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param message_origin the message origin
     @return true if something wrong happen, false otherwise
   */
-  bool handle_action_start_message(Group_action_message *msg,
+  bool handle_action_start_message(Group_action_message *message,
                                    const std::string &message_origin);
 
   /**
@@ -171,7 +171,7 @@ class Group_action_coordinator : public Group_event_observer {
     @param message_origin the message origin
     @return true if something wrong happen, false otherwise
   */
-  bool handle_action_stop_message(Group_action_message *msg,
+  bool handle_action_stop_message(Group_action_message *message,
                                   const std::string &message_origin);
 
   /**
@@ -214,7 +214,6 @@ class Group_action_coordinator : public Group_event_observer {
 
   /**
     Declare this action as terminated to other members
-    @param message_type for the sent message
   */
   int signal_action_terminated();
 
@@ -233,13 +232,6 @@ class Group_action_coordinator : public Group_event_observer {
    @return true if yes, false otherwise
   */
   bool thread_killed();
-
-  /**
-    Internal method that contains the logic for leaving and killing transactions
-
-    @param error_msg error to log in case an action error is not present
-  */
-  void kill_transactions_and_leave();
 
   /** The list of members known for the current action */
   std::list<std::string> known_members_addresses;

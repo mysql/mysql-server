@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "priority_queue.h"
+#include "sql/field.h"    // Field
+#include "sql/handler.h"  // handler
 #include "sql/malloc_allocator.h"
 #include "sql/merge_many_buff.h"
 #include "sql/mysqld.h"  // mysql_tmpdir
@@ -62,7 +64,9 @@
 #include "sql/sql_base.h"  // TEMP_PREFIX
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"  // check_unique_constraint
 #include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h"  // create_duplicate_weedout_tmp_table
 #include "sql/table.h"
 
 namespace {
@@ -104,7 +108,7 @@ class Uniq_param {
 */
 static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                                 Uniq_param *param) {
-  DBUG_ENTER("uniq_read_to_buffer");
+  DBUG_TRACE;
   const uint rec_length = param->rec_length;
 
   const ha_rows count =
@@ -118,16 +122,16 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                         static_cast<ulonglong>(bytes_to_read)));
     if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
                          bytes_to_read, merge_chunk->file_position(), MYF_RW))
-      DBUG_RETURN((uint)-1); /* purecov: inspected */
+      return (uint)-1; /* purecov: inspected */
 
     merge_chunk->init_current_key();
     merge_chunk->advance_file_position(bytes_to_read);
     merge_chunk->decrement_rowcount(count);
     merge_chunk->set_mem_count(count);
-    DBUG_RETURN(bytes_to_read);
+    return bytes_to_read;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 } /* uniq_read_to_buffer */
 
 /**
@@ -161,15 +165,9 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   Merge_chunk *merge_chunk;
   Uniq_param::chunk_compare_fun cmp;
   Merge_chunk_compare_context *first_cmp_arg;
-  std::atomic<THD::killed_state> *killed = &thd->killed;
-  std::atomic<THD::killed_state> not_killable{THD::NOT_KILLED};
-  DBUG_ENTER("uniq_merge_buffers");
+  DBUG_TRACE;
 
   thd->inc_status_sort_merge_passes();
-  if (param->not_killable) {
-    killed = &not_killable;
-    not_killable = THD::NOT_KILLED;
-  }
 
   rec_length = param->rec_length;
 
@@ -198,7 +196,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   queue(greater,
         Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
-  if (queue.reserve(chunk_array.size())) DBUG_RETURN(1);
+  if (queue.reserve(chunk_array.size())) return 1;
 
   for (merge_chunk = chunk_array.begin(); merge_chunk != chunk_array.end();
        merge_chunk++) {
@@ -207,8 +205,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
     merge_chunk->set_max_keys(maxcount);
     uint bytes_read = uniq_read_to_buffer(from_file, merge_chunk, param);
 
-    if (static_cast<int>(bytes_read) == -1)
-      DBUG_RETURN(-1); /* purecov: inspected */
+    if (static_cast<int>(bytes_read) == -1) return -1; /* purecov: inspected */
 
     strpos += bytes_read;
     merge_chunk->set_buffer_end(strpos);
@@ -227,7 +224,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
     merge_chunk = queue.top();
     memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
     if (my_b_write(to_file, merge_chunk->current_key(), rec_length)) {
-      DBUG_RETURN(1); /* purecov: inspected */
+      return 1; /* purecov: inspected */
     }
     merge_chunk->advance_current_key(rec_length);
     merge_chunk->decrement_mem_count();
@@ -241,14 +238,14 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
         queue.pop();
         reuse_freed_buff(merge_chunk, &queue);
       } else if (error == -1)
-        DBUG_RETURN(error);
+        return error;
     }
     queue.update_top();  // Top element has been used
   }
 
   while (queue.size() > 1) {
-    if (*killed) {
-      DBUG_RETURN(1); /* purecov: inspected */
+    if (thd->killed && !param->not_killable) {
+      return 1; /* purecov: inspected */
     }
     for (;;) {
       merge_chunk = queue.top();
@@ -265,7 +262,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
                             bytes_to_write));
         if (my_b_write(to_file, merge_chunk->current_key() + offset,
                        bytes_to_write)) {
-          DBUG_RETURN(1); /* purecov: inspected */
+          return 1; /* purecov: inspected */
         }
         if (--max_rows == 0) {
           error = 0; /* purecov: inspected */
@@ -283,7 +280,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
           reuse_freed_buff(merge_chunk, &queue);
           break; /* One buffer has been removed */
         } else if (error == -1)
-          DBUG_RETURN(error); /* purecov: inspected */
+          return error; /* purecov: inspected */
       }
       /*
         The Merge_chunk at the queue's top had one of its keys consumed, thus
@@ -320,7 +317,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
       const uint bytes_to_write = param->rec_length;
       if (my_b_write(to_file, merge_chunk->current_key() + offset,
                      bytes_to_write)) {
-        DBUG_RETURN(1); /* purecov: inspected */
+        return 1; /* purecov: inspected */
       }
       merge_chunk->advance_current_key(rec_length);
     }
@@ -332,7 +329,7 @@ end:
   last_chunk->set_rowcount(std::min(org_max_rows - max_rows, param->max_rows));
   last_chunk->set_file_position(to_start_filepos);
 
-  DBUG_RETURN(error);
+  return error;
 } /* merge_buffers */
 
 int unique_write_to_file(void *v_key, element_count, void *v_unique) {
@@ -358,14 +355,16 @@ int unique_write_to_ptrs(void *v_key, element_count, void *v_unique) {
 Unique::Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg, uint size_arg,
                ulonglong max_in_memory_size_arg)
     : file_ptrs(PSI_INSTRUMENT_ME),
+      max_elements(0),
       max_in_memory_size(max_in_memory_size_arg),
       record_pointers(NULL),
       size(size_arg),
       elements(0) {
   my_b_clear(&file);
-  init_tree(&tree, (ulong)(max_in_memory_size / 16), 0, size, comp_func, 0,
-            NULL, comp_func_fixed_arg);
-
+  init_tree(&tree, /* default_alloc_size */ 0,
+            /* memory_limit */ 0, size, comp_func,
+            /* with_delete */ false,
+            /* free_element */ nullptr, comp_func_fixed_arg);
   /*
     If you change the following, change it in get_max_elements function, too.
   */
@@ -638,9 +637,9 @@ bool Unique::flush() {
 
   if (tree_walk(&tree, unique_write_to_file, this, left_root_right) ||
       file_ptrs.push_back(file_ptr))
-    return 1;
+    return true; /* purecov: inspected */
   delete_tree(&tree);
-  return 0;
+  return false;
 }
 
 /*
@@ -660,6 +659,11 @@ void Unique::reset() {
     file_ptrs.clear();
     reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
   }
+  /*
+    If table is used - finish index access and delete all records.
+    use_table is set to false, so on the next run the memory tree will be used
+    again at the beginning.
+  */
   elements = 0;
 }
 
@@ -962,4 +966,40 @@ err:
   if (reinit_io_cache(outfile, READ_CACHE, 0L, 0, 0)) error = 1;
   outfile->end_of_file = save_pos;
   return error;
+}
+
+bool Unique_on_insert::unique_add(void *ptr) {
+  Field *key = *m_table->visible_field_ptr();
+  if (key->store((const char *)ptr, m_size, &my_charset_bin) != TYPE_OK)
+    return true; /* purecov: inspected */
+  if (!check_unique_constraint(m_table)) return true;
+  uint res = m_table->file->ha_write_row(m_table->record[0]);
+  if (res) {
+    bool dup = false;
+    if (res == HA_ERR_FOUND_DUPP_KEY) return true;
+    if (create_ondisk_from_heap(m_table->in_use, m_table, res, false, &dup) ||
+        dup)
+      return true;
+  }
+  return false;
+}
+
+void Unique_on_insert::reset(bool reinit) {
+  /* Finish index access and delete all records.  */
+  m_table->file->ha_index_or_rnd_end();
+  m_table->file->ha_delete_all_rows();
+  if (reinit) m_table->file->ha_index_init(0, true);
+}
+
+bool Unique_on_insert::init() {
+  // If it's first run and table haven't been created yet - create it
+  if (!m_table && !(m_table = create_duplicate_weedout_tmp_table(
+                        current_thd, m_size, nullptr)))
+    return true; /* purecov: inspected */
+  return false;
+}
+
+void Unique_on_insert::cleanup() {
+  reset(false);
+  free_tmp_table(m_table->in_use, m_table);
 }

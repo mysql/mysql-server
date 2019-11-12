@@ -1247,6 +1247,8 @@ drop table if exists bogus_table_20713;
 drop function if exists func_20713_a;
 drop function if exists func_20713_b;
 create table bogus_table_20713( id int(10) not null primary key);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into bogus_table_20713 values (1), (2), (3);
 create function func_20713_a() returns int(11)
 begin
@@ -1257,6 +1259,8 @@ set id = (select id from bogus_table_20713 where id = 3);
 set @in_func := 2;
 return id;
 end//
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create function func_20713_b() returns int(11)
 begin
 declare id int;
@@ -1266,6 +1270,8 @@ set id = (select id from bogus_table_20713 where id = 3);
 set @in_func := 2;
 return id;
 end//
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @in_func := 0;
 select func_20713_a();
 func_20713_a()
@@ -1315,12 +1321,16 @@ begin
 call proc_25345();
 return 1;
 end ||
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create function func_25345_b() returns int(11)
 begin
 declare c1 cursor for select a from table_25345_a;
 declare c2 cursor for select b from table_25345_b;
 return 1;
 end ||
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 call proc_25345();
 result
 1

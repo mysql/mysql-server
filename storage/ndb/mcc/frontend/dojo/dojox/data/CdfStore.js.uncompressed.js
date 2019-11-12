@@ -1,11 +1,10 @@
-//>>built
 define("dojox/data/CdfStore", ["dojo", "dojox", "dojo/data/util/sorter"], function(dojo, dojox) {
 
 dojox.data.ASYNC_MODE = 0;
 dojox.data.SYNC_MODE = 1;
 
 dojo.declare("dojox.data.CdfStore", null, {
-	//	summary:
+	// summary:
 	//		IMPORTANT: The CDF Store is designed to work with Tibco GI, and references Tibco's
 	//		JSX3 JavaScript library and will not work without it.
 	//
@@ -18,39 +17,38 @@ dojo.declare("dojox.data.CdfStore", null, {
 	//
 	//		While a CDF document is an XML file, other than the initial input, all data returned
 	//		from and written to this store should be in object format.
-	//
+
 	// identity: [const] String
 	//		The unique identifier for each item. Defaults to "jsxid" which is standard for a CDF
 	//		document. Should not be changed.
 	identity: "jsxid",
-	//
-	//	url : String
+
+	// url : String
 	//		The location from which to fetch the XML (CDF) document.
 	url: "",
-	//
-	//	xmlStr: String
+
+	// xmlStr: String
 	//		A string that can be parsed into an XML document and should be formatted according
 	//		to the CDF spec.
-	//	example:
+	// example:
 	//		|	'<data jsxid="jsxroot"><record jsxtext="A"/><record jsxtext="B" jsxid="2" jsxid="2"/></data>'
 	xmlStr:"",
-	//
-	//	data:	Object
+
+	// data:	Object
 	//		A object that will be converted into the xmlStr property, and then parsed into a CDF.
 	data:null,
-	//
-	//	label:	String
+
+	// label:	String
 	//		The property within each item used to define the item.
 	label: "",
-	//
-	//	mode [const]: dojox.data.ASYNC_MODE | dojox.data.SYNC_MODE
-	//		This store supports syncronous fetches if this property is set to dojox.data.SYNC_MODE.
+
+	//	mode [const]: dojox.data.ASYNC_MODE|dojox.data.SYNC_MODE
+	//		This store supports synchronous fetches if this property is set to dojox.data.SYNC_MODE.
 	mode:dojox.data.ASYNC_MODE,
 	
 	constructor: function(/* Object */ args){
 		// summary:
 		//	Constructor for the CDF store. Instantiate a new CdfStore.
-		//
 		if(args){
 			this.url = args.url;
 			this.xmlStr = args.xmlStr || args.str;
@@ -66,36 +64,35 @@ dojo.declare("dojox.data.CdfStore", null, {
 		this.byId = this.fetchItemByIdentity;
 	},
 	
-	/* dojo.data.api.Read */
+	/* dojo/data/api/Read */
 
 	getValue: function(/* jsx3.xml.Entity */ item, /* String */ property, /* value? */ defaultValue){
-		//	summary:
+		// summary:
 		//		Return an property value of an item
-		//
+
 		return item.getAttribute(property) || defaultValue; // anything
 	},
 
 	getValues: function(/* jsx3.xml.Entity */ item, /* String */ property){
-		//	summary:
+		// summary:
 		//		Return an array of values
-		//
+
 		//	TODO!!! Can't find an example of an array in any CDF files
-		//
 		var v = this.getValue(item, property, []);
 		return dojo.isArray(v) ? v : [v];
 	},
 
 	getAttributes: function(/* jsx3.xml.Entity */ item){
-		//	summary:
+		// summary:
 		//		Return an array of property names
-		//
+
 		return item.getAttributeNames(); // Array
 	},
 
 	hasAttribute: function(/* jsx3.xml.Entity */ item, /* String */ property){
-		//	summary:
+		// summary:
 		//		Check whether an item has a property
-		//
+
 		return (this.getValue(item, property) !== undefined); // Boolean
 	},
 	
@@ -106,9 +103,9 @@ dojo.declare("dojox.data.CdfStore", null, {
 	},
 	
 	containsValue: function(/* jsx3.xml.Entity */ item, /* String */ property, /* anything */ value){
-		//	summary:
+		// summary:
 		//		Check whether an item contains a value
-		//
+
 		var values = this.getValues(item, property);
 		for(var i = 0; i < values.length; i++){
 			if(values[i] === null){ continue; }
@@ -124,9 +121,9 @@ dojo.declare("dojox.data.CdfStore", null, {
 	},
 
 	isItem: function(/* anything */ something){
-		//	summary:
+		// summary:
 		//		Check whether the object is an item (jsx3.xml.Entity)
-		//
+
 		if(something.getClass && something.getClass().equals(jsx3.xml.Entity.jsxclass)){
 			return true; //boolean
 		}
@@ -134,23 +131,23 @@ dojo.declare("dojox.data.CdfStore", null, {
 	},
 
 	isItemLoaded: function(/* anything */ something){
-		//	summary:
+		// summary:
 		//		Check whether the object is a jsx3.xml.Entity object and loaded
-		//
+
 		return this.isItem(something); // Boolean
 	},
 
 	loadItem: function(/* object */ keywordArgs){
-		//	summary:
+		// summary:
 		//		Load an item
-		//	description:
+		// description:
 		//		The store always loads all items, so if it's an item, then it's loaded.
 	},
 
 	getFeatures: function(){
-		//	summary:
+		// summary:
 		//		Return supported data APIs
-		//
+
 		return {
 			"dojo.data.api.Read": true,
 			"dojo.data.api.Write": true,
@@ -159,9 +156,9 @@ dojo.declare("dojox.data.CdfStore", null, {
 	},
 
 	getLabel: function(/* jsx3.xml.Entity */ item){
-		//	summary:
-		//		See dojo.data.api.Read.getLabel()
-		//
+		// summary:
+		//		See dojo/data/api/Read.getLabel()
+
 		if((this.label !== "") && this.isItem(item)){
 			var label = this.getValue(item,this.label);
 			if(label){
@@ -172,11 +169,11 @@ dojo.declare("dojox.data.CdfStore", null, {
 	},
 
 	getLabelAttributes: function(/* jsx3.xml.Entity */ item){
-		//	summary:
+		// summary:
 		//		returns an array of what properties of the item that were used
-		//      to generate its label
-		//		See dojo.data.api.Read.getLabelAttributes()
-		//
+		//		to generate its label
+		//		See dojo/data/api/Read.getLabelAttributes()
+
 		if(this.label !== ""){
 			return [this.label]; //array
 		}
@@ -192,51 +189,59 @@ dojo.declare("dojox.data.CdfStore", null, {
 		//		If the store is in ASYNC mode, the items should be expected in an onComplete
 		//		method passed in the request object. If store is in SYNC mode, the items will
 		//		be return directly as well as within the onComplete method.
-		//	note:
+		//
+		//		note:
 		//		The mode can be set on store initialization or during a fetch as one of the
 		//		parameters.
 		//
-		//	query: String
+		//		See:
+		//
+		//		- http://www.tibco.com/devnet/resources/gi/3_7/api/html/jsx3/xml/Entity.html#method:selectNodes
+		//		- http://www.w3.org/TR/xpath
+		//		- http://msdn.microsoft.com/en-us/library/ms256086.aspx
+		//
+		//		See dojo.data.Read.fetch():
+		//
+		//		- onBegin
+		//		- onComplete
+		//		- onItem
+		//		- onError
+		//		- scope
+		//		- start
+		//		- count
+		//		- sort
+		// request: String
 		//		The items in the store are treated as objects, but this is reading an XML
 		//		document. Further, the actual querying of the items takes place in Tibco GI's
 		//		jsx3.xml.Entity. Therefore, we are using their syntax which is xpath.
-		//	Note:
+		//
+		//		Note:
 		//		As conforming to a CDF document, most, if not all nodes are considered "records"
 		//		and their tagNames are as such. The root node is named "data".
-		//
-		//	examples:
+		// example:
 		//		All items:
 		//		|	store.fetch({query:"*"});
+		// example:
 		//		Item with a jsxid attribute equal to "1" (note you could use byId for this)
 		//		|	store.fetch({query:"//record[@jsxid='1']"});
+		// example:
 		//		All items with any jsxid attribute:
 		//		|	"//record[@jsxid='*']"
+		// example:
 		//		The items with a jsxid of '1' or '4':
 		//		|	"//record[@jsxid='4' or @jsxid='1']"
+		// example:
 		//		All children within a "group" node (could be multiple group nodes):
 		//		"//group/record"
+		// example:
 		//		All children within a specific group node:
 		//		"//group[@name='mySecondGroup']/record"
+		// example:
 		//		Any record, anywhere in the document:
 		//		|	"//record"
 		//		Only the records beneath the root (data) node:
 		//		|	"//data/record"
-		//
-		//	See:
-		//	http://www.tibco.com/devnet/resources/gi/3_7/api/html/jsx3/xml/Entity.html#method:selectNodes
-		//	http://www.w3.org/TR/xpath
-		//	http://msdn.microsoft.com/en-us/library/ms256086.aspx
-		//
-		//	See dojo.data.Read.fetch():
-		//	onBegin
-		//	onComplete
-		//	onItem
-		//	onError
-		//	scope
-		//	start
-		//	count
-		//	sort
-		//
+
 		request = request || {};
 		if(!request.store){
 			request.store = this;
@@ -355,7 +360,7 @@ dojo.declare("dojox.data.CdfStore", null, {
 
 	
 	_loadCDF: function(){
-		//	summary:
+		// summary:
 		//		Internal method.
 		//		If a cdfDoc exists, return it. Otherwise, get one from JSX3,
 		//		load the data or url, and return the doc or a deferred.
@@ -400,7 +405,7 @@ dojo.declare("dojox.data.CdfStore", null, {
 		// summary:
 		//		Internal method.
 		//		Requests the items from jsx3.xml.Entity with an xpath query.
-		//
+
 		var itr = cdfDoc.selectNodes(request.query, false, 1);
 		var items = [];
 		while(itr.hasNext()){
@@ -409,18 +414,18 @@ dojo.declare("dojox.data.CdfStore", null, {
 		return items;
 	},
 
-	close: function(/*dojo.data.api.Request || keywordArgs || null */ request){
-		 //	summary:
-		 //		See dojo.data.api.Read.close()
+	close: function(/*dojo/data/api/Request|Object?*/ request){
+		// summary:
+		//		See dojo/data/api/Read.close()
 	},
 
-/* dojo.data.api.Write */
+/* dojo/data/api/Write */
 
-	newItem: function(/* object? */ keywordArgs, /* object? || String? */parentInfo){
-		//	summary:
+	newItem: function(/* object? */ keywordArgs, /* Object|String? */ parentInfo){
+		// summary:
 		//		Creates a jsx3.xml.Entity item and inserts it either inside the
 		//		parent or appends it to the root
-		//
+
 		keywordArgs = (keywordArgs || {});
 		if(keywordArgs.tagName){
 			// record tagName is automatic and this would add it
@@ -443,28 +448,29 @@ dojo.declare("dojox.data.CdfStore", null, {
 	},
 	
 	deleteItem: function(/* jsx3.xml.Entity */ item){
-		//	summary:
+		// summary:
 		//		Delete an jsx3.xml.Entity (wrapper to a XML element).
-		//
+
 		this.cdfDoc.deleteRecord(this.getIdentity(item));
 		this._makeDirty(item);
 		return true; //boolean
 	},
 	
 	setValue: function(/* jsx3.xml.Entity */ item, /* String */ property, /* almost anything */ value){
-		//	summary:
+		// summary:
 		//		Set an property value
-		//
+
 		this._makeDirty(item);
 		item.setAttribute(property, value);
 		return true; // Boolean
 	},
 		
 	setValues: function(/* jsx3.xml.Entity */ item, /* String */ property, /*array*/ values){
-		//	summary:
-		//		Set property values
+		// summary:
+		//		Set property values.
+
 		//		TODO: Needs to be fully implemented.
-		//
+
 		this._makeDirty(item);
 		console.warn("cdfStore.setValues only partially implemented.");
 		return item.setAttribute(property, values);
@@ -472,9 +478,9 @@ dojo.declare("dojox.data.CdfStore", null, {
 	},
 	
 	unsetAttribute: function(/* jsx3.xml.Entity */ item, /* String */ property){
-		//	summary:
+		// summary:
 		//		Remove an property
-		//
+
 		this._makeDirty(item);
 		item.removeAttribute(property);
 		return true; // Boolean
@@ -485,19 +491,20 @@ dojo.declare("dojox.data.CdfStore", null, {
 		//		Invalidate changes (new and/or modified elements)
 		//		Resets data by simply deleting the reference to the cdfDoc.
 		//		Subsequent fetches will load the new data.
-		// Note:
-		//		Any items outside the store will no longer be valid and may cause errors.
 		//
+		//		Note:
+		//		Any items outside the store will no longer be valid and may cause errors.
+
 		delete this.cdfDoc;
 		this._modifiedItems = {};
 		return true; //boolean
 	},
 	
 	isDirty: function(/* jsx3.xml.Entity ? */ item){
-		//	summary:
+		// summary:
 		//		Check whether an item is new, modified or deleted.
 		//		If no item is passed, checks if anything in the store has changed.
-		//
+
 		if(item){
 			return !!this._modifiedItems[this.getIdentity(item)]; // Boolean
 		}else{
@@ -524,7 +531,7 @@ dojo.declare("dojox.data.CdfStore", null, {
 		// summary:
 		//		Internal method.
 		//		Converts an object into an XML string.
-		//
+
 		var parseObj = function(obj, name){
 			var xmlStr = "";
 			var nm;
@@ -556,25 +563,25 @@ dojo.declare("dojox.data.CdfStore", null, {
 	 * Dojo.data Identity implementation *
 	 *************************************/
 	getIdentity: function(/* jsx3.xml.Entity */ item){
-		//	summary:
+		// summary:
 		//		Returns the identifier for an item.
-		//
+
 		return this.getValue(item, this.identity); // String
 	},
 
 	getIdentityAttributes: function(/* jsx3.xml.Entity */ item){
-		//	summary:
+		// summary:
 		//		Returns the property used for the identity.
-		//
+
 		return [this.identity]; // Array
 	},
 
 
-	fetchItemByIdentity: function(/* Object || String */ args){
-		//	summary:
-		//		See dojo.data.api.Identity.fetchItemByIdentity(keywordArgs)
+	fetchItemByIdentity: function(/* Object|String */ args){
+		// summary:
+		//		See dojo/data/api/Identity.fetchItemByIdentity(keywordArgs).
 		//
-		//	Note:
+		//		Note:
 		//		This method can be synchronous if mode is set.
 		//		Also, there is a more finger friendly alias of this method, byId();
 		if(dojo.isString(args)){
@@ -587,9 +594,9 @@ dojo.declare("dojox.data.CdfStore", null, {
 			if(!args.mode){args.mode = this.mode;}
 		}
 		args.byId = true;
-		return this.fetch(args); // dojo.Deferred || Array
+		return this.fetch(args); // dojo/_base/Deferred|Array
 	},
-	byId: function(/* Object || String */ args){
+	byId: function(/* Object|String */ args){
 		// stub. See fetchItemByIdentity
 	}
 	

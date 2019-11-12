@@ -21,7 +21,7 @@
 	background:#b7b7b7;
 }
 .soria .dojoxRadioButtonSelected {
-	background:#b7cdee url('../../../dijit/themes/soria/images/gradientTopBg.png') repeat-x top center;
+	background:#b7cdee;
 }
 .dojoxRadioButtonLabel {
 	padding:8px;

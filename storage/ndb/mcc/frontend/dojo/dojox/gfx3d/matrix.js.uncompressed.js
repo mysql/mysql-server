@@ -1,4 +1,3 @@
-//>>built
 define("dojox/gfx3d/matrix", ["dojo/_base/lang", "./_base"], function(lang, gfx3d){
 	
 	// candidates for dojox.math:
@@ -8,8 +7,10 @@ define("dojox/gfx3d/matrix", ["dojo/_base/lang", "./_base"], function(lang, gfx3
 	};
 	
 	gfx3d.matrix.Matrix3D = function(arg){
-		// summary: a 3D matrix object
-		// description: Normalizes a 3D matrix-like object. If arrays is passed,
+		// summary:
+		//		a 3D matrix object
+		// description:
+		//		Normalizes a 3D matrix-like object. If arrays is passed,
 		//		all objects of the array are normalized and multiplied sequentially.
 		// arg: Object
 		//		a 3D matrix-like object, a number, or an array of such objects
@@ -49,7 +50,8 @@ define("dojox/gfx3d/matrix", ["dojo/_base/lang", "./_base"], function(lang, gfx3
 	lang.extend(gfx3d.matrix.Matrix3D, {xx: 1, xy: 0, xz: 0, yx: 0, yy: 1, yz: 0, zx: 0, zy: 0, zz: 1, dx: 0, dy: 0, dz: 0});
 	
 	lang.mixin(gfx3d.matrix, {
-		// summary: class constants, and methods of dojox.gfx3d.matrix
+		// summary:
+		//		class constants, and methods of dojox.gfx3d.matrix
 		
 		// matrix constants
 		
@@ -60,172 +62,219 @@ define("dojox/gfx3d/matrix", ["dojo/_base/lang", "./_base"], function(lang, gfx3
 		// matrix creators
 		
 		translate: function(a, b, c){
-			// summary: forms a translation matrix
-			// description: The resulting matrix is used to translate (move) points by specified offsets.
-			// a: Number: an x coordinate value
-			// b: Number: a y coordinate value
-			// c: Number: a z coordinate value
+			// summary:
+			//		forms a translation matrix
+			// description:
+			//		The resulting matrix is used to translate (move) points by specified offsets.
+			// a: Number|Object
+			//		an x coordinate value, or a point-like object, which specifies offsets for 3 dimensions
+			// b: Number?
+			//		a y coordinate value
+			// c: Number?
+			//		a z coordinate value
+
 			if(arguments.length > 1){
 				return new gfx3d.matrix.Matrix3D({dx: a, dy: b, dz: c}); // dojox.gfx3d.matrix.Matrix3D
 			}
-			// branch
-			// a: Object: a point-like object, which specifies offsets for 3 dimensions
-			// b: null
+
 			return new gfx3d.matrix.Matrix3D({dx: a.x, dy: a.y, dz: a.z}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		scale: function(a, b, c){
-			// summary: forms a scaling matrix
-			// description: The resulting matrix is used to scale (magnify) points by specified offsets.
-			// a: Number: a scaling factor used for the x coordinate
-			// b: Number: a scaling factor used for the y coordinate
-			// c: Number: a scaling factor used for the z coordinate
+			// summary:
+			//		forms a scaling matrix
+			// description:
+			//		The resulting matrix is used to scale (magnify) points by specified offsets.
+			// a: Number|Object
+			//		a scaling factor used for the x coordinate, or a uniform scaling factor used for the all coordinates,
+			//		or a point-like object, which specifies scale factors for 3 dimensions
+			// b: Number?
+			//		a scaling factor used for the y coordinate
+			// c: Number?
+			//		a scaling factor used for the z coordinate
 			if(arguments.length > 1){
 				return new gfx3d.matrix.Matrix3D({xx: a, yy: b, zz: c}); // dojox.gfx3d.matrix.Matrix3D
 			}
 			if(typeof a == "number"){
-				// branch
-				// a: Number: a uniform scaling factor used for the all coordinates
-				// b: null
 				return new gfx3d.matrix.Matrix3D({xx: a, yy: a, zz: a}); // dojox.gfx3d.matrix.Matrix3D
 			}
-			// branch
-			// a: Object: a point-like object, which specifies scale factors for 3 dimensions
-			// b: null
 			return new gfx3d.matrix.Matrix3D({xx: a.x, yy: a.y, zz: a.z}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		rotateX: function(angle){
-			// summary: forms a rotating matrix (about the x axis)
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the x axis)
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified angle.
-			// angle: Number: an angle of rotation in radians (>0 for CW)
+			// angle: Number
+			//		an angle of rotation in radians (>0 for CW)
 			var c = Math.cos(angle);
 			var s = Math.sin(angle);
 			return new gfx3d.matrix.Matrix3D({yy: c, yz: -s, zy: s, zz: c}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		rotateXg: function(degree){
-			// summary: forms a rotating matrix (about the x axis)
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the x axis)
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified degree.
 			//		See dojox.gfx3d.matrix.rotateX() for comparison.
-			// degree: Number: an angle of rotation in degrees (>0 for CW)
+			// degree: Number
+			//		an angle of rotation in degrees (>0 for CW)
 			return gfx3d.matrix.rotateX(gfx3d.matrix._degToRad(degree)); // dojox.gfx3d.matrix.Matrix3D
 		},
 		rotateY: function(angle){
-			// summary: forms a rotating matrix (about the y axis)
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the y axis)
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified angle.
-			// angle: Number: an angle of rotation in radians (>0 for CW)
+			// angle: Number
+			//		an angle of rotation in radians (>0 for CW)
 			var c = Math.cos(angle);
 			var s = Math.sin(angle);
 			return new gfx3d.matrix.Matrix3D({xx: c, xz: s, zx: -s, zz: c}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		rotateYg: function(degree){
-			// summary: forms a rotating matrix (about the y axis)
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the y axis)
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified degree.
 			//		See dojox.gfx3d.matrix.rotateY() for comparison.
-			// degree: Number: an angle of rotation in degrees (>0 for CW)
+			// degree: Number
+			//		an angle of rotation in degrees (>0 for CW)
 			return gfx3d.matrix.rotateY(gfx3d.matrix._degToRad(degree)); // dojox.gfx3d.matrix.Matrix3D
 		},
 		rotateZ: function(angle){
-			// summary: forms a rotating matrix (about the z axis)
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the z axis)
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified angle.
-			// angle: Number: an angle of rotation in radians (>0 for CW)
+			// angle: Number
+			//		an angle of rotation in radians (>0 for CW)
 			var c = Math.cos(angle);
 			var s = Math.sin(angle);
 			return new gfx3d.matrix.Matrix3D({xx: c, xy: -s, yx: s, yy: c}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		rotateZg: function(degree){
-			// summary: forms a rotating matrix (about the z axis)
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the z axis)
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified degree.
 			//		See dojox.gfx3d.matrix.rotateZ() for comparison.
-			// degree: Number: an angle of rotation in degrees (>0 for CW)
+			// degree: Number
+			//		an angle of rotation in degrees (>0 for CW)
 			return gfx3d.matrix.rotateZ(gfx3d.matrix._degToRad(degree)); // dojox.gfx3d.matrix.Matrix3D
 		},
 	
 		// camera transformation
 		cameraTranslate: function(a, b, c){
-			// summary: forms a translation matrix
-			// description: The resulting matrix is used to translate (move) points by specified offsets.
-			// a: Number: an x coordinate value
-			// b: Number: a y coordinate value
-			// c: Number: a z coordinate value
+			// summary:
+			//		forms a translation matrix
+			// description:
+			//		The resulting matrix is used to translate (move) points by specified offsets.
+			// a: Number|Object
+			//		an x coordinate value, or a point-like object, which specifies offsets for 3 dimensions
+			// b: Number?
+			//		a y coordinate value
+			// c: Number?
+			//		a z coordinate value
 			if(arguments.length > 1){
 				return new gfx3d.matrix.Matrix3D({dx: -a, dy: -b, dz: -c}); // dojox.gfx3d.matrix.Matrix3D
 			}
-			// branch
-			// a: Object: a point-like object, which specifies offsets for 3 dimensions
-			// b: null
 			return new gfx3d.matrix.Matrix3D({dx: -a.x, dy: -a.y, dz: -a.z}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		cameraRotateX: function(angle){
-			// summary: forms a rotating matrix (about the x axis) in cameraTransform manner
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the x axis) in cameraTransform manner
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified angle.
-			// angle: Number: an angle of rotation in radians (>0 for CW)
+			// angle: Number
+			//		an angle of rotation in radians (>0 for CW)
 			var c = Math.cos(-angle);
 			var s = Math.sin(-angle);
 			return new gfx3d.matrix.Matrix3D({yy: c, yz: -s, zy: s, zz: c}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		cameraRotateXg: function(degree){
-			// summary: forms a rotating matrix (about the x axis)in cameraTransform manner
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the x axis)in cameraTransform manner
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified degree.
 			//		See dojox.gfx3d.matrix.rotateX() for comparison.
-			// degree: Number: an angle of rotation in degrees (>0 for CW)
+			// degree: Number
+			//		an angle of rotation in degrees (>0 for CW)
 			return gfx3d.matrix.rotateX(gfx3d.matrix._degToRad(degree)); // dojox.gfx3d.matrix.Matrix3D
 		},
 		cameraRotateY: function(angle){
-			// summary: forms a rotating matrix (about the y axis) in cameraTransform manner
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the y axis) in cameraTransform manner
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified angle.
-			// angle: Number: an angle of rotation in radians (>0 for CW)
+			// angle: Number
+			//		an angle of rotation in radians (>0 for CW)
 			var c = Math.cos(-angle);
 			var s = Math.sin(-angle);
 			return new gfx3d.matrix.Matrix3D({xx: c, xz: s, zx: -s, zz: c}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		cameraRotateYg: function(degree){
-			// summary: forms a rotating matrix (about the y axis) in cameraTransform manner
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the y axis) in cameraTransform manner
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified degree.
 			//		See dojox.gfx3d.matrix.rotateY() for comparison.
-			// degree: Number: an angle of rotation in degrees (>0 for CW)
+			// degree: Number
+			//		an angle of rotation in degrees (>0 for CW)
 			return gfx3d.matrix.rotateY(dojox.gfx3d.matrix._degToRad(degree)); // dojox.gfx3d.matrix.Matrix3D
 		},
 		cameraRotateZ: function(angle){
-			// summary: forms a rotating matrix (about the z axis) in cameraTransform manner
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the z axis) in cameraTransform manner
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified angle.
-			// angle: Number: an angle of rotation in radians (>0 for CW)
+			// angle: Number
+			//		an angle of rotation in radians (>0 for CW)
 			var c = Math.cos(-angle);
 			var s = Math.sin(-angle);
 			return new gfx3d.matrix.Matrix3D({xx: c, xy: -s, yx: s, yy: c}); // dojox.gfx3d.matrix.Matrix3D
 		},
 		cameraRotateZg: function(degree){
-			// summary: forms a rotating matrix (about the z axis) in cameraTransform manner
-			// description: The resulting matrix is used to rotate points
+			// summary:
+			//		forms a rotating matrix (about the z axis) in cameraTransform manner
+			// description:
+			//		The resulting matrix is used to rotate points
 			//		around the origin of coordinates (0, 0) by specified degree.
 			//		See dojox.gfx3d.matrix.rotateZ() for comparison.
-			// degree: Number: an angle of rotation in degrees (>0 for CW)
+			// degree: Number
+			//		an angle of rotation in degrees (>0 for CW)
 			return gfx3d.matrix.rotateZ(gfx3d.matrix._degToRad(degree)); // dojox.gfx3d.matrix.Matrix3D
 		},
 	
 		// ensure matrix 3D conformance
 		normalize: function(matrix){
-			// summary: converts an object to a matrix, if necessary
-			// description: Converts any 3D matrix-like object or an array of
+			// summary:
+			//		converts an object to a matrix, if necessary
+			// description:
+			//		Converts any 3D matrix-like object or an array of
 			//		such objects to a valid dojox.gfx3d.matrix.Matrix3D object.
-			// matrix: Object: an object, which is converted to a matrix, if necessary
+			// matrix: Object
+			//		an object, which is converted to a matrix, if necessary
 			return (matrix instanceof gfx3d.matrix.Matrix3D) ? matrix : new gfx3d.matrix.Matrix3D(matrix); // dojox.gfx3d.matrix.Matrix3D
 		},
 		
 		// common operations
 		
 		clone: function(matrix){
-			// summary: creates a copy of a 3D matrix
-			// matrix: dojox.gfx3d.matrix.Matrix3D: a 3D matrix-like object to be cloned
+			// summary:
+			//		creates a copy of a 3D matrix
+			// matrix: dojox.gfx3d.matrix.Matrix3D
+			//		a 3D matrix-like object to be cloned
 			var obj = new gfx3d.matrix.Matrix3D();
 			for(var i in matrix){
 				if(typeof(matrix[i]) == "number" && typeof(obj[i]) == "number" && obj[i] != matrix[i]) obj[i] = matrix[i];
@@ -233,8 +282,10 @@ define("dojox/gfx3d/matrix", ["dojo/_base/lang", "./_base"], function(lang, gfx3
 			return obj; // dojox.gfx3d.matrix.Matrix3D
 		},
 		invert: function(matrix){
-			// summary: inverts a 2D matrix
-			// matrix: dojox.gfx.matrix.Matrix3D: a 2D matrix-like object to be inverted
+			// summary:
+			//		inverts a 2D matrix
+			// matrix: dojox.gfx.matrix.Matrix3D
+			//		a 2D matrix-like object to be inverted
 			var m = gfx3d.matrix.normalize(matrix);
 			var D = m.xx * m.yy * m.zz + m.xy * m.yz * m.zx + m.xz * m.yx * m.zy - m.xx * m.yz * m.zy - m.xy * m.yx * m.zz - m.xz * m.yy * m.zx;
 			var M = new gfx3d.matrix.Matrix3D({
@@ -254,33 +305,40 @@ define("dojox/gfx3d/matrix", ["dojo/_base/lang", "./_base"], function(lang, gfx3
 			return M; // dojox.gfx3d.matrix.Matrix3D
 		},
 		_multiplyPoint: function(m, x, y, z){
-			// summary: applies a matrix to a point
-			// matrix: dojox.gfx3d.matrix.Matrix3D: a 3D matrix object to be applied
-			// x: Number: an x coordinate of a point
-			// y: Number: a y coordinate of a point
-			// z: Number: a z coordinate of a point
+			// summary:
+			//		applies a matrix to a point
+			// matrix: dojox.gfx3d.matrix.Matrix3D
+			//		a 3D matrix object to be applied
+			// x: Number
+			//		an x coordinate of a point
+			// y: Number
+			//		a y coordinate of a point
+			// z: Number
+			//		a z coordinate of a point
 			return {x: m.xx * x + m.xy * y + m.xz * z + m.dx, y: m.yx * x + m.yy * y + m.yz * z + m.dy, z: m.zx * x + m.zy * y + m.zz * z + m.dz}; // Object
 		},
-		multiplyPoint: function(matrix, /* Number||Point */ a, /* Number, optional */ b, /* Number, optional */ c){
-			// summary: applies a matrix to a point
-			// matrix: dojox.gfx3d.matrix.Matrix3D: a 3D matrix object to be applied
-			// a: Number: an x coordinate of a point
-			// b: Number: a y coordinate of a point
-			// c: Number: a z coordinate of a point
+		multiplyPoint: function(matrix, a,  b, c){
+			// summary:
+			//		applies a matrix to a point
+			// matrix: dojox.gfx3d.matrix.Matrix3D
+			//		a 3D matrix object to be applied
+			// a: Number|Object
+			//		an x coordinate of a point, or an Object specifying the whole point
+			// b: Number?
+			//		a y coordinate of a point
+			// c: Number?
+			//		a z coordinate of a point
 			var m = gfx3d.matrix.normalize(matrix);
 			if(typeof a == "number" && typeof b == "number" && typeof c == "number"){
 				return gfx3d.matrix._multiplyPoint(m, a, b, c); // Object
 			}
-			// branch
-			// matrix: dojox.gfx3d.matrix.Matrix3D: a 3D matrix object to be applied
-			// a: Object: a point
-			// b: null
-			// c: null
 			return gfx3d.matrix._multiplyPoint(m, a.x, a.y, a.z); // Object
 		},
 		multiply: function(matrix){
-			// summary: combines matrices by multiplying them sequentially in the given order
-			// matrix: dojox.gfx3d.matrix.Matrix3D...: a 3D matrix-like object,
+			// summary:
+			//		combines matrices by multiplying them sequentially in the given order
+			// matrix: dojox.gfx3d.matrix.Matrix3D
+			//		a 3D matrix-like object,
 			//		all subsequent arguments are matrix-like objects too
 			var m = gfx3d.matrix.normalize(matrix);
 			// combine matrices
@@ -305,31 +363,36 @@ define("dojox/gfx3d/matrix", ["dojo/_base/lang", "./_base"], function(lang, gfx3
 		},
 	
 		_project: function(m, x, y, z){
-			// summary: applies a matrix to a point
-			// matrix: dojox.gfx3d.matrix.Matrix3D: a 3D matrix object to be applied
-			// x: Number: an x coordinate of a point
-			// y: Number: a y coordinate of a point
-			// z: Number: a z coordinate of a point
+			// summary:
+			//		applies a matrix to a point
+			// matrix: dojox.gfx3d.matrix.Matrix3D
+			//		a 3D matrix object to be applied
+			// x: Number
+			//		an x coordinate of a point
+			// y: Number
+			//		a y coordinate of a point
+			// z: Number
+			//		a z coordinate of a point
 			return {	// Object
 				x: m.xx * x + m.xy * y + m.xz * z + m.dx,
 				y: m.yx * x + m.yy * y + m.yz * z + m.dy,
 				z: m.zx * x + m.zy * y + m.zz * z + m.dz};
 		},
-		project: function(matrix, /* Number||Point */ a, /* Number, optional */ b, /* Number, optional */ c){
-			// summary: applies a matrix to a point
-			// matrix: dojox.gfx3d.matrix.Matrix3D: a 3D matrix object to be applied
-			// a: Number: an x coordinate of a point
-			// b: Number: a y coordinate of a point
-			// c: Number: a z coordinate of a point
+		project: function(matrix, a, b, c){
+			// summary:
+			//		applies a matrix to a point
+			// matrix: dojox.gfx3d.matrix.Matrix3D
+			//		a 3D matrix object to be applied
+			// a: Number|Point
+			//		an x coordinate of a point, or an Object specifying the whole point
+			// b: Number?
+			//		a y coordinate of a point
+			// c: Number?
+			//		a z coordinate of a point
 			var m = gfx3d.matrix.normalize(matrix);
 			if(typeof a == "number" && typeof b == "number" && typeof c == "number"){
 				return gfx3d.matrix._project(m, a, b, c); // Object
 			}
-			// branch
-			// matrix: dojox.gfx3d.matrix.Matrix3D: a 3D matrix object to be applied
-			// a: Object: a point
-			// b: null
-			// c: null
 			return gfx3d.matrix._project(m, a.x, a.y, a.z); // Object
 		}
 	});

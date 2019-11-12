@@ -1,15 +1,13 @@
-//>>built
-define("dojo/store/api/Store", ["dojo/_base/declare"], function(declare) {
-	// module:
-	//		dojo/store/api/Store
-	// summary:
-	//		The module defines the Dojo object store interface.
+define("dojo/store/api/Store", ["../../_base/declare"], function(declare){
 
-var Store = declare("dojo.store.api.Store", null, {
+// module:
+//		dojo/api/Store
+
+var Store = declare(null, {
 	// summary:
 	//		This is an abstract API that data provider implementations conform to.
 	//		This file defines methods signatures and intentionally leaves all the
-	//		methods unimplemented.  For more information on the dojo.store APIs,
+	//		methods unimplemented.  For more information on the ,
 	//		please visit: http://dojotoolkit.org/reference-guide/dojo/store.html
 	//		Every method and property is optional, and is only needed if the functionality
 	//		it provides is required.
@@ -18,7 +16,7 @@ var Store = declare("dojo.store.api.Store", null, {
 	//		for query() which already defines an async return value).
 
 	// idProperty: String
-	//		If the store has a single primary key, this tndicates the property to use as the
+	//		If the store has a single primary key, this indicates the property to use as the
 	//		identity property. The values of this property should be unique.
 	idProperty: "id",
 
@@ -56,7 +54,7 @@ var Store = declare("dojo.store.api.Store", null, {
 		//		Stores an object
 		// object: Object
 		//		The object to store.
-		// directives: dojo.store.api.Store.PutDirectives?
+		// directives: dojo/store/api/Store.PutDirectives?
 		//		Additional directives for storing objects.
 		// returns: Number|String
 	},
@@ -65,7 +63,7 @@ var Store = declare("dojo.store.api.Store", null, {
 		//		Creates an object, throws an error if the object already exists
 		// object: Object
 		//		The object to store.
-		// directives: dojo.store.api.Store.PutDirectives?
+		// directives: dojo/store/api/Store.PutDirectives?
 		//		Additional directives for creating objects.
 		// returns: Number|String
 	},
@@ -90,9 +88,9 @@ var Store = declare("dojo.store.api.Store", null, {
 		//		set of data from the store.
 		// query: String|Object|Function
 		//		The query to use for retrieving objects from the store.
-		// options: dojo.store.api.Store.QueryOptions
+		// options: dojo/store/api/Store.QueryOptions
 		//		The optional arguments to apply to the resultset.
-		// returns: dojo.store.api.Store.QueryResults
+		// returns: dojo/store/api/Store.QueryResults
 		//		The results of the query, extended with iterative methods.
 		//
 		// example:
@@ -110,7 +108,7 @@ var Store = declare("dojo.store.api.Store", null, {
 		//		Note that a store user might not call transaction() prior to using put,
 		//		delete, etc. in which case these operations effectively could be thought of
 		//		as "auto-commit" style actions.
-		// returns: dojo.store.api.Store.Transaction
+		// returns: dojo/store/api/Store.Transaction
 		//		This represents the new current transaction.
 	},
 	getChildren: function(parent, options){
@@ -118,9 +116,9 @@ var Store = declare("dojo.store.api.Store", null, {
 		//		Retrieves the children of an object.
 		// parent: Object
 		//		The object to find the children of.
-		// options: dojo.store.api.Store.QueryOptions?
+		// options: dojo/store/api/Store.QueryOptions?
 		//		Additional options to apply to the retrieval of the children.
-		// returns: dojo.store.api.Store.QueryResults
+		// returns: dojo/store/api/Store.QueryResults
 		//		A result set of the children of the parent object.
 	},
 	getMetadata: function(object){
@@ -134,7 +132,7 @@ var Store = declare("dojo.store.api.Store", null, {
 	}
 });
 
-Store.PutDirectives = function(id, before, parent, overwrite){
+Store.PutDirectives = declare(null, {
 	// summary:
 	//		Directives passed to put() and add() handlers for guiding the update and
 	//		creation of stored objects.
@@ -155,42 +153,33 @@ Store.PutDirectives = function(id, before, parent, overwrite){
 	//		value of false indicates that an existing object should not be updated, a new
 	//		object should be created (which is the same as an add() operation). When
 	//		this property is not provided, either an update or creation is acceptable.
-	this.id = id;
-	this.before = before;
-	this.parent = parent;
-	this.overwrite = overwrite;
-};
+});
 
-Store.SortInformation = function(attribute, descending){
+Store.SortInformation = declare(null, {
 	// summary:
 	//		An object describing what attribute to sort on, and the direction of the sort.
 	// attribute: String
 	//		The name of the attribute to sort on.
 	// descending: Boolean
 	//		The direction of the sort.  Default is false.
-	this.attribute = attribute;
-	this.descending = descending;
-};
+});
 
-Store.QueryOptions = function(sort, start, count){
+Store.QueryOptions = declare(null, {
 	// summary:
 	//		Optional object with additional parameters for query results.
-	// sort: dojo.store.api.Store.SortInformation[]?
+	// sort: dojo/store/api/Store.SortInformation[]?
 	//		A list of attributes to sort on, as well as direction
 	//		For example:
-	//		| [{attribute:"price, descending: true}].
+	//		| [{attribute:"price", descending: true}].
 	//		If the sort parameter is omitted, then the natural order of the store may be
 	//		applied if there is a natural order.
 	// start: Number?
 	//		The first result to begin iteration on
 	// count: Number?
 	//		The number of how many results should be returned.
-	this.sort = sort;
-	this.start = start;
-	this.count = count;
-};
+});
 
-declare("dojo.store.api.Store.QueryResults", null, {
+Store.QueryResults = declare(null, {
 	// summary:
 	//		This is an object returned from query() calls that provides access to the results
 	//		of a query. Queries may be executed asynchronously.
@@ -217,7 +206,7 @@ declare("dojo.store.api.Store.QueryResults", null, {
 		//		Function that is called for each object in the query results
 		// thisObject:
 		//		The object to use as |this| in the callback.
-		// returns: dojo.store.api.Store.QueryResults
+		// returns: dojo/store/api/Store.QueryResults
 	},
 	map: function(callback, thisObject){
 		// summary:
@@ -229,7 +218,7 @@ declare("dojo.store.api.Store.QueryResults", null, {
 		//		Function that is called for each object in the query results
 		// thisObject:
 		//		The object to use as |this| in the callback.
-		// returns: dojo.store.api.Store.QueryResults
+		// returns: dojo/store/api/Store.QueryResults
 	},
 	then: function(callback, errorHandler){
 		// summary:
@@ -245,18 +234,18 @@ declare("dojo.store.api.Store.QueryResults", null, {
 	observe: function(listener, includeAllUpdates){
 		// summary:
 		//		This registers a callback for notification of when data is modified in the query results.
-		//		This is an optional method, and is usually provided by dojo.store.Observable.
+		//		This is an optional method, and is usually provided by dojo/store/Observable.
 		// listener: Function
 		//		The listener function is called when objects in the query results are modified
-		//		to affect the query result. The listener function is called with the following
-		// arguments:
+		//		to affect the query result. The listener function is called with the following arguments:
 		//		| listener(object, removedFrom, insertedInto);
-		//		* The object parameter indicates the object that was create, modified, or deleted.
-		//		* The removedFrom parameter indicates the index in the result array where
+		//
+		//		- The object parameter indicates the object that was create, modified, or deleted.
+		//		- The removedFrom parameter indicates the index in the result array where
 		//		the object used to be. If the value is -1, then the object is an addition to
 		//		this result set (due to a new object being created, or changed such that it
 		//		is a part of the result set).
-		//		* The insertedInto parameter indicates the index in the result array where
+		//		- The insertedInto parameter indicates the index in the result array where
 		//		the object should be now. If the value is -1, then the object is a removal
 		//		from this result set (due to an object being deleted, or changed such that it
 		//		is not a part of the result set).
@@ -276,7 +265,7 @@ declare("dojo.store.api.Store.QueryResults", null, {
 	total: 0
 });
 
-declare("dojo.store.api.Store.Transaction", null, {
+Store.Transaction = declare(null, {
 	// summary:
 	//		This is an object returned from transaction() calls that represents the current
 	//		transaction.

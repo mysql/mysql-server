@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/xmpp/TransportSession", ["dijit","dojo","dojox","dojo/require!dojox/xmpp/bosh,dojox/xmpp/util,dojox/data/dom"], function(dijit,dojo,dojox){
+define("dojox/xmpp/TransportSession", ["dojo","dijit","dojox","dojo/require!dojox/xmpp/bosh,dojox/xmpp/util,dojox/data/dom"], function(dojo,dijit,dojox){
 dojo.provide("dojox.xmpp.TransportSession");
 dojo.require("dojox.xmpp.bosh");
 dojo.require("dojox.xmpp.util");
@@ -160,12 +159,12 @@ dojo.extend(dojox.xmpp.TransportSession, {
 		},
 
 		dispatchPacket: function(msg, protocolMatchType, matchId, matchProperty){
-			// summary
-			// Main Packet dispatcher, most calls should be made with this other
-			// than a few setup calls which use add items to the queue directly
-			//protocolMatchType, matchId, and matchProperty are optional params
-			//that allow a deferred to be tied to a protocol response instad of the whole
-			//rid
+			// summary:
+			//		Main Packet dispatcher, most calls should be made with this other
+			//		than a few setup calls which use add items to the queue directly
+			//		protocolMatchType, matchId, and matchProperty are optional params
+			//		that allow a deferred to be tied to a protocol response instad of the whole
+			//		rid
 	
 		//	//console.log("In dispatchPacket ", msg, protocolMatchType, matchId, matchProperty);
 			if (msg){
@@ -203,7 +202,7 @@ dojo.extend(dojox.xmpp.TransportSession, {
 
 			if (!this.authId){
 				//FIXME according to original nodes, this should wait a little while and try
-				//      again up to three times to see if we get this data.
+				//		again up to three times to see if we get this data.
 				console.debug("TransportSession::dispatchPacket() No authId, packet dropped [FIXME]")
 				return;
 			}
@@ -429,10 +428,10 @@ dojo.extend(dojox.xmpp.TransportSession, {
 
 
 		processProtocolResponse: function(msg, rid){
-			//summary
-			//process the individual protocol messages and if there
-			//is a matching set of protocolMatchType, matchId, and matchPropery
-			//fire off the deferred
+			// summary:
+			//		process the individual protocol messages and if there
+			//		is a matching set of protocolMatchType, matchId, and matchPropery
+			//		fire off the deferred
 
 			this.onProcessProtocolResponse(msg);
 			var key = msg.nodeName + "-" +msg.getAttribute("id");

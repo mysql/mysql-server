@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -106,24 +106,6 @@ const std::vector<ClientIpArray> MySQLRoutingContext::get_blocked_client_hosts()
   }
 
   return result;
-}
-
-void MySQLRoutingContext::increase_active_thread_counter() {
-  {
-    std::lock_guard<std::mutex> lk(active_client_threads_cond_m_);
-    active_client_threads_++;
-  }
-  active_client_threads_cond_.notify_all();
-}
-
-void MySQLRoutingContext::decrease_active_thread_counter() {
-  {
-    std::lock_guard<std::mutex> lk(active_client_threads_cond_m_);
-    active_client_threads_--;
-  }
-  // notify the parent while we have the cond_mutex locked
-  // otherwise the parent may destruct before we are finished.
-  active_client_threads_cond_.notify_all();
 }
 
 void MySQLRoutingContext::increase_info_active_routes() {

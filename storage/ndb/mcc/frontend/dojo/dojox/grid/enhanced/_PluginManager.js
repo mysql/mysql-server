@@ -51,7 +51,7 @@ if(_10[p]){
 this._normalize(p,_10,_14,_11);
 }
 }
-if(_12.dnd||_12.indirectSelection){
+if(_12.dnd){
 _12.columnReordering=false;
 }
 _2.mixin(_13,_12);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,7 @@ namespace xpl {
 
 using Notice_description = ngs::Notice_descriptor;
 
-class Notice_output_queue::Idle_reporting
-    : public ngs::Protocol_decoder::Waiting_for_io_interface {
+class Notice_output_queue::Idle_reporting : public xpl::iface::Waiting_for_io {
  public:
   Idle_reporting(Notice_output_queue *session_queue)
       : m_session_queue(session_queue) {}
@@ -78,12 +77,17 @@ void Notice_output_queue::encode_queued_items(const bool last_force_flush) {
   }
 }
 
-ngs::Protocol_decoder::Waiting_for_io_interface &
+void Notice_output_queue::set_encoder(
+    ngs::Protocol_encoder_interface *encoder) {
+  m_encoder = encoder;
+}
+
+xpl::iface::Waiting_for_io *
 Notice_output_queue::get_callbacks_waiting_for_io() {
   if (!m_decoder_io_callbacks)
     m_decoder_io_callbacks.reset(new Idle_reporting(this));
 
-  return *m_decoder_io_callbacks;
+  return m_decoder_io_callbacks.get();
 }
 
 }  // namespace xpl

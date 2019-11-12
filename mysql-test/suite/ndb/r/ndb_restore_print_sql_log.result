@@ -47,9 +47,6 @@ drop table t4;
 
 "Restore with --print-sql-log option"
 Found hidden primary key with print-sql-log option set. Exiting...
-
-NDBT_ProgramExit: 1 - Failed
-
 drop table t3;
 drop table if exists t4;
 
@@ -68,9 +65,6 @@ drop table t6;
 
 "Restore with --print-sql-log and --print-log options"
 Both print-sql-log and print-log options passed. Exiting...
-
-NDBT_ProgramExit: 1 - Failed
-
 drop table t5;
 drop table if exists t6;
 
@@ -88,8 +82,5 @@ drop table t8;
 
 "Restore with --print-sql-log option"
 Found column of type blob with print-sql-log option set. Exiting...
-
-NDBT_ProgramExit: 1 - Failed
-
 drop table t7;
 drop table if exists t8;

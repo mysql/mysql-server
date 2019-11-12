@@ -1,4 +1,3 @@
-//>>built
 define("dojox/validate/_base", [
 	"dojo/_base/lang",
 	"dojo/regexp", // dojo core expressions
@@ -6,21 +5,19 @@ define("dojox/validate/_base", [
 	"./regexp" // additional expressions
 ], function(lang, regexp, number, xregexp) {
 
-	var validate = lang.getObject("dojox.validate", true);
-	/*=====
-		validate = dojox.validate;
-	=====*/
+var validate = lang.getObject("dojox.validate", true);
 
-validate.isText = function(/*String*/value, /*Object?*/flags){
+validate.isText = function(value, flags){
 	// summary:
-	//	Checks if a string has non whitespace characters.
-	//	Parameters allow you to constrain the length.
+	//		Checks if a string has non whitespace characters.
+	//		Parameters allow you to constrain the length.
+	// value: String
+	// flags: Object?
+	//		{length: Number, minlength: Number, maxlength: Number}
 	//
-	// value: A string
-	// flags: {length: Number, minlength: Number, maxlength: Number}
-	//    flags.length  If set, checks if there are exactly flags.length number of characters.
-	//    flags.minlength  If set, checks if there are at least flags.minlength number of characters.
-	//    flags.maxlength  If set, checks if there are at most flags.maxlength number of characters.
+	//		- flags.length  If set, checks if there are exactly flags.length number of characters.
+	//		- flags.minlength  If set, checks if there are at least flags.minlength number of characters.
+	//		- flags.maxlength  If set, checks if there are at most flags.maxlength number of characters.
 	
 	flags = (typeof flags == "object") ? flags : {};
 	
@@ -37,16 +34,17 @@ validate.isText = function(/*String*/value, /*Object?*/flags){
 };
 
 validate._isInRangeCache = {};
-validate.isInRange = function(/*String*/value, /*Object?*/flags){
+validate.isInRange = function(value, flags){
 	// summary:
-	//	Validates whether a string denoting a number
-	//	is between a max and min.
+	//		Validates whether a string denoting a number
+	//		is between a max and min.
+	// value: String
+	// flags: Object?
+	//		{max:Number, min:Number, decimal:String}
 	//
-	// value: A string
-	// flags: {max:Number, min:Number, decimal:String}
-	//    flags.max  A number, which the value must be less than or equal to for the validation to be true.
-	//    flags.min  A number, which the value must be greater than or equal to for the validation to be true.
-	//    flags.decimal  The character used for the decimal point.  Default is ".".
+	//		- flags.max  A number, which the value must be less than or equal to for the validation to be true.
+	//		- flags.min  A number, which the value must be greater than or equal to for the validation to be true.
+	//		- flags.decimal  The character used for the decimal point.  Default is ".".
 	
 	value = number.parse(value, flags);
 	if(isNaN(value)){
@@ -71,41 +69,36 @@ validate.isInRange = function(/*String*/value, /*Object?*/flags){
 
 };
 
-validate.isNumberFormat = function(/* String */value, /* Object? */flags){
-	// summary: Validates any sort of number based format
-	//
+validate.isNumberFormat = function(value, flags){
+	// summary:
+	//		Validates any sort of number based format
 	// description:
 	//		Validates any sort of number based format. Use it for phone numbers,
 	//		social security numbers, zip-codes, etc. The value can be validated
 	//		against one format or one of multiple formats.
 	//
-	// Format Definition
-	// |   #        Stands for a digit, 0-9.
-	// |   ?        Stands for an optional digit, 0-9 or nothing.
-	//    All other characters must appear literally in the expression.
-	//
+	//		Format Definition
+	//		|   #        Stands for a digit, 0-9.
+	//		|   ?        Stands for an optional digit, 0-9 or nothing.
+	//		All other characters must appear literally in the expression.
 	// example:
 	// |  "(###) ###-####"       ->   (510) 542-9742
 	// |  "(###) ###-#### x#???" ->   (510) 542-9742 x153
 	// |  "###-##-####"          ->   506-82-1089       i.e. social security number
 	// |  "#####-####"           ->   98225-1649        i.e. zip code
-	//
-	// value: A string
-	//
+	// value: String
 	// flags: Object?
-	//		FIXME: make pseudo-object for this
-	//		format: String
-	//
-	//    flags.format  A string or an Array of strings for multiple formats.
-	//
+	//		- flags.format  A string or an Array of strings for multiple formats.
 	// example:
-	// | // returns true:
-	// | dojox.validate.isNumberFormat("123-45", { format:"###-##" });
-	//
+	// |	require(["dojox/validate/_base"], function(validate){
+	// |		// returns true:
+	// |		validate.isNumberFormat("123-45", { format:"###-##" });
+	// |	});		
 	// example:
-	// 		Check Multiple formats:
-	// |	dojox.validate.isNumberFormat("123-45", {
-	// |		format:["### ##","###-##","## ###"]
+	//		Check Multiple formats:
+	// |	require(["dojox/validate/_base"], function(validate){
+	// |		validate.isNumberFormat("123-45", {
+	// |			format:["### ##","###-##","## ###"]
 	// |	});
 	//
 
@@ -114,7 +107,8 @@ validate.isNumberFormat = function(/* String */value, /* Object? */flags){
 };
 
 validate.isValidLuhn = function(/* String */value){
-	// summary: Validate a String value against the Luhn algorithm.
+	// summary:
+	//		Validate a String value against the Luhn algorithm.
 	// description:
 	//		Validate a String value against the Luhn algorithm to verify
 	//		its integrity.

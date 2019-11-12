@@ -45,7 +45,10 @@ call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave th
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Could not rejoin the member to the group after");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
-call mtr.add_suppression("Unable to read the server value for the super_read_only variable");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("Timeout while waiting for a view change event during the auto-rejoin procedure");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 SET SESSION sql_log_bin = 1;
 
 --source include/gr_autorejoin_monitoring.inc
@@ -54,7 +57,6 @@ SET SESSION sql_log_bin = 1;
 # 5 minutes...)
 SET @debug_saved = @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
-SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 
@@ -134,7 +136,11 @@ while ($tries <= 3)
 }
 
 # Wait until the connection is dropped
+--let $disconnect_timeout_saved= $disconnect_timeout
+--let $disconnect_timeout= 600
 --source include/wait_until_disconnected.inc
+--let $disconnect_timeout= $disconnect_timeout_saved
+
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $rpl_server_number = 1
 --source include/rpl_reconnect.inc
@@ -147,7 +153,7 @@ while ($tries <= 3)
 --echo
 # Verify in the log file that the server aborted
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_autorejoin_majority_loss
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_autorejoin_majority_loss_rejoin_failed_abort
 --let $assert_text = GR reported expected abort
 --let $assert_select = The plugin encountered a critical error and will abort
 --let $assert_count = 1

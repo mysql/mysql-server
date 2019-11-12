@@ -1,18 +1,11 @@
-//>>built
 define("dojox/gauges/Range", ["dojo/_base/declare","dijit/_Widget"], 
   function(declare, Widget) {
-
-/*=====
-	Widget = dijit._Widget;
-=====*/	
 	
 return declare("dojox.gauges.Range", [Widget], {
 	// summary:
 	//		a range to be used in a _Gauge
-	//
 	// description:
 	//		a range widget, which has given properties.  drawn by a _Gauge.
-	//
 	// example:
 	//	|	<script type="text/javascript">
 	//	|		require(["dojox/gauges/AnalogGauge"]);
@@ -44,27 +37,27 @@ return declare("dojox.gauges.Range", [Widget], {
 	//	|	</div>
 	
 	// low: Number
-	// 		the low value of the range
+	//		the low value of the range
 	low: 0,
 	
 	// high: Number
-	// 		the high value of the range
+	//		the high value of the range
 	high: 0,
 	
 	// hover: String
-	// 		the text to put in the tooltip for the gauge
+	//		the text to put in the tooltip for the gauge
 	hover: '',
 	
 	// color: Object
-	// 		the color of the range.  This must be an object of one of two forms:
-	// 		{'color': 'color-name'}
-	// 		OR
-	// 		(for a gradient:)
-	// 		{'type': 'linear', 'colors': [{offset: 0, color:'#C0C0C0'}, {offset: 1, color: '#E0E0E0'}] }
+	//		the color of the range.  This must be an object of one of two forms:
+	//		{'color': 'color-name'}
+	//		OR
+	//		(for a gradient:)
+	//		{'type': 'linear', 'colors': [{offset: 0, color:'#C0C0C0'}, {offset: 1, color: '#E0E0E0'}] }
 	color: null,
 	
 	// size: Number
-	// 		for a circular gauge (such as an AnalogGauge), this dictates the size of the arc
+	//		for a circular gauge (such as an AnalogGauge), this dictates the size of the arc
 	size: 0,
 
 	startup: function(){

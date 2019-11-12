@@ -15,6 +15,7 @@ case "silverlight":
 g.isSilverlight=true;
 break;
 case "canvas":
+case "canvasWithEvents":
 g.isCanvas=true;
 break;
 }
@@ -63,10 +64,9 @@ if(g.isCanvas){
 return (_11=="rtl")?_9.RLE+_e+_9.PDF:_9.LRE+_e+_9.PDF;
 }
 if(g.isSvg){
-if(_2("ff")){
+if(_2("ff")<4){
 return (_11=="rtl")?_a.bidiTransform(_e,"IRYNN","VLNNN"):_a.bidiTransform(_e,"ILYNN","VLNNN");
-}
-if(_2("chrome")||_2("safari")||_2("opera")){
+}else{
 return _9.LRM+(_11=="rtl"?_9.RLE:_9.LRE)+_e+_9.PDF;
 }
 }
@@ -102,7 +102,7 @@ return _a.bidiTransform(_13,"IRNNN","ILNNN");
 return _13;
 }
 if(g.isSvg){
-if(_2("opera")){
+if(_2("opera")||_2("ff")>=4){
 _13=_9.LRM+(_16=="rtl"?_9.RLE:_9.LRE)+_13+_9.PDF;
 }else{
 _13=(_16=="rtl")?_a.bidiTransform(_13,"IRYNN","VLNNN"):_a.bidiTransform(_13,"ILYNN","VLNNN");

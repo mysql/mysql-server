@@ -1,6 +1,6 @@
 #ifndef _EVENT_QUEUE_H_
 #define _EVENT_QUEUE_H_
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,12 +109,12 @@ class Event_queue {
 
   bool create_event(THD *thd, Event_queue_element *new_element, bool *created);
 
-  void update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+  void update_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
                     Event_queue_element *new_element);
 
-  void drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
+  void drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name);
 
-  void drop_schema_events(LEX_STRING schema);
+  void drop_schema_events(LEX_CSTRING schema);
 
   void recalculate_activation_times(THD *thd);
 
@@ -136,10 +136,10 @@ class Event_queue {
                  const PSI_stage_info *stage, const char *src_func,
                  const char *src_file, uint src_line);
 
-  void find_n_remove_event(LEX_STRING db, LEX_STRING name);
+  void find_n_remove_event(LEX_CSTRING db, LEX_CSTRING name);
 
-  void drop_matching_events(LEX_STRING pattern,
-                            bool (*)(LEX_STRING, Event_basic *));
+  void drop_matching_events(LEX_CSTRING pattern,
+                            bool (*)(LEX_CSTRING, Event_basic *));
 
   void dbug_dump_queue(time_t now);
 

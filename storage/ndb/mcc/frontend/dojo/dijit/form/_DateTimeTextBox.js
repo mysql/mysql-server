@@ -1,8 +1,8 @@
 //>>built
-require({cache:{"url:dijit/form/templates/DropDownBox.html":"<div class=\"dijit dijitReset dijitInline dijitLeft\"\n\tid=\"widget_${id}\"\n\trole=\"combobox\"\n\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton dijitArrowButtonContainer'\n\t\tdata-dojo-attach-point=\"_buttonNode, _popupStateNode\" role=\"presentation\"\n\t\t><input class=\"dijitReset dijitInputField dijitArrowButtonInner\" value=\"&#9660; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"presentation\"\n\t\t\t${_buttonInputDisabled}\n\t/></div\n\t><div class='dijitReset dijitValidationContainer'\n\t\t><input class=\"dijitReset dijitInputField dijitValidationIcon dijitValidationInner\" value=\"&#935; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"presentation\"\n\t/></div\n\t><div class=\"dijitReset dijitInputField dijitInputContainer\"\n\t\t><input class='dijitReset dijitInputInner' ${!nameAttrSetting} type=\"text\" autocomplete=\"off\"\n\t\t\tdata-dojo-attach-point=\"textbox,focusNode\" role=\"textbox\" aria-haspopup=\"true\"\n\t/></div\n></div>\n"}});
+require({cache:{"url:dijit/form/templates/DropDownBox.html":"<div class=\"dijit dijitReset dijitInline dijitLeft\"\n\tid=\"widget_${id}\"\n\trole=\"combobox\"\n\taria-haspopup=\"true\"\n\tdata-dojo-attach-point=\"_popupStateNode\"\n\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton dijitArrowButtonContainer'\n\t\tdata-dojo-attach-point=\"_buttonNode\" role=\"presentation\"\n\t\t><input class=\"dijitReset dijitInputField dijitArrowButtonInner\" value=\"&#9660; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"button presentation\" aria-hidden=\"true\"\n\t\t\t${_buttonInputDisabled}\n\t/></div\n\t><div class='dijitReset dijitValidationContainer'\n\t\t><input class=\"dijitReset dijitInputField dijitValidationIcon dijitValidationInner\" value=\"&#935; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"presentation\"\n\t/></div\n\t><div class=\"dijitReset dijitInputField dijitInputContainer\"\n\t\t><input class='dijitReset dijitInputInner' ${!nameAttrSetting} type=\"text\" autocomplete=\"off\"\n\t\t\tdata-dojo-attach-point=\"textbox,focusNode\" role=\"textbox\"\n\t/></div\n></div>\n"}});
 define("dijit/form/_DateTimeTextBox",["dojo/date","dojo/date/locale","dojo/date/stamp","dojo/_base/declare","dojo/_base/lang","./RangeBoundTextBox","../_HasDropDown","dojo/text!./templates/DropDownBox.html"],function(_1,_2,_3,_4,_5,_6,_7,_8){
 new Date("X");
-var _9=_4("dijit.form._DateTimeTextBox",[_6,_7],{templateString:_8,hasDownArrow:true,openOnClick:true,regExpGen:_2.regexp,datePackage:_1,postMixInProperties:function(){
+var _9=_4("dijit.form._DateTimeTextBox",[_6,_7],{templateString:_8,hasDownArrow:true,cssStateNodes:{"_buttonNode":"dijitDownArrowButton"},pattern:_2.regexp,datePackage:"",postMixInProperties:function(){
 this.inherited(arguments);
 this._set("type","text");
 },compare:function(_a,_b){
@@ -22,18 +22,17 @@ val=val.toGregorian();
 }
 return _3.toISOString(val,_12);
 },dropDownDefaultValue:new Date(),value:new Date(""),_blankValue:null,popupClass:"",_selector:"",constructor:function(_13){
-this.datePackage=_13.datePackage||this.datePackage;
-this.dateFuncObj=typeof this.datePackage=="string"?_5.getObject(this.datePackage,false):this.datePackage;
-this.dateClassObj=this.dateFuncObj.Date||Date;
-this.dateLocaleModule=_5.getObject("locale",false,this.dateFuncObj);
-this.regExpGen=this.dateLocaleModule.regexp;
+this.dateModule=_13.datePackage?_5.getObject(_13.datePackage,false):_1;
+this.dateClassObj=this.dateModule.Date||Date;
+this.dateLocaleModule=_13.datePackage?_5.getObject(_13.datePackage+".locale",false):_2;
+this._set("pattern",this.dateLocaleModule.regexp);
 this._invalidDate=this.constructor.prototype.value.toString();
 },buildRendering:function(){
 this.inherited(arguments);
 if(!this.hasDownArrow){
 this._buttonNode.style.display="none";
 }
-if(this.openOnClick||!this.hasDownArrow){
+if(!this.hasDownArrow){
 this._buttonNode=this.domNode;
 this.baseClass+=" dijitComboBoxOpenOnClick";
 }
@@ -63,6 +62,9 @@ _17=new this.dateClassObj(_17);
 }
 }
 this.inherited(arguments);
+if(this.value instanceof Date){
+this.filterString="";
+}
 if(this.dropDown){
 this.dropDown.set("value",_17,false);
 }
@@ -82,8 +84,8 @@ this.dropDown.destroy();
 }
 var _1d=_5.isString(this.popupClass)?_5.getObject(this.popupClass,false):this.popupClass,_1e=this,_1f=this.get("value");
 this.dropDown=new _1d({onChange:function(_20){
-_9.superclass._setValueAttr.call(_1e,_20,true);
-},id:this.id+"_popup",dir:_1e.dir,lang:_1e.lang,value:_1f,currentFocus:!this._isInvalidDate(_1f)?_1f:this.dropDownDefaultValue,constraints:_1e.constraints,filterString:_1e.filterString,datePackage:_1e.datePackage,isDisabledDate:function(_21){
+_1e.set("value",_20,true);
+},id:this.id+"_popup",dir:_1e.dir,lang:_1e.lang,value:_1f,currentFocus:!this._isInvalidDate(_1f)?_1f:this.dropDownDefaultValue,constraints:_1e.constraints,filterString:_1e.filterString,datePackage:_1e.params.datePackage,isDisabledDate:function(_21){
 return !_1e.rangeCheck(_21,_1e.constraints);
 }});
 this.inherited(arguments);

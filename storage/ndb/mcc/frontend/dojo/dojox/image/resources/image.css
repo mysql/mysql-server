@@ -10,7 +10,7 @@
 .tundra .dojoxLightbox .dijitDialogCloseIconActive,
 .nihilo .dojoxLightbox .dijitDialogCloseIconActive,
 .claro .dojoxLightbox .dijitDialogCloseIconActive {
-    background:url(images/close.png) no-repeat 0 0;
+    background:url("images/close.png") no-repeat 0 0;
 }
 .claro .dojoxLightbox,
 .soria .dojoxLightbox,
@@ -22,7 +22,7 @@
 	width:100px;
 	height:100px; 
 	border:11px solid #fff !important; 
-	background:#fff url(images/loading.gif) no-repeat center center;
+	background:#fff url("images/loading.gif") no-repeat center center;
 	
 	-webkit-box-shadow: 0px 6px 10px #636363; 
 	-webkit-border-radius: 3px;
@@ -59,39 +59,39 @@
 .claro .LightboxClose,
 .nihilo .LightboxClose,
 .tundra .LightboxClose {
-	background:url(images/close.png) no-repeat center center;
+	background:url("images/close.png") no-repeat center center;
 }
 .di_ie6 .claro .LightboxClose,
 .di_ie6 .nihilo .LightboxClose,
 .dj_ie6 .tundra .LightboxClose {
-	background:url(images/close.gif) no-repeat center center;
+	background:url("images/close.gif") no-repeat center center;
 }
 .claro .LightboxNext, 
 .nihilo .LightboxNext,
 .tundra .LightboxNext {
-	background:url(images/right.png) no-repeat center center;
+	background:url("images/right.png") no-repeat center center;
 }
 .dj_ie6 .claro .LightboxNext,
 .dj_ie6 .nihilo .LightboxNext,
 .dj_ie6 .tundra .LightboxNext {
-	background:url(images/right.gif) no-repeat center center;
+	background:url("images/right.gif") no-repeat center center;
 }
 .claro .LightboxPrev,
 .nihilo .LightboxPrev,
 .tundra .LightboxPrev {
-	background:url(images/left.png) no-repeat center center;
+	background:url("images/left.png") no-repeat center center;
 }
 .dj_ie6 .claro .LightboxPrev,
 .dj_ie6 .nihilo .LightboxPrev,
 .dj_ie6 .tundra .LightboxPrev {
-	background:url(images/left.gif) no-repeat center center;
+	background:url("images/left.gif") no-repeat center center;
 }
 .soria .LightboxClose,
 .soria .LightboxNext,
 .soria .LightboxPrev {
 	width:15px;
 	height:15px;
-	background:url(../../../dijit/themes/soria/images/spriteRoundedIconsSmall.png) no-repeat center center;
+	background:url("../../../dijit/themes/soria/images/spriteRoundedIconsSmall.png") no-repeat center center;
 	background-position:-60px;
 }
 .soria .LightboxNext {
@@ -180,7 +180,7 @@
 	position: absolute;
 }
 .slideShowCtrl span.slideShowCtrlHide {
-	background-image: url(../../../dojo/resources/blank.gif);
+	background-image: url("../../../dojo/resources/blank.gif");
 	cursor: auto;
 }
 .slideShowCtrl {
@@ -193,11 +193,11 @@
 .slideShowCtrl span {
 	width: 50px;
 	height: 100%;
-	background-image: url(images/buttons.png);
+	background-image: url("images/buttons.png");
 	cursor: pointer;
 }
 .dj_ie .slideShowCtrl span {
-	background-image: url(images/buttons.gif);
+	background-image: url("images/buttons.gif");
 }
 .dj_ie6 .slideShowPager li.currentpage,
 .dj_ie6 .pagination li.disablepage{
@@ -224,9 +224,9 @@
 	height: 400px;
 }
 .thumbOuter .enabled {
-	background: transparent url(images/buttons.png) no-repeat center center;
+	background: transparent url("images/buttons.png") no-repeat center center;
 }
-.dj_ie6 .thumbOuter .enabled { background-image: url(images/buttons.gif); }
+.dj_ie6 .thumbOuter .enabled { background-image: url("images/buttons.gif"); }
 .thumbOuter .thumbNav img {
 	width: 48px;
 	height: 75px;
@@ -259,6 +259,7 @@
 	margin-left:24px;
 }
 .thumbWrapper img {
+    border: solid 2px transparent;
 	height: 75px;
 	max-width: 100px;
 	width: expression(this.width > 100 ? 100: true);
@@ -310,6 +311,10 @@
 }
 .thumbWrapper.thumbVert div {
 	padding-bottom: 2px;
+}
+.Thumbnail:hover img,
+.ThumbnailSelected img {    
+    border-color: #F4D061;
 }
 .imageGalleryWrapper {
 	padding-bottom: 20px;

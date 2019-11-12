@@ -1,11 +1,10 @@
-//>>built
 define("dojox/uuid/generateTimeBasedUuid", [ 'dojo/_base/lang', './_base'], function(lang){
 
 dojox.uuid.generateTimeBasedUuid = function(/*String?*/ node){
 	// summary:
 	//		This function generates time-based UUIDs, meaning "version 1" UUIDs.
 	// description:
-	// For more info, see
+	//		For more info, see
 	//		http://www.webdav.org/specs/draft-leach-uuids-guids-01.txt
 	//		http://www.infonuovo.com/dma/csdocs/sketch/instidid.htm
 	//		http://kruithof.xs4all.nl/uuid/uuidgen
@@ -53,7 +52,7 @@ dojox.uuid.generateTimeBasedUuid._generator = new function(){
 	this.GREGORIAN_CHANGE_OFFSET_IN_HOURS = 3394248;
 	
 	// Number of seconds between October 15, 1582 and January 1, 1970:
-	//   dojox.uuid.generateTimeBasedUuid.GREGORIAN_CHANGE_OFFSET_IN_SECONDS = 12219292800;
+	//	 dojox.uuid.generateTimeBasedUuid.GREGORIAN_CHANGE_OFFSET_IN_SECONDS = 12219292800;
 	
 	// --------------------------------------------------
 	// Private variables:

@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/calc/templates/Grapher.html':"<div>\n<div data-dojo-attach-point=\"chartsParent\" class=\"dojoxCalcChartHolder\"></div>\n<div data-dojo-attach-point=\"outerDiv\">\n<div data-dojo-type=\"dijit.form.DropDownButton\" data-dojo-attach-point=\"windowOptions\" class=\"dojoxCalcDropDownForWindowOptions\" title=\"Window Options\">\n\t<div>Window Options</div>\n\t<div data-dojo-type=\"dijit.TooltipDialog\" data-dojo-attach-point=\"windowOptionsInside\" class=\"dojoxCalcTooltipDialogForWindowOptions\" title=\"\">\n\t\t<table class=\"dojoxCalcGraphOptionTable\">\n\t\t\t<tr>\n\t\t\t\t<td>\n\t\t\t\t\tWidth:\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\t<input data-dojo-type=\"dijit.form.TextBox\" data-dojo-attach-point=\"graphWidth\" class=\"dojoxCalcGraphWidth\" value=\"500\" />\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\tHeight:\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\t<input data-dojo-type=\"dijit.form.TextBox\" data-dojo-attach-point=\"graphHeight\" class=\"dojoxCalcGraphHeight\" value=\"500\" />\n\t\t\t\t</td>\n\t\t\t</tr>\n\t\t\t<tr>\n\t\t\t\t<td>\n\t\t\t\t\tX >=\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\t<input data-dojo-type=\"dijit.form.TextBox\" data-dojo-attach-point=\"graphMinX\" class=\"dojoxCalcGraphMinX\" value=\"-10\" />\n\t\t\t\t</td>\n\n\t\t\t\t<td>\n\t\t\t\t\tX <=\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\t<input data-dojo-type=\"dijit.form.TextBox\" data-dojo-attach-point=\"graphMaxX\" class=\"dojoxCalcGraphMaxX\" value=\"10\" />\n\t\t\t\t</td>\n\t\t\t</tr>\n\t\t\t<tr>\n\t\t\t\t<td>\n\t\t\t\t\tY >=\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\t<input data-dojo-type=\"dijit.form.TextBox\" data-dojo-attach-point=\"graphMinY\" class=\"dojoxCalcGraphMinY\" value=\"-10\" />\n\t\t\t\t</td>\n\n\t\t\t\t<td>\n\t\t\t\t\tY <=\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\t<input data-dojo-type=\"dijit.form.TextBox\" data-dojo-attach-point=\"graphMaxY\" class=\"dojoxCalcGraphMaxY\" value=\"10\" />\n\t\t\t\t</td>\n\t\t\t</tr>\n\t\t</table>\n\t</div>\n</div>\n\n<BR>\n\n<div class=\"dojoxCalcGrapherFuncOuterDiv\">\n\t<table class=\"dojoxCalcGrapherFuncTable\" data-dojo-attach-point=\"graphTable\">\n\t</table>\n</div>\n\n<div data-dojo-type=\"dijit.form.DropDownButton\" data-dojo-attach-point='addFuncButton' class=\"dojoxCalcDropDownAddingFunction\">\n\t<div>Add Function</div>\n\t<div data-dojo-type=\"dijit.TooltipDialog\" data-dojo-attach-point=\"addFuncInside\" class=\"dojoxCalcTooltipDialogAddingFunction\" title=\"\">\n\t\t<table class=\"dojoxCalcGrapherModeTable\">\n\t\t\t<tr>\n\t\t\t\t<td>\n\t\t\t\t\tMode:\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t\t\t<select data-dojo-type=\"dijit.form.Select\" data-dojo-attach-point=\"funcMode\" class=\"dojoxCalcFunctionModeSelector\">\n\t\t\t\t\t\t<option value=\"y=\" selected=\"selected\">y=</option>\n\t\t\t\t\t\t<option value=\"x=\">x=</option>\n\t\t\t\t\t</select>\n\t\t\t\t</td>\n\t\t\t\t<td>\n\t\t\t</tr>\n\t\n\t\t\t<tr>\n\t\t\t\t<td>\n\t\t\t\t\t<input data-dojo-type=\"dijit.form.Button\" data-dojo-attach-point=\"createFunc\" class=\"dojoxCalcAddFunctionButton\" label=\"Create\" />\n\t\t\t\t</td>\n\t\t\t</tr>\n\t\t</table>\n\t</div>\n</div>\n<BR>\n<BR>\n<table class=\"dijitInline dojoxCalcGrapherLayout\">\n\t<tr>\n\t\t<td class=\"dojoxCalcGrapherButtonContainer\">\n\t\t\t<input data-dojo-type=\"dijit.form.Button\" class=\"dojoxCalcGrapherButton\" data-dojo-attach-point='selectAllButton' label=\"Select All\" />\n\t\t</td>\n\t\t<td class=\"dojoxCalcGrapherButtonContainer\">\n\t\t\t<input data-dojo-type=\"dijit.form.Button\" class=\"dojoxCalcGrapherButton\" data-dojo-attach-point='deselectAllButton' label=\"Deselect All\" />\n\t\t</td>\n\t</tr>\n\t<tr>\n\t\t<td class=\"dojoxCalcGrapherButtonContainer\">\n\t\t\t<input data-dojo-type=\"dijit.form.Button\" class=\"dojoxCalcGrapherButton\" data-dojo-attach-point='drawButton'label=\"Draw Selected\" />\n\t\t</td>\n\t\t<td class=\"dojoxCalcGrapherButtonContainer\">\n\t\t\t<input data-dojo-type=\"dijit.form.Button\" class=\"dojoxCalcGrapherButton\" data-dojo-attach-point='eraseButton' label=\"Erase Selected\" />\n\t\t</td>\n\t</tr>\n\t<tr>\n\t\t<td class=\"dojoxCalcGrapherButtonContainer\">\n\t\t\t<input data-dojo-type=\"dijit.form.Button\" class=\"dojoxCalcGrapherButton\" data-dojo-attach-point='deleteButton' label=\"Delete Selected\" />\n\t\t</td>\n\t\t<td class=\"dojoxCalcGrapherButtonContainer\">\n\t\t\t<input data-dojo-type=\"dijit.form.Button\" class=\"dojoxCalcGrapherButton\" data-dojo-attach-point='closeButton' label=\"Close\" />\n\t\t</td>\n\t</tr>\n</table>\n</div>\n</div>\n"}});
 define("dojox/calc/Grapher", [
@@ -30,34 +29,25 @@ define("dojox/calc/Grapher", [
 	"dijit/form/Select" // template
 ], function(declare, lang, win, domConstruct, domClass, domStyle, WidgetBase, WidgetsInTemplateMixin, TemplatedMixin, math, registry, DropDownButton, TooltipDialog, TextBox, CheckBox, ColorPalette, Chart, axis2d, plot2d, Lines, Tufte, colors, template, calc){
 
-	// summary
-	//	provide static functions for Grapher
 	var
 		epsilon = 1e-15 / 9,
 		bigNumber = 1e200,
 		log2 = Math.log(2),
 		defaultParams = {graphNumber:0, fOfX:true, color:{stroke:"black"}};
 
-
-	/*=====
-		WidgetBase = dijit._WidgetBase;
-		WidgetsInTemplateMixin = dijit._WidgetsInTemplateMixin;
-		TemplatedMixin = dijit._TemplatedMixin;
-	=====*/
 	var Grapher = declare(
 		"dojox.calc.Grapher",
 		[WidgetBase, TemplatedMixin, WidgetsInTemplateMixin],
 	{
 		// summary:
 		//		The dialog layout for making graphs
-		//
+
 		templateString: template,
 
 		addXYAxes: function(chart){
 			// summary:
 			//		add or re-add the default x/y axes to the Chart provided
-			// params:
-			//	chart is an instance of dojox.charting.Chart
+			// chart: dojox.charting.Chart
 
 			return chart.addAxis("x", {
 				max: parseInt(this.graphMaxX.get("value")),
@@ -91,15 +81,15 @@ define("dojox/calc/Grapher", [
 			});
 		},
 		selectAll: function(){
-			// summary
-			//	select all checkboxes inside the function table
+			// summary:
+			//		select all checkboxes inside the function table
 			for(var i = 0; i < this.rowCount; i++){
 				this.array[i][this.checkboxIndex].set("checked", true);
 			}
 		},
 		deselectAll: function(){
-			// summary
-			//	deselect all checkboxes inside the function table
+			// summary:
+			//		deselect all checkboxes inside the function table
 			for(var i = 0; i < this.rowCount; i++){
 				this.array[i][this.checkboxIndex].set("checked", false);
 			}
@@ -114,9 +104,9 @@ define("dojox/calc/Grapher", [
 		},
 		erase: function(i){
 			// summary:
-			//	erase the chart inside this.array with the index i
-			// params:
-			//	i is the integer index to this.array that represents the current row number in the table
+			//		erase the chart inside this.array with the index i
+			// i: Integer
+			//		index to this.array that represents the current row number in the table
 			var nameNum = 0;
 			var name = "Series "+this.array[i][this.funcNumberIndex]+"_"+nameNum;
 			while(name in this.array[i][this.chartIndex].runs){
@@ -129,8 +119,8 @@ define("dojox/calc/Grapher", [
 		},
 		onErase: function(){
 			// summary:
-			//	the erase button's onClick method
-			//	it see's if the checkbox is checked and then erases it if it is.
+			//		the erase button's onClick method
+			//		it see's if the checkbox is checked and then erases it if it is.
 			for(var i = 0; i < this.rowCount; i++){
 				if(this.array[i][this.checkboxIndex].get("checked")){
 					this.erase(i);
@@ -139,8 +129,8 @@ define("dojox/calc/Grapher", [
 		},
 		onDelete: function(){
 			// summary:
-			//	the delete button's onClick method
-			//	delete all of the selected rows
+			//		The delete button's onClick method.
+			//		Delete all of the selected rows.
 			for(var i = 0; i < this.rowCount; i++){
 				if(this.array[i][this.checkboxIndex].get("checked")){
 					this.erase(i);
@@ -172,7 +162,7 @@ define("dojox/calc/Grapher", [
 
 		createFunction: function(){
 			// summary:
-			//	create a new row in the table with all of the dojo objects.
+			//		create a new row in the table with all of the dojo objects.
 
 			var tr = this.graphTable.insertRow(-1);
 			this.array[tr.rowIndex] = [];
@@ -253,16 +243,17 @@ define("dojox/calc/Grapher", [
 		},
 		setStatus: function(i, status){
 			// summary:
-			//	set the status of the row i to be status
-			// params:
-			//	i is an integer index of this.array as well as a row index
-			//	status is a String, it is either Error, Hidden, or Drawn
+			//		set the status of the row i to be status
+			// i: Integer
+			//		index of this.array as well as a row index
+			// status: String
+			//		either Error, Hidden, or Drawn
 			this.array[i][this.statusIndex].innerHTML = status; //this.array[i][this.statusIndex].set("value", status);
 		},
 		changedColor: function(){
 			// summary:
-			//	make the color of the chart the new color
-			//	the context is changed to the colorPalette, and a reference to chart was added to it a an attribute
+			//		Make the color of the chart the new color.
+			//		The context is changed to the colorPalette, and a reference to chart was added to it a an attribute.
 			var chart = this.get("chart");
 			var colorBoxFieldset = this.get("colorBox");
 			for(var i = 0; i < chart.series.length; i++){
@@ -278,17 +269,17 @@ define("dojox/calc/Grapher", [
 		},
 		makeDirty: function(){
 			// summary:
-			//	if something in the window options is changed, this is called
+			//		if something in the window options is changed, this is called
 			this.dirty = true;
 		},
 		checkDirty1: function(){
 			// summary:
-			//	to stay in sync with onChange, checkDirty is called with a timeout
+			//		to stay in sync with onChange, checkDirty is called with a timeout
 			setTimeout(lang.hitch(this, 'checkDirty'), 0);
 		},
 		checkDirty: function(){
 			// summary:
-			//	adjust all charts in this.array according to any changes in window options
+			//		adjust all charts in this.array according to any changes in window options
 			if(this.dirty){
 				// change the axes of all charts if it is dirty
 				for(var i = 0; i < this.rowCount; i++){
@@ -301,8 +292,8 @@ define("dojox/calc/Grapher", [
 			this.dirty = false;
 		},
 		postCreate: function(){
-			// summary
-			//	add Event handlers, some additional attributes, etc
+			// summary:
+			//		add Event handlers, some additional attributes, etc
 			this.inherited(arguments);// this is super class postCreate
 			this.createFunc.set("onClick", lang.hitch(this, 'createFunction'));
 
@@ -328,8 +319,8 @@ define("dojox/calc/Grapher", [
 
 		},
 		startup: function(){
-			// summary
-			//	make sure the parent has a close button if it needs to be able to close
+			// summary:
+			//		make sure the parent has a close button if it needs to be able to close
 			this.inherited(arguments);// this is super class startup
 			// close is only valid if the parent is a widget with a close function
 			var parent = registry.getEnclosingWidget(this.domNode.parentNode);
@@ -351,12 +342,14 @@ define("dojox/calc/Grapher", [
 
 	return lang.mixin(calc, {
 		draw: function(/*Chart*/ chart, /*Function*/ functionToGraph, params){
-			// summary
-			//	graph a chart with the given function.
-			// params
-			//	chart is a dojox.charting.Chart object, functionToGraph is a function with one numeric parameter (x or y typically)
-			//	and params is an Object the can contain the number of the graph in the chart it is (an integer), a boolean saying if the functionToGraph is a function of x (otherwise y)
-			//	and the color, which is an object with a stroke with a color's name eg: color:{stroke:"black"}
+			// summary:
+			//		graph a chart with the given function.
+			// chart: dojox.charting.Chart
+			// functionToGraph: Function
+			//		Function with one numeric parameter (x or y typically)
+			// params: Object
+			//		can contain the number of the graph in the chart it is (an integer), a boolean saying if the functionToGraph is a function of x (otherwise y)
+			//		and the color, which is an object with a stroke with a color's name eg: color:{stroke:"black"}
 
 			params = lang.mixin({}, defaultParams, params);
 			chart.fullGeometry();
@@ -395,14 +388,25 @@ define("dojox/calc/Grapher", [
 
 		generatePoints: function(/*Function*/ funcToGraph, /*String*/ x, /*String*/ y, /*Number*/ width, /*Number*/ minX, /*Number*/ maxX, /*Number*/ minY, /*Number*/ maxY){
 			// summary:
-			//	create the points with information about the graph.
-			// params:
-			//	funcToGraph is a function with one numeric parameter (x or y typically)
-			//	x and y are Strings which always have the values of "x" or "y".  If y="x" and x="y" then it is creating points for the function as though it was a function of y
-			//	Number minX, Number maxX, Number minY, Number maxY are all bounds of the chart.  If x="y" then maxY should be the maximum bound of x rather than y
-			//	Number width is the pixel width of the chart
+			//		create the points with information about the graph.
+			// funcToGraph: Function
+			//		A function with one numeric parameter (x or y typically)
+			// x: String
+			//		x and y are Strings which always have the values of "x" or "y".  If y="x" and x="y" then it is creating points for the function as though it was a function of y
+			// y: String
+			//		x and y are Strings which always have the values of "x" or "y".  If y="x" and x="y" then it is creating points for the function as though it was a function of y
+			// minX:
+			//		minX, maxX, minY, and maxY are all bounds of the chart.  If x="y" then maxY should be the maximum bound of x rather than y
+			// maxX:
+			//		minX, maxX, minY, and maxY are all bounds of the chart.  If x="y" then maxY should be the maximum bound of x rather than y
+			// minY:
+			//		minX, maxX, minY, and maxY are all bounds of the chart.  If x="y" then maxY should be the maximum bound of x rather than y
+			// maxY:
+			//		minX, maxX, minY, and maxY are all bounds of the chart.  If x="y" then maxY should be the maximum bound of x rather than y
+			// width:
+			//		pixel width of the chart
 			// output:
-			//	an array of arrays of points
+			//		an array of arrays of points
 			var pow2 = (1 << Math.ceil(Math.log(width) / log2));
 			var
 				dx = (maxX - minX) / pow2, // divide by 2^n instead of width to avoid loss of precision

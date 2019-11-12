@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@
       MyFlags
 
   NOTES
-    No DBUG_ENTER... here to get smaller dbug-startup
+    No DBUG_TRACE... here to get smaller dbug-startup
 */
 
 void *my_once_alloc(size_t Size, myf MyFlags) {
@@ -118,7 +118,7 @@ void *my_once_memdup(const void *src, size_t len, myf myflags) {
 
 void my_once_free(void) {
   USED_MEM *next, *old;
-  DBUG_ENTER("my_once_free");
+  DBUG_TRACE;
 
   for (next = my_once_root_block; next;) {
     old = next;
@@ -126,6 +126,4 @@ void my_once_free(void) {
     free((uchar *)old);
   }
   my_once_root_block = 0;
-
-  DBUG_VOID_RETURN;
 } /* my_once_free */

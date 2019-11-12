@@ -1,6 +1,7 @@
 RESET MASTER;
 call mtr.add_suppression("Failed to compress the gtid_executed table.");
 SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d, disable_gtid_background_persister';
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 # simulate_crash_on_compress_gtid_table
@@ -13,6 +14,7 @@ SET DEBUG_SYNC= 'now SIGNAL notified_thread_complete';
 # from a crash of compressing gtid_executed table.
 #
 include/assert.inc [committed gtid set is MASTER_UUID:1-3]
+FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	3
@@ -25,6 +27,7 @@ include/assert.inc [committed gtid set is MASTER_UUID:1-3]
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	3
+SET @@GLOBAL.DEBUG= '+d, disable_gtid_background_persister';
 INSERT INTO t1 VALUES(2);
 SET @@GLOBAL.DEBUG= '+d, simulate_error_on_compress_gtid_table';
 FLUSH LOGS;
@@ -55,6 +58,7 @@ PROCESSLIST_STATE	Compressing gtid_executed table
 PROCESSLIST_COMMAND	Daemon
 SET @@GLOBAL.DEBUG= '-d, fetch_compression_thread_stage_info';
 DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d, disable_gtid_background_persister';
 #
 # Write test case to cover error branches of resetting
 # gtid_executed table.

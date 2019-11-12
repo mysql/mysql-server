@@ -24,36 +24,49 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
+
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/protocol/encoders/encoding_xmessages.h"
 #include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
 namespace xpl {
 
 namespace test {
 
-using ngs::Message_builder;
-using ngs::Metadata_builder;
-using ngs::Notice_builder;
-using ngs::Page_output_stream;
-using ngs::Page_pool;
-
-const ngs::Pool_config default_pool_config = {0, 0, BUFFER_PAGE_SIZE};
-
 template <typename T>
-class Message_builder_encode_resultset : public ::testing::Test {};
+class Message_builder_encode_resultset : public ::testing::Test {
+ public:
+  std::string get_data_from_buffer() const {
+    std::string result;
+
+    auto page = m_buffer.m_front;
+
+    while (page && page->get_used_bytes()) {
+      const std::string data_on_page(
+          reinterpret_cast<char *>(page->m_begin_data), page->get_used_bytes());
+
+      result += data_on_page;
+      page = page->m_next_page;
+    }
+
+    return result;
+  }
+
+  ngs::Memory_block_pool m_memory_block_pool{{10, k_minimum_page_size}};
+  protocol::Encoding_pool m_pool{0, &m_memory_block_pool};
+  protocol::Encoding_buffer m_buffer{&m_pool};
+  protocol::XMessage_encoder m_encoder{&m_buffer};
+};
 
 template <typename ResultsetT, Mysqlx::ServerMessages::Type MessageId>
 struct Resultset_pair_type {
   using ResultsetType = ResultsetT;
-  static constexpr decltype(MessageId) message_id = MessageId;
+  static constexpr uint32_t message_id = MessageId;
 };
 
 using Resultset_types = ::testing::Types<
+    Resultset_pair_type<Mysqlx::Sql::StmtExecuteOk, Mysqlx::ServerMessages::OK>,
     Resultset_pair_type<Mysqlx::Resultset::FetchDone,
                         Mysqlx::ServerMessages::RESULTSET_FETCH_DONE>,
     Resultset_pair_type<
@@ -68,39 +81,38 @@ using Resultset_types = ::testing::Types<
 TYPED_TEST_CASE(Message_builder_encode_resultset, Resultset_types);
 
 TYPED_TEST(Message_builder_encode_resultset, encode_resultset) {
-  Message_builder mb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+  this->m_encoder.template empty_xmessage<TypeParam::message_id>();
 
-  mb.encode_empty_message(obuffer.get(), TypeParam::message_id);
   std::unique_ptr<typename TypeParam::ResultsetType> msg(
-      message_from_buffer<typename TypeParam::ResultsetType>(obuffer.get()));
+      message_with_header_from_buffer<typename TypeParam::ResultsetType>(
+          this->get_data_from_buffer()));
 
   ASSERT_TRUE(nullptr != msg);
   ASSERT_TRUE(msg->IsInitialized());
 }
 
-TEST(message_builder, encode_stmt_execute_ok) {
-  Message_builder mb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+namespace details {
 
-  mb.encode_empty_message(obuffer.get(), Mysqlx::ServerMessages::OK);
-  std::unique_ptr<Mysqlx::Sql::StmtExecuteOk> msg(
-      message_from_buffer<Mysqlx::Sql::StmtExecuteOk>(obuffer.get()));
+const char k_first_character = 'a';
+const char k_last_character = 'z';
+const int k_character_distance = k_first_character - k_last_character;
 
-  ASSERT_TRUE(NULL != msg);
-  ASSERT_TRUE(msg->IsInitialized());
+std::string generate_long_string(const int length) {
+  std::string result(length, ' ');
+  int gen_state = 0;
+
+  std::generate(result.begin(), result.end(), [&gen_state]() {
+    return (gen_state++ % k_character_distance) + k_first_character;
+  });
+
+  return result;
 }
 
-TEST(message_builder, encode_compact_metadata) {
-  Metadata_builder mb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+}  // namespace details
 
+class Message_builder : public Message_builder_encode_resultset<void> {};
+
+TEST_F(Message_builder, encode_compact_metadata) {
   const uint64 COLLATION = 1u;
   const auto TYPE = Mysqlx::Resultset::ColumnMetaData::SINT;
   const int DECIMALS = 3;
@@ -116,11 +128,11 @@ TEST(message_builder, encode_compact_metadata) {
   column_info.set_length(LENGTH);
   column_info.set_type(TYPE);
   column_info.set_content_type(CONTENT_TYPE);
-  mb.encode_metadata(&column_info.get());
+  m_encoder.encode_metadata(column_info.get());
 
+  std::string data = get_data_from_buffer();
   std::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
-      message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(
-          mb.stop_metadata_encoding()));
+      message_with_header_from_buffer<Mysqlx::Resultset::ColumnMetaData>(data));
 
   ASSERT_TRUE(NULL != msg);
 
@@ -145,12 +157,7 @@ TEST(message_builder, encode_compact_metadata) {
   ASSERT_FALSE(msg->has_table());
 }
 
-TEST(message_builder, encode_full_metadata) {
-  Metadata_builder mb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
-
+TEST_F(Message_builder, encode_full_metadata) {
   const uint64 COLLATION = 2u;
   const auto TYPE = Mysqlx::Resultset::ColumnMetaData::BYTES;
   const int DECIMALS = 4;
@@ -176,11 +183,11 @@ TEST(message_builder, encode_full_metadata) {
   column_info.set_type(TYPE);
   column_info.set_content_type(CONTENT_TYPE);
 
-  mb.encode_metadata(&column_info.get());
+  m_encoder.encode_metadata(column_info.get());
 
+  std::string data = get_data_from_buffer();
   std::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
-      message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(
-          mb.stop_metadata_encoding()));
+      message_with_header_from_buffer<Mysqlx::Resultset::ColumnMetaData>(data));
 
   ASSERT_TRUE(NULL != msg);
 
@@ -210,44 +217,58 @@ TEST(message_builder, encode_full_metadata) {
   ASSERT_EQ(TABLE_NAME, msg->table());
 }
 
-TEST(message_builder, encode_notice_frame) {
-  Notice_builder mb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+TEST_F(Message_builder, encode_notice_with_text) {
+  const std::string k_expected_string = details::generate_long_string(1000);
 
+  m_encoder.encode_notice_text_message(k_expected_string);
+
+  std::string data = get_data_from_buffer();
+  std::unique_ptr<Mysqlx::Notice::Frame> msg(
+      message_with_header_from_buffer<Mysqlx::Notice::Frame>(data));
+
+  std::unique_ptr<Mysqlx::Notice::SessionStateChanged> state_changed(
+      message_from_buffer<Mysqlx::Notice::SessionStateChanged>(msg->payload()));
+
+  ASSERT_EQ(Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED, msg->type());
+  ASSERT_EQ(Mysqlx::Notice::Frame_Scope_LOCAL, msg->scope());
+  ASSERT_EQ(Mysqlx::Notice::SessionStateChanged_Parameter_PRODUCED_MESSAGE,
+            state_changed->param());
+
+  ASSERT_EQ(1, state_changed->value_size());
+  ASSERT_EQ(Mysqlx::Datatypes::Scalar_Type::Scalar_Type_V_STRING,
+            state_changed->value(0).type());
+  ASSERT_EQ(k_expected_string, state_changed->value(0).v_string().value());
+}
+
+TEST_F(Message_builder, encode_notice_frame) {
   const uint32 TYPE = 2;
   const int SCOPE = Mysqlx::Notice::Frame_Scope_GLOBAL;
   const std::string DATA = "\0\0\1\12\12aaa\0";
 
-  const bool is_local = false;
-  mb.encode_frame(obuffer.get(), TYPE, is_local, DATA);
+  m_encoder.encode_notice(TYPE, SCOPE, DATA);
 
   std::unique_ptr<Mysqlx::Notice::Frame> msg(
-      message_from_buffer<Mysqlx::Notice::Frame>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Notice::Frame>(
+          get_data_from_buffer()));
 
   ASSERT_TRUE(NULL != msg);
 
   ASSERT_TRUE(msg->has_type());
   ASSERT_EQ(TYPE, msg->type());
-  ASSERT_FALSE(msg->has_scope());
+  ASSERT_TRUE(msg->has_scope());
   ASSERT_EQ(SCOPE, msg->scope());
   ASSERT_TRUE(msg->has_payload());
   ASSERT_EQ(DATA, msg->payload());
 }
 
-TEST(message_builder, encode_notice_rows_affected) {
-  Notice_builder mb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
-
+TEST_F(Message_builder, encode_notice_rows_affected) {
   const uint64 ROWS_AFFECTED = 10001u;
 
-  mb.encode_rows_affected(obuffer.get(), ROWS_AFFECTED);
+  m_encoder.encode_notice_rows_affected(ROWS_AFFECTED);
 
   std::unique_ptr<Mysqlx::Notice::Frame> msg(
-      message_from_buffer<Mysqlx::Notice::Frame>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Notice::Frame>(
+          get_data_from_buffer()));
 
   ASSERT_TRUE(NULL != msg);
 

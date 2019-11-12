@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ class Select_lex_builder {
             true  on failure.
   */
 
-  bool add_select_item(const LEX_STRING field_name, const LEX_STRING alias);
+  bool add_select_item(const LEX_CSTRING &field_name, const LEX_CSTRING &alias);
 
   /**
     Add expression as an item tree, with an alias to name the resulting column.
@@ -112,7 +112,7 @@ class Select_lex_builder {
             true  on failure.
   */
 
-  bool add_select_expr(Item *select_list_item, const LEX_STRING alias);
+  bool add_select_expr(Item *select_list_item, const LEX_CSTRING &alias);
 
   /**
     Add item representing a FROM clause table as,
@@ -125,7 +125,8 @@ class Select_lex_builder {
             true  on failure.
   */
 
-  bool add_from_item(const LEX_STRING schema_name, const LEX_STRING table_name);
+  bool add_from_item(const LEX_CSTRING &schema_name,
+                     const LEX_CSTRING &table_name);
 
   /**
     Add item representing a FROM clause table as,
@@ -152,7 +153,7 @@ class Select_lex_builder {
             nullptr on failure.
   */
 
-  Item *prepare_like_item(const LEX_STRING field_name, const String *wild);
+  Item *prepare_like_item(const LEX_CSTRING &field_name, const String *wild);
 
   /**
     Prepare item representing a equal to comparision condition,
@@ -166,7 +167,8 @@ class Select_lex_builder {
             nullptr on failure.
   */
 
-  Item *prepare_equal_item(const LEX_STRING field_name, const LEX_STRING value);
+  Item *prepare_equal_item(const LEX_CSTRING &field_name,
+                           const LEX_CSTRING &value);
 
   /**
     Add a WHERE clause condition to Select_lex_builder.
@@ -195,7 +197,7 @@ class Select_lex_builder {
             true  on failure.
   */
 
-  bool add_order_by(const LEX_STRING field_name);
+  bool add_order_by(const LEX_CSTRING &field_name);
 
   /**
     This function build ParseTree node that represents this
@@ -209,7 +211,7 @@ class Select_lex_builder {
             nullptr on failure.
   */
 
-  PT_derived_table *prepare_derived_table(const LEX_STRING table_alias);
+  PT_derived_table *prepare_derived_table(const LEX_CSTRING &table_alias);
 
   /**
     Prepare a SELECT_LEX using all the information information

@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"blockquote": "Блок цитат"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/ru/Blockquote",({"blockquote":"Блок цитат"}));

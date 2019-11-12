@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ static bool validate_srid_arg(Item *arg, gis::srid_t *srid, bool *null_value,
   @param[in] g The geometry to check.
   @param[in] func_name The function name to use in error messages.
 
-  @retval true An error has occured (and my_error has been called).
+  @retval true An error has occurred (and my_error has been called).
   @retval false Success.
 */
 static bool verify_cartesian_srs(const Geometry *g, const char *func_name) {
@@ -246,7 +246,7 @@ static bool verify_cartesian_srs(const Geometry *g, const char *func_name) {
 
   @param[in] srid The SRID to check
 
-  @retval true An error has occured (and my_error has been called).
+  @retval true An error has occurred (and my_error has been called).
   @retval false Success.
 */
 static bool verify_srid_is_defined(gis::srid_t srid) {
@@ -2295,14 +2295,10 @@ static bool append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
 }
 
 /** The contract for this function is found in item_json_func.h */
-bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg,
+bool geometry_to_json(Json_wrapper *wr, String *swkb,
                       const char *calling_function, int max_decimal_digits,
                       bool add_bounding_box, bool add_short_crs_urn,
                       bool add_long_crs_urn, uint32 *geometry_srid) {
-  String arg_val;
-  String *swkb = geometry_arg->val_str(&arg_val);
-  if ((geometry_arg->null_value)) return false;
-
   Geometry::wkb_parser parser(swkb->ptr(), swkb->ptr() + swkb->length());
   if (parser.scan_uint4(geometry_srid)) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
@@ -2350,7 +2346,9 @@ bool Item_func_as_geojson::val_json(Json_wrapper *wr) {
   */
   if (arg_count < 2) m_max_decimal_digits = INT_MAX32;
 
-  if (geometry_to_json(wr, args[0], func_name(), m_max_decimal_digits,
+  String tmp, *val = args[0]->val_str(&tmp);
+  if (!args[0]->null_value &&
+      geometry_to_json(wr, val, func_name(), m_max_decimal_digits,
                        m_add_bounding_box, m_add_short_crs_urn,
                        m_add_long_crs_urn, &m_geometry_srid)) {
     if (null_value && !current_thd->is_error())
@@ -3846,8 +3844,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb) {
 
     respt.set_srid(geom->get_srid());
     if (!null_value) null_value = post_fix_result(&bg_resbuf_mgr, respt, ptwkb);
-    if (!null_value)
-      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
+    if (!null_value) bg_resbuf_mgr.set_result_buffer(ptwkb->ptr());
   } catch (...) {
     null_value = true;
     handle_gis_exception("st_centroid");
@@ -3955,8 +3952,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
         isdone = false;
 
       if (isdone) {
-        if (!null_value)
-          bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+        if (!null_value) bg_resbuf_mgr.set_result_buffer(res_hull->ptr());
         return null_value;
       }
     }
@@ -4023,8 +4019,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
 
     hull.set_srid(geom->get_srid());
     null_value = post_fix_result(&bg_resbuf_mgr, hull, res_hull);
-    if (!null_value)
-      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+    if (!null_value) bg_resbuf_mgr.set_result_buffer(res_hull->ptr());
   } catch (...) {
     null_value = true;
     handle_gis_exception("st_convexhull");
@@ -4527,7 +4522,7 @@ Gis_geometry_collection *BG_geometry_collection::as_geometry_collection(
          geo's data rather than directly using it.
   @param break_multi_geom whether break a multipoint or multilinestring or
          multipolygon so as to store its components separately into this object.
-  @return true if error occured, false if no error(successful).
+  @return true if error occurred, false if no error(successful).
  */
 bool BG_geometry_collection::store_geometry(const Geometry *geo,
                                             bool break_multi_geom) {
@@ -4631,7 +4626,7 @@ longlong Item_func_isempty::val_int() {
 }
 
 longlong Item_func_st_issimple::val_int() {
-  DBUG_ENTER("Item_func_st_issimple::val_int");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed);
 
   String backing_arg_wkb;
@@ -4642,7 +4637,7 @@ longlong Item_func_st_issimple::val_int() {
   if (args[0]->null_value) {
     null_value = true;
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (!arg_wkb) {
@@ -4650,7 +4645,7 @@ longlong Item_func_st_issimple::val_int() {
     // false.
     DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_int());
+    return error_int();
   }
 
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -4661,20 +4656,20 @@ longlong Item_func_st_issimple::val_int() {
   std::unique_ptr<gis::Geometry> g;
   if (gis::parse_geometry(current_thd, func_name(), arg_wkb, &srs, &g)) {
     DBUG_ASSERT(current_thd->is_error());
-    DBUG_RETURN(error_int());
+    return error_int();
   }
   DBUG_ASSERT(g);
 
   bool result;
   if (gis::is_simple(srs, g.get(), func_name(), &result, &null_value)) {
     DBUG_ASSERT(current_thd->is_error());
-    DBUG_RETURN(error_int());
+    return error_int();
   }
   DBUG_ASSERT(!g->is_empty() || result == true);
   // gis::is_simple never returns null
   DBUG_ASSERT(!null_value);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 longlong Item_func_isclosed::val_int() {
@@ -5066,7 +5061,7 @@ enum class ConvertUnitResult {
 ///  @param[in] function_name Name of the SQL function to report errors as.
 ///  @param[inout] length The length to convert to another unit.
 ///
-///  @retval kError An error has occured, this could be overflows, unsupported
+///  @retval kError An error has occurred, this could be overflows, unsupported
 /// units, srs without unit (SRID 0), conversion errors.
 ///  @retval kNull The result is sql null, because the to_unit was null.
 ///  @retval kOk Success.
@@ -5324,7 +5319,7 @@ double Item_func_distance::val_real() {
 }
 
 double Item_func_st_distance_sphere::val_real() {
-  DBUG_ENTER("Item_func_st_distance_sphere::val_real");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed);
 
   String backing_arg_wkb1;
@@ -5338,7 +5333,7 @@ double Item_func_st_distance_sphere::val_real() {
   if (args[0]->null_value || args[1]->null_value) {
     null_value = true;
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
   if (!arg_wkb1 || !arg_wkb2) {
@@ -5346,7 +5341,7 @@ double Item_func_st_distance_sphere::val_real() {
     // false.
     DBUG_ASSERT(false);
     my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
@@ -5357,7 +5352,7 @@ double Item_func_st_distance_sphere::val_real() {
   std::unique_ptr<gis::Geometry> g1;
   if (gis::parse_geometry(current_thd, func_name(), arg_wkb1, &srs1, &g1)) {
     DBUG_ASSERT(current_thd->is_error());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
   DBUG_ASSERT(g1);
 
@@ -5365,7 +5360,7 @@ double Item_func_st_distance_sphere::val_real() {
   std::unique_ptr<gis::Geometry> g2;
   if (gis::parse_geometry(current_thd, func_name(), arg_wkb2, &srs2, &g2)) {
     DBUG_ASSERT(current_thd->is_error());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
   DBUG_ASSERT(g2);
 
@@ -5374,7 +5369,7 @@ double Item_func_st_distance_sphere::val_real() {
 
   if (srid1 != srid2) {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   // Sphere raduis initialized to default radius for SRID 0. Approximates Earth
@@ -5399,12 +5394,12 @@ double Item_func_st_distance_sphere::val_real() {
 
     if (args[2]->null_value) {
       null_value = true;
-      DBUG_RETURN(0.0);
+      return 0.0;
     }
 
     if (sphere_radius <= 0.0) {
       my_error(ER_NONPOSITIVE_RADIUS, MYF(0), func_name());
-      DBUG_RETURN(error_real());
+      return error_real();
     }
   }
 
@@ -5412,12 +5407,12 @@ double Item_func_st_distance_sphere::val_real() {
   if (gis::distance_sphere(srs1, g1.get(), g2.get(), func_name(), sphere_radius,
                            &result, &null_value)) {
     DBUG_ASSERT(current_thd->is_error());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
   // gis::gistance_sphere will always return a valid result or error.
   DBUG_ASSERT(!null_value);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 String *Item_func_st_transform::val_str(String *str) {

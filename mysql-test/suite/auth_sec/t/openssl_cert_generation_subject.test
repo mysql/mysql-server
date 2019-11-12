@@ -1,5 +1,4 @@
 --source include/have_openssl_binary.inc
---source include/have_openssl.inc
 
 -- echo #
 -- echo #  Bug#21087159 : AUTO-GENERATED SSL CERTS HAVE NO CN

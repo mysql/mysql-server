@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,15 +61,22 @@ class Rpl_info_dummy : public Rpl_info_handler {
   bool do_set_info(const int pos, const ulong value);
   bool do_set_info(const int pos, const float value);
   bool do_set_info(const int pos, const Server_ids *value);
-  bool do_get_info(const int pos, char *value, const size_t size,
-                   const char *default_value);
-  bool do_get_info(const int pos, uchar *value, const size_t size,
-                   const uchar *default_value);
-  bool do_get_info(const int pos, int *value, const int default_value);
-  bool do_get_info(const int pos, ulong *value, const ulong default_value);
-  bool do_get_info(const int pos, float *value, const float default_value);
-  bool do_get_info(const int pos, Server_ids *value,
-                   const Server_ids *default_value);
+  bool do_set_info(const int pos, const std::nullptr_t value);
+  bool do_set_info(const int pos, const std::nullptr_t value,
+                   const size_t size);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, char *value, const size_t size, const char *default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, uchar *value, const size_t size,
+      const uchar *default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(const int pos, int *value,
+                                                      const int default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, ulong *value, const ulong default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, float *value, const float default_value);
+  Rpl_info_handler::enum_field_get_status do_get_info(
+      const int pos, Server_ids *value, const Server_ids *default_value);
   char *do_get_description_info();
   bool do_is_transactional();
   bool do_update_is_transactional();

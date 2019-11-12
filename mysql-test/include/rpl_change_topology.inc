@@ -34,6 +34,8 @@
 # [--let $rpl_master_log_pos= 1:4711,3:107]
 # [--let $rpl_debug= 1]
 # [--let $rpl_unconditional_change_master= 1]
+# [--let $rpl_privilege_checks_user= *:'user'@'host',1:'user'@'host',2:NULL]
+# [--let $rpl_privilege_checks_user_dont_create_user= 0]
 # --source include/rpl_change_topology.inc
 #
 # Parameters:
@@ -83,6 +85,27 @@
 #     This checks for whether we have Group Replication enabled or not. Based
 #     on the check this parameter we execute change master or not in this
 #     inc file.
+#
+#   $rpl_privilege_checks_user By default, CHANGE MASTER is executed without
+#     specifying the `PRIVILEGE_CHECKS_USER` parameter. Instantiating
+#     `$rpl_privilege_checks_user` sets the `PRIVILEGE_CHECKS_USER` option for
+#     the `CHANGE MASTER TO...` command, bounding the replication applier to
+#     execute within the security context of the given user. For example, to
+#     specify that server_1 should use 'u1'@'localhost' as base user for
+#     replication applier security context and server_5 shouldn't check
+#     privileges while applying replicated events, do:
+#
+#       --let $rpl_privilege_checks_user= 1:'u1'@'localhost',5:NULL
+#
+#     To specify that all node applier thread should run with a given user's
+#     security context, do:
+#
+#       --let $rpl_privilege_checks_user= *:'u1'@'localhost'
+#
+#   $rpl_privilege_checks_user_dont_create_user
+#     Force to not create the user provided in `$rpl_privilege_checks_user`. If
+#     set to 0, creates it if doesn't exists and, if created, assigns the
+#     `REPLICATION_APPLIER` privilege.
 #
 # ==== Internal variables configured by this file ====
 #
@@ -202,6 +225,12 @@ if ($rpl_debug)
   --echo new \$rpl_connection_count = '$rpl_connection_count'
 }
 
+--let $_rpl_change_topology_privilege_checks_all_index= `SELECT LOCATE('*:', "$rpl_privilege_checks_user")`
+if ($_rpl_change_topology_privilege_checks_all_index)
+{
+  --let $_rpl_change_topology_privilege_checks_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_privilege_checks_user", $_rpl_change_topology_privilege_checks_all_index), ',', 1), ':', -1)`
+}
+
 if (!$rpl_skip_change_master)
 {
   if ($rpl_debug)
@@ -220,7 +249,8 @@ if (!$rpl_skip_change_master)
 
 
 --let $rpl_sync_chain_dirty= 1
-
+--let $_rpl_change_topology_privilege_checks_all=
+--let $_rpl_change_topology_privilege_checks_all_index=
 
 --let $include_filename= rpl_change_topology.inc
 --source include/end_include_file.inc

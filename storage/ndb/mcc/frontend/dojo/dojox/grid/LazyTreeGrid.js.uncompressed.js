@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/grid/resources/Expando.html':"<div class=\"dojoxGridExpando\"\n\t><div class=\"dojoxGridExpandoNode\" dojoAttachEvent=\"onclick:onToggle\"\n\t\t><div class=\"dojoxGridExpandoNodeInner\" dojoAttachPoint=\"expandoInner\"></div\n\t></div\n></div>\n"}});
 define("dojox/grid/LazyTreeGrid", [
@@ -345,22 +344,27 @@ var LazyTreeGrid = declare("dojox.grid.LazyTreeGrid", TreeGrid, {
 	//		and dojox.grid.TreeGrid also apply here
 	//
 	//		LazyTreeGrid does not support summary row/items aggregate due to the lazy-loading rationale.
+
 	_layoutClass: _LazyTreeLayout,
 	_size: 0,
-	// treeModel: dijit.tree.ForestStoreModel | dojox.grid.LazyTreeGridStoreModel
+
+	// treeModel: dijit/tree/.ForestStoreModel|dojox/grid/LazyTreeGridStoreModel
 	//		A tree store model object.
 	treeModel: null,
+
 	// defaultState: Object
 	//		Used to restore the state of LazyTreeGrid.
 	//		This object should ONLY be obtained from `LazyTreeGrid.getState()`.
 	defaultState: null,
+
 	// colSpans: Object
-	//		a json object that defines column span of each level rows
-	//		attributes:
-	//			0/1/..: which level need to colspan
-	//			start: start column index of colspan
-	//			end: end column index of colspan
-	//			primary: index of column which content will be displayed (default is value of start).
+	//		A json object that defines column span of each level rows.  Attributes:
+	//
+	//		- 0/1/..: which level need to colspan
+	//		- start: start column index of colspan
+	//		- end: end column index of colspan
+	//		- primary: index of column which content will be displayed (default is value of start).
+	//
 	//		example:
 	//		|	colSpans = {
 	//		|	0:	[
@@ -455,21 +459,21 @@ var LazyTreeGrid = declare("dojox.grid.LazyTreeGrid", TreeGrid, {
 		this.inherited(arguments);
 	},
 	expand: function(itemId){
-		//	summary:
+		// summary:
 		//		Expand the row with the given itemId.
-		//	id: string?
+		// itemId: String?
 		this._fold(itemId, true);
 	},
 	collapse: function(itemId){
-		//	summary:
+		// summary:
 		//		Collapse the row with the given itemId.
-		//	id: string?
+		// itemId: String?
 		this._fold(itemId, false);
 	},
 	refresh: function(keepState){
-		//	summary:
+		// summary:
 		//		Refresh, and persist the expand/collapse state when keepState equals true
-		//	keepState: boolean
+		// keepState: Boolean
 		if(!keepState){
 			this._cleanup();
 		}
@@ -773,7 +777,7 @@ var LazyTreeGrid = declare("dojox.grid.LazyTreeGrid", TreeGrid, {
 			this.inherited(arguments);
 			return;
 		}
-		row.customClasses = (row.odd ? " dojoxGridRowOdd" : "") + (row.selected ? " dojoxGridRowSelected" : "") + (row.over ? " dojoxGridRowOver" : "");
+		row.customClasses += (row.odd ? " dojoxGridRowOdd" : "") + (row.selected ? " dojoxGridRowSelected" : "") + (row.over ? " dojoxGridRowOver" : "");
 		this.focus.styleRow(row);
 		this.edit.styleRow(row);
 	},

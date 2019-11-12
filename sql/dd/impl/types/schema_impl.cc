@@ -74,6 +74,13 @@ namespace dd {
 // Schema_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+Schema_impl::Schema_impl()
+    : m_created(0),
+      m_last_altered(0),
+      m_default_encryption(enum_encryption_type::ET_NO),
+      m_se_private_data(),
+      m_default_collation_id(INVALID_OBJECT_ID) {}
+
 bool Schema_impl::validate() const {
   if (m_default_collation_id == INVALID_OBJECT_ID) {
     my_error(ER_INVALID_DD_OBJECT, MYF(0), DD_table::instance().name().c_str(),
@@ -104,6 +111,14 @@ bool Schema_impl::restore_attributes(const Raw_record &r) {
         r.read_int(Schemata::FIELD_DEFAULT_ENCRYPTION));
   }
 
+  // m_se_private_data is added in 80017
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80017)) {
+    set_se_private_data("");
+  } else {
+    set_se_private_data(r.read_str(Schemata::FIELD_SE_PRIVATE_DATA, ""));
+  }
+
   return false;
 }
 
@@ -118,6 +133,13 @@ bool Schema_impl::store_attributes(Raw_record *r) {
           bootstrap::DD_VERSION_80016) &&
       r->store(Schemata::FIELD_DEFAULT_ENCRYPTION,
                static_cast<int>(m_default_encryption))) {
+    return true;
+  }
+
+  // Store m_se_private_data only if we're not upgrading from before 8.0.17
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80017) &&
+      r->store(Schemata::FIELD_SE_PRIVATE_DATA, m_se_private_data)) {
     return true;
   }
 

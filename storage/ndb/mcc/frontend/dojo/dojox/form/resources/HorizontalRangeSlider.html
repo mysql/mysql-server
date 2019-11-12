@@ -1,4 +1,4 @@
-<table class="dijit dijitReset dijitSlider dijitSliderH dojoxRangeSlider" cellspacing="0" cellpadding="0" border="0" rules="none" dojoAttachEvent="onkeypress:_onKeyPress,onkeyup:_onKeyUp"
+<table class="dijit dijitReset dijitSlider dijitSliderH dojoxRangeSlider" cellspacing="0" cellpadding="0" border="0" rules="none" dojoAttachEvent="onkeypress:_onKeyPress,onkeyup:_onKeyUp" role="presentation"
 	><tr class="dijitReset"
 		><td class="dijitReset" colspan="2"></td
 		><td dojoAttachPoint="topDecoration" class="dijitReset dijitSliderDecoration dijitSliderDecorationT dijitSliderDecorationH"></td
@@ -14,11 +14,11 @@
 		><td class="dijitReset"
 			><input dojoAttachPoint="valueNode" type="hidden" ${!nameAttrSetting}
 			/><div role="presentation" class="dojoxRangeSliderBarContainer" dojoAttachPoint="sliderBarContainer"
-				><div dojoAttachPoint="sliderHandle" tabIndex="${tabIndex}" class="dijitSliderMoveable dijitSliderMoveableH" dojoAttachEvent="onmousedown:_onHandleClick" role="slider" valuemin="${minimum}" valuemax="${maximum}"
+				><div dojoAttachPoint="sliderHandle" tabIndex="${tabIndex}" class="dijitSliderMoveable dijitSliderMoveableH" dojoAttachEvent="onmousedown:_onHandleClick" role="slider"
 					><div class="dijitSliderImageHandle dijitSliderImageHandleH"></div
 				></div
 				><div role="presentation" dojoAttachPoint="progressBar,focusNode" class="dijitSliderBar dijitSliderBarH dijitSliderProgressBar dijitSliderProgressBarH" dojoAttachEvent="onmousedown:_onBarClick"></div
-				><div dojoAttachPoint="sliderHandleMax,focusNodeMax" tabIndex="${tabIndex}" class="dijitSliderMoveable dijitSliderMoveableH" dojoAttachEvent="onmousedown:_onHandleClickMax" role="sliderMax" valuemin="${minimum}" valuemax="${maximum}"
+				><div dojoAttachPoint="sliderHandleMax" tabIndex="${tabIndex}" class="dijitSliderMoveable dijitSliderMoveableH" dojoAttachEvent="onmousedown:_onHandleClickMax" role="slider"
 					><div class="dijitSliderImageHandle dijitSliderImageHandleH"></div
 				></div
 				><div role="presentation" dojoAttachPoint="remainingBar" class="dijitSliderBar dijitSliderBarH dijitSliderRemainingBar dijitSliderRemainingBarH" dojoAttachEvent="onmousedown:_onRemainingBarClick"></div

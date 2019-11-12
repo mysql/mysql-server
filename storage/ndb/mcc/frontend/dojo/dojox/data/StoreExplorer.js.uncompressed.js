@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/data/StoreExplorer", ["dijit","dojo","dojox","dojo/require!dojox/grid/DataGrid,dojox/data/ItemExplorer,dijit/layout/BorderContainer,dijit/layout/ContentPane"], function(dijit,dojo,dojox){
+define("dojox/data/StoreExplorer", ["dojo","dijit","dojox","dojo/require!dojox/grid/DataGrid,dojox/data/ItemExplorer,dijit/layout/BorderContainer,dijit/layout/ContentPane"], function(dojo,dijit,dojox){
 dojo.provide("dojox.data.StoreExplorer");
 dojo.require("dojox.grid.DataGrid");
 dojo.require("dojox.data.ItemExplorer");
@@ -176,8 +175,8 @@ dojo.declare("dojox.data.StoreExplorer", dijit.layout.BorderContainer, {
 			var retValue = defaultOnComplete.apply(this, arguments);
 
 		}
- 		grid.setStore(store);
- 		this.queryOptions = {cache:true};
+		grid.setStore(store);
+		this.queryOptions = {cache:true};
 		this.tree.setStore(store);
 	},
 	createNew: function(){

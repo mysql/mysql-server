@@ -71,7 +71,7 @@ CREATE INDEX idx1 ON t1 ((CAST(f2 AS JSON)));
 
 --error ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX
 INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
---error ER_TRUNCATED_WRONG_VALUE
+--error ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX
 INSERT INTO t1 (f2) VALUES ("lorem ipsum");
 
 --echo # In non-strict mode, a warning should be printed.
@@ -395,9 +395,9 @@ CREATE TABLE t1 (
 --echo # See that we get a reasonable error message when trying to remove a
 --echo # column that is a part of a functional index.
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, INDEX idx ((col1 + col2 + col3)));
---error ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
 ALTER TABLE t1 DROP COLUMN col2;
---error ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
 ALTER TABLE t1 DROP COLUMN col3;
 ALTER TABLE t1 DROP INDEX idx;
 ALTER TABLE t1 DROP COLUMN col3;
@@ -430,3 +430,48 @@ DROP TABLE t1;
 --echo #
 --error ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED
 CREATE TABLE t (j JSON, KEY k (((j,j))));
+
+--echo #
+--echo # Bug#29360763	WL#1075: FUNCTIONAL INDEX: INCORRECT ERROR MESSAGE REVEALS
+--echo #              HIDDEN COLUMN NAME
+--echo #
+CREATE TABLE t1 (
+  j1 JSON,
+  j3 JSON,
+  KEY my_idx ((CAST(j1->'$[0]' as SIGNED))),
+  KEY my_idx_char ((CAST(j3->'$[0]' as CHAR(10))))
+);
+--error ER_DUP_KEYNAME
+ALTER TABLE t1 RENAME KEY my_idx_char TO my_idx;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29317684 REPLICATION IS SENSITIVE TO ORDER OF HIDDEN COLUMNS FOR
+--echo #              FUNCTIONAL INDEXES
+--echo #
+CREATE TABLE t1 (col1 INT, INDEX ((col1 + col1)));
+
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME = "t1";
+
+ALTER TABLE t1 ADD COLUMN col2 INT;
+
+SELECT COLUMN_NAME, ORDINAL_POSITION FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME = "t1";
+
+DROP TABLE t1;
+
+--echo # See that INSTANT ADD COLUMN still works with this bugfix.
+CREATE TABLE t1 (col1 INT, col2 INT AS (col1 + col1), INDEX (col2));
+ALTER TABLE t1 ADD COLUMN new_col INT AFTER col1, ALGORITHM=INSTANT;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29934661 FUNCTIONAL INDEX SEEMS TO MALFUNCTION WITH UNSIGNED COLUMN
+--echo #
+--echo # The hidden column that is added should have a data type that can store
+--echo # the absolute value of an unsigned data type.
+CREATE TABLE t0(c0 INT UNSIGNED, INDEX idx ((ABS(c0))));
+INSERT INTO t0 (c0) VALUES (4294967294);
+DROP TABLE t0;

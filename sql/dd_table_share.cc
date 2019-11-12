@@ -326,7 +326,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       }
 
       uint usable_parts = 0;
-      keyinfo->name = (char *)share->keynames.type_names[key];
+      keyinfo->name = share->keynames.type_names[key];
 
       /* Check that fulltext and spatial keys have correct algorithm set. */
       DBUG_ASSERT(!(share->key_info[key].flags & HA_FULLTEXT) ||
@@ -516,17 +516,17 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
     uint k, *save;
 
     /* Store offsets to blob fields to find them fast */
-    if (!(share->blob_field = save = (uint *)alloc_root(
-              &share->mem_root, (uint)(share->blob_fields * sizeof(uint)))))
+    if (!(share->blob_field = save = (uint *)share->mem_root.Alloc(
+              (uint)(share->blob_fields * sizeof(uint)))))
       return true;  // OOM error message already reported
     for (k = 0, ptr = share->field; *ptr; ptr++, k++) {
-      if ((*ptr)->flags & BLOB_FLAG) (*save++) = k;
+      if ((*ptr)->flags & BLOB_FLAG || (*ptr)->is_array()) (*save++) = k;
     }
   }
 
   share->column_bitmap_size = bitmap_buffer_size(share->fields);
-  if (!(bitmaps = (my_bitmap_map *)alloc_root(&share->mem_root,
-                                              share->column_bitmap_size))) {
+  if (!(bitmaps = (my_bitmap_map *)share->mem_root.Alloc(
+            share->column_bitmap_size))) {
     // OOM error message already reported
     return true; /* purecov: inspected */
   }
@@ -539,11 +539,10 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 /** Fill tablespace name from dd::Tablespace. */
 static bool fill_tablespace_from_dd(THD *thd, TABLE_SHARE *share,
                                     const dd::Table *tab_obj) {
-  DBUG_ENTER("fill_tablespace_from_dd");
+  DBUG_TRACE;
 
-  DBUG_RETURN(dd::get_tablespace_name<dd::Table>(
-      thd, tab_obj, const_cast<const char **>(&share->tablespace),
-      &share->mem_root));
+  return dd::get_tablespace_name<dd::Table>(thd, tab_obj, &share->tablespace,
+                                            &share->mem_root);
 }
 
 /**
@@ -575,13 +574,12 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format) {
 /** Fill TABLE_SHARE from dd::Table object */
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
                                const dd::Table *tab_obj) {
-  dd::Properties *table_options =
-      const_cast<dd::Properties *>(&tab_obj->options());
+  const dd::Properties &table_options = tab_obj->options();
 
   // Secondary storage engine.
-  if (table_options->exists("secondary_engine")) {
-    table_options->get("secondary_engine", &share->secondary_engine,
-                       &share->mem_root);
+  if (table_options.exists("secondary_engine")) {
+    table_options.get("secondary_engine", &share->secondary_engine,
+                      &share->mem_root);
   } else {
     // If no secondary storage engine is set, the share cannot
     // represent a table in a secondary engine.
@@ -618,37 +616,37 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   bool bool_opt = false;
 
   // Max rows
-  if (table_options->exists("max_rows"))
-    table_options->get("max_rows", &share->max_rows);
+  if (table_options.exists("max_rows"))
+    table_options.get("max_rows", &share->max_rows);
 
   // Min rows
-  if (table_options->exists("min_rows"))
-    table_options->get("min_rows", &share->min_rows);
+  if (table_options.exists("min_rows"))
+    table_options.get("min_rows", &share->min_rows);
 
   // Options from HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
   share->db_create_options = 0;
 
-  table_options->get("pack_record", &bool_opt);
+  table_options.get("pack_record", &bool_opt);
   if (bool_opt) share->db_create_options |= HA_OPTION_PACK_RECORD;
 
-  if (table_options->exists("pack_keys")) {
-    table_options->get("pack_keys", &bool_opt);
+  if (table_options.exists("pack_keys")) {
+    table_options.get("pack_keys", &bool_opt);
     share->db_create_options |=
         bool_opt ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS;
   }
 
-  if (table_options->exists("checksum")) {
-    table_options->get("checksum", &bool_opt);
+  if (table_options.exists("checksum")) {
+    table_options.get("checksum", &bool_opt);
     if (bool_opt) share->db_create_options |= HA_OPTION_CHECKSUM;
   }
 
-  if (table_options->exists("delay_key_write")) {
-    table_options->get("delay_key_write", &bool_opt);
+  if (table_options.exists("delay_key_write")) {
+    table_options.get("delay_key_write", &bool_opt);
     if (bool_opt) share->db_create_options |= HA_OPTION_DELAY_KEY_WRITE;
   }
 
-  if (table_options->exists("stats_persistent")) {
-    table_options->get("stats_persistent", &bool_opt);
+  if (table_options.exists("stats_persistent")) {
+    table_options.get("stats_persistent", &bool_opt);
     share->db_create_options |=
         bool_opt ? HA_OPTION_STATS_PERSISTENT : HA_OPTION_NO_STATS_PERSISTENT;
   }
@@ -657,8 +655,8 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Average row length
 
-  if (table_options->exists("avg_row_length")) {
-    table_options->get("avg_row_length", &option_value);
+  if (table_options.exists("avg_row_length")) {
+    table_options.get("avg_row_length", &option_value);
     share->avg_row_length = static_cast<ulong>(option_value);
   }
 
@@ -678,20 +676,20 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   share->real_row_type = dd_get_old_row_format(tab_obj->row_format());
 
   // Then one which was explicitly specified by user for this table.
-  if (table_options->exists("row_type")) {
-    table_options->get("row_type", &option_value);
+  if (table_options.exists("row_type")) {
+    table_options.get("row_type", &option_value);
     share->row_type =
         dd_get_old_row_format((dd::Table::enum_row_format)option_value);
   } else
     share->row_type = ROW_TYPE_DEFAULT;
 
   // Stats_sample_pages
-  if (table_options->exists("stats_sample_pages"))
-    table_options->get("stats_sample_pages", &share->stats_sample_pages);
+  if (table_options.exists("stats_sample_pages"))
+    table_options.get("stats_sample_pages", &share->stats_sample_pages);
 
   // Stats_auto_recalc
-  if (table_options->exists("stats_auto_recalc")) {
-    table_options->get("stats_auto_recalc", &option_value);
+  if (table_options.exists("stats_auto_recalc")) {
+    table_options.get("stats_auto_recalc", &option_value);
     share->stats_auto_recalc = (enum_stats_auto_recalc)option_value;
   }
 
@@ -703,16 +701,16 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   // needed?
 
   // key block size
-  table_options->get("key_block_size", &share->key_block_size);
+  table_options.get("key_block_size", &share->key_block_size);
 
   // Prepare the default_value buffer.
   if (prepare_default_value_buffer_and_table_share(thd, *tab_obj, share))
     return true;
 
   // Storage media flags
-  if (table_options->exists("storage")) {
+  if (table_options.exists("storage")) {
     uint32 option_value = 0;
-    table_options->get("storage", &option_value);
+    table_options.get("storage", &option_value);
     share->default_storage_media = static_cast<ha_storage_media>(option_value);
   } else
     share->default_storage_media = HA_SM_DEFAULT;
@@ -729,17 +727,17 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   }
 
   // Read Connection strings
-  if (table_options->exists("connection_string"))
-    table_options->get("connection_string", &share->connect_string,
-                       &share->mem_root);
+  if (table_options.exists("connection_string"))
+    table_options.get("connection_string", &share->connect_string,
+                      &share->mem_root);
 
   // Read Compress string
-  if (table_options->exists("compress"))
-    table_options->get("compress", &share->compress, &share->mem_root);
+  if (table_options.exists("compress"))
+    table_options.get("compress", &share->compress, &share->mem_root);
 
   // Read Encrypt string
-  if (table_options->exists("encrypt_type"))
-    table_options->get("encrypt_type", &share->encrypt_type, &share->mem_root);
+  if (table_options.exists("encrypt_type"))
+    table_options.get("encrypt_type", &share->encrypt_type, &share->mem_root);
 
   return false;
 }
@@ -814,7 +812,7 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
   auto field_type = dd_get_old_field_type(col_obj.type());
   auto field_length = col_obj.char_length();
 
-  auto column_options = const_cast<dd::Properties *>(&col_obj.options());
+  const dd::Properties &column_options = col_obj.options();
 
   // Reconstruct auto_flags
   auto auto_flags = static_cast<uint>(Field::NONE);
@@ -829,13 +827,13 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
     //
     size_t interval_parts = col_obj.elements_count();
 
-    interval = (TYPELIB *)alloc_root(&share->mem_root, sizeof(TYPELIB));
-    interval->type_names = (const char **)alloc_root(
-        &share->mem_root, sizeof(char *) * (interval_parts + 1));
+    interval = (TYPELIB *)share->mem_root.Alloc(sizeof(TYPELIB));
+    interval->type_names = (const char **)share->mem_root.Alloc(
+        sizeof(char *) * (interval_parts + 1));
     interval->type_names[interval_parts] = 0;
 
     interval->type_lengths =
-        (uint *)alloc_root(&share->mem_root, sizeof(uint) * interval_parts);
+        (uint *)share->mem_root.Alloc(sizeof(uint) * interval_parts);
     interval->count = interval_parts;
     interval->name = NULL;
 
@@ -867,7 +865,7 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
     decimals = col_obj.numeric_scale();
   } else if (field_type == MYSQL_TYPE_FLOAT ||
              field_type == MYSQL_TYPE_DOUBLE) {
-    decimals = col_obj.is_numeric_scale_null() ? NOT_FIXED_DEC
+    decimals = col_obj.is_numeric_scale_null() ? DECIMAL_NOT_SPECIFIED
                                                : col_obj.numeric_scale();
   } else
     decimals = 0;
@@ -876,20 +874,20 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
   // Read geometry sub type
   if (field_type == MYSQL_TYPE_GEOMETRY) {
     uint32 sub_type = 0;
-    column_options->get("geom_type", &sub_type);
+    column_options.get("geom_type", &sub_type);
     geom_type = static_cast<Field::geometry_type>(sub_type);
   }
 
   bool treat_bit_as_char = false;
   if (field_type == MYSQL_TYPE_BIT) {
-    column_options->get("treat_bit_as_char", &treat_bit_as_char);
+    column_options.get("treat_bit_as_char", &treat_bit_as_char);
   }
 
-  return make_field(share, ptr, field_length, null_pos, null_bit, field_type,
-                    charset, geom_type, auto_flags, interval, name,
+  return make_field(*THR_MALLOC, share, ptr, field_length, null_pos, null_bit,
+                    field_type, charset, geom_type, auto_flags, interval, name,
                     col_obj.is_nullable(), col_obj.is_zerofill(),
                     col_obj.is_unsigned(), decimals, treat_bit_as_char, 0,
-                    col_obj.srs_id());
+                    col_obj.srs_id(), col_obj.is_array());
 }
 
 /**
@@ -975,13 +973,13 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     //
     size_t interval_parts = col_obj->elements_count();
 
-    interval = (TYPELIB *)alloc_root(&share->mem_root, sizeof(TYPELIB));
-    interval->type_names = (const char **)alloc_root(
-        &share->mem_root, sizeof(char *) * (interval_parts + 1));
+    interval = (TYPELIB *)share->mem_root.Alloc(sizeof(TYPELIB));
+    interval->type_names = (const char **)share->mem_root.Alloc(
+        sizeof(char *) * (interval_parts + 1));
     interval->type_names[interval_parts] = 0;
 
     interval->type_lengths =
-        (uint *)alloc_root(&share->mem_root, sizeof(uint) * interval_parts);
+        (uint *)share->mem_root.Alloc(sizeof(uint) * interval_parts);
     interval->count = interval_parts;
     interval->name = NULL;
 
@@ -1110,7 +1108,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
                                  const dd::Table *tab_obj) {
   // Allocate space for fields in TABLE_SHARE.
   uint fields_size = ((share->fields + 1) * sizeof(Field *));
-  share->field = (Field **)alloc_root(&share->mem_root, (uint)fields_size);
+  share->field = (Field **)share->mem_root.Alloc((uint)fields_size);
   memset(share->field, 0, fields_size);
   share->vfields = 0;
   share->gen_def_field_count = 0;
@@ -1257,7 +1255,8 @@ static void fill_index_elements_from_dd(TABLE_SHARE *share,
     //
 
     fill_index_element_from_dd(share, idx_elem_obj, keyinfo->key_part + i);
-
+    if (keyinfo->key_part[i].field->is_array())
+      keyinfo->flags |= HA_MULTI_VALUED_KEY;
     i++;
   }
 }
@@ -1343,8 +1342,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   // Read index options
   //
 
-  dd::Properties *idx_options =
-      const_cast<dd::Properties *>(&idx_obj->options());
+  const dd::Properties &idx_options = idx_obj->options();
 
   /*
     Restore flags indicating that key packing optimization was suggested to SE.
@@ -1352,7 +1350,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
     explicitly.
   */
   uint32 stored_flags = 0;
-  idx_options->get("flags", &stored_flags);
+  idx_options.get("flags", &stored_flags);
   DBUG_ASSERT((stored_flags & ~(HA_PACK_KEY | HA_BINARY_PACK_KEY)) == 0);
 
   //  Beginning in 8.0.12 HA_PACK_KEY and HA_BINARY_PACK_KEY are no longer set
@@ -1376,8 +1374,8 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   keyinfo->flags |= stored_flags;
 
   // Block size
-  if (idx_options->exists("block_size")) {
-    idx_options->get("block_size", &keyinfo->block_size);
+  if (idx_options.exists("block_size")) {
+    idx_options.get("block_size", &keyinfo->block_size);
 
     DBUG_ASSERT(keyinfo->block_size);
 
@@ -1385,9 +1383,9 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   }
 
   // Read field parser
-  if (idx_options->exists("parser_name")) {
+  if (idx_options.exists("parser_name")) {
     LEX_CSTRING parser_name;
-    if (idx_options->get("parser_name", &parser_name, &share->mem_root))
+    if (idx_options.get("parser_name", &parser_name, &share->mem_root))
       DBUG_ASSERT(false);
 
     keyinfo->parser =
@@ -1497,24 +1495,24 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
     //
     // Alloc rec_per_key buffer
     //
-    if (!(rec_per_key = (ulong *)alloc_root(&share->mem_root,
-                                            total_key_parts * sizeof(ulong))))
+    if (!(rec_per_key =
+              (ulong *)share->mem_root.Alloc(total_key_parts * sizeof(ulong))))
       return true; /* purecov: inspected */
 
     //
     // Alloc rec_per_key_float buffer
     //
-    if (!(rec_per_key_float = (rec_per_key_t *)alloc_root(
-              &share->mem_root, total_key_parts * sizeof(rec_per_key_t))))
+    if (!(rec_per_key_float = (rec_per_key_t *)share->mem_root.Alloc(
+              total_key_parts * sizeof(rec_per_key_t))))
       return true; /* purecov: inspected */
 
     //
     // Alloc buffer to hold keys and key_parts
     //
 
-    if (!(share->key_info = (KEY *)alloc_root(
-              &share->mem_root, share->keys * sizeof(KEY) +
-                                    total_key_parts * sizeof(KEY_PART_INFO))))
+    if (!(share->key_info = (KEY *)share->mem_root.Alloc(
+              share->keys * sizeof(KEY) +
+              total_key_parts * sizeof(KEY_PART_INFO))))
       return true; /* purecov: inspected */
 
     memset(
@@ -1526,8 +1524,8 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
     // Alloc buffer to hold keynames
     //
 
-    if (!(share->keynames.type_names = (const char **)alloc_root(
-              &share->mem_root, (share->keys + 1) * sizeof(char *))))
+    if (!(share->keynames.type_names = (const char **)share->mem_root.Alloc(
+              (share->keys + 1) * sizeof(char *))))
       return true; /* purecov: inspected */
     memset(share->keynames.type_names, 0, ((share->keys + 1) * sizeof(char *)));
 
@@ -1783,8 +1781,8 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       if (part_elem->has_null_value) entries--;
 
       if (entries) {
-        list_val_array = (part_elem_value *)alloc_root(
-            mem_root, sizeof(*list_val_array) * entries);
+        list_val_array = (part_elem_value *)mem_root->Alloc(
+            sizeof(*list_val_array) * entries);
         if (!list_val_array) return true;
         memset(list_val_array, 0, sizeof(*list_val_array) * entries);
       }
@@ -1857,7 +1855,7 @@ static bool set_field_list(MEM_ROOT *mem_root, dd::String_type &str,
       return true;
     size_t len = field_name.length();
     DBUG_ASSERT(len);
-    char *name = static_cast<char *>(alloc_root(mem_root, len + 1));
+    char *name = static_cast<char *>(mem_root->Alloc(len + 1));
     if (!name) return true; /* purecov: inspected */
     memcpy(name, field_name.c_str(), len);
     name[len] = '\0';
@@ -2151,9 +2149,9 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
   share->foreign_key_parents = tab_obj->foreign_key_parents().size();
 
   if (share->foreign_keys) {
-    if (!(share->foreign_key = (TABLE_SHARE_FOREIGN_KEY_INFO *)alloc_root(
-              &share->mem_root,
-              share->foreign_keys * sizeof(TABLE_SHARE_FOREIGN_KEY_INFO))))
+    if (!(share->foreign_key =
+              (TABLE_SHARE_FOREIGN_KEY_INFO *)share->mem_root.Alloc(
+                  share->foreign_keys * sizeof(TABLE_SHARE_FOREIGN_KEY_INFO))))
       return true;
 
     uint i = 0;
@@ -2179,9 +2177,9 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
       share->foreign_key[i].delete_rule = fk->delete_rule();
 
       share->foreign_key[i].columns = fk->elements().size();
-      if (!(share->foreign_key[i].column_name = (LEX_CSTRING *)alloc_root(
-                &share->mem_root,
-                share->foreign_key[i].columns * sizeof(LEX_CSTRING))))
+      if (!(share->foreign_key[i].column_name =
+                (LEX_CSTRING *)share->mem_root.Alloc(
+                    share->foreign_key[i].columns * sizeof(LEX_CSTRING))))
         return true;
 
       uint j = 0;
@@ -2202,10 +2200,9 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
 
   if (share->foreign_key_parents) {
     if (!(share->foreign_key_parent =
-              (TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *)alloc_root(
-                  &share->mem_root,
+              (TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *)share->mem_root.Alloc(
                   share->foreign_key_parents *
-                      sizeof(TABLE_SHARE_FOREIGN_KEY_PARENT_INFO))))
+                  sizeof(TABLE_SHARE_FOREIGN_KEY_PARENT_INFO))))
       return true;
 
     uint i = 0;
@@ -2279,7 +2276,7 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
 }
 
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
-  DBUG_ENTER("open_table_def");
+  DBUG_TRACE;
 
   MEM_ROOT *old_root = thd->mem_root;
   thd->mem_root = &share->mem_root;  // Needed for make_field()++
@@ -2300,9 +2297,9 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
   if (!error) {
     share->table_category = get_table_category(share->db, share->table_name);
     thd->status_var.opened_shares++;
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*

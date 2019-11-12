@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,31 +38,6 @@
 
 class Cost_model_table;
 class Sort_param;
-
-/*
-  Calculate cost of merge sort
-
-    @param num_rows            Total number of rows.
-    @param num_keys_per_buffer Number of keys per buffer.
-    @param elem_size           Size of each element.
-    @param cost_model          Cost model object that provides cost data.
-
-    Calculates cost of merge sort by simulating call to merge_many_buff().
-
-  @returns
-    Computed cost of merge sort in disk seeks.
-
-  @note
-    Declared here in order to be able to unit test it,
-    since library dependencies have not been sorted out yet.
-
-    See also comments get_merge_many_buffs_cost().
-*/
-
-double get_merge_many_buffs_cost_fast(ha_rows num_rows,
-                                      ha_rows num_keys_per_buffer,
-                                      uint elem_size,
-                                      const Cost_model_table *cost_model);
 
 /**
   Buffer used for storing records to be sorted. The records are stored in
@@ -110,8 +85,10 @@ class Filesort_buffer {
         m_current_block_size(0),
         m_space_used_other_blocks(0) {}
 
-  /** Sort me... */
-  void sort_buffer(Sort_param *param, uint count);
+  /** Sort me...
+    @return Number of records, after any deduplication
+   */
+  unsigned sort_buffer(Sort_param *param, uint count);
 
   /**
     Prepares the buffer for the next batch of records to process.
@@ -216,7 +193,10 @@ class Filesort_buffer {
     Gets sorted record number ix. @see get_sort_keys()
     Only valid after buffer has been sorted!
   */
-  uchar *get_sorted_record(size_t ix) { return m_record_pointers[ix]; }
+  uchar *get_sorted_record(size_t ix) {
+    DBUG_ASSERT(ix < m_record_pointers.size());
+    return m_record_pointers[ix];
+  }
 
   /**
     Clears all rows, then returns a contiguous buffer of maximum size.

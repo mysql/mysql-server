@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -130,12 +130,14 @@ The caller must insert it into the correct list.
 @param[in]	space_id	space where the segment is placed
 @param[in]	page_no		page number of the segment header
 @param[in]	page_size	page size
+@param[in]      gtid_trx_no     trx number up to which GTID is persisted
 @param[in,out]	purge_queue	rseg queue
 @param[in,out]	mtr		mini-transaction
 @return own: rollback segment object */
 trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
                                 page_no_t page_no, const page_size_t &page_size,
-                                purge_pq_t *purge_queue, mtr_t *mtr);
+                                trx_id_t gtid_trx_no, purge_pq_t *purge_queue,
+                                mtr_t *mtr);
 
 /** Create a rollback segment in the given tablespace. This could be either
 the system tablespace, the temporary tablespace, or an undo tablespace.
@@ -200,11 +202,21 @@ void trx_rsegsf_set_page_no(trx_rsegsf_t *rsegs_header, ulint slot,
 #define TRX_RSEG_HISTORY                  \
   8 /* The update undo logs for committed \
     transactions */
-#define TRX_RSEG_FSEG_HEADER (8 + FLST_BASE_NODE_SIZE)
 /* Header for the file segment where
 this page is placed */
-#define TRX_RSEG_UNDO_SLOTS (8 + FLST_BASE_NODE_SIZE + FSEG_HEADER_SIZE)
+#define TRX_RSEG_FSEG_HEADER (8 + FLST_BASE_NODE_SIZE)
 /* Undo log segment slots */
+#define TRX_RSEG_UNDO_SLOTS (8 + FLST_BASE_NODE_SIZE + FSEG_HEADER_SIZE)
+
+/* End of undo slots in rollback segment page. */
+#define TRX_RSEG_SLOT_END \
+  (TRX_RSEG_UNDO_SLOTS + (TRX_RSEG_SLOT_SIZE * TRX_RSEG_N_SLOTS))
+
+/* Maximum transaction number ever added to this rollback segment history
+list. It is always increasing number over lifetime starting from zero.
+The size is 8 bytes. */
+#define TRX_RSEG_MAX_TRX_NO TRX_RSEG_SLOT_END
+
 /*-------------------------------------------------------------*/
 
 /** The offset of the Rollback Segment Directory header on an RSEG_ARRAY page */

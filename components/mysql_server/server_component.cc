@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -38,11 +38,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
 #include "host_application_signal_imp.h"
+#include "keyring_iterator_service_imp.h"
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_inttypes.h"
 #include "mysql_backup_lock.h"
 #include "mysql_clone_protocol.h"
+#include "mysql_current_thread_reader_imp.h"
 #include "mysql_ongoing_transaction_query.h"
 #include "mysql_runtime_error_imp.h"
 #include "mysql_string_service.h"
@@ -263,9 +265,12 @@ mysql_acquire_backup_lock,
     mysql_release_backup_lock END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, clone_protocol)
-mysql_clone_start_statement, mysql_clone_finish_statement, mysql_clone_connect,
+mysql_clone_start_statement, mysql_clone_finish_statement,
+    mysql_clone_get_charsets, mysql_clone_validate_charsets,
+    mysql_clone_get_configs, mysql_clone_validate_configs, mysql_clone_connect,
     mysql_clone_send_command, mysql_clone_get_response, mysql_clone_kill,
-    mysql_clone_disconnect, mysql_clone_get_command, mysql_clone_send_response,
+    mysql_clone_disconnect, mysql_clone_get_error, mysql_clone_get_command,
+    mysql_clone_send_response,
     mysql_clone_send_error END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
@@ -303,6 +308,14 @@ Page_track_implementation::start, Page_track_implementation::stop,
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_runtime_error)
 mysql_server_runtime_error_imp::emit END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_current_thread_reader)
+mysql_component_mysql_current_thread_reader_imp::get
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_keyring_iterator)
+mysql_keyring_iterator_imp::init, mysql_keyring_iterator_imp::deinit,
+    mysql_keyring_iterator_imp::get END_SERVICE_IMPLEMENTATION();
 
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
@@ -353,6 +366,8 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_audit_api_message),
     PROVIDES_SERVICE(mysql_server, mysql_page_track),
     PROVIDES_SERVICE(mysql_server, mysql_runtime_error),
+    PROVIDES_SERVICE(mysql_server, mysql_current_thread_reader),
+    PROVIDES_SERVICE(mysql_server, mysql_keyring_iterator),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

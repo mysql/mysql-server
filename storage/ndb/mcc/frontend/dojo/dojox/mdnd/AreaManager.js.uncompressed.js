@@ -1,7 +1,20 @@
-//>>built
-define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo/_base/connect","dojo/_base/window",
-	"dojo/_base/array","dojo/query","dojo/_base/html","./Moveable"],function(dojo){
-	var am = dojo.declare(
+define("dojox/mdnd/AreaManager", ["dojo/_base/kernel",
+	"dojo/_base/declare",
+	"dojo/_base/connect",
+	"dojo/_base/window",
+	"dojo/_base/array",
+	"dojo/_base/sniff",
+	"dojo/_base/lang",
+	"dojo/query",
+	"dojo/topic", // topic.publish()
+	"dojo/dom-class",
+	"dojo/dom-geometry",
+	"dojo/dom-construct",
+	"dijit/registry",
+	"dijit/_Widget",
+	"./Moveable"
+],function(dojo, declare, connect, win, array, sniff, lang, query, topic, domClass, geom, domConstruct, registry, _Widget, Moveable){
+	var am = declare(
 		"dojox.mdnd.AreaManager",
 		null,
 	{
@@ -28,10 +41,10 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 	
 			//console.log("dojox.mdnd.AreaManager ::: constructor");
 			this._areaList = [];
-			this.resizeHandler = dojo.connect(dojo.global,"onresize", this, function(){
+			this.resizeHandler = connect.connect(dojo.global,"onresize", this, function(){
 				this._dropMode.updateAreas(this._areaList);
 			});
-	
+			
 			this._oldIndexArea = this._currentIndexArea = this._oldDropIndex = this._currentDropIndex = this._sourceIndexArea = this._sourceDropIndex = -1;
 		},
 	
@@ -64,7 +77,7 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 					'accept': accept,
 					'initItems': false
 				};
-				dojo.forEach(this._getChildren(area), function(item){
+				array.forEach(this._getChildren(area), function(item){
 					this._setMarginArea(obj, item);
 					obj.items.push(this._addMoveableItem(item));
 				}, this);
@@ -72,7 +85,7 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 				if(!notInitAreas){
 					this._dropMode.updateAreas(this._areaList);
 				}
-				dojo.publish("/dojox/mdnd/manager/register",[area]);
+				connect.publish("/dojox/mdnd/manager/register",[area]);
 			}
 		},
 	
@@ -82,7 +95,7 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			//		insert Dnd Areas using the specific sort of dropMode.
 	
 			//console.log("dojox.mdnd.AreaManager ::: registerByClass");
-			dojo.query('.'+this.areaClass).forEach(function(area){
+			query('.'+this.areaClass).forEach(function(area){
 				this.registerByNode(area, true);
 			}, this);
 			this._dropMode.updateAreas(this._areaList);
@@ -99,7 +112,7 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			//console.log("dojox.mdnd.AreaManager ::: unregister");
 			var index = this._getIndexArea(area);
 			if(index != -1){
-				dojo.forEach(this._areaList[index].items, function(item){
+				array.forEach(this._areaList[index].items, function(item){
 					this._deleteMoveableItem(item);
 				}, this);
 				this._areaList.splice(index,1);
@@ -123,22 +136,22 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			//console.log("dojox.mdnd.AreaManager ::: _addMoveableItem");
 			node.setAttribute("tabIndex", "0");
 			var handle = this._searchDragHandle(node);
-			var moveable = new dojox.mdnd.Moveable({ 'handle': handle, 'skip': true }, node);
+			var moveable = new Moveable({ 'handle': handle, 'skip': true }, node);
 			// add a css style :
-			dojo.addClass(handle || node, "dragHandle");
+			domClass.add(handle || node, "dragHandle");
 			var type = node.getAttribute("dndType");
 			var item = {
 				'item': moveable,
 				'type': type ? type.split(/\s*,\s*/) : ["text"],
-				'handlers': [dojo.connect(moveable, "onDragStart", this, "onDragStart")]
+				'handlers': [connect.connect(moveable, "onDragStart", this, "onDragStart")]
 			}
 			// connect to the uninitialize method of dijit._Widget to delete a moveable before a destruct
-			if(dijit && dijit.byNode){
-				var widget = dijit.byNode(node);
+			if(registry && registry.byNode){
+				var widget = registry.byNode(node);
 				if(widget){
 					item.type = widget.dndType ? widget.dndType.split(/\s*,\s*/) : ["text"];
 					item.handlers.push(
-						dojo.connect(widget, "uninitialize", this, function(){
+						connect.connect(widget, "uninitialize", this, function(){
 							this.removeDragItem(node.parentNode, moveable.node);
 						})
 					);
@@ -157,13 +170,13 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 	
 			//console.log("dojox.mdnd.AreaManager ::: _deleteMoveableItem", objItem);
 			// disconnect the handle
-			dojo.forEach(objItem.handlers, function(handler){
-				dojo.disconnect(handler);
+			array.forEach(objItem.handlers, function(handler){
+				connect.disconnect(handler);
 			});
 			// delete css style :
 			var node = objItem.item.node,
 				handle = this._searchDragHandle(node);
-			dojo.removeClass(handle || node, "dragHandle");
+			domClass.remove(handle || node, "dragHandle");
 			// call destroy of Moveable class
 			objItem.item.destroy();
 		},
@@ -204,13 +217,13 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 				var cssArray = this.dragHandleClass.split(' '),
 					length = cssArray.length,
 					queryCss = "";
-				dojo.forEach(cssArray, function(css, i){
+				array.forEach(cssArray, function(css, i){
 					queryCss += "." + css;
 					if(i != length - 1){
 						queryCss += ", ";
 					}
 				});
-				return dojo.query(queryCss, node)[0]; // DomNode
+				return query(queryCss, node)[0]; // DomNode
 			}
 		},
 	
@@ -295,11 +308,11 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 	
 			//console.log("dojox.mdnd.AreaManager ::: _getChildren");
 			var children = [];
-			dojo.forEach(area.childNodes, function(child){
+			array.forEach(area.childNodes, function(child){
 				// delete \n
 				if(child.nodeType == 1){
-					if(dijit && dijit.byNode){
-						var widget = dijit.byNode(child);
+					if(registry && registry.byNode){
+						var widget = registry.byNode(child);
 						if(widget){
 							if(!widget.dragRestriction){
 								children.push(child);
@@ -330,7 +343,7 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 	
 			//console.log("dojox.mdnd.AreaManager ::: _setMarginArea");
 			if(area && area.margin === null && node){
-				area.margin = dojo._getMarginExtents(node);
+				area.margin = geom.getMarginExtents(node);
 			}
 		},
 	
@@ -395,20 +408,20 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			}
 	
 			// Create the cover :
-			var _html = (dojo.isWebKit) ? dojo.body() : dojo.body().parentNode;
+			var _html = (sniff("webkit")) ? dojo.body() : dojo.body().parentNode;
 			if(!this._cover){
-				this._cover = dojo.create('div', {
+				this._cover = domConstruct.create('div', {
 					'class': "dndCover"
 				});
-				this._cover2 = dojo.clone(this._cover);
-				dojo.addClass(this._cover2, "dndCover2");
+				this._cover2 = lang.clone(this._cover);
+				domClass.add(this._cover2, "dndCover2");
 			}
 			var h = _html.scrollHeight+"px";
 			this._cover.style.height = this._cover2.style.height = h;
 			dojo.body().appendChild(this._cover);
 			dojo.body().appendChild(this._cover2);
 	
-			this._dragStartHandler = dojo.connect(node.ownerDocument, "ondragstart", dojo, "stopEvent");
+			this._dragStartHandler = connect.connect(node.ownerDocument, "ondragstart", dojo, "stopEvent");
 			// to know the source
 			this._sourceIndexArea = this._lastValidIndexArea = this._currentIndexArea = this._getIndexArea(node.parentNode);
 			// delete the dragItem into the source area
@@ -417,8 +430,8 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			for(var i = 0; i < children.length; i++){
 				if(children[i].item.node == node){
 					this._dragItem = children[i];
-					this._dragItem.handlers.push(dojo.connect(this._dragItem.item, "onDrag", this, "onDrag"));
-					this._dragItem.handlers.push(dojo.connect(this._dragItem.item, "onDragEnd", this, "onDrop"));
+					this._dragItem.handlers.push(connect.connect(this._dragItem.item, "onDrag", this, "onDrag"));
+					this._dragItem.handlers.push(connect.connect(this._dragItem.item, "onDragEnd", this, "onDrop"));
 					children.splice(i,1);
 					this._currentDropIndex = this._sourceDropIndex = i;
 					break;
@@ -429,13 +442,13 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 				nodeRef = sourceArea.items[this._sourceDropIndex].item.node;
 			}
 			// IE7 OPTIMIZATION
-			if(dojo.isIE > 7){
+			if(sniff("ie")> 7){
 				// connect these events on the cover
 				this._eventsIE7 = [
-					dojo.connect(this._cover, "onmouseover", dojo, "stopEvent"),
-					dojo.connect(this._cover, "onmouseout", dojo, "stopEvent"),
-					dojo.connect(this._cover, "onmouseenter", dojo, "stopEvent"),
-					dojo.connect(this._cover, "onmouseleave", dojo, "stopEvent")
+					connect.connect(this._cover, "onmouseover", dojo, "stopEvent"),
+					connect.connect(this._cover, "onmouseout", dojo, "stopEvent"),
+					connect.connect(this._cover, "onmouseenter", dojo, "stopEvent"),
+					connect.connect(this._cover, "onmouseleave", dojo, "stopEvent")
 				];
 			}
 	
@@ -450,10 +463,10 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 	
 			this._dropIndicator.place(sourceArea.node, nodeRef, size);
 			// add a style to place the _dragNode in foreground
-			dojo.addClass(node, "dragNode");
+			domClass.add(node, "dragNode");
 			// A dragged node is always draggable in this source area.
 			this._accept = true;
-			dojo.publish("/dojox/mdnd/drag/start",[node, sourceArea, this._sourceDropIndex]);
+			connect.publish("/dojox/mdnd/drag/start",[node, sourceArea, this._sourceDropIndex]);
 		},
 	
 		onDragEnter: function(/*Object*/coords, /*Object*/size){
@@ -594,7 +607,7 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			//dropCancel
 			this.onDropCancel();
 			var targetArea = this._areaList[this._currentIndexArea];
-			dojo.removeClass(node, "dragNode");
+			domClass.remove(node, "dragNode");
 			var style = node.style;
 			style.position = "relative";
 			style.left = "0";
@@ -620,19 +633,19 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			targetArea.items = firstListArea.concat(lastListArea);
 	
 			this._setMarginArea(targetArea, node);
-			dojo.forEach(this._areaList, function(obj){
+			array.forEach(this._areaList, function(obj){
 				obj.initItems = false;
 			});
 			// disconnect onDrop handler
-			dojo.disconnect(this._dragItem.handlers.pop());
-			dojo.disconnect(this._dragItem.handlers.pop());
+			connect.disconnect(this._dragItem.handlers.pop());
+			connect.disconnect(this._dragItem.handlers.pop());
 			this._resetAfterDrop();
 			// remove the cover
 			if(this._cover){
 				dojo.body().removeChild(this._cover);
 				dojo.body().removeChild(this._cover2);
 			}
-			dojo.publish("/dojox/mdnd/drop",[node, targetArea, indexChild]);
+			connect.publish("/dojox/mdnd/drop",[node, targetArea, indexChild]);
 		},
 	
 		_resetAfterDrop: function(){
@@ -650,10 +663,10 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 			this._sourceDropIndex = -1;
 			this._dropIndicator.remove();
 			if(this._dragStartHandler){
-				dojo.disconnect(this._dragStartHandler);
+				connect.disconnect(this._dragStartHandler);
 			}
-			if(dojo.isIE > 7){
-				dojo.forEach(this._eventsIE7, dojo.disconnect);
+			if(sniff("ie") > 7){
+				array.forEach(this._eventsIE7, connect.disconnect);
 			}
 		},
 	
@@ -668,28 +681,28 @@ define("dojox/mdnd/AreaManager", ["dojo/_base/kernel","dojo/_base/declare","dojo
 					throw new Error("Error while destroying AreaManager");
 				}
 			}
-			dojo.disconnect(this.resizeHandler);
+			connect.disconnect(this.resizeHandler);
 			this._dropIndicator.destroy();
 			this._dropMode.destroy();
 			if(dojox.mdnd.autoScroll){
 				dojox.mdnd.autoScroll.destroy();
 			}
 			if(this.refreshListener){
-				dojo.unsubscribe(this.refreshListener);
+				connect.unsubscribe(this.refreshListener);
 			}
 			// destroy the cover
 			if(this._cover){
-				dojo._destroyElement(this._cover);
-				dojo._destroyElement(this._cover2);
+				domConstruct.destroy(this._cover);
+				domConstruct.destroy(this._cover2);
 				delete this._cover;
 				delete this._cover2;
 			}
 		}
 	});
 	
-	if(dijit && dijit._Widget){
+	if(_Widget){
 		//	Add a new property to widget
-		dojo.extend(dijit._Widget, {
+		lang.extend(_Widget, {
 			// dndType: String
 			//		Defines a type of widget.
 			dndType : "text"

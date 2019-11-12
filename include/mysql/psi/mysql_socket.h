@@ -33,10 +33,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <string.h>
 
 /* For MY_STAT */
+#include "my_compiler.h"
 #include "my_dir.h"
 #include "my_io.h"
-/* For my_chsize */
-#include "my_sys.h"
 #include "mysql/psi/psi_socket.h"
 /* For socket api */
 #ifdef _WIN32
@@ -258,15 +257,15 @@ static inline void inline_mysql_socket_set_state(MYSQL_SOCKET socket,
 }
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
-  /**
-    @def mysql_socket_socket(K, D, T, P)
-    Create a socket.
-    @c mysql_socket_socket is a replacement for @c socket.
-    @param K PSI_socket_key for this instrumented socket
-    @param D Socket domain
-    @param T Protocol type
-    @param P Transport protocol
-  */
+/**
+  @def mysql_socket_socket(K, D, T, P)
+  Create a socket.
+  @c mysql_socket_socket is a replacement for @c socket.
+  @param K PSI_socket_key for this instrumented socket
+  @param D Socket domain
+  @param T Protocol type
+  @param P Transport protocol
+*/
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 #define mysql_socket_socket(K, D, T, P) inline_mysql_socket_socket(K, D, T, P)
@@ -1167,6 +1166,6 @@ static inline int inline_mysql_socket_shutdown(
   return result;
 }
 
-  /** @} (end of group psi_api_socket) */
+/** @} (end of group psi_api_socket) */
 
 #endif

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,10 @@ class I_output_writer : public virtual I_chain_element {
     divided or interleaved with another data.
    */
   virtual void append(const std::string &data_to_append) = 0;
+  /**
+    Initialize writer
+  */
+  virtual bool init() = 0;
 };
 
 }  // namespace Dump

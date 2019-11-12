@@ -1,0 +1,136 @@
+//>>built
+define("dojox/dgauges/RectangularGauge",["dojo/_base/declare","./GaugeBase","dojox/gfx/matrix"],function(_1,_2,_3){
+return _1("dojox.dgauges.RectangularGauge",_2,{orientation:"horizontal",_middleParts:null,_leadingParts:null,_trailingParts:null,_baseParts:null,_classParts:null,_layoutInfos:{},constructor:function(){
+this.orientation="horizontal";
+this._middleParts=[];
+this._leadingParts=[];
+this._trailingParts=[];
+this._baseParts=[];
+this._classParts=[];
+this._layoutInfos={leading:{x:0,y:0,w:0,h:0},middle:{x:0,y:0,w:0,h:0},trailing:{x:0,y:0,w:0,h:0}};
+this.addInvalidatingProperties(["orientation"]);
+},addElement:function(_4,_5,_6){
+this.inherited(arguments);
+var _7=this._elements[this._elements.length-1];
+if(_6=="middle"){
+this._middleParts.push(_7);
+}else{
+if(_6=="leading"){
+this._leadingParts.push(_7);
+}else{
+if(_6=="trailing"){
+this._trailingParts.push(_7);
+}else{
+if(_7._isGFX){
+this._baseParts.push(_7);
+}else{
+this._classParts.push(_7);
+}
+}
+}
+}
+},removeElement:function(_8){
+var _9=this.getElement(_8);
+if(_9){
+if(this._middleParts&&this._middleParts.indexOf(_9)>=0){
+this._middleParts.splice(this._middleParts.indexOf(_9),1);
+}else{
+if(this._leadingParts&&this._leadingParts.indexOf(_9)>=0){
+this._leadingParts.splice(this._leadingParts.indexOf(_9),1);
+}else{
+if(this._trailingParts&&this._trailingParts.indexOf(_9)>=0){
+this._trailingParts.splice(this._trailingParts.indexOf(_9),1);
+}else{
+if(this._baseParts&&this._baseParts.indexOf(_9)>=0){
+this._baseParts.splice(this._baseParts.indexOf(_9),1);
+}else{
+if(this._classParts&&this._classParts.indexOf(_9)>=0){
+this._classParts.splice(this._classParts.indexOf(_9),1);
+}
+}
+}
+}
+}
+}
+this.inherited(arguments);
+},_computeArrayBoundingBox:function(_a){
+if(_a.length==0){
+return {x:0,y:0,w:0,h:0};
+}
+var _b={x:-Infinity,y:-Infinity,w:0,h:0};
+var _c=null;
+for(var i=0;i<_a.length;i++){
+_c=this._computeBoundingBox(_a[i]._gfxGroup);
+if(!_c){
+continue;
+}
+if(_b.x<_c.x){
+_b.x=_c.x;
+}
+if(_b.w<_c.width){
+_b.w=_c.width;
+}
+if(_b.y<_c.y){
+_b.y=_c.y;
+}
+if(_b.h<_c.height){
+_b.h=_c.height;
+}
+}
+if(_b.x==-Infinity){
+_b.x=0;
+}
+if(_b.y==-Infinity){
+_b.y=0;
+}
+return _b;
+},refreshRendering:function(){
+if(this._widgetBox.w<=0||this._widgetBox.h<=0){
+return;
+}
+var i;
+if(this._baseParts){
+for(i=0;i<this._baseParts.length;i++){
+this._baseParts[i].width=this._widgetBox.w;
+this._baseParts[i].height=this._widgetBox.h;
+this._elementsRenderers[this._baseParts[i]._name]=this._baseParts[i].refreshRendering();
+}
+}
+if(this._leadingParts){
+for(i=0;i<this._leadingParts.length;i++){
+this._elementsRenderers[this._leadingParts[i]._name]=this._leadingParts[i].refreshRendering();
+}
+}
+if(this._trailingParts){
+for(i=0;i<this._trailingParts.length;i++){
+this._elementsRenderers[this._trailingParts[i]._name]=this._trailingParts[i].refreshRendering();
+}
+}
+var _d=this._computeArrayBoundingBox(this._leadingParts);
+var _e=this._computeArrayBoundingBox(this._trailingParts);
+var _f={};
+if(this.orientation=="horizontal"){
+_f.x=_d.x+_d.w;
+_f.y=0;
+_f.w=this._widgetBox.w-_d.w-_e.w;
+_f.h=this._widgetBox.h;
+}else{
+_f.x=0;
+_f.y=_d.y+_d.h;
+_f.w=this._widgetBox.w;
+_f.h=this._widgetBox.h-_d.h-_e.h;
+}
+this._layoutInfos={leading:_d,middle:_f,trailing:_e};
+for(i=0;i<this._middleParts.length;i++){
+this._middleParts[i]._gfxGroup.setTransform([_3.translate(_f.x,_f.y)]);
+}
+if(this._trailingParts){
+for(i=0;i<this._trailingParts.length;i++){
+this._trailingParts[i]._gfxGroup.setTransform(_3.translate(this._widgetBox.w-_e.w,0));
+}
+}
+for(i=0;i<this._classParts.length;i++){
+this._elementsRenderers[this._classParts[i]._name]=this._classParts[i].refreshRendering();
+}
+}});
+});

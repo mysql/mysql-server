@@ -97,40 +97,37 @@ D	Duesseldorf	City	98765	Hafen
 K	Koeln	West	76543	Rhein
 O	Oldenburg	Mitte	87654	Deich
 S	Stuttgart	Nord	65432	Fernsehturm
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C of default:
+Here are the memcached results with D,B,H,C of default:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
 Cottbus|West
-Here the memcached results with D,B,H,C of t1:
+Here are the memcached results with D,B,H,C of t1:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
 Cottbus|West
-Here the memcached results with D,B,H,C of t2:
+Here are the memcached results with D,B,H,C of t2:
 D|Dortmund
 B|Bremen
 H|Hannover
 C|Celle
-Here the memcached results with D,B,H,A of t3:
+Here are the memcached results with D,B,H,A of t3:
 Detmold|D
 Aachen|A
 Bonn|B
 Hameln|H
-Here the memcached results with D,O,K,S of t5:
+Here are the memcached results with D,O,K,S of t5:
 Duesseldorf|City|98765|Hafen
 Oldenburg|Mitte|87654|Deich
 Koeln|West|76543|Rhein
 Stuttgart|Nord|65432|Fernsehturm
-Here the memcached results with Z,B,H,M of t4:
+Here are the memcached results with Z,B,H,M of t4:
 Zossen|City|12345
 Brandenburg|Mitte|23456
 Husum|Nord|45678
 Muenchen|West|34567
-Here the memcached results with D,B,H,C of t2:
+Here are the memcached results with D,B,H,C of t2:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -161,17 +158,17 @@ D	Duesseldorf	City	98765	Hafen
 K	Koeln	West	76543	Rhein
 O	Oldenburg	Mitte	87654	Deich
 S	Stuttgart	Nord	65432	Fernsehturm
-Here the memcached results after set in default:
+Here are the memcached results after set in default:
 Essen|Ost
-Here the memcached results after set in t2:
+Here are the memcached results after set in t2:
 Es|Essen
-Here the memcached results after set in t5:
+Here are the memcached results after set in t5:
 Essen|Mitte|111111|Mahlzeit
-Here the memcached results after set in t3:
+Here are the memcached results after set in t3:
 Essen|Ost
-Here the memcached results after set in t4:
+Here are the memcached results after set in t4:
 Essen|Mitte|111111
-Here the memcached results after set in t5:
+Here are the memcached results after set in t5:
 Essen|Aussen|111111|Mahlzeit
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21

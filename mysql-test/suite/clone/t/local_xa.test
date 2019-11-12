@@ -1,0 +1,94 @@
+# Test clone with different table types with debug sync
+
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Found 1 prepared XA transactions");
+
+## Install plugin
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+## Create test schema
+--source ../include/create_schema.inc
+
+call execute_dml(0, 0, 10, 10, 1, 0);
+commit;
+
+--echo ## Test: Clone with XA transactions
+
+--echo # In connection con1 - Start XA prepare
+connect (con1,localhost,root,,);
+
+XA start 'xa_trx_1';
+update t1 set col2 = 100;
+XA end 'xa_trx_1';
+
+SET DEBUG_SYNC = 'xa_block_clone SIGNAL start_clone WAIT_FOR resume_xa_1';
+--send XA prepare 'xa_trx_1'
+
+connection default;
+--echo # In connection default - Start Cloning database
+SET DEBUG_SYNC = 'now WAIT_FOR start_clone';
+SET DEBUG_SYNC = 'clone_wait_xa SIGNAL resume_xa_1';
+SET DEBUG_SYNC = 'clone_block_xa SIGNAL resume_xa_2 WAIT_FOR resume_clone';
+--source ../include/clone_command_send.inc
+
+--echo # In connection con1 - Finish XA prepare, Start XA commit
+connection con1;
+--reap
+SET DEBUG_SYNC = 'now WAIT_FOR resume_xa_2';
+SET DEBUG_SYNC = 'xa_wait_clone SIGNAL resume_clone';
+--send XA commit 'xa_trx_1'
+
+connection default;
+--echo # In connection default - Finish Cloning database
+--reap
+
+--echo # In connection con1 - Finish XA Commit
+connection con1;
+--reap
+
+connection default;
+--echo # In connection default
+disconnect con1;
+
+SELECT count(*) from t1;
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1;
+
+--echo # Restart cloned database
+--replace_result $CLONE_DATADIR CLONE_DATADIR
+--let restart_parameters="restart: --datadir=$CLONE_DATADIR"
+--source include/restart_mysqld.inc
+
+# Check table in cloned database
+SHOW CREATE TABLE t1;
+SELECT count(*) from t1;
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1;
+
+XA recover;
+XA commit 'xa_trx_1';
+
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1;
+
+# Execute procedure to delete all rows and insert
+call execute_dml(3, 0, 1, 1, 1, 0);
+call execute_dml(0, 0, 10, 10, 1, 0);
+
+SELECT count(*) from t1;
+SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t1 ORDER BY col1;
+
+# Restart and Remove cloned directory
+--let restart_parameters="restart:"
+--source include/restart_mysqld.inc
+--force-rmdir $CLONE_DATADIR
+
+# Cleanup
+--source ../include/drop_schema.inc
+
+UNINSTALL PLUGIN clone;
+SET DEBUG_SYNC = 'RESET';
+
+--source include/wait_until_count_sessions.inc

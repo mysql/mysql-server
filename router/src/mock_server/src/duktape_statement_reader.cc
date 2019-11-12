@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ struct DuktapeStatementReader::Pimpl {
 
   std::unique_ptr<Response> get_ok(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
 
     return std::unique_ptr<Response>(new OkResponse(
@@ -201,7 +201,7 @@ struct DuktapeStatementReader::Pimpl {
 
   std::unique_ptr<Response> get_error(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
 
     return std::unique_ptr<Response>(new ErrorResponse(
@@ -213,12 +213,12 @@ struct DuktapeStatementReader::Pimpl {
   std::unique_ptr<Response> get_result(duk_idx_t idx) {
     std::unique_ptr<ResultsetResponse> response(new ResultsetResponse);
     if (!duk_is_object(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
     duk_get_prop_string(ctx, idx, "columns");
 
     if (!duk_is_array(ctx, idx)) {
-      throw std::runtime_error("expect a object");
+      throw std::runtime_error("expect an object");
     }
     // iterate over the column meta
     duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
@@ -329,6 +329,25 @@ duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
   return duk_pcall_method(ctx, 0);
 }
 
+static duk_int_t process_get_keys(duk_context *ctx) {
+  duk_push_global_stash(ctx);
+  duk_get_prop_string(ctx, -1, "shared");
+  auto *shared_globals =
+      static_cast<MockServerGlobalScope *>(duk_get_pointer(ctx, -1));
+
+  duk_push_array(ctx);
+  size_t ndx{0};
+  for (const auto &key : shared_globals->get_keys()) {
+    duk_push_lstring(ctx, key.data(), key.size());
+    duk_put_prop_index(ctx, -2, ndx++);
+  }
+
+  duk_remove(ctx, -2);  // 'shared' pointer
+  duk_remove(ctx, -2);  // global stash
+
+  return 1;
+}
+
 static duk_int_t process_get_shared(duk_context *ctx) {
   const char *key = duk_require_string(ctx, 0);
 
@@ -347,6 +366,22 @@ static duk_int_t process_get_shared(duk_context *ctx) {
     duk_push_lstring(ctx, value.c_str(), value.size());
     duk_json_decode(ctx, -1);
   }
+
+  duk_remove(ctx, -2);  // 'shared' pointer
+  duk_remove(ctx, -2);  // global stash
+
+  return 1;
+}
+
+static duk_int_t process_erase(duk_context *ctx) {
+  const char *key = duk_require_string(ctx, 0);
+
+  duk_push_global_stash(ctx);
+  duk_get_prop_string(ctx, -1, "shared");
+  auto *shared_globals =
+      static_cast<MockServerGlobalScope *>(duk_get_pointer(ctx, -1));
+
+  duk_push_int(ctx, shared_globals->erase(key));
 
   duk_remove(ctx, -2);  // 'shared' pointer
   duk_remove(ctx, -2);  // global stash
@@ -399,6 +434,61 @@ class ScopeGuard {
   std::function<void()> undo_func_;
 };
 
+static void check_stmts_section(duk_context *ctx) {
+  duk_get_prop_string(ctx, -1, "stmts");
+  if (!(duk_is_callable(ctx, -1) || duk_is_thread(ctx, -1) ||
+        duk_is_array(ctx, -1))) {
+    throw std::runtime_error(
+        "expected 'stmts' to be one of callable, thread or array, "
+        "got " +
+        duk_get_type_names(ctx, -1));
+  }
+  duk_pop(ctx);
+}
+
+static bool check_notices_section(duk_context *ctx) {
+  duk_get_prop_string(ctx, -1, "notices");
+  bool has_notices = !duk_is_null_or_undefined(ctx, -1);
+  if (has_notices && (!(duk_is_callable(ctx, -1) || duk_is_thread(ctx, -1) ||
+                        duk_is_array(ctx, -1)))) {
+    throw std::runtime_error(
+        "expected 'notices' to be one of callable, thread or array, "
+        "got " +
+        duk_get_type_names(ctx, -1));
+  }
+  duk_pop(ctx);
+
+  return has_notices;
+}
+
+static void check_handshake_section(duk_context *ctx) {
+  duk_get_prop_string(ctx, -1, "handshake");
+  if (!duk_is_undefined(ctx, -1)) {
+    if (!duk_is_object(ctx, -1)) {
+      throw std::runtime_error("handshake must be an object, if set. Is " +
+                               duk_get_type_names(ctx, -1));
+    }
+    duk_get_prop_string(ctx, -1, "greeting");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_object(ctx, -1)) {
+        throw std::runtime_error(
+            "handshake.greeting must be an object, if set. Is " +
+            duk_get_type_names(ctx, -1));
+      }
+      duk_get_prop_string(ctx, -1, "exec_time");
+      if (!duk_is_undefined(ctx, -1)) {
+        if (!duk_is_number(ctx, -1)) {
+          throw std::runtime_error("exec_time must be a number, if set. Is " +
+                                   duk_get_type_names(ctx, -1));
+        }
+      }
+      duk_pop(ctx);
+    }
+    duk_pop(ctx);
+  }
+  duk_pop(ctx);
+}
+
 DuktapeStatementReader::DuktapeStatementReader(
     const std::string &filename, const std::string &module_prefix,
     std::map<std::string, std::string> session_data,
@@ -436,6 +526,12 @@ DuktapeStatementReader::DuktapeStatementReader(
   duk_push_c_function(ctx, process_set_shared, 2);
   duk_put_prop_string(ctx, -2, "set_shared");
 
+  duk_push_c_function(ctx, process_get_keys, 0);
+  duk_put_prop_string(ctx, -2, "get_keys");
+
+  duk_push_c_function(ctx, process_erase, 1);
+  duk_put_prop_string(ctx, -2, "erase");
+
   duk_pop(ctx);
 
   // mysqld = {
@@ -461,12 +557,26 @@ DuktapeStatementReader::DuktapeStatementReader(
       duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
                           "function () {\n"
                           "  return new Proxy({}, {\n"
-                          "    get: function(targ, key, recv) {return "
-                          "process.get_shared(key);},\n"
-                          "    set: function(targ, key, val, recv) {return "
-                          "process.set_shared(key, val);}\n"
+                          "    ownKeys: function(target) {\n"
+                          "      process.get_keys().forEach(function(el) {\n"
+                          "        Object.defineProperty(\n"
+                          "          target, el, {\n"
+                          "            configurable: true,\n"
+                          "            enumerable: true});\n"
+                          "      });\n"
+                          "      return Object.keys(target);\n"
+                          "    },\n"
+                          "    get: function(target, key, recv) {\n"
+                          "      return process.get_shared(key);},\n"
+                          "    set: function(target, key, val, recv) {\n"
+                          "      return process.set_shared(key, val);},\n"
+                          "    deleteProperty: function(target, prop) {\n"
+                          "      if (process.erase(prop) > 0) {\n"
+                          "        delete target[prop];\n"
+                          "      }\n"
+                          "    },\n"
                           "  });\n"
-                          "}")) {
+                          "}\n")) {
     throw DuktapeRuntimeError(ctx, -1);
   }
   if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
@@ -487,42 +597,10 @@ DuktapeStatementReader::DuktapeStatementReader(
         duk_get_type_names(ctx, -1));
   }
 
-  // check if 'stmt's has the right type
-  duk_get_prop_string(ctx, -1, "stmts");
-  if (!(duk_is_callable(ctx, -1) || duk_is_thread(ctx, -1) ||
-        duk_is_array(ctx, -1))) {
-    throw std::runtime_error(
-        "expected 'stmts' to be one of callable, thread or array, "
-        "got " +
-        duk_get_type_names(ctx, -1));
-  }
-  duk_pop(ctx);
-
-  duk_get_prop_string(ctx, -1, "handshake");
-  if (!duk_is_undefined(ctx, -1)) {
-    if (!duk_is_object(ctx, -1)) {
-      throw std::runtime_error("handshake must be a object, if set. Is " +
-                               duk_get_type_names(ctx, -1));
-    }
-    duk_get_prop_string(ctx, -1, "greeting");
-    if (!duk_is_undefined(ctx, -1)) {
-      if (!duk_is_object(ctx, -1)) {
-        throw std::runtime_error(
-            "handshake.greeting must be a object, if set. Is " +
-            duk_get_type_names(ctx, -1));
-      }
-      duk_get_prop_string(ctx, -1, "exec_time");
-      if (!duk_is_undefined(ctx, -1)) {
-        if (!duk_is_number(ctx, -1)) {
-          throw std::runtime_error("exec_time must be a number, if set. Is " +
-                                   duk_get_type_names(ctx, -1));
-        }
-      }
-      duk_pop(ctx);
-    }
-    duk_pop(ctx);
-  }
-  duk_pop(ctx);
+  // check if the sections have the right types
+  check_stmts_section(ctx);
+  has_notices_ = check_notices_section(ctx);
+  check_handshake_section(ctx);
 
   // we are still alive, dismiss the guard
   pimpl_->ctx = ctx;
@@ -564,14 +642,14 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_init(
   duk_get_prop_string(ctx, -1, "handshake");
   if (!duk_is_undefined(ctx, -1)) {
     if (!duk_is_object(ctx, -1)) {
-      throw std::runtime_error("handshake must be a object, if set. Is " +
+      throw std::runtime_error("handshake must be an object, if set. Is " +
                                duk_get_type_names(ctx, -1));
     }
     duk_get_prop_string(ctx, -1, "greeting");
     if (!duk_is_undefined(ctx, -1)) {
       if (!duk_is_object(ctx, -1)) {
         throw std::runtime_error(
-            "handshake.greeting must be a object, if set. Is " +
+            "handshake.greeting must be an object, if set. Is " +
             duk_get_type_names(ctx, -1));
       }
       duk_get_prop_string(ctx, -1, "exec_time");
@@ -803,6 +881,105 @@ StatementResponse DuktapeStatementReader::handle_statement(
 
 std::chrono::microseconds DuktapeStatementReader::get_default_exec_time() {
   return std::chrono::microseconds{0};
+}
+
+std::vector<AsyncNotice> DuktapeStatementReader::get_async_notices() {
+  std::vector<AsyncNotice> result;
+
+  if (!has_notices_) return result;
+
+  auto *ctx = pimpl_->ctx;
+  duk_get_prop_string(ctx, -1, "notices");
+
+  if (!duk_is_array(ctx, -1)) {
+    duk_pop(ctx);
+    throw std::runtime_error("notices has to be an array!");
+  }
+  duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
+
+  if (!duk_is_object(ctx, -1)) {  // enumarator is an object
+    duk_pop_n(ctx, 2);
+    throw std::runtime_error(
+        "expected 'notices' enumerator to be an object, got " +
+        duk_get_type_names(ctx, -1));
+  }
+
+  while (0 != duk_next(ctx, -1, true)) {
+    if (!duk_is_object(ctx, -1)) {
+      duk_pop_n(ctx, 4);
+      throw std::runtime_error("expected 'notice' to return an 'object', got " +
+                               duk_get_type_names(ctx, -1));
+    }
+
+    AsyncNotice notice;
+
+    duk_get_prop_string(ctx, -1, "send_offset");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_number(ctx, -1)) {
+        throw std::runtime_error("send_offset must be a number, if set, got " +
+                                 duk_get_type_names(ctx, -1));
+      }
+
+      if (duk_get_number(ctx, -1) < 0) {
+        duk_pop(ctx);
+        throw std::out_of_range("send_offset must be a non-negative number");
+      }
+      // send_offset is written in the tracefile as milliseconds
+      notice.send_offset_ms =
+          std::chrono::milliseconds(static_cast<long>(duk_get_number(ctx, -1)));
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_string(ctx, -1, "type");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_number(ctx, -1)) {
+        throw std::runtime_error("type must be a number, if set, got " +
+                                 duk_get_type_names(ctx, -1));
+      }
+
+      if (duk_get_number(ctx, -1) < 0) {
+        duk_pop(ctx);
+        throw std::out_of_range("id must be a non-negative number");
+      }
+      notice.type = static_cast<unsigned>(duk_get_number(ctx, -1));
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_string(ctx, -1, "scope");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_string(ctx, -1)) {
+        throw std::runtime_error("scope must be a string, if set, got " +
+                                 duk_get_type_names(ctx, -1));
+      }
+
+      const std::string scope = duk_get_string(ctx, -1);
+      if (scope == "LOCAL" || scope == "") {
+        notice.is_local = true;
+      } else if (scope == "GLOBAL") {
+        notice.is_local = false;
+      } else {
+        throw std::runtime_error("scope must be LOCAL or GLOBAL was: '" +
+                                 scope + "'");
+      }
+    }
+    duk_pop(ctx);
+
+    duk_get_prop_string(ctx, -1, "payload");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_object(ctx, -1)) {
+        throw std::runtime_error("payload must be an object, if set, got " +
+                                 duk_get_type_names(ctx, -1));
+      }
+
+      notice.payload = duk_json_encode(ctx, -1);
+    }
+    duk_pop_n(ctx, 3);
+    result.push_back(notice);
+  }
+
+  duk_pop_n(ctx, 2);
+
+  return result;
 }
 
 }  // namespace server_mock

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/log.h"
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/src/xpl_error.h"
 
 #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
@@ -74,6 +74,10 @@ void Session::on_close(const bool update_old_state) {
     m_state = k_closing;
     m_client->on_session_close(*this);
   }
+}
+
+void Session::set_proto(Protocol_encoder_interface *encode) {
+  m_encoder = encode;
 }
 
 // Code below this line is executed from the worker thread
@@ -146,9 +150,10 @@ bool Session::handle_auth_message(Message_request &command) {
     if (!m_auth_handler.get()) {
       log_debug("%s.%u: Invalid authentication method %s",
                 m_client->client_id(), m_id, authm.mech_name().c_str());
-      m_encoder->send_init_error(Fatal(ER_NOT_SUPPORTED_AUTH_MODE,
-                                       "Invalid authentication method %s",
-                                       authm.mech_name().c_str()));
+      m_encoder->send_error(
+          Fatal(ER_NOT_SUPPORTED_AUTH_MODE, "Invalid authentication method %s",
+                authm.mech_name().c_str()),
+          true);
       stop_auth();
       return true;
     } else {
@@ -167,7 +172,7 @@ bool Session::handle_auth_message(Message_request &command) {
     log_debug(
         "%s: Unexpected message of type %i received during authentication",
         m_client->client_id(), type);
-    m_encoder->send_init_error(Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
+    m_encoder->send_error(Fatal(ER_X_BAD_MESSAGE, "Invalid message"), true);
     stop_auth();
     return false;
   }
@@ -216,7 +221,7 @@ void Session::on_auth_failure(
   error_send_back_to_user.severity =
       can_authenticate_again() ? Error_code::ERROR : Error_code::FATAL;
 
-  m_encoder->send_init_error(error_send_back_to_user);
+  m_encoder->send_error(error_send_back_to_user, true);
 
   // It is possible to use different auth methods therefore we should not
   // stop authentication in such case.

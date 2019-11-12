@@ -1,4 +1,4 @@
-create temporary table t1_temp(i int) engine=myisam;
+create temporary table t1_temp(i int);
 create procedure p2(i int) begin end;
 create function f2_temp() returns int
 begin

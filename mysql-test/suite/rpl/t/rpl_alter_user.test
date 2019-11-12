@@ -167,6 +167,53 @@ SELECT USER();
 --echo [connection master]
 DROP USER '11544_u1'@'localhost';
 
+
+#
+# WL11772 CREATE USER WITH RANDOM PASSWORD
+#
+#
+--let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+
+--connection master
+--echo * Create a new user with random password
+--let $sql= "CREATE USER u1@localhost IDENTIFIED BY RANDOM PASSWORD"
+--let $passwd= query_get_value( $sql, "generated password", 1)
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,,SSL)
+--echo [connection slave]
+SELECT CURRENT_USER();
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+--echo * Set random password using SET PASSWORD
+--let $sql= "SET PASSWORD FOR u1@localhost TO RANDOM"
+--let $passwd= query_get_value($sql, "generated password", 1)
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,,SSL)
+--echo [connection slave]
+SELECT CURRENT_USER();
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+--echo * Set random password using ALTER USER
+--let $sql= "ALTER USER u1@localhost IDENTIFIED BY RANDOM PASSWORD"
+--let $passwd= query_get_value($sql, "generated password", 1)
+--source include/sync_slave_sql_with_master.inc
+--connect(slave_con1, localhost, u1, $passwd, test, $SLAVE_MYPORT,, SSL)
+--echo [connection slave]
+SELECT CURRENT_USER();
+--connection master
+--echo [connection master]
+--disconnect slave_con1
+DROP USER u1@localhost;
+
+--echo * Check the binlog contents on the master
+--let $binlog_start= $saved_master_pos
+--let $binlog_limit= 100
+--let $mask_user_password_events=1
+--source include/show_binlog_events.inc
+--let $mask_user_password_events=0
+
 #Restore the old sql_mode at the master and the slave
 --connection slave
 SET @@session.sql_mode= @old_sql_mode_slave;

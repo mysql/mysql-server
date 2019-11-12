@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -252,7 +252,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   uint full_length =
       key_length + (nod_flag ? nod_flag : info->s->base.rec_reflength);
   int max_keys = (mi_getint(page) - 2) / (full_length);
-  DBUG_ENTER("rtree_split_page");
+  DBUG_TRACE;
   DBUG_PRINT("rtree", ("splitting block"));
 
   n_dim = keyinfo->keysegs / 2;
@@ -260,7 +260,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   if (!(coord_buf = (double *)my_alloca(n_dim * 2 * sizeof(double) *
                                             (max_keys + 1 + 4) +
                                         sizeof(SplitStruct) * (max_keys + 1))))
-    DBUG_RETURN(-1); /* purecov: inspected */
+    return -1; /* purecov: inspected */
 
   task = (SplitStruct *)(coord_buf + n_dim * 2 * (max_keys + 1 + 4));
 
@@ -319,5 +319,5 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong)*new_page_offs));
 
 split_err:
-  DBUG_RETURN(err_code);
+  return err_code;
 }

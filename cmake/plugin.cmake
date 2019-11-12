@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,23 +37,6 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # DEFAULT     : builtin as static by default
 # MODULE_ONLY : build only as shared library
 
-# Append collections files for the plugin to the common files
-# Make sure we don't copy twice if running cmake again
-
-MACRO(PLUGIN_APPEND_COLLECTIONS plugin)
-  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
-  IF(NOT EXISTS ${fcopied})
-    FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
-    FOREACH(cfile ${collections})
-      FILE(READ ${cfile} contents)
-      GET_FILENAME_COMPONENT(fname ${cfile} NAME)
-      FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname} "${contents}")
-      FILE(APPEND ${fcopied} "${fname}\n")
-      MESSAGE(STATUS "Appended ${cfile}")
-    ENDFOREACH()
-  ENDIF()
-ENDMACRO()
-
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
@@ -61,10 +44,6 @@ MACRO(MYSQL_ADD_PLUGIN)
     ${ARGN}
   )
   
-  # Add common include directories
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
-
   LIST(GET ARG_DEFAULT_ARGS 0 plugin) 
   SET(SOURCES ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT SOURCES 0)
@@ -136,7 +115,7 @@ MACRO(MYSQL_ADD_PLUGIN)
   SET(BUILD_PLUGIN 1)
   # Build either static library or module
   IF (WITH_${plugin} AND NOT ARG_MODULE_ONLY)
-    ADD_CONVENIENCE_LIBRARY(${target} STATIC ${SOURCES})
+    ADD_LIBRARY(${target} STATIC ${SOURCES})
     SET_TARGET_PROPERTIES(${target}
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
 
@@ -152,11 +131,11 @@ MACRO(MYSQL_ADD_PLUGIN)
       ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
 
     IF(ARG_MANDATORY)
-      SET(${with_var} ON CACHE INTERNAL "Link ${plugin} statically to the server" 
-       FORCE)
+      SET(${with_var} ON CACHE INTERNAL
+        "Link ${plugin} statically to the server" FORCE)
     ELSE()	
-      SET(${with_var} ON CACHE BOOL "Link ${plugin} statically to the server" 
-       FORCE)
+      SET(${with_var} ON CACHE BOOL
+        "Link ${plugin} statically to the server" FORCE)
     ENDIF()
 
     SET(THIS_PLUGIN_REFERENCE " builtin_${target}_plugin,")
@@ -173,7 +152,7 @@ MACRO(MYSQL_ADD_PLUGIN)
         PARENT_SCOPE)
     ENDIF()
 
-  ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT DISABLE_SHARED)
+  ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY)
     IF(NOT ARG_MODULE_OUTPUT_NAME)
       IF(ARG_STORAGE_ENGINE)
         SET(ARG_MODULE_OUTPUT_NAME "ha_${target}")
@@ -187,7 +166,8 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
     IF(WIN32_CLANG AND WITH_ASAN)
-      TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+      TARGET_LINK_LIBRARIES(${target}
+        "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
     IF(NOT ARG_CLIENT_ONLY)
       TARGET_LINK_LIBRARIES (${target} mysqlservices)
@@ -208,11 +188,11 @@ MACRO(MYSQL_ADD_PLUGIN)
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 
-     IF(NOT ARG_MODULE_ONLY)
+    IF(NOT ARG_MODULE_ONLY)
       # set cached variable, e.g with checkbox in GUI
       SET(${with_var} OFF CACHE BOOL "Link ${plugin} statically to the server" 
-       FORCE)
-     ENDIF()
+        FORCE)
+    ENDIF()
     SET_TARGET_PROPERTIES(${target} PROPERTIES 
       OUTPUT_NAME "${ARG_MODULE_OUTPUT_NAME}")  
 
@@ -241,7 +221,7 @@ MACRO(MYSQL_ADD_PLUGIN)
         SET(INSTALL_COMPONENT Test)
       ENDIF()
       IF(LINUX_INSTALL_RPATH_ORIGIN)
-        SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
+        ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
       ENDIF()
       MYSQL_INSTALL_TARGETS(${target}
         DESTINATION ${INSTALL_PLUGINDIR}
@@ -249,10 +229,6 @@ MACRO(MYSQL_ADD_PLUGIN)
       INSTALL_DEBUG_TARGET(${target}
         DESTINATION ${INSTALL_PLUGINDIR}/debug
         COMPONENT ${INSTALL_COMPONENT})
-      # For internal testing in PB2, append collections files
-      IF(DEFINED ENV{PB2WORKDIR})
-        PLUGIN_APPEND_COLLECTIONS(${plugin})
-      ENDIF()
     ENDIF()
   ELSE()
     IF(WITHOUT_${plugin})
@@ -275,9 +251,7 @@ ENDMACRO()
 # subdirectories, configure sql_builtin.cc
 MACRO(CONFIGURE_PLUGINS)
   FILE(GLOB dirs_storage ${CMAKE_SOURCE_DIR}/storage/*)
-  IF(NOT DISABLE_SHARED)
-    FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)
-  ENDIF()
+  FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)
   
   FOREACH(dir ${dirs_storage} ${dirs_plugin})
     IF (EXISTS ${dir}/CMakeLists.txt)

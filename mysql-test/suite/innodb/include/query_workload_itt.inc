@@ -35,11 +35,14 @@ select a from t7 group by b order by sum(a);
 #
 # a select with join and sql_big_result(only can work with group by or distinct)
 explain format = json select sql_big_result distinct * from t1, t2;
+--sorted_result
 select sql_big_result distinct * from t1, t2;
 explain format = json select sql_big_result t1.b from t1, t2 group by t1.b;
+--sorted_result
 select sql_big_result t1.b from t1, t2 group by t1.b;
-explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.b;
-select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
+--sorted_result
+select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
 
 #
 # a select with join and sorting
@@ -70,6 +73,7 @@ select distinct t1.a from t1, t2 where  t1.b = t2.b;
 #
 # remove_dup_with_hash_index
 explain format = json select distinct a from t1 group by b,a;
+--sorted_result
 select distinct a from t1 group by b,a;
 
 #
@@ -77,7 +81,9 @@ select distinct a from t1 group by b,a;
 set @old_sort_buffer_size = @@sort_buffer_size;
 set @@sort_buffer_size = 32804;
 explain format = json select distinct b from t3 group by a having count(*) > 1;
+--sorted_result
 select distinct b from t3 group by a having count(*) > 1;
+--sorted_result
 select distinct b from t3 group by a;
 set @@sort_buffer_size = @old_sort_buffer_size;
 
@@ -106,7 +112,9 @@ select * from t5;
 explain format = json select b from (select b from t5 where b > 5) tt;
 select b from (select b from t5 where b > 5) tt;
 # select with mutiple derived tables
+--sorted_result
 explain format = json select * from (select b from t1) as t1, (select b from t2) as t2;
+--sorted_result
 select * from (select b from t1) as t1, (select b from t2) as t2;
 # derived table uses 'ref' scan
 explain format = json select * from t1, (select * from t6) as t where t.a =5;

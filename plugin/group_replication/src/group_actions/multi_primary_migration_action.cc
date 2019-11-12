@@ -101,7 +101,7 @@ Multi_primary_migration_action::execute_action(
   bool action_terminated = false;
   int error = 0;
 
-  DBUG_ENTER("Multi_primary_migration_action::execute_action");
+  DBUG_TRACE;
 
   /**
     Wait for all packets in the applier module to be consumed.
@@ -185,12 +185,21 @@ Multi_primary_migration_action::execute_action(
           "the execution of the plugin queued transactions.");
       goto end;
     }
-
+    /* Member will reset read-only state if member is lowest version of the
+     * group post multi-primary mode switch. */
     if (!multi_primary_switch_aborted) {
-      if (disable_server_read_mode(PSESSION_USE_THREAD)) {
-        LogPluginErr(
-            WARNING_LEVEL,
-            ER_GRP_RPL_DISABLE_READ_ONLY_FAILED); /* purecov: inspected */
+      events_handler->disable_read_mode_for_compatible_members(true);
+    }
+  } else {
+    /* Case when 8.0.13 <> 8.0.16 member is present and 8.0.17(or greater) was
+     * primary. Post MPM switch read_only need to be set in 8.0.17 primary. */
+    if (!multi_primary_switch_aborted &&
+        Compatibility_module::check_version_incompatibility(
+            local_member_info->get_member_version(),
+            group_member_mgr->get_group_lowest_online_version()) ==
+            READ_COMPATIBLE) {
+      if (enable_server_read_mode(PSESSION_USE_THREAD)) {
+        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
       }
     }
   }
@@ -216,16 +225,16 @@ end:
                          mode_is_set);
 
   if ((!multi_primary_switch_aborted && !error) || action_terminated)
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_TERMINATED);
+    return Group_action::GROUP_ACTION_RESULT_TERMINATED;
 
   if (action_killed) {
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_KILLED);
+    return Group_action::GROUP_ACTION_RESULT_KILLED;
   }
   if (error) {
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ERROR);
+    return Group_action::GROUP_ACTION_RESULT_ERROR;
   }
 
-  DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ABORTED);
+  return Group_action::GROUP_ACTION_RESULT_ABORTED;
 }
 
 bool Multi_primary_migration_action::stop_action_execution(bool killed) {

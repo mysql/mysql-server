@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -378,9 +378,9 @@ static lock_t *lock_prdt_add_to_queue(
                               the new lock will be on */
 {
   ut_ad(lock_mutex_own());
-  ut_ad(trx->owns_mutex == trx_mutex_own(trx));
   ut_ad(!index->is_clustered() && !dict_index_is_online_ddl(index));
   ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
+  ut_ad(!trx_mutex_own(trx));
 
 #ifdef UNIV_DEBUG
   switch (type_mode & LOCK_MODE_MASK) {
@@ -394,24 +394,11 @@ static lock_t *lock_prdt_add_to_queue(
 
   type_mode |= LOCK_REC;
 
-  /* Look for a waiting lock request on the same record or on a gap */
-
-  lock_t *lock;
-
-  for (lock = lock_rec_get_first_on_page(lock_hash_get(type_mode), block);
-       lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
-    if (lock_get_wait(lock) && lock_rec_get_nth_bit(lock, PRDT_HEAPNO) &&
-        lock->type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE)) {
-      break;
-    }
-  }
-
-  if (lock == NULL && !(type_mode & LOCK_WAIT)) {
+  if (!(type_mode & LOCK_WAIT)) {
     /* Look for a similar record lock on the same page:
-    if one is found and there are no waiting lock requests,
-    we can just set the bit */
+    if one is found we can just set the bit */
 
-    lock = lock_prdt_find_on_page(type_mode, block, prdt, trx);
+    lock_t *lock = lock_prdt_find_on_page(type_mode, block, prdt, trx);
 
     if (lock != NULL) {
       if (lock->type_mode & LOCK_PREDICATE) {
@@ -424,7 +411,11 @@ static lock_t *lock_prdt_add_to_queue(
 
   RecLock rec_lock(index, block, PRDT_HEAPNO, type_mode);
 
-  return (rec_lock.create(trx, true, prdt));
+  trx_mutex_enter(trx);
+  auto *created_lock = (rec_lock.create(trx, true, prdt));
+  trx_mutex_exit(trx);
+
+  return (created_lock);
 }
 
 /** Checks if locks of other transactions prevent an immediate insert of
@@ -494,6 +485,8 @@ dberr_t lock_prdt_insert_check_and_lock(
   if (wait_for != NULL) {
     rtr_mbr_t *mbr = prdt_get_mbr_from_prdt(prdt);
 
+    trx_mutex_enter(trx);
+
     /* Allocate MBR on the lock heap */
     lock_init_prdt_from_mbr(prdt, mbr, 0, trx->lock.lock_heap);
 
@@ -501,13 +494,7 @@ dberr_t lock_prdt_insert_check_and_lock(
 
     /* Note that we may get DB_SUCCESS also here! */
 
-    trx_mutex_enter(trx);
-
-    trx->owns_mutex = true;
-
     err = rec_lock.add_to_waitq(wait_for, prdt);
-
-    trx->owns_mutex = false;
 
     trx_mutex_exit(trx);
 
@@ -609,16 +596,9 @@ static void lock_prdt_update_split_low(
     /* First dealing with Page Lock */
     if (lock->type_mode & LOCK_PRDT_PAGE) {
       /* Duplicate the lock to new page */
-      trx_mutex_enter(lock->trx);
-
-      lock->trx->owns_mutex = true;
 
       lock_prdt_add_to_queue(lock->type_mode, new_block, lock->index, lock->trx,
                              NULL);
-
-      lock->trx->owns_mutex = false;
-
-      trx_mutex_exit(lock->trx);
 
       continue;
     }
@@ -640,30 +620,16 @@ static void lock_prdt_update_split_low(
       if (!lock_prdt_consistent(lock_prdt, new_prdt, op,
                                 lock->index->rtr_srs.get())) {
         /* Move the lock to new page */
-        trx_mutex_enter(lock->trx);
-
-        lock->trx->owns_mutex = true;
 
         lock_prdt_add_to_queue(lock->type_mode, new_block, lock->index,
                                lock->trx, lock_prdt);
-
-        lock->trx->owns_mutex = false;
-
-        trx_mutex_exit(lock->trx);
       }
     } else if (!lock_prdt_consistent(lock_prdt, new_prdt, op,
                                      lock->index->rtr_srs.get())) {
       /* Duplicate the lock to new page */
-      trx_mutex_enter(lock->trx);
-
-      lock->trx->owns_mutex = true;
 
       lock_prdt_add_to_queue(lock->type_mode, new_block, lock->index, lock->trx,
                              lock_prdt);
-
-      lock->trx->owns_mutex = false;
-
-      trx_mutex_exit(lock->trx);
     }
   }
 
@@ -750,15 +716,13 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
   if (lock == NULL) {
     RecLock rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
+    trx_mutex_enter(trx);
     lock = rec_lock.create(trx, true);
+    trx_mutex_exit(trx);
 
     status = LOCK_REC_SUCCESS_CREATED;
 
   } else {
-    trx_mutex_enter(trx);
-
-    trx->owns_mutex = true;
-
     if (lock_rec_get_next_on_page(lock) || lock->trx != trx ||
         lock->type_mode != (LOCK_REC | prdt_mode) ||
         lock_rec_get_n_bits(lock) == 0 ||
@@ -775,7 +739,9 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
         if (wait_for != NULL) {
           RecLock rec_lock(thr, index, block, PRDT_HEAPNO, prdt_mode, prdt);
 
+          trx_mutex_enter(trx);
           err = rec_lock.add_to_waitq(wait_for);
+          trx_mutex_exit(trx);
 
         } else {
           lock_prdt_add_to_queue(prdt_mode, block, index, trx, prdt);
@@ -784,15 +750,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
         }
       }
 
-      trx->owns_mutex = false;
-
-      trx_mutex_exit(trx);
-
     } else {
-      trx->owns_mutex = false;
-
-      trx_mutex_exit(trx);
-
       if (!lock_rec_get_nth_bit(lock, PRDT_HEAPNO)) {
         lock_rec_set_nth_bit(lock, PRDT_HEAPNO);
         status = LOCK_REC_SUCCESS_CREATED;
@@ -858,7 +816,9 @@ dberr_t lock_place_prdt_page_lock(
     RecID rec_id(space, page_no, PRDT_HEAPNO);
     RecLock rec_lock(index, rec_id, mode);
 
+    trx_mutex_enter(trx);
     rec_lock.create(trx, true);
+    trx_mutex_exit(trx);
 
 #ifdef PRDT_DIAG
     printf("GIS_DIAGNOSTIC: page lock %d\n", (int)page_no);
@@ -940,7 +900,10 @@ void lock_prdt_page_free_from_discard(const buf_block_t *block,
   while (lock != NULL) {
     next_lock = lock_rec_get_next_on_page(lock);
 
+    trx_t *trx = lock->trx;
+    trx_mutex_enter(trx);
     lock_rec_discard(lock);
+    trx_mutex_exit(trx);
 
     lock = next_lock;
   }

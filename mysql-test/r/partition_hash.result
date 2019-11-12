@@ -16,6 +16,9 @@ PARTITION p3 VALUES LESS THAN (1308787200),
 PARTITION p4 VALUES LESS THAN (1308873600),
 PARTITION p5 VALUES LESS THAN (1308960000)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1308614400,18446744073709551615),
 (1308700800,0xFFFFFFFFFFFFFFFE),
@@ -166,17 +169,17 @@ explain select * from t1 where a < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
 explain select * from t1 where a is null or (a >= 5 and a <= 7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2,p3	ALL	NULL	NULL	NULL	NULL	7	23.81	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or ((`test`.`t1`.`a` >= 5) and (`test`.`t1`.`a` <= 7)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` is null) or ((`test`.`t1`.`a` >= 5) and (`test`.`t1`.`a` <= 7)))
 explain select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where isnull(`test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` is null)
 explain select * from t1 where a is not null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	9	88.89	Using where

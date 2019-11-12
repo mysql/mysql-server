@@ -1,4 +1,3 @@
-//>>built
 define("dojox/uuid/generateRandomUuid", ['./_base'], function(){
 
 dojox.uuid.generateRandomUuid = function(){

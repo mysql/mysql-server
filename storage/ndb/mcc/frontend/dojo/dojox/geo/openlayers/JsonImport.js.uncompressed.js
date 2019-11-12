@@ -1,59 +1,64 @@
-//>>built
-define("dojox/geo/openlayers/JsonImport", ["dojo/_base/kernel",
-				"dojo/_base/declare",
-				"dojo/_base/xhr",
-				"dojo/_base/lang",
-				"dojo/_base/array",
-				"dojox/geo/openlayers/LineString",
-				"dojox/geo/openlayers/Collection",
-				"dojo/data/ItemFileReadStore",
-				"dojox/geo/openlayers/GeometryFeature"], function(dojo, declare, xhr, lang, array, LineString, Collection,
-																													ItemFileReadStore, GeometryFeature){
+define("dojox/geo/openlayers/JsonImport", [
+	"dojo/_base/declare",
+	"dojo/_base/xhr",
+	"dojo/_base/lang",
+	"dojo/_base/array",
+	"./LineString",
+	"./Collection",
+	"./GeometryFeature"
+], function(declare, xhr, lang, array, LineString, Collection, GeometryFeature){
+
+	/*=====
+	dojox.geo.openlayers.__JsonImportArgs = {
+		// summary:
+		//		The keyword arguments that can be passed in a JsonImport constructor.
+		// url: String
+		//		The url pointing to the JSON file to load.
+		// nextFeature: function
+		//		The function called each time a feature is read. The function is called with a GeometryFeature as argument.
+		// error: function
+		//		Error callback called if something fails.
+	};
+	=====*/
 
 	return declare("dojox.geo.openlayers.JsonImport", null, {
-		//	summary:
+		// summary:
 		//		Class to load JSON formated ShapeFile as output of the JSon Custom Map Converter.
-		//	description:
+		// description:
 		//		This class loads JSON formated ShapeFile produced by the JSon Custom Map Converter.
 		//		When loading the JSON file, it calls a iterator function each time a feature is read.
 		//		This iterator function is provided as parameter to the constructor.
 		//
-		constructor : function(/* Object */params){
-			//	summary:
+		constructor : function(params){
+			// summary:
 			//		Construct a new JSON importer.
-			//	description:
-			//		Construct a new JSON importer with the specified parameters. These parameters are
-			//		passed through an Object and include:
-			//	<ul>
-			//		<li> url : <em>url</em> </li> The url pointing to the JSON file to load.
-			//		<li> nextFeature : <em>function</em> </li> The function called each time a feature is read.
-			//		The function is called with a GeometryFeature as argument.
-			//		<li> error : <em>function</em> </li> Error function called if something goes wrong.
-			//	</ul>
+			// params: dojox.geo.openlayers.__JsonImportArgs
+			//		The parameters to initialize this JsonImport instance.
 			this._params = params;
 		},
 
-		loadData : function(){
-			//	summary:
+		loadData: function(){
+			// summary:
 			//		Triggers the loading.
 			var p = this._params;
 			xhr.get({
-				url : p.url,
-				handleAs : "json",
-				sync : true,
-				load : lang.hitch(this, this._gotData),
-				error : lang.hitch(this, this._loadError)
+				url: p.url,
+				handleAs: "json",
+				sync: true,
+				load: lang.hitch(this, this._gotData),
+				error: lang.hitch(this, this._loadError)
 			});
 		},
 
-		_gotData : function(/* Object */items){
-			//	summary:
+		_gotData: function(/* Object */items){
+			// summary:
 			//		Called when loading is complete.
-			//	tags:
+			// tags:
 			//		private
 			var nf = this._params.nextFeature;
-			if (!lang.isFunction(nf))
+			if(!lang.isFunction(nf)){
 				return;
+			}
 
 			var extent = items.layerExtent;
 			var ulx = extent[0];
@@ -74,11 +79,11 @@ define("dojox/geo/openlayers/JsonImport", ["dojo/_base/kernel",
 
 			var features = items.features;
 
-			for ( var f in features) {
+			for( var f in features){
 				var o = features[f];
 				var s = o["shape"];
 				var gf = null;
-				if (lang.isArray(s[0])) {
+				if(lang.isArray(s[0])){
 
 					var a = new Array();
 					array.forEach(s, function(item){
@@ -89,25 +94,26 @@ define("dojox/geo/openlayers/JsonImport", ["dojo/_base/kernel",
 					gf = new GeometryFeature(g);
 					nf.call(this, gf);
 
-				} else {
+				}else{
 					gf = this._makeFeature(s, ulx, uly, lrx, lry, ulxLL, ulyLL, lrxLL, lryLL);
 					nf.call(this, gf);
 				}
 			}
 			var complete = this._params.complete;
-			if (lang.isFunction(complete))
+			if(lang.isFunction(complete)){
 				complete.call(this, complete);
+			}
 		},
 
-		_makeGeometry : function(/* Array */s, /* Float */ulx, /* Float */uly, /* Float */lrx, /* Float */
+		_makeGeometry: function(/* Array */s, /* Float */ulx, /* Float */uly, /* Float */lrx, /* Float */
 		lry, /* Float */ulxLL, /* Float */ulyLL, /* Float */lrxLL, /* Float */lryLL){
-			//	summary:
+			// summary:
 			//		Make a geometry with the specified points.
-			//	tags:
+			// tags:
 			//		private
 			var a = [];
 			var k = 0.0;
-			for ( var i = 0; i < s.length - 1; i += 2) {
+			for( var i = 0; i < s.length - 1; i += 2){
 				var x = s[i];
 				var y = s[i + 1];
 
@@ -118,34 +124,35 @@ define("dojox/geo/openlayers/JsonImport", ["dojo/_base/kernel",
 				var py = k * (lryLL - ulyLL) + ulyLL;
 
 				a.push({
-					x : px,
-					y : py
+					x: px,
+					y: py
 				});
 
 			}
 			var ls = new LineString(a);
-			return ls;
+			return ls; // LineString
 		},
 
-		_makeFeature : function(/* Array */s, /* Float */ulx, /* Float */uly, /* Float */lrx, /* Float */
+		_makeFeature: function(/* Array */s, /* Float */ulx, /* Float */uly, /* Float */lrx, /* Float */
 		lry, /* Float */ulxLL, /* Float */ulyLL, /* Float */lrxLL, /* Float */lryLL){
-			//	summary:
+			// summary:
 			//		Make a GeometryFeature with the specified points.
-			//	tags:
+			// tags:
 			//		private
 			var ls = this._makeGeometry(s, ulx, uly, lrx, lry, ulxLL, ulyLL, lrxLL, lryLL);
 			var gf = new GeometryFeature(ls);
 			return gf;
 		},
 
-		_loadError : function(){
-			//	summary:
+		_loadError: function(){
+			// summary:
 			//		Called when an error occurs. Calls the error function is provided in the parameters.
-			//	tags:
+			// tags:
 			//		private
 			var f = this._params.error;
-			if (lang.isFunction(f))
+			if(lang.isFunction(f)){
 				f.apply(this, parameters);
+			}
 		}
 	});
 });

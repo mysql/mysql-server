@@ -1,0 +1,125 @@
+# Variable: innodb_redo_log_archive_dirs
+# Default : NULL
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Save variable
+SET @innodb_redo_log_archive_dirs_sav= @@global.innodb_redo_log_archive_dirs;
+
+## Show default value
+SELECT @@global.innodb_redo_log_archive_dirs;
+
+## Valid cases
+## Syntax: semi-colon separated list of labeled path names.
+## Path names are not checked when the variable is set.
+#
+SET @@global.innodb_redo_log_archive_dirs="label1:/dir1";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+SET @@global.innodb_redo_log_archive_dirs="label1:/dir1;label2:dir2";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## A single trailing semi-colon is allowed.
+#
+SET @@global.innodb_redo_log_archive_dirs="label1:/dir1;";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+SET @@global.innodb_redo_log_archive_dirs="label1:dir1;label2:/dir2;";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Label can be empty, but colon must exist.
+#
+SET @@global.innodb_redo_log_archive_dirs=":/dir1";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Labels are not checked for uniqueness. Nor are path names.
+#
+SET @@global.innodb_redo_log_archive_dirs=":dir1;:dir1";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Label can contain every character, but colon. Example label ";;;".
+#
+SET @@global.innodb_redo_log_archive_dirs=";;;:/dir1";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Path can contain every character, but semi-colon. Example path ":::".
+#
+SET @@global.innodb_redo_log_archive_dirs="label::::";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Example: Two times in a row label ";;;", path ":::", trailing semi-colon.
+#
+SET @@global.innodb_redo_log_archive_dirs=";;;::::;;;;::::;";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Variable can be empty.
+#
+SET @@global.innodb_redo_log_archive_dirs="";
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Variable can be NULL.
+#
+SET @@global.innodb_redo_log_archive_dirs=NULL;
+SELECT @@global.innodb_redo_log_archive_dirs;
+#
+## Variable can be persisted.
+#
+SET PERSIST innodb_redo_log_archive_dirs="label1:/dir1";
+SELECT @@global.innodb_redo_log_archive_dirs;
+RESET PERSIST innodb_redo_log_archive_dirs;
+
+## Invalid cases
+--error ER_GLOBAL_VARIABLE
+SET innodb_redo_log_archive_dirs="label1:/dir1";
+--error ER_GLOBAL_VARIABLE
+SET @@local.innodb_redo_log_archive_dirs="label1:/dir1";
+--error ER_GLOBAL_VARIABLE
+SET @@innodb_redo_log_archive_dirs="label1:/dir1";
+--error ER_GLOBAL_VARIABLE
+SET @@session.innodb_redo_log_archive_dirs="label1:/dir1";
+
+## Invalid cases
+# Label missing
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_redo_log_archive_dirs="/dir1";
+## Path missing.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_redo_log_archive_dirs=":";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_redo_log_archive_dirs="l1:";
+# (Second) Label missing
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_redo_log_archive_dirs=":d1;;";
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_redo_log_archive_dirs=":d1;d2";
+# (Second) Path missing
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_redo_log_archive_dirs="l1:d1;l2:";
+# (Second) Path missing
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.innodb_redo_log_archive_dirs="l1:d1;l2:;";
+
+# Repeated execution of SET @@global.innodb_redo_log_archive_dirs
+--disable_warnings
+DROP PROCEDURE IF EXISTS test.innodb_redo_log_archive_dirs;
+--enable_warnings
+DELIMITER |;
+CREATE PROCEDURE test.innodb_redo_log_archive_dirs (IN start BIGINT, IN nam CHAR(20))
+BEGIN
+  DECLARE CONTINUE HANDLER FOR 13178 SET @x2 = 1;
+  SET @idx=start;
+  SET @n=nam;
+  WHILE (@idx > 0) DO
+    SET @s=CONCAT("SET @@global.innodb_redo_log_archive_dirs='1:../www/",@n,@idx,"'");
+    Prepare stmt from @s;
+    Execute stmt;
+    SET @@global.innodb_redo_log_archive_dirs="";
+    SET @idx = @idx - 1;
+  END WHILE;
+END|
+DELIMITER ;|
+CALL test.innodb_redo_log_archive_dirs(100,'s');
+DROP PROCEDURE test.innodb_redo_log_archive_dirs;
+
+## Restore variable
+SET @@global.innodb_redo_log_archive_dirs= @innodb_redo_log_archive_dirs_sav;

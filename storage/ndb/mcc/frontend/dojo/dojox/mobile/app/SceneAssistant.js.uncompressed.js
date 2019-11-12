@@ -1,12 +1,11 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/SceneAssistant", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/SceneAssistant", ["dojo","dijit","dojox"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app.SceneAssistant");
 dojo.experimental("dojox.mobile.app.SceneAssistant");
 
 dojo.declare("dojox.mobile.app.SceneAssistant", null, {
 	// summary:
-	//    The base class for all scene assistants.
+	//		The base class for all scene assistants.
 
 	constructor: function(){
 
@@ -14,25 +13,25 @@ dojo.declare("dojox.mobile.app.SceneAssistant", null, {
 
 	setup: function(){
 		// summary:
-		//    Called to set up the widget.  The UI is not visible at this time
+		//		Called to set up the widget.  The UI is not visible at this time
 
 	},
 
 	activate: function(params){
 		// summary:
-		//    Called each time the scene becomes visible.  This can be as a result
-		//    of a new scene being created, or a subsequent scene being destroyed
-		//    and control transferring back to this scene assistant.
+		//		Called each time the scene becomes visible.  This can be as a result
+		//		of a new scene being created, or a subsequent scene being destroyed
+		//		and control transferring back to this scene assistant.
 		// params:
-		//    Optional paramters, only passed when a subsequent scene pops itself
-		//    off the stack and passes back data.
+		//		Optional parameters, only passed when a subsequent scene pops itself
+		//		off the stack and passes back data.
 	},
 
 	deactivate: function(){
 		// summary:
-		//    Called each time the scene becomes invisible.  This can be as a result
-		//    of it being popped off the stack and destroyed,
-		//    or another scene being created and pushed on top of it on the stack
+		//		Called each time the scene becomes invisible.  This can be as a result
+		//		of it being popped off the stack and destroyed,
+		//		or another scene being created and pushed on top of it on the stack
 	},
 
 	destroy: function(){

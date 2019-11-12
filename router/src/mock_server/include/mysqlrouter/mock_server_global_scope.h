@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,11 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <vector>
 
+/**
+ * stores global data as pair of <string, jsonfied-string>
+ */
 class MockServerGlobalScope {
  public:
   using key_type = std::string;
@@ -36,18 +40,35 @@ class MockServerGlobalScope {
   using type = std::map<key_type, value_type>;
 
   type get_all() {
-    std::lock_guard<std::mutex> foo(global_mutex_);
+    std::lock_guard<std::mutex> lk(global_mutex_);
     return global_;
   }
 
+  std::vector<key_type> get_keys() {
+    std::lock_guard<std::mutex> lk(global_mutex_);
+
+    std::vector<key_type> keys;
+    for (const auto &k : global_) {
+      keys.emplace_back(k.first);
+    }
+
+    return keys;
+  }
+
   void set(const key_type &key, const value_type &value) {
-    std::lock_guard<std::mutex> foo(global_mutex_);
+    std::lock_guard<std::mutex> lk(global_mutex_);
 
     global_[key] = value;
   }
 
+  size_t erase(const key_type &key) {
+    std::lock_guard<std::mutex> lk(global_mutex_);
+
+    return global_.erase(key);
+  }
+
   void reset(type globals) {
-    std::lock_guard<std::mutex> foo(global_mutex_);
+    std::lock_guard<std::mutex> lk(global_mutex_);
     global_ = globals;
   }
 

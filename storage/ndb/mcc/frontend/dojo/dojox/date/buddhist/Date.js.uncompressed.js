@@ -1,14 +1,10 @@
-//>>built
 define("dojox/date/buddhist/Date", [
-	"dojo/_base/kernel",
+	"dojo/_base/lang",
 	"dojo/_base/declare",
 	"dojo/date"
-], function(dojo, declare, dd){
+], function(lang, declare, dd){
 
-dojo.getObject("date.buddhist.Date", true, dojox);
-dojo.experimental("dojox.date.buddhist.Date");
-
-dojo.declare("dojox.date.buddhist.Date", null, {
+var BDate = declare("dojox.date.buddhist.Date", null, {
 
 	_date: 0,
 	_month: 0,
@@ -20,16 +16,15 @@ dojo.declare("dojox.date.buddhist.Date", null, {
 	_day: 0,
 
  	constructor: function(){
-		// summary: This is the constructor
+		// summary:
+		//		This is the constructor
 		// description:
-		//	This fucntion initialize the date object values
-		//
+		//		This function initialize the date object values
 		// example:
-		// |		var date1 = new dojox.date.buddhist.Date();
-		// |
-		// |		var date2 = new dojox.date.buddhist.Date(date1);
-		// |
-		// |		var date3 = new dojox.date.buddhist.Date(2552,2,12);
+		//	|	var date1 = new dojox.date.buddhist.Date();
+		//	|	var date2 = new dojox.date.buddhist.Date(date1);
+		//	|	var date3 = new dojox.date.buddhist.Date(2552,2,12);
+
 		var len = arguments.length;
 		if(!len){// use the current date value, added "" to the similarity to date
 			this.fromGregorian(new Date());
@@ -69,61 +64,63 @@ dojo.declare("dojox.date.buddhist.Date", null, {
 	},
 	
 	getDate: function(/*boolean?*/isNumber){
-		// summary: This function returns the date value (0 - 30)
-		//
+		// summary:
+		//		This function returns the date value (0 - 30)
 		// example:
-		// |		var date1 = new dojox.date.buddhist.Date();
-		// |
-		// |		console.log(date1.getDate());
+		//	|	var date1 = new dojox.date.buddhist.Date();
+		//	|	console.log(date1.getDate());
 		return parseInt(this._date);
 	},
 
 	getMonth: function(){
-		// summary: This function return the month value ( 0 - 11 )
-		//
+		// summary:
+		//		This function return the month value ( 0 - 11 )
 		// example:
-		// |		var date1 = new dojox.date.buddhist.Date();
-		// |
-		// |		console.log(date1.getMonth()+1);
+		//	|	var date1 = new dojox.date.buddhist.Date();
+		//	|	console.log(date1.getMonth()+1);
 		return parseInt(this._month);
 	},
 
 
 	getFullYear: function(){
-		// summary: This function return the Year value
-		//
+		// summary:
+		//		This function return the Year value
 		// example:
-		// |		var date1 = new dojox.date.buddhist.Date();
-		// |
-		// |		console.log(date1.getFullYear());
+		//	|	var date1 = new dojox.date.buddhist.Date();
+		//	|	console.log(date1.getFullYear());
 		return parseInt(this._year);
 	},
 			
 	getHours: function(){
-		//summary: returns the Hour value
+		// summary:
+		//		returns the Hour value
 		return this._hours;
 	},
 		
 	getMinutes: function(){
-		//summary: returns the Minuites value
+		// summary:
+		//		returns the Minutes value
 		return this._minutes;
 	},
 
 	getSeconds: function(){
-		//summary: returns the seconde value
+		// summary:
+		//		returns the Seconds value
 		return this._seconds;
 	},
 
 	getMilliseconds: function(){
-		//summary: returns the Milliseconds value
+		// summary:
+		//		returns the Milliseconds value
 		return this._milliseconds;
 	},
 
 	setDate: function(/*number*/date){
-		// summary: This function sets the Date
+		// summary:
+		//		This function sets the Date
 		// example:
-		// |		var date1 = new dojox.date.buddhist.Date();
-		// |		date1.setDate(2);
+		//	|	var date1 = new dojox.date.buddhist.Date();
+		//	|	date1.setDate(2);
 		date = parseInt(date);
 
 		if(date > 0 && date <= this._getDaysInMonth(this._month, this._year)){
@@ -155,28 +152,29 @@ dojo.declare("dojox.date.buddhist.Date", null, {
 	},
 	
 	setFullYear: function(/*number*/year, /*number?*/month, /*number?*/ date){
-		// summary: This function set Year
-		//
+		// summary:
+		//		This function set Year
 		// example:
-		// |		var date1 = new dojox.date.buddhist.Date();
-		// |		date1.setFullYear(2552);
-		// |		date1.setFullYear(2552, 1, 1);
+		//	|	var date1 = new dojox.date.buddhist.Date();
+		//	|	date1.setFullYear(2552);
+		//	|	date1.setFullYear(2552, 1, 1);
 		this._year = parseInt(year);
 	},
 			
 	setMonth: function(/*number*/month){
-		// summary: This function set Month
-		//
+		// summary:
+		//		This function set Month
 		// example:
-		// |		var date1 = new dojox.date.buddhist.Date();
-		// |		date1.setMonth(0); //first month
+		//	|	var date1 = new dojox.date.buddhist.Date();
+		//	|	date1.setMonth(0); //first month
 		this._year += Math.floor(month / 12);
 		this._month = Math.floor(month % 12);
 		for(; this._month < 0; this._month = this._month+12);
 	},
 			
 	setHours: function(){
-		//summary: set the Hours  0-23
+		// summary:
+		//		set the Hours  0-23
 		var hours_arg_no = arguments.length;
 		var hours = 0;
 		if(hours_arg_no >= 1){
@@ -230,13 +228,15 @@ dojo.declare("dojox.date.buddhist.Date", null, {
 	},
 
 	setMinutes: function(/*Number*/minutes){
-		//summary: sets the minutes (0-59) only.
+		// summary:
+		//		sets the minutes (0-59) only.
 		this._minutes = minutes % 60;
 		return this;
 	},
 
 	setSeconds: function(/*Number*/seconds){
-		//summary: sets the seconds (0-59) only.
+		// summary:
+		//		sets the seconds (0-59) only.
 		this._seconds = seconds % 60;
 		return this;
 	},
@@ -247,8 +247,10 @@ dojo.declare("dojox.date.buddhist.Date", null, {
 	},
 
 	toString: function(){
-		// summary: This returns a string representation of the date in "dd, MM, YYYY HH:MM:SS" format
-		return this._date + ", " + this._month + ", " + this._year + "  " + this._hours + ":" + this._minutes + ":" + this._seconds; // String
+		// summary:
+		//		This returns a string representation of the date in "dd, MM, YYYY HH:MM:SS" format
+		return isNaN(this._date)?"Invalid Date":
+			this._date + ", " + this._month + ", " + this._year + "  " + this._hours + ":" + this._minutes + ":" + this._seconds; // String
 	},
 
 //FIXME: remove this and replace usage with dojox.date.buddhist.getDaysInMonth?
@@ -257,7 +259,8 @@ dojo.declare("dojox.date.buddhist.Date", null, {
 	},
 
 	fromGregorian: function(/*Date*/gdate){
-		// summary: This function sets this Date to the Hebrew Date corresponding to the Gregorian Date
+		// summary:
+		//		This function sets this Date to the Hebrew Date corresponding to the Gregorian Date
 		var date = new Date(gdate);
 		this._date = date.getDate();
 		this._month = date.getMonth();
@@ -271,19 +274,21 @@ dojo.declare("dojox.date.buddhist.Date", null, {
 	},
 
 	toGregorian: function(){
-		// summary: This returns the equivalent Gregorian date value as a Date object
+		// summary:
+		//		This returns the equivalent Gregorian date value as a Date object
 		return new Date(this._year-543, this._month, this._date, this._hours, this._minutes, this._seconds, this._milliseconds); // Date
 	},
 	
 	getDay: function(){
-		// summary: This function return Week Day value ( 0 - 6 )
+		// summary:
+		//		This function return Week Day value ( 0 - 6 )
 		return this.toGregorian().getDay(); // int
 	}
 });
 
-dojox.date.buddhist.Date.prototype.valueOf = function(){
+BDate.prototype.valueOf = function(){
 	return this.toGregorian().valueOf();
 };
 
-return dojox.date.buddhist.Date;
+return BDate;
 });

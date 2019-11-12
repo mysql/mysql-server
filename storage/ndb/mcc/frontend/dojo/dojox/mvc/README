@@ -9,6 +9,7 @@ Project state: experimental (code and API subject to change in future releases)
 Credits:
        Rahul Akolkar (original author)
        Ed Chatelain
+       Akira Sudoh
        Charlie Wiecha
 
 -------------------------------------------------------------------------------
@@ -26,7 +27,7 @@ This project is useful across form factors. For example, it may be used with
 dijit as well as dojox.mobile.
 
 We begin by introducing a first-class client-side data model based on
-dojo.Stateful and extending Dojo Form widgets with support for the
+dojo/Stateful and extending Dojo Form widgets with support for the
 Model-View-Control (MVC) pattern key to separating data from presentation in
 user interface design. This basic MVC pattern allows for the flexible reuse of
 each of the Model, View, and Control artifacts by application authors in
@@ -41,8 +42,8 @@ such as:
 
 For more, see descriptive class documentation at the top of the following
 files:
-dojox/mvc/StatefulModel.js
-dojox/mvc/_DataBindingMixin.js
+dojox/mvc/at.js
+dojox/mvc/sync.js
 
 For an introductory page on the included samples, see:
 dojox/mvc/tests/mvc_index.html
@@ -53,8 +54,8 @@ dojox/mvc/tests/mobile/demo/demo.html
 -------------------------------------------------------------------------------
 Dependencies:
 
-    Dojo Core (base, dojo.Stateful)
-    Dijit (dijit._WidgetBase, dijit.form.*)
+    Dojo Core (base, dojo/Stateful)
+    Dijit (dijit/_WidgetBase, dijit/form.*)
 
 -------------------------------------------------------------------------------
 Documentation:
@@ -75,7 +76,7 @@ Install into the following directory structure:
 
 ...which should be at the same level as your Dojo checkout.
 
-then dojo.require("dojox.mvc") in your application to load basic support for
+then add the requires for the "dojox/mvc/at" or one of the other "dojox/mvc/xxx" classes in your application to load support for
 data bindings. Other components (such as MVC containers i.e. Group, Repeat)
 should be required as per application need.
 

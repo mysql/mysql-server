@@ -45,6 +45,9 @@
 SET @debug_saved= @@GLOBAL.DEBUG;
 # Cause the member to broadcast and compare himself using a higher version
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_major_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
 
 --source include/start_group_replication.inc
 

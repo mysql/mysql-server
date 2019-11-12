@@ -1,11 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-hueLabel: "n",
-saturationLabel: "m",
-valueLabel: "l", /* aka intensity or brightness */
-huePickerTitle: "Välj färgton",
-saturationPickerTitle: "Välj mättnad"
-})
-);
+define("dojox/widget/nls/sv/ColorPicker",({redLabel:"r",greenLabel:"g",blueLabel:"b",hueLabel:"n",saturationLabel:"m",valueLabel:"k",degLabel:"°",hexLabel:"hex",huePickerTitle:"Nyans",saturationPickerTitle:"Mättnad"}));

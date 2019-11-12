@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_show.h>
 #include <sql_table.h>
 #include <sql_tablespace.h>
+#include <regex>
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -553,7 +554,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
     }
   }
 
-  DBUG_EXECUTE_IF("dd_upgrade_srict_mode", ut_ad(index->type == ind_type););
+  DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(index->type == ind_type););
 
   if (index->type != ind_type) {
     ib::error(ER_IB_MSG_252) << "Index name: " << index->name
@@ -706,6 +707,14 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
           << part_table->tablespace << "'. Please move all "
           << "partitions to file-per-table tablespaces before upgrade.";
       return (true);
+    }
+
+    /* Set table id to mysql.columns at runtime */
+    if (dd_part_is_first(part_obj)) {
+      for (auto dd_column : *dd_table->table().columns()) {
+        dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
+                                         part_table->id);
+      }
     }
 
     /* Set table id */
@@ -985,7 +994,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   if (has_auto_inc) {
     ut_ad(auto_inc != UINT64_MAX);
     dd_upgrade_set_auto_inc(srv_table, dd_table, auto_inc);
-    ib_table->autoinc = auto_inc;
+    ib_table->autoinc = auto_inc == 0 ? 0 : auto_inc + 1;
   }
 
   if (dict_table_has_fts_index(ib_table)) {
@@ -1078,7 +1087,7 @@ table by DICT_MAX_DD_TABLES.
 @param[in,out]  thd             THD
 @return MySQL error code*/
 int dd_upgrade_tablespace(THD *thd) {
-  DBUG_ENTER("innobase_migrate_tablespace");
+  DBUG_TRACE;
   btr_pcur_t pcur;
   const rec_t *rec;
   mem_heap_t *heap;
@@ -1089,6 +1098,10 @@ int dd_upgrade_tablespace(THD *thd) {
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
   mutex_enter(&dict_sys->mutex);
   mtr_start(&mtr);
+
+  /* Pattern for matching the FTS auxiliary tablespace name which starts with
+  "FTS", followed by the table id. */
+  std::regex fts_regex("\\S+FTS_[a-f0-9]{16,16}_\\S+");
 
   for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES); rec != NULL;
        rec = dict_getnext_system(&pcur, &mtr)) {
@@ -1105,7 +1118,7 @@ int dd_upgrade_tablespace(THD *thd) {
     mutex_exit(&dict_sys->mutex);
     std::string tablespace_name(name);
 
-    if (!err_msg && (tablespace_name.find("FTS") == std::string::npos)) {
+    if (!err_msg && !regex_search(tablespace_name, fts_regex)) {
       // Fill the dictionary object here
       DBUG_EXECUTE_IF("dd_upgrade",
                       ib::info(ER_IB_MSG_264)
@@ -1165,7 +1178,7 @@ int dd_upgrade_tablespace(THD *thd) {
           if (df.open_read_only(false) != DB_SUCCESS) {
             mem_heap_free(heap);
             btr_pcur_close(&pcur);
-            DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+            return HA_ERR_TABLESPACE_MISSING;
           }
           df.close();
         }
@@ -1177,7 +1190,7 @@ int dd_upgrade_tablespace(THD *thd) {
       if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
                                          &upgrade_space)) {
         mem_heap_free(heap);
-        DBUG_RETURN(HA_ERR_GENERIC);
+        return HA_ERR_GENERIC;
       }
 
     } else {
@@ -1203,7 +1216,7 @@ int dd_upgrade_tablespace(THD *thd) {
   for (auto space : missing_spaces) {
     std::string tablespace_name(space->name);
     /* FTS tablespaces will be registered later */
-    if (tablespace_name.find("FTS") != std::string::npos) {
+    if (regex_search(tablespace_name, fts_regex)) {
       continue;
     }
     std::string new_tablespace_name;
@@ -1227,13 +1240,13 @@ int dd_upgrade_tablespace(THD *thd) {
     if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
                                        &upgrade_space)) {
       mem_heap_free(heap);
-      DBUG_RETURN(HA_ERR_GENERIC);
+      return HA_ERR_GENERIC;
     }
   }
 
   mem_heap_free(heap);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /** Add server version number to tablespace while upgrading.
@@ -1293,7 +1306,7 @@ first 256 table_ids are reserved for dictionary.
 @return MySQL error code*/
 int dd_upgrade_logs(THD *thd) {
   int error = 0; /* return zero for success */
-  DBUG_ENTER("innobase_upgrade_engine_logs");
+  DBUG_TRACE;
 
   mtr_t mtr;
   mtr.start();
@@ -1312,7 +1325,7 @@ int dd_upgrade_logs(THD *thd) {
 
   log_buffer_flush_to_disk();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /** Drop all InnoDB Dictionary tables (SYS_*). This is done only at
@@ -1358,6 +1371,60 @@ static void dd_upgrade_drop_sys_tables() {
   mutex_exit(&dict_sys->mutex);
 }
 
+/** Drop all InnoDB stats backup tables (innodb_*_stats_backup57). This is done
+ * only at the end of successful upgrade */
+static void dd_upgrade_drop_stats_backup_tables() {
+  ut_ad(srv_is_upgrade_mode);
+
+  space_id_t space_id_index_stats =
+      fil_space_get_id_by_name("mysql/innodb_index_stats_backup57");
+  space_id_t space_id_table_stats =
+      fil_space_get_id_by_name("mysql/innodb_table_stats_backup57");
+  char *index_stats_filepath = fil_space_get_first_path(space_id_index_stats);
+  char *table_stats_filepath = fil_space_get_first_path(space_id_table_stats);
+
+  trx_t *trx = trx_allocate_for_mysql();
+
+  if (space_id_index_stats != SPACE_UNKNOWN) {
+    dberr_t err;
+
+    err = fil_close_tablespace(trx, space_id_index_stats);
+    if (err != DB_SUCCESS) {
+      ib::info(ER_IB_MSG_227)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
+    }
+
+    if (!fil_delete_file(index_stats_filepath)) {
+      ib::info(ER_IB_MSG_990)
+          << "Failed to delete the datafile '" << index_stats_filepath << "'!";
+    }
+    ut_free(index_stats_filepath);
+  }
+
+  if (space_id_table_stats != SPACE_UNKNOWN) {
+    dberr_t err;
+
+    err = fil_close_tablespace(trx, space_id_table_stats);
+    if (err != DB_SUCCESS) {
+      ib::info(ER_IB_MSG_228)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
+    }
+
+    if (!fil_delete_file(table_stats_filepath)) {
+      ib::info(ER_IB_MSG_990)
+          << "Failed to delete the datafile '" << table_stats_filepath << "'!";
+    }
+    ut_free(table_stats_filepath);
+  }
+
+  trx_commit_for_mysql(trx);
+  trx_free_for_mysql(trx);
+}
+
 /** Rename back the FTS AUX tablespace names from 8.0 format to 5.7
 format on upgrade failure, else mark FTS aux tables evictable
 @param[in]	failed_upgrade		true on upgrade failure, else
@@ -1390,7 +1457,7 @@ sets storage engine for rollback any changes.
 @param[in]	failed_upgrade	true when upgrade failed
 @return MySQL error code*/
 int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
-  DBUG_ENTER("innobase_finish_se_upgrade");
+  DBUG_TRACE;
 
   dd_upgrade_fts_rename_cleanup(failed_upgrade);
 
@@ -1406,11 +1473,14 @@ int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
 
     /* Flush entire buffer pool. */
     buf_flush_sync_all_buf_pools();
+
+    /* Close and delete the backup stats tables */
+    dd_upgrade_drop_stats_backup_tables();
   }
 
   tables_with_fts.clear();
   tables_with_fts.shrink_to_fit();
   srv_is_upgrade_mode = false;
 
-  DBUG_RETURN(0);
+  return 0;
 }

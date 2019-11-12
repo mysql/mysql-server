@@ -24,6 +24,8 @@ b
 c
 drop table t1;
 create table t1 (a char(3) binary, b binary(3)) character set cp1251;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values ('aaa','bbb'),('AAA','BBB');
 select upper(a),upper(b) from t1;
 upper(a)	upper(b)
@@ -59,6 +61,8 @@ a varchar(16) character set cp1251 collate cp1251_bin not null,
 b int(10) default null,
 primary key(a)
 ) charset=cp1251;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (a) values ('air'),
 ('we'),('g'),('we_toshko'), ('s0urce'),('we_ivo'),('we_iliyan'),
 ('we_martin'),('vw_grado'),('vw_vasko'),('tn_vili'),('tn_kalina'),
@@ -70,17 +74,6 @@ we_ivo	NULL
 we_martin	NULL
 we_toshko	NULL
 drop table t1;
-CREATE TABLE t1 (
-e1 enum('ябълка'),
-e2 enum('мляко')
-) ENGINE=MYISAM character set cp1251;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `e1` enum('ябълка') DEFAULT NULL,
-  `e2` enum('мляко') DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=cp1251
-DROP TABLE t1;
 #
 # Start of 5.1 tests
 #
@@ -1161,16 +1154,28 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(21) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
+create table t2 ( f1 integer );
+insert into t2 values (1),(2),(3),(4);
+select sql_calc_found_rows * from t2 limit 2;
+f1
+1
+2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select hex(concat(found_rows()));
 hex(concat(found_rows()))
-30
+34
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 create table t1 as select concat(found_rows()) as c1;
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(21) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-drop table t1;
+drop table t1, t2;
 create table t1 as select concat(uuid_short()) as c1;
 show create table t1;
 Table	Create Table
@@ -1469,7 +1474,7 @@ create table t1 as select concat(ifnull(1.1,1.1)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(5) CHARACTER SET cp1251 DEFAULT NULL
+  `c1` varchar(4) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(if(1,'b',1));
@@ -1773,7 +1778,7 @@ create table t1 as select concat(year(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) CHARACTER SET cp1251 DEFAULT NULL
+  `c1` varchar(5) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(weekday(20090224)));
@@ -2260,6 +2265,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a tinyint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2268,6 +2275,9 @@ hex(concat(a))	a
 313030	100
 drop table t1;
 create table t1 (a tinyint(4) zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1), (10), (100);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2300,6 +2310,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a smallint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2322,6 +2334,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a mediumint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2344,6 +2358,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a int zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2366,6 +2382,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a bigint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2391,6 +2409,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a float zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2416,6 +2436,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 create table t1 (a double zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 select hex(concat(a)), a from t1;
 hex(concat(a))	a
@@ -2545,6 +2567,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a tinyint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2558,6 +2582,9 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a tinyint(30) zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1), (10), (100);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2593,6 +2620,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a smallint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2619,6 +2648,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a mediumint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2645,6 +2676,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a int zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2671,6 +2704,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a bigint zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1), (10), (100), (1000), (10000);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2697,6 +2732,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a float zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2726,6 +2763,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a double zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 insert into t1 values (1.1), (10.1), (100.1), (1000.1), (10000.1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -2982,156 +3021,6 @@ SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 cp1251	cp1251_general_ci
 #
-# Bug#54916 GROUP_CONCAT + IFNULL truncates output
-#
-SELECT @@collation_connection;
-@@collation_connection
-cp1251_general_ci
-CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
-INSERT INTO t1 VALUES (1234567);
-SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
-GROUP_CONCAT(IFNULL(a,''))
-1234567
-SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
-GROUP_CONCAT(IF(a,a,''))
-1234567
-SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
-GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END)
-1234567
-SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					COALESCE(a,'')	253	9	7	Y	0	31	51
-COALESCE(a,'')
-1234567
-# All columns must be VARCHAR(9) with the same length:
-CREATE TABLE t2 AS
-SELECT
-CONCAT(a),
-IFNULL(a,''),
-IF(a,a,''),
-CASE WHEN a THEN a ELSE '' END,
-COALESCE(a,'')
-FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `CONCAT(a)` varchar(9) CHARACTER SET cp1251 DEFAULT NULL,
-  `IFNULL(a,'')` varchar(9) CHARACTER SET cp1251 NOT NULL DEFAULT '',
-  `IF(a,a,'')` varchar(9) CHARACTER SET cp1251 DEFAULT NULL,
-  `CASE WHEN a THEN a ELSE '' END` varchar(9) CHARACTER SET cp1251 DEFAULT NULL,
-  `COALESCE(a,'')` varchar(9) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `CONCAT_WS(1,2,3)` varchar(3) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT INSERT(1133,3,0,22) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `INSERT(1133,3,0,22)` varchar(6) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT LCASE(a) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `LCASE(a)` varchar(9) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT UCASE(a) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `UCASE(a)` varchar(9) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT REPEAT(1,2) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `REPEAT(1,2)` varchar(2) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT LEFT(123,2) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `LEFT(123,2)` varchar(2) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT RIGHT(123,2) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `RIGHT(123,2)` varchar(2) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT LTRIM(123) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `LTRIM(123)` varchar(3) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT RTRIM(123) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `RTRIM(123)` varchar(3) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT ELT(1,111,222,333) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `ELT(1,111,222,333)` varchar(3) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT REPLACE(111,2,3) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `REPLACE(111,2,3)` varchar(3) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT SUBSTRING_INDEX(111,111,1) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `SUBSTRING_INDEX(111,111,1)` varchar(3) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT MAKE_SET(111,222,3) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `MAKE_SET(111,222,3)` varchar(5) CHARACTER SET cp1251 NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `SOUNDEX(1)` varchar(4) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT EXPORT_SET(1,'ST_Y','N','',8);
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `EXPORT_SET(1,'ST_Y','N','',8)` varchar(256) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-DROP TABLE t1;
-#
-# End of Bug#54916
-#
-#
 # WL#5510 Functions to_base64 and from_base64
 #
 CREATE TABLE t1 AS SELECT TO_BASE64('test') AS to_base64;
@@ -3164,6 +3053,8 @@ CREATE TABLE t1 (
 id INT(11) DEFAULT NULL,
 date_column DATE DEFAULT NULL,
 KEY(date_column));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text

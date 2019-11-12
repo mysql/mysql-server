@@ -1,25 +1,28 @@
-//>>built
-define("dojox/fx/ext-dojo/NodeList-style", ["dojo/_base/lang", "dojo/_base/NodeList","dojo/NodeList-fx", "dojo/fx", "../style"],
-	function(lang, NodeList, NodeListFx, coreFx, styleX){
-// summary:
-//		Core extensions to `dojo.NodeList` providing additional fx to `dojo.NodeList-fx`
-// 		from `dojox.fx.style`
-//
-// description:
-//		A Package to extend dojo base NodeList with fx provided by the `dojox.fx` project.
-//		These are experimental animations, in an experimental
+define("dojox/fx/ext-dojo/NodeList-style", ["dojo/_base/lang", "dojo/query", "dojo/NodeList-fx", "dojo/fx", "../style"],
+	function(lang, query, NodeListFx, coreFx, styleX){
 
+/*=====
+return {
+	// summary:
+	//		Core extensions to `dojo.NodeList` providing additional fx to `dojo.NodeList-fx`
+	//		from `dojox.fx.style`
+	// description:
+	//		A Package to extend dojo base NodeList with fx provided by the `dojox.fx` project.
+	//		These are experimental animations, in an experimental
+};
+=====*/
 
-lang.extend( NodeList, {
+var NodeList = query.NodeList;
+
+lang.extend(NodeList, {
 
 	addClassFx: function(cssClass, args){
-		// 	summary:
+		// summary:
 		//		Animate the effects of adding a class to all nodes in this list.
 		//		see `dojox.fx.addClass`
-		//
-		//	tags: FX, NodeList
-		//
-		//	example:
+		// tags:
+		//		FX, NodeList
+		// example:
 		//	|	// fade all elements with class "bar" to to 50% opacity
 		//	|	dojo.query(".bar").addClassFx("bar").play();
 
@@ -32,9 +35,8 @@ lang.extend( NodeList, {
 		// summary:
 		//		Animate the effect of removing a class to all nodes in this list.
 		//		see `dojox.fx.removeClass`
-		//
-		//	tags: FX, NodeList
-		//
+		// tags:
+		//		FX, NodeList
 		// example:
 		//	| dojo.query(".box").removeClassFx("bar").play();
 
@@ -47,9 +49,8 @@ lang.extend( NodeList, {
 		// summary:
 		//		Animate the effect of adding or removing a class to all nodes in this list.
 		//		see `dojox.fx.toggleClass`
-		//
-		//	tags: FX, NodeList
-		//
+		// tags:
+		//		FX, NodeList
 		// example:
 		//	| dojo.query(".box").toggleClass("bar").play();
 

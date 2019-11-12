@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,13 @@ extern EventLogger * g_eventLogger;
 
 const
 ParserRow<MgmApiSession> commands[] = {
-  MGM_CMD("get config", &MgmApiSession::getConfig, ""),
+  MGM_CMD("get config", &MgmApiSession::getConfig_v1, ""),
+    MGM_ARG("version", Int, Mandatory, "Configuration version number"),
+    MGM_ARG("node", Int, Optional, "Node ID"),
+    MGM_ARG("nodetype", Int, Optional, "Type of requesting node"),
+    MGM_ARG("from_node", Int, Optional, "Node to get config from"),
+
+  MGM_CMD("get config_v2", &MgmApiSession::getConfig_v2, ""),
     MGM_ARG("version", Int, Mandatory, "Configuration version number"),
     MGM_ARG("node", Int, Optional, "Node ID"),
     MGM_ARG("nodetype", Int, Optional, "Type of requesting node"),
@@ -291,7 +297,12 @@ ParserRow<MgmApiSession> commands[] = {
   MGM_CMD("get session", &MgmApiSession::getSession, ""),
     MGM_ARG("id", Int, Mandatory, "SessionID"),
 
-  MGM_CMD("set config", &MgmApiSession::setConfig, ""),
+  MGM_CMD("set config", &MgmApiSession::setConfig_v1, ""),
+    MGM_ARG("Content-Length", Int, Mandatory, "Length of config"),
+    MGM_ARG("Content-Type", String, Mandatory, "Type of config"),
+    MGM_ARG("Content-Transfer-Encoding", String, Mandatory, "encoding"),
+
+  MGM_CMD("set config_v2", &MgmApiSession::setConfig_v2, ""),
     MGM_ARG("Content-Length", Int, Mandatory, "Length of config"),
     MGM_ARG("Content-Type", String, Mandatory, "Type of config"),
     MGM_ARG("Content-Transfer-Encoding", String, Mandatory, "encoding"),
@@ -580,16 +591,31 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
 }
 
 void
+MgmApiSession::getConfig_v1(Parser_t::Context &ctx,
+                            const class Properties &args)
+{
+  getConfig(ctx, args, false);
+}
+void
+MgmApiSession::getConfig_v2(Parser_t::Context &ctx,
+                            const class Properties &args)
+{
+  getConfig(ctx, args, true);
+}
+
+void
 MgmApiSession::getConfig(Parser_t::Context &,
-                         const class Properties &args)
+                         const class Properties &args,
+                         bool v2)
 {
   Uint32 nodetype = NDB_MGM_NODE_TYPE_UNKNOWN;
   Uint32 from_node = 0;
+  Uint32 node_id = 0;
 
   // Ignoring mandatory parameter "version"
-  // Ignoring optional parameter "node"
   args.get("nodetype", &nodetype);
   args.get("from_node", &from_node);
+  args.get("node", &node_id);
 
   SLEEP_ERROR_INSERTED(1);
   m_output->println("get config reply");
@@ -600,9 +626,14 @@ MgmApiSession::getConfig(Parser_t::Context &,
 
   bool success = (from_node > 0) ?
                  m_mgmsrv.get_packed_config_from_node(from_node,
-                                                      pack64, error) :
+                                                      pack64,
+                                                      error,
+                                                      v2) :
                  m_mgmsrv.get_packed_config((ndb_mgm_node_type)nodetype,
-                                            pack64, error);
+                                            pack64,
+                                            error,
+                                            v2,
+                                            node_id);
 
   if (!success)
   {
@@ -1017,6 +1048,7 @@ printNodeStatus(OutputStream *output,
       nodeGroup = 0,
       connectCount = 0;
     bool system;
+    bool is_single_user = false;
     const char *address= NULL;
     char addr_buf[NDB_ADDR_STRLEN];
 
@@ -1024,7 +1056,7 @@ printNodeStatus(OutputStream *output,
 		  &system, &dynamicId, &nodeGroup, &connectCount,
 		  &address,
                   addr_buf,
-                  sizeof(addr_buf));
+                  sizeof(addr_buf), &is_single_user);
     output->println("node.%d.type: %s",
 		      nodeId,
 		      ndb_mgm_get_node_type_string(type));
@@ -1038,6 +1070,7 @@ printNodeStatus(OutputStream *output,
     output->println("node.%d.node_group: %d", nodeId, nodeGroup);
     output->println("node.%d.connect_count: %d", nodeId, connectCount);
     output->println("node.%d.address: %s", nodeId, address ? address : "");
+    output->println("node.%d.is_single_user: %d", nodeId, is_single_user);
   }
 }
 
@@ -1849,7 +1882,7 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
     sscanf(item[i].c_str(), "%u", data+i);
   }
 
-  m_mgmsrv.eventReport(data, length);
+  m_mgmsrv.eventReport(data, length, data);
   m_output->println("report event reply");
   m_output->println("result: ok");
   m_output->println("%s", "");
@@ -2072,7 +2105,18 @@ clear_dynamic_ports_from_config(Config* config)
 }
 
 
-void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
+void MgmApiSession::setConfig_v1(Parser_t::Context &ctx, Properties const &args)
+{
+  setConfig(ctx, args, false);
+}
+
+void MgmApiSession::setConfig_v2(Parser_t::Context &ctx, Properties const &args)
+{
+  setConfig(ctx, args, true);
+}
+void MgmApiSession::setConfig(Parser_t::Context &ctx,
+                              Properties const &args,
+                              bool v2)
 {
   BaseString result("Ok");
   Uint32 len64 = 0;
@@ -2122,16 +2166,19 @@ void MgmApiSession::setConfig(Parser_t::Context &ctx, Properties const &args)
 
     if (decoded_len == -1)
     {
-      result.assfmt("Failed to unpack config");
+      result.assfmt("Failed to decode config");
       delete[] decoded;
       goto done;
     }
 
     ConfigValuesFactory cvf;
-    if(!cvf.unpack(decoded, decoded_len))
+    bool ret = v2 ?
+      cvf.unpack_v2((const Uint32*)decoded, decoded_len) :
+      cvf.unpack_v1((const Uint32*)decoded, decoded_len);
+    if (!ret)
     {
       delete[] decoded;
-      result.assfmt("Failed to unpack config");
+      result.assfmt("Failed to unpack config, error: %u", cvf.get_error_code());
       goto done;
     }
     delete[] decoded;

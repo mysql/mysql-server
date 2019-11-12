@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"setButtonText": "Definer",
-	"cancelButtonText": "Avbryt"
-})
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/nb/TextColor",({"setButtonText":"Definer","cancelButtonText":"Avbryt"}));

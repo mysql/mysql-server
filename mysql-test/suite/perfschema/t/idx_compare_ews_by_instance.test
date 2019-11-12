@@ -33,7 +33,7 @@ let $target_name = wait/synch/mutex/mysys/THR_LOCK::mutex;
 let $target_name = wait/synch/cond/sql/COND_thd_list;
 --source ../include/idx_compare_load.inc
 
-let $target_name = wait/synch/rwlock/sql/MDL_lock::rwlock;
+let $target_name = wait/synch/prlock/sql/MDL_lock::rwlock;
 --source ../include/idx_compare_load.inc
 
 let $target_name = wait/io/socket/sql/client_connection;

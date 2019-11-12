@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -309,6 +309,7 @@ struct Tablespace {
       : m_id(id),
         m_num(undo::id2num(id)),
         m_implicit(true),
+        m_new(false),
         m_space_name(),
         m_file_name(),
         m_log_file_name(),
@@ -320,6 +321,7 @@ struct Tablespace {
       : m_id(other.id()),
         m_num(undo::id2num(other.id())),
         m_implicit(other.is_implicit()),
+        m_new(other.is_new()),
         m_space_name(),
         m_file_name(),
         m_log_file_name(),
@@ -475,10 +477,17 @@ struct Tablespace {
   @return true if the tablespace was created explicitly. */
   bool is_explicit() { return (!m_implicit); }
 
-  /** Report whether this undo tablespace was implicitly created
-  at startup.
+  /** Report whether this undo tablespace was implicitly created.
   @return true if the tablespace was created implicitly. */
   bool is_implicit() { return (m_implicit); }
+
+  /** Report whether this undo tablespace was created at startup.
+  @retval true if created at startup.
+  @retval false if pre-existed at startup. */
+  bool is_new() { return (m_new); }
+
+  /** Note that this undo tablespace is being created. */
+  void set_new() { m_new = true; }
 
   /** Return whether the undo tablespace is active.
   @return true if active */
@@ -622,8 +631,12 @@ struct Tablespace {
   Use id2num() to get this number from a space_id. */
   space_id_t m_num;
 
-  /* True if this is an implicit undo tablespace */
+  /** True if this is an implicit undo tablespace */
   bool m_implicit;
+
+  /** True if this undo tablespace was implicitly created when
+  this instance started up. False if it pre-existed. */
+  bool m_new;
 
   /** The tablespace name, auto-generated when needed from
   the space number. */

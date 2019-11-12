@@ -263,7 +263,7 @@ variables_info	CREATE TABLE "variables_info" (
   "MAX_VALUE" varchar(64) DEFAULT NULL,
   "SET_TIME" timestamp(6) NULL DEFAULT NULL,
   "SET_USER" char(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  "SET_HOST" char(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+  "SET_HOST" char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE USER 'user1'@'localhost' IDENTIFIED BY 'pass1';
 GRANT ALL ON *.* TO 'user1'@'localhost';

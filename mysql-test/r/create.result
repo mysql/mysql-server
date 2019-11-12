@@ -495,7 +495,13 @@ a	b	c	d	e	f	g	h	dd
 2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
 drop table t1, t2;
 create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -505,7 +511,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(d,d)` int(11) DEFAULT NULL,
   `ifnull(e,e)` bigint(20) DEFAULT NULL,
   `ifnull(f,f)` float(3,2) DEFAULT NULL,
-  `ifnull(g,g)` double(22,3) DEFAULT NULL,
+  `ifnull(g,g)` double(4,3) DEFAULT NULL,
   `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
   `ifnull(i,i)` year(4) DEFAULT NULL,
   `ifnull(j,j)` date DEFAULT NULL,
@@ -709,6 +715,8 @@ drop table t1;
 CREATE TABLE t2 (
 a int(11) default NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 values(111);
 create table t1 ( 
 a varchar(12) charset utf8 collate utf8_bin not null, 
@@ -836,25 +844,6 @@ t2	CREATE TABLE `t2` (
 drop table t1, t2;
 create table t1(a set("a,b","c,d") not null);
 ERROR 22007: Illegal set 'a,b' value found during parsing
-create table t1 (i int) engine=myisam max_rows=100000000000;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=4294967295
-alter table t1 max_rows=100;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=100
-alter table t1 max_rows=100000000000;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=4294967295
-drop table t1;
 create table t1 select * from t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 create table t1 select * from t1;
@@ -1159,7 +1148,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
   `USER` varchar(32) NOT NULL DEFAULT '',
-  `HOST` varchar(64) NOT NULL DEFAULT '',
+  `HOST` varchar(261) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int(7) NOT NULL DEFAULT '0',
@@ -1173,7 +1162,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
   `USER` varchar(32) NOT NULL DEFAULT '',
-  `HOST` varchar(64) NOT NULL DEFAULT '',
+  `HOST` varchar(261) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
   `COMMAND` varchar(16) NOT NULL DEFAULT '',
   `TIME` int(7) NOT NULL DEFAULT '0',
@@ -1271,19 +1260,10 @@ Warning	1264	Out of range value for column 'c2' at row 1
 # -- Check DATETIME.
 SET sql_mode = '';
 
-CREATE TABLE t3(c1 DATETIME NOT NULL) ENGINE=MYISAM;
-INSERT INTO t3 VALUES (0);
-
-SET sql_mode = TRADITIONAL;
-
-ALTER TABLE t3 ADD INDEX(c1);
-ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-
 # -- Cleanup.
 SET sql_mode = '';
 DROP TABLE t1;
 DROP TABLE t2;
-DROP TABLE t3;
 
 # -- End of Bug#18834.
 
@@ -2302,3 +2282,506 @@ Note	1050	Table 't1' already exists
 # Cleanup
 SET SESSION sql_require_primary_key=DEFAULT;
 DROP TABLE t1;
+#
+# WL#13127: Deprecate integer display width and ZEROFILL option
+#
+CREATE TABLE types(id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(100));
+INSERT INTO types(name) VALUES
+('TINYINT'), ('SMALLINT'), ('MEDIUMINT'), ('INT'), ('BIGINT'),
+('TINYINT(10)'), ('SMALLINT(10)'), ('MEDIUMINT(10)'), ('INT(10)'), ('BIGINT(10)'),
+('DOUBLE'), ('FLOAT'), ('DECIMAL(5, 2)'), ('YEAR');
+CREATE TABLE t1(col TINYINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 TINYINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 TINYINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x TINYINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS TINYINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x TINYINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col SMALLINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 SMALLINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 SMALLINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x SMALLINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS SMALLINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x SMALLINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col MEDIUMINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 MEDIUMINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 MEDIUMINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x MEDIUMINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS MEDIUMINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x MEDIUMINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col INT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 INT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 INT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x INT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS INT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x INT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col BIGINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 BIGINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 BIGINT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x BIGINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS BIGINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x BIGINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col TINYINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 TINYINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN col3 TINYINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x TINYINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS TINYINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x TINYINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col SMALLINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 SMALLINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN col3 SMALLINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x SMALLINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS SMALLINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x SMALLINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col MEDIUMINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 MEDIUMINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN col3 MEDIUMINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x MEDIUMINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS MEDIUMINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x MEDIUMINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col INT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 INT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN col3 INT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x INT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS INT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x INT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col BIGINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 BIGINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN col3 BIGINT(10) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x BIGINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS BIGINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x BIGINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col DOUBLE ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 DOUBLE ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 DOUBLE ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x DOUBLE ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS DOUBLE ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x DOUBLE ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col FLOAT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 FLOAT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 FLOAT ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x FLOAT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS FLOAT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x FLOAT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col DECIMAL(5, 2) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 DECIMAL(5, 2) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 DECIMAL(5, 2) ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x DECIMAL(5, 2) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS DECIMAL(5, 2) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x DECIMAL(5, 2) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col YEAR ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(10);
+ALTER TABLE t1 MODIFY COLUMN col2 YEAR ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+ALTER TABLE t1 ADD COLUMN col3 YEAR ZEROFILL;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x YEAR ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS YEAR ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x YEAR ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP TABLE types;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "compression.h"
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -64,11 +65,13 @@ static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = 0;
 static int my_end_arg;
 static char *opt_mysql_unix_port = 0;
-static char *opt_password = 0, *current_user = 0, *default_charset = 0,
-            *current_host = 0;
+static char *opt_password = 0, *current_user = 0, *current_host = 0;
+static const char *default_charset = nullptr;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static int first_error = 0;
 static const char *opt_skip_database = "";
+static uint opt_zstd_compress_level = default_zstd_compression_level;
+static char *opt_compress_algorithm = nullptr;
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
 #endif
@@ -226,6 +229,17 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"version", 'V', "Output version information and exit.", 0, 0, 0,
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compression-algorithms", 0,
+     "Use compression algorithm in server/client protocol. Valid values "
+     "are any combination of 'zstd','zlib','uncompressed'.",
+     &opt_compress_algorithm, &opt_compress_algorithm, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
+    {"zstd-compression-level", 0,
+     "Use this compression level in the client/server protocol, in case "
+     "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+     "inclusive. Default is 3.",
+     &opt_zstd_compress_level, &opt_zstd_compress_level, 0, GET_UINT,
+     REQUIRED_ARG, 3, 1, 22, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static const char *load_default_groups[] = {"mysqlcheck", "client", 0};
@@ -296,8 +310,13 @@ static bool get_one_option(int optid, const struct my_option *opt,
       what_to_do = DO_OPTIMIZE;
       break;
     case 'p':
-      if (argument == disabled_my_option)
-        argument = (char *)""; /* Don't require password */
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        DBUG_ASSERT(empty_password[0] ==
+                    '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
       if (argument) {
         char *start = argument;
         my_free(opt_password);
@@ -391,9 +410,9 @@ static int get_options(int *argc, char ***argv, MEM_ROOT *alloc) {
   */
   if (!default_charset) {
     if (opt_fix_db_names || opt_fix_table_names)
-      default_charset = (char *)"utf8mb4";
+      default_charset = "utf8mb4";
     else
-      default_charset = (char *)MYSQL_AUTODETECT_CHARSET_NAME;
+      default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
   }
   if (strcmp(default_charset, MYSQL_AUTODETECT_CHARSET_NAME) &&
       !get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))) {
@@ -420,15 +439,22 @@ static int get_options(int *argc, char ***argv, MEM_ROOT *alloc) {
 } /* get_options */
 
 static int dbConnect(char *host, char *user, char *passwd) {
-  DBUG_ENTER("dbConnect");
+  DBUG_TRACE;
   if (verbose) {
     fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
   }
   mysql_init(&mysql_connection);
   if (opt_compress) mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
+  if (opt_compress_algorithm)
+    mysql_options(&mysql_connection, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  opt_compress_algorithm);
+
+  mysql_options(&mysql_connection, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &opt_zstd_compress_level);
+
   if (SSL_SET_OPTIONS(&mysql_connection)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
-    DBUG_RETURN(1);
+    return 1;
   }
   if (opt_protocol)
     mysql_options(&mysql_connection, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
@@ -459,10 +485,10 @@ static int dbConnect(char *host, char *user, char *passwd) {
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd, NULL,
                                   opt_mysql_port, opt_mysql_unix_port, 0))) {
     DBerror(&mysql_connection, "when trying to connect");
-    DBUG_RETURN(1);
+    return 1;
   }
   mysql_connection.reconnect = 1;
-  DBUG_RETURN(0);
+  return 0;
 } /* dbConnect */
 
 static void dbDisconnect(char *host) {
@@ -472,11 +498,10 @@ static void dbDisconnect(char *host) {
 } /* dbDisconnect */
 
 static void DBerror(MYSQL *mysql, string when) {
-  DBUG_ENTER("DBerror");
+  DBUG_TRACE;
   my_printf_error(0, "Got error: %d: %s %s", MYF(0), mysql_errno(mysql),
                   mysql_error(mysql), when.c_str());
   safe_exit(EX_MYSQLERR);
-  DBUG_VOID_RETURN;
 } /* DBerror */
 
 static void safe_exit(int error) {

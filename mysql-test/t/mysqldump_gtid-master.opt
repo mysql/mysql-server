@@ -1,0 +1,1 @@
+--gtid_mode=ON --enforce_gtid_consistency --log-bin=ON

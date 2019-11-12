@@ -48,7 +48,7 @@ extern LIST *heap_open_list, *heap_share_list;
 #define test_active(info)                  \
   if (!(info->update & HA_STATE_AKTIV)) {  \
     set_my_errno(HA_ERR_NO_ACTIVE_RECORD); \
-    DBUG_RETURN(-1);                       \
+    return -1;                             \
   }
 #define hp_find_hash(A, B) ((HASH_INFO *)hp_find_block((A), (B)))
 
@@ -108,8 +108,8 @@ extern bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const uchar *record);
 extern int hp_close(HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);
 extern void hp_clear_keys(HP_SHARE *info);
-extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
-                           key_part_map keypart_map);
+extern uint hp_rb_pack_key(const HP_KEYDEF *keydef, uchar *key,
+                           const uchar *old, key_part_map keypart_map);
 
 extern mysql_mutex_t THR_LOCK_heap;
 

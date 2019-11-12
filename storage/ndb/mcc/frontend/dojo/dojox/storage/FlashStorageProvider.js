@@ -1,22 +1,22 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/flash,dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
-_2.provide("dojox.storage.FlashStorageProvider");
-_2.require("dojox.flash");
-_2.require("dojox.storage.manager");
-_2.require("dojox.storage.Provider");
-_2.declare("dojox.storage.FlashStorageProvider",_3.storage.Provider,{initialized:false,_available:null,_statusHandler:null,_flashReady:false,_pageReady:false,initialize:function(){
-if(_2.config["disableFlashStorage"]==true){
+define("dojox/storage/FlashStorageProvider",["dojo","dijit","dojox","dojo/require!dojox/flash,dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
+_1.provide("dojox.storage.FlashStorageProvider");
+_1.require("dojox.flash");
+_1.require("dojox.storage.manager");
+_1.require("dojox.storage.Provider");
+_1.declare("dojox.storage.FlashStorageProvider",_3.storage.Provider,{initialized:false,_available:null,_statusHandler:null,_flashReady:false,_pageReady:false,initialize:function(){
+if(_1.config["disableFlashStorage"]==true){
 return;
 }
-_3.flash.addLoadedListener(_2.hitch(this,function(){
+_3.flash.addLoadedListener(_1.hitch(this,function(){
 this._flashReady=true;
 if(this._flashReady&&this._pageReady){
 this._loaded();
 }
 }));
-var _4=_2.moduleUrl("dojox","storage/Storage.swf").toString();
+var _4=_1.moduleUrl("dojox","storage/Storage.swf").toString();
 _3.flash.setSwf(_4,false);
-_2.connect(_2,"loaded",this,function(){
+_1.connect(_1,"loaded",this,function(){
 this._pageReady=true;
 if(this._flashReady&&this._pageReady){
 this._loaded();
@@ -35,7 +35,7 @@ _6=_3.storage.DEFAULT_NAMESPACE;
 }
 _3.flash.comm.flush(_6);
 },isAvailable:function(){
-return (this._available=!_2.config["disableFlashStorage"]);
+return (this._available=!_1.config["disableFlashStorage"]);
 },put:function(_7,_8,_9,_a){
 if(!this.isValidKey(_7)){
 throw new Error("Invalid key given: "+_7);
@@ -47,10 +47,10 @@ if(!this.isValidKey(_a)){
 throw new Error("Invalid namespace given: "+_a);
 }
 this._statusHandler=_9;
-if(_2.isString(_8)){
+if(_1.isString(_8)){
 _8="string:"+_8;
 }else{
-_8=_2.toJson(_8);
+_8=_1.toJson(_8);
 }
 _3.flash.comm.put(_7,_8,_a);
 },putMultiple:function(_b,_c,_d,_e){
@@ -67,10 +67,10 @@ this._statusHandler=_d;
 var _f=_b.join(",");
 var _10=[];
 for(var i=0;i<_c.length;i++){
-if(_2.isString(_c[i])){
+if(_1.isString(_c[i])){
 _c[i]="string:"+_c[i];
 }else{
-_c[i]=_2.toJson(_c[i]);
+_c[i]=_1.toJson(_c[i]);
 }
 _10[i]=_c[i].length;
 }
@@ -110,10 +110,10 @@ _19[i]=(_19[i]=="")?null:this._destringify(_19[i]);
 }
 return _19;
 },_destringify:function(_1a){
-if(_2.isString(_1a)&&(/^string:/.test(_1a))){
+if(_1.isString(_1a)&&(/^string:/.test(_1a))){
 _1a=_1a.substring("string:".length);
 }else{
-_1a=_2.fromJson(_1a);
+_1a=_1.fromJson(_1a);
 }
 return _1a;
 },getKeys:function(_1b){
@@ -156,7 +156,7 @@ throw new Error("Invalid namespace given: "+_1f);
 _3.flash.comm.remove(key,_1f);
 },removeMultiple:function(_20,_21){
 if(!this.isValidKeyArray(_20)){
-_2.raise("Invalid key array given: "+_20);
+_1.raise("Invalid key array given: "+_20);
 }
 if(!_21){
 _21=_3.storage.DEFAULT_NAMESPACE;
@@ -178,7 +178,7 @@ _3.flash.obj.setVisible(true);
 _3.flash.obj.center();
 },hideSettingsUI:function(){
 _3.flash.obj.setVisible(false);
-if(_2.isFunction(_3.storage.onHideSettingsUI)){
+if(_1.isFunction(_3.storage.onHideSettingsUI)){
 _3.storage.onHideSettingsUI.call(null);
 }
 },getResourceList:function(){

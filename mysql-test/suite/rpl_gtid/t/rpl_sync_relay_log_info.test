@@ -65,7 +65,6 @@
 --source include/have_debug.inc
 # This test uses debug sync to stop the IO thread in the middle of a transaction
 --source include/have_debug_sync.inc
---source include/have_myisam.inc
 # Test requires relay-log-info-repository = TABLE
 --source include/not_relay_log_info_file.inc
 --source include/not_mts_slave_parallel_workers.inc
@@ -80,22 +79,6 @@ CALL mtr.add_suppression('Duplicate entry');
 # Save global variables that will be changed during the test
 --source include/rpl_connection_slave.inc
 SET @saved_sync_relay_log_info= @@GLOBAL.sync_relay_log_info;
-
---echo #
---echo # sync_relay_log_info= 0, non-transactional (MyISAM) storage engine
---echo #
-SET @@GLOBAL.sync_relay_log_info= 0;
---let $storage_engine= MyISAM
---let $rpl_relay_log_info_expected_update= UNNUNUNNUUNNUUNNUN
---source extra/rpl_tests/rpl_sync_relay_log_info.inc
-
---echo #
---echo # sync_relay_log_info= 1, non-transactional (MyISAM) storage engine
---echo #
-SET @@GLOBAL.sync_relay_log_info= 1;
---let $storage_engine= MyISAM
---let $rpl_relay_log_info_expected_update= UUUUUUNNUUNNUUNNUU
---source extra/rpl_tests/rpl_sync_relay_log_info.inc
 
 --echo #
 --echo # sync_relay_log_info= 0, transactional (InnoDB) storage engine

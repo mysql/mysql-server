@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,23 +33,6 @@
  *
  */
 
-#include "connection.h"
-#include "connection_container.h"
-#include "context.h"
-#include "destination.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql_router_thread.h"
-#include "mysqlrouter/mysql_protocol.h"
-#include "mysqlrouter/routing.h"
-#include "plugin_config.h"
-#include "protocol/base_protocol.h"
-#include "router_config.h"
-#include "tcp_address.h"
-#include "utils.h"
-namespace mysql_harness {
-class PluginFuncEnv;
-}
-
 #include <array>
 #include <atomic>
 #include <iostream>
@@ -70,19 +53,26 @@ class PluginFuncEnv;
 #include <ws2tcpip.h>
 #endif
 
-#ifdef _WIN32
-#ifdef routing_DEFINE_STATIC
-#define ROUTING_API
-#else
-#ifdef routing_EXPORTS
-#define ROUTING_API __declspec(dllexport)
-#else
-#define ROUTING_API __declspec(dllimport)
-#endif
-#endif
-#else
-#define ROUTING_API
-#endif
+#include "connection.h"
+#include "connection_container.h"
+#include "context.h"
+#include "destination.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
+#include "mysql_router_thread.h"
+#include "mysqlrouter/mysql_protocol.h"
+#include "mysqlrouter/routing.h"
+#include "mysqlrouter/routing_export.h"
+#include "mysqlrouter/uri.h"
+#include "plugin_config.h"
+#include "protocol/base_protocol.h"
+#include "router_config.h"
+#include "tcp_address.h"
+#include "utils.h"
+
+namespace mysql_harness {
+class PluginFuncEnv;
+}
 
 using mysqlrouter::URI;
 using std::string;
@@ -234,6 +224,14 @@ class MySQLRouting {
   void create_connection(int client_socket,
                          const sockaddr_storage &client_addr);
 
+  routing::RoutingStrategy get_routing_strategy() const;
+
+  routing::AccessMode get_mode() const;
+
+  std::vector<mysql_harness::TCPAddress> get_destinations() const;
+
+  std::vector<MySQLRoutingAPI::ConnData> get_connections();
+
  private:
   /** @brief Sets up the TCP service
    *
@@ -317,7 +315,7 @@ class MySQLRouting {
 };
 
 extern "C" {
-extern mysql_harness::Plugin ROUTING_API harness_plugin_routing;
+extern mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing;
 }
 
 #endif  // ROUTING_MYSQLROUTING_INCLUDED

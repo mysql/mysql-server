@@ -3,11 +3,11 @@ define("dojox/dtl/_DomTemplated",["dojo/dom-construct",".","./contrib/dijit","./
 _2._DomTemplated=function(){
 };
 _2._DomTemplated.prototype={_dijitTemplateCompat:false,buildRendering:function(){
-this.domNode=this.srcNodeRef;
+this.domNode=this.srcNodeRef||dojo.create("div");
 if(!this._render){
 var _7=_3.widgetsInTemplate;
 _3.widgetsInTemplate=this.widgetsInTemplate;
-this.template=this.template||this._getCachedTemplate(this.templatePath,this.templateString);
+this.template=this.template&&this.template!==true?this.template:this._getCachedTemplate(this.templatePath,this.templateString);
 this._render=new _4.Render(this.domNode,this.template);
 _3.widgetsInTemplate=_7;
 }
@@ -54,5 +54,5 @@ return _10[key];
 }
 return (_10[key]=new dojox.dtl.DomTemplate(_6.getCachedTemplate(_f,true)));
 }};
-return dojox.dtl._DomTemplated;
+return _2._DomTemplated;
 });

@@ -63,7 +63,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
 Mode switched to single-primary with reported warnings: The appointed primary left the group as the operation is terminating. Check the group member list to see who is the primary.
 Warnings:
-Warning	13223	The appointed primary left the group as the operation is terminating. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
+Warning	3910	The appointed primary left the group as the operation is terminating. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
 include/gr_assert_primary_member.inc
 
 # 14. Cleanup

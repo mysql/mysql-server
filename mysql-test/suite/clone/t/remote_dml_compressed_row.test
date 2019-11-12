@@ -1,0 +1,11 @@
+# Test remote clone with concurrent DML on compressed row format table
+
+--source include/have_innodb_max_16k.inc
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+--let remote_clone = 1
+--let row_format_compressed = 1
+
+--source local_dml.test

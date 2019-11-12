@@ -1,12 +1,12 @@
 //>>built
-define("dijit/_editor/plugins/Print",["dojo/_base/declare","dojo/i18n","dojo/_base/lang","dojo/_base/sniff","../../focus","../_Plugin","../../form/Button","dojo/i18n!../nls/commands"],function(_1,_2,_3,_4,_5,_6,_7){
+define("dijit/_editor/plugins/Print",["dojo/_base/declare","dojo/i18n","dojo/_base/lang","dojo/sniff","../../focus","../_Plugin","../../form/Button","dojo/i18n!../nls/commands"],function(_1,_2,_3,_4,_5,_6,_7){
 var _8=_1("dijit._editor.plugins.Print",_6,{_initButton:function(){
 var _9=_2.getLocalization("dijit._editor","commands"),_a=this.editor;
-this.button=new _7({label:_9["print"],dir:_a.dir,lang:_a.lang,showLabel:false,iconClass:this.iconClassPrefix+" "+this.iconClassPrefix+"Print",tabIndex:"-1",onClick:_3.hitch(this,"_print")});
+this.button=new _7({label:_9["print"],ownerDocument:_a.ownerDocument,dir:_a.dir,lang:_a.lang,showLabel:false,iconClass:this.iconClassPrefix+" "+this.iconClassPrefix+"Print",tabIndex:"-1",onClick:_3.hitch(this,"_print")});
 },setEditor:function(_b){
 this.editor=_b;
 this._initButton();
-this.editor.onLoadDeferred.addCallback(_3.hitch(this,function(){
+this.editor.onLoadDeferred.then(_3.hitch(this,function(){
 if(!this.editor.iframe.contentWindow["print"]){
 this.button.set("disabled",true);
 }

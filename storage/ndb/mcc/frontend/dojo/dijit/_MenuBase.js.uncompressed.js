@@ -1,29 +1,25 @@
-//>>built
 define("dijit/_MenuBase", [
-	"./popup",
-	"dojo/window",
-	"./_Widget",
-	"./_KeyNavContainer",
-	"./_TemplatedMixin",
+	"dojo/_base/array",	// array.indexOf
 	"dojo/_base/declare", // declare
 	"dojo/dom", // dom.isDescendant domClass.replace
 	"dojo/dom-attr",
 	"dojo/dom-class", // domClass.replace
 	"dojo/_base/lang", // lang.hitch
-	"dojo/_base/array"	// array.indexOf
-], function(pm, winUtils, _Widget, _KeyNavContainer, _TemplatedMixin,
-	declare, dom, domAttr, domClass, lang, array){
+	"dojo/mouse",	// mouse.enter, mouse.leave
+	"dojo/on",
+	"dojo/window",
+	"./a11yclick",
+	"./popup",
+	"./registry",
+	"./_Widget",
+	"./_KeyNavContainer",
+	"./_TemplatedMixin"
+], function(array, declare, dom, domAttr, domClass, lang, mouse, on, winUtils,
+			a11yclick, pm, registry, _Widget, _KeyNavContainer, _TemplatedMixin){
 
-/*=====
-	var _Widget = dijit._Widget;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-	var _KeyNavContainer = dijit._KeyNavContainer;
-=====*/
 
 // module:
 //		dijit/_MenuBase
-// summary:
-//		Base class for Menu and MenuBar
 
 return declare("dijit._MenuBase",
 	[_Widget, _TemplatedMixin, _KeyNavContainer],
@@ -38,6 +34,41 @@ return declare("dijit._MenuBase",
 	// popupDelay: Integer
 	//		number of milliseconds before hovering (without clicking) causes the popup to automatically open.
 	popupDelay: 500,
+
+	// autoFocus: Boolean
+	//		A toggle to control whether or not a Menu gets focused when opened as a drop down from a MenuBar
+	//		or DropDownButton/ComboButton.   Note though that it always get focused when opened via the keyboard.
+	autoFocus: false,
+
+	childSelector: function(/*DOMNode*/ node){
+		// summary:
+		//		Selector (passed to on.selector()) used to identify MenuItem child widgets, but exclude inert children
+		//		like MenuSeparator.  If subclass overrides to a string (ex: "> *"), the subclass must require dojo/query.
+		// tags:
+		//		protected
+
+		var widget = registry.byNode(node);
+		return node.parentNode == this.containerNode && widget && widget.focus;
+	},
+
+	postCreate: function(){
+		var self = this,
+			matches = typeof this.childSelector == "string" ? this.childSelector : lang.hitch(this, "childSelector");
+		this.own(
+			on(this.containerNode, on.selector(matches, mouse.enter), function(){
+				self.onItemHover(registry.byNode(this));
+			}),
+			on(this.containerNode, on.selector(matches, mouse.leave), function(){
+				self.onItemUnhover(registry.byNode(this));
+			}),
+			on(this.containerNode, on.selector(matches, a11yclick), function(evt){
+				self.onItemClick(registry.byNode(this), evt);
+				evt.stopPropagation();
+				evt.preventDefault();
+			})
+		);
+		this.inherited(arguments);
+	},
 
 	onExecute: function(){
 		// summary:
@@ -67,7 +98,7 @@ return declare("dijit._MenuBase",
 		//		private
 
 		if(this.focusedChild && this.focusedChild.popup && !this.focusedChild.disabled){
-			this.focusedChild._onClick(evt);
+			this.onItemClick(this.focusedChild, evt);
 		}else{
 			var topMenu = this._getTopMenu();
 			if(topMenu && topMenu._isMenuBar){
@@ -110,7 +141,7 @@ return declare("dijit._MenuBase",
 		if(this.isActive){
 			this.focusChild(item);
 			if(this.focusedChild.popup && !this.focusedChild.disabled && !this.hover_timer){
-				this.hover_timer = setTimeout(lang.hitch(this, "_openPopup"), this.popupDelay);
+				this.hover_timer = this.defer("_openPopup", this.popupDelay);
 			}
 		}
 		// if the user is mixing mouse and keyboard navigation,
@@ -121,6 +152,8 @@ return declare("dijit._MenuBase",
 			this.focusChild(item);
 		}
 		this._hoveredChild = item;
+
+		item._set("hovering", true);
 	},
 
 	_onChildBlur: function(item){
@@ -135,7 +168,7 @@ return declare("dijit._MenuBase",
 		var itemPopup = item.popup;
 		if(itemPopup){
 			this._stopPendingCloseTimer(itemPopup);
-			itemPopup._pendingClose_timer = setTimeout(function(){
+			itemPopup._pendingClose_timer = this.defer(function(){
 				itemPopup._pendingClose_timer = null;
 				if(itemPopup.parentMenu){
 					itemPopup.parentMenu.currentPopup = null;
@@ -155,6 +188,8 @@ return declare("dijit._MenuBase",
 			this._stopPopupTimer();
 		}
 		if(this._hoveredChild == item){ this._hoveredChild = null; }
+
+		item._set("hovering", false);
 	},
 
 	_stopPopupTimer: function(){
@@ -164,19 +199,17 @@ return declare("dijit._MenuBase",
 		// tags:
 		//		private
 		if(this.hover_timer){
-			clearTimeout(this.hover_timer);
-			this.hover_timer = null;
+			this.hover_timer = this.hover_timer.remove();
 		}
 	},
 
-	_stopPendingCloseTimer: function(/*dijit._Widget*/ popup){
+	_stopPendingCloseTimer: function(/*dijit/_WidgetBase*/ popup){
 		// summary:
 		//		Cancels the pending-close timer because the close has been preempted
 		// tags:
 		//		private
 		if(popup._pendingClose_timer){
-			clearTimeout(popup._pendingClose_timer);
-			popup._pendingClose_timer = null;
+			popup._pendingClose_timer = popup._pendingClose_timer.remove();
 		}
 	},
 
@@ -186,8 +219,7 @@ return declare("dijit._MenuBase",
 		// tags:
 		//		private
 		if(this._focus_timer){
-			clearTimeout(this._focus_timer);
-			this._focus_timer = null;
+			this._focus_timer = this._focus_timer.remove();
 		}
 	},
 
@@ -200,7 +232,7 @@ return declare("dijit._MenuBase",
 		return top;
 	},
 
-	onItemClick: function(/*dijit._Widget*/ item, /*Event*/ evt){
+	onItemClick: function(/*dijit/_WidgetBase*/ item, /*Event*/ evt){
 		// summary:
 		//		Handle clicks on an item.
 		// tags:
@@ -216,20 +248,20 @@ return declare("dijit._MenuBase",
 		if(item.disabled){ return false; }
 
 		if(item.popup){
-			this._openPopup();
+			this._openPopup(evt.type == "keypress");
 		}else{
 			// before calling user defined handler, close hierarchy of menus
 			// and restore focus to place it was when menu was opened
 			this.onExecute();
 
 			// user defined handler for click
-			item.onClick(evt);
+			item._onClick ? item._onClick(evt) : item.onClick(evt);
 		}
 	},
 
-	_openPopup: function(){
+	_openPopup: function(/*Boolean*/ focus){
 		// summary:
-		//		Open the popup to the side of/underneath the current menu item
+		//		Open the popup to the side of/underneath the current menu item, and optionally focus first item
 		// tags:
 		//		protected
 
@@ -237,43 +269,48 @@ return declare("dijit._MenuBase",
 		var from_item = this.focusedChild;
 		if(!from_item){ return; } // the focused child lost focus since the timer was started
 		var popup = from_item.popup;
-		if(popup.isShowingNow){ return; }
-		if(this.currentPopup){
-			this._stopPendingCloseTimer(this.currentPopup);
-			pm.close(this.currentPopup);
+		if(!popup.isShowingNow){
+			if(this.currentPopup){
+				this._stopPendingCloseTimer(this.currentPopup);
+				pm.close(this.currentPopup);
+			}
+			popup.parentMenu = this;
+			popup.from_item = from_item; // helps finding the parent item that should be focused for this popup
+			var self = this;
+			pm.open({
+				parent: this,
+				popup: popup,
+				around: from_item.domNode,
+				orient: this._orient || ["after", "before"],
+				onCancel: function(){ // called when the child menu is canceled
+					// set isActive=false (_closeChild vs _cleanUp) so that subsequent hovering will NOT open child menus
+					// which seems aligned with the UX of most applications (e.g. notepad, wordpad, paint shop pro)
+					self.focusChild(from_item);	// put focus back on my node
+					self._cleanUp();			// close the submenu (be sure this is done _after_ focus is moved)
+					from_item._setSelected(true); // oops, _cleanUp() deselected the item
+					self.focusedChild = from_item;	// and unset focusedChild
+				},
+				onExecute: lang.hitch(this, "_cleanUp")
+			});
+
+			this.currentPopup = popup;
+
+			// detect mouseovers to handle lazy mouse movements that temporarily focus other menu items
+			if(this.popupHoverHandle){
+				this.popupHoverHandle.remove();
+			}
+			this.own(this.popupHoverHandle = on.once(popup.domNode, "mouseover", lang.hitch(self, "_onPopupHover")));
 		}
-		popup.parentMenu = this;
-		popup.from_item = from_item; // helps finding the parent item that should be focused for this popup
-		var self = this;
-		pm.open({
-			parent: this,
-			popup: popup,
-			around: from_item.domNode,
-			orient: this._orient || ["after", "before"],
-			onCancel: function(){ // called when the child menu is canceled
-				// set isActive=false (_closeChild vs _cleanUp) so that subsequent hovering will NOT open child menus
-				// which seems aligned with the UX of most applications (e.g. notepad, wordpad, paint shop pro)
-				self.focusChild(from_item);	// put focus back on my node
-				self._cleanUp();			// close the submenu (be sure this is done _after_ focus is moved)
-				from_item._setSelected(true); // oops, _cleanUp() deselected the item
-				self.focusedChild = from_item;	// and unset focusedChild
-			},
-			onExecute: lang.hitch(this, "_cleanUp")
-		});
 
-		this.currentPopup = popup;
-		// detect mouseovers to handle lazy mouse movements that temporarily focus other menu items
-		popup.connect(popup.domNode, "onmouseenter", lang.hitch(self, "_onPopupHover")); // cleaned up when the popped-up widget is destroyed on close
-
-		if(popup.focus){
-			// If user is opening the popup via keyboard (right arrow, or down arrow for MenuBar),
-			// if the cursor happens to collide with the popup, it will generate an onmouseover event
-			// even though the mouse wasn't moved.  Use a setTimeout() to call popup.focus so that
+		if(focus && popup.focus){
+			// If user is opening the popup via keyboard (right arrow, or down arrow for MenuBar), then focus the popup.
+			// If the cursor happens to collide with the popup, it will generate an onmouseover event
+			// even though the mouse wasn't moved.  Use defer() to call popup.focus so that
 			// our focus() call overrides the onmouseover event, rather than vice-versa.  (#8742)
-			popup._focus_timer = setTimeout(lang.hitch(popup, function(){
+			popup._focus_timer = this.defer(lang.hitch(popup, function(){
 				this._focus_timer = null;
 				this.focus();
-			}), 0);
+			}));
 		}
 	},
 
@@ -281,8 +318,10 @@ return declare("dijit._MenuBase",
 		// summary:
 		//		Mark this menu's state as active.
 		//		Called when this Menu gets focus from:
-		//			1) clicking it (mouse or via space/arrow key)
-		//			2) being opened by a parent menu.
+		//
+		//		1. clicking it (mouse or via space/arrow key)
+		//		2. being opened by a parent menu.
+		//
 		//		This is not called just from mouse hover.
 		//		Focusing a menu via TAB does NOT automatically set isActive
 		//		since TAB is a navigation operation and not a selection one.
@@ -350,7 +389,7 @@ return declare("dijit._MenuBase",
 
 		if(this.focusedChild){ // unhighlight the focused item
 			this.focusedChild._setSelected(false);
-			this.focusedChild._onUnhover();
+			this.onItemUnhover(this.focusedChild);
 			this.focusedChild = null;
 		}
 	},
@@ -358,12 +397,14 @@ return declare("dijit._MenuBase",
 	_onItemFocus: function(/*MenuItem*/ item){
 		// summary:
 		//		Called when child of this Menu gets focus from:
-		//			1) clicking it
-		//			2) tabbing into it
-		//			3) being opened by a parent menu.
+		//
+		//		1. clicking it
+		//		2. tabbing into it
+		//		3. being opened by a parent menu.
+		//
 		//		This is not called just from mouse hover.
 		if(this._hoveredChild && this._hoveredChild != item){
-			this._hoveredChild._onUnhover(); // any previous mouse movement is trumped by focus selection
+			this.onItemUnhover(this._hoveredChild);	// any previous mouse movement is trumped by focus selection
 		}
 	},
 

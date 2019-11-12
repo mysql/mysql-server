@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"preview": "미리보기"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/ko/Preview",({"preview":"미리보기"}));

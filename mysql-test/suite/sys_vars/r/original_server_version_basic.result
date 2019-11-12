@@ -40,5 +40,5 @@ include/assert.inc [There is only one variable with this name in the performance
 include/assert.inc [The variable can be accessed with @@ sign]
 CREATE USER nosuper;
 SET SESSION original_server_version = 0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
 DROP USER nosuper;

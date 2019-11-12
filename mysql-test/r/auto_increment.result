@@ -68,6 +68,8 @@ e	1
 k	1
 drop table t1;
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ordid), index(ord,ordid));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (ordid,ord) values (NULL,'sdj'),(NULL,'sdj');
 select * from t1;
 ordid	ord
@@ -75,6 +77,8 @@ ordid	ord
 2	sdj
 drop table t1;
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,'zzz'),(NULL,'sdj'),(NULL,'abc');
 select * from t1;
 ordid	ord
@@ -87,7 +91,11 @@ ordid	ord
 1	zzz
 drop table t1;
 create table t1 (sid char(5), id int(2) NOT NULL auto_increment, key(sid,  id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (sid char(20), id int(2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 values ('skr',NULL),('skr',NULL),('test',NULL);
 insert into t1 select * from t2;
 select * from t1;
@@ -363,6 +371,8 @@ t1_id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 KEY (t1_name),
 PRIMARY KEY (t1_id)
 ) charset latin1 AUTO_INCREMENT = 1000;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (t1_name) VALUES('MySQL');
 INSERT INTO t1 (t1_name) VALUES('MySQL');
 INSERT INTO t1 (t1_name) VALUES('MySQL');
@@ -404,6 +414,9 @@ a	t1a
 drop table t1, t2;
 End of 4.1 tests
 CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
@@ -443,6 +456,9 @@ a	val
 3	1
 drop table t1;
 CREATE TABLE t1 (t1 INT(10) PRIMARY KEY, t2 INT(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(0, 0);
 INSERT INTO t1 VALUES(1, 1);
 ALTER TABLE t1 CHANGE t1 t1 INT(10) auto_increment;
@@ -528,6 +544,8 @@ Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (c1 DOUBLE NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1))
 ENGINE=InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 # Single row insert:
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2);
 ERROR 22007: Truncated incorrect INTEGER value: '9.223372036854776e18'
@@ -547,6 +565,8 @@ DROP TABLE t1;
 SET sql_mode = '';
 CREATE TABLE t1 (c1 DOUBLE NOT NULL AUTO_INCREMENT, c2 INT, PRIMARY KEY (c1))
 ENGINE=InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 # Single row insert:
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2);
 Warnings:

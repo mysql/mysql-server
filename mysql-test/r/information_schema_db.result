@@ -76,6 +76,8 @@ create table t1
 (f1 int(10) unsigned not null,
 f2 varchar(100) not null,
 primary key (f1), unique key (f2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select * from information_schema.tables;
 call mbase.p1();
 call mbase.p1();

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/gfx3d/gradient", ["dojo/_base/lang","./matrix","./vector"], 
 	function(lang,m,v){
 
@@ -8,15 +7,24 @@ define("dojox/gfx3d/gradient", ["dojo/_base/lang","./matrix","./vector"],
 	var N = 32;
 
 	gfx3d.gradient = function(model, material, center, radius, from, to, matrix){
-		// summary: calculate a cylindrical gradient
-		// model: dojox.gfx3d.lighting.Model: color model
-		// material: Object: defines visual properties
-		// center: Object: center of the cylinder's bottom
-		// radius: Number: radius of the cylinder
-		// from: Number: from position in radians
-		// to: Number: from position in radians
-		// matrix: dojox.gfx3d.Matrix3D: the cumulative transformation matrix
-		// tolerance: Number: tolerable difference in colors between gradient steps
+		// summary:
+		//		calculate a cylindrical gradient
+		// model: dojox.gfx3d.lighting.Model
+		//		color model
+		// material: Object
+		//		defines visual properties
+		// center: Object
+		//		center of the cylinder's bottom
+		// radius: Number
+		//		radius of the cylinder
+		// from: Number
+		//		from position in radians
+		// to: Number
+		//		from position in radians
+		// matrix: dojox.gfx3d.Matrix3D
+		//		the cumulative transformation matrix
+		// tolerance: Number
+		//		tolerable difference in colors between gradient steps
 
 		var mx = m.normalize(matrix),
 			f = m.multiplyPoint(mx, radius * Math.cos(from) + center.x, radius * Math.sin(from) + center.y, center.z),

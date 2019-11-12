@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
   FILE *fd;
   char type[5];
   char *dup_filename = NULL;
-  DBUG_ENTER("my_fopen");
+  DBUG_TRACE;
   DBUG_PRINT("my",
              ("Name: '%s'  flags: %d  MyFlags: %d", filename, flags, MyFlags));
 
@@ -87,7 +87,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
       mysql_mutex_lock(&THR_LOCK_open);
       my_stream_opened++;
       mysql_mutex_unlock(&THR_LOCK_open);
-      DBUG_RETURN(fd); /* safeguard */
+      return fd; /* safeguard */
     }
     dup_filename = my_strdup(key_memory_my_file_info, filename, MyFlags);
     if (dup_filename != NULL) {
@@ -98,7 +98,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
       my_file_info[filedesc].type = STREAM_BY_FOPEN;
       mysql_mutex_unlock(&THR_LOCK_open);
       DBUG_PRINT("exit", ("stream: %p", fd));
-      DBUG_RETURN(fd);
+      return fd;
     }
     (void)my_fclose(fd, MyFlags);
     set_my_errno(ENOMEM);
@@ -112,7 +112,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags) {
              MYF(0), filename, my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
-  DBUG_RETURN((FILE *)0);
+  return (FILE *)0;
 } /* my_fopen */
 
 #if defined(_WIN32)
@@ -185,7 +185,7 @@ FILE *my_freopen(const char *path, const char *mode, FILE *stream) {
 /* Close a stream */
 int my_fclose(FILE *fd, myf MyFlags) {
   int err, file;
-  DBUG_ENTER("my_fclose");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("stream: %p  MyFlags: %d", fd, MyFlags));
 
   mysql_mutex_lock(&THR_LOCK_open);
@@ -209,7 +209,7 @@ int my_fclose(FILE *fd, myf MyFlags) {
     my_free(my_file_info[file].name);
   }
   mysql_mutex_unlock(&THR_LOCK_open);
-  DBUG_RETURN(err);
+  return err;
 } /* my_fclose */
 
 /* Make a stream out of a file handle */
@@ -218,7 +218,7 @@ int my_fclose(FILE *fd, myf MyFlags) {
 FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags) {
   FILE *fd;
   char type[5];
-  DBUG_ENTER("my_fdopen");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("Fd: %d  Flags: %d  MyFlags: %d", Filedes, Flags, MyFlags));
 
   make_ftype(type, Flags);
@@ -250,7 +250,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags) {
   }
 
   DBUG_PRINT("exit", ("stream: %p", fd));
-  DBUG_RETURN(fd);
+  return fd;
 } /* my_fdopen */
 
 /*

@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/xmpp/UserService", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
+define("dojox/xmpp/UserService", ["dojo","dijit","dojox"], function(dojo,dijit,dojox){
 dojo.provide("dojox.xmpp.UserService");
 
 dojo.declare("dojox.xmpp.UserService", null, {

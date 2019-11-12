@@ -1,9 +1,9 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
-_2.provide("dojox.storage.AirFileStorageProvider");
-_2.require("dojox.storage.manager");
-_2.require("dojox.storage.Provider");
-if(_2.isAIR){
+define("dojox/storage/AirFileStorageProvider",["dojo","dijit","dojox","dojo/require!dojox/storage/manager,dojox/storage/Provider"],function(_1,_2,_3){
+_1.provide("dojox.storage.AirFileStorageProvider");
+_1.require("dojox.storage.manager");
+_1.require("dojox.storage.Provider");
+if(_1.isAIR){
 (function(){
 if(!_4){
 var _4={};
@@ -11,7 +11,7 @@ var _4={};
 _4.File=window.runtime.flash.filesystem.File;
 _4.FileStream=window.runtime.flash.filesystem.FileStream;
 _4.FileMode=window.runtime.flash.filesystem.FileMode;
-_2.declare("dojox.storage.AirFileStorageProvider",[_3.storage.Provider],{initialized:false,_storagePath:"__DOJO_STORAGE/",initialize:function(){
+_1.declare("dojox.storage.AirFileStorageProvider",[_3.storage.Provider],{initialized:false,_storagePath:"__DOJO_STORAGE/",initialize:function(){
 this.initialized=false;
 try{
 var _5=_4.File.applicationStorageDirectory.resolvePath(this._storagePath);

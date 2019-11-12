@@ -1,0 +1,72 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_grep.inc
+
+# ==== Requirements ====
+#
+# R1. When using binlog_transaction_dependency_tracking = 'WRITESET', two
+#   transactions that conflict on a unique multi-valued index must be marked as
+#   dependent in the binary log.
+# R2. When using binlog_row_image=MINIMAL, the before-image shall not be
+#   generated from a multi-valued index.
+#
+# ==== Implementation ====
+#
+# To test R1:
+# 1. Create a table with a multi-valued index
+# 2. Insert rows that conflict only on a multi-valued index
+# 3. Verify that the logical timestamps are set in a way that indicates the
+#  transactions are dependent
+#
+# To test R2;
+# 1. Set binlog_row_image=MINIMAL
+# 2. Create a table having only one index, a unique multi-valued index
+# 3. Update/delete rows
+# 4. Use mysqlbinlog -v -v to verify that the full row is included, and not
+#  just the columns of the multi-valued index
+#
+# ==== References ====
+#
+# WL#8955: Add support for multi-valued indexes
+
+--let $mysqlbinlog_only_decoded_rows = 1
+--source include/save_binlog_position.inc
+
+CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
+  UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
+SET @@session.binlog_row_image = MINIMAL;
+INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
+UPDATE t1 SET j = '[9,0]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+SET @@session.binlog_row_image = FULL;
+INSERT INTO t1 VALUES (10, 10, '[10,20,30,40]'), (20, 20, '[50,60,70,80]');
+UPDATE t1 SET j = '[11,12,13,14]' WHERE JSON_CONTAINS(CAST(j AS JSON),'10');
+SET @@session.binlog_row_image = NOBLOB;
+INSERT INTO t1 VALUES (100, 100, '[100,200,300,400]'),
+  (200, 200, '[500,600,700,800]');
+UPDATE t1 SET j = '[101,201,301,401]' WHERE JSON_CONTAINS(CAST(j AS JSON),'200');
+DROP TABLE t1;
+
+FLUSH LOGS;
+--source include/mysqlbinlog.inc
+--source include/save_binlog_position.inc
+
+--echo # Check that when the only unique NOT NULL index is a functional index,
+--echo # the binary log contains a full before-image regardless of
+--echo # binlog_row_image.
+CREATE TABLE t1 (id INT, c INT, j JSON NOT NULL,
+  UNIQUE INDEX i1((CAST(CAST(j AS JSON) AS UNSIGNED ARRAY))));
+INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
+
+SET binlog_row_image = MINIMAL;
+UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+
+SET binlog_row_image = FULL;
+UPDATE t1 SET j = '[2,11,12]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+
+SET binlog_row_image = NOBLOB;
+UPDATE t1 SET j = '[2,13,14]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
+
+DROP TABLE t1;
+
+FLUSH LOGS;
+--source include/mysqlbinlog.inc

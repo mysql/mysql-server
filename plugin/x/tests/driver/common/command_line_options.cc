@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include <cstring>
 #include <iostream>
 
-const std::size_t MAXIMUM_LENGTH_OF_ARGUMENT_NAME = 20;
+const std::size_t MAXIMUM_LENGTH_OF_ARGUMENT_NAME = 128;
 
 bool Command_line_options::check_arg(char **argv, int &argi, const char *arg,
                                      const char *larg) {

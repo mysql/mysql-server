@@ -1,31 +1,40 @@
 
-.soria .dijitInputContainer input,
-.soria .dijitTextBox {
+.soria .dijitInputContainer input {
 	margin: 0 0.1em;
 }
+.soria .dijitSelect .dijitButtonContents,
+.soria .dijitSelect,
 .soria .dijitTextBox,
 .soria .dijitTextArea {
 	
 	background:#fff url("../images/validationInputBg.png") repeat-x top left;
 	#background:#fff url('../images/validationInputBg.gif') repeat-x top left;
+}
+.soria .dijitSelect,
+.soria .dijitTextBox,
+.soria .dijitTextArea {
 	border:1px solid #8ba0bd;
 }
+.soria .dijitSelect .dijitArrowButton,
 .soria .dijitComboBox .dijitButtonNode {
 	padding: 0 0.2em;
 }
+.soria .dijitSelect .dijitButtonContents,
 .soria .dijitTextBox .dijitButtonNode {
 	
 	border-color: #8ba0bd;
 }
+.soria .dijitSelectFocused,
 .soria .dijitTextBoxFocused,
 .soria .dijitTextAreaFocused {
 	
 	border-color:#406b9b;
 }
+.soria .dijitSelectFocused TD,
 .soria .dijitTextBoxFocused .dijitButtonNode,
 .soria .dijitSpinner .dijitUpArrowButtonActive,
 .soria .dijitSpinner .dijitDownArrowButtonActive {
-	border-left-color:#8ba0bd;
+	border-color:#8ba0bd;
 }
 .soria .dijitSpinnerFocused .dijitDownArrowButton,
 .soria .dijitSpinner .dijitUpArrowButtonActive,
@@ -41,7 +50,7 @@
 	background-color:#ff6;
 	background-image:none;
 }
-.soria .dijitValidationIcon {
+.soria .dijitValidationTextBoxError .dijitValidationIcon {
 	
 	width: 16px;
 	background: transparent url('../images/warning.png') no-repeat center center;

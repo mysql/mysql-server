@@ -1,38 +1,36 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/drawing/stencil/Path"],function(_1,_2,_3){
-_2.provide("dojox.drawing.tools.custom.Axes");
-_2.require("dojox.drawing.stencil.Path");
-_3.drawing.tools.custom.Axes=_3.drawing.util.oo.declare(_3.drawing.stencil.Path,function(_4){
+define("dojox/drawing/tools/custom/Axes",["dojo/_base/lang","../../util/oo","../../manager/_registry","../../stencil/Path","../../annotations/Arrow","../../annotations/Label","../../tools/custom/Vector"],function(_1,oo,_2,_3,_4,_5,_6){
+var _7=oo.declare(_3,function(_8){
 this.closePath=false;
-this.xArrow=new _3.drawing.annotations.Arrow({stencil:this,idx1:0,idx2:1});
-this.yArrow=new _3.drawing.annotations.Arrow({stencil:this,idx1:2,idx2:1});
-if(_4.data){
-this.style.zAxisEnabled=_4.data.cosphi==1?true:false;
-this.setData(_4.data);
+this.xArrow=new _4({stencil:this,idx1:0,idx2:1});
+this.yArrow=new _4({stencil:this,idx1:2,idx2:1});
+if(_8.data){
+this.style.zAxisEnabled=_8.data.cosphi==1?true:false;
+this.setData(_8.data);
 }
 if(this.style.zAxisEnabled){
 this.data.cosphi=1;
-var _5={};
-_2.mixin(_5,_4);
-_2.mixin(_5,{container:this.container.createGroup(),style:this.style,showAngle:false,label:null});
-if(_4.data&&(!_5.data.radius||!_5.data.angle)){
-_5.data.x2=_5.data.x4;
-_5.data.y2=_5.data.y4;
+var _9={};
+_1.mixin(_9,_8);
+_1.mixin(_9,{container:this.container.createGroup(),style:this.style,showAngle:false,label:null});
+if(_8.data&&(!_9.data.radius||!_9.data.angle)){
+_9.data.x2=_9.data.x4;
+_9.data.y2=_9.data.y4;
 }
-_5.style.zAxis=true;
-this.zAxis=new _3.drawing.tools.custom.Vector(_5);
+_9.style.zAxis=true;
+this.zAxis=new _6(_9);
 this.zAxis.minimumSize=5;
 this.connectMult([[this,"onChangeStyle",this.zAxis,"onChangeStyle"],[this,"select",this.zAxis,"select"],[this,"deselect",this.zAxis,"deselect"],[this,"onDelete",this.zAxis,"destroy"],[this,"onDrag",this,"zSet"],[this,"onTransform",this,"zSet"],[this.zAxis,"onBeforeRender",this,"zSet"],[this,"_onPostRender",this.zAxis,"render"]]);
 }
 if(this.points&&this.points.length){
 this.setPoints=this._postSetPoints;
 this.render();
-_4.label&&this.setLabel(_4.label);
-_4.shadow&&this.addShadow(_4.shadow);
+_8.label&&this.setLabel(_8.label);
+_8.shadow&&this.addShadow(_8.shadow);
 }
-},{draws:true,type:"dojox.drawing.tools.custom.Axes",minimumSize:30,showAngle:true,closePath:false,baseRender:false,zScale:0.5,zPoint:function(_6){
-_6.radius=this.util.length(_6);
-var pt=this.util.pointOnCircle(_6.start.x,_6.start.y,_6.radius*this.zScale,this.style.zAngle);
+},{draws:true,type:"dojox.drawing.tools.custom.Axes",minimumSize:30,showAngle:true,closePath:false,baseRender:false,zScale:0.5,zPoint:function(_a){
+_a.radius=this.util.length(_a);
+var pt=this.util.pointOnCircle(_a.start.x,_a.start.y,_a.radius*this.zScale,this.style.zAngle);
 return {x:pt.x,y:pt.y,skip:true,noAnchor:true};
 },zSet:function(){
 if(!this.zAxis){
@@ -41,50 +39,50 @@ return;
 var c=this.points[1];
 var z=this.points[3];
 var p=[{x:c.x,y:c.y},{x:z.x,y:z.y}];
-var _7=this.util.length({start:{x:c.x,y:c.y},x:z.x,y:z.y});
-_7>this.zAxis.minimumSize?this.zAxis.setPoints(p):false;
+var _b=this.util.length({start:{x:c.x,y:c.y},x:z.x,y:z.y});
+_b>this.zAxis.minimumSize?this.zAxis.setPoints(p):false;
 this.zAxis.cosphi=1;
 },createLabels:function(){
-var _8={align:"middle",valign:"middle",util:this.util,annotation:true,container:this.container,mouse:this.mouse,stencil:this};
-this.labelX=new _3.drawing.annotations.Label(_2.mixin(_8,{labelPosition:this.setLabelX}));
-this.labelY=new _3.drawing.annotations.Label(_2.mixin(_8,{labelPosition:this.setLabelY}));
+var _c={align:"middle",valign:"middle",util:this.util,annotation:true,container:this.container,mouse:this.mouse,stencil:this};
+this.labelX=new _5(_1.mixin(_c,{labelPosition:this.setLabelX}));
+this.labelY=new _5(_1.mixin(_c,{labelPosition:this.setLabelY}));
 if(this.style.zAxisEnabled){
-this.labelZ=new _3.drawing.annotations.Label(_2.mixin(_8,{labelPosition:this.setLabelZ}));
+this.labelZ=new _5(_1.mixin(_c,{labelPosition:this.setLabelZ}));
 }
 },setLabelX:function(){
 var ax=this.points[0];
 var c=this.points[1];
-var _9=40;
-var _a=20;
-var pt,px,py,_b;
-pt=this.util.lineSub(c.x,c.y,ax.x,ax.y,_9);
+var _d=40;
+var _e=20;
+var pt,px,py,_f;
+pt=this.util.lineSub(c.x,c.y,ax.x,ax.y,_d);
 px=pt.x+(pt.y-ax.y);
 py=pt.y+(ax.x-pt.x);
-_b=this.util.lineSub(pt.x,pt.y,px,py,(_9-_a));
-return {x:_b.x,y:_b.y,width:20};
+_f=this.util.lineSub(pt.x,pt.y,px,py,(_d-_e));
+return {x:_f.x,y:_f.y,width:20};
 },setLabelY:function(){
 var c=this.points[1];
 var ay=this.points[2];
-var _c=40;
-var _d=20;
-var pt,px,py,_e;
-pt=this.util.lineSub(c.x,c.y,ay.x,ay.y,_c);
+var _10=40;
+var _11=20;
+var pt,px,py,pt2;
+pt=this.util.lineSub(c.x,c.y,ay.x,ay.y,_10);
 px=pt.x+(ay.y-pt.y);
 py=pt.y+(pt.x-ay.x);
-_e=this.util.lineSub(pt.x,pt.y,px,py,(_c-_d));
-return {x:_e.x,y:_e.y,width:20};
+pt2=this.util.lineSub(pt.x,pt.y,px,py,(_10-_11));
+return {x:pt2.x,y:pt2.y,width:20};
 },setLabelZ:function(){
 var c=this.points[1];
 var z=this.points[3];
-var _f=40;
-var _10=20;
+var _12=40;
+var _13=20;
 var pt,px,py,pt2;
-pt=this.util.lineSub(c.x,c.y,z.x,z.y,_f);
+pt=this.util.lineSub(c.x,c.y,z.x,z.y,_12);
 px=pt.x+(pt.y-z.y);
 py=pt.y+(z.x-pt.x);
-pt2=this.util.lineSub(pt.x,pt.y,px,py,(_f-_10));
+pt2=this.util.lineSub(pt.x,pt.y,px,py,(_12-_13));
 return {x:pt2.x,y:pt2.y,width:20};
-},setLabel:function(_11){
+},setLabel:function(_14){
 if(this._labelsCreated){
 return;
 }
@@ -92,19 +90,19 @@ return;
 var x="x";
 var y="y";
 var z="z";
-if(_11){
+if(_14){
 if(this.labelZ){
-var _12=_11.match(/(.*?)(and|&)(.*?)(and|&)(.*)/i);
-if(_12.length>4){
-x=_12[1].replace(/^\s+/,"").replace(/\s+$/,"");
-y=_12[3].replace(/^\s+/,"").replace(/\s+$/,"");
-z=_12[5].replace(/^\s+/,"").replace(/\s+$/,"");
+var _15=_14.match(/(.*?)(and|&)(.*?)(and|&)(.*)/i);
+if(_15.length>4){
+x=_15[1].replace(/^\s+/,"").replace(/\s+$/,"");
+y=_15[3].replace(/^\s+/,"").replace(/\s+$/,"");
+z=_15[5].replace(/^\s+/,"").replace(/\s+$/,"");
 }
 }else{
-var _12=_11.match(/(.*?)(and|&)(.*)/i);
-if(_12.length>2){
-x=_12[1].replace(/^\s+/,"").replace(/\s+$/,"");
-y=_12[3].replace(/^\s+/,"").replace(/\s+$/,"");
+var _15=_14.match(/(.*?)(and|&)(.*)/i);
+if(_15.length>2){
+x=_15[1].replace(/^\s+/,"").replace(/\s+$/,"");
+y=_15[3].replace(/^\s+/,"").replace(/\s+$/,"");
 }
 }
 }
@@ -119,19 +117,19 @@ if(!this.labelX){
 return null;
 }
 return {x:this.labelX.getText(),y:this.labelY.getText(),z:this.labelZ?this.labelZ.getText():null};
-},anchorPositionCheck:function(x,y,_13){
+},anchorPositionCheck:function(x,y,_16){
 var pm=this.container.getParent().getTransform();
-var am=_13.shape.getTransform();
+var am=_16.shape.getTransform();
 var p=this.points;
-var o={x:am.dx+_13.org.x+pm.dx,y:am.dy+_13.org.y+pm.dy};
+var o={x:am.dx+_16.org.x+pm.dx,y:am.dy+_16.org.y+pm.dy};
 var c={x:p[1].x+pm.dx,y:p[1].y+pm.dy};
 var ox=c.x-(c.y-o.y);
 var oy=c.y-(o.x-c.x);
 return {x:ox,y:oy};
-},onTransformBegin:function(_14){
+},onTransformBegin:function(_17){
 this._isBeingModified=true;
-},onTransformEnd:function(_15){
-if(!_15){
+},onTransformEnd:function(_18){
+if(!_18){
 return;
 }
 this._isBeingModified=false;
@@ -176,18 +174,18 @@ if(this.labelZ){
 this.labelZ.setLabel();
 }
 this.onModify(this);
-},getBounds:function(_16){
+},getBounds:function(_19){
 var px=this.points[0],pc=this.points[1],py=this.points[2];
 if(this.style.zAxisEnabled){
 var pz=this.points[3];
 }
-if(_16){
-var _17={x:pc.x,y:pc.y,x1:pc.x,y1:pc.y,x2:px.x,y2:px.y,x3:py.x,y3:py.y};
+if(_19){
+var _1a={x:pc.x,y:pc.y,x1:pc.x,y1:pc.y,x2:px.x,y2:px.y,x3:py.x,y3:py.y};
 if(this.style.zAxisEnabled){
-_17.x4=pz.x;
-_17.y4=pz.y;
+_1a.x4=pz.x;
+_1a.y4=pz.y;
 }
-return _17;
+return _1a;
 }
 var x1=this.style.zAxisEnabled?(py.x<pz.x?py.x:pz.x):py.x;
 y1=py.y<px.y?py.y:px.y,x2=px.x,y2=this.style.zAxisEnabled?pz.y:pc.y;
@@ -197,7 +195,7 @@ this.points[0]=pts[0];
 if(this.pointsToData){
 this.data=this.pointsToData();
 }
-},onTransform:function(_18){
+},onTransform:function(_1b){
 var o=this.points[0];
 var c=this.points[1];
 var ox=c.x-(c.y-o.y);
@@ -222,8 +220,8 @@ d.cosphi=1;
 return d;
 },getRadius:function(){
 var p=this.points;
-var _19={start:{x:p[1].x,y:p[1].y},x:p[0].x,y:p[0].y};
-return this.util.length(_19);
+var _1c={start:{x:p[1].x,y:p[1].y},x:p[0].x,y:p[0].y};
+return this.util.length(_1c);
 },dataToPoints:function(o){
 o=o||this.data;
 if(o.radius||o.angle){
@@ -314,6 +312,8 @@ this.points.push(this.zPoint(obj));
 this.onRender(this);
 this.setPoints=this._postSetPoints;
 }});
-_3.drawing.tools.custom.Axes.setup={name:"dojox.drawing.tools.custom.Axes",tooltip:"Axes Tool",iconClass:"iconAxes"};
-_3.drawing.register(_3.drawing.tools.custom.Axes.setup,"tool");
+_1.setObject("dojox.drawing.tools.custom.Axes",_7);
+_7.setup={name:"dojox.drawing.tools.custom.Axes",tooltip:"Axes Tool",iconClass:"iconAxes"};
+_2.register(_7.setup,"tool");
+return _7;
 });

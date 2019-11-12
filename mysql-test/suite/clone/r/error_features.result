@@ -1,0 +1,171 @@
+# restart:--innodb-directories=MYSQL_TMP_DIR
+# create bootstrap file
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64));
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+# 1. Check Privilege
+CREATE SCHEMA testdb_clone;
+CREATE USER 'user_clone'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_clone.* TO 'user_clone'@'localhost';
+GRANT SELECT ON performance_schema.* to 'user_clone'@'localhost';
+SELECT USER, HOST, PRIV FROM mysql.global_grants
+WHERE USER = 'user_clone' ORDER BY PRIV;
+USER	HOST	PRIV
+# Connection without SYSTEM_VARIABLES_ADMIN privilege
+SELECT user();
+user()
+user_clone@localhost
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'user_clone'@'localhost';
+# Connection without BACKUP privilege
+SELECT user();
+user()
+user_clone@localhost
+USE testdb_clone;
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64));
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+DROP TABLE t1;
+# Grant backup privilege to clone user
+GRANT BACKUP_ADMIN on *.* to 'user_clone'@'localhost';
+SELECT USER, HOST, PRIV FROM mysql.global_grants
+WHERE USER = 'user_clone' ORDER BY PRIV;
+USER	HOST	PRIV
+user_clone	localhost	BACKUP_ADMIN
+user_clone	localhost	SYSTEM_VARIABLES_ADMIN
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+DROP SCHEMA testdb_clone;
+DROP USER 'user_clone'@'localhost';
+# 1A. Genaral Tablespace with absolute path
+CREATE TABLESPACE tbs1 ADD DATAFILE 'MYSQL_TMP_DIR/tbs1_data1.ibd';
+CREATE TABLE t2(col1 INT PRIMARY KEY) TABLESPACE = tbs1;
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'MYSQL_TMP_DIR/data_new';
+ERROR HY000: File 'MYSQL_TMP_DIR/tbs1_data1.ibd' already exists
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Failed	1086
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Failed
+1	PAGE COPY	Not Started
+1	REDO COPY	Not Started
+1	FILE SYNC	Not Started
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+DROP TABLE t2;
+DROP TABLESPACE tbs1;
+UNINSTALL PLUGIN clone;
+# 2. Encrypted Table
+# restart: --datadir=ENCRYPT_DATADIR --early-plugin-load=keyring_file=KEYRING_PLUGIN --keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1 (col1 INT PRIMARY KEY)  ENCRYPTION="Y";
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+DROP TABLE t1;
+# 2A. Enable Redo Encryption
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+SELECT @@global.innodb_undo_log_encrypt ;
+@@global.innodb_undo_log_encrypt
+0
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+# 2B. Enable Undo Encryption
+SET GLOBAL innodb_undo_log_encrypt = ON;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+0
+SELECT @@global.innodb_undo_log_encrypt ;
+@@global.innodb_undo_log_encrypt
+1
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+CLONE LOCAL DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+SET GLOBAL innodb_undo_log_encrypt = OFF;
+# 3. Enable sql_require_primary_key
+UNINSTALL PLUGIN clone;
+SELECT @@sql_require_primary_key into @saved_sql_require_primary_key;
+SET sql_require_primary_key = OFF;
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+UNINSTALL PLUGIN clone;
+SET sql_require_primary_key = ON;
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET global sql_require_primary_key = @saved_sql_require_primary_key;
+#Cleanup
+UNINSTALL PLUGIN clone;
+UNINSTALL PLUGIN keyring_file;
+# restart:
+DROP TABLE t1;

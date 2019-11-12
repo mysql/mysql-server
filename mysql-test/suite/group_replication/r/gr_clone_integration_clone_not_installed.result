@@ -1,0 +1,50 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+#########################################################
+# 1. Start group replication on server1 and add some data
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+
+###############################################################
+# 2. Configure the threshold on server 2 and start GR
+#    Distributed recovery is used as the clone plugin
+#    is not installed in the joiner
+[connection server2]
+SET GLOBAL group_replication_clone_threshold= 1;
+include/start_group_replication.inc
+include/assert_grep.inc [Clone plugin is not present]
+
+#######################################################################
+# 3. Install the clone plugin in the joiner and start GR
+#    The joiner tries using clone when it is not installed in the donor
+#    Distributed recovery is used as the clone process errors out
+include/stop_group_replication.inc
+[connection server1]
+INSERT INTO t1 VALUES (3);
+[connection server2]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+include/start_group_replication.inc
+include/assert_grep.inc [Clone plugin is not present in the donor]
+
+############################################################
+# 4. Cleanup
+SET GLOBAL group_replication_clone_threshold= 9223372036854775807;;
+DROP TABLE t1;
+include/rpl_sync.inc
+UNINSTALL PLUGIN clone;
+set session sql_log_bin=0;
+call mtr.add_suppression("Plugin group_replication reported: 'Due to the number of missing transactions being higher than *");
+call mtr.add_suppression("There was an issue when configuring the remote cloning process: The clone plugin is not present or active*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("Due to some issue on the previous step distributed recovery is now executing: Incremental Recovery.");
+set session sql_log_bin=1;
+include/group_replication_end.inc

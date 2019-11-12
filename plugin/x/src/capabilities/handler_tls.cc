@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ bool Capability_tls::is_supported_impl() const {
          is_supported_connection_type;
 }
 
-void Capability_tls::get_impl(Any &any) {
+void Capability_tls::get_impl(Any *any) {
   bool is_tls_active = m_client.connection().get_type() == Connection_tls;
 
   ngs::Setter_any::set_scalar(any, is_tls_active);

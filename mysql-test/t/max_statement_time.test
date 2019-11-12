@@ -48,7 +48,7 @@ DROP TABLE t1, t2, t3, t4, t5;
 --echo #
 # Statement level timeout value setting.
 SELECT @@max_execution_time;
-SET @@SESSION.max_execution_time= 1;
+SET @@SESSION.max_execution_time= 1000;
 SELECT @@max_execution_time;
 SET @@SESSION.max_execution_time= 0;
 
@@ -59,10 +59,10 @@ SET @@SESSION.max_execution_time= 0;
 --echo #
 
 # timeout value set at statement level.
-SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(5);
+SELECT /*+ MAX_EXECUTION_TIME(1000) */ SLEEP(5);
 
 # timeout value set at session level.
-SET @@SESSION.max_execution_time= 1;
+SET @@SESSION.max_execution_time= 1000;
 SELECT SLEEP(5);
 SET @@SESSION.max_execution_time= 0;
 
@@ -228,11 +228,11 @@ DROP TABLE t2;
 #           Execution time limit is not applicable to SELECTs of events.
 SET @global_event_scheduler_status= @@global.event_scheduler;
 SET @@global.event_scheduler= ON;
-SET @@global.max_execution_time= 1;
+SET @@global.max_execution_time= 1000;
 CREATE TABLE t2 (f1 int, f2 int);
 
 # Both of the following selects are interrupted because of timeout.
-SELECT SLEEP(2) into @a;
+SELECT SLEEP(5) into @a;
 SELECT @a;
 
 delimiter |;
@@ -286,7 +286,7 @@ delimiter ;|
 
 # Both of the following selects are interrupted because of timeout.
 SELECT SLEEP(5) into @a;
-SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
+SELECT /*+ MAX_EXECUTION_TIME(1000) */ SLEEP(2) into @b;
 SELECT @a, @b;
 
 INSERT INTO t1 VALUES (1, 'string');
@@ -302,12 +302,12 @@ DROP TABLE t1,t2,t3;
 
 # Session MAX_EXECUTION_TIME is used when statament level MAX_EXECUTION_TIME 
 # value is not set.
-SET @@SESSION.max_execution_time= 3;
+SET @@SESSION.max_execution_time= 1000;
 SELECT sleep(5);
 
 # Statement level MAX_EXECUTION_TIME takes precedence over session level
 # MAX_EXECUTION_TIME.
-SELECT /*+ MAX_EXECUTION_TIME(2) */ sleep(5);
+SELECT /*+ MAX_EXECUTION_TIME(20000) */ sleep(5);
 
 SET @@SESSION.max_execution_time= 0;
 

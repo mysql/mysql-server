@@ -14,7 +14,10 @@ eval SET @@session.default_storage_engine = 'ndbcluster';
 
 
 ##### Workarounds for known open engine specific bugs
-#     none
+## Disable NDB index statistics. This test uses a small table, so stats are not
+## reliable, and can cause the "EXPLAIN" portion of the test results to vary
+## unpredictably.
+SET ndb_index_stat_enable=OFF;
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines

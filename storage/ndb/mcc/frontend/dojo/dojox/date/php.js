@@ -130,7 +130,7 @@ _14="0"+_14;
 }
 return _14;
 },g:function(){
-return (this.date.getHours()>12)?this.date.getHours()-12+"":this.date.getHours()+"";
+return (this.date.getHours()%12||12)+"";
 },G:function(){
 return this.date.getHours()+"";
 },h:function(){

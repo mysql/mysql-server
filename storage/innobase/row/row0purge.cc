@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -128,8 +128,18 @@ static ibool row_purge_reposition_pcur(
  @retval true if the row was not found, or it was successfully removed
  @retval false if the row was modified after the delete marking */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_low(
-    purge_node_t *node, /*!< in/out: row purge node */
-    ulint mode)         /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
+    purge_node_t *node, /*!<
+                           in/out:
+                           row
+                           purge
+                           node
+                         */
+    ulint mode)         /*!<
+                           in:
+                           BTR_MODIFY_LEAF
+                           or
+                           BTR_MODIFY_TREE
+                         */
 {
   dict_index_t *index;
   bool success = true;
@@ -389,9 +399,21 @@ if possible.
 @retval true if success or if not found
 @retval false if row_purge_remove_sec_if_poss_tree() should be invoked */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf(
-    purge_node_t *node,    /*!< in: row purge node */
-    dict_index_t *index,   /*!< in: index */
-    const dtuple_t *entry) /*!< in: index entry */
+    purge_node_t *node,    /*!<
+                              in:
+                              row
+                              purge
+                              node
+                            */
+    dict_index_t *index,   /*!<
+                              in:
+                              index
+                            */
+    const dtuple_t *entry) /*!<
+                              in:
+                              index
+                              entry
+                            */
 {
   mtr_t mtr;
   btr_pcur_t pcur;
@@ -495,10 +517,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
                                         page_get_page_no(page)) &&
               page_get_n_recs(page) < 2 &&
               page_get_page_no(page) != dict_index_get_page(index)) {
-          /* this is the last record on page,
-          and it has a "page" lock on it,
-          which mean search is still depending
-          on it, so do not delete */
+            /* this is the last record on page,
+            and it has a "page" lock on it,
+            which mean search is still depending
+            on it, so do not delete */
 #ifdef UNIV_DEBUG
             ib::info(ER_IB_MSG_1009) << "skip purging last"
                                         " record on page "
@@ -587,6 +609,27 @@ static inline void row_purge_skip_uncommitted_virtual_index(
   }
 }
 
+/** Remove multi-value index entries if possible.
+@param[in,out]	node		row purge node
+@param[in,out]	heap		memory heap
+@param[in]	selected	true if only selected multi-value data should
+                                be purged */
+static inline void row_purge_remove_multi_sec_if_poss(purge_node_t *node,
+                                                      mem_heap_t *heap,
+                                                      bool selected) {
+  dict_index_t *index = node->index;
+
+  ut_ad(index->is_multi_value());
+
+  Multi_value_entry_builder_normal mv_entry_builder(node->row, nullptr, index,
+                                                    heap, false, selected);
+
+  for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+       entry = mv_entry_builder.next()) {
+    row_purge_remove_sec_if_poss(node, index, entry);
+  }
+}
+
 /** Purges a delete marking of a record.
  @retval true if the row was not found, or it was successfully removed
  @retval false the purge needs to be suspended because of
@@ -609,9 +652,14 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_del_mark(
     }
 
     if (node->index->type != DICT_FTS) {
-      dtuple_t *entry = row_build_index_entry_low(node->row, NULL, node->index,
-                                                  heap, ROW_BUILD_FOR_PURGE);
-      row_purge_remove_sec_if_poss(node, node->index, entry);
+      if (node->index->is_multi_value()) {
+        row_purge_remove_multi_sec_if_poss(node, heap, false);
+      } else {
+        dtuple_t *entry = row_build_index_entry_low(
+            node->row, NULL, node->index, heap, ROW_BUILD_FOR_PURGE);
+        row_purge_remove_sec_if_poss(node, node->index, entry);
+      }
+
       mem_heap_empty(heap);
     }
 
@@ -644,6 +692,8 @@ static void row_purge_upd_exist_or_extern_func(
   heap = mem_heap_create(1024);
 
   while (node->index != NULL) {
+    bool non_mv_upd = false;
+
     dict_table_skip_corrupt_index(node->index);
 
     row_purge_skip_uncommitted_virtual_index(node->index);
@@ -652,13 +702,18 @@ static void row_purge_upd_exist_or_extern_func(
       break;
     }
 
-    if (row_upd_changes_ord_field_binary(node->index, node->update, thr, NULL,
-                                         NULL)) {
-      /* Build the older version of the index entry */
-      dtuple_t *entry = row_build_index_entry_low(node->row, NULL, node->index,
-                                                  heap, ROW_BUILD_FOR_PURGE);
-      row_purge_remove_sec_if_poss(node, node->index, entry);
-      mem_heap_empty(heap);
+    if (row_upd_changes_ord_field_binary(
+            node->index, node->update, thr, NULL, NULL,
+            (node->index->is_multi_value() ? &non_mv_upd : nullptr))) {
+      if (node->index->is_multi_value()) {
+        row_purge_remove_multi_sec_if_poss(node, heap, !non_mv_upd);
+      } else {
+        /* Build the older version of the index entry */
+        dtuple_t *entry = row_build_index_entry_low(
+            node->row, NULL, node->index, heap, ROW_BUILD_FOR_PURGE);
+        row_purge_remove_sec_if_poss(node, node->index, entry);
+        mem_heap_empty(heap);
+      }
     }
 
     node->index = node->index->next();
@@ -807,7 +862,7 @@ try_again:
   /* Cannot call dd_table_open_on_id() before server is fully up */
   if (!srv_upgrade_old_undo_found && !dict_table_is_system(table_id)) {
     while (!mysqld_server_started) {
-      if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
         return (false);
       }
       os_thread_sleep(1000000);
@@ -910,7 +965,7 @@ try_again:
           dd_table_close(node->parent, thd & node->parent_mdl, false);
         }
       }
-      if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
         return (false);
       }
       os_thread_sleep(1000000);
@@ -1088,17 +1143,18 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
   bool updated_extern;
   THD *thd = current_thd;
 
-  DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
-                  while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-                    os_thread_sleep(500000);
-                  } return;);
+  DBUG_EXECUTE_IF(
+      "do_not_meta_lock_in_background",
+      while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
+        os_thread_sleep(500000);
+      } return;);
 
   while (row_purge_parse_undo_rec(node, undo_rec, &updated_extern, thd, thr)) {
     bool purged;
 
     purged = row_purge_record(node, undo_rec, thr, updated_extern, thd);
 
-    if (purged || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (purged || srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       return;
     }
 

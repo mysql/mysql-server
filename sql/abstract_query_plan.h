@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,12 +215,6 @@ namespace AQP
     bool uses_join_cache() const;
     
     bool filesort_before_join() const;
-
-    /**
-       Change the query plan for this part of the join to use
-       the pushed functions
-    */
-    void set_pushed_table_access_method() const;
 
   private:
 

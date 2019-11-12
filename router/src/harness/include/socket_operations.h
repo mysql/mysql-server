@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <chrono>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #ifdef _WIN32
 #include <windows.h>
 #include <winsock2.h>
@@ -46,18 +47,20 @@ typedef long ssize_t;
 
 namespace mysql_harness {
 
+#ifdef _WIN32
+using socket_t = SOCKET;
+constexpr socket_t kInvalidSocket = INVALID_SOCKET;
+#else
+using socket_t = int;
+constexpr socket_t kInvalidSocket = -1;
+#endif
+
 /** @class SocketOperationsBase
  * @brief Base class to allow multiple SocketOperations implementations
  *        (at least one "real" and one mock for testing purposes)
  */
 class HARNESS_EXPORT SocketOperationsBase {
  public:
-#ifdef _WIN32
-  using socket_t = SOCKET;
-#else
-  using socket_t = int;
-#endif
-
   explicit SocketOperationsBase() = default;
   explicit SocketOperationsBase(const SocketOperationsBase &) = default;
   SocketOperationsBase &operator=(const SocketOperationsBase &) = default;
@@ -77,10 +80,12 @@ class HARNESS_EXPORT SocketOperationsBase {
                          socklen_t optlen) = 0;
   virtual int listen(int fd, int n) = 0;
   virtual int get_errno() = 0;
+  virtual std::error_code get_error_code() = 0;
   virtual void set_errno(int) = 0;
   virtual int poll(struct pollfd *fds, nfds_t nfds,
                    std::chrono::milliseconds timeout) = 0;
-  virtual const char *inetntop(int af, void *cp, char *buf, socklen_t len) = 0;
+  virtual const char *inetntop(int af, const void *cp, char *buf,
+                               socklen_t len) = 0;
   virtual int getpeername(int fd, struct sockaddr *addr, socklen_t *len) = 0;
 
   /** @brief Wrapper around socket library write() with a looping logic
@@ -110,6 +115,14 @@ class HARNESS_EXPORT SocketOperationsBase {
    */
   virtual int connect_non_blocking_wait(socket_t sock,
                                         std::chrono::milliseconds timeout) = 0;
+
+  /**
+   * Sets blocking flag for given socket
+   *
+   * @param sock a socket file descriptor
+   * @param blocking whether to set blocking off (false) or on (true)
+   */
+  virtual void set_socket_blocking(int sock, bool blocking) = 0;
 
   /**
    * get the non-blocking connect() status
@@ -178,7 +191,8 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
              Can't call it inet_ntop as it is a macro on freebsd and causes
              compilation errors.
   */
-  const char *inetntop(int af, void *cp, char *buf, socklen_t len) override;
+  const char *inetntop(int af, const void *cp, char *buf,
+                       socklen_t len) override;
 
   /** @brief Wrapper around socket library getpeername() */
   int getpeername(int fd, struct sockaddr *addr, socklen_t *len) override;
@@ -203,6 +217,14 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
    */
   int connect_non_blocking_status(int sock, int &so_error) override;
 
+  /**
+   * Sets blocking flag for given socket
+   *
+   * @param sock a socket file descriptor
+   * @param blocking whether to set blocking off (false) or on (true)
+   */
+  void set_socket_blocking(int sock, bool blocking) override;
+
   /** @brief return hostname of local host
    *
    * @throws `LocalHostnameResolutionError` (std::runtime_error) on failure
@@ -210,7 +232,7 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
   std::string get_local_hostname() override;
 
   /**
-   * get the error-code of the last (socket) operation
+   * get the errno of the last (socket) operation
    *
    * @see errno or WSAGetLastError()
    */
@@ -220,6 +242,20 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
 #else
     return errno;
 #endif
+  }
+
+  /**
+   * get the error-code of the last (socket) operation
+   *
+   */
+  std::error_code get_error_code() override {
+    return {
+#ifndef _WIN32
+        errno, std::generic_category()
+#else
+        WSAGetLastError(), std::system_category()
+#endif
+    };
   }
 
   /**

@@ -51,7 +51,7 @@ SET GLOBAL group_replication_force_members= "MEMBER1,MEMBER2";
 group_replication_switch_to_single_primary_mode("MEMBER3_UUID")
 Mode switched to single-primary with reported warnings: The appointed primary being elected exited the group. Check the group member list to see who is the primary.
 Warnings:
-Warning	13223	The appointed primary being elected exited the group. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
+Warning	3910	The appointed primary being elected exited the group. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
 include/rpl_gr_wait_for_number_of_members.inc
 
 ############################################################

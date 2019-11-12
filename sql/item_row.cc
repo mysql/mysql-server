@@ -42,7 +42,7 @@ Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail)
       with_null(false) {
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
-  items = (Item **)sql_alloc(sizeof(Item *) * arg_count);
+  items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
   if (items == NULL) {
     arg_count = 0;
     return;  // OOM
@@ -61,7 +61,7 @@ Item_row::Item_row(Item *head, List<Item> &tail)
     : used_tables_cache(0), not_null_tables_cache(0), with_null(false) {
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
-  items = (Item **)sql_alloc(sizeof(Item *) * arg_count);
+  items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
   if (items == NULL) {
     arg_count = 0;
     return;  // OOM
@@ -87,11 +87,10 @@ bool Item_row::itemize(Parse_context *pc, Item **res) {
 
 void Item_row::illegal_method_call(
     const char *method MY_ATTRIBUTE((unused))) const {
-  DBUG_ENTER("Item_row::illegal_method_call");
+  DBUG_TRACE;
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
   DBUG_ASSERT(0);
   my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-  DBUG_VOID_RETURN;
 }
 
 bool Item_row::fix_fields(THD *thd, Item **) {
@@ -125,14 +124,12 @@ bool Item_row::fix_fields(THD *thd, Item **) {
 }
 
 void Item_row::cleanup() {
-  DBUG_ENTER("Item_row::cleanup");
+  DBUG_TRACE;
 
   Item::cleanup();
   /* Reset to the original values */
   used_tables_cache = 0;
   with_null = false;
-
-  DBUG_VOID_RETURN;
 }
 
 void Item_row::split_sum_func(THD *thd, Ref_item_array ref_item_array,

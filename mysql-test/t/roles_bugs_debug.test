@@ -1,0 +1,77 @@
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug#28395115: permission denied if grants are given through role
+--echo #
+# We are verifying the after effects of revoking a privilege from a user and
+# a role from another session while a user is in the middle of executing current
+# SQL statement. Expected Behavior :
+# 1. In case of privileges are revoked from a role changes are invisible
+#    until next SQL statement is executed.
+# 2. In case of privileges are revokes from a user changes are visible
+#    immediately to the current SQL statement.
+
+# Setup
+CREATE DATABASE my_db;
+CREATE table my_db.t1 (id int primary key);
+CREATE ROLE foo_role;
+CREATE USER foo, bar;
+# Grant required column privileges to a role and user.
+GRANT INSERT(id), UPDATE(id), SELECT(id) ON my_db.t1 to foo_role, bar;
+GRANT EXECUTE, SYSTEM_VARIABLES_ADMIN ON *.* TO foo, bar;
+GRANT foo_role TO foo;
+SET DEFAULT ROLE foo_role TO foo;
+
+--connect(foo_con, localhost, foo,,,)
+SET DEBUG_SYNC='in_check_grant_all_columns SIGNAL s1 WAIT_FOR s2';
+--echo # Inserts are now allowed if grants are given through role
+send INSERT into my_db.t1 values(8) on duplicate key UPDATE id = values(id) + 80;
+
+connection default;
+--echo # Now revoke all privileges from the role
+SET DEBUG_SYNC='now WAIT_FOR s1';
+SET DEBUG_SYNC='after_table_grant_revoke SIGNAL s2';
+REVOKE ALL ON my_db.t1 FROM foo_role;
+connection foo_con;
+--echo # Despite all privileges are revoked current SQL statement will succeed.
+reap;
+SET DEBUG_SYNC= 'RESET';
+--echo # But the subsequent statement will fail.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT into my_db.t1 values(9) on duplicate key UPDATE id = values(id) + 90;
+
+
+--connect(bar_con, localhost, bar,,,)
+SET DEBUG_SYNC='in_check_grant_all_columns SIGNAL s1 WAIT_FOR s2';
+--echo # Inserts are now allowed if grants are given through role
+send INSERT into my_db.t1 values(6) on duplicate key UPDATE id = values(id) + 60;
+connection default;
+--echo # Now revoke all privileges from the user
+SET DEBUG_SYNC='now WAIT_FOR s1';
+SET DEBUG_SYNC='after_table_grant_revoke SIGNAL s2';
+REVOKE ALL ON my_db.t1 FROM bar;
+connection bar_con;
+--echo # Since all privileges are revoked therefore current SQL statement will fail.
+--error ER_COLUMNACCESS_DENIED_ERROR
+reap;
+--echo # Subsequent statement will fail as well.
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT into my_db.t1 values(9) on duplicate key UPDATE id = values(id) + 90;
+
+--echo # Cleanup
+connection default;
+SET DEBUG_SYNC= 'RESET';
+disconnect foo_con;
+disconnect bar_con;
+DROP DATABASE my_db;
+DROP USER foo, bar;
+DROP ROLE foo_role;
+
+--echo
+--echo # End of 8.0 tests
+--echo
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

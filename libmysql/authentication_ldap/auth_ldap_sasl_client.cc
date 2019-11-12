@@ -236,10 +236,11 @@ int Sasl_client::sasl_start(char **client_output, int *client_output_length) {
     log_error("Sasl_client::SaslStart: sasl connection is null");
     return rc_sasl;
   }
+  void *sasl_client_output_p = &sasl_client_output;
   do {
     rc_sasl =
         sasl_client_start(m_connection, m_mechanism, &interactions,
-                          (const char **)&sasl_client_output,
+                          static_cast<const char **>(sasl_client_output_p),
                           (unsigned int *)client_output_length, &mechanism);
     if (rc_sasl == SASL_INTERACT) interact(interactions);
   } while (rc_sasl == SASL_INTERACT);
@@ -267,9 +268,11 @@ int Sasl_client::sasl_step(char *server_in, int server_in_length,
   if (m_connection == NULL) {
     return rc_sasl;
   }
+  void *client_out_p = client_out;
   do {
     rc_sasl = sasl_client_step(m_connection, server_in, server_in_length,
-                               &interactions, (const char **)client_out,
+                               &interactions,
+                               static_cast<const char **>(client_out_p),
                                (unsigned int *)client_out_length);
     if (rc_sasl == SASL_INTERACT) Sasl_client::interact(interactions);
   } while (rc_sasl == SASL_INTERACT);

@@ -1,4 +1,3 @@
-drop table if exists t1,t2;
 select 1, 1.0, -1, "hello", NULL;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					1	8	1	1	N	32897	0	63
@@ -9,6 +8,9 @@ def					NULL	6	0	0	Y	32896	0	63
 1	1.0	-1	hello	NULL
 1	1.0	-1	hello	NULL
 create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	a	a	1	4	0	Y	32768	0	63
@@ -34,8 +36,12 @@ def	test	t1	t2	b	c	2	6	0	Y	32768	0	63
 b	c
 drop table t1;
 CREATE TABLE t1 (id tinyint(3) default NULL, data varchar(255) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'male'),(2,'female');
 CREATE TABLE t2 (id tinyint(3) unsigned default NULL, data char(3) default '0');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'yes'),(2,'no');
 select t1.id, t1.data, t2.data from t1, t2 where t1.id = t2.id;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -96,40 +102,6 @@ i
 2
 affected rows: 1
 affected rows: 0
-create table t1 (id int(10)) ENGINE=MyISAM;
-insert into t1 values (1);
-CREATE  VIEW v1 AS select t1.id as id from t1;
-CREATE  VIEW v2 AS select t1.id as renamed from t1;
-CREATE  VIEW v3 AS select t1.id + 12 as renamed from t1;
-select * from v1 group by id limit 1;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	id	id	3	10	1	Y	32768	0	63
-id
-1
-select * from v1 group by id limit 0;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	v1	v1	id	id	3	10	0	Y	32768	0	63
-id
-select * from v1 where id=1000 group by id;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	v1	v1	id	id	3	10	0	Y	32768	0	63
-id
-select * from v1 where id=1 group by id;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v1	id	id	3	10	1	Y	32768	0	63
-id
-1
-select * from v2 where renamed=1 group by renamed;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	v2	id	renamed	3	10	1	Y	32768	0	63
-renamed
-1
-select * from v3 where renamed=1 group by renamed;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		v3	v3	renamed	renamed	8	12	0	Y	32896	0	63
-renamed
-drop table t1;
-drop view v1,v2,v3;
 select a.* from (select 2147483648 as v_large) a;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def			a	v_large	v_large	8	10	10	N	32769	0	63
@@ -156,13 +128,13 @@ c1
 3
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	v1	v1	c1	c1	254	4	1	Y	0	0	255
-def	test	v2	v2	c2	c2	254	4	1	Y	0	0	255
-c1	c2
 1	1
 2	2
-3	3
 2	2
+3	3
+c1	c2
+def	test	v1	v1	c1	c1	254	4	1	Y	0	0	255
+def	test	v2	v2	c2	c2	254	4	1	Y	0	0	255
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	v1	c1	c1	254	4	1	Y	32768	0	255
@@ -257,6 +229,10 @@ longtext_col longtext,
 enum_col enum("A","B","C"),
 set_col set("F","E","D")
 );
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	bool_col	bool_col	1	1	0	Y	32768	0	63

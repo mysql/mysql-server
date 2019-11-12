@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
                            KEY_CACHE *key_cache) {
   int error = 0;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_assign_to_key_cache");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("old_key_cache_handle: %p  new_key_cache_handle: %p",
                        share->key_cache, key_cache));
 
@@ -69,7 +69,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     Skip operation if we didn't change key cache. This can happen if we
     call this for all open instances of the same table
   */
-  if (share->key_cache == key_cache) DBUG_RETURN(0);
+  if (share->key_cache == key_cache) return 0;
 
   /*
     First flush all blocks for the table in the old key cache.
@@ -117,7 +117,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
                           share->unique_name_length, share->key_cache))
     error = my_errno();
   mysql_mutex_unlock(&share->intern_lock);
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -142,7 +142,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
 
 void mi_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache) {
   LIST *pos;
-  DBUG_ENTER("mi_change_key_cache");
+  DBUG_TRACE;
 
   /*
     Lock list to ensure that no one can close the table while we manipulate it
@@ -162,5 +162,4 @@ void mi_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache) {
   */
   multi_key_cache_change(old_key_cache, new_key_cache);
   mysql_mutex_unlock(&THR_LOCK_myisam);
-  DBUG_VOID_RETURN;
 }

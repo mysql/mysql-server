@@ -1,7 +1,7 @@
 
-.dijitPopup {
-	-moz-box-shadow: 0px 0px 50px black;
-	-o-box-shadow: 0px 0px 50px black;
-	-ms-box-shadow: 0px 0px 50px black;
-	box-shadow: 0px 0px 50px black;
+.dj_gecko .dijitPopup {
+  -moz-box-shadow: none;
+}
+.dj_gecko .mblComboBoxMenuItemSelected {
+  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #666666 100%);
 }

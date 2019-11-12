@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,15 +59,16 @@ void widen_fraction(int new_frac, decimal_t *d);
 int string2decimal(const char *from, decimal_t *to, const char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals, char filler);
-int decimal2ulonglong(decimal_t *from, ulonglong *to);
+int decimal2ulonglong(const decimal_t *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal_t *to);
-int decimal2longlong(decimal_t *from, longlong *to);
+int decimal2longlong(const decimal_t *from, longlong *to);
 int longlong2decimal(longlong from, decimal_t *to);
 int decimal2double(const decimal_t *from, double *to);
 int double2decimal(double from, decimal_t *to);
 int decimal_actual_fraction(const decimal_t *from);
-int decimal2bin(decimal_t *from, uchar *to, int precision, int scale);
-int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale);
+int decimal2bin(const decimal_t *from, uchar *to, int precision, int scale);
+int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale,
+                bool keep_prec = false);
 
 /**
   Convert decimal to lldiv_t.
@@ -93,7 +94,8 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to);
 int double2lldiv_t(double nr, lldiv_t *lld);
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
-int decimal_result_size(decimal_t *from1, decimal_t *from2, char op, int param);
+int decimal_result_size(const decimal_t *from1, const decimal_t *from2, char op,
+                        int param);
 
 int decimal_intg(const decimal_t *from);
 int decimal_add(const decimal_t *from1, const decimal_t *from2, decimal_t *to);
@@ -125,14 +127,14 @@ static inline int decimal_string_size(const decimal_t *dec) {
   return (dec->intg ? dec->intg : 1) + dec->frac + (dec->frac > 0) + 2;
 }
 
-  /*
-    conventions:
+/*
+  conventions:
 
-      decimal_smth() == 0     -- everything's ok
-      decimal_smth() <= 1     -- result is usable, but precision loss is
-    possible decimal_smth() <= 2     -- result can be unusable, most significant
-    digits could've been lost decimal_smth() >  2     -- no result was generated
-  */
+    decimal_smth() == 0     -- everything's ok
+    decimal_smth() <= 1     -- result is usable, but precision loss is
+  possible decimal_smth() <= 2     -- result can be unusable, most significant
+  digits could've been lost decimal_smth() >  2     -- no result was generated
+*/
 
 #define E_DEC_OK 0
 #define E_DEC_TRUNCATED 1
@@ -143,6 +145,9 @@ static inline int decimal_string_size(const decimal_t *dec) {
 
 #define E_DEC_ERROR 31
 #define E_DEC_FATAL_ERROR 30
+
+static constexpr int DECIMAL_MAX_SCALE{30};
+static constexpr int DECIMAL_NOT_SPECIFIED{DECIMAL_MAX_SCALE + 1};
 
 #endif  // MYSQL_ABI_CHECK
 

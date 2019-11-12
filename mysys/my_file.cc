@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@
 static uint set_max_open_files(uint max_file_limit) {
   struct rlimit rlimit;
   uint old_cur;
-  DBUG_ENTER("set_max_open_files");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("files: %u", max_file_limit));
 
   if (!getrlimit(RLIMIT_NOFILE, &rlimit)) {
@@ -85,7 +85,7 @@ static uint set_max_open_files(uint max_file_limit) {
     if (rlimit.rlim_cur == (rlim_t)RLIM_INFINITY)
       rlimit.rlim_cur = max_file_limit;
     if (rlimit.rlim_cur >= max_file_limit)
-      DBUG_RETURN(rlimit.rlim_cur); /* purecov: inspected */
+      return rlimit.rlim_cur; /* purecov: inspected */
     rlimit.rlim_cur = rlimit.rlim_max = max_file_limit;
     if (setrlimit(RLIMIT_NOFILE, &rlimit))
       max_file_limit = old_cur; /* Use original value */
@@ -98,7 +98,7 @@ static uint set_max_open_files(uint max_file_limit) {
     }
   }
   DBUG_PRINT("exit", ("max_file_limit: %u", max_file_limit));
-  DBUG_RETURN(max_file_limit);
+  return max_file_limit;
 }
 
 #else
@@ -121,16 +121,16 @@ static uint set_max_open_files(uint max_file_limit) {
 
 uint my_set_max_open_files(uint files) {
   struct st_my_file_info *tmp;
-  DBUG_ENTER("my_set_max_open_files");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("files: %u  my_file_limit: %u", files, my_file_limit));
 
   files += MY_FILE_MIN;
   files = set_max_open_files(MY_MIN(files, OS_FILE_LIMIT));
-  if (files <= MY_NFILE) DBUG_RETURN(files);
+  if (files <= MY_NFILE) return files;
 
   if (!(tmp = (struct st_my_file_info *)my_malloc(
             key_memory_my_file_info, sizeof(*tmp) * files, MYF(MY_WME))))
-    DBUG_RETURN(MY_NFILE);
+    return MY_NFILE;
 
   /* Copy any initialized files */
   memcpy((char *)tmp, (char *)my_file_info,
@@ -141,11 +141,11 @@ uint my_set_max_open_files(uint files) {
   my_file_info = tmp;
   my_file_limit = files;
   DBUG_PRINT("exit", ("files: %u", files));
-  DBUG_RETURN(files);
+  return files;
 }
 
 void my_free_open_file_info() {
-  DBUG_ENTER("my_free_file_info");
+  DBUG_TRACE;
   if (my_file_info != my_file_info_default) {
     /* Copy data back for my_print_open_files */
     memcpy((char *)my_file_info_default, my_file_info,
@@ -154,5 +154,4 @@ void my_free_open_file_info() {
     my_file_info = my_file_info_default;
     my_file_limit = MY_NFILE;
   }
-  DBUG_VOID_RETURN;
 }

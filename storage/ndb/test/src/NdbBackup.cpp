@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,10 @@
 #include <NdbSleep.h>
 #include <random.h>
 #include <NdbTick.h>
+#include <util/File.hpp>
+
+#define AUTOTEST_MYSQL_PATH_ENV "MYSQL_BASE_DIR"
+#define MTR_MYSQL_PATH_ENV "MYSQL_BINDIR"
 
 #define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
   ndbout << "ERR: "<< m \
@@ -43,6 +47,13 @@
 #include <mgmapi.h>
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
+
+static bool isHostLocal(const char* hostName)
+{
+  /* Examples assuming that hostname served indicates locality... */
+  return ((strcmp(hostName, "localhost") == 0) ||
+          (strcmp(hostName, "127.0.0.1") == 0));
+}
 
 int
 NdbBackup::clearOldBackups()
@@ -70,12 +81,29 @@ NdbBackup::clearOldBackups()
     /* 
      * Clear old backup files
      */ 
-    BaseString tmp;
-    tmp.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
-  
-    ndbout << "buf: "<< tmp.c_str() <<endl;
-    int res = system(tmp.c_str());  
-    ndbout << "ssh res: " << res << endl;
+    BaseString tmp1, tmp2;
+    if (!isHostLocal(host))
+    {
+      // clean up backup from BackupDataDir
+      tmp1.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+      // clean up local copy created by scp
+      tmp2.assfmt("rm -rf ./BACKUP*");
+    }
+    else
+    {
+      // clean up backup from BackupDataDir
+      tmp1.assfmt("rm -rf %s/BACKUP", path);
+      // clean up copy created by cp
+      tmp2.assfmt("rm -rf ./BACKUP*");
+    }
+
+    ndbout << "buf: "<< tmp1.c_str() <<endl;
+    int res = system(tmp1.c_str());
+    ndbout << "res: " << res << endl;
+
+    ndbout << "buf: "<< tmp2.c_str() <<endl;
+    res = system(tmp2.c_str());
+    ndbout << "res: " << res << endl;
 
     if (res && retCode == 0)
       retCode = res;
@@ -226,17 +254,53 @@ NdbBackup::getBackupDataDirForNode(int _node_id){
 
 }
 
+BaseString
+NdbBackup::getNdbRestoreBinaryPath(){
+
+  const char* mysql_install_path;
+  if ((mysql_install_path = getenv(AUTOTEST_MYSQL_PATH_ENV)) != NULL) {
+  } else if ((mysql_install_path = getenv(MTR_MYSQL_PATH_ENV)) != NULL) {
+  } else {
+    g_err << "Either MYSQL_BASE_DIR or MYSQL_BINDIR environment variables"
+          << "must be defined as search path for ndb_restore binary" << endl;
+    return "";
+  }
+
+  BaseString ndb_restore_bin_path;
+  ndb_restore_bin_path.assfmt("%s/bin/ndb_restore", mysql_install_path);
+  if (!File_class::exists(ndb_restore_bin_path.c_str()))
+  {
+    ndb_restore_bin_path.assfmt("%s/storage/ndb/tools/ndb_restore", mysql_install_path);
+    if (!File_class::exists(ndb_restore_bin_path.c_str()))
+    {
+      g_err << "Failed to find ndb_restore in either $MYSQL_BASE_DIR "
+            << "or $MYSQL_BINDIR paths " <<  ndb_restore_bin_path.c_str() << endl;
+      return "";
+    }
+    else
+      return ndb_restore_bin_path;
+  }
+  return ndb_restore_bin_path;
+}
+
 int  
 NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_meta,
-		       int _node_id,
+		       bool _restore_epoch,
+                       int _node_id,
 		       unsigned _backup_id,
-                       unsigned _error_insert){
+                       unsigned _error_insert)
+{
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
   const char* path = getBackupDataDirForNode(_node_id);
   if (path == NULL)
     return -1;  
+
+  BaseString ndb_restore_bin_path = getNdbRestoreBinaryPath();
+  if (ndb_restore_bin_path == ""){
+    return -1;
+  }
 
   ndbout << "getHostName "<< _node_id <<endl;
   const char *host;
@@ -248,23 +312,35 @@ NdbBackup::execRestore(bool _restore_data,
    * Copy  backup files to local dir
    */ 
   BaseString tmp;
-  tmp.assfmt("scp -r %s:%s/BACKUP/BACKUP-%d/* .",
-             host, path,
-             _backup_id);
-  
+  if (!isHostLocal(host))
+  {
+    tmp.assfmt("scp -r %s:%s/BACKUP/BACKUP-%d/* .",
+               host, path,
+               _backup_id);
+  }
+  else
+  {
+    tmp.assfmt("scp -r %s/BACKUP/BACKUP-%d/* .",
+               path,
+               _backup_id);
+  }
+
   ndbout << "buf: "<< tmp.c_str() <<endl;
   int res = system(tmp.c_str());  
   
   ndbout << "scp res: " << res << endl;
 
-  if(res == 0 && !_restore_meta && !_restore_data)
+  if(res == 0 && !_restore_meta && !_restore_data && !_restore_epoch)
   {
-    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d", 
+    // ndb_restore connects to cluster, prints backup info
+    // and exits without restoring anything
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d",
 #if 1
                "",
 #else
                "valgrind --leak-check=yes -v "
 #endif
+               ndb_restore_bin_path.c_str(),
                ndb_mgm_get_connected_host(handle),
                ndb_mgm_get_connected_port(handle),
                _node_id, 
@@ -282,12 +358,13 @@ NdbBackup::execRestore(bool _restore_data,
   {
     /** don't restore DD objects */
     
-    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d -m -d .", 
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -m -d .",
 #if 1
                "",
 #else
                "valgrind --leak-check=yes -v "
 #endif
+               ndb_restore_bin_path.c_str(),
                ndb_mgm_get_connected_host(handle),
                ndb_mgm_get_connected_port(handle),
                _node_id, 
@@ -304,12 +381,13 @@ NdbBackup::execRestore(bool _restore_data,
   if (res == 0 && _restore_data)
   {
 
-    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d -r .", 
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -r .",
 #if 1
                "",
 #else
                "valgrind --leak-check=yes -v "
 #endif
+               ndb_restore_bin_path.c_str(),
                ndb_mgm_get_connected_host(handle),
                ndb_mgm_get_connected_port(handle),
                _node_id, 
@@ -322,6 +400,28 @@ NdbBackup::execRestore(bool _restore_data,
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
   }
+
+  if (res == 0 && _restore_epoch)
+  {
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -e .",
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_restore_bin_path.c_str(),
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id,
+               _backup_id);
+#ifdef ERROR_INSERT
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
+
+    ndbout << "buf: "<< tmp.c_str() <<endl;
+    res = system(tmp.c_str());
+  }
   
   ndbout << "ndb_restore res: " << res << endl;
 
@@ -329,7 +429,12 @@ NdbBackup::execRestore(bool _restore_data,
 }
 
 int 
-NdbBackup::restore(unsigned _backup_id, bool restore_meta, bool restore_data, unsigned error_insert){
+NdbBackup::restore(unsigned _backup_id,
+                   bool restore_meta,
+                   bool restore_data,
+                   unsigned error_insert,
+                   bool restore_epoch)
+{
   
   if (!isConnected())
     return -1;
@@ -337,13 +442,13 @@ NdbBackup::restore(unsigned _backup_id, bool restore_meta, bool restore_data, un
   if (getStatus() != 0)
     return -1;
 
-  if(!restore_meta && !restore_data &&
-    (execRestore(false, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
+  if(!restore_meta && !restore_data && !restore_epoch &&
+    (execRestore(false, false, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
     return -1;
 
   if(restore_meta && // if metadata restore enabled 
     // restore metadata for first node
-    (execRestore(false, true, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
+    (execRestore(false, true, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
     return -1;
 
   // Restore data once for each node
@@ -351,8 +456,17 @@ NdbBackup::restore(unsigned _backup_id, bool restore_meta, bool restore_data, un
   {
     for(unsigned i = 0; i < ndbNodes.size(); i++)
     {
-      if(execRestore(true, false, ndbNodes[i].node_id, _backup_id, error_insert) != 0)
+      if(execRestore(true, false, false, ndbNodes[i].node_id, _backup_id, error_insert) != 0)
         return -1;
+    }
+  }
+
+  // Restore epoch from first node
+  if (restore_epoch)
+  {
+    if (execRestore(false, false, true, ndbNodes[0].node_id, _backup_id, error_insert) !=0)
+    {
+      return -1;
     }
   }
   return 0;

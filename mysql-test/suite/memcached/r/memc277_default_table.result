@@ -94,36 +94,33 @@ D	Duesseldorf	City	98765	Hafen
 K	Koeln	West	76543	Rhein
 O	Oldenburg	Mitte	87654	Deich
 S	Stuttgart	Nord	65432	Fernsehturm
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,A,H of default:
+Here are the memcached results with D,B,A,H of default:
 Detmold|City
 Bonn|Mitte
 Aachen|West
 Hameln|Nord
-Here the memcached results with D,B,H,C of t1:
+Here are the memcached results with D,B,H,C of t1:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
 Cottbus|West
-Here the memcached results with D,B,H,C of t2:
+Here are the memcached results with D,B,H,C of t2:
 Dortmund
 Bremen
 Hannover
 Celle
-Here the memcached results with D,B,H,A of t3:
-Here the memcached results with D,O,K,S of t5:
+Here are the memcached results with D,B,H,A of t3:
+Here are the memcached results with D,O,K,S of t5:
 Duesseldorf|City|98765|Hafen
 Oldenburg|Mitte|87654|Deich
 Koeln|West|76543|Rhein
 Stuttgart|Nord|65432|Fernsehturm
-Here the memcached results with Z,B,H,M of t4:
+Here are the memcached results with Z,B,H,M of t4:
 Zossen|City|12345
 Brandenburg|Mitte|23456
 Husum|Nord|45678
 Muenchen|West|34567
-Here the memcached results with D,B,H,C of t2:
+Here are the memcached results with D,B,H,C of t2:
 Dortmund
 Bremen
 Hannover
@@ -158,17 +155,17 @@ D	Duesseldorf	City	98765	Hafen
 K	Koeln	West	76543	Rhein
 O	Oldenburg	Mitte	87654	Deich
 S	Stuttgart	Nord	65432	Fernsehturm
-Here the memcached results after set in default:
+Here are the memcached results after set in default:
 Essen|Ost
-Here the memcached results after set in t2:
+Here are the memcached results after set in t2:
 Essen
-Here the memcached results after set in t5:
+Here are the memcached results after set in t5:
 Essen|Mitte|111111|Mahlzeit
-Here the memcached results after set in t3:
+Here are the memcached results after set in t3:
 Essen|Mitte|111111|Mahlzeit
-Here the memcached results after set in t4:
+Here are the memcached results after set in t4:
 Essen|Mitte|111111
-Here the memcached results after set in t5:
+Here are the memcached results after set in t5:
 Essen|Aussen|111111|Mahlzeit
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -242,14 +239,11 @@ E	Essen	Aussen	111111	Mahlzeit
 K	Koeln	West	76543	Rhein
 O	Oldenburg	Mitte	87654	Deich
 S	Stuttgart	Nord	65432	Fernsehturm
-SELECT sleep(2);
-sleep(2)
-0
-Here the memcached results after set in default:
+Here are the memcached results after set in default:
 Essen|Ausserhalb|222222
-Here the memcached results after set in t5:
+Here are the memcached results after set in t5:
 Essen|Bahnhof|222222|Gut
-Here the memcached results after set in t3:
+Here are the memcached results after set in t3:
 Essen|West
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -317,12 +311,9 @@ E	Essen	Bahnhof	222222	Gut
 K	Koeln	West	76543	Rhein
 O	Oldenburg	Mitte	87654	Deich
 S	Stuttgart	Nord	65432	Fernsehturm
-SELECT sleep(2);
-sleep(2)
-0
-Here the memcached results after set in default:
+Here are the memcached results after set in default:
 Essen|Nord
-Here the memcached results after set in t4:
+Here are the memcached results after set in t4:
 Essen|Nord
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -383,12 +374,9 @@ E	Essen	Bahnhof	222222	Gut
 K	Koeln	West	76543	Rhein
 O	Oldenburg	Mitte	87654	Deich
 S	Stuttgart	Nord	65432	Fernsehturm
-SELECT sleep(2);
-sleep(2)
-0
-Here the memcached results after set in default:
+Here are the memcached results after set in default:
 Emden
-Here the memcached results after set in t1:
+Here are the memcached results after set in t1:
 Emden
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21

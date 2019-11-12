@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ poll_socket(ndb_socket_t socket, bool read, bool write,
   timeout_millis -= *total_elapsed_millis;
 
   if (timeout_millis <= 0)
-    return 0; // Timeout occured
+    return 0; // Timeout occurred
 
   const int res =
     ndb_poll(socket, read, write, false, timeout_millis);

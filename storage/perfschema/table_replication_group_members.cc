@@ -129,7 +129,7 @@ Plugin_table table_replication_group_members::m_table_def(
     /* Definition */
     "  CHANNEL_NAME CHAR(64) not null,\n"
     "  MEMBER_ID CHAR(36) collate utf8mb4_bin not null,\n"
-    "  MEMBER_HOST CHAR(60) collate utf8mb4_bin not null,\n"
+    "  MEMBER_HOST CHAR(255) CHARACTER SET ASCII not null,\n"
     "  MEMBER_PORT INTEGER,\n"
     "  MEMBER_STATE CHAR(64) collate utf8mb4_bin not null,\n"
     "  MEMBER_ROLE CHAR(64) collate utf8mb4_bin not null,\n"
@@ -198,7 +198,7 @@ int table_replication_group_members::rnd_pos(const void *pos) {
 }
 
 int table_replication_group_members::make_row(uint index) {
-  DBUG_ENTER("table_replication_group_members::make_row");
+  DBUG_TRACE;
   // Set default values.
   m_row.channel_name_length = 0;
   m_row.member_id_length = 0;
@@ -221,7 +221,7 @@ int table_replication_group_members::make_row(uint index) {
   } else {
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int table_replication_group_members::read_row_values(TABLE *table,

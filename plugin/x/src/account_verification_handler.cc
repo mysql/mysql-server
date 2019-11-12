@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,10 +54,18 @@ ngs::Error_code Account_verification_handler::authenticate(
 
   if (account.empty()) return ngs::SQLError_access_denied();
 
-  return m_session->data_context().authenticate(
+  auto &sql_context = m_session->data_context();
+  const auto allow_expired = m_session->client().supports_expired_passwords();
+
+  const auto result = sql_context.authenticate(
       account.c_str(), m_session->client().client_hostname(),
       m_session->client().client_address(), schema.c_str(), passwd,
-      account_verificator, m_session->client().supports_expired_passwords());
+      account_verificator, allow_expired);
+
+  if (0 == result.error && sql_context.password_expired())
+    m_session->proto().send_notice_account_expired();
+
+  return result;
 }
 
 bool Account_verification_handler::extract_last_sub_message(
@@ -175,22 +183,19 @@ ngs::Error_code Account_verification_handler::verify_account(
 ngs::Error_code Account_verification_handler::get_account_record(
     const std::string &user, const std::string &host,
     Account_record &record) const try {
-  Sql_data_result result(m_session->data_context());
+  Sql_data_result result(&m_session->data_context());
   result.query(get_sql(user, host));
   // The query asks for primary key, thus here we should get only one row
   if (result.size() != 1)
     return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
-  result.get(record.require_secure_transport)
-      .get(record.db_password_hash)
-      .get(record.auth_plugin_name)
-      .get(record.is_account_locked)
-      .get(record.is_password_expired)
-      .get(record.disconnect_on_expired_password)
-      .get(record.is_offline_mode_and_not_super_user)
-      .get(record.user_required.ssl_type)
-      .get(record.user_required.ssl_cipher)
-      .get(record.user_required.ssl_x509_issuer)
-      .get(record.user_required.ssl_x509_subject);
+  result.get(&record.require_secure_transport, &record.db_password_hash,
+             &record.auth_plugin_name, &record.is_account_locked,
+             &record.is_password_expired,
+             &record.disconnect_on_expired_password,
+             &record.is_offline_mode_and_not_super_user,
+             &record.user_required.ssl_type, &record.user_required.ssl_cipher,
+             &record.user_required.ssl_x509_issuer,
+             &record.user_required.ssl_x509_subject);
   return ngs::Success();
 } catch (const ngs::Error_code &e) {
   return e;

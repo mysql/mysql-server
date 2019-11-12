@@ -204,8 +204,9 @@ class Certification_handler : public Event_handler {
       2. It queues again in the applier a fake View change log event
       to ensure the logging method will be invoked eventually
 
-    @param[in] view_pevent        the event to be stored
-    @param[in] local_gtid_string  The local certified transaction set to wait
+    @param[in] pevent             The event to be stored
+    @param[in] local_gtid_certified_string The local certified transaction set
+    to wait
     @param[in] event_gno          The transaction GTID gno
     @param[in] cont               Used to discard or not the transaction
 

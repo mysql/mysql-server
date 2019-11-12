@@ -70,7 +70,7 @@ select * from t1 force index(value) where value=12;
 #
 connection conn3;
 let $wait_condition=
-	select * from information_schema.processlist where state = 'Sending data' and
+	select * from information_schema.processlist where state = 'executing' and
 	info = 'select * from t1 force index(value) where value=12';
 --source include/wait_condition.inc
 let $ignore= `SELECT @id := $ID`;

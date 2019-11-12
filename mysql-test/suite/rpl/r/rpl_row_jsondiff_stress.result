@@ -10,6 +10,8 @@ include/rpl_default_connections.inc
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @old_slave_rows_search_algorithms= @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET @old_slave_exec_mode= @@GLOBAL.SLAVE_EXEC_MODE;
 [connection master]
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';

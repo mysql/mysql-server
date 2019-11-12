@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/LazyTreeGridStoreModel", [
 	"dojo/_base/declare",
 	"dojo/_base/array",

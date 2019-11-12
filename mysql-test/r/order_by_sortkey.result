@@ -152,7 +152,7 @@ f0	f1	f2
 9901	0	0
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
-Sort_merge_passes	0
+Sort_merge_passes	99
 Sort_range	0
 Sort_rows	100
 Sort_scan	1

@@ -39,7 +39,9 @@
 #include "my_inttypes.h"
 #include "my_list.h"
 #include "mysql_com.h"
-
+#ifdef MYSQL_SERVER
+#include "mysql_com_server.h"
+#endif
 struct MEM_ROOT;
 
 #ifdef __cplusplus
@@ -96,12 +98,15 @@ struct MYSQL_EXTENSION {
   STATE_INFO state_change;
   /* Struct to track the state of asynchronous operations */
   struct MYSQL_ASYNC *mysql_async_context;
+#ifdef MYSQL_SERVER
+  // Used by replication to pass around compression context data.
+  NET_SERVER *server_extn;
+#endif
 };
 
 /* "Constructor/destructor" for MYSQL extension structure. */
 MYSQL_EXTENSION *mysql_extension_init(MYSQL *);
 void mysql_extension_free(MYSQL_EXTENSION *);
-
 /*
   Note: Allocated extension structure is freed in mysql_close_free()
   called by mysql_close().
@@ -113,6 +118,11 @@ void mysql_extension_free(MYSQL_EXTENSION *);
 
 #define ASYNC_DATA(M) \
   (NULL != (M) ? (MYSQL_EXTENSION_PTR(M)->mysql_async_context) : NULL)
+#ifdef MYSQL_SERVER
+inline void mysql_extension_set_server_extn(MYSQL *mysql, NET_SERVER *extn) {
+  MYSQL_EXTENSION_PTR(mysql)->server_extn = extn;
+}
+#endif
 
 struct st_mysql_options_extention {
   char *plugin_dir;
@@ -130,6 +140,10 @@ struct st_mysql_options_extention {
   unsigned int retry_count;
   unsigned int ssl_fips_mode; /* SSL fips mode for enforced encryption.*/
   char *tls_ciphersuites;
+  char *compression_algorithm;
+  unsigned int total_configured_compression_algorithms;
+  unsigned int zstd_compression_level;
+  bool connection_compressed;
 };
 
 struct MYSQL_METHODS {

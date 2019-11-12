@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -47,6 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 #include <atomic>
+#include <vector>
 #include "trx0trx.h"
 
 #ifndef UNIV_HOTBACKUP
@@ -181,8 +182,15 @@ trx_id_t trx_rw_min_trx_id(void);
 UNIV_INLINE
 trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt);
 
-/** Checks if a rw transaction with the given id is active. If the caller is
-not holding trx_sys->mutex, the transaction may already have been committed.
+/** Checks if a rw transaction with the given id is active.
+Please note, that positive result means only that the trx was active
+at some moment during the call, but it might have already become
+TRX_STATE_COMMITTED_IN_MEMORY before the call returns to the caller, as this
+transition is protected by trx->mutex and trx_sys->mutex, but it is impossible
+for the caller to hold any of these mutexes when calling this function as the
+function itself internally acquires trx_sys->mutex which would cause recurrent
+mutex acquisition if caller already had trx_sys->mutex, or latching order
+violation in case of holding trx->mutex.
 @param[in]	trx_id		trx id of the transaction
 @param[in]	corrupt		NULL or pointer to a flag that will be set if
                                 corrupt
@@ -198,19 +206,43 @@ UNIV_INLINE
 ibool trx_assert_recovered(trx_id_t trx_id) /*!< in: transaction identifier */
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+
+/** Persist transaction number limit below which all transaction GTIDs
+are persisted to disk table.
+@param[in]	gtid_trx_no	transaction number */
+void trx_sys_persist_gtid_num(trx_id_t gtid_trx_no);
+
+/** @return oldest transaction number yet to be committed. */
+trx_id_t trx_sys_oldest_trx_no();
+
+/** Get a list of all binlog prepared transactions.
+@param[out]	trx_ids	all prepared transaction IDs. */
+void trx_sys_get_binlog_prepared(std::vector<trx_id_t> &trx_ids);
+
+/** Get current binary log positions stored.
+@param[out]	file	binary log file name
+@param[out]	offset	binary log file offset */
+void trx_sys_read_binlog_position(char *file, uint64_t &offset);
+
+/** Update binary log position if not already updated. This is called
+by clone to update any stale binary log position if any transaction
+is yet to update the binary log position in SE.
+@param[in]	last_file	last noted binary log file name
+@param[in]	last_offset	last noted binary log offset
+@param[in]	file		current binary log file name
+@param[in]	offset		current binary log file offset
+@return true, if binary log position is updated with current. */
+bool trx_sys_write_binlog_position(const char *last_file, uint64_t last_offset,
+                                   const char *file, uint64_t offset);
+
 /** Updates the offset information about the end of the MySQL binlog entry
- which corresponds to the transaction just being committed. In a MySQL
- replication slave updates the latest master binlog position up to which
- replication has proceeded. */
-void trx_sys_update_mysql_binlog_offset(
-    const char *file_name, /*!< in: MySQL log file name */
-    int64_t offset,        /*!< in: position in that log file */
-    ulint field,           /*!< in: offset of the MySQL log info field in
-                           the trx sys header */
-    mtr_t *mtr);           /*!< in: mtr */
-/** Prints to stderr the MySQL binlog offset info in the trx system header if
- the magic number shows it valid. */
-void trx_sys_print_mysql_binlog_offset(void);
+which corresponds to the transaction being committed, external XA transaction
+being prepared or rolled back. In a MySQL replication slave updates the latest
+master binlog position up to which replication has proceeded.
+@param[in]	trx	current transaction
+@param[in,out]	mtr	mini transaction for update */
+void trx_sys_update_mysql_binlog_offset(trx_t *trx, mtr_t *mtr);
+
 /** Shutdown/Close the transaction system. */
 void trx_sys_close(void);
 
@@ -223,13 +255,6 @@ bool trx_sys_need_rollback();
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
 ulint trx_sys_any_active_transactions(void);
-#else  /* !UNIV_HOTBACKUP */
-/** Prints to stderr the MySQL binlog info in the system header if the
- magic number shows it valid. */
-void trx_sys_print_mysql_binlog_offset_from_page(
-    const byte *page); /*!< in: buffer containing the trx
-                       system header page, i.e., page number
-                       TRX_SYS_PAGE_NO in the tablespace */
 #endif /* !UNIV_HOTBACKUP */
 /**
 Add the transaction to the RW transaction set
@@ -316,6 +341,12 @@ remains the same. */
   8                               /*!< low 4 bytes of the offset \
                                   within that file */
 #define TRX_SYS_MYSQL_LOG_NAME 12 /*!< MySQL log file name */
+
+/** Reserve next 8 bytes for transaction number up to which GTIDs
+are persisted to table */
+#define TRX_SYS_TRX_NUM_GTID \
+  (TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME + TRX_SYS_MYSQL_LOG_NAME_LEN)
+#define TRX_SYS_TRX_NUM_END = (TRX_SYS_TRX_NUM_GTID + 8)
 
 /** Doublewrite buffer */
 /* @{ */
@@ -410,8 +441,8 @@ struct trx_sys_t {
   /*!< Ordered on trx_t::no of all the
   currenrtly active RW transactions */
 #ifdef UNIV_DEBUG
-  trx_id_t rw_max_trx_id; /*!< Max trx id of read-write
-                          transactions which exist or existed */
+  trx_id_t rw_max_trx_no; /*!< Max trx number of read-write
+                          transactions added for purge. */
 #endif                    /* UNIV_DEBUG */
 
   char pad1[64];             /*!< To avoid false sharing */

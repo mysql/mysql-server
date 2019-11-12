@@ -1,19 +1,17 @@
-//>>built
-define("dojox/charting/plot3d/Bars", ["dojox/gfx3d", "dojo/_base/window", "dojo/_base/declare", "dojo/_base/Color", "./Base"], 
-	function(gfx3d, win, declare, Color, Base) {
+define("dojox/charting/plot3d/Bars", ["dojox/gfx3d", "dojo/_base/kernel", "dojo/_base/declare", "dojo/_base/Color", "./Base"],
+	function(gfx3d, kernel, declare, Color, Base) {
 
 	// reduce function borrowed from dojox.fun
 	var reduce = function(/*Array*/ a, /*Function|String|Array*/ f, /*Object?*/ o){
-		// summary: repeatedly applies a binary function to an array from left
-		//	to right; returns the final value.
-		a = typeof a == "string" ? a.split("") : a; o = o || win.global;
+		// summary:
+		//		repeatedly applies a binary function to an array from left
+		//		to right; returns the final value.
+		a = typeof a == "string" ? a.split("") : a; o = o || kernel.global;
 		var z = a[0];
 		for(var i = 1; i < a.length; z = f.call(o, z, a[i++]));
 		return z;	// Object
 	};
-	/*=====
-	var Base = dojox.charting.plot3d.Base;
-	=====*/
+
 	return declare("dojox.charting.plot3d.Bars", Base, {
 		constructor: function(width, height, kwArgs){
 			this.depth = "auto";

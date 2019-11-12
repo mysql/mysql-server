@@ -1,12 +1,8 @@
 # This test is added to verify the Bug#27400095 fix.
 
-# The file with expected results fits only to a run without as
-# select query from P_S.thread doesn't return any result
-if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL
-          + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0`)
-{
-   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
-}
+# with ps_protocol ON, The select query from P_S.thread doesn't return any result
+# that cuases test to fail due to result content mismatch error.
+--source include/no_ps_protocol.inc
 
 # Windows does not have SOCKET, but will try to create a PIPE as well as MEMORY
 --source include/windows.inc

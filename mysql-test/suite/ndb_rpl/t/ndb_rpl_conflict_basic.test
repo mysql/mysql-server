@@ -347,6 +347,7 @@ create table t3oneex$EX (
 # Now create actual tables on this server (id 1)
 create table t1allsame(a int primary key, b varchar(200), X int unsigned) engine=ndb;
 create table t2diffex(a int primary key, b varchar(200), X int unsigned) engine=ndb;
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 create table t3oneex(a int primary key, b varchar(200)) engine=ndb;
 
 # Now examine server logs to see that conflict detection and
@@ -361,6 +362,8 @@ show variables like 'server_id';
 --connection server2
 --disable_query_log
 call mtr.add_suppression("NDB Slave: .* No extra row author bits in table.*");
+call mtr.add_suppression("Failed to setup binlogging for table 'test.t3oneex'");
+call mtr.add_suppression("Distribution of CREATE TABLE 'test.t3oneex' failed");
 --enable_query_log
 
 show variables like 'server_id';

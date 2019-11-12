@@ -22,6 +22,9 @@ CREATE TABLE `city` (
 `Population` int(11) NOT NULL default '0',
 PRIMARY KEY  (`ID`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `city` VALUES (1,'Kabul','AFG','Kabol',1780);
 INSERT INTO `city` VALUES (2,'Qandahar','AFG','Qandahar',237);
 INSERT INTO `city` VALUES (3,'Herat','AFG','Herat',186);

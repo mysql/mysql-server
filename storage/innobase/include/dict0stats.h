@@ -139,12 +139,11 @@ void dict_stats_update_for_index(dict_index_t *index); /*!< in/out: index */
 /** Renames a table in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-dberr_t dict_stats_rename_table(
-    const char *old_name, /*!< in: old table name */
-    const char *new_name, /*!< in: new table name */
-    char *errstr,         /*!< out: error string if != DB_SUCCESS
-                          is returned */
-    size_t errstr_sz);    /*!< in: errstr size */
+dberr_t dict_stats_rename_table(const char *old_name, /*!< in: old table name */
+                                const char *new_name, /*!< in: new table name */
+                                char *errstr,      /*!< out: error string if !=
+                                                   DB_SUCCESS      is returned */
+                                size_t errstr_sz); /*!< in: errstr size */
 
 /** Renames an index in InnoDB persistent stats storage.
  This function creates its own transaction and commits it.

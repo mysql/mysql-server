@@ -1,0 +1,103 @@
+#
+# Test the Redo-Log Archiving feature. Disk full.
+#
+
+if (!$IRLA_SMALL_DIR) {
+  --skip "Run with env \$IRLA_SMALL_DIR set to dir with max 100MB space
+  #
+  # If the skip is skipped, fail.
+  #
+  --echo
+  --echo ######################################################################
+  --echo # THIS TEST MUST BE SKIPPED IF \$IRLA_SMALL_DIR IS NOT SET (TO A SMALL
+  --echo # FILE SYSTEM). OTHERWISE IT CANNOT REACH A DISK FULL CONDITION.
+  --echo ######################################################################
+  --echo
+  --file_exists $IRLA_SMALL_DIR
+}
+
+--disable_query_log
+CALL mtr.add_suppression("Retry attempts for writing partial data failed");
+CALL mtr.add_suppression("bytes should have been written, only");
+CALL mtr.add_suppression("Error number .* means");
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
+
+--let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
+--let $SERVER_UUID      = `SELECT @@global.server_uuid`
+--let $IRLA_FILENAME    = archive.$SERVER_UUID.000001.log
+--let $IRLA_DIRECTORY_1 = $IRLA_SMALL_DIR/redo_log_archive.$MASTER_MYPORT
+--let $IRLA_DIRECTORY_2 = $MYSQLTEST_VARDIR/log/redo_log_archive_2
+--let $IRLA_PATHNAME_1  = $IRLA_DIRECTORY_1/$IRLA_FILENAME
+
+--error 0, 1
+--remove_file $IRLA_PATHNAME_1
+--error 0, 1
+--force-rmdir $IRLA_DIRECTORY_1
+
+--echo #
+--echo # Prepare the server for redo log archiving.
+--echo #
+--mkdir $IRLA_DIRECTORY_1
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1 $IRLA_DIRECTORY_2 IRLA_DIRECTORY_2
+eval SET @@global.innodb_redo_log_archive_dirs = '1:$IRLA_DIRECTORY_1;2:$IRLA_DIRECTORY_2';
+--echo
+
+--echo #
+--echo # Start redo log archiving
+--echo #
+DO innodb_redo_log_archive_start('1');
+--echo
+
+--echo #
+--echo # Create a lot of InnoDB redo log.
+--echo #
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+--enable_warnings
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id int, b longblob) ENGINE=InnoDB;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+--echo
+
+--echo #
+--echo # Start redo log archiving after failure fails
+--echo #
+--replace_result $IRLA_PATHNAME_1 IRLA_PATHNAME_1
+--error ER_INNODB_REDO_LOG_ARCHIVE_ACTIVE
+DO innodb_redo_log_archive_start('2');
+--echo
+
+--echo #
+--echo # Stop redo log archiving
+--echo #
+--replace_result $IRLA_PATHNAME_1 IRLA_PATHNAME_1
+--replace_regex /offset [0-9]+/offset ###/
+--error ER_INNODB_REDO_LOG_ARCHIVE_FAILED
+DO innodb_redo_log_archive_stop();
+--echo
+
+--echo #
+--echo # Redo log archive file does not exist any more.
+--echo #
+--error 1
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Cleanup
+--echo #
+--rmdir $IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_dirs';

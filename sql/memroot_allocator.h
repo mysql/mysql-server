@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ class Memroot_allocator {
     if (n == 0) return NULL;
     if (n > max_size()) throw std::bad_alloc();
 
-    pointer p = static_cast<pointer>(alloc_root(m_memroot, n * sizeof(T)));
+    pointer p = static_cast<pointer>(m_memroot->Alloc(n * sizeof(T)));
     if (p == NULL) throw std::bad_alloc();
     return p;
   }

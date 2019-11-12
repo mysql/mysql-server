@@ -170,14 +170,6 @@ if (`SELECT @@global.binlog_format != 'ROW'`)
 connection master;
 drop table t1, t2;
 
-# BUG#17233 LOAD DATA INFILE: failure causes mysqld dbug_assert, binlog not flushed
-CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
-
---error ER_DUP_ENTRY
-eval $UPPER_STMT_HEAD INFILE "../../std_data/words.dat" INTO TABLE t1;
-
-DROP TABLE t1;
-
 # BUG#48297: Schema name is ignored when LOAD DATA is written into binlog,
 # replication aborts
 -- let $rpl_only_running_threads= 1

@@ -1,5 +1,4 @@
-//>>built
-define("dojox/highlight/languages/html", ["dojox/main", "../_base", "./xml"], function(dojox){
+define("dojox/highlight/languages/html", ["../_base", "./xml"], function(dh){
 
 	var HTML_TAGS = {
 		'code': 1, 'kbd': 1, 'font': 1, 'noscript': 1, 'style': 1, 'img': 1,
@@ -32,7 +31,7 @@ define("dojox/highlight/languages/html", ["dojox/main", "../_base", "./xml"], fu
 		begin: '[a-zA-Z0-9]+', end: '^'
 	};
 
-	var dh = dojox.highlight, dhc = dh.constants, dhl = dh.languages, x = dhl.xml;
+	var dhc = dh.constants, dhl = dh.languages, x = dhl.xml;
 	dhl.html = {
 		defaultMode: {
 			contains: ['tag', 'comment', 'doctype']

@@ -155,6 +155,8 @@ _mpt multipoint,
 _mls multilinestring,
 _mpy multipolygon,
 _gco geometrycollection);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # ----------------------------------------------------------------------
 #  I N S E R T   F R O M   J S O N   C O L U M N
 # ----------------------------------------------------------------------
@@ -809,8 +811,7 @@ insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_type_date';
 insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_type_time';
-Warnings:
-Note	1292	Incorrect date value: '23:24:25' for column '_dat' at row 1
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_dat) select concat('_dat: ',c),j from t where c='opaque_mysql_type_datetime';
 Warnings:
 Note	1292	Incorrect date value: '2015-01-15 23:24:25' for column '_dat' at row 1
@@ -862,6 +863,7 @@ insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_date';
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_time';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_datetime';
 insert into at(c,_dtt) select concat('_dtt: ',c),j from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
@@ -911,6 +913,7 @@ insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_date';
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_time';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_datetime';
 insert into at(c,_smp) select concat('_smp: ',c),j from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
@@ -959,8 +962,10 @@ ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from co
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_enum';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_date';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_time';
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_datetime';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 insert into at(c,_tim) select concat('_tim: ',c),j from t where c='opaque_mysql_type_bit';
@@ -2207,8 +2212,7 @@ insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t wh
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
 insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
-Warnings:
-Note	1292	Incorrect date value: '23:24:25' for column '_dat' at row 1
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_dat) select concat('_dat: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 Warnings:
 Note	1292	Incorrect date value: '2015-01-15 23:24:25' for column '_dat' at row 1
@@ -2260,6 +2264,7 @@ insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t wh
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 insert into at(c,_dtt) select concat('_dtt: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
@@ -2309,6 +2314,7 @@ insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t wh
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 insert into at(c,_smp) select concat('_smp: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
@@ -2357,8 +2363,10 @@ ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from co
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 insert into at(c,_tim) select concat('_tim: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
@@ -3606,8 +3614,7 @@ insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaq
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
 insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
-Warnings:
-Note	1292	Incorrect date value: '23:24:25' for column '_dat' at row 2
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_dat) select concat('_dat: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 Warnings:
 Note	1292	Incorrect date value: '2015-01-15 23:24:25' for column '_dat' at row 2
@@ -3659,6 +3666,7 @@ insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaq
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 insert into at(c,_dtt) select concat('_dtt: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
@@ -3708,6 +3716,7 @@ insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaq
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 insert into at(c,_smp) select concat('_smp: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
@@ -3756,8 +3765,10 @@ ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from co
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
+ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 ERROR 22018: Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 insert into at(c,_tim) select concat('_tim: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
@@ -5234,7 +5245,6 @@ select c, _dat from at
 where c like '_dat%';
 c	_dat
 _dat: opaque_mysql_type_date	--EXPECTED_DATE--
-_dat: opaque_mysql_type_time	--DATE--
 _dat: opaque_mysql_type_datetime	--EXPECTED_DATE--
 _dat: opaque_mysql_type_varbinary	NULL
 _dat: opaque_mysql_type_binary	NULL
@@ -5242,7 +5252,6 @@ _dat: opaque_mysql_type_string	NULL
 _dat: opaque_mysql_type_var_string	NULL
 _dat: opaque_mysql_type_var_string	NULL
 _dat: opaque_mysql_type_date	--EXPECTED_DATE--
-_dat: opaque_mysql_type_time	--DATE--
 _dat: opaque_mysql_type_datetime	--EXPECTED_DATE--
 _dat: opaque_mysql_type_varbinary	NULL
 _dat: opaque_mysql_type_binary	NULL
@@ -5250,7 +5259,6 @@ _dat: opaque_mysql_type_string	NULL
 _dat: opaque_mysql_type_var_string	NULL
 _dat: opaque_mysql_type_var_string	NULL
 _dat: opaque_mysql_type_date	--EXPECTED_DATE--
-_dat: opaque_mysql_type_time	--DATE--
 _dat: opaque_mysql_type_datetime	--EXPECTED_DATE--
 _dat: opaque_mysql_type_varbinary	NULL
 _dat: opaque_mysql_type_binary	NULL
@@ -5261,19 +5269,16 @@ select c, _dtt from at
 where c like '_dtt%';
 c	_dtt
 _dtt: opaque_mysql_type_date	--DATETIME--
-_dtt: opaque_mysql_type_time	--DATETIME--
 _dtt: opaque_mysql_type_datetime	--EXPECTED_DATETIME--
 _dtt: opaque_mysql_type_varbinary	NULL
 _dtt: opaque_mysql_type_binary	NULL
 _dtt: opaque_mysql_type_string	NULL
 _dtt: opaque_mysql_type_date	--DATETIME--
-_dtt: opaque_mysql_type_time	--DATETIME--
 _dtt: opaque_mysql_type_datetime	--EXPECTED_DATETIME--
 _dtt: opaque_mysql_type_varbinary	NULL
 _dtt: opaque_mysql_type_binary	NULL
 _dtt: opaque_mysql_type_string	NULL
 _dtt: opaque_mysql_type_date	--DATETIME--
-_dtt: opaque_mysql_type_time	--DATETIME--
 _dtt: opaque_mysql_type_datetime	--EXPECTED_DATETIME--
 _dtt: opaque_mysql_type_varbinary	NULL
 _dtt: opaque_mysql_type_binary	NULL
@@ -5282,21 +5287,18 @@ select c, _smp from at
 where c like '_smp%';
 c	_smp
 _smp: opaque_mysql_type_date	--TIMESTAMP--
-_smp: opaque_mysql_type_time	--TIMESTAMP--
 _smp: opaque_mysql_type_datetime	--EXPECTED_TIMESTAMP--
 _smp: opaque_mysql_type_varbinary	NULL
 _smp: opaque_mysql_type_binary	NULL
 _smp: opaque_mysql_type_string	NULL
 _smp: opaque_mysql_type_var_string	NULL
 _smp: opaque_mysql_type_date	--TIMESTAMP--
-_smp: opaque_mysql_type_time	--TIMESTAMP--
 _smp: opaque_mysql_type_datetime	--EXPECTED_TIMESTAMP--
 _smp: opaque_mysql_type_varbinary	NULL
 _smp: opaque_mysql_type_binary	NULL
 _smp: opaque_mysql_type_string	NULL
 _smp: opaque_mysql_type_var_string	NULL
 _smp: opaque_mysql_type_date	--TIMESTAMP--
-_smp: opaque_mysql_type_time	--TIMESTAMP--
 _smp: opaque_mysql_type_datetime	--EXPECTED_TIMESTAMP--
 _smp: opaque_mysql_type_varbinary	NULL
 _smp: opaque_mysql_type_binary	NULL
@@ -5305,23 +5307,17 @@ _smp: opaque_mysql_type_var_string	NULL
 select c, _tim from at
 where c like '_tim%';
 c	_tim
-_tim: opaque_mysql_type_date	--TIME--
 _tim: opaque_mysql_type_time	--EXPECTED_TIME--
-_tim: opaque_mysql_type_datetime	--EXPECTED_TIME--
 _tim: opaque_mysql_type_varbinary	NULL
 _tim: opaque_mysql_type_binary	NULL
 _tim: opaque_mysql_type_string	NULL
 _tim: opaque_mysql_type_var_string	NULL
-_tim: opaque_mysql_type_date	--TIME--
 _tim: opaque_mysql_type_time	--EXPECTED_TIME--
-_tim: opaque_mysql_type_datetime	--EXPECTED_TIME--
 _tim: opaque_mysql_type_varbinary	NULL
 _tim: opaque_mysql_type_binary	NULL
 _tim: opaque_mysql_type_string	NULL
 _tim: opaque_mysql_type_var_string	NULL
-_tim: opaque_mysql_type_date	--TIME--
 _tim: opaque_mysql_type_time	--EXPECTED_TIME--
-_tim: opaque_mysql_type_datetime	--EXPECTED_TIME--
 _tim: opaque_mysql_type_varbinary	NULL
 _tim: opaque_mysql_type_binary	NULL
 _tim: opaque_mysql_type_string	NULL
@@ -6785,7 +6781,9 @@ concat('From JSON col ',c, ' as DATE')	cast(j as DATE)
 From JSON col opaque_mysql_type_date as DATE	2015-01-15
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_time';
 concat('From JSON col ',c, ' as DATE')	cast(j as DATE)
-From JSON col opaque_mysql_type_time as DATE	--DATE--
+From JSON col opaque_mysql_type_time as DATE	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 select concat('From JSON col ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_datetime';
 concat('From JSON col ',c, ' as DATE')	cast(j as DATE)
 From JSON col opaque_mysql_type_datetime as DATE	2015-01-15
@@ -6911,7 +6909,9 @@ concat('From JSON col ',c, ' as DATETIME')	cast(j as DATETIME)
 From JSON col opaque_mysql_type_date as DATETIME	2015-01-15 00:00:00
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_time';
 concat('From JSON col ',c, ' as DATETIME')	cast(j as DATETIME)
-From JSON col opaque_mysql_type_time as DATETIME	--DATE-- 23:24:25
+From JSON col opaque_mysql_type_time as DATETIME	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 select concat('From JSON col ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_datetime';
 concat('From JSON col ',c, ' as DATETIME')	cast(j as DATETIME)
 From JSON col opaque_mysql_type_datetime as DATETIME	2015-01-15 23:24:25
@@ -6982,9 +6982,9 @@ From JSON col array as TIME	NULL
 From JSON col opaque_mysql_type_decimal as TIME	NULL
 From JSON col opaque_mysql_type_set as TIME	NULL
 From JSON col opaque_mysql_type_enum as TIME	NULL
-From JSON col opaque_mysql_type_date as TIME	00:00:00
+From JSON col opaque_mysql_type_date as TIME	NULL
 From JSON col opaque_mysql_type_time as TIME	23:24:25
-From JSON col opaque_mysql_type_datetime as TIME	23:24:25
+From JSON col opaque_mysql_type_datetime as TIME	NULL
 From JSON col opaque_mysql_type_geom as TIME	NULL
 From JSON col opaque_mysql_type_bit as TIME	NULL
 From JSON col opaque_mysql_type_year as TIME	NULL
@@ -7011,6 +7011,8 @@ Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from co
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 11
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 12
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 13
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 14
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 16
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 17
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 18
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 19
@@ -7300,7 +7302,9 @@ concat('From JSON func ',c, ' as DATE')	cast(json_extract(j, '$') as DATE)
 From JSON func opaque_mysql_type_date as DATE	2015-01-15
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_time';
 concat('From JSON func ',c, ' as DATE')	cast(json_extract(j, '$') as DATE)
-From JSON func opaque_mysql_type_time as DATE	--DATE--
+From JSON func opaque_mysql_type_time as DATE	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 select concat('From JSON func ',c, ' as DATE'), cast(json_extract(j, '$') as DATE) from t where c='opaque_mysql_type_datetime';
 concat('From JSON func ',c, ' as DATE')	cast(json_extract(j, '$') as DATE)
 From JSON func opaque_mysql_type_datetime as DATE	2015-01-15
@@ -7426,7 +7430,9 @@ concat('From JSON func ',c, ' as DATETIME')	cast(json_extract(j, '$') as DATETIM
 From JSON func opaque_mysql_type_date as DATETIME	2015-01-15 00:00:00
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_time';
 concat('From JSON func ',c, ' as DATETIME')	cast(json_extract(j, '$') as DATETIME)
-From JSON func opaque_mysql_type_time as DATETIME	--DATE-- 23:24:25
+From JSON func opaque_mysql_type_time as DATETIME	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 1
 select concat('From JSON func ',c, ' as DATETIME'), cast(json_extract(j, '$') as DATETIME) from t where c='opaque_mysql_type_datetime';
 concat('From JSON func ',c, ' as DATETIME')	cast(json_extract(j, '$') as DATETIME)
 From JSON func opaque_mysql_type_datetime as DATETIME	2015-01-15 23:24:25
@@ -7497,9 +7503,9 @@ From JSON func array as TIME	NULL
 From JSON func opaque_mysql_type_decimal as TIME	NULL
 From JSON func opaque_mysql_type_set as TIME	NULL
 From JSON func opaque_mysql_type_enum as TIME	NULL
-From JSON func opaque_mysql_type_date as TIME	00:00:00
+From JSON func opaque_mysql_type_date as TIME	NULL
 From JSON func opaque_mysql_type_time as TIME	23:24:25
-From JSON func opaque_mysql_type_datetime as TIME	23:24:25
+From JSON func opaque_mysql_type_datetime as TIME	NULL
 From JSON func opaque_mysql_type_geom as TIME	NULL
 From JSON func opaque_mysql_type_bit as TIME	NULL
 From JSON func opaque_mysql_type_year as TIME	NULL
@@ -7526,6 +7532,8 @@ Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from co
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 11
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 12
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 13
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 14
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 16
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 17
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 18
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column json_extract at row 19
@@ -7926,7 +7934,9 @@ concat('From JSON subselect ',c, ' as DATE')	cast(j as DATE)
 From JSON subselect opaque_mysql_type_date as DATE	2015-01-15
 select concat('From JSON subselect ',c, ' as DATE'), cast((select j from t where c='opaque_mysql_type_time') as DATE) from t where c='opaque_mysql_type_time';
 concat('From JSON subselect ',c, ' as DATE')	cast((select j from t where c='opaque_mysql_type_time') as DATE)
-From JSON subselect opaque_mysql_type_time as DATE	--DATE--
+From JSON subselect opaque_mysql_type_time as DATE	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 select concat('From JSON subselect ',c, ' as DATE'), cast(j as DATE) from t where c='opaque_mysql_type_datetime';
 concat('From JSON subselect ',c, ' as DATE')	cast(j as DATE)
 From JSON subselect opaque_mysql_type_datetime as DATE	2015-01-15
@@ -8052,7 +8062,9 @@ concat('From JSON subselect ',c, ' as DATETIME')	cast((select j from t where c='
 From JSON subselect opaque_mysql_type_date as DATETIME	2015-01-15 00:00:00
 select concat('From JSON subselect ',c, ' as DATETIME'), cast((select j from t where c='opaque_mysql_type_time') as DATETIME) from t where c='opaque_mysql_type_time';
 concat('From JSON subselect ',c, ' as DATETIME')	cast((select j from t where c='opaque_mysql_type_time') as DATETIME)
-From JSON subselect opaque_mysql_type_time as DATETIME	--DATE-- 23:24:25
+From JSON subselect opaque_mysql_type_time as DATETIME	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 select concat('From JSON subselect ',c, ' as DATETIME'), cast(j as DATETIME) from t where c='opaque_mysql_type_datetime';
 concat('From JSON subselect ',c, ' as DATETIME')	cast(j as DATETIME)
 From JSON subselect opaque_mysql_type_datetime as DATETIME	2015-01-15 23:24:25
@@ -8180,13 +8192,17 @@ Warnings:
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 2
 select concat('From JSON subselect ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_date';
 concat('From JSON subselect ',c, ' as TIME')	cast(j as TIME)
-From JSON subselect opaque_mysql_type_date as TIME	00:00:00
+From JSON subselect opaque_mysql_type_date as TIME	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 select concat('From JSON subselect ',c, ' as TIME'), cast((select j from t where c='opaque_mysql_type_time') as TIME) from t where c='opaque_mysql_type_time';
 concat('From JSON subselect ',c, ' as TIME')	cast((select j from t where c='opaque_mysql_type_time') as TIME)
 From JSON subselect opaque_mysql_type_time as TIME	23:24:25
 select concat('From JSON subselect ',c, ' as TIME'), cast(j as TIME) from t where c='opaque_mysql_type_datetime';
 concat('From JSON subselect ',c, ' as TIME')	cast(j as TIME)
-From JSON subselect opaque_mysql_type_datetime as TIME	23:24:25
+From JSON subselect opaque_mysql_type_datetime as TIME	NULL
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 1
 select concat('From JSON subselect ',c, ' as TIME'), cast((select j from t where c='opaque_mysql_type_geom') as TIME) from t where c='opaque_mysql_type_geom';
 concat('From JSON subselect ',c, ' as TIME')	cast((select j from t where c='opaque_mysql_type_geom') as TIME)
 From JSON subselect opaque_mysql_type_geom as TIME	NULL

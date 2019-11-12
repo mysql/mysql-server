@@ -4,7 +4,10 @@ var path = require("path");
 var less = require("less");
 
 // collect files
-var folders = ["../android", "../blackberry", "../iphone", "../custom"]; 
+var folders = ["../android", "../android/dijit",
+               "../blackberry", "../blackberry/dijit",
+			   "../custom", "../custom/dijit",
+               "../iphone", "../iphone/dijit"];
 var files = [];
 folders.forEach(function(folder){
 	files = files.concat(fs.readdirSync(folder).map(function(file){
@@ -32,7 +35,7 @@ files.forEach(function(file){
 			try{
 				var css = tree.toCSS({compress: false});
 				var fd = fs.openSync(file.replace(".less", ".css"), "w");
-				fs.writeSync(fd, css, 0, "utf-8");
+				fs.writeSync(fd, css.replace(/\n/g, "\r\n"), 0, "utf-8");
 			}catch(error){
 				less.writeError(error);
 				process.exit(2);

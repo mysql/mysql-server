@@ -14,7 +14,7 @@ _4.innerHTML="<table class=\"dojoxGridRowbarTable\" style=\"width:"+w+"px;height
 },resize:function(){
 this.adaptHeight();
 },adaptWidth:function(){
-if(!("contentWidth" in this)&&this.contentNode){
+if(!("contentWidth" in this)&&this.contentNode&&this.contentNode.offsetWidth>0){
 this.contentWidth=this.contentNode.offsetWidth-this.padBorderWidth;
 }
 },doStyleRowNode:function(_5,_6){

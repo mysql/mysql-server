@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,7 @@ extern PSI_memory_key key_memory_global_system_variables;
 extern PSI_memory_key key_memory_handler_errmsgs;
 extern PSI_memory_key key_memory_handlerton;
 extern PSI_memory_key key_memory_hash_index_key_buffer;
+extern PSI_memory_key key_memory_hash_join;
 extern PSI_memory_key key_memory_help;
 extern PSI_memory_key key_memory_histograms;
 extern PSI_memory_key key_memory_host_cache_hostname;

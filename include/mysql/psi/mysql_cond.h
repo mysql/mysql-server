@@ -269,6 +269,6 @@ static inline int inline_mysql_cond_broadcast(
 
 #endif /* DISABLE_MYSQL_THREAD_H */
 
-  /** @} (end of group psi_api_cond) */
+/** @} (end of group psi_api_cond) */
 
 #endif

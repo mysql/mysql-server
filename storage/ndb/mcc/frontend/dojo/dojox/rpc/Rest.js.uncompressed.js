@@ -1,25 +1,6 @@
-//>>built
 define("dojox/rpc/Rest", ["dojo", "dojox"], function(dojo, dojox) {
 // Note: This doesn't require dojox.rpc.Service, and if you want it you must require it
 // yourself, and you must load it prior to dojox.rpc.Rest.
-
-// summary:
-// 		This provides a HTTP REST service with full range REST verbs include PUT,POST, and DELETE.
-// description:
-// 		A normal GET query is done by using the service directly:
-// 		| var restService = dojox.rpc.Rest("Project");
-// 		| restService("4");
-//		This will do a GET for the URL "/Project/4".
-//		| restService.put("4","new content");
-//		This will do a PUT to the URL "/Project/4" with the content of "new content".
-//		You can also use the SMD service to generate a REST service:
-// 		| var services = dojox.rpc.Service({services: {myRestService: {transport: "REST",...
-// 		| services.myRestService("parameters");
-//
-// 		The modifying methods can be called as sub-methods of the rest service method like:
-//  	| services.myRestService.put("parameters","data to put in resource");
-//  	| services.myRestService.post("parameters","data to post to the resource");
-//  	| services.myRestService['delete']("parameters");
 
   dojo.getObject("rpc.Rest", true, dojox);
 
@@ -65,7 +46,23 @@ define("dojox/rpc/Rest", ["dojo", "dojox"], function(dojo, dojox) {
 	}
 	drr = dojox.rpc.Rest = function(/*String*/path, /*Boolean?*/isJson, /*Object?*/schema, /*Function?*/getRequest){
 		// summary:
-		//		Creates a REST service using the provided path.
+		//		This provides a HTTP REST service with full range REST verbs include PUT,POST, and DELETE.
+		// description:
+		//		A normal GET query is done by using the service directly:
+		//		| var restService = dojox.rpc.Rest("Project");
+		//		| restService("4");
+		//		This will do a GET for the URL "/Project/4".
+		//		| restService.put("4","new content");
+		//		This will do a PUT to the URL "/Project/4" with the content of "new content".
+		//		You can also use the SMD service to generate a REST service:
+		//		| var services = dojox.rpc.Service({services: {myRestService: {transport: "REST",...
+		//		| services.myRestService("parameters");
+		//
+		//		The modifying methods can be called as sub-methods of the rest service method like:
+		//		| services.myRestService.put("parameters","data to put in resource");
+		//		| services.myRestService.post("parameters","data to post to the resource");
+		//		| services.myRestService['delete']("parameters");
+
 		var service;
 		// it should be in the form /Table/
 		service = function(id, args){
@@ -75,8 +72,8 @@ define("dojox/rpc/Rest", ["dojo", "dojox"], function(dojo, dojox) {
 		service._schema = schema;
 		// cache:
 		//		This is an object that provides indexing service
-		// 		This can be overriden to take advantage of more complex referencing/indexing
-		// 		schemes
+		//		This can be overriden to take advantage of more complex referencing/indexing
+		//		schemes
 		service.cache = {
 			serialize: isJson ? ((dojox.json && dojox.json.ref) || dojo).toJson : function(result){
 				return result;
@@ -143,5 +140,5 @@ define("dojox/rpc/Rest", ["dojo", "dojox"], function(dojo, dojox) {
 		return index(dojo.xhrGet(service._getRequest(id, args)), service, (args.start >= 0 || args.count >= 0), id);
 	};
 
-	return dojox.rpc.Rest;
+	return drr;
 });

@@ -21,6 +21,7 @@
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_debug.inc
 --source include/master-slave.inc

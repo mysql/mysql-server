@@ -26,12 +26,15 @@ eval SELECT * FROM $table_name WHERE colA = $maxint_plus_1;
 eval SELECT * FROM $table_name WHERE colA <> $maxint_plus_1;
 eval SELECT * FROM $table_name WHERE colA = $maxint;
 eval SELECT * FROM $table_name WHERE colA <=> $maxint;
+eval SELECT * FROM $table_name WHERE NOT(colA <=> $maxint);
 eval SELECT * FROM $table_name WHERE colA <> $maxint;
 eval SELECT * FROM $table_name WHERE colA = $minint;
 eval SELECT * FROM $table_name WHERE colA <=> $minint;
+eval SELECT * FROM $table_name WHERE NOT(colA <=> $minint);
 eval SELECT * FROM $table_name WHERE colA <> $minint;
 eval SELECT * FROM $table_name WHERE colA = $minint_minus_1;
 eval SELECT * FROM $table_name WHERE colA <=> $minint_minus_1;
+eval SELECT * FROM $table_name WHERE NOT(colA <=> $minint_minus_1);
 eval SELECT * FROM $table_name WHERE colA <> $minint_minus_1;
 
 eval PREPARE p_less    FROM 'SELECT * FROM $table_name WHERE colA < ?';
@@ -40,7 +43,8 @@ eval PREPARE p_greater FROM 'SELECT * FROM $table_name WHERE colA > ?';
 eval PREPARE p_gret_eq FROM 'SELECT * FROM $table_name WHERE colA >= ?';
 eval PREPARE p_eq      FROM 'SELECT * FROM $table_name WHERE colA = ?';
 eval PREPARE p_equal   FROM 'SELECT * FROM $table_name WHERE colA <=> ?';
-eval PREPARE p_n_equal FROM 'SELECT * FROM $table_name WHERE colA <> ?';
+eval PREPARE p_n_equal FROM 'SELECT * FROM $table_name WHERE NOT(colA <=> ?)';
+eval PREPARE p_n_eq    FROM 'SELECT * FROM $table_name WHERE colA <> ?';
 
 eval SET @maxint_plus_1=$maxint_plus_1;
 eval SET @maxint=$maxint;
@@ -61,15 +65,19 @@ eval EXECUTE p_greater USING @minint;
 
 eval EXECUTE p_eq      USING @maxint_plus_1;
 eval EXECUTE p_equal   USING @maxint_plus_1;
+eval EXECUTE p_n_eq    USING @maxint_plus_1;
 eval EXECUTE p_n_equal USING @maxint_plus_1;
 eval EXECUTE p_eq      USING @maxint;
 eval EXECUTE p_equal   USING @maxint;
+eval EXECUTE p_n_eq    USING @maxint;
 eval EXECUTE p_n_equal USING @maxint;
 eval EXECUTE p_eq      USING @minint;
 eval EXECUTE p_equal   USING @minint;
+eval EXECUTE p_n_eq    USING @minint;
 eval EXECUTE p_n_equal USING @minint;
 eval EXECUTE p_eq      USING @minint_minus_1;
 eval EXECUTE p_equal   USING @minint_minus_1;
+eval EXECUTE p_n_eq    USING @minint_minus_1;
 eval EXECUTE p_n_equal USING @minint_minus_1;
 
 DROP PREPARE p_less;
@@ -77,6 +85,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 
 eval EXPLAIN SELECT * FROM $table_name WHERE colA < $maxint_plus_1;   # always true
@@ -137,7 +146,8 @@ eval PREPARE p_greater FROM 'SELECT * FROM $table_name WHERE ? > colA';
 eval PREPARE p_gret_eq FROM 'SELECT * FROM $table_name WHERE ? >= colA';
 eval PREPARE p_eq      FROM 'SELECT * FROM $table_name WHERE ? = colA';
 eval PREPARE p_equal   FROM 'SELECT * FROM $table_name WHERE ? <=> colA';
-eval PREPARE p_n_equal FROM 'SELECT * FROM $table_name WHERE ? <> colA';
+eval PREPARE p_n_eq    FROM 'SELECT * FROM $table_name WHERE ? <> colA';
+eval PREPARE p_n_equal FROM 'SELECT * FROM $table_name WHERE NOT(? <=> colA)';
 
 eval EXECUTE p_greater USING @maxint_plus_1;
 eval EXECUTE p_gret_eq USING @maxint;
@@ -153,15 +163,19 @@ eval EXECUTE p_less    USING @minint;
 
 eval EXECUTE p_eq      USING @maxint_plus_1;
 eval EXECUTE p_equal   USING @maxint_plus_1;
+eval EXECUTE p_n_eq    USING @maxint_plus_1;
 eval EXECUTE p_n_equal USING @maxint_plus_1;
 eval EXECUTE p_eq      USING @maxint;
 eval EXECUTE p_equal   USING @maxint;
+eval EXECUTE p_n_eq    USING @maxint;
 eval EXECUTE p_n_equal USING @maxint;
 eval EXECUTE p_eq      USING @minint;
 eval EXECUTE p_equal   USING @minint;
+eval EXECUTE p_n_eq    USING @minint;
 eval EXECUTE p_n_equal USING @minint;
 eval EXECUTE p_eq      USING @minint_minus_1;
 eval EXECUTE p_equal   USING @minint_minus_1;
+eval EXECUTE p_n_eq    USING @minint_minus_1;
 eval EXECUTE p_n_equal USING @minint_minus_1;
 
 DROP PREPARE p_less;
@@ -169,6 +183,7 @@ DROP PREPARE p_less_eq;
 DROP PREPARE p_greater;
 DROP PREPARE p_gret_eq;
 DROP PREPARE p_equal;
+DROP PREPARE p_n_eq;
 DROP PREPARE p_n_equal;
 
 eval EXPLAIN SELECT * FROM $table_name WHERE $maxint_plus_1 > colA;

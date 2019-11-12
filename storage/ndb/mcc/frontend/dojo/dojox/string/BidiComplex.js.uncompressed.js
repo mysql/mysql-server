@@ -1,4 +1,3 @@
-//>>built
 // summary:
 //		BiDiComplex module handles complex expression issues known when using BiDi characters
 //		in File Paths, URLs, E-mail Address, XPATH, etc.

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/manager/_ValueMixin", [
 	"dojo/_base/lang",
 	"dojo/_base/kernel",
@@ -15,9 +14,9 @@ return declare("dojox.form.manager._ValueMixin", null, {
 	elementValue: function(name, value){
 		// summary:
 		//		Set or get a form widget/element or an attached point node by name.
-		// name: String:
+		// name: String
 		//		The name.
-		// value: Object?:
+		// value: Object?
 		//		Optional. The value to set.
 
 		if(name in this.formWidgets){
@@ -34,7 +33,7 @@ return declare("dojox.form.manager._ValueMixin", null, {
 	gatherFormValues: function(names){
 		// summary:
 		//		Collect form values.
-		// names: Object?:
+		// names: Object?
 		//		If it is an array, it is a list of names of form elements to be collected.
 		//		If it is an object, dictionary keys are names to be collected.
 		//		If it is omitted, all known form elements are to be collected.
@@ -59,7 +58,7 @@ return declare("dojox.form.manager._ValueMixin", null, {
 	setFormValues: function(values){
 		// summary:
 		//		Set values to form elements
-		// values: Object:
+		// values: Object
 		//		A dictionary of key-value pairs.
 		if(values){
 			this.inspectFormWidgets(function(name, widget, value){

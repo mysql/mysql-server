@@ -37,7 +37,7 @@ CREATE TABLE t1        (c1  VARCHAR(32),
                         c11 VARCHAR(32),
 			c2  VARCHAR(1024),
 			c21 VARCHAR(1024),
-			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1)) 
+			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE=INNODB;
 
 INSERT INTO t1 VALUES ('D','D', 'Darmstadt', 'City', 0, 0, 0);
@@ -47,15 +47,13 @@ INSERT INTO t1 VALUES ('H','H', 'Hamburg', 'Norderstedt', 0, 0, 0);
 
 connection default;
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11224
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 connection mysqltest1;
 USE test;
 --sorted_result
 SELECT c1,c11,c2,c21 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -65,7 +63,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with D,B,H,C:\n";
+print "Here are the memcached results with D,B,H,C:\n";
 $val = $memd->get("D");
 if ($val) { print "$val\n"; }
 $val = $memd->get("B");
@@ -88,7 +86,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -106,7 +104,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->add("F","Frankfurt|Sachsenhause");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -124,7 +122,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace:\n";
+print "Here are the memcached results after replace:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -142,7 +140,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after delete:\n";
+print "Here are the memcached results after delete:\n";
 $val = $memd->delete("F");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -160,7 +158,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add Frankfurt|Airport:\n";
+print "Here are the memcached results after add Frankfurt|Airport:\n";
 $val = $memd->add("F","Frankfurt|Airport");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -178,7 +176,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
+print "Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:\n";
 $val = $memd->replace("F","Frankfurt a. M.|Sachsenhausen");
 $val = $memd->get("F");
 if ($val) { print "$val\n"; }
@@ -193,7 +191,8 @@ connection default;
 UNINSTALL PLUGIN daemon_memcached;
 # We can never drop primary key
 ALTER TABLE test.t1 DROP PRIMARY KEY;
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11224
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 connection mysqltest1;
 perl;
@@ -204,7 +203,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -220,7 +219,8 @@ connection default;
 # Stop plugin befor innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 ALTER TABLE test.t1 ADD CONSTRAINT PRIMARY KEY (c1);
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11224
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 SHOW CREATE TABLE test.t1;
 
@@ -233,7 +233,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after set:\n";
+print "Here are the memcached results after set:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -256,7 +256,8 @@ ALTER TABLE test.t1 DROP COLUMN c1;
 # Need to add index on column c11 and also update the innodb_memcache.containers
 UPDATE innodb_memcache.containers set key_columns = "c11", unique_idx_name_on_key="idx";
 create unique index idx on test.t1(c11);
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11224
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 connection mysqltest1;
 perl;
@@ -267,7 +268,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results after add:\n";
+print "Here are the memcached results after add:\n";
 $val = $memd->set("E","Essen|Ost");
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
@@ -289,5 +290,5 @@ disconnect mysqltest1;
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 DROP USER mysqltest1@localhost;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

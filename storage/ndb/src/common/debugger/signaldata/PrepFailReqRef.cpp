@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2007 MySQL AB
-    Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,20 +40,26 @@ printPREPFAILREQREF(FILE * output,
 	  cc->failNo, cc->noOfNodes);
   
   int hits = 0;
-  fprintf(output, " Nodes: ");
-  for(int i = 0; i<MAX_NDB_NODES; i++){
-    if(NdbNodeBitmask::get(cc->theNodes, i)){
-      hits++;
-      fprintf(output, " %d", i);
+  if (len == cc->SignalLength_v1)
+  {
+    fprintf(output, " Nodes: ");
+    for(int i = 0; i < MAX_NDB_NODES_v1; i++){
+      if(NdbNodeBitmask48::get(cc->theNodes, i)){
+        hits++;
+        fprintf(output, " %d", i);
+      }
+      if(hits == 16){
+        fprintf(output, "\n Nodes: ");
+        hits = 0;
+      }
     }
-    if(hits == 16){
-      fprintf(output, "\n Nodes: ");
-      hits = 0;
-    }
+    if(hits != 0)
+      fprintf(output, "\n");
   }
-  if(hits != 0)
-    fprintf(output, "\n");
-
+  else
+  {
+    fprintf(output , " theNodes in signal section\n");
+  }
   return true;
 }
 

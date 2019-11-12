@@ -1,33 +1,32 @@
-//>>built
 define("dojox/data/XmlItem", ["dojo/_base/declare"], 
   function(declare) {
 
 return declare("dojox.data.XmlItem", null, {
 	constructor: function(element, store, query){
-		//	summary:
+		// summary:
 		//		Initialize with an XML element
-		//	element:
+		// element:
 		//		An XML element
-		//	store:
+		// store:
 		//		The containing store, if any.
-		//	query:
+		// query:
 		//		The query to use to look up a specific element.
 		//		Usually an XPath or dojo.query statement.
 		this.element = element;
 		this.store = store;
 		this.q = query;
 	},
-	//	summary:
+	// summary:
 	//		A data item of 'XmlStore'
-	//	description:
+	// description:
 	//		This class represents an item of 'XmlStore' holding an XML element.
 	//		'element'
-	//	element:
+	// element:
 	//		An XML element
 	toString: function(){
-		//	summary:
+		// summary:
 		//		Return a value of the first text child of the element
-		// 	returns:
+		// returns:
 		//		a value of the first text child of the element
 		var str = "";
 		if(this.element){

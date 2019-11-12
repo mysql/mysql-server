@@ -1,4 +1,9 @@
 CREATE TABLE t (a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a, b, c, d), KEY(b, d)) ENGINE=innodb;
+# Since ANALYZE TABLE only reads a subset of the data, the statistics for
+# table t depends on the row order. And since the INSERT INTO ... SELECT
+# may be executed using different execution plans, we've added ORDER BY
+# to ensure that we rows has the same order every time. If not, the
+# estimated number of rows in EXPLAIN may change on different platforms.
 ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
@@ -151,7 +156,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.6
+                    "cost": 254.1
                   },
                   "potential_range_indexes": [
                     {
@@ -259,7 +264,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 750,
-                        "cost": 79.008,
+                        "cost": 79.015,
                         "chosen": true
                       },
                       {
@@ -448,7 +453,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.6
+                    "cost": 254.1
                   },
                   "potential_range_indexes": [
                     {
@@ -529,7 +534,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 250,
-                        "cost": 25.343,
+                        "cost": 25.345,
                         "chosen": false,
                         "cause": "cost"
                       },
@@ -730,7 +735,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.6
+                    "cost": 254.1
                   },
                   "potential_range_indexes": [
                     {
@@ -812,7 +817,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 250,
-                        "cost": 25.343,
+                        "cost": 25.345,
                         "chosen": true
                       },
                       {
@@ -836,7 +841,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                       ]
                     },
                     "rows_for_plan": 250,
-                    "cost_for_plan": 25.343,
+                    "cost_for_plan": 25.345,
                     "chosen": true
                   }
                 }
@@ -988,7 +993,7 @@ EXPLAIN SELECT b FROM t WHERE d < 2	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 2500,
-                    "cost": 254.6
+                    "cost": 254.1
                   },
                   "potential_range_indexes": [
                     {

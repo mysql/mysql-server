@@ -1,1 +1,1 @@
---skip-mysqlx_cache_cleaner
+--loose-mysqlx_cache_cleaner=0

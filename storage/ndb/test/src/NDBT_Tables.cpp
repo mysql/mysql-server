@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,12 @@
 //    Define Ndb standard tables 
 //
 //  USE ONLY UPPERLETTERS IN TAB AND COLUMN NAMES
+//
+// Tables need to have at least two Unsigned columns.
+// The first found will be used as id.
+// The last found which is not part of primary key will be used for update
+// count.  See HugoCalculator.
+//
 /* ******************************************************* */
 
 static const NdbDictionary::Column::StorageType MM=

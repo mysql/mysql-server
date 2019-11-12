@@ -2,20 +2,18 @@
 #include "my_inttypes.h"
 #include "my_config.h"
 typedef unsigned char uchar;
-typedef signed char int8;
-typedef unsigned char uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef unsigned long long int ulonglong;
 typedef long long int longlong;
-typedef longlong int64;
-typedef ulonglong uint64;
-typedef unsigned long long my_ulonglong;
+typedef unsigned long long int ulonglong;
+typedef int8_t int8;
+typedef uint8_t uint8;
+typedef int16_t int16;
+typedef uint16_t uint16;
+typedef int32_t int32;
+typedef uint32_t uint32;
+typedef int64_t int64;
+typedef uint64_t uint64;
 typedef intptr_t intptr;
 typedef ulonglong my_off_t;
-typedef ptrdiff_t my_ptrdiff_t;
 typedef int myf;
 #include "my_macros.h"
 #include "my_psi_config.h"
@@ -31,12 +29,16 @@ enum PSI_rwlock_operation {
   PSI_RWLOCK_WRITELOCK = 1,
   PSI_RWLOCK_TRYREADLOCK = 2,
   PSI_RWLOCK_TRYWRITELOCK = 3,
-  PSI_RWLOCK_SHAREDLOCK = 4,
-  PSI_RWLOCK_SHAREDEXCLUSIVELOCK = 5,
-  PSI_RWLOCK_EXCLUSIVELOCK = 6,
-  PSI_RWLOCK_TRYSHAREDLOCK = 7,
-  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK = 8,
-  PSI_RWLOCK_TRYEXCLUSIVELOCK = 9
+  PSI_RWLOCK_UNLOCK = 4,
+  PSI_RWLOCK_SHAREDLOCK = 5,
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK = 6,
+  PSI_RWLOCK_EXCLUSIVELOCK = 7,
+  PSI_RWLOCK_TRYSHAREDLOCK = 8,
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK = 9,
+  PSI_RWLOCK_TRYEXCLUSIVELOCK = 10,
+  PSI_RWLOCK_SHAREDUNLOCK = 11,
+  PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK = 12,
+  PSI_RWLOCK_EXCLUSIVEUNLOCK = 13
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 struct PSI_rwlock_info_v1 {
@@ -74,6 +76,8 @@ typedef struct PSI_rwlock_locker *(*start_rwlock_wrwait_v1_t)(
 typedef void (*end_rwlock_wrwait_v1_t)(struct PSI_rwlock_locker *locker,
                                        int rc);
 typedef void (*unlock_rwlock_v1_t)(struct PSI_rwlock *rwlock);
+typedef void (*unlock_rwlock_v2_t)(struct PSI_rwlock *rwlock,
+                                   enum PSI_rwlock_operation op);
 typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 #include "psi_base.h"
@@ -85,7 +89,7 @@ struct PSI_rwlock_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
-struct PSI_rwlock_service_v1 {
+struct PSI_rwlock_service_v2 {
   register_rwlock_v1_t register_rwlock;
   init_rwlock_v1_t init_rwlock;
   destroy_rwlock_v1_t destroy_rwlock;
@@ -93,7 +97,7 @@ struct PSI_rwlock_service_v1 {
   end_rwlock_rdwait_v1_t end_rwlock_rdwait;
   start_rwlock_wrwait_v1_t start_rwlock_wrwait;
   end_rwlock_wrwait_v1_t end_rwlock_wrwait;
-  unlock_rwlock_v1_t unlock_rwlock;
+  unlock_rwlock_v2_t unlock_rwlock;
 };
-typedef struct PSI_rwlock_service_v1 PSI_rwlock_service_t;
+typedef struct PSI_rwlock_service_v2 PSI_rwlock_service_t;
 extern PSI_rwlock_service_t *psi_rwlock_service;

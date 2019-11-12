@@ -1,0 +1,65 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install clone plugin on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 2. Bootstrap server1 and add some data
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+########################################################################
+# 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
+#    Persist connection information so we can start GR after restart
+[connection server2]
+include/spawn_monitoring_process.inc
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+############################################################
+# 4. Start clone on server2
+#    Set a debug point so it blocks
+[connection server_2]
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 1;
+SET DEBUG_SYNC = 'clone_file_copy SIGNAL clone_paused WAIT_FOR resume_clone';
+SET GLOBAL clone_valid_donor_list='localhost:SERVER1_PORT';
+CLONE INSTANCE FROM 'root'@localhost:SERVER1_PORT IDENTIFIED BY '';;
+[connection server2]
+SET DEBUG_SYNC = 'now WAIT_FOR clone_paused';
+
+############################################################
+# 5. Verify that GR cannot be started while clone is ongoing.
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command encountered a failure. This server is being provisioned by CLONE INSTANCE, please wait until it is complete.
+############################################################
+# 6. Resume clone.
+SET DEBUG_SYNC = 'now SIGNAL resume_clone';
+[connection server_2]
+include/rpl_reconnect.inc
+############################################################
+# 7. Start GR on server2.
+include/start_group_replication.inc
+include/diff_tables.inc [server1:test.t1 ,server2:test.t1]
+
+############################################################
+# 8. Cleanup
+SET DEBUG_SYNC = 'RESET';
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+DROP TABLE test.t1;
+include/rpl_sync.inc
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+SET SESSION sql_log_bin=1;
+include/clean_monitoring_process.inc
+include/group_replication_end.inc

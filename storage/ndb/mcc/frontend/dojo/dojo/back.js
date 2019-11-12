@@ -1,13 +1,14 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/back",["./_base/kernel","./_base/lang","./_base/sniff","./dom","./dom-construct","./_base/window","require"],function(_1,_2,_3,_4,_5,_6,_7){
-_2.getObject("back",true,_1);
-var _8=_1.back,_9=_8.getHash=function(){
+define("dojo/back",["./_base/config","./_base/lang","./sniff","./dom","./dom-construct","./_base/window","require"],function(_1,_2,_3,_4,_5,_6,_7){
+var _8={};
+1&&_2.setObject("dojo.back",_8);
+var _9=_8.getHash=function(){
 var h=window.location.hash;
 if(h.charAt(0)=="#"){
 h=h.substring(1);
@@ -87,7 +88,7 @@ return _1f[1];
 }
 };
 function _20(){
-var url=(_1.config["dojoIframeHistoryUrl"]||_7.toUrl("./resources/iframe_history.html"))+"?"+(new Date()).getTime();
+var url=(_1["dojoIframeHistoryUrl"]||_7.toUrl("./resources/iframe_history.html"))+"?"+(new Date()).getTime();
 _14=true;
 if(_11){
 _3("webkit")?_11.location=url:window.frames[_11.name].location=url;
@@ -120,9 +121,9 @@ _8.init=function(){
 if(_4.byId("dj_history")){
 return;
 }
-var src=_1.config["dojoIframeHistoryUrl"]||_7.toUrl("./resources/iframe_history.html");
-if(_1._postLoad){
-console.error("dojo.back.init() must be called before the DOM has loaded. "+"If using xdomain loading or djConfig.debugAtAllCosts, include dojo.back "+"in a build layer.");
+var src=_1["dojoIframeHistoryUrl"]||_7.toUrl("./resources/iframe_history.html");
+if(_1.afterOnLoad){
+console.error("dojo/back::init() must be called before the DOM has loaded. "+"Include dojo/back in a build layer.");
 }else{
 document.write("<iframe style=\"border:0;width:1px;height:1px;position:absolute;visibility:hidden;bottom:0;right:0;\" name=\"dj_history\" id=\"dj_history\" src=\""+src+"\"></iframe>");
 }
@@ -135,8 +136,8 @@ _12=[];
 var _25=null;
 var url=null;
 if(!_11){
-if(_1.config["useXDomain"]&&!_1.config["dojoIframeHistoryUrl"]){
-console.warn("dojo.back: When using cross-domain Dojo builds,"+" please save iframe_history.html to your domain and set djConfig.dojoIframeHistoryUrl"+" to the path on your domain to iframe_history.html");
+if(_1["useXDomain"]&&!_1["dojoIframeHistoryUrl"]){
+console.warn("dojo/back: When using cross-domain Dojo builds,"+" please save iframe_history.html to your domain and set djConfig.dojoIframeHistoryUrl"+" to the path on your domain to iframe_history.html");
 }
 _11=window.frames["dj_history"];
 }
@@ -234,5 +235,5 @@ _19();
 }
 }
 };
-return _1.back;
+return _8;
 });

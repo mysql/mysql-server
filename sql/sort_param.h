@@ -43,7 +43,9 @@ struct TABLE;
 
 enum class Addon_fields_status {
   unknown_status,
-  using_heap_table,
+  using_addon_fields,
+
+  // The remainder are reasons why we are _not_ using addon fields.
   fulltext_searched,
   keep_rowid,
   row_not_packable,
@@ -58,8 +60,8 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
   switch (afs) {
     default:
       return "unknown";
-    case Addon_fields_status::using_heap_table:
-      return "using_heap_table";
+    case Addon_fields_status::using_addon_fields:
+      return "using_addon_fields";
     case Addon_fields_status::fulltext_searched:
       return "fulltext_searched";
     case Addon_fields_status::keep_rowid:
@@ -148,7 +150,7 @@ class Addon_fields {
       DBUG_ASSERT(m_addon_buf_length == sz);
       return m_addon_buf;
     }
-    m_addon_buf = static_cast<uchar *>(sql_alloc(sz));
+    m_addon_buf = static_cast<uchar *>((*THR_MALLOC)->Alloc(sz));
     if (m_addon_buf) m_addon_buf_length = sz;
     return m_addon_buf;
   }
@@ -280,6 +282,12 @@ class Sort_param {
   TABLE *sort_form{nullptr};    // For quicker make_sortkey.
   bool use_hash{false};         // Whether to use hash to distinguish cut JSON
   bool m_force_stable_sort{false};  // Keep relative order of equal elements
+  bool m_remove_duplicates{
+      false};  ///< Whether we want to remove duplicate rows
+
+  /// If we are removing duplicate rows and merging, contains a buffer where we
+  /// can store the last key seen.
+  uchar *m_last_key_seen{nullptr};
 
   /**
     ORDER BY list with some precalculated info for filesort.
@@ -288,9 +296,13 @@ class Sort_param {
   Bounds_checked_array<st_sort_field> local_sortorder;
 
   Addon_fields *addon_fields{nullptr};  ///< Descriptors for addon fields.
-  bool not_killable{false};
   bool using_pq{false};
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp_buffer;
+
+  /// Decide whether we are to use addon fields (sort rows instead of sorting
+  /// row IDs or not). See using_addon_fields().
+  void decide_addon_fields(Filesort *file_sort, TABLE *table,
+                           ulong max_length_for_sort_data, bool sort_positions);
 
   /**
     Initialize this struct for filesort() usage.
@@ -302,13 +314,13 @@ class Sort_param {
     @param table     table to be sorted
     @param max_length_for_sort_data from thd->variables
     @param maxrows   HA_POS_ERROR or possible LIMIT value
-    @param sort_positions see documentation for the filesort() function
+    @param remove_duplicates if true, items with duplicate keys will be removed
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
                          uint sortlen, TABLE *table,
                          ulong max_length_for_sort_data, ha_rows maxrows,
-                         bool sort_positions);
+                         bool remove_duplicates);
 
   /// Enables the packing of addons if possible.
   void try_to_pack_addons(ulong max_length_for_sort_data);
@@ -326,7 +338,8 @@ class Sort_param {
   /// Are we using any JSON key fields?
   bool using_json_keys() const { return m_num_json_keys > 0; }
 
-  /// Are we using "addon fields"?
+  /// Are we using "addon fields"? Note that decide_addon_fields() or
+  /// init_for_filesort() must be called before checking this.
   bool using_addon_fields() const { return addon_fields != NULL; }
 
   /**

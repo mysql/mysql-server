@@ -1,11 +1,17 @@
-//>>built
-define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declare","dojo/_base/connect","dojo/_base/array",
-	"dojo/_base/html","dojo/_base/window","dojox/mdnd/AreaManager","dojo/dnd/Manager"],function(dojo){
-	var dfd = dojo.declare(
+define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel",
+	"dojo/_base/declare",
+	"dojo/_base/connect",
+	"dojo/_base/array",
+	"dojo/dom-class",
+	"dojo/_base/window",
+	"dojox/mdnd/AreaManager",
+	"dojo/dnd/Manager"
+],function(dojo, declare, connect, array, domClass, win, AreaManager, Manager){
+	var dfd = declare(
 		"dojox.mdnd.adapter.DndFromDojo",
 		null,
 	{
-		// summary
+		// summary:
 		//		Allow communication between Dojo dnd items and DojoX D&D areas
 	
 		// dropIndicatorSize: Object
@@ -42,7 +48,7 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 	
 		constructor: function(){
 			this._areaManager = dojox.mdnd.areaManager();
-			this._dojoManager = dojo.dnd.manager();
+			this._dojoManager = Manager.manager();
 			this._currentArea = null;
 			this._moveHandler = null;
 			this.subscribeDnd();
@@ -54,10 +60,10 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 	
 			//console.log(("dojox.mdnd.adapter.DndFromDojo ::: subscribeDnd");
 			this._subscribeHandler = [
-				dojo.subscribe("/dnd/start",this,"onDragStart"),
-				dojo.subscribe("/dnd/drop/before", this, "onDrop"),
-				dojo.subscribe("/dnd/cancel",this,"onDropCancel"),
-				dojo.subscribe("/dnd/source/over",this,"onDndSource")
+				connect.subscribe("/dnd/start",this,"onDragStart"),
+				connect.subscribe("/dnd/drop/before", this, "onDrop"),
+				connect.subscribe("/dnd/cancel",this,"onDropCancel"),
+				connect.subscribe("/dnd/source/over",this,"onDndSource")
 			]
 		},
 	
@@ -66,7 +72,7 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 			//		Unsubscribe to some topics of dojo drag and drop.
 	
 			//console.log(("dojox.mdnd.adapter.DndFromDojo ::: unsubscribeDnd");
-			dojo.forEach(this._subscribeHandler, dojo.unsubscribe);
+			array.forEach(this._subscribeHandler, connect.unsubscribe);
 		},
 	
 		_getHoverArea: function(/*Object*/ coords){
@@ -135,10 +141,10 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 			// Connect the onMouseMove :
 			// It's usefull to activate the detection of a D&D area and the dropIndicator place only if
 			// the dragNode is out of a the source dojo. The classic behaviour of the dojo source is kept.
-			this._outSourceHandler = dojo.connect(this._dojoManager, "outSource", this, function(){
+			this._outSourceHandler = connect.connect(this._dojoManager, "outSource", this, function(){
 				//dojo.disconnect(this._outSourceHandler);
 				if(this._moveHandler == null){
-					this._moveHandler = dojo.connect(dojo.doc, "mousemove", this, "onMouseMove");
+					this._moveHandler = connect.connect(dojo.doc, "mousemove", this, "onMouseMove");
 				}
 			});
 		},
@@ -163,7 +169,7 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 				// specific case : a dropIndicator can be hidden (see onDndSource method)
 				if(this._areaManager._dropIndicator.node.style.visibility == "hidden"){
 					this._areaManager._dropIndicator.node.style.visibility = "";
-					dojo.addClass(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
+					domClass.add(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
 				}
 				// place the dropIndicator in D&D Area with a default size.
 				this._areaManager.placeDropIndicator(coords, this.dropIndicatorSize);
@@ -185,10 +191,10 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 			// if the D&D dojoX Area accepts the drop, change the color of Avatar.
 			if(this._dojoManager.avatar){
 				if(this._areaManager._accept){
-					dojo.addClass(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
+					domClass.add(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
 				}
 				else{
-					dojo.removeClass(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
+					domClass.remove(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
 				}
 			}
 		},
@@ -202,7 +208,7 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 			this._areaManager._accept = false;
 			// change color of avatar
 			if(this._dojoManager.avatar){
-				dojo.removeClass(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
+				domClass.remove(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
 			}
 			// reset all variables and remove the dropIndicator.
 			if(this._currentArea == null){
@@ -257,7 +263,7 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 				}
 				if(accept){
 					// disconnect the onMouseMove to disabled the search of a drop zone in the D&D dojoX Area.
-					dojo.disconnect(this._moveHandler);
+					connect.disconnect(this._moveHandler);
 					this._currentArea = this._moveHandler = null;
 					// hidden the visibility of dojoX dropIndicator to prevent an offset when the dropIndicator disappears.
 					// test if drop indicator is visible before applaying hidden style.
@@ -275,7 +281,7 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 				// Exit of a source/target dojo.
 				// reconnect the onMouseMove to enabled the search of a drop zone in the D&D dojox Area.
 				if(!this._moveHandler)
-					this._moveHandler = dojo.connect(dojo.doc, "mousemove", this, "onMouseMove");
+					this._moveHandler = connect.connect(dojo.doc, "mousemove", this, "onMouseMove");
 	
 				this._resetAvatar();
 			}
@@ -293,10 +299,10 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 			//console.log("dojox.mdnd.adapter.DndFromDojo ::: _resetAvatar");
 			if(this._dojoManager.avatar){
 				if(this._areaManager._accept){
-					dojo.addClass(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
+					domClass.add(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
 				}
 				else{
-					dojo.removeClass(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
+					domClass.remove(this._dojoManager.avatar.node, "dojoDndAvatarCanDrop");
 				}
 			}
 		},
@@ -311,8 +317,8 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 			if(this._currentArea == null){
 				// the dragged node is not in the D&D dojox Area => Cancel
 				this._areaManager._resetAfterDrop();
-				dojo.disconnect(this._moveHandler);
-				dojo.disconnect(this._outSourceHandler);
+				connect.disconnect(this._moveHandler);
+				connect.disconnect(this._outSourceHandler);
 				this._currentArea = this._moveHandler = this._outSourceHandler = null;
 			}
 			else{
@@ -324,8 +330,8 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 				}
 				else{
 					this._currentArea = null;
-					dojo.disconnect(this._outSourceHandler);
-					dojo.disconnect(this._moveHandler);
+					connect.disconnect(this._outSourceHandler);
+					connect.disconnect(this._moveHandler);
 					this._moveHandler = this._outSourceHandler = null;
 				}
 			}
@@ -344,12 +350,12 @@ define("dojox/mdnd/adapter/DndFromDojo", ["dojo/_base/kernel","dojo/_base/declar
 			//		callback
 	
 			//console.log("dojox.mdnd.adapter.DndFromDojo ::: onDrop", this._currentArea);
-			dojo.disconnect(this._moveHandler);
-			dojo.disconnect(this._outSourceHandler);
+			connect.disconnect(this._moveHandler);
+			connect.disconnect(this._outSourceHandler);
 			this._moveHandler = this._outSourceHandler = null;
 			if(this._currentArea){
 				var dropIndex = this._areaManager._currentDropIndex;
-				dojo.publish("/dnd/drop/after", [source, nodes, copy, this._currentArea, dropIndex]);
+				connect.publish("/dnd/drop/after", [source, nodes, copy, this._currentArea, dropIndex]);
 				this._currentArea = null;
 			}
 			if(this._areaManager._dropIndicator.node.style.visibility == "hidden"){

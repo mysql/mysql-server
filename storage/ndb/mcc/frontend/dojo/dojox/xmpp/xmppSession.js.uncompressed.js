@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/xmpp/xmppSession", ["dijit","dojo","dojox","dojo/require!dojox/xmpp/TransportSession,dojox/xmpp/RosterService,dojox/xmpp/PresenceService,dojox/xmpp/UserService,dojox/xmpp/ChatService,dojox/xmpp/sasl"], function(dijit,dojo,dojox){
+define("dojox/xmpp/xmppSession", ["dojo","dijit","dojox","dojo/require!dojox/xmpp/TransportSession,dojox/xmpp/RosterService,dojox/xmpp/PresenceService,dojox/xmpp/UserService,dojox/xmpp/ChatService,dojox/xmpp/sasl"], function(dojo,dijit,dojox){
 dojo.provide("dojox.xmpp.xmppSession");
 
 dojo.require("dojox.xmpp.TransportSession");
@@ -481,7 +480,7 @@ dojo.extend(dojox.xmpp.xmppSession, {
 						case 'show':
 							p[n.nodeName]=n.firstChild.nodeValue;
 							break;
-						case 'status':
+						case 'priority':
 							p.priority=parseInt(n.firstChild.nodeValue);
 							break;
 						case 'x':

@@ -1,0 +1,26 @@
+# === Purpose ===
+# This test verifies that while verifying the server certificates
+# when ssl-mode=VERIFY_IDENTITY, the DNS/IPs provided in the Subject
+# Alternative Names (which can be provided as an extension in X509)
+# fields are also checked for apart from the Common Name in the subject.
+# Applicable for openssl versions 1.0.2 and greater.
+#
+# === Related bugs and/or worklogs ===
+# Bug #29691694 - LIBMYSQLXCLIENT --SSL-MODE=VERIFY_IDENTITY DOESN'T USE SUBJECT ALT NAMES
+#
+# Note that these test cases are written keeping in mind that the openssl version used by the system will
+# be 1.0.2+. For older versions of openssl, the test will be skipped.
+
+--source include/allowed_ciphers.inc
+--source include/have_openssl_binary.inc
+--source include/check_openssl_version.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+
+let PARAM_TEST_EXE=$MYSQLXTEST --user=x_root ;
+let PARAM_CIPHER_VARIABLE=Mysqlx_ssl_cipher;
+let PARAM_VERIFY_IDENTITY_ERROR=ERROR: No such host is known 'nonexistent' \(code 2005\);
+--source include/test_ssl_verify_identity.inc
+
+--source include/xplugin_drop_user.inc

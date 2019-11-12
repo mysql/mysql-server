@@ -19,7 +19,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 6	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (/* select#2 */ select count(0) from `test`.`t1` `t2` where 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <> (/* select#2 */ select count(0) from `test`.`t1` `t2` where true))
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
@@ -36,7 +36,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	<derived6>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where true
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select 42) dt1))dt3)dt4);
@@ -264,13 +264,13 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (with `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t2` limit 1) /* select#2 */ select `dt1`.`a` from `dt` `dt1` where (`dt1`.`a` = (/* select#4 */ select `dt2`.`a` from `dt` `dt2`))) AS `subq` from `test`.`t1`
 explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
 EXPLAIN
--> Table scan on t1
+-> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
     -> Filter: (dt1.a = (select #4))
         -> Index lookup on dt1 using <auto_key0> (a=(select #4))
             -> Materialize CTE dt if needed
                 -> Limit: 1 row(s)
-                    -> Table scan on t2
+                    -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
             -> Table scan on dt2
                 -> Materialize CTE dt if needed (query plan printed elsewhere)
@@ -314,7 +314,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`test`.`t2`.`a` + 1)) or isnull((`test`.`t2`.`a` + 1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`a` + 1)), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`test`.`t2`.`a` + 1)) or ((`test`.`t2`.`a` + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`a` + 1)), true)) is false)
 select * from t1
 where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
 a	b
@@ -329,7 +329,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)) or isnull((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)) or ((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)), true)) is false)
 select * from t1
 where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
 a	b
@@ -373,7 +373,7 @@ Note	1276	Field or reference 'test.t11.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) NO_MERGE(`dt`@`subq1`) */ `test`.`t11`.`a` AS `a` from `test`.`t11` semi join (lateral (/* select#3 */ select (`test`.`t12`.`a` + (0 * `test`.`t11`.`a`)) AS `t12.a+0*t11.a` from `test`.`t12`) `dt`) where (`test`.`t11`.`a` = `dt`.`t12.a+0*t11.a`)
 DROP TABLE t11,t12;
 LATERAL
-# prevents join buffer
+# prevents join buffer if materialized (but not if merged)
 explain select dt.a from t1, lateral (select t1.a from t2) dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -414,8 +414,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`d
 select t1.a, dt.a from t1, lateral (select t1.a+t2.a as a from t2) dt;
 a	a
 1	2
-2	3
 1	3
+2	3
 2	4
 select t1.a, dt.a from t1, lateral (select t2.a as a from t2 having t1.a) dt;
 a	a
@@ -433,8 +433,8 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 select * from v1;
 f1	f2
 1	2
-2	3
 1	3
+2	3
 2	4
 drop view v1;
 # Coverage for various branches in Item_ref::fix_fields
@@ -525,12 +525,12 @@ drop table t3;
 explain format=tree select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
 EXPLAIN
 -> Nested loop inner join
-    -> Invalidate materialized tables (row from t1)
-        -> Table scan on t1
+    -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
     -> Table scan on dt2
         -> Materialize (invalidate on row from t1)
             -> Limit: 1 row(s)
-                -> Table scan on t2
+                -> Table scan on t2  (cost=0.45 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
@@ -658,8 +658,8 @@ flush status;
 select straight_join * from t1, lateral (select t1.a) as dt, t2;
 a	b	a	a	b
 1	NULL	1	1	NULL
-2	NULL	2	1	NULL
 1	NULL	1	2	NULL
+2	NULL	2	1	NULL
 2	NULL	2	2	NULL
 show status like "handler_write";
 Variable_name	Value
@@ -677,8 +677,8 @@ flush status;
 select straight_join * from t2, t1, lateral (select t1.a) as dt;
 a	b	a	b	a
 1	NULL	1	NULL	1
-2	NULL	1	NULL	1
 1	NULL	2	NULL	2
+2	NULL	1	NULL	1
 2	NULL	2	NULL	2
 # Due to join buffer, order t2-t1 produces rows as a
 # non-buffered t1-t2 plan: t1 buffers all rows of t2, then for
@@ -743,8 +743,8 @@ flush status;
 select * from t1, lateral (select t1.a) as dt, t2;
 a	b	a	a	b
 1	NULL	1	1	NULL
-2	NULL	2	1	NULL
 1	NULL	1	2	NULL
+2	NULL	2	1	NULL
 2	NULL	2	2	NULL
 show status like "handler_write";
 Variable_name	Value
@@ -764,8 +764,8 @@ flush status;
 select * from t2, t1, lateral (select t1.a) as dt;
 a	b	a	b	a
 1	NULL	1	NULL	1
-2	NULL	1	NULL	1
 1	NULL	2	NULL	2
+2	NULL	1	NULL	1
 2	NULL	2	NULL	2
 show status like "handler_write";
 Variable_name	Value
@@ -1192,19 +1192,19 @@ trace
   ]
 }
 # LDT depending on const table only
-create table t3(a int) engine=myisam;
+create table t3(a int) engine=innodb;
 insert into t3 values(3);
 analyze table t3;
 Table	Op	Msg_type	Msg_text
 test.t3	analyze	status	OK
 explain select * from t3, lateral (select t3.a+1) as dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived2>)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived2>)
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '3' AS `a`,`dt`.`t3.a+1` AS `t3.a+1` from lateral (/* select#2 */ select ('3' + 1) AS `t3.a+1`) `dt`
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`dt`.`t3.a+1` AS `t3.a+1` from `test`.`t3` join lateral (/* select#2 */ select (`test`.`t3`.`a` + 1) AS `t3.a+1`) `dt`
 select * from t3, lateral (select t3.a+1) as dt;
 a	t3.a+1
 3	4
@@ -1359,8 +1359,8 @@ select * from t2, t1, lateral (select t1.a) as dt,
 lateral (select t1.a+1) as dt2;
 a	b	a	b	a	t1.a+1
 1	NULL	1	NULL	1	2
-2	NULL	1	NULL	1	2
 1	NULL	2	NULL	2	3
+2	NULL	1	NULL	1	2
 2	NULL	2	NULL	2	3
 # One LDT depending on two tables. The "rematerialize" tag is
 # properly added to the 2nd dependency only.
@@ -1486,7 +1486,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t12.t12a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where 1
+Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where true
 flush status;
 SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
 JOIN LATERAL (SELECT t12a) dt;
@@ -1539,7 +1539,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 6	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (/* select#2 */ select count(0) from (/* select#3 */ select `dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` where (2 = (/* select#5 */ select 2 from (/* select#6 */ select `test`.`t1`.`a` AS `a`) `dt1`))) `dt3`) `dt4`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <> (/* select#2 */ select count(0) from (/* select#3 */ select `dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` where (2 = (/* select#5 */ select 2 from (/* select#6 */ select `test`.`t1`.`a` AS `a`) `dt1`))) `dt3`) `dt4`))
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
@@ -1558,7 +1558,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	<derived6>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where true
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select 42) dt1))dt3)dt4);
@@ -1789,13 +1789,13 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (with `dt` as (/* select#3 */ select `test`.`t1`.`a` AS `a` from `test`.`t2` limit 1) /* select#2 */ select `dt1`.`a` from `dt` `dt1` where (`dt1`.`a` = (/* select#4 */ select `dt2`.`a` from `dt` `dt2`))) AS `subq` from `test`.`t1`
 explain format=tree select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
 EXPLAIN
--> Table scan on t1
+-> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
     -> Filter: (dt1.a = (select #4))
         -> Index lookup on dt1 using <auto_key0> (a=(select #4))
             -> Materialize CTE dt if needed
                 -> Limit: 1 row(s)
-                    -> Table scan on t2
+                    -> Table scan on t2  (cost=0.45 rows=2)
         -> Select #4 (subquery in condition; dependent)
             -> Table scan on dt2
                 -> Materialize CTE dt if needed (query plan printed elsewhere)
@@ -1840,7 +1840,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select (`dt`.`f` + 1) from (/* select#3 */ select `test`.`t2`.`a` AS `f` from `test`.`t2`) `dt` where 1 having 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`dt.f+1`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select (`dt`.`f` + 1) from (/* select#3 */ select `test`.`t2`.`a` AS `f` from `test`.`t2`) `dt` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`dt.f+1`)))) is false)
 select * from t1
 where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
 a	b
@@ -1856,7 +1856,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from (/* select#3 */ select ((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) AS `f` from `test`.`t2`) `dt` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`dt`.`f` + 1)) or isnull((`dt`.`f` + 1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`dt`.`f` + 1)), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from (/* select#3 */ select ((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) AS `f` from `test`.`t2`) `dt` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`dt`.`f` + 1)) or ((`dt`.`f` + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`dt`.`f` + 1)), true)) is false)
 select * from t1
 where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
 a	b
@@ -1900,7 +1900,7 @@ Note	1276	Field or reference 'test.t11.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1` FIRSTMATCH, LOOSESCAN, DUPSWEEDOUT) NO_MERGE(`dt`@`subq1`) */ `test`.`t11`.`a` AS `a` from `test`.`t11` semi join (lateral (/* select#3 */ select (`test`.`t12`.`a` + (0 * `test`.`t11`.`a`)) AS `t12.a+0*t11.a` from `test`.`t12`) `dt`) where (`test`.`t11`.`a` = `dt`.`t12.a+0*t11.a`)
 DROP TABLE t11,t12;
 LATERAL
-# prevents join buffer
+# prevents join buffer if materialized (but not if merged)
 explain select dt.a from t1, lateral (select t1.a from t2) dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Rematerialize (<derived2>)
@@ -2053,16 +2053,16 @@ drop table t3;
 explain format=tree select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
 EXPLAIN
 -> Nested loop inner join
-    -> Invalidate materialized tables (row from t1)
-        -> Table scan on t1
+    -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
     -> Table scan on dt3
         -> Materialize (invalidate on row from t1)
             -> Table scan on dt2
-                -> Temporary table
+                -> Materialize
                     -> Limit: 1 row(s)
                         -> Table scan on dt
-                            -> Temporary table
-                                -> Table scan on t2
+                            -> Materialize
+                                -> Table scan on t2  (cost=0.45 rows=2)
 
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #4 was resolved in SELECT #1
@@ -2198,8 +2198,8 @@ flush status;
 select straight_join * from t1, lateral (select t1.a) as dt, t2;
 a	b	a	a	b
 1	NULL	1	1	NULL
-2	NULL	2	1	NULL
 1	NULL	1	2	NULL
+2	NULL	2	1	NULL
 2	NULL	2	2	NULL
 show status like "handler_write";
 Variable_name	Value
@@ -2217,8 +2217,8 @@ flush status;
 select straight_join * from t2, t1, lateral (select t1.a) as dt;
 a	b	a	b	a
 1	NULL	1	NULL	1
-2	NULL	1	NULL	1
 1	NULL	2	NULL	2
+2	NULL	1	NULL	1
 2	NULL	2	NULL	2
 # Due to join buffer, order t2-t1 produces rows as a
 # non-buffered t1-t2 plan: t1 buffers all rows of t2, then for
@@ -2283,8 +2283,8 @@ flush status;
 select * from t1, lateral (select t1.a) as dt, t2;
 a	b	a	a	b
 1	NULL	1	1	NULL
-2	NULL	2	1	NULL
 1	NULL	1	2	NULL
+2	NULL	2	1	NULL
 2	NULL	2	2	NULL
 show status like "handler_write";
 Variable_name	Value
@@ -2304,8 +2304,8 @@ flush status;
 select * from t2, t1, lateral (select t1.a) as dt;
 a	b	a	b	a
 1	NULL	1	NULL	1
-2	NULL	1	NULL	1
 1	NULL	2	NULL	2
+2	NULL	1	NULL	1
 2	NULL	2	NULL	2
 show status like "handler_write";
 Variable_name	Value
@@ -2763,19 +2763,19 @@ trace
   ]
 }
 # LDT depending on const table only
-create table t3(a int) engine=myisam;
+create table t3(a int) engine=innodb;
 insert into t3 values(3);
 analyze table t3;
 Table	Op	Msg_type	Msg_text
 test.t3	analyze	status	OK
 explain select * from t3, lateral (select t3.a+1) as dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived2>)
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived2>)
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '3' AS `a`,`dt`.`t3.a+1` AS `t3.a+1` from lateral (/* select#2 */ select ('3' + 1) AS `t3.a+1`) `dt`
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`dt`.`t3.a+1` AS `t3.a+1` from `test`.`t3` join lateral (/* select#2 */ select (`test`.`t3`.`a` + 1) AS `t3.a+1`) `dt`
 select * from t3, lateral (select t3.a+1) as dt;
 a	t3.a+1
 3	4
@@ -2930,8 +2930,8 @@ select * from t2, t1, lateral (select t1.a) as dt,
 lateral (select t1.a+1) as dt2;
 a	b	a	b	a	t1.a+1
 1	NULL	1	NULL	1	2
-2	NULL	1	NULL	1	2
 1	NULL	2	NULL	2	3
+2	NULL	1	NULL	1	2
 2	NULL	2	NULL	2	3
 # One LDT depending on two tables. The "rematerialize" tag is
 # properly added to the 2nd dependency only.
@@ -3057,7 +3057,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t12.t12a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where 1
+Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where true
 flush status;
 SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
 JOIN LATERAL (SELECT t12a) dt;
@@ -3165,7 +3165,7 @@ Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row
 Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
 Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
 Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
-Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#2`) */ `test`.`grandparent1`.`col_varchar_key` AS `g1` from `test`.`bb` `grandparent1` semi join (`qn1` join `test`.`bb` `parent1` left join `test`.`bb` `parent2` on((`test`.`parent1`.`col_varchar` = `test`.`parent2`.`col_varchar`))) left join `test`.`bb` `grandparent2` on(multiple equal(`test`.`grandparent1`.`col_time`, `test`.`grandparent2`.`col_time`)) where ((`test`.`parent1`.`col_time_key` between '2008-03-18' and '2004-11-14') and multiple equal(`test`.`grandparent1`.`col_int_key`, `test`.`parent1`.`col_int`) and multiple equal(`test`.`parent1`.`col_varchar_key`, `qn1`.`C1`)) group by `test`.`grandparent1`.`col_int`
+Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#2`) */ `test`.`grandparent1`.`col_varchar_key` AS `g1` from `test`.`bb` `grandparent1` left join `test`.`bb` `grandparent2` on(multiple equal(`test`.`grandparent1`.`col_time`, `test`.`grandparent2`.`col_time`)) semi join (`test`.`bb` `parent1` left join `test`.`bb` `parent2` on((`test`.`parent1`.`col_varchar` = `test`.`parent2`.`col_varchar`)) join `qn1`) where ((`test`.`parent1`.`col_time_key` between '2008-03-18' and '2004-11-14') and multiple equal(`test`.`grandparent1`.`col_int_key`, `test`.`parent1`.`col_int`) and multiple equal(`test`.`parent1`.`col_varchar_key`, `qn1`.`C1`)) group by `test`.`grandparent1`.`col_int`
 SELECT
 grandparent1.col_varchar_key AS g1 FROM bb AS grandparent1
 LEFT JOIN bb AS grandparent2 USING ( col_time )
@@ -3200,6 +3200,30 @@ Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row
 Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
 DROP TABLE bb;
 SET SQL_MODE=DEFAULT;
+#
+# Bug #29268512: ASSERTION FAILED: INITED == NONE INTERMITTENTLY
+#
+CREATE TABLE t1 (
+f1 integer
+);
+INSERT INTO t1 VALUES (0),(1);
+CREATE TABLE t2 (
+f2 integer
+);
+SELECT * FROM t1, LATERAL ( SELECT MAX(1) FROM t2 GROUP BY t1.f1 ) AS l1;
+f1	MAX(1)
+DROP TABLE t1, t2;
+#
+# Bug #29334082: Still crashing in actual_key_parts() / assert inited == INDEX
+#
+CREATE TABLE t1 ( f1 INTEGER );
+CREATE TABLE t2 ( f2 LONGBLOB );
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES ('abc'),('def');
+SELECT STD(0) FROM t2, LATERAL ( SELECT f1 FROM t1 GROUP BY f2,f1 ) AS d1;
+STD(0)
+0
+DROP TABLE t1, t2;
 #
 # Bug#28954838 ASSERTION `(REMAINING_TABLES_AFTER != 0) || ((CUR_EMBEDDING_MAP == 0) && (JOIN->
 #
@@ -3328,3 +3352,39 @@ GROUP BY c0008
 )	COUNT(c0009)
 DROP TABLE t0007, t0008, t0009;
 SET SQL_MODE=DEFAULT;
+#
+# Bug #29514504: WRONG RESULT WITH CORRELATED LATERAL JOIN
+#
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER);
+INSERT INTO t1 VALUES (10), (20), (30);
+INSERT INTO t2 VALUES (20), (20);
+SELECT * FROM t1 JOIN LATERAL (
+SELECT GROUP_CONCAT(t.id) AS c FROM t2 t WHERE (t.id = t1.id)
+) d0 ON (1);
+id	c
+10	NULL
+20	20,20
+30	NULL
+DROP TABLE t1, t2;
+#
+# Bug #30110851: SUBQUERY INVOLVES COUNT() AGGREGATE FUNCTION PERFORMANCE REGRESSION
+#
+CREATE TABLE t1 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE TABLE t2 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t2.f1 ) AS f3 FROM t2;
+EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
+EXPLAIN
+-> Index lookup on v2 using <auto_key0> (f3=3)
+    -> Materialize
+        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Select #3 (subquery in projection; dependent)
+            -> Index lookup on v1 using <auto_key0> (f1=t2.f1)
+                -> Materialize
+                    -> Table scan on t1  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t2.f1' of SELECT #3 was resolved in SELECT #2
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;

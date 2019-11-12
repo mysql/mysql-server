@@ -73,7 +73,7 @@ if(typeof _e.allowNamed!="boolean"){
 _e.allowNamed=false;
 }
 var _f="(?:[\\da-zA-Z](?:[-\\da-zA-Z]{0,61}[\\da-zA-Z])?)";
-var _10="(?:[a-zA-Z](?:[-\\da-zA-Z]{0,6}[\\da-zA-Z])?)";
+var _10="(?:[a-zA-Z](?:[-\\da-zA-Z]{0,61}[\\da-zA-Z])?)";
 var _11=_e.allowPort?"(\\:\\d+)?":"";
 var _12="((?:"+_f+"\\.)+"+_10+"\\.?)";
 if(_e.allowIP){

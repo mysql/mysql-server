@@ -1,34 +1,32 @@
-//>>built
-// wrapped by build app
-define("dojox/widget/Pager", ["dijit","dojo","dojox","dojo/require!dijit/_Widget,dijit/_Templated,dojo/fx"], function(dijit,dojo,dojox){
-dojo.provide("dojox.widget.Pager");
-dojo.experimental("dojox.widget.Pager");
+require({cache:{
+'url:dojox/widget/Pager/Pager.html':"<div dojoAttachPoint=\"pagerContainer\" tabIndex=\"0\" dojoAttachEvent=\"onkeypress: _handleKey, onfocus: _a11yStyle, onblur:_a11yStyle\" class=\"${orientation}PagerContainer\">\n    <div class=\"pagerContainer\">\n\t\t<div dojoAttachPoint=\"pagerContainerStatus\" class=\"${orientation}PagerStatus\"></div>\n\t\t<div dojoAttachPoint=\"pagerContainerView\" class=\"${orientation}PagerView\">\n\t\t    <div dojoAttachPoint=\"pagerItemContainer\"><ul dojoAttachPoint=\"pagerItems\" class=\"pagerItems\"></ul></div>\n\t\t</div>\n\t\t<div dojoAttachPoint=\"pagerContainerPager\" class=\"${orientation}PagerPager\">\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerNext\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerNext\"><img dojoAttachPoint=\"pagerIconNext\" src=\"${iconNext}\" alt=\"Next\" /></div>\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerPrevious\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerPrevious\"><img dojoAttachPoint=\"pagerIconPrevious\" src=\"${iconPrevious}\" alt=\"Previous\" /></div>\n\t\t</div>\n    </div>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none\"></div>\n</div>"}});
+define("dojox/widget/Pager", ["dojo/aspect", "dojo/_base/array", "dojo/_base/declare", "dojo/dom", "dojo/dom-attr", "dojo/dom-class", "dojo/dom-construct", "dojo/dom-geometry", "dojo/dom-style", "dojo/fx", "dojo/_base/kernel", "dojo/keys",
+	"dojo/_base/lang", "dojo/on", "dijit/_WidgetBase", "dijit/_TemplatedMixin", "./PagerItem", "dojo/text!./Pager/Pager.html"],
+	function(aspect, array, declare, dom, attr, domClass, domConstruct, geometry, style, fx, kernel, keys, lang, on, _WidgetBase, _TemplatedMixin, PagerItem, template){
 
-dojo.require("dijit._Widget");
-dojo.require("dijit._Templated");
-dojo.require("dojo.fx");
+kernel.experimental("dojox.widget.Pager");
 
-dojo.declare("dojox.widget.Pager",
-	[dijit._Widget, dijit._Templated],
+return declare("dojox.widget.Pager",
+	[_WidgetBase, _TemplatedMixin],
 	{
-	// summary: A Pager, displaying a list of sized nodes
-	
-	
-	templateString: dojo.cache("dojox.widget", "Pager/Pager.html", "<div dojoAttachPoint=\"pagerContainer\" tabIndex=\"0\" dojoAttachEvent=\"onkeypress: _handleKey, onfocus: _a11yStyle, onblur:_a11yStyle\" class=\"${orientation}PagerContainer\">\n    <div class=\"pagerContainer\">\n\t\t<div dojoAttachPoint=\"pagerContainerStatus\" class=\"${orientation}PagerStatus\"></div>\n\t\t<div dojoAttachPoint=\"pagerContainerView\" class=\"${orientation}PagerView\">\n\t\t    <div dojoAttachPoint=\"pagerItemContainer\"><ul dojoAttachPoint=\"pagerItems\" class=\"pagerItems\"></ul></div>\n\t\t</div>\n\t\t<div dojoAttachPoint=\"pagerContainerPager\" class=\"${orientation}PagerPager\">\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerNext\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerNext\"><img dojoAttachPoint=\"pagerIconNext\" src=\"${iconNext}\" alt=\"Next\" /></div>\n\t\t\t<div tabIndex=\"0\" dojoAttachPoint=\"pagerPrevious\" class=\"pagerIconContainer\" dojoAttachEvent=\"onclick: _pagerPrevious\"><img dojoAttachPoint=\"pagerIconPrevious\" src=\"${iconPrevious}\" alt=\"Previous\" /></div>\n\t\t</div>\n    </div>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none\"></div>\n</div>"),
+	// summary:
+	//		A Pager, displaying a list of sized nodes
 
-/*=====
+
+	templateString: template,
+
+
 	// iconPrevious: String?
 	//		The url of the previous page icon
 	iconPrevious: "",
-	
+
 	// iconNext: String?
 	//		The url of the next page icon
 	iconNext: "",
-=====*/
 
-	iconPage: dojo.moduleUrl("dojox.widget", "Pager/images/pageInactive.png"),
-	iconPageActive: dojo.moduleUrl("dojox.widget", "Pager/images/pageActive.png"),
-	
+	iconPage: require.toUrl("dojox/widget/Pager/images/pageInactive.png"),
+	iconPageActive: require.toUrl("dojox/widget/Pager/images/pageActive.png"),
+
 	// store: Object
 	//		A dojo.data Data store
 	store: null, // data store for items
@@ -36,87 +34,87 @@ dojo.declare("dojox.widget.Pager",
 	// orientation: String
 	//		Either "horizontal or "vertical" to define the direction the pages will slide
 	orientation: "horizontal", // or vertical
-	
+
 	// statusPos: String
 	//		A string describing where to put the Pager "current page" indicator. Options are
 	//		"leading" or "trailing". In the case of horiztonal orientation, "leading" indicates
 	//		positioned above the PageItems. In the case of vertical, "leading" indicates "before".
 	statusPos: "leading",
-	
+
 	// pagerPos: String
 	//		TODOC
 	pagerPos: "center",
 
 	// duration: Integer
-	// 		Time in milliseconds to transition the pages
+	//		Time in milliseconds to transition the pages
 	duration: 500,
-	
+
 	// itemSpace: Integer
 	//		Spacing between items? TODOC
 	itemSpace: 2,
-	
+
 	// resizeChildren: Boolean
-	// 		TODOC
+	//		TODOC
 	resizeChildren: true,
-	
-	// itemClass: String
-	//		The full dotted named of a Class to use for the internal Pager Items.
-	itemClass: "dojox.widget._PagerItem",
-	
+
+	// itemClass: String|Widget
+	//		The full dotted named of a Class or Widget constructor to use for the internal Pager Items.
+	itemClass: PagerItem,
+
 	// itemsPage: Integer
 	//		The numbers of items to display in each "Page"
 	itemsPage: 3,
-	
+
 	postMixInProperties: function(){
 		var h = (this.orientation == "horizontal");
-		dojo.mixin(this,{
+		lang.mixin(this,{
 			_totalPages:0,
 			_currentPage:1,
 			dirClass: "pager" + (h ? "Horizontal" : "Vertical"),
-			iconNext: dojo.moduleUrl("dojox.widget", "Pager/images/" + (h ? "h" : "v") + "Next.png"),
-			iconPrevious: dojo.moduleUrl("dojox.widget", "Pager/images/" + (h ? "h" : "v") + "Previous.png")
+			iconNext: require.toUrl("dojox/widget/Pager/images/" + (h ? "h" : "v") + "Next.png"),
+			iconPrevious: require.toUrl("dojox/widget/Pager/images/" + (h ? "h" : "v") + "Previous.png")
 		});
 	},
-		
+
 	postCreate: function(){
 		this.inherited(arguments);
-		//this.connect(this.domNode,"onkeypress","_handleKey");
 		this.store.fetch({
-			onComplete: dojo.hitch(this, "_init")
+			onComplete: lang.hitch(this, "_init")
 		});
-		
-	},
-	
-	_a11yStyle: function(e){
-		// summary: top level onfocus/onblur listen to set a class "pagerFocus" on some node
-		// 		and remove it onblur
-		dojo[(e.type == "focus" ? "addClass" : "removeClass")](e.target,"pagerFocus");
-	},
-	
-	_handleKey: function(e){
-		// summary: Handle keyboard navigation internally
 
-		var dk = dojo.keys;
-		var key = (e.charCode == dk.SPACE ? dk.SPACE : e.keyCode);
+	},
+
+	_a11yStyle: function(e){
+		// summary:
+		//		top level onfocus/onblur listen to set a class "pagerFocus" on some node
+		//		and remove it onblur
+		domClass.toggle(e.target, "pagerFocus", (e.type == "focus"));
+	},
+
+	_handleKey: function(e){
+		// summary:
+		//		Handle keyboard navigation internally
+
+		var key = (e.charCode == keys.SPACE ? keys.SPACE : e.keyCode);
 		switch(key){
-			
-			case dk.UP_ARROW:
-			case dk.RIGHT_ARROW:
+
+			case keys.UP_ARROW:
+			case keys.RIGHT_ARROW:
 			case 110:
 			case 78: // key "n"
 				e.preventDefault();
 				this._pagerNext();
 				break;
 
-			case dk.DOWN_ARROW:
-			case dk.LEFT_ARROW:
+			case keys.DOWN_ARROW:
+			case keys.LEFT_ARROW:
 			case 112:
 			case 80: // key "p"
 				e.preventDefault();
 				this._pagerPrevious();
 				break;
-			
-			case dk.ENTER:
+
+			case keys.ENTER:
 				switch(e.target){
 					case this.pagerNext : this._pagerNext(); break;
 					case this.pagerPrevious : this._pagerPrevious(); break;
@@ -124,162 +122,175 @@ dojo.declare("dojox.widget.Pager",
 				break;
 		}
 	},
-	
+
 	_init: function(items) {
 		this.items = items;
 		this._renderPages();
 		this._renderStatus();
 		this._renderPager();
 	},
-	
-	_renderPages: function(){
-		var pcv = this.pagerContainerView;
-		var _h = (this.orientation == "horizontal");
-		var style = dojo.style;
-		if(_h){
 
-			var pagerH = dojo.marginBox(this.pagerContainerPager).h;
-			var statusH = dojo.marginBox(this.pagerContainerStatus).h;
+	generatePagerItem: function(/*item */ item, /* Number */ cnt){
+		// summary:
+		//		this method instantiates pagerItems to be used by the pager, it is overridable to allow
+		//		customizing these items
+
+		// only use getObject if its not the default _PagerItem value
+		var itemClass = this.itemClass,
+			pagerItem = (typeof itemClass == "string" ? lang.getObject(itemClass) : itemClass);
+
+		var contentContainer = domConstruct.create('div', {
+				innerHTML: item.content
+			});
+
+		return new pagerItem({
+			  id: this.id + '-item-' + (cnt + 1)
+		  }, contentContainer);
+	},
+
+	_renderPages: function(){
+		var pcv = this.pagerContainerView,
+			_h = (this.orientation == "horizontal");
+
+		if(_h){
+			var pagerH = geometry.getMarginBox(this.pagerContainerPager).h,
+				statusH = geometry.getMarginBox(this.pagerContainerStatus).h;
+
 			if (this.pagerPos != 'center'){
 				var addonHeight = pagerH+statusH;
 			}else{
 				var addonHeight = statusH;
-				var widthSub = this.pagerIconNext.width;
-				var containerWidth = style(pcv, 'width');
-				var newWidth = containerWidth-(2*widthSub);
-				style(pcv, {
+
+				var	widthSub = this.pagerIconNext.width,
+					containerWidth = style.get(pcv, 'width'),
+					newWidth = containerWidth-(2*widthSub);
+
+				style.set(pcv, {
 					width: newWidth+'px',
 					marginLeft: this.pagerIconNext.width+'px',
 					marginRight: this.pagerIconNext.width+'px'
 				});
 			}
-			var totalH = style(this.pagerContainer, 'height') - addonHeight;
-			style(this.pagerContainerView, 'height', totalH+'px');
-			
-			var itemSpace = Math.floor(style(pcv, 'width') / this.itemsPage);
+			var totalH = style.get(this.pagerContainer, 'height') - addonHeight;
+			style.set(this.pagerContainerView, 'height', totalH+'px');
+
+			var itemSpace = Math.floor(style.get(pcv, 'width') / this.itemsPage);
 			if(this.statusPos == 'trailing'){
 				if(this.pagerPos != 'center'){
-					style(pcv, 'marginTop', pagerH+'px');
+					style.set(pcv, 'marginTop', pagerH+'px');
 				}
-				style(pcv, 'marginBottom', statusH+'px');
+				style.set(pcv, 'marginBottom', statusH+'px');
 			}else{
-				style(pcv, 'marginTop', statusH+'px');
+				style.set(pcv, 'marginTop', statusH+'px');
 				if (this.pagerPos != 'center'){
-					style(pcv, 'marginTop', pagerH+'px');
+					style.set(pcv, 'marginTop', pagerH+'px');
 				}
 			}
-			
 		}else{
+			var pagerW = geometry.getMarginBox(this.pagerContainerPager).w,
+				statusW = geometry.getMarginBox(this.pagerContainerStatus).w,
+				containerW = style.get(this.pagerContainer, 'width');
 
-			var pagerW = dojo.marginBox(this.pagerContainerPager).w;
-			var statusW = dojo.marginBox(this.pagerContainerStatus).w;
-			var containerW = style(this.pagerContainer, 'width');
 			if(this.pagerPos != 'center'){
 				var addonWidth = pagerW + statusW;
 			}else{
-				var addonWidth = statusW;
-				var heightSub = this.pagerIconNext.height;
-				var containerHeight = style(pcv, 'height');
-				var newHeight = containerHeight - (2 * heightSub);
-				style(pcv,{
+				var addonWidth = statusW,
+					heightSub = this.pagerIconNext.height,
+					containerHeight = style.get(pcv, 'height'),
+					newHeight = containerHeight - (2 * heightSub);
+
+				style.set(pcv,{
 					height: newHeight+'px',
 					marginTop: this.pagerIconNext.height+'px',
 					marginBottom: this.pagerIconNext.height+'px'
 				});
 			}
-			var totalW = style(this.pagerContainer, 'width') - addonWidth;
-			style(pcv, 'width', totalW+'px');
-			
-			var itemSpace = Math.floor(style(pcv, 'height') / this.itemsPage);
+			var totalW = style.get(this.pagerContainer, 'width') - addonWidth;
+			style.set(pcv, 'width', totalW+'px');
+
+			var itemSpace = Math.floor(style.get(pcv, 'height') / this.itemsPage);
 			if(this.statusPos == 'trailing'){
 				if (this.pagerPos != 'center'){
-					style(pcv, 'marginLeft', pagerW + 'px');
+					style.set(pcv, 'marginLeft', pagerW + 'px');
 				}
-				style(pcv, 'marginRight', statusW + 'px');
+				style.set(pcv, 'marginRight', statusW + 'px');
 			}else{
-				style(pcv, 'marginLeft', statusW + 'px');
+				style.set(pcv, 'marginLeft', statusW + 'px');
 				if(this.pagerPos != 'center'){
-					style(pcv, 'marginRight', pagerW+'px');
+					style.set(pcv, 'marginRight', pagerW+'px');
 				}
 			}
 		}
-		
-		var _PagerItem = dojo.getObject(this.itemClass);
-		var paddingLead = "padding" + (_h ? "Left" : "Top");
-		var paddingTrail = "padding" + (_h ? "Right" : "Bottom");
-			
-		dojo.forEach(this.items, function(item, cnt){
-			
-			var contentContainer = dojo.create('div', {
-				innerHTML: item.content
-			});
+		var paddingLead = "padding" + (_h ? "Left" : "Top"),
+			paddingTrail = "padding" + (_h ? "Right" : "Bottom");
 
-			var pagerItem = new _PagerItem({
-				id: this.id + '-item-' + (cnt + 1)
-			}, contentContainer);
-			
+		array.forEach(this.items, function(item, cnt){
+			var pagerItem = this.generatePagerItem(item, cnt),
+				containerProps = {};
+
 			this.pagerItems.appendChild(pagerItem.domNode);
-			
-			var containerProps = {};
+
 			containerProps[(_h ? "width" : "height")] = (itemSpace - this.itemSpace) + "px";
 			var p = (_h ? "height" : "width");
-			containerProps[p] = style(pcv, p) + "px";
-			style(pagerItem.containerNode, containerProps);
+			containerProps[p] = style.get(pcv, p) + "px";
+			style.set(pagerItem.containerNode, containerProps);
 
 			if(this.resizeChildren){
 				pagerItem.resizeChildren();
 			}
 			pagerItem.parseChildren();
-			
+
 			// only display amount of items as defined in itemsPage
-			style(pagerItem.domNode, "position", "absolute");
+			style.set(pagerItem.domNode, "position", "absolute");
 
 			if (cnt < this.itemsPage){
-				var pos = (cnt) * itemSpace;
-				var trailingDir = (_h ? "left" : "top");
-				var dir = (_h ? "top" : "left");
-				style(pagerItem.domNode, dir, "0px");
-				style(pagerItem.domNode, trailingDir, pos+"px");
+				var pos = (cnt) * itemSpace,
+					trailingDir = (_h ? "left" : "top"),
+					dir = (_h ? "top" : "left");
+
+				style.set(pagerItem.domNode, dir, "0px");
+				style.set(pagerItem.domNode, trailingDir, pos+"px");
 			}else{
-				style(pagerItem.domNode, "top", "-1000px");
-				style(pagerItem.domNode, "left", "-1000px");
+				style.set(pagerItem.domNode, "top", "-1000px");
+				style.set(pagerItem.domNode, "left", "-1000px");
 			}
 
-			style(pagerItem.domNode, paddingTrail, (this.itemSpace/2)+"px");
-			style(pagerItem.domNode, paddingLead, (this.itemSpace/2)+"px");
-			
+			style.set(pagerItem.domNode, paddingTrail, (this.itemSpace/2)+"px");
+			style.set(pagerItem.domNode, paddingLead, (this.itemSpace/2)+"px");
+
 		}, this);
 	},
-	
+
 	_renderPager: function() {
-		var tcp = this.pagerContainerPager;
-		var zero = "0px";
-		var _h = (this.orientation == "horizontal");
+		var tcp = this.pagerContainerPager,
+			zero = "0px",
+			_h = (this.orientation == "horizontal");
+
 		if(_h){
 
 			if(this.statusPos == 'center'){
-				
+
 			}else if (this.statusPos == 'trailing'){
-				dojo.style(tcp, 'top', zero);
+				style.set(tcp, 'top', zero);
 			}else{
-				dojo.style(tcp, 'bottom', zero);
+				style.set(tcp, 'bottom', zero);
 			}
-			dojo.style(this.pagerNext, 'right', zero);
-			dojo.style(this.pagerPrevious, 'left', zero);
-			
+			style.set(this.pagerNext, 'right', zero);
+			style.set(this.pagerPrevious, 'left', zero);
+
 		}else{
-			
+
 			if (this.statusPos == 'trailing'){
-				dojo.style(tcp, 'left', zero);
+				style.set(tcp, 'left', zero);
 			}else{
-				dojo.style(tcp, 'right', zero);
+				style.set(tcp, 'right', zero);
 			}
-			dojo.style(this.pagerNext, 'bottom', zero);
-			dojo.style(this.pagerPrevious, 'top', zero);
+			style.set(this.pagerNext, 'bottom', zero);
+			style.set(this.pagerPrevious, 'top', zero);
 		}
-		
+
 	},
-	
+
 	_renderStatus: function() {
 		this._totalPages = Math.ceil(this.items.length / this.itemsPage);
 		// FIXME!!
@@ -287,16 +298,14 @@ dojo.declare("dojox.widget.Pager",
 		this.iconHeight = 0;
 		this.iconsLoaded = 0;
 		this._iconConnects = [];
-		
+
 		for (var i = 1; i <= this._totalPages; i++){
 			var icon = new Image();
-			
+
 			var pointer = i;
-			dojo.connect(icon, 'onclick', dojo.hitch(this, function(pointer) {
-				this._pagerSkip(pointer);
-			}, pointer));
-			
-			this._iconConnects[pointer] = dojo.connect(icon, 'onload', dojo.hitch(this,function(pointer){
+			on(icon, 'click', lang.hitch(this, "_pagerSkip", pointer));
+
+			this._iconConnects[pointer] = on(icon, 'load', lang.hitch(this, function(pointer){
 				this.iconWidth += icon.width;
 				this.iconHeight += icon.height;
 				this.iconsLoaded++;
@@ -305,45 +314,49 @@ dojo.declare("dojox.widget.Pager",
 					if (this.orientation == "horizontal"){
 						if (this.statusPos == 'trailing'){
 							if (this.pagerPos == 'center'){
-								var containerHeight = dojo.style(this.pagerContainer, 'height');
-								var statusHeight = dojo.style(this.pagerContainerStatus, 'height');
-								dojo.style(this.pagerContainerPager, 'top', ((containerHeight/2)-(statusHeight/2))+'px');
+								var containerHeight = style.get(this.pagerContainer, 'height'),
+									statusHeight = style.get(this.pagerContainerStatus, 'height');
+
+								style.set(this.pagerContainerPager, 'top', ((containerHeight/2)-(statusHeight/2))+'px');
 							}
-							dojo.style(this.pagerContainerStatus, 'bottom', '0px');
+							style.set(this.pagerContainerStatus, 'bottom', '0px');
 						}else{
 							if (this.pagerPos == 'center'){
-								var containerHeight = dojo.style(this.pagerContainer, 'height');
-								var statusHeight = dojo.style(this.pagerContainerStatus, 'height');
-								dojo.style(this.pagerContainerPager, 'bottom', ((containerHeight/2)-(statusHeight/2))+'px');
+								var containerHeight = style.get(this.pagerContainer, 'height'),
+									statusHeight = style.get(this.pagerContainerStatus, 'height');
+
+								style.set(this.pagerContainerPager, 'bottom', ((containerHeight/2)-(statusHeight/2))+'px');
 							}
-							dojo.style(this.pagerContainerStatus, 'top', '0px');
+							style.set(this.pagerContainerStatus, 'top', '0px');
 						}
-					
-						var position = (dojo.style(this.pagerContainer, 'width')/2)-(this.iconWidth/2);
-						dojo.style(this.pagerContainerStatus, 'paddingLeft', position+'px');
+
+						var position = (style.get(this.pagerContainer, 'width')/2)-(this.iconWidth/2);
+						style.set(this.pagerContainerStatus, 'paddingLeft', position+'px');
 					}else{
 						if (this.statusPos == 'trailing'){
 							if (this.pagerPos == 'center'){
-								var containerWidth = dojo.style(this.pagerContainer, 'width');
-								var statusWidth = dojo.style(this.pagerContainerStatus, 'width');
-								dojo.style(this.pagerContainerPager, 'left', ((containerWidth/2)-(statusWidth/2))+'px');
+								var containerWidth = style.get(this.pagerContainer, 'width'),
+									statusWidth = style.get(this.pagerContainerStatus, 'width');
+
+								style.set(this.pagerContainerPager, 'left', ((containerWidth/2)-(statusWidth/2))+'px');
 							}
-							dojo.style(this.pagerContainerStatus, 'right', '0px');
+							style.set(this.pagerContainerStatus, 'right', '0px');
 						}else{
 							if (this.pagerPos == 'center'){
-								var containerWidth = dojo.style(this.pagerContainer, 'width');
-								var statusWidth = dojo.style(this.pagerContainerStatus, 'width');
-								dojo.style(this.pagerContainerPager, 'right', ((containerWidth/2)-(statusWidth/2))+'px');
+								var containerWidth = style.get(this.pagerContainer, 'width'),
+									statusWidth = style.get(this.pagerContainerStatus, 'width');
+
+								style.set(this.pagerContainerPager, 'right', ((containerWidth/2)-(statusWidth/2))+'px');
 							}
-							dojo.style(this.pagerContainerStatus, 'left', '0px');
+							style.set(this.pagerContainerStatus, 'left', '0px');
 						}
-						var position = (dojo.style(this.pagerContainer, 'height')/2)-(this.iconHeight/2);
-						dojo.style(this.pagerContainerStatus, 'paddingTop', position+'px');
+						var position = (style.get(this.pagerContainer, 'height')/2)-(this.iconHeight/2);
+						style.set(this.pagerContainerStatus, 'paddingTop', position+'px');
 					}
 				}
-				dojo.disconnect(this._iconConnects[pointer]);
+				this._iconConnects[pointer].remove();
 			}, pointer));
-			
+
 			if (i==this._currentPage){
 				icon.src=this.iconPageActive;
 			}else{
@@ -351,16 +364,16 @@ dojo.declare("dojox.widget.Pager",
 			}
 			var pointer = i;
 
-			dojo.addClass(icon, this.orientation+'PagerIcon');
-			dojo.attr(icon, 'id', this.id+'-status-'+i);
+			domClass.add(icon, this.orientation+'PagerIcon');
+			attr.set(icon, 'id', this.id+'-status-'+i);
 			this.pagerContainerStatus.appendChild(icon);
-					
+
 			if (this.orientation == "vertical"){
-				dojo.style(icon, 'display', 'block');
+				style.set(icon, 'display', 'block');
 			}
 		}
 	},
-	
+
 	_pagerSkip: function(page){
 		if (this._currentPage == page){
 			return;
@@ -374,23 +387,23 @@ dojo.declare("dojox.widget.Pager",
 				distanceP = (this._totalPages + this._currentPage) - page;
 				distanceN = page - this._currentPage;
 			}
-			
+
 			var b = (distanceN > distanceP);
 			this._toScroll = (b ? distanceP : distanceN);
-			var cmd = (b ? "_pagerPrevious" : "_pagerNext");
-			var connect = this.connect(this, "onScrollEnd", function(){
-				this._toScroll--;
-				if(this._toScroll < 1){
-					this.disconnect(connect);
-				}else{
-					this[cmd]();
-				}
-			});
+			var cmd = (b ? "_pagerPrevious" : "_pagerNext"),
+				handle = aspect.after(this, "onScrollEnd", lang.hitch(this, function(){
+					this._toScroll--;
+					if(this._toScroll < 1){
+						handle.remove();
+					}else{
+						this[cmd]();
+					}
+				}), true);
+
 			this[cmd]();
-			
 		}
 	},
-	
+
 	_pagerNext: function(){
 		if(this._anim) return;
 
@@ -400,16 +413,16 @@ dojo.declare("dojox.widget.Pager",
 		 */
 		var _anims = [];
 		for (var i = this._currentPage * this.itemsPage; i > (this._currentPage - 1) * this.itemsPage; i--){
-			if (!dojo.byId(this.id+'-item-'+i)) continue;
-			
-			var currentItem = dojo.byId(this.id+'-item-'+i);
-			var marginBox = dojo.marginBox(currentItem);
+			if (!dom.byId(this.id+'-item-'+i)) continue;
+
+			var currentItem = dom.byId(this.id+'-item-'+i);
+			var marginBox = geometry.getMarginBox(currentItem);
 			if (this.orientation == "horizontal") {
 				var move = marginBox.l - (this.itemsPage * marginBox.w);
-				_anims.push(dojo.fx.slideTo({node: currentItem, left: move, duration: this.duration}));
+				_anims.push(fx.slideTo({node: currentItem, left: move, duration: this.duration}));
 			}else{
 				var move = marginBox.t - (this.itemsPage * marginBox.h);
-				_anims.push(dojo.fx.slideTo({node: currentItem, top: move, duration: this.duration}));
+				_anims.push(fx.slideTo({node: currentItem, top: move, duration: this.duration}));
 			}
 
 		}
@@ -419,59 +432,60 @@ dojo.declare("dojox.widget.Pager",
 		}else{
 			this._currentPage++;
 		}
-		
+
 		var cnt = this.itemsPage;
 		for (var i=this._currentPage*this.itemsPage; i>(this._currentPage-1)*this.itemsPage; i--){
-			if (dojo.byId(this.id+'-item-'+i)){
-				var currentItem = dojo.byId(this.id+'-item-'+i);
-				var marginBox = dojo.marginBox(currentItem);
+			if (dom.byId(this.id+'-item-'+i)){
+				var currentItem = dom.byId(this.id+'-item-'+i);
+				var marginBox = geometry.getMarginBox(currentItem);
 				if (this.orientation == "horizontal") {
-					var newPos = (dojo.style(this.pagerContainerView, 'width')+((cnt-1)*marginBox.w))-1;
-					dojo.style(currentItem, 'left', newPos+'px');
-					dojo.style(currentItem, 'top', '0px');
-					
+					var newPos = (style.get(this.pagerContainerView, 'width')+((cnt-1)*marginBox.w))-1;
+					style.set(currentItem, 'left', newPos+'px');
+					style.set(currentItem, 'top', '0px');
+
 					var move = newPos-(this.itemsPage*marginBox.w);
-					_anims.push(dojo.fx.slideTo({node: currentItem, left: move, duration: this.duration}));
+					_anims.push(fx.slideTo({node: currentItem, left: move, duration: this.duration}));
 				}else{
-					newPos = (dojo.style(this.pagerContainerView, 'height')+((cnt-1)*marginBox.h))-1;
-					dojo.style(currentItem, 'top', newPos+'px');
-					dojo.style(currentItem, 'left', '0px');
-					
+					newPos = (style.get(this.pagerContainerView, 'height')+((cnt-1)*marginBox.h))-1;
+					style.set(currentItem, 'top', newPos+'px');
+					style.set(currentItem, 'left', '0px');
+
 					var move = newPos-(this.itemsPage*marginBox.h);
-					_anims.push(dojo.fx.slideTo({ node: currentItem, top: move, duration: this.duration}));
+					_anims.push(fx.slideTo({ node: currentItem, top: move, duration: this.duration}));
 				}
 			}
 			cnt--;
 		}
-		
-		this._anim = dojo.fx.combine(_anims);
-		var animConnect = this.connect(this._anim, "onEnd", function(){
+
+		this._anim = fx.combine(_anims);
+		var animHandle = aspect.after(this._anim, "onEnd", lang.hitch(this, function(){
 			delete this._anim;
 			this.onScrollEnd();
-			this.disconnect(animConnect);
-		});
+			animHandle.remove();
+		}), true);
+
 		this._anim.play();
-		
+
 		// set pager icons
-		dojo.byId(this.id+'-status-'+previousPage).src = this.iconPage;
-		dojo.byId(this.id+'-status-'+this._currentPage).src = this.iconPageActive;
+		dom.byId(this.id+'-status-'+previousPage).src = this.iconPage;
+		dom.byId(this.id+'-status-'+this._currentPage).src = this.iconPageActive;
 	},
 
-    _pagerPrevious: function(){
+	_pagerPrevious: function(){
 		if(this._anim) return;
-   
+
 		var _anims = [];
 		for (var i=this._currentPage*this.itemsPage; i>(this._currentPage-1)*this.itemsPage; i--){
-				if (!dojo.byId(this.id+'-item-'+i)) continue;
-		   
-				var currentItem = dojo.byId(this.id+'-item-'+i);
-				var marginBox = dojo.marginBox(currentItem);
+				if (!dom.byId(this.id+'-item-'+i)) continue;
+
+				var currentItem = dom.byId(this.id+'-item-'+i);
+				var marginBox = geometry.getMarginBox(currentItem);
 				if (this.orientation == "horizontal") {
-						var move = dojo.style(currentItem, 'left')+(this.itemsPage*marginBox.w);
-						_anims.push(dojo.fx.slideTo({node: currentItem, left: move, duration: this.duration}));
+						var move = style.get(currentItem, 'left')+(this.itemsPage*marginBox.w);
+						_anims.push(fx.slideTo({node: currentItem, left: move, duration: this.duration}));
 				}else{
-						var move = dojo.style(currentItem, 'top')+(this.itemsPage*marginBox.h);
-						_anims.push(dojo.fx.slideTo({node: currentItem, top: move, duration: this.duration}));
+						var move = style.get(currentItem, 'top')+(this.itemsPage*marginBox.h);
+						_anims.push(fx.slideTo({node: currentItem, top: move, duration: this.duration}));
 				}
 		}
 
@@ -481,75 +495,58 @@ dojo.declare("dojox.widget.Pager",
 		}else{
 				this._currentPage--;
 		}
-   
+
 		var cnt = this.itemsPage;
 		var j=1;
 		for (var i=this._currentPage*this.itemsPage; i>(this._currentPage-1)*this.itemsPage; i--){
-			if(dojo.byId(this.id+'-item-'+i)){
-				var currentItem = dojo.byId(this.id+'-item-'+i);
-				var marginBox = dojo.marginBox(currentItem);
-   
+			if(dom.byId(this.id+'-item-'+i)){
+				var currentItem = dom.byId(this.id+'-item-'+i),
+					marginBox = geometry.getMarginBox(currentItem);
+
 				if (this.orientation == "horizontal") {
 					var newPos = -(j * marginBox.w) + 1;
-					dojo.style(currentItem, 'left', newPos+'px');
-					dojo.style(currentItem, 'top', '0px');
-			   
+					style.set(currentItem, 'left', newPos+'px');
+					style.set(currentItem, 'top', '0px');
+
 					var move = ((cnt - 1) * marginBox.w);
-					_anims.push(dojo.fx.slideTo({node: currentItem, left: move, duration: this.duration}));
-			   
+					_anims.push(fx.slideTo({node: currentItem, left: move, duration: this.duration}));
+
 					var move = newPos+(this.itemsPage * marginBox.w);
-					_anims.push(dojo.fx.slideTo({node: currentItem, left: move, duration: this.duration}));
+					_anims.push(fx.slideTo({node: currentItem, left: move, duration: this.duration}));
 				}else{
 					newPos = -((j * marginBox.h) + 1);
-					dojo.style(currentItem, 'top', newPos+'px');
-					dojo.style(currentItem, 'left', '0px');
-			   
+					style.set(currentItem, 'top', newPos+'px');
+					style.set(currentItem, 'left', '0px');
+
 					var move = ((cnt - 1) * marginBox.h);
-					_anims.push(dojo.fx.slideTo({node: currentItem, top: move, duration: this.duration}));
+					_anims.push(fx.slideTo({node: currentItem, top: move, duration: this.duration}));
 				}
-		   
+
 			}
 			cnt--;
 			j++;
 		}
-   
-		this._anim = dojo.fx.combine(_anims);
-		var animConnect = dojo.connect(this._anim, "onEnd", dojo.hitch(this, function(){
+
+		this._anim = fx.combine(_anims);
+		var animHandle = aspect.after(this._anim, "onEnd", lang.hitch(this, function(){
 			delete this._anim;
 			this.onScrollEnd();
-			dojo.disconnect(animConnect);
-		}));
+			animHandle.remove();
+		}), true);
+
 		this._anim.play();
-   
+
 		// set pager icons
-		dojo.byId(this.id + '-status-' + previousPage).src = this.iconPage;
-		dojo.byId(this.id + '-status-' + this._currentPage).src = this.iconPageActive;
+		dom.byId(this.id + '-status-' + previousPage).src = this.iconPage;
+		dom.byId(this.id + '-status-' + this._currentPage).src = this.iconPageActive;
 
 	},
-	
+
 	onScrollEnd: function(){
-		// summary: Stub Function. Fired after the slide is complete. Override or connect.
+		// summary:
+		//		Stub Function. Fired after the slide is complete. Override or connect.
 	}
 
-});
-
-dojo.declare("dojox.widget._PagerItem",
-	[dijit._Widget, dijit._Templated],
-	{
-	
-	templateString: '<li class="pagerItem" dojoAttachPoint="containerNode"></li>',
-	
-	resizeChildren: function(){
-		var box = dojo.marginBox(this.containerNode);
-		dojo.style(this.containerNode.firstChild, {
-			width: box.w +'px',
-			height: box.h + 'px'
-		});
-	},
-	
-	parseChildren: function(){
-		dojo.parser.parse(this.containerNode);
-	}
 });
 
 });

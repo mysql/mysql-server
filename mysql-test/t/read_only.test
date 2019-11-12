@@ -364,6 +364,23 @@ DROP TABLE t1;
 
 set sql_mode= @orig_sql_mode;
 
+--echo #
+--echo # Bug#28490368   INNODB: ASSERTION FAILURE: DICT0DD.CC:1071:!FAIL
+--echo #
+
+CREATE TABLE t1(f1 INT);
+CREATE TEMPORARY TABLE t1(a1 INT);
+CREATE TEMPORARY TABLE t3(a3 INT);
+SET @@global.super_read_only=TRUE;
+# Without the fix, the RENAME TABLE asserts in innodb, as innodb expects us
+# to not request update operation in super_read_only mode.
+--error ER_OPTION_PREVENTS_STATEMENT
+RENAME TABLE t1 to t3;
+SET @@global.read_only=default;
+DROP TABLE t1;
+DROP TABLE t1;
+DROP TABLE t3;
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

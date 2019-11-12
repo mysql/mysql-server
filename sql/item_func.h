@@ -52,7 +52,7 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"        // Item_result_field
-#include "sql/my_decimal.h"  // string2my_decimal
+#include "sql/my_decimal.h"  // str2my_decimal
 #include "sql/parse_tree_node_base.h"
 #include "sql/set_var.h"  // enum_var_type
 #include "sql/sql_const.h"
@@ -70,6 +70,7 @@ class sp_rcontext;
 struct MY_BITMAP;
 template <class T>
 class List;
+class QEP_TAB;
 
 /* Function items used by mysql */
 
@@ -126,9 +127,11 @@ class Item_func : public Item_result_field {
     GE_FUNC,
     GT_FUNC,
     FT_FUNC,
+    MATCH_FUNC,
     LIKE_FUNC,
     ISNULL_FUNC,
     ISNOTNULL_FUNC,
+    ISTRUTH_FUNC,
     COND_AND_FUNC,
     COND_OR_FUNC,
     XOR_FUNC,
@@ -174,10 +177,14 @@ class Item_func : public Item_result_field {
     MUL_FUNC,
     DIV_FUNC,
     CEILING_FUNC,
+    ROUND_FUNC,
+    TRUNCATE_FUNC,
     SQRT_FUNC,
     ABS_FUNC,
     FLOOR_FUNC,
     LOG_FUNC,
+    LN_FUNC,
+    LOG10_FUNC,
     SIN_FUNC,
     TAN_FUNC,
     COS_FUNC,
@@ -186,10 +193,12 @@ class Item_func : public Item_result_field {
     ACOS_FUNC,
     MOD_FUNC,
     IF_FUNC,
+    NULLIF_FUNC,
     CASE_FUNC,
     YEAR_FUNC,
     MONTH_FUNC,
     DAY_FUNC,
+    TO_DAYS_FUNC,
     DATE_FUNC,
     HOUR_FUNC,
     MINUTE_FUNC,
@@ -197,9 +206,15 @@ class Item_func : public Item_result_field {
     MICROSECOND_FUNC,
     WEEK_FUNC,
     WEEKDAY_FUNC,
+    DATEADD_FUNC,
+    TIMESTAMPDIFF_FUNC,
     DATETIME_LITERAL,
     GREATEST_FUNC,
-    LEAST_FUNC
+    COALESCE_FUNC,
+    LEAST_FUNC,
+    JSON_CONTAINS,
+    JSON_OVERLAPS,
+    MEMBER_OF_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -241,7 +256,7 @@ class Item_func : public Item_result_field {
   }
 
   Item_func(Item *a, Item *b, Item *c) : arg_count(3) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 3))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 3))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -255,7 +270,7 @@ class Item_func : public Item_result_field {
 
   Item_func(const POS &pos, Item *a, Item *b, Item *c)
       : super(pos), arg_count(3) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 3))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 3))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -264,7 +279,7 @@ class Item_func : public Item_result_field {
   }
 
   Item_func(Item *a, Item *b, Item *c, Item *d) : arg_count(4) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 4))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 4))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -279,7 +294,7 @@ class Item_func : public Item_result_field {
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : super(pos), arg_count(4) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 4))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 4))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -289,7 +304,7 @@ class Item_func : public Item_result_field {
   }
 
   Item_func(Item *a, Item *b, Item *c, Item *d, Item *e) : arg_count(5) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 5))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 5))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -306,7 +321,7 @@ class Item_func : public Item_result_field {
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
       : super(pos), arg_count(5) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 5))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 5))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -339,7 +354,7 @@ class Item_func : public Item_result_field {
   void update_used_tables() override;
   void set_used_tables(table_map map) { used_tables_cache = map; }
   bool eq(const Item *item, bool binary_cmp) const override;
-  virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  virtual optimize_type select_optimize(const THD *) { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
   inline Item **arguments() const {
@@ -387,40 +402,6 @@ class Item_func : public Item_result_field {
   Item *get_tmp_table_item(THD *thd) override;
 
   my_decimal *val_decimal(my_decimal *) override;
-
-  /**
-    Same as save_in_field() except that special logic is added to
-    avoid serialization to string followed by parsing of the string
-    when saving a JSON value in a JSON column.
-
-    Unless both the return type of the function and the type of the
-    target column are JSON, this function works exactly as
-    save_in_field(). For the JSON type, this means:
-
-    - JSON values saved in non-JSON columns: The JSON value is
-      serialized to a character string and then attempted saved in the
-      target column. The usual conversions are performed if the target
-      column is not a character string column.
-
-    - Non-JSON values saved in JSON columns: Strings are parsed as
-      JSON text, converted to JSON binary representation and saved in
-      the target column. Non-strings cause a conversion error to be
-      raised.
-
-    A better solution might be to put this logic into
-    Item_func::save_in_field_inner() or even Item::save_in_field_inner().
-    But that would mean providing val_json() overrides for
-    more Item subclasses. And that feels like pulling on a
-    ball of yarn late in the release cycle for 5.7. FIXME.
-
-    @param[out] field          The field to set the value to.
-    @param      no_conversions Passed to save_in_field_inner().
-
-    @retval 0  On success.
-    @retval >0 On error.
-  */
-  virtual type_conversion_status save_possibly_as_json(Field *field,
-                                                       bool no_conversions);
 
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems, uint flags,
                         int item_sep) {
@@ -553,6 +534,46 @@ class Item_func : public Item_result_field {
     maintains any necessary any invariants.
   */
   virtual void replace_argument(THD *thd, Item **oldpp, Item *newp);
+
+  /**
+    Whether an arg of a JSON function can be cached to avoid repetitive
+    string->JSON conversion. This function returns true only for those args,
+    which are the source of JSON data. JSON path args are cached independently
+    and for them this function returns false. Same as for all other type of
+    args.
+
+    @param arg  the arg to cache
+
+    @returns
+      true   arg can be cached
+      false  otherwise
+  */
+  virtual enum_const_item_cache can_cache_json_arg(
+      Item *arg MY_ATTRIBUTE((unused))) {
+    return CACHE_NONE;
+  }
+
+  /// Returns true if this Item has at least one condition that can be
+  /// implemented as hash join. A hash join condition is an equi-join condition
+  /// where one side of the condition refers to the right table, and the other
+  /// side of the condition refers to one or more of the left tables.
+  ///
+  /// @param left_tables the left tables in the join
+  /// @param right_table the right table of the join
+  ///
+  /// @retval true if the Item has at least one hash join condition
+  virtual bool has_any_hash_join_condition(
+      const table_map left_tables MY_ATTRIBUTE((unused)),
+      const QEP_TAB &right_table MY_ATTRIBUTE((unused))) const {
+    return false;
+  }
+
+  /// Returns true if this Item has at least one non equi-join condition.
+  /// A non equi-join condition is a condition where both sides refer to at
+  /// least one table, and the operator is not equals '='.
+  ///
+  /// @retval true if the Item has at least one non equi-join condition
+  virtual bool has_any_non_equi_join_condition() const { return false; }
 
  protected:
   /**
@@ -906,9 +927,9 @@ class Item_func_connection_id final : public Item_int_func {
   }
 };
 
-class Item_func_signed : public Item_int_func {
+class Item_typecast_signed : public Item_int_func {
  public:
-  Item_func_signed(const POS &pos, Item *a) : Item_int_func(pos, a) {
+  Item_typecast_signed(const POS &pos, Item *a) : Item_int_func(pos, a) {
     unsigned_flag = false;
   }
   const char *func_name() const override { return "cast_as_signed"; }
@@ -923,10 +944,11 @@ class Item_func_signed : public Item_int_func {
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
-class Item_func_unsigned final : public Item_func_signed {
+class Item_typecast_unsigned final : public Item_typecast_signed {
  public:
-  Item_func_unsigned(const POS &pos, Item *a) : Item_func_signed(pos, a) {
-    unsigned_flag = 1;
+  Item_typecast_unsigned(const POS &pos, Item *a)
+      : Item_typecast_signed(pos, a) {
+    unsigned_flag = true;
   }
   const char *func_name() const override { return "cast_as_unsigned"; }
   longlong val_int() override;
@@ -935,11 +957,9 @@ class Item_func_unsigned final : public Item_func_signed {
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
-class Item_decimal_typecast final : public Item_func {
-  my_decimal decimal_value;
-
+class Item_typecast_decimal final : public Item_func {
  public:
-  Item_decimal_typecast(const POS &pos, Item *a, int len, int dec)
+  Item_typecast_decimal(const POS &pos, Item *a, int len, int dec)
       : Item_func(pos, a) {
     set_data_type_decimal(len, dec);
   }
@@ -955,7 +975,34 @@ class Item_decimal_typecast final : public Item_func {
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return DECIMAL_RESULT; }
   bool resolve_type(THD *) override { return false; }
-  const char *func_name() const override { return "decimal_typecast"; }
+  const char *func_name() const override { return "cast_as_decimal"; }
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+};
+
+/**
+  Class used to implement CAST to floating-point data types.
+*/
+class Item_typecast_real final : public Item_func {
+ public:
+  Item_typecast_real(const POS &pos, Item *a, bool as_double)
+      : Item_func(pos, a) {
+    if (as_double)
+      set_data_type_double();
+    else
+      set_data_type_float();
+  }
+  Item_typecast_real(Item *a) : Item_func(a) { set_data_type_double(); }
+  String *val_str(String *str) override;
+  double val_real() override;
+  longlong val_int() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  my_decimal *val_decimal(my_decimal *decimal_value) override;
+  enum Item_result result_type() const override { return REAL_RESULT; }
+  bool resolve_type(THD *) override { return false; }
+  const char *func_name() const override { return "cast_as_real"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
@@ -1125,6 +1172,7 @@ class Item_func_ln final : public Item_dec_func {
   Item_func_ln(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "ln"; }
+  enum Functype functype() const override { return LN_FUNC; }
 };
 
 class Item_func_log final : public Item_dec_func {
@@ -1148,6 +1196,7 @@ class Item_func_log10 final : public Item_dec_func {
   Item_func_log10(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "log10"; }
+  enum Functype functype() const override { return LOG10_FUNC; }
 };
 
 class Item_func_sqrt final : public Item_dec_func {
@@ -1279,6 +1328,9 @@ class Item_func_round final : public Item_func_num1 {
   longlong int_op() override;
   my_decimal *decimal_op(my_decimal *) override;
   bool resolve_type(THD *) override;
+  enum Functype functype() const override {
+    return truncate ? TRUNCATE_FUNC : ROUND_FUNC;
+  }
 };
 
 class Item_func_rand final : public Item_real_func {
@@ -2042,7 +2094,7 @@ class Item_func_udf_str : public Item_udf_func {
     const char *end_not_used;
     String *res;
     res = val_str(&str_value);
-    return res ? my_strntod(res->charset(), (char *)res->ptr(), res->length(),
+    return res ? my_strntod(res->charset(), res->ptr(), res->length(),
                             &end_not_used, &err_not_used)
                : 0.0;
   }
@@ -2057,7 +2109,8 @@ class Item_func_udf_str : public Item_udf_func {
   my_decimal *val_decimal(my_decimal *dec_buf) override {
     String *res = val_str(&str_value);
     if (!res) return NULL;
-    string2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf);
+    str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(), res->charset(),
+                   dec_buf);
     return dec_buf;
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
@@ -2215,11 +2268,9 @@ class Item_master_gtid_set_wait final : public Item_int_func {
   String value;
 
  public:
-  Item_master_gtid_set_wait(const POS &pos, Item *a) : Item_int_func(pos, a) {}
-  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b) {}
-  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_int_func(pos, a, b, c) {}
+  Item_master_gtid_set_wait(const POS &pos, Item *a);
+  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b);
+  Item_master_gtid_set_wait(const POS &pos, Item *a, Item *b, Item *c);
 
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
@@ -2817,15 +2868,15 @@ class user_var_entry {
     String values with length longer than 8 are stored in a separate
     memory buffer, which is allocated when needed using the method realloc().
   */
-  char *internal_buffer_ptr() const {
-    return (char *)this + ALIGN_SIZE(sizeof(user_var_entry));
+  char *internal_buffer_ptr() {
+    return pointer_cast<char *>(this) + ALIGN_SIZE(sizeof(user_var_entry));
   }
 
   /**
     Position inside a user_var_entry where a null-terminates array
     of characters representing the variable name is stored.
   */
-  char *name_ptr() const { return internal_buffer_ptr() + extra_size; }
+  char *name_ptr() { return internal_buffer_ptr() + extra_size; }
 
   /**
     Initialize m_ptr to the internal buffer (if the value is small enough),
@@ -3256,7 +3307,7 @@ class Item_func_match final : public Item_real_func {
   FT_INFO *ft_handler;
   TABLE_LIST *table_ref;
   /**
-     Master item means that if idendical items are present in the
+     Master item means that if identical items are present in the
      statement, they use the same FT handler. FT handler is initialized
      only for master item and slave items just use it. FT hints initialized
      for master only, slave items HINTS are not accessed.
@@ -3292,7 +3343,7 @@ class Item_func_match final : public Item_real_func {
   bool itemize(Parse_context *pc, Item **res) override;
 
   void cleanup() override {
-    DBUG_ENTER("Item_func_match::cleanup");
+    DBUG_TRACE;
     Item_real_func::cleanup();
     if (!master && ft_handler) {
       ft_handler->please->close_search(ft_handler);
@@ -3302,7 +3353,7 @@ class Item_func_match final : public Item_real_func {
     concat_ws = NULL;
     table_ref = NULL;  // required by Item_func_match::eq()
     master = NULL;
-    DBUG_VOID_RETURN;
+    return;
   }
   Item *key_item() const override { return against; }
   enum Functype functype() const override { return FT_FUNC; }
@@ -3618,8 +3669,6 @@ class Item_func_sp final : public Item_func {
 
  protected:
   bool is_expensive_processor(uchar *) override { return true; }
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
 
  public:
   Item_func_sp(const POS &pos, const LEX_STRING &db_name,
@@ -3772,12 +3821,13 @@ class Item_func_version final : public Item_static_string_func {
 
 Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
                      LEX_STRING component);
-extern bool check_reserved_words(LEX_STRING *name);
+extern bool check_reserved_words(const char *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(THD *thd, Item *cond, bool *value);
-Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
+Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
+                            Field **found = NULL);
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
 

@@ -365,10 +365,7 @@ class Alter_info {
   };
 
   /**
-     Columns and keys to be dropped.
-     After mysql_prepare_alter_table() it contains only foreign keys and
-     virtual generated columns to be dropped. This information is necessary
-     for the storage engine to do in-place alter.
+     Columns, keys and constraints to be dropped.
   */
   Mem_root_array<const Alter_drop *> drop_list;
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
@@ -452,13 +449,14 @@ class Alter_info {
   bool add_field(THD *thd, const LEX_STRING *field_name,
                  enum enum_field_types type, const char *length,
                  const char *decimal, uint type_modifier, Item *default_value,
-                 Item *on_update_value, LEX_STRING *comment, const char *change,
-                 List<String> *interval_list, const CHARSET_INFO *cs,
-                 bool has_explicit_collation, uint uint_geom_type,
-                 Value_generator *gcol_info, Value_generator *default_val_expr,
-                 const char *opt_after, Nullable<gis::srid_t> srid,
+                 Item *on_update_value, LEX_CSTRING *comment,
+                 const char *change, List<String> *interval_list,
+                 const CHARSET_INFO *cs, bool has_explicit_collation,
+                 uint uint_geom_type, Value_generator *gcol_info,
+                 Value_generator *default_val_expr, const char *opt_after,
+                 Nullable<gis::srid_t> srid,
                  Sql_check_constraint_spec_list *check_cons_list,
-                 dd::Column::enum_hidden_type hidden);
+                 dd::Column::enum_hidden_type hidden, bool is_array = false);
 
  private:
   Alter_info &operator=(const Alter_info &rhs);  // not implemented

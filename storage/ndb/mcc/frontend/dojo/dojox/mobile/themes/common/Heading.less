@@ -1,12 +1,19 @@
 /* dojox.mobile.Heading */
 .mblHeading {
 	position: relative;
-	margin: 0px;
+	margin: 0;
 	width: 100%;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
 	z-index: 1;
+	padding: 0;
+	height: 42px;
+	font-family: Helvetica;
+	font-size: 20px;
+	font-weight: bold;
+	text-align: center;
+	line-height: 44px;
 	.mblHeading-styles;
 }
 .mblHeading * {
@@ -16,7 +23,7 @@
 	position: absolute;
 	width: 100%;
 	display: none;
-	left: 0px;
+	left: 0;
 	z-index: 1;
 }
 .mblHeadingCenterTitle .mblHeadingDivTitle {
@@ -24,35 +31,4 @@
 }
 .mblHeadingCenterTitle .mblHeadingSpanTitle {
 	display: none;
-}
-
-/* Heading Arrow Button */
-.mblArrowButton {
-	position: relative;
-	float: left;
-	.mblArrowButton-styles;
-}
-.mblArrowButtonHead {
-	position: absolute;
-	.mblArrowButtonHead-styles;
-}
-.dj_chrome .mblArrowButtonHead {
-	.mblArrowButtonHeadChrome-styles;
-}
-.mblArrowButtonBody {
-	position: absolute;
-	cursor: pointer;
-	-webkit-tap-highlight-color: rgba(255,255,255,0);
-	.mblArrowButtonBody-styles;
-}
-.mblArrowButtonSelected {
-	.mblArrowButtonHead, .mblArrowButtonBody {
-		.mblArrowButtonSelected-styles;
-	}
-	.mblArrowButtonHead {
-		.mblArrowButtonHeadSelected-styles;
-	}
-	.mblArrowButtonBody {
-		.mblArrowButtonBodySelected-styles;
-	}
 }

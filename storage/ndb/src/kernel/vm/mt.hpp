@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,11 @@
 #define ndb_mt_hpp
 
 #include <kernel_types.h>
+#include <ndb_limits.h>
 #include <TransporterDefinitions.hpp>
 #include <portlib/NdbTick.h>
 #include <SimulatedBlock.hpp>
+#include <util/Bitmask.hpp>
 
 #define JAM_FILE_ID 275
 
@@ -43,6 +45,8 @@
                            MAX_NDBMT_LQH_THREADS +  \
                            MAX_NDBMT_TC_THREADS +   \
                            MAX_NDBMT_RECEIVE_THREADS)
+
+static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
 
 Uint32 mt_get_instance_count(Uint32 block);
 
@@ -64,6 +68,7 @@ void mt_execSTOP_FOR_CRASH();
 void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
 Uint32 mt_getSignalsInJBB(Uint32 self);
 NDB_TICKS mt_getHighResTimer(Uint32 self);
+void mt_setNoSend(Uint32 self);
 void mt_setNeighbourNode(NodeId node);
 void mt_setWakeupThread(Uint32 self, Uint32 wakeup_instance);
 void mt_setOverloadStatus(Uint32 self,
@@ -115,16 +120,18 @@ int mt_checkDoJob(Uint32 receiver_thread_idx);
 bool NdbIsMultiThreaded();
 
 /**
- * Get list of BlockReferences so that
- *   each thread holding an instance of any block in blocks[] get "covered"
- *   (excluding ownThreadId
- *
- * eg. calling it with DBLQH, will return a block-reference to *a* block
- *     in each of the threads that has an DBLQH instance
+ * Get a bitset with a set bit for each thread holding an instance of any block
+ * in blocks[], not looking at proxy block instances.
  */
-Uint32 mt_get_thread_references_for_blocks(const Uint32 blocks[],
-                                           Uint32 ownThreadId,
-                                           Uint32 dst[], Uint32 len);
+Uint32 mt_get_threads_for_blocks_no_proxy(const Uint32 blocks[],
+                                          BlockThreadBitmask& mask);
+
+/**
+ * Get a bitset with a set bit for each thread that given thread can send
+ * signals too.
+ */
+Uint32 mt_get_addressable_threads(const Uint32 my_thr_no,
+                                  BlockThreadBitmask& mask);
 
 /**
  * wakeup thread running block

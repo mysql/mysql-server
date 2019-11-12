@@ -1,4 +1,3 @@
-//>>built
 define("dojox/gesture/tap", [
 	"dojo/_base/kernel",
 	"dojo/_base/declare",
@@ -79,6 +78,7 @@ var clz = declare(/*===== "dojox.gesture.tap", =====*/Base, {
 		//		Overwritten, record initial tap info and register a timeout checker for 'tap.hold'
 		if(e.touches && e.touches.length >= 2){
 			//tap gesture is only for single touch
+			clearTimeout(data.tapTimeOut); 
 			delete data.context;
 			return;
 		}
@@ -129,6 +129,9 @@ var clz = declare(/*===== "dojox.gesture.tap", =====*/Base, {
 	_isTap: function(/*Object*/data, /*Event*/e){
 		// summary:
 		//		Check whether it's an valid tap
+		if (!data.context) {
+			return false;
+		}
 		var dx = Math.abs(data.context.x - e.screenX);
 		var dy = Math.abs(data.context.y - e.screenY);
 		return dx <= this.tapRadius && dy <= this.tapRadius;

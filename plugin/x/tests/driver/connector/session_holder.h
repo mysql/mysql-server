@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "my_macros.h"
 #include "plugin/x/client/mysqlxclient/xconnection.h"
@@ -63,6 +64,12 @@ struct Connection_options {
   xcl::Internet_protocol ip_mode{xcl::Internet_protocol::V4};
   std::vector<std::string> auth_methods;
   bool compatible{false};
+  std::vector<std::string> compression_server_style{"GROUP", "MULTIPLE",
+                                                    "SINGLE"};
+  std::vector<std::string> compression_client_style{"SINGLE", "MULTIPLE",
+                                                    "GROUP"};
+  std::vector<std::string> compression_algorithm{"DEFLATE", "LZ4"};
+  std::string compression_mode{"DISABLED"};
 
   bool is_ssl_set() const {
     return !ssl_ca.empty() || !ssl_ca_path.empty() || !ssl_cert.empty() ||

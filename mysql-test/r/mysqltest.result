@@ -648,13 +648,13 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 mysqltest: The test didn't produce any output
 Failing multi statement query
-mysqltest: At line 3: Query 'create table t1 (a int primary key);
+mysqltest: At line 2: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
-mysqltest: At line 3: Query 'create table t1 (a int primary key);
+mysqltest: At line 2: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed.
@@ -899,6 +899,78 @@ INSERT INTO t1 SELECT f1 - 128 FROM t1;
 INSERT INTO t1 SELECT f1 - 256 FROM t1;
 INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
+DROP TABLE t1;
+#
+# Bug#29224561: USE "SORTED_RESULT" OF MYSQL-TEST , CAUSE ERROR RESULT
+#               ( FOR TYPE OF BINARY )
+#
+CREATE TABLE t1(a BINARY(32), b BINARY(32));
+INSERT INTO t1 VALUES
+('1abc', 'abc2'), ('\0', '\0'), ('1a', 'ba');
+SELECT * FROM t1;
+a	b
+################################	################################
+1a##############################	ba##############################
+1abc############################	abc2############################
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(32), b CHAR(32));
+INSERT INTO t1 VALUES
+('\0', 'abc2'), ('abcd', '\0'), ('1a', 'ba');
+SELECT * FROM t1;
+a	b
+#	abc2
+1a	ba
+abcd	#
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(32), b CHAR(32), c CHAR(32));
+INSERT INTO t1 VALUES
+('abc', '1a', '2a'), ('abc', 'west', 'east'), ('\0', '1a', 'north'),
+('\0', 'west', 'south'), ('abc', 'sun', 'moon');
+SELECT a, b, c FROM t1 ORDER by a;
+a	b	c
+#	1a	north
+#	west	south
+abc	1a	2a
+abc	sun	moon
+abc	west	east
+SELECT a, b, c FROM t1 ORDER by a, b;
+a	b	c
+#	1a	north
+#	west	south
+abc	1a	2a
+abc	sun	moon
+abc	west	east
+DROP TABLE t1;
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES
+(1, 2, 1),
+(1, 2, 4),
+(1, 2, 3),
+(2, 3, 1),
+(3, 4, 1),
+(2, 5, 0),
+(1, 6, 0),
+(1, 7, 1);
+SELECT i, j, k FROM t1 ORDER by i;
+i	j	k
+1	2	1
+1	2	3
+1	2	4
+1	6	0
+1	7	1
+2	3	1
+2	5	0
+3	4	1
+SELECT i, j, k FROM t1 ORDER by i, j;
+i	j	k
+1	2	1
+1	2	3
+1	2	4
+1	6	0
+1	7	1
+2	3	1
+2	5	0
+3	4	1
 DROP TABLE t1;
 select "500g blåbærsyltetøy" as "will be lower cased";
 will be lower cased
@@ -1678,6 +1750,9 @@ c3 DECIMAL(2) UNSIGNED,
 c4 DECIMAL,
 PRIMARY KEY (c1)
 );
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
@@ -1935,6 +2010,9 @@ c3 DECIMAL(2) UNSIGNED,
 c4 DECIMAL,
 PRIMARY KEY (c1)
 );
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1

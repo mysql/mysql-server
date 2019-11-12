@@ -2,7 +2,7 @@
 # Test restoring backups of different endianness
 ######################################################################
 
--- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
 #
@@ -138,6 +138,14 @@
 #   ST_GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))
 # );
 
+# Turn off metadata check so it doesn't intefere with table discovery
+--connection server2
+SET @old_ndb_metadata_check_mysqld2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+--connection server1
+SET @old_ndb_metadata_check_mysqld1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+
 # Suppress expected warnings in the log due to table with old temporal types
 --disable_query_log
 call mtr.add_suppression("NDB: Table upgrade required");
@@ -202,4 +210,11 @@ SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER b
 
 DROP TABLE t_num,t_string_1,t_string_2,t_gis;
 --exec $NDB_DROP_TABLE --no-defaults -d test t_datetime >> $NDB_TOOLS_OUTPUT
+
+# Reset metadata check value
+--connection server2
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_mysqld2;
+--connection server1
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_mysqld1;
+
 --remove_file $NDB_TOOLS_OUTPUT

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,43 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD * thd));
 
 /**
+  Get all character set and collations
+  @param[in,out]  thd        server session THD
+  @param[out]     char_sets  all character set collations
+  @return error code.
+*/
+DEFINE_METHOD(int, mysql_clone_get_charsets,
+              (THD * thd, Mysql_Clone_Values &char_sets));
+
+/**
+  Check if all characters sets are supported by server
+  @param[in,out]  thd        server session THD
+  @param[in]      char_sets  all character set collations to validate
+  @return error code.
+*/
+DEFINE_METHOD(int, mysql_clone_validate_charsets,
+              (THD * thd, Mysql_Clone_Values &char_sets));
+
+/**
+  Get system configuration parameter values.
+  @param[in,out]  thd        server session THD
+  @param[in,out]  configs    a list of configuration key value pair
+                             keys are input and values are output
+  @return error code.
+*/
+DEFINE_METHOD(int, mysql_clone_get_configs,
+              (THD * thd, Mysql_Clone_Key_Values &configs));
+
+/**
+  Check if configuration parameter values match
+  @param[in,out]  thd        server session THD
+  @param[in]      configs    a list of configuration key value pair
+  @return error code.
+*/
+DEFINE_METHOD(int, mysql_clone_validate_configs,
+              (THD * thd, Mysql_Clone_Key_Values &configs));
+
+/**
   Connect to a remote server and switch to clone protocol
   @param[in,out] thd      server session THD
   @param[in]     host     host name to connect to
@@ -61,7 +98,7 @@ DEFINE_METHOD(void, mysql_clone_finish_statement, (THD * thd));
   @return Connection object if successful.
 */
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
-              (THD * thd, const char *host, uint port, const char *user,
+              (THD * thd, const char *host, uint32_t port, const char *user,
                const char *passwd, mysql_clone_ssl_context *ssl_ctx,
                MYSQL_SOCKET *socket));
 
@@ -87,11 +124,12 @@ DEFINE_METHOD(int, mysql_clone_send_command,
   @param[in]     timeout        timeout in seconds
   @param[out]    packet         response packet
   @param[out]    length         packet length
+  @param[out]    net_length     network data length for compressed data
   @return error code.
 */
 DEFINE_METHOD(int, mysql_clone_get_response,
               (THD * thd, MYSQL *connection, bool set_active, uint32_t timeout,
-               uchar **packet, size_t *length));
+               uchar **packet, size_t *length, size_t *net_length));
 
 /**
   Kill a remote connection
@@ -113,6 +151,15 @@ DEFINE_METHOD(void, mysql_clone_disconnect,
               (THD * thd, MYSQL *mysql, bool is_fatal, bool clear_error));
 
 /**
+  Get error number and message.
+  @param[in,out] thd         local session THD
+  @param[out]    err_num     error number
+  @param[out]    err_mesg    error message text
+*/
+DEFINE_METHOD(void, mysql_clone_get_error,
+              (THD * thd, uint32_t *err_num, const char **err_mesg));
+
+/**
   Get command from client
   @param[in,out] thd            server session THD
   @param[out]    command        remote command
@@ -127,12 +174,13 @@ DEFINE_METHOD(int, mysql_clone_get_command,
 /**
   Send response to client.
   @param[in,out] thd     server session THD
+  @param[in]     secure  needs to be sent over secure connection
   @param[in]     packet  response packet
   @param[in]     length  packet length
   @return error code.
 */
 DEFINE_METHOD(int, mysql_clone_send_response,
-              (THD * thd, uchar *packet, size_t length));
+              (THD * thd, bool secure, uchar *packet, size_t length));
 
 /**
   Send error to client

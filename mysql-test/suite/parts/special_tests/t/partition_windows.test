@@ -51,9 +51,9 @@ EOF
 --replace_result $path_1 PATH_1 $path_2 PATH_2
 eval
 CREATE TABLE t1 (
-  c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+  c1 int unsigned NOT NULL AUTO_INCREMENT,
   c2 varchar(30) NOT NULL,
-  c3 smallint(5) unsigned DEFAULT NULL,
+  c3 smallint unsigned DEFAULT NULL,
   PRIMARY KEY (c1)
 )
 PARTITION BY HASH(c1)(

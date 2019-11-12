@@ -15,6 +15,10 @@
 #
 # Bug#21338147  INNODB: FAILING ASSERTION: !TRX_IS_AUTOCOMMIT_NON_LOCKING(TRX) IN TRX0TRX.CC
 
+# Test needs MyISAM storage engine
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+#
 # Should be tested against "binlog disabled" server
 --source include/not_log_bin.inc
 

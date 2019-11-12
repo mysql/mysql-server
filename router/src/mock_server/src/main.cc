@@ -55,6 +55,7 @@ struct MysqlServerMockConfig {
   std::string module_prefix;
   unsigned port{3306};
   unsigned http_port{0};
+  unsigned xport{0};
   bool verbose{false};
 };
 
@@ -172,11 +173,21 @@ class MysqlServerMockFrontend {
       http_server_config.set("static_folder", "");
     }
 
-    auto &mock_server_config = loader_config->add("mock_server", "");
+    auto &mock_server_config = loader_config->add("mock_server", "classic");
     mock_server_config.set("library", "mock_server");
     mock_server_config.set("port", std::to_string(config_.port));
     mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
+    mock_server_config.set("protocol", "classic");
+
+    if (config_.xport != 0) {
+      auto &mock_x_server_config = loader_config->add("mock_server", "x");
+      mock_x_server_config.set("library", "mock_server");
+      mock_x_server_config.set("port", std::to_string(config_.xport));
+      mock_x_server_config.set("filename", config_.queries_filename);
+      mock_x_server_config.set("module_prefix", config_.module_prefix);
+      mock_x_server_config.set("protocol", "x");
+    }
 
     mysql_harness::DIM::instance().set_Config(
         [&]() { return loader_config.release(); },
@@ -221,6 +232,12 @@ class MysqlServerMockFrontend {
           config_.port = static_cast<unsigned>(std::stoul(port));
         });
     arg_handler_.add_option(
+        CmdOption::OptionNames({"-X", "--xport"}),
+        "TCP port to listen on for X protocol connections.",
+        CmdOptionValueReq::required, "int", [this](const std::string &port) {
+          config_.xport = static_cast<unsigned>(std::stoul(port));
+        });
+    arg_handler_.add_option(
         CmdOption::OptionNames({"--http-port"}),
         "TCP port to listen on for HTTP/REST connections.",
         CmdOptionValueReq::required, "int", [this](const std::string &port) {
@@ -259,7 +276,7 @@ int main(int argc, char *argv[]) {
   result = WSAStartup(MAKEWORD(2, 2), &wsaData);
   if (result != 0) {
     std::cerr << "WSAStartup failed with error: " << result << std::endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 #endif
 
@@ -274,7 +291,7 @@ int main(int argc, char *argv[]) {
     frontend.run();
   } catch (const std::exception &e) {
     std::cout << "ERROR: " << e.what() << std::endl;
-    return -1;
+    return EXIT_FAILURE;
   }
 
   return 0;

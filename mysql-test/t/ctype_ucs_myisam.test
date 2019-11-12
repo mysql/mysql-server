@@ -1,0 +1,251 @@
+--source include/no_valgrind_without_big.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+#
+# Bug 1181
+#
+CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
+ENGINE=MyISAM CHARACTER SET ucs2 COLLATE ucs2_general_ci;
+INSERT INTO t1 (word) VALUES ("cat");
+SELECT * FROM t1 WHERE word LIKE "c%";
+SELECT * FROM t1 WHERE word LIKE "ca_";
+SELECT * FROM t1 WHERE word LIKE "cat";
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630025';
+SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
+DROP TABLE t1;
+
+######################################################
+
+#
+# Bug 1264
+#
+# Description:
+#
+# When using a ucs2 table in MySQL,
+# either with ucs2_general_ci or ucs2_bin collation,
+# words are returned in an incorrect order when using ORDER BY
+# on an _indexed_ CHAR or VARCHAR column. They are sorted with
+# the longest word *first* instead of last. I.E. The word "aardvark"
+# is in the results before the word "a".
+#
+# If there is no index for the column, the problem does not occur.
+#
+# Interestingly, if there is no second column, the words are returned
+# in the correct order.
+#
+# According to EXPLAIN, it looks like when the output includes columns that
+# are not part of the index sorted on, it does a filesort, which fails.
+# Using a straight index yields correct results.
+
+SET NAMES latin1;
+
+#
+# Two fields, index
+#
+
+CREATE TABLE t1 (
+   word VARCHAR(64),
+   bar INT(11) default 0,
+   PRIMARY KEY (word))
+   ENGINE=MyISAM
+   CHARSET ucs2
+   COLLATE ucs2_general_ci ;
+
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a");
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY word;
+SELECT * FROM t1 ORDER BY word;
+EXPLAIN SELECT word FROM t1 ORDER BY word;
+SELECT word FROM t1 ORDER by word;
+DROP TABLE t1;
+
+#
+# One field, index
+#
+
+CREATE TABLE t1 (
+   word VARCHAR(64) ,
+   PRIMARY KEY (word))
+   ENGINE=MyISAM
+   CHARSET ucs2
+   COLLATE ucs2_general_ci;
+
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a");
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY WORD;
+SELECT * FROM t1 ORDER BY word;
+DROP TABLE t1;
+
+#
+# Two fields, no index
+#
+
+CREATE TABLE t1 (
+   word TEXT,
+   bar INT(11) AUTO_INCREMENT,
+   PRIMARY KEY (bar))
+   ENGINE=MyISAM
+   CHARSET ucs2
+   COLLATE ucs2_general_ci ;
+INSERT INTO t1 (word) VALUES ("aar");
+INSERT INTO t1 (word) VALUES ("a" );
+INSERT INTO t1 (word) VALUES ("aardvar");
+INSERT INTO t1 (word) VALUES ("aardvark");
+INSERT INTO t1 (word) VALUES ("aardvara");
+INSERT INTO t1 (word) VALUES ("aardvarz");
+EXPLAIN SELECT * FROM t1 ORDER BY word;
+SELECT * FROM t1 ORDER BY word;
+EXPLAIN SELECT word FROM t1 ORDER BY word;
+SELECT word FROM t1 ORDER BY word;
+DROP TABLE t1;
+
+#
+# END OF Bug 1264 test
+#
+########################################################
+
+#
+# Bug#9557 MyISAM utf8 table crash
+#
+CREATE TABLE t1 (
+  a varchar(255) NOT NULL default '',
+  KEY a (a)
+) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE ucs2_general_ci;
+insert into t1 values (0x803d);
+insert into t1 values (0x005b);
+select hex(a) from t1;
+drop table t1;
+
+--echo #
+--echo # Bug#54916 GROUP_CONCAT + IFNULL truncates output
+--echo #
+SELECT @@collation_connection;
+# ENGINE=MYISAM is very important to make sure "SYSTEM" join type
+# is in use, which will create instances of Item_copy.
+CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
+INSERT INTO t1 VALUES (1234567);
+SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
+SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
+SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
+--enable_metadata
+SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
+--disable_metadata
+--echo # All columns must be VARCHAR(9) with the same length:
+--disable_warnings
+CREATE TABLE t2 AS
+SELECT
+  CONCAT(a),
+  IFNULL(a,''),
+  IF(a,a,''),
+  CASE WHEN a THEN a ELSE '' END,
+  COALESCE(a,'')
+FROM t1;
+--enable_warnings
+# The above query is expected to send a warning
+# in case of ucs2 character set, until Bug#55744 is fixed.
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT INSERT(1133,3,0,22) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT LCASE(a) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT UCASE(a) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT REPEAT(1,2) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT LEFT(123,2) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT RIGHT(123,2) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT LTRIM(123) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT RTRIM(123) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT ELT(1,111,222,333) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT REPLACE(111,2,3) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT SUBSTRING_INDEX(111,111,1) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT MAKE_SET(111,222,3) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+CREATE TABLE t2 AS SELECT EXPORT_SET(1,'ST_Y','N','',8);
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # End of Bug#54916
+--echo #
+
+
+#
+# Bug#22052 Trailing spaces are not removed from UNICODE fields in an index
+#
+create table t1 (
+  a char(10) unicode not null,
+  index a (a)
+) engine=myisam;
+insert into t1 values (repeat(0x201f, 10));
+insert into t1 values (repeat(0x2020, 10));
+insert into t1 values (repeat(0x2021, 10));
+# make sure "index read" is used
+explain select hex(a) from t1 order by a;
+select hex(a) from t1 order by a;
+alter table t1 drop index a;
+select hex(a) from t1 order by a;
+drop table t1;
+
+#
+# BUG#31159 - fulltext search on ucs2 column crashes server
+#
+
+CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) engine=MyISAM;
+INSERT INTO t1 VALUES('abcd');
+SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+

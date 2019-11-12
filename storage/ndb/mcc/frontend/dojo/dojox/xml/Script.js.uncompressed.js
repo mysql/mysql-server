@@ -1,4 +1,3 @@
-//>>built
 define("dojox/xml/Script", [
 	"dojo/_base/kernel",	// dojo.getObject
 	"dojo/_base/declare",

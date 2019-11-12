@@ -11,7 +11,7 @@
 # Having two rows with the same engline_lock_id caused visible problems:
 # using SELECT...FROM data_locks ORDER BY ... caused one of the two rows
 # to be reported twice and the other row not even once.
-# There were also problems with data_lock_waits with should contain
+# There were also problems with data_lock_waits which should contain
 # exactly one edge for each pair of conflicting locks, however having
 # two rows with the same id in data_locks could lead to strange results
 # when joining data_locks with data_lock_waits.
@@ -28,11 +28,11 @@ CREATE TABLE t1(
   id INT PRIMARY KEY
 ) Engine=InnoDB;
 
-BEGIN;
-
 INSERT INTO t1 VALUES (1);
-
-SELECT * FROM t1 FOR UPDATE;
+# Create a situation in which a transaction holds more than one lock on same record.
+BEGIN;
+SELECT * FROM t1 WHERE id=1 FOR SHARE;
+SELECT * FROM t1 WHERE id=1 FOR UPDATE;
 
 SELECT COUNT(DISTINCT engine_lock_id) FROM performance_schema.data_locks;
 

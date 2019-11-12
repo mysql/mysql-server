@@ -1,12 +1,11 @@
-//>>built
 define("dojox/mdnd/dropMode/DefaultDropMode", [
 	"dojo/_base/kernel",
 	"dojo/_base/declare",
 	"dojo/_base/array",
-	"dojo/_base/html",
+	"dojo/dom-geometry",
 	"dojox/mdnd/AreaManager"
-],function(dojo){
-	var ddm = dojo.declare("dojox.mdnd.dropMode.DefaultDropMode", null, {
+],function(dojo, declare, array, geom){
+	var ddm = declare("dojox.mdnd.dropMode.DefaultDropMode", null, {
 		// summary:
 		//		Enabled a type of calcul for Dnd.
 		//		Default class to find the nearest target.
@@ -20,7 +19,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 		_oldYPoint: null,
 	
 		// _oldBehaviour: String
-		// 		see <getDragPoint>
+		//		see `getDragPoint`
 		_oldBehaviour: "up",
 	
 		addArea: function(/*Array*/areas, /*Object*/object){
@@ -35,7 +34,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 	
 			//console.log("dojox.mdnd.dropMode.DefaultDropMode ::: addArea");
 			var length =  areas.length;
-			var position = dojo.position(object.node, true);
+			var position = geom.position(object.node, true);
 			object.coords = {'x':position.x, 'y':position.y};
 			if (length == 0) {
 				areas.push(object);
@@ -106,7 +105,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 			//		protected
 	
 			//console.log("dojox.mdnd.dropMode.DefaultDropMode  ::: _updateArea");
-			var position = dojo.position(area.node, true);
+			var position = geom.position(area.node, true);
 			area.coords.x = position.x;
 			area.coords.y = position.y;
 		},
@@ -118,10 +117,10 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 			//		the DnD area
 	
 			//console.log("dojox.mdnd.dropMode.DefaultDropMode ::: initItems");
-			dojo.forEach(area.items, function(obj){
+			array.forEach(area.items, function(obj){
 				//get the vertical middle of the item
 				var node = obj.item.node;
-				var position = dojo.position(node, true);
+				var position = geom.position(node, true);
 				var y = position.y + position.h/2;
 				obj.y = y;
 			});
@@ -134,7 +133,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 			// area:
 			//		a DnD area object
 			// indexItem:
-			// 		index of a draggable item
+			//		index of a draggable item
 			// size:
 			//		dropIndicator size
 			// added:
@@ -165,10 +164,11 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 			//		return coordinates of the draggable item
 			// description:
 			//		return for:
-			// 			- X point : the middle
-			//	  		- Y point : search if the user goes up or goes down with his mouse.
-			//	  		- Up : top of the draggable item
-			//	  		- Down : bottom of the draggable item
+			//
+			//		- X point : the middle
+			//	  	- Y point : search if the user goes up or goes down with his mouse.
+			//	  	- Up : top of the draggable item
+			//	  	- Down : bottom of the draggable item
 			// coords:
 			//		an object encapsulating X and Y position
 			// size:
@@ -177,7 +177,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 			//		coordinates of mouse
 			// returns:
 			//		an object of coordinates
-			// 		example : {'x':10,'y':10}
+			//		example : {'x':10,'y':10}
 	
 			//console.log("dojox.mdnd.dropMode.DefaultDropMode ::: getDragPoint");
 			var y = coords.y;
@@ -201,7 +201,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 		getTargetArea: function(/*Array*/areaList, /*Object*/ coords, /*integer*/currentIndexArea ){
 			// summary:
 			//		get the nearest DnD area.
-			//		Coordinates are basically provided by the <getDragPoint> method.
+			//		Coordinates are basically provided by the ``getDragPoint`` method.
 			// areaList:
 			//		a list of DnD areas objects
 			// coords:
@@ -261,7 +261,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 		_checkInterval: function(/*Array*/areaList, /*Integer*/index, /*Coord*/x){
 			// summary:
 			//		check if the dragNode is in the interval.
-			//		The x coordinate is basically provided by the <getDragPoint> method.
+			//		The x coordinate is basically provided by the ``getDragPoint`` method.
 			// areaList:
 			//		a list of DnD areas objects
 			// index:
@@ -269,7 +269,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 			// x:
 			//		coordinate x, of the dragNode
 			// returns:
-			//		true if the dragNode is in intervall
+			//		true if the dragNode is in interval
 			// tags:
 			//		protected
 	
@@ -301,7 +301,7 @@ define("dojox/mdnd/dropMode/DefaultDropMode", [
 			// coords:
 			//		coordinates [x,y] of the draggable item
 			// returns:
-			// 		a number
+			//		a number
 			//		or -1 if the area has no children or the drop index represents the last position in to the area
 	
 			//console.log("dojox.mdnd.dropMode.DefaultDropMode ::: getDropIndex");

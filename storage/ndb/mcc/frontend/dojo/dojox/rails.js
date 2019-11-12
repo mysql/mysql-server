@@ -1,36 +1,36 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojo/NodeList-traverse"],function(_1,_2,_3){
-_2.provide("dojox.rails");
-_2.require("dojo.NodeList-traverse");
+define("dojox/rails",["dojo","dijit","dojox","dojo/require!dojo/NodeList-traverse"],function(_1,_2,_3){
+_1.provide("dojox.rails");
+_1.require("dojo.NodeList-traverse");
 _3.rails.live=function(_4,_5,fn){
-if(_2.isIE&&_5.match(/^(on)?submit$/i)){
+if(_1.isIE&&_5.match(/^(on)?submit$/i)){
 _3.rails.live(_4,"click",function(_6){
 var _7=_6.target,_8=_7.tagName.toLowerCase();
-if((_8=="input"||_8=="button")&&_2.attr(_7,"type").toLowerCase()=="submit"){
-var _9=_2.query(_7).closest("form");
+if((_8=="input"||_8=="button")&&_1.attr(_7,"type").toLowerCase()=="submit"){
+var _9=_1.query(_7).closest("form");
 if(_9.length){
-var h=_2.connect(_9[0],"submit",function(_a){
-_2.disconnect(h);
+var h=_1.connect(_9[0],"submit",function(_a){
+_1.disconnect(h);
 fn.call(_a.target,_a);
 });
 }
 }
 });
 }else{
-_2.connect(_2.body(),_5,function(_b){
-var nl=_2.query(_b.target).closest(_4);
+_1.connect(_1.body(),_5,function(_b){
+var nl=_1.query(_b.target).closest(_4);
 if(nl.length){
 fn.call(nl[0],_b);
 }
 });
 }
 };
-_2.ready((function(d,dr,dg){
+_1.ready((function(d,dr,dg){
 return function(){
 var q=d.query,_c=dr.live,_d=q("meta[name=csrf-token]").attr("content"),_e=q("meta[name=csrf-param]").attr("content");
 var _f=function(url,_10){
 var _11="<form style=\"display:none\" method=\"post\" action=\""+url+"\">"+"<input type=\"hidden\" name=\"_method\" value=\""+_10+"\" />"+"<input type=\"hidden\" name=\""+_e+"\" value=\""+_d+"\" />"+"</form>";
-return _2.place(_11,_2.body());
+return _1.place(_11,_1.body());
 };
 var _12=function(_13){
 d.forEach(_13,function(_14){
@@ -73,7 +73,7 @@ d.attr(_25,_26,_27);
 });
 };
 var _28=function(evt){
-var el=evt.target,_29=_f(el.href,_2.attr(el,"data-method"));
+var el=evt.target,_29=_f(el.href,_1.attr(el,"data-method"));
 evt.preventDefault();
 _29.submit();
 };
@@ -103,5 +103,5 @@ _c("a[data-remote]:not([data-confirm])","click",_19);
 _c("a[data-method]:not([data-remote])","click",_28);
 _c("form","submit",_2a);
 };
-})(_2,_3.rails,_2.global));
+})(_1,_3.rails,_1.global));
 });

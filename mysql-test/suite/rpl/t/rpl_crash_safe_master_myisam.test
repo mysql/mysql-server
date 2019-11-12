@@ -1,0 +1,69 @@
+#
+# WL#5493 & WL#5440
+#
+# Test case4 verifies if the halfly binlogged non-transaction
+# statement will be trimmed from the crashed binlog file
+# and the data will not be recovered successfully after
+# the master restarts when setting DEBUG POINT in the
+# middle of binlog to make the master crash.
+#
+
+-- source include/not_group_replication_plugin.inc
+# Don't test this under valgrind, memory leaks will occur
+-- source include/not_valgrind.inc
+-- source include/have_debug.inc
+-- source include/force_myisam_default.inc
+-- source include/have_myisam.inc
+-- source include/have_binlog_format_row.inc
+-- source include/not_crashrep.inc
+-- source include/master-slave.inc
+
+
+# Reset master
+connection slave;
+--source include/stop_slave.inc
+
+connection master;
+RESET MASTER;
+
+#connection slave;
+#--source include/start_slave.inc
+
+connection master;
+call mtr.add_suppression("Attempting backtrace");
+call mtr.add_suppression("allocated tablespace *., old maximum was 0");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+call mtr.add_suppression("Buffered warning: Performance schema disabled");
+
+-- let $old_debug = `select @@global.debug`
+-- echo # Test case4: Set DEBUG POINT in the middle of binlog to
+-- echo #             make the master crash for non-transaction.
+-- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
+# Write file to make mysql-test-run.pl expect crash and restart
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--disable_query_log
+eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "d,debug,info,enter,return,half_binlogged_transaction");
+--enable_query_log
+-- error 2013
+INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test the halfly binlogged non-transaction statement will be trimmed
+-- echo # from the crashed binlog file
+-- source include/show_binlog_events.inc
+
+-- echo # Test the data will not be recovered successfully
+-- echo # after the master restart.
+SELECT COUNT(*) FROM t2;
+
+DROP TABLE t2;
+connection slave;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -849,19 +849,18 @@ WARN_LOGFILE           =
 
 INPUT                  = ./client \
                          ./components \
-                         ./dbug \
                          ./include \
                          ./libbinlogevents \
                          ./libbinlogstandalone \
                          ./libservices \
                          ./mysql-test/mysql-test-run.dox \
                          ./mysys \
-                         ./mysys_ssl \
                          ./plugin/audit_null \
                          ./plugin/auth \
                          ./plugin/daemon_example \
                          ./plugin/ddl_rewriter \
                          ./plugin/fulltext \
+                         ./plugin/group_replication \
                          ./plugin/innodb_memcached \
                          ./plugin/password_validation \
                          ./plugin/replication_observers_example \
@@ -948,6 +947,8 @@ EXCLUDE                = cmd-line-utils \
                          source_downloads \
                          sql/sql_hints.cc \
                          sql/sql_yacc.cc \
+                         sql/debug_lo_scanner.h \
+                         sql/debug_lo_scanner.cc \
                          sql/examples \
                          storage/innobase/include/fts0blex.h \
                          storage/innobase/include/fts0tlex.h \
@@ -959,6 +960,7 @@ EXCLUDE                = cmd-line-utils \
                          storage/ndb/memcache \
                          storage/ndb/ndbapi-examples \
                          storage/ndb/nodejs \
+                         storage/ndb/plugin \
                          storage/ndb/src \
                          storage/ndb/test \
                          storage/ndb/tools \
@@ -983,8 +985,6 @@ EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */include/boost*/* \
                          */include/mysql/psi/psi_abi*.h \
                          */router/src/*/tests/* \
-                         */sql/*ndb*.h \
-                         */sql/*ndb*.cc \
                          */unittest/* \
                          */build-*/*
 

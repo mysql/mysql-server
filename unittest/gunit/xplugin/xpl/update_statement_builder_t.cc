@@ -35,11 +35,11 @@ class Update_statement_builder_stub : public Update_statement_builder {
  public:
   explicit Update_statement_builder_stub(Expression_generator *gen)
       : Update_statement_builder(*gen) {}
-  using Update_statement_builder::Operation_list;
   using Update_statement_builder::add_document_operation;
   using Update_statement_builder::add_document_operation_item;
   using Update_statement_builder::add_operation;
   using Update_statement_builder::add_table_operation;
+  using Update_statement_builder::Operation_list;
 };
 
 class Update_statement_builder_test : public ::testing::Test {

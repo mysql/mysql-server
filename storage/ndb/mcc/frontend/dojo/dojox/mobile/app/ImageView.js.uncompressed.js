@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/ImageView", ["dijit","dojo","dojox","dojo/require!dojox/mobile/app/_Widget,dojo/fx/easing"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/ImageView", ["dojo","dijit","dojox","dojo/require!dojox/mobile/app/_Widget,dojo/fx/easing"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app.ImageView");
 dojo.experimental("dojox.mobile.app.ImageView");
 dojo.require("dojox.mobile.app._Widget");

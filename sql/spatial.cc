@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,26 +187,26 @@ int MBR::within(const MBR *mbr) const {
   return 0;
 }
 
-  /*
-    exponential notation :
-    1   sign
-    1   number before the decimal point
-    1   decimal point
-    17  number of significant digits (see String::qs_append(double))
-    1   'e' sign
-    1   exponent sign
-    3   exponent digits
-    ==
-    25
+/*
+  exponential notation :
+  1   sign
+  1   number before the decimal point
+  1   decimal point
+  17  number of significant digits (see String::qs_append(double))
+  1   'e' sign
+  1   exponent sign
+  3   exponent digits
+  ==
+  25
 
-    "f" notation :
-    1   optional 0
-    1   sign
-    17  number significant digits (see String::qs_append(double) )
-    1   decimal point
-    ==
-    20
-  */
+  "f" notation :
+  1   optional 0
+  1   sign
+  17  number significant digits (see String::qs_append(double) )
+  1   decimal point
+  ==
+  20
+*/
 
 #define MAX_DIGITS_IN_DOUBLE 25
 
@@ -233,10 +233,9 @@ static Geometry::Class_info **ci_collection_end =
 
 Geometry::Class_info::Class_info(const char *name, int type_id,
                                  create_geom_t create_func)
-    : m_type_id(type_id), m_create_func(create_func) {
-  m_name.str = (char *)name;
-  m_name.length = strlen(name);
-
+    : m_name{name, strlen(name)},
+      m_type_id(type_id),
+      m_create_func(create_func) {
   ci_collection[type_id] = this;
 }
 
@@ -433,7 +432,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
 Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
                                     Gis_read_stream *trs, String *wkb,
                                     bool init_stream, bool check_trailing) {
-  LEX_STRING name;
+  LEX_CSTRING name;
   Class_info *ci;
 
   if (trs->get_next_word(&name)) {
@@ -1804,11 +1803,11 @@ Gis_polygon::~Gis_polygon() {
       delete m_inn_rings;
       m_inn_rings = NULL;
     }
-      /*
-        Never need to free polygon's wkb memory here, because if it's one chunk
-        given to us, we don't own it; otherwise the two pieces are already freed
-        above.
-       */
+    /*
+      Never need to free polygon's wkb memory here, because if it's one chunk
+      given to us, we don't own it; otherwise the two pieces are already freed
+      above.
+     */
 #if !defined(DBUG_OFF)
   } catch (...) {
     // Should never throw exceptions in destructor.
@@ -3194,7 +3193,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
                      512))
     return true;
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
+  char *ptr = gcbuf->ptr();
   uint32 extra = 0;
   if (collection_len == 0) {
     collection_len = GEOM_HEADER_SIZE + 4;
@@ -3206,7 +3205,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
 
   // Skip GEOMETRY header.
   ptr += GEOM_HEADER_SIZE;
-  start = ptr;
+  const char *start = ptr;
 
   int4store(ptr, uint4korr(ptr) + 1);  // Increment object count.
   ptr += collection_len - GEOM_HEADER_SIZE;
@@ -3246,7 +3245,7 @@ bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
                      512))
     return true;
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
+  char *ptr = gcbuf->ptr();
   uint32 extra = 0;
   if (collection_len == 0) {
     collection_len = GEOM_HEADER_SIZE + 4;
@@ -3259,7 +3258,7 @@ bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
 
   // Skip GEOMETRY header.
   ptr += GEOM_HEADER_SIZE;
-  start = ptr;
+  const char *start = ptr;
 
   int4store(ptr, uint4korr(ptr) + 1);  // Increment object count.
   ptr += collection_len - GEOM_HEADER_SIZE;
@@ -3298,8 +3297,8 @@ Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
   if (gcbuf->reserve(total_len + 512, 1024))
     my_error(ER_OUTOFMEMORY, total_len + 512);
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
-  start = ptr + GEOM_HEADER_SIZE;
+  char *ptr = gcbuf->ptr();
+  const char *start = ptr + GEOM_HEADER_SIZE;
 
   ptr = write_geometry_header(ptr, srid, Geometry::wkb_geometrycollection,
                               geo_len ? 1 : 0);
@@ -3335,8 +3334,8 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
   if (gcbuf->reserve(total_len + 512, 1024))
     my_error(ER_OUTOFMEMORY, total_len + 512);
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
-  start = ptr + GEOM_HEADER_SIZE;
+  char *ptr = gcbuf->ptr();
+  const char *start = ptr + GEOM_HEADER_SIZE;
 
   ptr = write_geometry_header(ptr, geo->get_srid(),
                               Geometry::wkb_geometrycollection, 1);
@@ -3408,7 +3407,7 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   wkb->length(wkb->length() + 4);  // Reserve space for points
 
   if (trs->get_next_toc_type() == Gis_read_stream::word) {
-    LEX_STRING empty;
+    LEX_CSTRING empty;
     if (trs->get_next_word(&empty) || empty.length != 5 ||
         native_strncasecmp("EMPTY", empty.str, 5))
       return true;
@@ -4325,12 +4324,12 @@ void Gis_wkb_vector<T>::reassemble() {
       }
 
       if (veci->get_geotype() != Geometry::wkb_polygon) {
-      // When this geometry is a geometry collection, we need to make its
-      // components in one chunk first. Not gonna implement this yet since
-      // BG doesn't use geometry collection yet, and consequently no
-      // component can be a multipoint/multilinestring/multipolygon or a
-      // geometrycollection. And multipoint components are already supported
-      // so not forbidding them here.
+        // When this geometry is a geometry collection, we need to make its
+        // components in one chunk first. Not gonna implement this yet since
+        // BG doesn't use geometry collection yet, and consequently no
+        // component can be a multipoint/multilinestring/multipolygon or a
+        // geometrycollection. And multipoint components are already supported
+        // so not forbidding them here.
 #if !defined(DBUG_OFF)
         Geometry::wkbType veci_gt = veci->get_geotype();
 #endif

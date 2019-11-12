@@ -1,0 +1,2 @@
+--initialize --innodb-data-file-path=ibdata1:12M;ibdata2:4M;ibdata3:4M:autoextend
+--innodb_file_per_table=OFF

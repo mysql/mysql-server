@@ -41,10 +41,10 @@ extern ssize_t (*mock_read)(int fd, void *buf, size_t count);
 
 namespace mysys_my_read_unittest {
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetErrnoAndReturn;
-using ::testing::_;
 
 class MockRead {
  public:

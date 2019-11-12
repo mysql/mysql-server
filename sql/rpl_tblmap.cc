@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ static const PSI_memory_key table_psi_key = PSI_NOT_INSTRUMENTED;
 static const PSI_memory_key table_psi_key = key_memory_table_mapping_root;
 #endif
 
-table_mapping::table_mapping() : m_free(0), m_table_ids(table_psi_key) {
+table_mapping::table_mapping() : m_free(nullptr), m_table_ids(table_psi_key) {
   /* We don't preallocate any block, this is consistent with m_free=0 above */
   init_alloc_root(table_psi_key, &m_mem_root,
                   TABLE_ID_HASH_SIZE * sizeof(entry), 0);
@@ -66,18 +66,18 @@ table_mapping::~table_mapping() {
 }
 
 Mapped_table *table_mapping::get_table(ulonglong table_id) {
-  DBUG_ENTER("table_mapping::get_table(ulonglong)");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table_id: %llu", table_id));
   auto it = m_table_ids.find(table_id);
   if (it != m_table_ids.end()) {
     entry *e = it->second;
     DBUG_PRINT("info", ("tid %llu -> table %p (%s)", table_id, e->table,
                         MAYBE_TABLE_NAME(e->table)));
-    DBUG_RETURN(e->table);
+    return e->table;
   }
 
   DBUG_PRINT("info", ("tid %llu is not mapped!", table_id));
-  DBUG_RETURN(NULL);
+  return nullptr;
 }
 
 /*
@@ -87,7 +87,7 @@ Mapped_table *table_mapping::get_table(ulonglong table_id) {
 */
 int table_mapping::expand() {
   entry *tmp = new (&m_mem_root) entry[TABLE_ID_CHUNK];
-  if (tmp == NULL) return ERR_MEMORY_ALLOCATION;  // Memory allocation failed
+  if (tmp == nullptr) return ERR_MEMORY_ALLOCATION;  // Memory allocation failed
 
   /* Find the end of this fresh new array of free entries */
   entry *e_end = tmp + TABLE_ID_CHUNK - 1;
@@ -98,14 +98,14 @@ int table_mapping::expand() {
 }
 
 int table_mapping::set_table(ulonglong table_id, Mapped_table *table) {
-  DBUG_ENTER("table_mapping::set_table(ulonglong, Mapped_table*)");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table_id: %llu  table: %p (%s)", table_id, table,
                        MAYBE_TABLE_NAME(table)));
   entry *e;
   auto it = m_table_ids.find(table_id);
   if (it == m_table_ids.end()) {
     if (m_free == 0 && expand())
-      DBUG_RETURN(ERR_MEMORY_ALLOCATION);  // Memory allocation failed
+      return ERR_MEMORY_ALLOCATION;  // Memory allocation failed
     e = m_free;
     m_free = m_free->next;
   } else {
@@ -121,7 +121,7 @@ int table_mapping::set_table(ulonglong table_id, Mapped_table *table) {
 
   DBUG_PRINT("info", ("tid %llu -> table %p (%s)", table_id, e->table,
                       MAYBE_TABLE_NAME(e->table)));
-  DBUG_RETURN(0);  // All OK
+  return 0;  // All OK
 }
 
 int table_mapping::remove_table(ulonglong table_id) {
@@ -141,7 +141,7 @@ int table_mapping::remove_table(ulonglong table_id) {
   memory), and empties the hash.
 */
 void table_mapping::clear_tables() {
-  DBUG_ENTER("table_mapping::clear_tables()");
+  DBUG_TRACE;
   for (const auto &key_and_value : m_table_ids) {
     entry *e = key_and_value.second;
 #ifndef MYSQL_SERVER
@@ -151,5 +151,4 @@ void table_mapping::clear_tables() {
     m_free = e;
   }
   m_table_ids.clear();
-  DBUG_VOID_RETURN;
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/utility/string.h"
 #include "mysql_session_replayer.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/uri.h"
@@ -224,7 +225,6 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
@@ -232,17 +232,16 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
 
     config_gen.fetch_metadata_servers(primary_replicaset_servers_,
                                       primary_cluster_name_,
-                                      primary_replicaset_name_, multi_master_);
+                                      primary_replicaset_name_);
 
     ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
                 Eq("mysql://somehost:3306"));
     ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
     ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
-    ASSERT_THAT(multi_master_, Eq(false));
   }
 
   {
@@ -251,31 +250,16 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
     config_gen.init(kServerUrl, {});
 
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "mm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
 
     config_gen.fetch_metadata_servers(primary_replicaset_servers_,
                                       primary_cluster_name_,
-                                      primary_replicaset_name_, multi_master_);
+                                      primary_replicaset_name_);
 
     ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
                 Eq("mysql://somehost:3306"));
     ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
     ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
-    ASSERT_THAT(multi_master_, Eq(true));
-  }
-
-  {
-    ConfigGenerator config_gen;
-    common_pass_metadata_checks(mock_mysql.get());
-    config_gen.init(kServerUrl, {});
-
-    mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "xxx", "somehost:3306"}});
-
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
-                 std::runtime_error);
   }
 }
 
@@ -283,7 +267,6 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
@@ -292,23 +275,21 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
 
     // "F.cluster_name, "
     // "R.replicaset_name, "
-    // "R.topology_type, "
     // "JSON_UNQUOTE(JSON_EXTRACT(I.addresses, '$.mysqlClassic')) "
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"},
-            {"mycluster", "myreplicaset", "pm", "otherhost:3306"},
-            {"mycluster", "myreplicaset", "pm", "sumhost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"},
+            {"mycluster", "myreplicaset", "otherhost:3306"},
+            {"mycluster", "myreplicaset", "sumhost:3306"}});
 
     config_gen.fetch_metadata_servers(primary_replicaset_servers_,
                                       primary_cluster_name_,
-                                      primary_replicaset_name_, multi_master_);
+                                      primary_replicaset_name_);
 
     ASSERT_THAT(mysql_harness::list_elements(primary_replicaset_servers_),
                 Eq("mysql://somehost:3306,mysql://otherhost:3306,mysql://"
                    "sumhost:3306"));
     ASSERT_THAT(primary_cluster_name_, Eq("mycluster"));
     ASSERT_THAT(primary_replicaset_name_, Eq("myreplicaset"));
-    ASSERT_THAT(multi_master_, Eq(false));
   }
 }
 
@@ -316,19 +297,18 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"},
-            {"mycluster", "anotherreplicaset", "pm", "otherhost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"},
+            {"mycluster", "anotherreplicaset", "otherhost:3306"}});
 
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
+    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
+                                                   primary_cluster_name_,
+                                                   primary_replicaset_name_),
                  std::runtime_error);
   }
 
@@ -337,12 +317,12 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_multiple_replicasets) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"},
-            {"anothercluster", "anotherreplicaset", "pm", "otherhost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"},
+            {"anothercluster", "anotherreplicaset", "otherhost:3306"}});
 
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
+    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
+                                                   primary_cluster_name_,
+                                                   primary_replicaset_name_),
                  std::runtime_error);
   }
 }
@@ -351,18 +331,17 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_invalid) {
   std::string primary_cluster_name_;
   std::vector<std::string> primary_replicaset_servers_;
   std::string primary_replicaset_name_;
-  bool multi_master_ = false;
 
   {
     ConfigGenerator config_gen;
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
 
-    mock_mysql->expect_query("").then_return(4, {});
+    mock_mysql->expect_query("").then_return(3, {});
     // no replicasets/clusters defined
-    ASSERT_THROW(config_gen.fetch_metadata_servers(
-                     primary_replicaset_servers_, primary_cluster_name_,
-                     primary_replicaset_name_, multi_master_),
+    ASSERT_THROW(config_gen.fetch_metadata_servers(primary_replicaset_servers_,
+                                                   primary_cluster_name_,
+                                                   primary_replicaset_name_),
                  std::runtime_error);
   }
 }
@@ -450,7 +429,7 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
 TEST_F(ConfigGeneratorTest, delete_account_for_all_hosts) {
   auto gen_check_users_SQL =
       [this](const std::vector<const char *> &hostnames_to_return) {
-        std::vector<std::vector<MySQLSessionReplayer::string>> results;
+        std::vector<std::vector<MySQLSessionReplayer::optional_string>> results;
         for (const char *h : hostnames_to_return)
           results.push_back({mock_mysql->string_or_null(h)});
 
@@ -536,22 +515,23 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     ::testing::InSequence s;
     common_pass_metadata_checks(mock_mysql.get());
     mock_mysql
-        ->expect_execute("CREATE USER cluster_user@'%' IDENTIFIED BY 'secret'")
+        ->expect_execute(
+            "CREATE USER 'cluster_user'@'%' IDENTIFIED BY 'secret'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_members TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_member_stats "
-            "TO cluster_user@'%'")
+            "TO 'cluster_user'@'%'")
         .then_ok();
 
     ConfigGenerator config_gen;
@@ -565,24 +545,24 @@ TEST_F(ConfigGeneratorTest, create_acount) {
     common_pass_metadata_checks(mock_mysql.get());
     mock_mysql
         ->expect_execute(
-            "CREATE USER cluster_user@'%' IDENTIFIED WITH "
+            "CREATE USER 'cluster_user'@'%' IDENTIFIED WITH "
             "mysql_native_password "
             "AS '*14E65567ABDB5135D0CFD9A70B3032C179A49EE7'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_members TO "
-            "cluster_user@'%'")
+            "'cluster_user'@'%'")
         .then_ok();
     mock_mysql
         ->expect_execute(
             "GRANT SELECT ON performance_schema.replication_group_member_stats "
-            "TO cluster_user@'%'")
+            "TO 'cluster_user'@'%'")
         .then_ok();
 
     ConfigGenerator config_gen;
@@ -609,7 +589,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         // CREATE USER using mysql_native_password and hashed password
         if (fail_on > 0)
           mock_mysql
-              ->expect_execute("CREATE USER cluster_user@'" + host +
+              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
                                "' IDENTIFIED WITH mysql_native_password AS "
                                "'*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'")
               .then_ok();
@@ -619,7 +599,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         // fallback should be used on all subsequent CREATE USER calls
         if (first_create_user)
           mock_mysql
-              ->expect_execute("CREATE USER cluster_user@'" + host +
+              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
                                "' IDENTIFIED WITH mysql_native_password AS "
                                "'*BDF9890F9606F18B2E92EF0CA972006F1DBC44DF'")
               .then_error("no such plugin", 1524);
@@ -627,7 +607,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         // CREATE USER using fallback method with plaintext password
         if (fail_on > 0)
           mock_mysql
-              ->expect_execute("CREATE USER cluster_user@'" + host +
+              ->expect_execute("CREATE USER 'cluster_user'@'" + host +
                                "' IDENTIFIED BY '0123456789012345'")
               .then_ok();
       }
@@ -635,14 +615,14 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
         mock_mysql
             ->expect_execute(
                 "GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-                "cluster_user@'" +
+                "'cluster_user'@'" +
                 host + "'")
             .then_ok();
       if (fail_on > 2)
         mock_mysql
             ->expect_execute(
                 "GRANT SELECT ON performance_schema.replication_group_members "
-                "TO cluster_user@'" +
+                "TO 'cluster_user'@'" +
                 host + "'")
             .then_ok();
       if (fail_on > 3)
@@ -650,7 +630,7 @@ TEST_F(ConfigGeneratorTest, create_router_accounts) {
             ->expect_execute(
                 "GRANT SELECT ON "
                 "performance_schema.replication_group_member_stats TO "
-                "cluster_user@'" +
+                "'cluster_user'@'" +
                 host + "'")
             .then_ok();
 
@@ -753,8 +733,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
   ConfigGenerator config_gen;
   common_pass_metadata_checks(mock_mysql.get());
   config_gen.init(kServerUrl, {});
-  ConfigGenerator::Options options =
-      config_gen.fill_options(false, user_options);
+  ConfigGenerator::Options options = config_gen.fill_options(user_options);
 
   {
     std::stringstream conf_output, state_output;
@@ -781,6 +760,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
            "bind_address=0.0.0.0\n"
@@ -850,6 +830,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
            "bind_address=0.0.0.0\n"
@@ -899,7 +880,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     std::stringstream conf_output, state_output;
     auto opts = user_options;
     opts["base-port"] = "1234";
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
@@ -922,6 +903,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
            "bind_address=0.0.0.0\n"
@@ -974,7 +956,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     opts["use-sockets"] = "1";
     opts["skip-tcp"] = "1";
     opts["socketsdir"] = tmp_dir();
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
@@ -997,6 +979,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
            "socket=" +
@@ -1051,7 +1034,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     auto opts = user_options;
     opts["use-sockets"] = "1";
     opts["socketsdir"] = tmp_dir();
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
@@ -1074,6 +1057,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
            "bind_address=0.0.0.0\n"
@@ -1135,7 +1119,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
     std::stringstream conf_output, state_output;
     auto opts = user_options;
     opts["bind-address"] = "127.0.0.1";
-    options = config_gen.fill_options(false, opts);
+    options = config_gen.fill_options(opts);
 
     config_gen.create_config(conf_output, state_output, 123, "myrouter",
                              "mysqlrouter", {"server1", "server2", "server3"},
@@ -1160,6 +1144,7 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
            "bind_address=127.0.0.1\n"
@@ -1215,8 +1200,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   ConfigGenerator::Options options;
   {
     std::map<std::string, std::string> user_options;
-    options = config_gen.fill_options(true, user_options);
-    ASSERT_THAT(options.multi_master, Eq(true));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1231,8 +1215,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["bind-address"] = "127.0.0.1";
-    options = config_gen.fill_options(true, user_options);
-    ASSERT_THAT(options.multi_master, Eq(true));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq("127.0.0.1"));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1247,8 +1230,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["base-port"] = "1234";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(1234));
@@ -1265,37 +1247,37 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["base-port"] = "1";
-    options = config_gen.fill_options(false, user_options);
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.rw_endpoint.port, Eq(1));
     user_options["base-port"] = "3306";
-    options = config_gen.fill_options(false, user_options);
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.rw_endpoint.port, Eq(3306));
     user_options["base-port"] = "";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "-1";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "999999";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "0";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "65536";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["base-port"] = "2000bozo";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
 
     // Bug #24808309
     user_options["base-port"] = "65533";
-    ASSERT_THROW_LIKE(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW_LIKE(options = config_gen.fill_options(user_options),
                       std::runtime_error, "Invalid base-port number");
 
     user_options["base-port"] = "65532";
-    ASSERT_NO_THROW(options = config_gen.fill_options(false, user_options));
+    ASSERT_NO_THROW(options = config_gen.fill_options(user_options));
 
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(65532));
@@ -1314,21 +1296,20 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["bind-address"] = "invalid";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["bind-address"] = "";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
     user_options["bind-address"] = "1.2.3.4.5";
-    ASSERT_THROW(options = config_gen.fill_options(false, user_options),
+    ASSERT_THROW(options = config_gen.fill_options(user_options),
                  std::runtime_error);
   }
   {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
     user_options["skip-tcp"] = "1";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
@@ -1345,8 +1326,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["skip-tcp"] = "1";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(false));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
@@ -1363,8 +1343,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1380,8 +1359,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   }
   {
     std::map<std::string, std::string> user_options;
-    options = config_gen.fill_options(false, user_options);
-    ASSERT_THAT(options.multi_master, Eq(false));
+    options = config_gen.fill_options(user_options);
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -1406,7 +1384,7 @@ struct query_entry_t {
   const char *query;
   action_t action;
   unsigned result_cols;
-  std::vector<std::vector<MySQLSessionReplayer::string>> results;
+  std::vector<std::vector<MySQLSessionReplayer::optional_string>> results;
   uint64_t last_insert_id;
   unsigned error_code;
 
@@ -1419,7 +1397,8 @@ struct query_entry_t {
         error_code(error_code_) {}
   query_entry_t(
       const char *query_, action_t action_, unsigned results_cols_,
-      const std::vector<std::vector<MySQLSessionReplayer::string>> &results_,
+      const std::vector<std::vector<MySQLSessionReplayer::optional_string>>
+          &results_,
       uint64_t last_insert_id_ = 0, unsigned error_code_ = 0)
       : query(query_),
         action(action_),
@@ -1443,15 +1422,15 @@ std::vector<query_entry_t> expected_bootstrap_queries = {
      {}},
 
     // ConfigGenerator::create_account()
-    {"CREATE USER mysql_router4_012345678901@'%'", ACTION_EXECUTE},
+    {"CREATE USER 'mysql_router4_012345678901'@'%'", ACTION_EXECUTE},
     {"GRANT SELECT ON mysql_innodb_cluster_metadata.* TO "
-     "mysql_router4_012345678901@'%'",
+     "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
     {"GRANT SELECT ON performance_schema.replication_group_members TO "
-     "mysql_router4_012345678901@'%'",
+     "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
     {"GRANT SELECT ON performance_schema.replication_group_member_stats TO "
-     "mysql_router4_012345678901@'%'",
+     "'mysql_router4_012345678901'@'%'",
      ACTION_EXECUTE},
 
     {"UPDATE mysql_innodb_cluster_metadata.routers SET attributes = ",
@@ -1464,7 +1443,7 @@ static void expect_bootstrap_queries(
     const std::vector<query_entry_t> &expected_queries =
         expected_bootstrap_queries) {
   m->expect_query("").then_return(
-      4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
+      3, {{cluster_name, "myreplicaset", "somehost:3306"}});
   for (const auto &query : expected_queries) {
     switch (query.action) {
       case ACTION_EXECUTE:
@@ -1580,7 +1559,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("SELECT F.cluster_name")
-        .then_return(4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
+        .then_return(3, {{"mycluter", "myreplicaset", "somehost:3306"}});
     mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
     KeyringInfo keyring_info("delme", "delme.key");
@@ -1620,7 +1599,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
     // force a failure during account creationg
     mock_mysql->expect_execute("").then_error("boo!", 1234);
 
@@ -1642,7 +1621,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluter", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluter", "myreplicaset", "somehost:3306"}});
 
     std::map<std::string, std::string> options2 = options;
     options2["name"] = "force\nfailure";
@@ -1672,7 +1651,7 @@ TEST_F(ConfigGeneratorTest, bug25391460) {
     expect_bootstrap_queries(mock_mysql.get(), "mycluster");
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
-        4, {{"mycluster", "myreplicaset", "pm", "somehost:3306"}});
+        3, {{"mycluster", "myreplicaset", "somehost:3306"}});
 
     std::map<std::string, std::string> options;
     options["quiet"] = "1";
@@ -1728,7 +1707,7 @@ static void bootstrap_overwrite_test(
     expect_bootstrap_queries(mock_mysql, cluster_name);
   else
     mock_mysql->expect_query("").then_return(
-        4, {{cluster_name, "myreplicaset", "pm", "somehost:3306"}});
+        3, {{cluster_name, "myreplicaset", "somehost:3306"}});
 
   std::map<std::string, std::string> options;
   options["name"] = name;
@@ -1949,6 +1928,7 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
   {
     delete_file("delme/emptyfile");
     std::ofstream f("delme/emptyfile");
+    mysql_harness::make_file_private("delme/emptyfile");
     ::testing::InSequence s;
 
     ConfigGenerator config_gen;
@@ -1963,11 +1943,9 @@ TEST_F(ConfigGeneratorTest, bad_master_key) {
       config_gen.bootstrap_directory_deployment("./delme", options, {},
                                                 default_paths);
       FAIL() << "Was expecting exception but got none\n";
-    } catch (std::runtime_error &e) {
-      if (strstr(e.what(), ".tmp"))
-        FAIL() << "Exception text is: " << e.what() << "\n";
-      std::string expected = std::string("Invalid master key file ");
-      ASSERT_EQ(expected, std::string(e.what()).substr(0, expected.size()));
+    } catch (const std::runtime_error &e) {
+      ASSERT_THAT(e.what(), ::testing::Not(::testing::HasSubstr(".tmp")));
+      ASSERT_THAT(e.what(), ::testing::StartsWith("Invalid master key file "));
     }
   }
   delete_dir_recursive("./delme");
@@ -2018,7 +1996,7 @@ TEST_F(ConfigGeneratorTest, full_test) {
   config.read("delme/mysqlrouter.conf");
 
   value = config.get_default("master_key_path");
-  EXPECT_TRUE(ends_with(value, "delme/masterkey"));
+  EXPECT_TRUE(mysql_harness::utility::ends_with(value, "delme/masterkey"));
 
   value = config.get_default("name");
   EXPECT_EQ(value, "foo");
@@ -2319,7 +2297,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
       [&config_gen](const std::map<std::string, std::string> &user_options,
                     const char *result) {
         ConfigGenerator::Options options =
-            config_gen.fill_options(false, user_options);
+            config_gen.fill_options(user_options);
         std::stringstream conf_output, state_output;
         config_gen.create_config(conf_output, state_output, 123, "myrouter",
                                  "user", {"server1", "server2", "server3"},
@@ -2671,7 +2649,7 @@ TEST_F(ConfigGeneratorTest,
   // we expect the user to be created without using HASHed password
   // and mysql_native_password plugin as we are forcing password validation
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2683,7 +2661,7 @@ TEST_F(ConfigGeneratorTest,
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY",
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2702,7 +2680,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2710,7 +2688,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2722,7 +2700,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_no_native_plugin) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY",
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2740,7 +2718,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_EXECUTE});
 
@@ -2752,7 +2730,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_with_native_plugin) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED WITH "
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED WITH "
       "mysql_native_password AS",
       ACTION_EXECUTE};
 
@@ -2771,7 +2749,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2781,7 +2759,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
   // emulate error 1819) (password does not satisfy the current policy
   // requirements) after the call to second CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_ERROR, 0, 1819});
 
@@ -2789,7 +2767,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
 
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED BY",
        ACTION_EXECUTE});
 
@@ -2801,7 +2779,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_ok) {
 
   // verify the user is re-created as required
   bootstrap_queries.at(bootstrap_queries.size() - kCreateUserQuery2) = {
-      "CREATE USER mysql_router4_012345678901@'%' IDENTIFIED BY",
+      "CREATE USER 'mysql_router4_012345678901'@'%' IDENTIFIED BY",
       ACTION_EXECUTE};
 
   bootstrap_password_test(mock_mysql.get(), kDirName, default_paths,
@@ -2820,7 +2798,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
 
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
 
@@ -2832,7 +2810,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_generate_password_retry_failed) {
     // each time emulate error 1819) (password does not satisfy the current
     // policy requirements) after the call to second CREATE USER
     bootstrap_queries.push_back(
-        {"CREATE USER mysql_router4_012345678901@'%'"
+        {"CREATE USER 'mysql_router4_012345678901'@'%'"
          " IDENTIFIED BY",
          ACTION_ERROR, 0, 1819});
   }
@@ -2859,7 +2837,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_password_retry_param_wrong_values) {
   }
   // emulate error 1524 (plugin not loaded) after the call to first CREATE USER
   bootstrap_queries.push_back(
-      {"CREATE USER mysql_router4_012345678901@'%'"
+      {"CREATE USER 'mysql_router4_012345678901'@'%'"
        " IDENTIFIED WITH mysql_native_password AS",
        ACTION_ERROR, 0, 1524});
   bootstrap_queries.push_back({"ROLLBACK", ACTION_EXECUTE});
@@ -3074,13 +3052,16 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD5(setsockopt, int(int, int, int, const void *, socklen_t));
   MOCK_METHOD2(listen, int(int fd, int n));
   MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
-  MOCK_METHOD4(inetntop, const char *(int af, void *, char *, socklen_t));
+  MOCK_METHOD4(inetntop, const char *(int af, const void *, char *, socklen_t));
   MOCK_METHOD3(getpeername, int(int, struct sockaddr *, socklen_t *));
   MOCK_METHOD2(connect_non_blocking_wait,
-               int(socket_t sock, std::chrono::milliseconds timeout));
+               int(mysql_harness::socket_t sock,
+                   std::chrono::milliseconds timeout));
   MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
+  MOCK_METHOD2(set_socket_blocking, void(int, bool));
   MOCK_METHOD1(set_errno, void(int err));
   MOCK_METHOD0(get_errno, int());
+  MOCK_METHOD0(get_error_code, std::error_code());
 };
 
 /**

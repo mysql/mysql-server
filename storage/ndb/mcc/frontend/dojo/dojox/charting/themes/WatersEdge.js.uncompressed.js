@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/WatersEdge", ["../Theme", "./common"], function(Theme, themes){
-	
-	themes.WatersEdge = new Theme({
+define("dojox/charting/themes/WatersEdge", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.WatersEdge = new SimpleTheme({
 		colors: [
 			"#437cc0",
 			"#6256a5",
@@ -10,6 +8,5 @@ define("dojox/charting/themes/WatersEdge", ["../Theme", "./common"], function(Th
 			"#4b66b0"
 		]
 	});
-	
 	return  themes.WatersEdge;
 });

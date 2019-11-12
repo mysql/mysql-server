@@ -1,19 +1,17 @@
-//>>built
-define("dojox/charting/plot3d/Cylinders", ["dojox/gfx3d", "dojox/gfx3d/matrix", "dojo/_base/declare", "dojo/_base/Color", "dojo/_base/window", "./Base"], 
-	function(gfx3d, matrix3d, declare, Color, win, Base) {
+define("dojox/charting/plot3d/Cylinders", ["dojox/gfx3d", "dojox/gfx3d/matrix", "dojo/_base/declare", "dojo/_base/Color", "dojo/_base/kernel", "./Base"],
+	function(gfx3d, matrix3d, declare, Color, kernel, Base) {
 
 	// reduce function borrowed from dojox.fun
 	var reduce = function(/*Array*/ a, /*Function|String|Array*/ f, /*Object?*/ o){
-		// summary: repeatedly applies a binary function to an array from left
-		//	to right; returns the final value.
-		a = typeof a == "string" ? a.split("") : a; o = o || win.global;
+		// summary:
+		//		repeatedly applies a binary function to an array from left
+		//		to right; returns the final value.
+		a = typeof a == "string" ? a.split("") : a; o = o || kernel.global;
 		var z = a[0];
 		for(var i = 1; i < a.length; z = f.call(o, z, a[i++]));
 		return z;	// Object
 	};
-	/*=====
-	var Base = dojox.charting.plot3d.Base;
-	=====*/
+
 	return declare("dojox.charting.plot3d.Cylinders", Base, {
 		constructor: function(width, height, kwArgs){
 			this.depth = "auto";

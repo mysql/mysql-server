@@ -64,9 +64,9 @@
 /*#########*/
 /* GENERAL */
 /*#########*/
-#define ZVAR_NO_WORD 1
-#define ZVAR_NO_CRESTART_INFO 20
-#define ZVAR_NO_CRESTART_INFO_TO_FILE 21
+#define ZVAR_NO_WORD 0
+#define ZVAR_NO_CRESTART_INFO 1
+#define ZVAR_NO_CRESTART_INFO_TO_FILE 2
 #define ZVALID 1
 #define ZINVALID 2
 
@@ -752,7 +752,7 @@ public:
     Uint32 noOfWords;
     Uint32 tabRemoveNode;
     Uint32 noOfFragChunks;
-    Uint32 tabErrorCode;
+    Uint32 tabActiveLcpFragments;
 
     struct {
       Uint32 tabUserRef;
@@ -996,8 +996,6 @@ private:
   void execDUMP_STATE_ORD(Signal *);
   void execNDB_TAMPER(Signal *);
   void execDEBUG_SIG(Signal *);
-  void execEMPTY_LCP_CONF(Signal *);
-  void execEMPTY_LCP_REP(Signal*);
   void execMASTER_GCPREF(Signal *);
   void execMASTER_GCPREQ(Signal *);
   void execMASTER_GCPCONF(Signal *);
@@ -1335,7 +1333,6 @@ private:
   void nullRoutine(Signal *, Uint32 nodeId, Uint32);
   void sendCOPY_GCIREQ(Signal *, Uint32 nodeId, Uint32);
   void sendDIH_SWITCH_REPLICA_REQ(Signal *, Uint32 nodeId, Uint32);
-  void sendEMPTY_LCP_REQ(Signal *, Uint32 nodeId, Uint32);
   void sendEND_TOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_COMMIT(Signal *, Uint32 nodeId, Uint32);
   void sendGCP_PREPARE(Signal *, Uint32 nodeId, Uint32);
@@ -1414,7 +1411,7 @@ private:
 //------------------------------------
   void checkKeepGci(TabRecordPtr, Uint32, Fragmentstore*, Uint32);
   void checkLcpStart(Signal *, Uint32 lineNo, Uint32 delay);
-  void checkStartMoreLcp(Signal *, Uint32 nodeId);
+  bool checkStartMoreLcp(Signal *, Uint32 nodeId, bool startNext);
   bool reportLcpCompletion(const struct LcpFragRep *);
   void sendLCP_COMPLETE_REP(Signal *);
 
@@ -1489,6 +1486,14 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
+  void unpack_sysfile_format_v1(bool set_max_node_id);
+  void pack_sysfile_format_v1();
+  void unpack_sysfile_format_v2(bool set_max_node_id);
+  void pack_sysfile_format_v2();
+  void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
+  void send_COPY_GCIREQ_data_v2(Signal*, Uint32);
+  void send_START_MECONF_data_v1(Signal*, Uint32);
+  void send_START_MECONF_data_v2(Signal*, Uint32);
   void selectMasterCandidateAndSend(Signal *);
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
@@ -2358,7 +2363,7 @@ private:
 
     // Whether the 'lcp' is already completed under the
     // coordination of the failed master
-    bool already_completed_lcp(Uint32 lcp, Uint32 current_master)
+    bool already_completed_lcp(Uint32 lcp, Uint32 current_master) const
     {
       const Uint32 last_completed_master_node =
         refToNode(m_lastLCP_COMPLETE_REP_ref);
@@ -2410,7 +2415,6 @@ private:
 public:
   enum LcpMasterTakeOverState {
     LMTOS_IDLE = 0,
-    LMTOS_WAIT_EMPTY_LCP = 1,   // Currently doing empty LCP
     LMTOS_WAIT_LCP_FRAG_REP = 2,// Currently waiting for outst. LCP_FRAG_REP
     LMTOS_INITIAL = 3,
     LMTOS_ALL_IDLE = 4,
@@ -2432,9 +2436,7 @@ private:
     Uint32 minTableId;
     Uint32 minFragId;
     Uint32 failedNodeId;
-    bool use_empty_lcp;
   } c_lcpMasterTakeOverState;
-  bool check_if_empty_lcp_needed(void);
   
   Uint16 cmasterNodeId;
 
@@ -2487,7 +2489,6 @@ private:
   SignalCounter c_COPY_TABREQ_Counter;
   SignalCounter c_UPDATE_FRAG_STATEREQ_Counter;
   SignalCounter c_DIH_SWITCH_REPLICA_REQ_Counter;
-  SignalCounter c_EMPTY_LCP_REQ_Counter;
   SignalCounter c_GCP_COMMIT_Counter;
   SignalCounter c_GCP_PREPARE_Counter;
   SignalCounter c_GCP_SAVEREQ_Counter;
@@ -2619,10 +2620,11 @@ private:
 
   void checkStopMe(Signal *, NodeRecordPtr failedNodePtr);
   
-#define DIH_CDATA_SIZE 128
+#define DIH_CDATA_SIZE _SYSFILE_FILE_SIZE
   /**
-   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32
+   * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32_v2
    */
+  Uint32 cdata_size_in_words;
   Uint32 cdata[DIH_CDATA_SIZE];       /* TEMPORARY ARRAY VARIABLE */
 
   /**
@@ -2753,6 +2755,7 @@ private:
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
   Uint32 dihGetInstanceKeyCanFail(Uint32 tabId, Uint32 fragId);
 
+  void log_setNoSend();
   /**
    * Get minimum version of nodes in alive-list
    */
@@ -2776,9 +2779,13 @@ private:
   RedoStateRep::RedoAlertState m_global_redo_alert_state;
   RedoStateRep::RedoAlertState get_global_redo_alert_state();
   void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
+  bool m_master_lcp_req_lcp_already_completed;
+
+  /* The highest data node id in the cluster. */
+  Uint32 m_max_node_id;
 };
 
-#if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
+#if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)
 #error "cdata is to small compared to Sysfile size"
 #endif
 

@@ -1,3 +1,7 @@
+# Disable hash join for this test, as it will trigger the new executor.
+# The new executor will enable the StreamingIterator in many of the test
+# cases, resulting in fewer materializations.
+SET optimizer_switch="hash_join=off";
 CREATE TABLE t (c VARCHAR(128));
 INSERT INTO t VALUES
 (REPEAT('a', 128)),
@@ -159,3 +163,4 @@ SET @@internal_tmp_mem_storage_engine = default;
 SET GLOBAL temptable_max_ram = default;
 SET debug = '-d,temptable_fetch_from_disk_return_null';
 DROP TABLE t;
+SET optimizer_switch="hash_join=on";

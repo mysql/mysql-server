@@ -288,6 +288,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
         // Fall through - to '233' which also terminate test, but not 'FAILED'
       case 233:  // Out of operation records in transaction coordinator  
       case 1217:  // Out of operation records in local data manager (increase MaxNoOfLocalOperations)
+      case 261: //Increased beyond MaxDMLOperationsPerTransaction or MaxNoOfConcurrentOperations
         // OK - end test
         endTest = true;
         break;
@@ -1336,7 +1337,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   for(int a = 0; a<pTab->getNoOfColumns(); a++){
     if (pTab->getColumn(a)->getPrimaryKey() == true){
       if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	// An error has occured, check that 
+	// An error has occurred, check that 
 	// it's possible to get the NdbErrorOperation
 	const NdbError err = pCon->getNdbError();
 	NDB_ERR(err);
@@ -7632,6 +7633,79 @@ int runCheckSlowCommit(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runWriteRecord(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Write a record so we can run parallel exclusive reads
+  const NdbDictionary::Table *tab = ctx->getTab();
+  HugoOperations hugoOps(*tab);
+  Ndb *ndb = GETNDB(step);
+  CHECK(hugoOps.startTransaction(ndb) == 0);
+  CHECK(hugoOps.pkWriteRecord(ndb, 0, 1) == 0);
+  CHECK(hugoOps.execute_Commit(ndb) == 0);
+  CHECK(hugoOps.closeTransaction(ndb) == 0);
+  return NDBT_OK;
+}
+
+
+int runPkRead1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table *tab = ctx->getTab();
+  HugoOperations hugoOps(*tab);
+  Ndb *ndb = GETNDB(step);
+  CHECK(hugoOps.startTransaction(ndb) == 0);
+  CHECK(hugoOps.pkReadRecord(ndb, 0, 1, NdbOperation::LM_Exclusive) == 0);
+  CHECK(hugoOps.execute_NoCommit(ndb) == 0);
+  // Signal the other thread that the row is locked by this transaction
+  ctx->setProperty("ReadExecuted", 1);
+  ctx->getPropertyWait("ReadExecuted", 2);
+  // The other thread has completed its (unsuccessful) attempts to lock this
+  // row. Go ahead and complete the operation thus releasing the lock
+  CHECK(hugoOps.execute_Commit(ndb) == 0);
+  CHECK(hugoOps.closeTransaction(ndb) == 0);
+  // Signal the other thread that the transaction has completed and that the
+  // row has been unlocked
+  ctx->setProperty("ReadExecuted", 3);
+  return NDBT_OK;
+}
+
+
+int runPkRead2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  // Wait until the transaction in the other thread has locked the row
+  ctx->getPropertyWait("ReadExecuted", 1);
+  const NdbDictionary::Table *tab = ctx->getTab();
+  HugoOperations hugoOps(*tab);
+  Ndb *ndb = GETNDB(step);
+  CHECK(hugoOps.startTransaction(ndb) == 0);
+  CHECK(hugoOps.pkReadRecord(ndb, 0, 1, NdbOperation::LM_Exclusive) == 0);
+  // Try and read the locked row without the NoWait option set. This results in
+  // Error 266: Time-out in NDB, probably caused by deadlock
+  CHECK(hugoOps.execute_NoCommit(ndb) == 266);
+  CHECK(hugoOps.closeTransaction(ndb) == 0);
+  CHECK(hugoOps.startTransaction(ndb) == 0);
+  // Try and read the locked row with the NoWait option set. This results in
+  // Error 635: Lock already taken, not waiting
+  CHECK(hugoOps.pkReadRecord(ndb, 0, 1, NdbOperation::LM_Exclusive, 0,
+                             true) == 0);
+  CHECK(hugoOps.execute_NoCommit(ndb) == 635);
+  CHECK(hugoOps.closeTransaction(ndb) == 0);
+  // Signal the other thread that this transaction has completed its attempts
+  // to lock the row
+  ctx->setProperty("ReadExecuted", 2);
+  // Wait until the transaction in the other thread has completed
+  ctx->getPropertyWait("ReadExecuted", 3);
+  // Finally now that the other transaction has completed its read, attempt
+  // another locking read with NoWait option set which should be successful
+  // this time around
+  CHECK(hugoOps.startTransaction(ndb) == 0);
+  CHECK(hugoOps.pkReadRecord(ndb, 0, 1, NdbOperation::LM_Exclusive, 0,
+                             true) == 0);
+  CHECK(hugoOps.execute_NoCommit(ndb) == 0);
+  CHECK(hugoOps.closeTransaction(ndb) == 0);
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -8043,6 +8117,15 @@ TESTCASE("CheckSlowCommit",
 {
   STEP(runCheckSlowCommit);
   FINALIZER(runDropTable);
+}
+TESTCASE("PkLockingReadNoWait",
+         "Check if PK locking read op with NoWait option set works as expected")
+{
+  TC_PROPERTY("ReadExecuted", Uint32(0));
+  INITIALIZER(runWriteRecord);
+  STEP(runPkRead1);
+  STEP(runPkRead2);
+  FINALIZER(runClearTable);
 }
 
 

@@ -20,6 +20,7 @@ SET GLOBAL net_buffer_length = @old_net_buffer_length;
 connect (con3,localhost,root,,);  # Makes max_allowed_packet take effect, globally.
 
 # Special files, like pipes, should not be opened.
+--error ER_TEXTFILE_NOT_READABLE
 select load_file("/proc/self/fd/0");
 
 # Clean up for subsequent tests.

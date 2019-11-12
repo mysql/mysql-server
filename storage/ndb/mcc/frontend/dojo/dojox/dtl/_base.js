@@ -424,7 +424,7 @@ return this;
 dd._VarNode=_2.extend(function(str){
 this.contents=new dd._Filter(str);
 },{render:function(_5e,_5f){
-var str=this.contents.resolve(_5e);
+var str=this.contents.resolve(_5e)||"";
 if(!str.safe){
 str=dd._base.escape(""+str);
 }

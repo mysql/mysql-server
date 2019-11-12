@@ -1,0 +1,26 @@
+# Current value of ndb-schema-dist-timeout
+select @@ndb_schema_dist_timeout;
+@@ndb_schema_dist_timeout
+5
+set @@ndb_schema_dist_timeout = 120;
+ERROR HY000: Variable 'ndb_schema_dist_timeout' is a read only variable
+#
+# Test participant timeout during schema operation
+#
+CREATE TABLE t1(
+a int primary key
+) engine = NDB;
+# Setup participant to timeout when schema operation starts
+set GLOBAL debug="+d,ndb_schema_op_start_timeout";
+# Expect warning printed on node where schema operation is started
+call mtr.add_suppression("Schema dist coordinator detected timeout");
+# Run schema operation to trigger participant timeout
+ALTER TABLE t1 ALGORITHM=copy, ADD COLUMN b int;
+Warnings:
+Warning	1296	Node <nodeid> 'Participant timeout'
+# Reset participant to not timeout anymore
+set GLOBAL debug="-d,ndb_schema_op_start_timeout";
+# Check that schema operation suceeded on another MySQL Server
+SELECT * FROM t1;
+a	b
+DROP TABLE t1;

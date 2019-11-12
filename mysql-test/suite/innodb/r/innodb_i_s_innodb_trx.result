@@ -55,7 +55,7 @@ trx_rows_locked, trx_rows_modified, trx_concurrency_tickets,
 trx_isolation_level, trx_unique_checks, trx_foreign_key_checks
 FROM INFORMATION_SCHEMA.INNODB_TRX;
 trx_state	trx_weight	trx_tables_in_use	trx_tables_locked	trx_rows_locked	trx_rows_modified	trx_concurrency_tickets	trx_isolation_level	trx_unique_checks	trx_foreign_key_checks
-RUNNING	4	0	1	7	1	0	REPEATABLE READ	1	1
+RUNNING	5	0	1	7	1	0	REPEATABLE READ	1	1
 ROLLBACK;
 SET FOREIGN_KEY_CHECKS = 0;
 SET UNIQUE_CHECKS = 0;

@@ -111,6 +111,8 @@ END LOOP;
 CLOSE cur1;
 CLOSE cur2;
 END//
+Warnings:
+Warning	1287	'!' is deprecated and will be removed in a future release. Please use NOT instead
 CREATE PROCEDURE p2 ()
 BEGIN
 UPDATE t1 PARTITION (`p0-29`) SET b='p0-29-upd' WHERE a BETWEEN 3 AND 10;

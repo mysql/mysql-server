@@ -104,7 +104,7 @@
 .dojoxColorPicker {
 	padding: 8px;
 	-moz-border-radius: 4pt;
-	-webkit-border-radius: 5pt;
+	border-radius: 5pt;
 	-webkit-drop-shadow: 3pt;
 	background: gray;
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,8 @@
 
 using mysql_harness::TCPAddress;
 using routing::AccessMode;
-using routing::set_socket_blocking;
 
+using ::testing::_;
 using ::testing::ContainerEq;
 using ::testing::Eq;
 using ::testing::Gt;
@@ -57,7 +57,6 @@ using ::testing::InSequence;
 using ::testing::Ne;
 using ::testing::Return;
 using ::testing::StrEq;
-using ::testing::_;
 
 class RoutingTests : public ::testing::Test {
  protected:
@@ -103,14 +102,15 @@ TEST_F(RoutingTests, Defaults) {
 // No way to read nonblocking status in Windows
 TEST_F(RoutingTests, SetSocketBlocking) {
   int s = socket(PF_INET, SOCK_STREAM, 6);
+  auto so = mysql_harness::SocketOperations::instance();
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0);
-  set_socket_blocking(s, false);
+  so->set_socket_blocking(s, false);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
-  set_socket_blocking(s, true);
+  so->set_socket_blocking(s, true);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, 0) << std::endl;
 
   fcntl(s, F_SETFL, O_RDONLY);
-  set_socket_blocking(s, false);
+  so->set_socket_blocking(s, false);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_NONBLOCK, O_NONBLOCK);
   ASSERT_EQ(fcntl(s, F_GETFL, nullptr) & O_RDONLY, O_RDONLY);
 }

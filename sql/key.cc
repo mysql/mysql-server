@@ -131,7 +131,7 @@ int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
   @param key_length  specifies length of all keyparts that will be copied
 */
 
-void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
+void key_copy(uchar *to_key, const uchar *from_record, const KEY *key_info,
               uint key_length) {
   uint length;
   KEY_PART_INFO *key_part;
@@ -174,7 +174,7 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
   @param key_length  specifies length of all keyparts that will be restored
 */
 
-void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
+void key_restore(uchar *to_record, const uchar *from_key, const KEY *key_info,
                  uint key_length) {
   uint length;
   KEY_PART_INFO *key_part;
@@ -222,7 +222,7 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
     } else if (key_part->key_part_flag & HA_VAR_LENGTH_PART) {
       Field *field = key_part->field;
       my_bitmap_map *old_map;
-      my_ptrdiff_t ptrdiff = to_record - field->table->record[0];
+      ptrdiff_t ptrdiff = to_record - field->table->record[0];
       field->move_field_offset(ptrdiff);
       key_length -= HA_KEY_BLOB_LENGTH;
       length = min<uint>(key_length, key_part->length);
@@ -307,12 +307,12 @@ bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
 
 void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
   String tmp;
-  DBUG_ENTER("field_unpack");
+  DBUG_TRACE;
   if (!max_length) max_length = field->pack_length();
   if (field) {
     if (field->is_null()) {
       to->append(STRING_WITH_LEN("NULL"));
-      DBUG_VOID_RETURN;
+      return;
     }
     const CHARSET_INFO *cs = field->charset();
     field->val_str(&tmp);
@@ -345,7 +345,6 @@ void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
     to->append(err.ptr());
   } else
     to->append(STRING_WITH_LEN("???"));
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -364,7 +363,7 @@ void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
 
 void key_unpack(String *to, TABLE *table, KEY *key) {
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
-  DBUG_ENTER("key_unpack");
+  DBUG_TRACE;
 
   to->length(0);
   KEY_PART_INFO *key_part_end = key->key_part + key->user_defined_key_parts;
@@ -381,7 +380,6 @@ void key_unpack(String *to, TABLE *table, KEY *key) {
                  (key_part->key_part_flag & HA_PART_KEY_SEG));
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -585,10 +583,10 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
   uint key_parts, key_part_num;
   KEY_PART_INFO *key_part = key_info->key_part;
   uchar *rec0 = key_part->field->ptr - key_part->offset;
-  my_ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
+  ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
   int result = 0;
   Field *field;
-  DBUG_ENTER("key_rec_cmp");
+  DBUG_TRACE;
 
   /* Assert that at least the first key part is read. */
   DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
@@ -607,8 +605,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
       field = key_part->field;
 
       /* If not read, compare is done and equal! */
-      if (!bitmap_is_set(field->table->read_set, field->field_index))
-        DBUG_RETURN(0);
+      if (!bitmap_is_set(field->table->read_set, field->field_index)) return 0;
 
       if (key_part->null_bit) {
         /* The key_part can contain NULL values */
@@ -625,10 +622,10 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
           if (!sec_is_null)
             ; /* Fall through, no NULL fields */
           else {
-            DBUG_RETURN(sort_order);
+            return sort_order;
           }
         } else if (!sec_is_null) {
-          DBUG_RETURN(-sort_order);
+          return -sort_order;
         } else
           goto next_loop; /* Both were NULL */
       }
@@ -641,7 +638,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
       */
       if ((result = field->cmp_max(field->ptr + first_diff,
                                    field->ptr + sec_diff, key_part->length)))
-        DBUG_RETURN((sort_order < 0) ? -result : result);
+        return (sort_order < 0) ? -result : result;
     next_loop:
       key_part++;
       key_part_num++;
@@ -649,5 +646,5 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
 
     key_info = *(key++);
   } while (key_info); /* no more keys to test */
-  DBUG_RETURN(0);
+  return 0;
 }

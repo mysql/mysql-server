@@ -53,7 +53,7 @@ _9.toggleClass(n,this.focusClass,_d);
 if(_d){
 var sl=this.scrollIntoView();
 try{
-if(!this.grid.edit.isEditing()){
+if(_6("webkit")||!this.grid.edit.isEditing()){
 _8.fire(n,"focus");
 if(sl){
 this.cell.view.scrollboxNode.scrollLeft=sl;
@@ -85,7 +85,6 @@ catch(e){
 },_delayedHeaderFocus:function(){
 if(this.isNavHeader()){
 this.focusHeader();
-this.grid.domNode.focus();
 }
 },_initColumnHeaders:function(){
 _1.forEach(this._headerConnects,_4.disconnect);
@@ -184,7 +183,7 @@ return (_1f&&_9.getComputedStyle(_1f.headerNode).display=="none");
 },colSizeAdjust:function(e,_21,_22){
 var _23=this._findHeaderCells();
 var _24=this.focusView;
-if(!_24){
+if(!_24||!_24.header.tableMap.map){
 for(var i=0,_25;(_25=this.grid.views.views[i]);i++){
 if(_25.header.tableMap.map){
 _24=_25;
@@ -317,7 +316,7 @@ this.move(_30>0?++_30:--_30,_31);
 return;
 }else{
 if((!n||_9.style(n,"display")==="none")&&_31){
-if((col+_30)>=0&&(col+_30)<=cc){
+if((col+_31)>=0&&(col+_31)<=cc){
 this.move(_30,_31>0?++_31:--_31);
 }
 return;

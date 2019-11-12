@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include "channel_info.h"                // Channel_info
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "init_net_server_extension.h"   // init_net_server_extension
 #include "my_byteorder.h"
 #include "my_shm_defaults.h"
 #include "mysql/components/services/log_builtins.h"
@@ -89,8 +90,10 @@ class Channel_info_shared_mem : public Channel_info {
   virtual THD *create_thd() {
     THD *thd = Channel_info::create_thd();
 
-    if (thd != NULL)
+    if (thd != NULL) {
+      init_net_server_extension(thd);
       thd->security_context()->set_host_ptr(my_localhost, strlen(my_localhost));
+    }
     return thd;
   }
 
@@ -98,13 +101,17 @@ class Channel_info_shared_mem : public Channel_info {
                                             bool senderror) {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
 
-    if (m_handle_client_file_map) CloseHandle(m_handle_client_file_map);
-    if (m_handle_client_map) CloseHandle(m_handle_client_map);
-    if (m_event_server_wrote) CloseHandle(m_event_server_wrote);
-    if (m_event_server_read) CloseHandle(m_event_server_read);
-    if (m_event_client_wrote) CloseHandle(m_event_client_wrote);
-    if (m_event_client_read) CloseHandle(m_event_client_read);
-    if (m_event_conn_closed) CloseHandle(m_event_conn_closed);
+    // Channel_info::send_error_and_close_channel will have closed
+    // handles on senderror
+    if (!senderror) {
+      if (m_handle_client_file_map) CloseHandle(m_handle_client_file_map);
+      if (m_handle_client_map) UnmapViewOfFile(m_handle_client_map);
+      if (m_event_server_wrote) CloseHandle(m_event_server_wrote);
+      if (m_event_server_read) CloseHandle(m_event_server_read);
+      if (m_event_client_wrote) CloseHandle(m_event_client_wrote);
+      if (m_event_client_read) CloseHandle(m_event_client_read);
+      if (m_event_conn_closed) CloseHandle(m_event_conn_closed);
+    }
   }
 };
 

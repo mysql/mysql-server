@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,6 @@
 #define MYSQL_HARNESS_FILESYSTEM_INCLUDED
 
 #include "harness_export.h"
-
-#include "common.h"
 
 #include <memory>
 #include <stdexcept>
@@ -69,7 +67,7 @@ class HARNESS_EXPORT Path {
    */
 
   enum class FileType {
-    /** An error occured when trying to get file type, but it is *not*
+    /** An error occurred when trying to get file type, but it is *not*
      * that the file was not found. */
     STATUS_ERROR,
 
@@ -129,6 +127,7 @@ class HARNESS_EXPORT Path {
                         const std::string &extension);
 
   bool operator==(const Path &rhs) const;
+  bool operator!=(const Path &rhs) const { return !(*this == rhs); }
 
   /**
    * Path ordering operator.
@@ -484,12 +483,14 @@ HARNESS_EXPORT
 std::string get_tests_data_dir(const std::string &runtime_dir);
 
 #ifdef _WIN32
-
-// Smart pointers for WinAPI structures that use C-style memory management.
-using SecurityDescriptorPtr =
-    std::unique_ptr<SECURITY_DESCRIPTOR,
-                    mysql_harness::StdFreeDeleter<SECURITY_DESCRIPTOR>>;
-using SidPtr = std::unique_ptr<SID, mysql_harness::StdFreeDeleter<SID>>;
+/**
+ * Deleter for smart pointers pointing to objects allocated with `std::malloc`.
+ */
+template <typename T>
+class StdFreeDeleter {
+ public:
+  void operator()(T *ptr) { std::free(ptr); }
+};
 
 /**
  * Retrieves file's DACL security descriptor.
@@ -500,7 +501,7 @@ using SidPtr = std::unique_ptr<SID, mysql_harness::StdFreeDeleter<SID>>;
  *
  * @throw std::exception Failed to retrieve security descriptor.
  */
-HARNESS_EXPORT SecurityDescriptorPtr
+HARNESS_EXPORT std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)>
 get_security_descriptor(const std::string &file_name);
 
 #endif
@@ -525,6 +526,53 @@ extern const perm_mode kStrictDirectoryPerm;
  */
 HARNESS_EXPORT
 int mkdir(const std::string &dir, perm_mode mode, bool recursive = false);
+
+/**
+ * Changes file access permissions to be fully accessible by all users.
+ *
+ * On Unix, the function sets file permission mask to 777.
+ * On Windows, Everyone group is granted full access to the file.
+ *
+ * @param[in] file_name File name.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+void HARNESS_EXPORT make_file_public(const std::string &file_name);
+
+/**
+ * Changes file access permissions to be accessible only by a limited set of
+ * users.
+ *
+ * On Unix, the function sets file permission mask to 600.
+ * On Windows, all permissions to this file are removed for Everyone group,
+ * LocalService account gets read (and optionally write) access.
+ *
+ * @param[in] file_name File name.
+ * @param[in] read_only_for_local_service Weather the LocalService user on
+ * Windows should get only the read access (if false will grant write access
+ * too). Not used on non-Windows.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+void HARNESS_EXPORT
+make_file_private(const std::string &file_name,
+                  const bool read_only_for_local_service = true);
+
+/**
+ * Verifies access permissions of a file.
+ *
+ * On Unix systems it throws if file's permissions differ from 600.
+ * On Windows it throws if file can be accessed by Everyone group.
+ *
+ * @param[in] file_name File to be verified.
+ *
+ * @throw std::exception File access rights are too permissive or
+ *                        an error occurred.
+ * @throw std::system_error OS and/or filesystem doesn't support file
+ *                           permissions.
+ */
+
+void HARNESS_EXPORT check_file_access_rights(const std::string &file_name);
 
 }  // namespace mysql_harness
 

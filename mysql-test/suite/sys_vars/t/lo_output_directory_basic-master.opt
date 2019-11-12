@@ -1,0 +1,2 @@
+--loose-disable-lock-order
+--loose-lock-order-output-directory="/some/path/to/lock_order_output_directory"

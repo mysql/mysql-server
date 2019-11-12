@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/grid/enhanced/templates/Pagination.html':"<div dojoAttachPoint=\"paginatorBar\"\n\t><table cellpadding=\"0\" cellspacing=\"0\"  class=\"dojoxGridPaginator\"\n\t\t><tr\n\t\t\t><td dojoAttachPoint=\"descriptionTd\" class=\"dojoxGridDescriptionTd\"\n\t\t\t\t><div dojoAttachPoint=\"descriptionDiv\" class=\"dojoxGridDescription\"></div\n\t\t\t></div></td\n\t\t\t><td dojoAttachPoint=\"sizeSwitchTd\"></td\n\t\t\t><td dojoAttachPoint=\"pageStepperTd\" class=\"dojoxGridPaginatorFastStep\"\n\t\t\t\t><div dojoAttachPoint=\"pageStepperDiv\" class=\"dojoxGridPaginatorStep\"></div\n\t\t\t></td\n\t\t\t><td dojoAttachPoint=\"gotoPageTd\" class=\"dojoxGridPaginatorGotoTd\"\n\t\t\t\t><div dojoAttachPoint=\"gotoPageDiv\" class=\"dojoxGridPaginatorGotoDiv\" dojoAttachEvent=\"onclick:_openGotopageDialog, onkeydown:_openGotopageDialog\"\n\t\t\t\t\t><span class=\"dojoxGridWardButtonInner\">&#8869;</span\n\t\t\t\t></div\n\t\t\t></td\n\t\t></tr\n\t></table\n></div>\n"}});
 define("dojox/grid/enhanced/plugins/Pagination", [
@@ -9,10 +8,8 @@ define("dojox/grid/enhanced/plugins/Pagination", [
 	"dojo/_base/lang",
 	"dojo/_base/html",
 	"dojo/_base/event",
-	"dojo/_base/window",
 	"dojo/query",
 	"dojo/string",
-	"dojo/i18n",
 	"dojo/keys",
 	"dojo/text!../templates/Pagination.html",
 	"./Dialog",
@@ -27,9 +24,9 @@ define("dojox/grid/enhanced/plugins/Pagination", [
 	"dijit/_WidgetsInTemplateMixin",
 	"dojox/html/metrics",
 	"dojo/i18n!../nls/Pagination"
-], function(kernel, declare, array, connect, lang, html, event, win, query, 
-	string, i18n, keys, template, Dialog, layers, _Plugin, EnhancedGrid,
-	Button, NumberTextBox, dijitFocus, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, metrics){
+], function(kernel, declare, array, connect, lang, html, event, query,
+	string, keys, template, Dialog, layers, _Plugin, EnhancedGrid,
+	Button, NumberTextBox, dijitFocus, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, metrics, nls){
 		
 var _GotoPagePane = declare("dojox.grid.enhanced.plugins.pagination._GotoPagePane", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
 	templateString: "<div>" + 
@@ -113,7 +110,7 @@ var _ForcedPageStoreLayer = declare("dojox.grid.enhanced.plugins._ForcedPageStor
 		var _this = this,
 			plugin = _this._plugin,
 			grid = plugin.grid,
-			scope = request.scope || win.global,
+			scope = request.scope || kernel.global,
 			onBegin = request.onBegin;
 		request.start = (plugin._currentPage - 1) * plugin._currentPageSize + request.start;
 		_this.startIdx = request.start;
@@ -152,7 +149,9 @@ var _ForcedPageStoreLayer = declare("dojox.grid.enhanced.plugins._ForcedPageStor
 
 var stopEvent = function(evt){
 	try{
-		event.stop(evt);
+		if(evt){
+			event.stop(evt);
+		}
 	}catch(e){}
 };
 
@@ -283,11 +282,11 @@ var _Paginator = declare("dojox.grid.enhanced.plugins._Paginator", [_Widget, _Te
 		this.inherited(arguments);
 		var _this = this, g = this.grid;
 		this.plugin.connect(g, "_resize", lang.hitch(this, "_resetGridHeight"));
-		this._originalResize = lang.hitch(g, "resize");
+		this._originalResize = g.resize;
 		g.resize = function(changeSize, resultSize){
 			_this._changeSize = changeSize;
 			_this._resultSize = resultSize;
-			_this._originalResize();
+			_this._originalResize.apply(g, arguments);
 		};
 		this.focus = _Focus(this);
 		this._placeSelf();
@@ -357,7 +356,7 @@ var _Paginator = declare("dojox.grid.enhanced.plugins._Paginator", [_Widget, _Te
 		}
 		var padBorder = g._getPadBorder().h;
 		if(!this.plugin.gh){
-			this.plugin.gh = html.contentBox(g.domNode).h + 2 * padBorder;
+			this.plugin.gh = (g.domNode.clientHeight || html.style(g.domNode, 'height')) + 2 * padBorder;
 		}
 		if(resultSize){
 			changeSize = resultSize;
@@ -678,31 +677,40 @@ var Pagination = declare("dojox.grid.enhanced.plugins.Pagination", _Plugin, {
 	//		The typical pagination way to deal with huge dataset
 	//		an alternative for the default virtual scrolling manner.
 	name: "pagination",
+
 	// defaultPageSize: Integer
 	//		Number of rows in a page, 25 by default.
 	defaultPageSize: 25,
+
 	// defaultPage: Integer
 	//		Which page will be displayed initially, 1st page by default.
 	defaultPage: 1,
+
 	// description: boolean
 	//		Whether the description information will be displayed, true by default.
 	description: true,
+
 	// sizeSwitch: boolean
 	//		Whether the page size switch options will be displayed, true by default.
 	sizeSwitch: true,
+
 	// pageStepper: boolean
 	//		Whether the page switch options will be displayed, true by default.
 	pageStepper: true,
+
 	// gotoButton: boolean
 	//		Whether the goto page button will be displayed, false by default.
 	gotoButton: false,
+
 	// pageSizes: Array
 	//		Array of page sizes for switching, e.g. [10, 25, 50, 100, Infinity] by default,
 	//		Infinity or any NaN value will be treated as "all".
 	pageSizes: [10, 25, 50, 100, Infinity],
+
 	// maxPageStep: Integer
 	//		The max number of page sizes to be displayed, 7 by default.
 	maxPageStep: 7,
+
 	// position: string
 	//		The position of the pagination bar - "top"|"bottom", "bottom" by default.
 	position: 'bottom',
@@ -738,9 +746,9 @@ var Pagination = declare("dojox.grid.enhanced.plugins.Pagination", _Plugin, {
 		// summary:
 		//		Shift to the given page, return current page number. If there 
 		//		is no valid page was passed in, just return current page num.
-		//	page: Integer
+		// page: Integer
 		//		The page to go to, starting at 1.
-		//	return:
+		// returns:
 		//		Current page number
 		if(page <= this.getTotalPageNum() && page > 0 && this._currentPage !== page){
 			this._currentPage = page;
@@ -770,13 +778,13 @@ var Pagination = declare("dojox.grid.enhanced.plugins.Pagination", _Plugin, {
 		this.currentPage(this.getTotalPageNum());
 	},
 	currentPageSize: function(size){
-		//	summary:
+		// summary:
 		//		Change the size of current page or return the current page size.
-		//	size: Integer || null
+		// size: Integer|null
 		//		An integer identifying the number of rows per page. If the size
-		//		is an Infinity, all rows will be displayed; if an invalid value pssed
+		//		is an Infinity, all rows will be displayed; if an invalid value passed
 		//		in, the current page size will be returned.
-		//	return
+		// returns:
 		//		Current size of items per page.  
 		if(!isNaN(size)){
 			var g = this.grid,
@@ -828,6 +836,9 @@ var Pagination = declare("dojox.grid.enhanced.plugins.Pagination", _Plugin, {
 		this._multiRemoving = true;
 		this._gridOriginalfuncs[2].apply();
 		this._multiRemoving = false;
+		if(this.grid.store.save){
+			this.grid.store.save();
+		}
 		this.grid.resize();
 		this.grid._refresh();
 	},
@@ -886,10 +897,9 @@ var Pagination = declare("dojox.grid.enhanced.plugins.Pagination", _Plugin, {
 		}else{
 			this.option.pageSizes = this.pageSizes;
 		}
-		this.defaultPageSize = this.option.defaultPageSize >= 1 ? parseInt(this.option.defaultPageSize, 10) : this.pageSizes[0];
+		this.defaultPageSize = this.option.defaultPageSize >= 1 ? parseInt(this.option.defaultPageSize, 10) : this.option.pageSizes[0];
 		this.option.maxPageStep = this.option.maxPageStep > 0 ? this.option.maxPageStep : this.maxPageStep;
 		this.option.position = lang.isString(this.option.position) ? this.option.position.toLowerCase() : this.position;
-		var nls = i18n.getLocalization("dojox.grid.enhanced", "Pagination");
 		this._nls = [
 			nls.descTemplate,
 			nls.allItemsLabelTemplate,
@@ -940,7 +950,7 @@ var Pagination = declare("dojox.grid.enhanced.plugins.Pagination", _Plugin, {
 	},
 	_onNew: function(item, parentInfo){
 		var totalPages = this.getTotalPageNum();
-		if(((this._currentPage === totalPages || totalPages === 0) && this.grid.rowCount < this._currentPageSize) || this._showAll){
+		if(((this._currentPage === totalPages || totalPages === 0) && this.grid.get('rowCount') < this._currentPageSize) || this._showAll){
 			lang.hitch(this.grid, this._gridOriginalfuncs[1])(item, parentInfo);
 			this.forcePageStoreLayer.endIdx++;
 		}
@@ -951,7 +961,7 @@ var Pagination = declare("dojox.grid.enhanced.plugins.Pagination", _Plugin, {
 		if(this._showAll && this.grid.autoHeight){
 			this.grid._refresh();
 		}else{
-			this._paginator.update();
+			this._paginator._update();
 		}
 	},
 	_onDelete: function(){

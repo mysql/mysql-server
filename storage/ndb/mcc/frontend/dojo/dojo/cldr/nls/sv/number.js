@@ -1,23 +1,8 @@
+/*
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
+	Available via Academic Free License >= 2.1 OR the modified BSD license.
+	see: http://dojotoolkit.org/license for details
+*/
+
 //>>built
-define(
-//begin v1.x content
-{
-	"group": " ",
-	"percentSign": "%",
-	"exponential": "×10^",
-	"scientificFormat": "#E0",
-	"percentFormat": "#,##0 %",
-	"list": ";",
-	"infinity": "∞",
-	"patternDigit": "#",
-	"minusSign": "−",
-	"decimal": ",",
-	"nan": "¤¤¤",
-	"nativeZeroDigit": "0",
-	"perMille": "‰",
-	"decimalFormat": "#,##0.###",
-	"currencyFormat": "#,##0.00 ¤",
-	"plusSign": "+"
-}
-//end v1.x content
-);
+define("dojo/cldr/nls/sv/number",{"scientificFormat":"#E0","currencyDecimal":":","infinity":"∞","list":";","percentSign":"%","minusSign":"−","decimalFormat-short":"000 bn","nan":"¤¤¤","plusSign":"+","currencyFormat":"#,##0.00 ¤","perMille":"‰","group":" ","percentFormat":"#,##0 %","decimalFormat-long":"000 biljoner","decimalFormat":"#,##0.###","currencyGroup":".","decimal":",","exponential":"×10^"});

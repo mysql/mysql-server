@@ -7,7 +7,7 @@
 
 let i=0;
 
-while ($i <=1 )
+while ($i <=2 )
 {
 
 CREATE TABLE t1 (
@@ -39,25 +39,32 @@ SET GLOBAL innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (1,1),(2,2);
 DELETE FROM t1;
 
+
 SET debug_sync = 'row_ins_sec_index_entry_dup_locks_created SIGNAL
 con1_locks_done WAIT_FOR con1_go';
 SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
 con1_insert_done WAIT_FOR con1_finish';
 --send
 
-if ($i == 0)
+if ( $i == 0 )
 {
 REPLACE INTO t1 VALUES (1,2);
 }
 
-if ( $i == 1)
+if ( $i == 1 )
 {
 INSERT INTO t1 values (1,2) ON DUPLICATE KEY UPDATE a=2;
 }
+
+if ( $i == 2 )
+{
+INSERT INTO t1 VALUES (1,2);
+}
+
+
 --connection con2
 
 SET debug_sync = 'now WAIT_FOR con1_locks_done';
-
 SET debug_sync = 'lock_wait_suspend_thread_enter SIGNAL con2_blocked
 WAIT_FOR con2_go';
 SET debug_sync = 'ha_commit_trans_after_acquire_commit_lock SIGNAL
@@ -73,14 +80,10 @@ SET debug_sync = 'now WAIT_FOR con2_blocked';
 SET GLOBAL innodb_purge_run_now=ON;
 
 # Wait for purge to delete the delete-marked record
-let $wait_condition=
-    SELECT COUNT(*) = 1 FROM performance_schema.global_status
-    WHERE VARIABLE_NAME='INNODB_PURGE_TRX_ID_AGE' AND VARIABLE_VALUE=2;
---source include/wait_condition.inc
+--source include/wait_innodb_all_purged.inc
 
 SET debug_sync = 'now SIGNAL con2_go WAIT_FOR con2_insert_done';
 SET debug_sync = 'now SIGNAL con1_go WAIT_FOR con1_insert_done';
-
 SET debug_sync = 'now SIGNAL con1_finish';
 SET debug_sync = 'now SIGNAL con2_finish';
 
@@ -112,6 +115,10 @@ SET DEBUG_SYNC= 'RESET';
 
 --inc $i
 }
+
+
+
+
 
 --echo #
 --echo # Bug#24344131 ASSERT !OTHER_LOCK IN LOCK_REC_ADD_TO_QUEUE AT LOCK0LOCK.CC:1641
@@ -153,7 +160,140 @@ SET DEBUG_SYNC="now SIGNAL s7";
 connection con2;
 --reap
 
+connection default;
+
 DROP TABLE t1;
 
 --disconnect con1
 --disconnect con2
+
+
+--echo #
+--echo # Bug #29004362  LOCK->TRX->DUPLICATES CAN NOT BE USED TO DETERMINE IF
+--echo #                LOCK IS CREATED BY IODKU
+--echo #
+
+CREATE TABLE t1 (
+       a INT NOT NULL,
+       b INT NOT NULL,
+       c INT NOT NULL,
+       PRIMARY KEY(b),
+       UNIQUE KEY(a),
+       UNIQUE KEY(c))
+ENGINE=INNODB;
+
+SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
+SET GLOBAL innodb_stats_auto_recalc = OFF;
+
+# Block purge
+SET GLOBAL innodb_purge_stop_now = ON;
+
+SET @old_transaction_isolation = @@transaction_isolation;
+SET GLOBAL transaction_isolation = 'READ-COMMITTED';
+
+SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout = 1;
+
+# Create and delete-mark an index record
+INSERT INTO t1 VALUES (1,1,1),(2,2,2);
+DELETE FROM t1;
+INSERT INTO t1 VALUES (5,5,5),(7,7,7);
+
+--connect(con1,localhost,root,,)
+--connect(con2,localhost,root,,)
+
+--connection con1
+
+  BEGIN;
+  INSERT INTO t1 VALUES (1,4,7) ON DUPLICATE KEY UPDATE b=6;
+
+--connection default
+  SELECT MAX(engine_transaction_id) INTO @con1_trx_id FROM performance_schema.data_locks WHERE object_schema='test' AND object_name = 't1';
+  --echo # LOCKS AFTER IODKU
+  SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
+    index_name,lock_type,lock_mode,lock_status,lock_data
+  FROM performance_schema.data_locks
+  WHERE object_schema='test' AND object_name = 't1'
+  ORDER BY 1,2,3,4,5,6;
+
+--connection con1
+  SET debug_sync = 'row_ins_sec_index_entry_dup_locks_created SIGNAL
+  con1_locks_done WAIT_FOR con1_go';
+
+  --send INSERT INTO t1 VALUES (1,2,3);COMMIT
+
+--connection default
+  SET debug_sync = 'now WAIT_FOR con1_locks_done';
+  --echo # LOCKS AFTER con1_locks_done
+  SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
+    index_name,lock_type,lock_mode,lock_status,lock_data
+  FROM performance_schema.data_locks
+  WHERE object_schema='test' AND object_name = 't1'
+  ORDER BY 1,2,3,4,5,6;
+
+  SELECT COUNT(*) FROM performance_schema.data_locks
+      WHERE object_schema='test'
+        AND object_name='t1'
+        AND index_name='a'
+        AND lock_type='RECORD'
+        AND lock_data='5, 5';
+
+  SET GLOBAL innodb_purge_run_now=ON;
+
+  # Wait for purge to delete the delete-marked record
+  let $wait_condition=
+      SELECT COUNT(*) = 1 FROM performance_schema.data_locks
+      WHERE object_schema='test'
+        AND object_name='t1'
+        AND index_name='a'
+        AND lock_type='RECORD'
+        AND lock_data='5, 5';
+  --source include/wait_condition.inc
+
+  --echo # LOCKS AFTER purge
+  SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
+    index_name,lock_type,lock_mode,lock_status,lock_data
+  FROM performance_schema.data_locks
+  WHERE object_schema='test' AND object_name = 't1'
+  ORDER BY 1,2,3,4,5,6;
+
+--connection con2
+  # We actually expect ER_LOCK_WAIT_TIMEOUT, but we let a buggy implementation
+  # continue, so that we can capture more information about locks and rows,
+  # and in particular if there are two rows with a=1 in the end.
+  --error 0, ER_LOCK_WAIT_TIMEOUT
+  INSERT t1 VALUES (1,10,4);
+
+--connection default
+
+  --echo # LOCKS AFTER con2
+  SELECT IF(engine_transaction_id=@con1_trx_id, "con1", "other") as con,
+    index_name,lock_type,lock_mode,lock_status,lock_data
+  FROM performance_schema.data_locks
+  WHERE object_schema='test' AND object_name = 't1'
+  ORDER BY 1,2,3,4,5,6;
+
+  SET debug_sync = 'now SIGNAL con1_go';
+
+
+--connection con1
+--reap
+
+--connection default
+
+--disconnect con1
+--disconnect con2
+
+SELECT * FROM t1;
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
+SET GLOBAL transaction_isolation = @old_transaction_isolation;
+SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
+
+# Clean up resources used in this test case.
+--disable_warnings
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings

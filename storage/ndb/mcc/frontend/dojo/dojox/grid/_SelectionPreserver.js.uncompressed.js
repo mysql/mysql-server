@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/_SelectionPreserver", [
 	"dojo/_base/declare",
 	"dojo/_base/connect",
@@ -29,8 +28,8 @@ return declare("dojox.grid._SelectionPreserver", null, {
 		this._connects = [
 			connect.connect(grid, '_setStore', this, 'reset'),
 			connect.connect(grid, '_addItem', this, '_reSelectById'),
-			connect.connect(selection, 'addToSelection', lang.hitch(this, '_selectById', true)),
-			connect.connect(selection, 'deselect', lang.hitch(this, '_selectById', false)),
+			connect.connect(selection, 'onSelected', lang.hitch(this, '_selectById', true)),
+			connect.connect(selection, 'onDeselected', lang.hitch(this, '_selectById', false)),
 			connect.connect(selection, 'deselectAll', this, 'reset')
 		];
 	},

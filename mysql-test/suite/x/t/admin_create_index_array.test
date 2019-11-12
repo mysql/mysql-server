@@ -1,0 +1,253 @@
+## manipulate of indexes on aray fields in document
+
+## 1. Create and drop array index
+## 2. Create and drop 'multi-field' array index
+## 3. Create and drop 'unique' array index
+## 3. Create 'required' array index
+## 4. Verify usage array index
+## 4.1 with JSON_CONTAINS
+## 4.2 with JSON_OVERLAPS
+## 5. null value is not supported in indexed arrays
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_array.xpl
+--write_file $xtest_file
+-->import assert_variable.macro
+-->import assert_status_variable.macro
+-->import assert_select.macro
+-->quiet
+
+#MACROS
+
+-->macro Assert_use_of_index  %COLL%  %NAME%  %COND%
+callmacro Assert_select
+	possible_keys
+	%NAME%
+	EXPLAIN SELECT * FROM xtest.%COLL% USE INDEX(`%NAME%`) WHERE %COND%;
+-->endmacro
+
+-->macro Insert  %COLL%  %VALUE%  %ERROR%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "%COLL%"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: %VALUE%
+        }
+      }
+    }
+  }
+}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->macro Assert_index_exist	%COLL%	%NAME%
+callmacro Assert_select
+	Key_name
+	%NAME%
+	SHOW index FROM xtest.%COLL% WHERE Key_name = '%NAME%';
+-->endmacro
+
+
+-->macro Create_array_index	%COLL%	%NAME%	%PATH%	%TYPE%	%ERROR%
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%COLL%", "name":"%NAME%", "unique":false, "fields":{"field":"$.%PATH%", %TYPE% "array":true}}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+
+-->macro Test_array_index	%COLL%	%NAME%	%PATH%	%TYPE%
+-->title =Create array index '%NAME%' on field '%PATH%'
+-->callmacro Create_array_index	%COLL%	%NAME%	%PATH%	%TYPE%	ER_SUCCESS
+-->callmacro Assert_index_exist	%COLL%	%NAME%
+-->title =Drop array index '%NAME%'
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"%COLL%", "name":"%NAME%"}
+-->recvresult
+-->endmacro
+
+-->macro Create_collection	%COLL%
+-->title =Create collection '%COLL%'
+-->stmtadmin create_collection	{"schema":"xtest", "name":"%COLL%"}
+-->recvresult
+-->endmacro
+
+#TESTS
+
+-->callmacro Create_collection	data
+
+-->title =Insert documents into collection 'data'
+-->callmacro Insert	data	'{"_id":"001"}'	ER_SUCCESS
+-->callmacro Insert	data	'{"_id":"002", "scalar":1, "integer":10, "text":"Alice", "time":"10:36:00.000000", "date":"2015-05-27", "datetime":"1976-02-25T01:12:34", "float":3.14, "object":{"number":1}}'	ER_SUCCESS
+-->callmacro Insert	data	'{"_id":"003", "scalar":2, "integer":[11], "text":["Bob"], "time":["11:16:00.000000"], "date":["2016-04-17"], "datetime":["1978-01-25T02:02:44"], "float":[4.15], "object":[{"number":2}]}'	ER_SUCCESS
+-->callmacro Insert	data	'{"_id":"004", "scalar":3, "integer":[12, 13], "text":["Alice", "Bob"], "time":["10:36:00.000000", "11:16:00.000000"], "date":["2015-05-27", "2016-04-17"], "datetime":["1976-02-25T01:12:34", "1978-01-25T02:02:44"], "float":[3.14, 4.15], "object":[{"number":3}, {"number":4}]}'	ER_SUCCESS
+
+-->echo ## 1. Create and drop array index ($.path)
+-->callmacro Test_array_index	data	integer_idx	integer	"type":"signed",
+-->callmacro Test_array_index	data	text_idx	text	"type":"char(64)",
+-->callmacro Test_array_index	data	text_default_type_idx	text	 
+-->callmacro Test_array_index	data	time_idx	time	"type":"time",
+-->callmacro Test_array_index	data	date_idx	date	"type":"date",
+-->callmacro Test_array_index	data	datetime_idx	datetime	"type":"datetime",
+-->callmacro Test_array_index	data	float_idx	float	"type":"decimal(10,3)",
+
+-->echo ## 1. Create and drop array index ($.path[*])
+-->callmacro Test_array_index	data	integer_arr_idx	integer[*]	"type":"signed",
+-->callmacro Test_array_index	data	text_arr_idx	text[*]	"type":"char(64)",
+-->callmacro Test_array_index	data	text_arr_default_type_idx	text[*]	 
+-->callmacro Test_array_index	data	time_arr_idx	time[*]	"type":"time",
+-->callmacro Test_array_index	data	date_arr_idx	date[*]	"type":"date",
+-->callmacro Test_array_index	data	datetime_arr_idx	datetime[*]	"type":"datetime",
+-->callmacro Test_array_index	data	float_arr_idx	float[*]	"type":"decimal(10,3)",
+-->callmacro Test_array_index	data	object_idx	object[*].number	"type":"unsigned",
+
+
+-->echo ## 2. Try to create 'multi-field' array index (array-array)
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"data", "name":"integer_text_idx", "unique":false, "fields":[{"field":"$.integer", "type":"SIGNED", "array":true}, {"field":"$.text", "type":"CHAR(10)", "array":true}]}
+-->expecterror ER_NOT_SUPPORTED_YET
+-->recvresult
+
+
+-->echo ## 2. Create and drop 'multi-field' array index (array-scalar)
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"data", "name":"scalar_text_idx", "unique":false, "fields":[{"field":"$.scalar", "type":"INT"}, {"field":"$.text", "type":"CHAR(64)", "array":true}]}
+-->recvresult
+-->callmacro Assert_index_exist	data	scalar_text_idx
+-->title =Drop array index 'scalar_text_idx'
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"data", "name":"scalar_text_idx"}
+-->recvresult
+
+
+-->echo ## 3. Create and drop 'unique' array index
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"data", "name":"unique_idx", "unique":true, "fields":{"field":"$.integer", "type":"SIGNED", "array":true}}
+-->recvresult
+-->callmacro Assert_index_exist	data	unique_idx
+-->title =Drop array index 'unique_idx'
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"data", "name":"unique_idx"}
+-->recvresult
+
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"data", "name":"fail_idx", "unique":true, "fields":{"field":"$.float", "type":"DECIMAL(6,2)", "array":true}}
+-->expecterror ER_DUP_ENTRY
+-->recvresult
+
+
+-->echo ## 3. Create 'required' array index
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"data", "name":"fail_idx", "unique":false, "fields":{"field":"$.integer", "type":"SIGNED", "array":true, "required":true}}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->recvresult
+
+
+-->echo ## 4. Verify usage array index
+-->echo ## 4.1 with JSON_CONTAINS
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"data", "name":"integer_idx", "unique":false, "fields":{"field":"$.integer", "type":"SIGNED", "array":true}}
+-->recvresult
+-->callmacro Assert_use_of_index	data	integer_idx	json_contains(doc->'$.integer', cast('[11]' as json))
+
+
+-->echo ## 4. Verify usage array index
+-->echo ## 4.2 with JSON_OVERLAPS
+-->callmacro Assert_use_of_index	data	integer_idx	json_overlaps(doc->'$.integer', cast('[11]' as json))
+
+
+-->echo ## 5. null value is not supported in indexed arrays
+-->callmacro Create_collection	data1
+-->callmacro Insert	data1	'{"_id":"005", "integer":null, "text":null, "time":null, "date":null, "datetime":null, "float":null, "object":null}'	ER_SUCCESS
+-->callmacro Create_array_index	data1	integer_idx	integer	"type":"signed",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data1	text_idx	text	"type":"char(64)",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data1	text_default_type_idx	text	 	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data1	time_idx	time	"type":"time",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data1	date_idx	date	"type":"date",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data1	datetime_idx	datetime	"type":"datetime",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data1	float_idx	float	"type":"decimal(10,3)",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+
+-->callmacro Create_collection	data2
+-->callmacro Insert	data2	'{"_id":"006", "integer":[1, null], "text":["Alice", null], "time":["10:36:00.000000", null], "date":["2015-05-27", null], "datetime":["1976-02-25T01:12:34", null], "float":[3.14, null]}'	ER_SUCCESS
+-->callmacro Create_array_index	data2	integer_idx	integer	"type":"signed",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data2	text_idx	text	"type":"char(64)",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data2	text_default_type_idx	text	 	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data2	time_idx	time	"type":"time",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data2	date_idx	date	"type":"date",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data2	datetime_idx	datetime	"type":"datetime",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data2	float_idx	float	"type":"decimal(10,3)",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+
+
+-->echo ## 6. Create different types of index on an empty array
+-->callmacro Create_collection	data3
+-->callmacro Insert	data3	'{"_id":"007", "empty":[]}'	ER_SUCCESS
+-->callmacro Test_array_index	data3	empty_signed_idx	empty	"type":"SIGNED",
+-->callmacro Test_array_index	data3	empty_unsigned_idx	empty	"type":"UNSIGNED",
+-->callmacro Test_array_index	data3	empty_char_idx	empty	"type":"char(64)",
+-->callmacro Test_array_index	data3	empty_date_idx	empty	"type":"DATE",
+-->callmacro Test_array_index	data3	empty_time_idx	empty	"type":"TIME",
+-->callmacro Test_array_index	data3	empty_datetime_idx	empty	"type":"DATETIME",
+-->callmacro Test_array_index	data3	empty_decimal_idx	empty	"type":"DECIMAL(10,4)",
+-->callmacro Test_array_index	data3	empty_binary_idx	empty	"type":"BINARY(64)",
+
+
+-->echo ## 7. Create index on a field having mixed data types
+-->callmacro Create_collection	data4
+-->callmacro Insert	data4	'{"_id":"008", "mixed":[1, -100, "foobar", "2018-12-05", "09:56:11", "2018-12-05 09:58:19", "3.1412", "1010101011"]}'	ER_SUCCESS
+-->callmacro Create_array_index	data4	mixed_signed_idx	mixed	"type":"SIGNED",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data4	mixed_unsigned_idx	mixed	"type":"UNSIGNED",	ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX
+-->callmacro Create_array_index	data4	mixed_char_idx	mixed	"type":"char(64)",	ER_SUCCESS
+-->callmacro Create_array_index	data4	mixed_date_idx	mixed	"type":"DATE",	ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX
+-->callmacro Create_array_index	data4	mixed_time_idx	mixed	"type":"TIME",	ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX
+-->callmacro Create_array_index	data4	mixed_datetime_idx	mixed	"type":"DATETIME",	ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX
+-->callmacro Create_array_index	data4	mixed_decimal_idx	mixed	"type":"DECIMAL(10,4)",	ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+-->callmacro Create_array_index	data4	mixed_binary_idx	mixed	"type":"BINARY(64)",	ER_SUCCESS
+
+
+-->echo ## 8. Create index on a field and insert document with that field missing
+-->callmacro Create_collection	data5
+-->callmacro Insert	data5	'{"_id":"001", "emp_id":[100, 101, 102, 103 ], "emp_age":[24,25,26,27]}'	ER_SUCCESS
+-->callmacro Create_array_index	data5	emp_id_idx	mixed	"type":"UNSIGNED",	ER_SUCCESS
+-->callmacro Assert_index_exist	data5	emp_id_idx
+-->callmacro Insert	data5	'{"_id":"002", "emp_age":[28,29,30,31]}'	ER_SUCCESS
+
+
+-->echo ## 9. Try to create index with type as JSON/TEXT[(N)] [charset_info]/CHAR[(N)] [charset_info]
+-->callmacro Create_collection	data6
+-->callmacro Create_array_index	data6	json_idx	any	"type":"JSON",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"text",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"text(64)",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"text(64) charset latin1 collate latin1_bin",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"text(64) charset latin1",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"text(64) collate latin1_bin",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"char(64) charset latin1",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"char(64) collate latin1_bin",	ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_array_index	data6	text_idx	any	"type":"char(64) charset latin1 collate latin1_bin",	ER_X_CMD_ARGUMENT_VALUE
+
+
+-->echo ## 10. Increasing admin commands counters
+-->callmacro Create_collection	data8
+
+-->callmacro Assert_status_variable	Mysqlx_stmt_create_collection_index	61
+-->callmacro Create_array_index	data8	idx	any	"type":"signed",	ER_SUCCESS
+-->callmacro Assert_status_variable	Mysqlx_stmt_create_collection_index	62
+
+-->callmacro Assert_status_variable	Mysqlx_stmt_drop_collection_index	25
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"data8", "name":"idx"}
+-->recvresult
+-->callmacro Assert_status_variable	Mysqlx_stmt_drop_collection_index	26
+
+EOF
+
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

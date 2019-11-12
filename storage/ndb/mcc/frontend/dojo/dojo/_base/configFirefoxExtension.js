@@ -78,14 +78,16 @@ if(typeof window != 'undefined'){
 		var hasBase = false;
 
 		dojo._getText = function(/*URI*/ uri, /*Boolean*/ fail_ok){
-			// summary: Read the contents of the specified uri and return those contents.
+			// summary:
+			//		Read the contents of the specified uri and return those contents.
 			// uri:
 			//		A relative or absolute uri. If absolute, it still must be in
 			//		the same "domain" as we are.
 			// fail_ok:
 			//		Default false. If fail_ok and loading fails, return null
 			//		instead of throwing.
-			// returns: The response text. null is returned when there is a
+			// returns:
+			//		The response text. null is returned when there is a
 			//		failure and failure is okay (an exception otherwise)
 
 			// alert("_getText: " + uri);
@@ -178,12 +180,12 @@ if(typeof window != 'undefined'){
 		dojo._defaultContext = [ window, document ];
 
 		dojo.pushContext = function(/*Object|String?*/g, /*MDocumentElement?*/d){
-			//	summary:
+			// summary:
 			//		causes subsequent calls to Dojo methods to assume the
 			//		passed object and, optionally, document as the default
 			//		scopes to use. A 2-element array of the previous global and
 			//		document are returned.
-			//	description:
+			// description:
 			//		dojo.pushContext treats contexts as a stack. The
 			//		auto-detected contexts which are initially provided using
 			//		dojo.setContext() require authors to keep state in order to
@@ -199,10 +201,10 @@ if(typeof window != 'undefined'){
 			//		the context to push. This means that iframes can be given
 			//		an ID and code can be executed in the scope of the iframe's
 			//		document in subsequent calls easily.
-			//	g:
+			// g:
 			//		The global context. If a string, the id of the frame to
 			//		search for a context and document.
-			//	d:
+			// d:
 			//		The document element to execute subsequent code with.
 			var old = [dojo.global, dojo.doc];
 			contexts.push(old);
@@ -224,7 +226,7 @@ if(typeof window != 'undefined'){
 		};
 
 		dojo.popContext = function(){
-			//	summary:
+			// summary:
 			//		If the context stack contains elements, ensure that
 			//		subsequent code executes in the *previous* context to the
 			//		current context. The current context set ([global,
@@ -286,17 +288,17 @@ if(typeof window != 'undefined'){
 		};
 		// FIXME: PORT
 		// FIXME: dojo.unloaded requires dojo scope, so using anon function wrapper.
-		_handleNodeEvent("onbeforeunload", function() { dojo.unloaded(); });
-		_handleNodeEvent("onunload", function() { dojo.windowUnloaded(); });
+		_handleNodeEvent("onbeforeunload", function(){ dojo.unloaded(); });
+		_handleNodeEvent("onunload", function(){ dojo.windowUnloaded(); });
 	})();
 	*/
 
 
 	//	FIXME: PORTME
-	// 		this event fires a lot, namely for all plugin XUL overlays and for
-	// 		all iframes (in addition to window navigations). We only want
-	// 		Dojo's to fire once..but we might care if pages navigate. We'll
-	// 		probably need an extension-specific API
+	//		this event fires a lot, namely for all plugin XUL overlays and for
+	//		all iframes (in addition to window navigations). We only want
+	//		Dojo's to fire once..but we might care if pages navigate. We'll
+	//		probably need an extension-specific API
 	if(!dojo.config.afterOnLoad){
 		window.addEventListener("DOMContentLoaded", function(e){
 			dojo._loadInit(e);

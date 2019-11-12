@@ -1,3 +1,4 @@
+call mtr.add_suppression("Next log extension: 2147483647. Remaining log filename extensions: 0. Please consider archiving some logs");
 call mtr.add_suppression("Log filename extension number exhausted: 2147483647. Please fix this by archiving old logs and updating the index files.");
 call mtr.add_suppression("Can't generate a unique log-filename .*");
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to generate new file name.");

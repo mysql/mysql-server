@@ -29,6 +29,7 @@ namespace xpl {
 
 namespace test {
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Expectation;
 using ::testing::Return;
@@ -36,7 +37,6 @@ using ::testing::ReturnPointee;
 using ::testing::SetArrayArgument;
 using ::testing::SetErrnoAndReturn;
 using ::testing::StrictMock;
-using ::testing::_;
 
 class Sha256_cache_test_suite : public ::testing::Test {
  public:

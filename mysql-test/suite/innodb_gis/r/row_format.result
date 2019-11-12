@@ -9,6 +9,7 @@ PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=REDUNDANT ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -406,6 +407,7 @@ PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=COMPRESSED ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -803,6 +805,7 @@ PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=DYNAMIC ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
@@ -1200,6 +1203,7 @@ PRIMARY KEY(id),
 SPATIAL KEY (spatial_point)
 ) ROW_FORMAT=COMPACT ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.

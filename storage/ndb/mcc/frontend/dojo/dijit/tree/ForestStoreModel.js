@@ -1,5 +1,5 @@
 //>>built
-define("dijit/tree/ForestStoreModel",["dojo/_base/array","dojo/_base/declare","dojo/_base/lang","dojo/_base/window","./TreeStoreModel"],function(_1,_2,_3,_4,_5){
+define("dijit/tree/ForestStoreModel",["dojo/_base/array","dojo/_base/declare","dojo/_base/kernel","dojo/_base/lang","./TreeStoreModel"],function(_1,_2,_3,_4,_5){
 return _2("dijit.tree.ForestStoreModel",_5,{rootId:"$root$",rootLabel:"ROOT",query:null,constructor:function(_6){
 this.root={store:this,root:true,id:_6.rootId,label:_6.rootLabel,children:_6.rootChildren};
 },mayHaveChildren:function(_7){
@@ -9,7 +9,7 @@ if(_8===this.root){
 if(this.root.children){
 _9(this.root.children);
 }else{
-this.store.fetch({query:this.query,onComplete:_3.hitch(this,function(_b){
+this.store.fetch({query:this.query,onComplete:_4.hitch(this,function(_b){
 this.root.children=_b;
 _9(_b);
 }),onError:_a});
@@ -21,7 +21,7 @@ this.inherited(arguments);
 return (_c===this.root)?true:this.inherited(arguments);
 },fetchItemByIdentity:function(_d){
 if(_d.identity==this.root.id){
-var _e=_d.scope?_d.scope:_4.global;
+var _e=_d.scope||_3.global;
 if(_d.onItem){
 _d.onItem.call(_e,this.root);
 }
@@ -54,7 +54,7 @@ this.onAddToRoot(_14);
 },onLeaveRoot:function(_1a){
 },_requeryTop:function(){
 var _1b=this.root.children||[];
-this.store.fetch({query:this.query,onComplete:_3.hitch(this,function(_1c){
+this.store.fetch({query:this.query,onComplete:_4.hitch(this,function(_1c){
 this.root.children=_1c;
 if(_1b.length!=_1c.length||_1.some(_1b,function(_1d,idx){
 return _1c[idx]!=_1d;

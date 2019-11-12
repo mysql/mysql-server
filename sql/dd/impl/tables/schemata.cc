@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,8 @@ Schemata::Schemata() {
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
   m_target_def.add_field(FIELD_DEFAULT_ENCRYPTION, "FIELD_DEFAULT_ENCRYPTION",
                          "default_encryption ENUM('NO', 'YES') NOT NULL");
+  m_target_def.add_field(FIELD_SE_PRIVATE_DATA, "FIELD_SE_PRIVATE_DATA",
+                         "se_private_data MEDIUMTEXT");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");
   m_target_def.add_index(INDEX_UK_CATALOG_ID_NAME, "INDEX_UK_CATALOG_ID_NAME",
@@ -89,9 +91,9 @@ Schemata::Schemata() {
 
   m_target_def.add_populate_statement(
       "INSERT INTO schemata (catalog_id, name, default_collation_id, created, "
-      "last_altered, options, default_encryption) VALUES "
+      "last_altered, options, default_encryption, se_private_data) VALUES "
       "(1,'information_schema',33, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, "
-      "NULL, 'NO')");
+      "NULL, 'NO', NULL)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -64,10 +64,7 @@ CREATE TABLE t7(c1 INT PRIMARY KEY,
 ENGINE = INNODB;
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-# Memcached query issued before memcached gets activated
---sleep 2
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 let TABLE_NAME = t1;
 let MEMCACHED_TABLE_MAPPING = desc_t1;

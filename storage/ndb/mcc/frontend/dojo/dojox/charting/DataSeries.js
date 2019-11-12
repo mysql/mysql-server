@@ -21,6 +21,7 @@ this._events=[];
 if(this.store.getFeatures()["dojo.data.api.Notification"]){
 this._events.push(_4.connect(this.store,"onNew",this,"_onStoreNew"),_4.connect(this.store,"onDelete",this,"_onStoreDelete"),_4.connect(this.store,"onSet",this,"_onStoreSet"));
 }
+this._initialRendering=true;
 this.fetch();
 },destroy:function(){
 _3.forEach(this._events,_4.disconnect);
@@ -64,7 +65,8 @@ this.itemMap=_19;
 }
 },_pushDataChanges:function(){
 if(this.series){
-this.series.chart.updateSeries(this.series.name,this);
+this.series.chart.updateSeries(this.series.name,this,this._initialRendering);
+this._initialRendering=false;
 this.series.chart.delayedRender();
 }
 },_onStoreNew:function(){

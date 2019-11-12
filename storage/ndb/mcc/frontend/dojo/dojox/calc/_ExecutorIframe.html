@@ -57,11 +57,12 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 		window: undefined, "delete": undefined, "new": undefined, // invalidate access to the globals for security so that window.blah is invalid as is delete window
 
 		prompt: function(label, defaultValue){
-			// summary
-			//	prompt the user for input without making IE8 mad.
-			// params
-			//	label: the String name of the variable you are asking the user to input
-			//	defaultValue: primitive, the prompt will show this value initially
+			// summary:
+			//		prompt the user for input without making IE8 mad.
+			// label:
+			//		the String name of the variable you are asking the user to input
+			// defaultValue: primitive
+			//		the prompt will show this value initially
 
 			label = label || '';
 			defaultValue = defaultValue || '';
@@ -72,11 +73,12 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 			}
 		},
 		val: function(local, name, obj){
-			// summary
-			//	allow the user to use locals, globals, or give input for undefined values
-			// params:
-			//	local, a primitive object, is what value might've been passed to val as a local parameter.
-			//	name is the String name of the object.  It is passed to see if there is an available global or to set the global.
+			// summary:
+			//		allow the user to use locals, globals, or give input for undefined values
+			// local: a primitive object
+			//		what value might've been passed to val as a local parameter.
+			// name: String
+			//		String name of the object.  It is passed to see if there is an available global or to set the global.
 			var objValue = obj[name];
 			local = (objValue == undefined) ? (local == undefined ? window[name] : local) : objValue ;
 
@@ -91,15 +93,16 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 			return local;
 		},
 		_makeKeywordsLiteral: function (text){
-			// summary
-			//	surround reserved words with hex characters
+			// summary:
+			//		surround reserved words with hex characters
+
 			// ==, then >=. the <=, then !=, then = and surround them with \x0n first
 			text = text.replace(/(!=(?!=)|==|>=|<=|=)/g, "\x02$1\x02");
 			return text.replace(/\b(abstract|boolean|break|byte|case|catch|char|class|const|continue|debugger|default|do|double|else|enum|export|extends|false|final|finally|float|for|function|goto|if|implements|import|in| instanceof|int|interface|long|native|null|package|private|protected|public|return|short|static|super| switch|synchronized|this|throw|throws|transient|true|try|typeof|var|void|volatile|while|with)\b/g, "\x02$1\x02");
 		},
 		switchToGermanNumbers: function(text){
-			// summary
-			//	change the format of some javascript allowed numbers to an alternate form 3.5 goes to 3,5
+			// summary:
+			//		change the format of some javascript allowed numbers to an alternate form 3.5 goes to 3,5
 			var num = 0;
 			var numbers = [];
 			function substituteCommas(whole, junk, text){
@@ -133,10 +136,10 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 			return text.replace(/\x02((.|\s)*?)\x02/g, "$1");
 		},
 		normalizeTextLanguage: function(text){
-			// summary
-			//	change text to use javascript list separators and decimal points instead of commas
-			// params
-			//	text is a string like "pow(3,1; 4);"
+			// summary:
+			//		change text to use javascript list separators and decimal points instead of commas
+			// text: String
+			//		string like "pow(3,1; 4);"
 			//		for that input, this method should return "pow(3.1, 4);"
 
 			var num = 0;
@@ -165,8 +168,8 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 			return text.replace(/\x02((.|\s)*?)\x02/g, "$1");
 		},
 		preparse: function(text){
-			// summary
-			//	change the numbers to javascript allowed numbers if it is from a different locale
+			// summary:
+			//		change the numbers to javascript allowed numbers if it is from a different locale
 			if(!this.isJavaScriptLanguage){
 				text = this.normalizeTextLanguage(text);
 			}
@@ -175,16 +178,16 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 		// parseFloat(Number(4.5).toString(3)) should return 4.5
 
 		postparse: function(text){
-			// summary
-			//	make the javascript numbers match the locale
+			// summary:
+			//		make the javascript numbers match the locale
 			if(!this.isJavaScriptLanguage){
 				text = this.switchToGermanNumbers(text);
 			}
 			return text;
 		},
 		toDecimalRegExp: function(whole, base, number){
-			// summary
-			//	get the decimal number from a float
+			// summary:
+			//		get the decimal number from a float
 			function getBase(base){
 				switch(base){
 					case '0b':
@@ -201,11 +204,11 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 			return parseFloat(base+number);
 		},
 		parse: function(text){
-			// summary
-			//	This parses augmented mathematical syntax and converts it to executable JavaScript.
-			// params:
-			//	text should be a String which represents an expression, a function, a number, etc
-			//
+			// summary:
+			//		This parses augmented mathematical syntax and converts it to executable JavaScript.
+			// text: String
+			//		should be a String which represents an expression, a function, a number, etc
+
 			// this array holds the substitutions that represent an expression's parentheses and functions in a simplified way.
 			var	numbers = [],
 				// characters
@@ -447,10 +450,11 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 
 		},
 		eval: function(text){
-			// summary
-			//	create an anonymous function to run the code the parser generates from the user input.
-			// params
-			//	text, type String, is the user input that needs to be parsed
+			// summary:
+			//		create an anonymous function to run the code the parser generates from the user input.
+			// text: String
+			//		is the user input that needs to be parsed
+
 			// this try catch is necessary to ensure that any incorrect input will receive NaN (it won't cause a self destruct from a user typo)
 			try{
 				var value = this.Function(undefined, '', 'return ' + text).call(this); // make sure it is called within the correct scope.
@@ -461,12 +465,14 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 			}
 		},
 		normalizedFunction: function(name, args, body){
-			// summary
-			//	create an anonymous function to run the code the parser generates from the user input.
-			// params
-			//	name: this argument is simply a String that represents the name of the function being evaluated. It can be undefined, but in that case the function is a one time use.
-			//	args: the function arguments (a String)
-			//	body: the function body, also a String
+			// summary:
+			//		create an anonymous function to run the code the parser generates from the user input.
+			// name: String
+			//		this argument is simply a String that represents the name of the function being evaluated. It can be undefined, but in that case the function is a one time use.
+			// args: String
+			//		the function arguments
+			// body: String
+			//		the function body
 			var	argMultiVals = '',
 			// make an array of parameters with what's given (if nothing is given, make an empty array)
 				params = args ? (args||'').split(/\W+/) : [];
@@ -500,12 +506,14 @@ Number.prototype.toString = function(radix){ if(!radix || radix==10){ return ""+
 			return _f_;
 		},
 		Function: function(name, args, body){
-			// summary
-			//	create an anonymous function to run the code the parser generates from the user input.  It also normalizes the language format.
-			// params
-			//	name: this argument is simply a String that represents the name of the function being evaluated. It can be undefined, but in that case the function is a one time use.
-			//	args: the function arguments (a String)
-			//	body: the function body, also a String
+			// summary:
+			//		create an anonymous function to run the code the parser generates from the user input.  It also normalizes the language format.
+			// name: String
+			//		this argument is simply a String that represents the name of the function being evaluated. It can be undefined, but in that case the function is a one time use.
+			// args: String
+			//		the function arguments
+			// body: String
+			//		the function body
 
 			body = this.preparse(body);
 			return this.normalizedFunction(name, args, body);

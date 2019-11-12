@@ -1,0 +1,124 @@
+# ==== Purpose ====
+#
+# This script tests that the `PRIVILEGE_CHECKS_USER` related columns and data
+# are succesfully intitialized and instantiated during an upgrade.
+#
+# ==== Requirements ====
+#
+# R1. Upgrading from a version that doesn't have the proper system table columns
+#     will create those columns.
+#
+# R2. Upgrading from a FILE repository setup to a TABLE repository setup will
+#     instantiate the system table columns.
+#
+# R3. Upgrading from a TABLE repository setup to a FILE repository setup will
+#     instantiate the info files.
+#
+# ==== Implementation ====
+#
+# TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER not configured
+# -------------------------------------------------------------------------
+# 1) Create a table and insert a record on the master.
+# 2) Synchronize master and slave and stop the slave.
+# 3) Remove the columns from `mysql.slave_relay_log_info` that regard
+#    `PRIVILEGE_CHECKS_USER`.
+# 4) Ensure the slave has no information on system tables regarding
+#    `PRIVILEGE_CHECKS_USER`.
+# 5) Restart the server with `--relay-log-info-repository=TABLE
+#    --upgrade=FORCE`.
+# 6) Ensure the slave now has structure information on system tables regarding
+#    `PRIVILEGE_CHECKS_USER` but related columns aren't instantiated.
+# 7) Change `PRIVILEGE_CHECKS_USER` and check the table is consistent.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+#
+
+--source include/no_valgrind_without_big.inc
+--source include/have_binlog_format_row.inc
+--source include/not_mts_slave_parallel_workers.inc
+
+--echo #
+--echo # TC1. Upgrade from FILE to TABLE with PRIVILEGE_CHECKS_USER not
+--echo #      configured
+--echo # --------------------------------------------------------------
+--echo #
+
+--source include/master-slave.inc
+
+# 1) Create a table and insert a record on the master.
+--source include/rpl_connection_master.inc
+CREATE TABLE t (c INT);
+INSERT INTO t VALUES (1), (2);
+
+# 2) Synchronize master and slave and stop the slave.
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+# 3) Remove the columns from `mysql.slave_relay_log_info` that regard
+#    `PRIVILEGE_CHECKS_USER`.
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_username;
+ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
+
+# 4) Ensure the slave has no information on system tables regarding
+#    `PRIVILEGE_CHECKS_USER`.
+--let $configured_priv_checks_user = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User is NULL`
+--let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info`
+--let $priv_checks_columns = `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'mysql' AND table_name = 'slave_relay_log_info' AND column_name LIKE 'Privilege_checks%'`
+
+--let $assert_text = Configured PRIVILEGE_CHECKS_USER appears in PFS table with NULL value
+--let $assert_cond = $configured_priv_checks_user = 1
+--source include/assert.inc
+
+--let $assert_text = Table mysql.slave_relay_log_info has no information since --relay-log-info-repository=FILE
+--let $assert_cond = $channels_in_table = 0
+--source include/assert.inc
+
+--let $assert_text = Table mysql.slave_relay_log_info has no columns regarding PRIVILEGE_CHECKS_USER
+--let $assert_cond = $priv_checks_columns = 0
+--source include/assert.inc
+
+# 5) Restart the server with `--relay-log-info-repository=TABLE --upgrade=FORCE`.
+--let $rpl_server_number = 2
+--source include/rpl_stop_server.inc
+
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $explicit_default_counter = 15000
+--source include/rpl_start_server.inc
+--source include/start_slave.inc
+
+# 6) Ensure the slave now has structure information on system tables regarding
+#    `PRIVILEGE_CHECKS_USER` but related columns aren't instantiated.
+--source include/rpl_connection_slave.inc
+--let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Privilege_checks_username is NULL AND Privilege_checks_hostname is NULL`
+--let $priv_checks_columns = `SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'mysql' AND table_name = 'slave_relay_log_info' AND column_name LIKE 'Privilege_checks%'`
+
+--let $assert_text = Table mysql.slave_relay_log_info has columns for PRIVILEGE_CHECKS_USER
+--let $assert_cond = $priv_checks_columns = 2
+--source include/assert.inc
+
+--let $assert_text = Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER since --relay-log-info-repository=TABLE
+--let $assert_cond = $channels_in_table = 1
+--source include/assert.inc
+
+# 7) Change `PRIVILEGE_CHECKS_USER` and check the table is consistent.
+--source include/stop_slave.inc
+--let $applier_user = 'u1'@'localhost'
+--eval CREATE USER $applier_user;
+--eval GRANT CREATE,INSERT,DROP,REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
+--eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $applier_user
+--source include/start_slave.inc
+
+--let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE CONCAT("'", Privilege_checks_username, "'@'", Privilege_checks_hostname, "'") = "$applier_user"`
+--let $assert_text = Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER = $applier_user
+--let $assert_cond = $channels_in_table = 1
+--source include/assert.inc
+
+# Clean up
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+--eval DROP USER $applier_user;
+--source include/rpl_end.inc

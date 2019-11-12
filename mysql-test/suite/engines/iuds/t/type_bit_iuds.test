@@ -152,6 +152,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -440,6 +441,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -728,6 +730,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -1016,6 +1019,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -1304,6 +1308,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -1592,6 +1597,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -1880,6 +1886,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -2168,6 +2175,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -2456,6 +2464,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -2744,6 +2753,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -3032,6 +3042,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -3320,6 +3331,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -3608,6 +3620,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -3896,6 +3909,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -4184,6 +4198,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -4472,6 +4487,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -4760,6 +4776,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -5048,6 +5065,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -5336,6 +5354,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -5624,6 +5643,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -5912,6 +5932,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -6200,6 +6221,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -6488,6 +6510,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -6776,6 +6799,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -7064,6 +7088,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -7352,6 +7377,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -7640,6 +7666,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -7928,6 +7955,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -8216,6 +8244,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -8504,6 +8533,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -8792,6 +8822,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -9080,6 +9111,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -9368,6 +9400,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -9656,6 +9689,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -9944,6 +9978,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -10232,6 +10267,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -10520,6 +10556,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -10808,6 +10845,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -11096,6 +11134,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -11384,6 +11423,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -11672,6 +11712,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -11960,6 +12001,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -12249,6 +12291,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -12538,6 +12581,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -12827,6 +12871,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -13116,6 +13161,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -13405,6 +13451,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -13694,6 +13741,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -13983,6 +14031,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -14272,6 +14321,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(1));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -14561,6 +14611,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(2));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -14850,6 +14901,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(4));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -15139,6 +15191,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(8));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -15428,6 +15481,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(16));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -15717,6 +15771,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(32));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########
@@ -16006,6 +16061,7 @@ SELECT hex(c1),hex(c2) FROM t5 WHERE c1 IS NOT NULL ORDER BY c1 DESC LIMIT 2 ;
 #Inserting different charachers
 CREATE TABLE t7(c1  BIT(64));
 INSERT INTO t7 VALUES('a'),('A'),('z'),('Z'),('!'),('`'),('@'),('#'),('~'),('$'),('%'),('^'),('&'),('*'),('('),(')'),('-'),('_'),('+'),('='),('1'),('9');
+--replace_regex /[^[:print:]]/#/
 --sorted_result
 SELECT * FROM t7;
 ############# UPDATE ###########

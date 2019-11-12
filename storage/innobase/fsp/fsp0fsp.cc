@@ -356,13 +356,12 @@ void xdes_set_bit(xdes_t *descr,    /*!< in: descriptor */
  the start of the extent.
  @return bit index of the bit, ULINT_UNDEFINED if not found */
 UNIV_INLINE
-page_no_t xdes_find_bit(
-    xdes_t *descr,  /*!< in: descriptor */
-    ulint bit,      /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-    ibool val,      /*!< in: desired bit value */
-    page_no_t hint, /*!< in: hint of which bit position would
-                    be desirable */
-    mtr_t *mtr)     /*!< in/out: mini-transaction */
+page_no_t xdes_find_bit(xdes_t *descr, /*!< in: descriptor */
+                        ulint bit, /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+                        ibool val, /*!< in: desired bit value */
+                        page_no_t hint, /*!< in: hint of which bit position
+                                        would be desirable */
+                        mtr_t *mtr)     /*!< in/out: mini-transaction */
 {
   page_no_t i;
 
@@ -948,8 +947,9 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
   DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure", return (false););
 
   /* Fill encryption info. */
-  if (!Encryption::fill_encryption_info(
-          space->encryption_key, space->encryption_iv, encrypt_info, false)) {
+  if (!Encryption::fill_encryption_info(space->encryption_key,
+                                        space->encryption_iv, encrypt_info,
+                                        false, true)) {
     return (false);
   }
 
@@ -1060,7 +1060,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 
     if (!Encryption::fill_encryption_info(space->encryption_key,
                                           space->encryption_iv, encryption_info,
-                                          is_boot)) {
+                                          is_boot, true)) {
       space->encryption_type = Encryption::NONE;
       memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
       memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
@@ -1130,7 +1130,7 @@ bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
     return (false);
   }
 
-  return (Encryption::decode_encryption_info(key, iv, page + offset));
+  return (Encryption::decode_encryption_info(key, iv, page + offset, true));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -1199,7 +1199,7 @@ data file.
 static UNIV_COLD
 MY_ATTRIBUTE((warn_unused_result)) bool fsp_try_extend_data_file_with_pages(
     fil_space_t *space, page_no_t page_no, fsp_header_t *header, mtr_t *mtr) {
-  DBUG_ENTER("fsp_try_extend_data_file_with_pages");
+  DBUG_TRACE;
 
   ut_ad(!fsp_is_system_tablespace(space->id));
   ut_ad(!fsp_is_global_temporary(space->id));
@@ -1216,7 +1216,7 @@ MY_ATTRIBUTE((warn_unused_result)) bool fsp_try_extend_data_file_with_pages(
   fsp_header_size_update(header, space->size, mtr);
   space->size_in_header = space->size;
 
-  DBUG_RETURN(success);
+  return success;
 }
 
 /** Try to extend the last data file of a tablespace if it is auto-extending.
@@ -1234,7 +1234,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
   const char *OUT_OF_SPACE_MSG =
       "ran out of space. Please add another file or use"
       " 'autoextend' for the last file in setting";
-  DBUG_ENTER("fsp_try_extend_data_file");
+  DBUG_TRACE;
 
   ut_d(fsp_space_modify_check(space->id, mtr));
 
@@ -1249,7 +1249,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
                                << OUT_OF_SPACE_MSG << " innodb_data_file_path.";
       srv_sys_space.set_tablespace_full_status(true);
     }
-    DBUG_RETURN(false);
+    return false;
   } else if (fsp_is_global_temporary(space->id) &&
              !srv_tmp_space.can_auto_extend_last_file()) {
     /* We print the error message only once to avoid
@@ -1262,7 +1262,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
           << " innodb_temp_data_file_path.";
       srv_tmp_space.set_tablespace_full_status(true);
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
   size = mach_read_from_4(header + FSP_SIZE);
@@ -1282,7 +1282,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
       /* Let us first extend the file to extent_size */
       if (!fsp_try_extend_data_file_with_pages(space, extent_pages - 1, header,
                                                mtr)) {
-        DBUG_RETURN(false);
+        return false;
       }
 
       size = extent_pages;
@@ -1292,11 +1292,11 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
   }
 
   if (size_increase == 0) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (!fil_space_extend(space, size + size_increase)) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   /* We ignore any fragments of a full megabyte when storing the size
@@ -1307,7 +1307,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
 
   fsp_header_size_update(header, space->size_in_header, mtr);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /** Calculate the number of pages to extend a datafile.
@@ -2221,7 +2221,7 @@ buf_block_t *fseg_create_general(
   ulint n_reserved = 0;
   ulint i;
 
-  DBUG_ENTER("fseg_create_general");
+  DBUG_TRACE;
 
   ut_ad(mtr);
   ut_ad(byte_offset + FSEG_HEADER_SIZE <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
@@ -2257,7 +2257,7 @@ buf_block_t *fseg_create_general(
 
   if (!has_done_reservation &&
       !fsp_reserve_free_extents(&n_reserved, space_id, 2, FSP_NORMAL, mtr)) {
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   space_header = fsp_get_space_header(space_id, page_size, mtr);
@@ -2326,7 +2326,7 @@ funct_exit:
     fil_space_release_free_extents(space_id, n_reserved);
   }
 
-  DBUG_RETURN(block);
+  return block;
 }
 
 /** Creates a new segment.
@@ -2360,14 +2360,33 @@ static ulint fseg_n_reserved_pages_low(
   ut_ad(inode && used && mtr);
   ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_SX_FIX));
 
-  *used = mach_read_from_4(inode + FSEG_NOT_FULL_N_USED) +
-          FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL) +
-          fseg_get_n_frag_pages(inode, mtr);
+  /* number of used segment pages in the FSEG_NOT_FULL list */
+  ulint n_used_not_full = mach_read_from_4(inode + FSEG_NOT_FULL_N_USED);
 
-  ret = fseg_get_n_frag_pages(inode, mtr) +
-        FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FREE) +
-        FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_NOT_FULL) +
-        FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL);
+  /* total number of segment pages in the FSEG_NOT_FULL list */
+  ulint n_total_not_full =
+      FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_NOT_FULL);
+
+  /* n_used can be zero only if n_total is zero. */
+  ut_ad(n_used_not_full > 0 || n_total_not_full == 0);
+  ut_ad((n_used_not_full < n_total_not_full) ||
+        ((n_used_not_full == 0) && (n_total_not_full == 0)));
+
+  /* total number of pages in FSEG_FULL list. */
+  ulint n_total_full = FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FULL);
+
+  /* total number of pages in FSEG_FREE list. */
+  ulint n_total_free = FSP_EXTENT_SIZE * flst_get_len(inode + FSEG_FREE);
+
+  /* Number of fragment pages in the segment. */
+  ulint n_frags = fseg_get_n_frag_pages(inode, mtr);
+
+  *used = n_frags + n_total_full + n_used_not_full;
+  ret = n_frags + n_total_full + n_total_free + n_total_not_full;
+
+  ut_ad(*used <= ret);
+  ut_ad((*used < ret) || ((n_used_not_full == 0) && (n_total_not_full == 0) &&
+                          (n_total_free == 0)));
 
   return (ret);
 }
@@ -2762,7 +2781,7 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
                              hint % FSP_EXTENT_SIZE, mtr);
     ut_ad(!has_done_reservation || ret_page != FIL_NULL);
     /*-----------------------------------------------------------*/
-  } else if (reserved - used > 0) {
+  } else if (used < reserved) {
     /* 5. We take any unused page from the segment
     ==============================================*/
     fil_addr_t first;
@@ -3033,7 +3052,7 @@ bool fsp_reserve_free_extents(ulint *n_reserved, space_id_t space_id,
   ulint n_free;
   ulint n_free_up;
   ulint reserve;
-  DBUG_ENTER("fsp_reserve_free_extents");
+  DBUG_TRACE;
 
   *n_reserved = n_ext;
 
@@ -3051,8 +3070,7 @@ try_again:
   if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
     /* Use different rules for small single-table tablespaces */
     *n_reserved = 0;
-    DBUG_RETURN(
-        fsp_reserve_free_pages(space, space_header, size, mtr, n_pages));
+    return fsp_reserve_free_pages(space, space_header, size, mtr, n_pages);
   }
 
   n_free_list_ext = flst_get_len(space_header + FSP_FREE);
@@ -3108,14 +3126,14 @@ try_again:
   }
 
   if (fil_space_reserve_free_extents(space_id, n_free, n_ext)) {
-    DBUG_RETURN(true);
+    return true;
   }
 try_to_extend:
   if (fsp_try_extend_data_file(space, space_header, mtr)) {
     goto try_again;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /** Calculate how many KiB of new data we will be able to insert to the
@@ -3218,6 +3236,7 @@ static void fseg_mark_page_used(
     flst_remove(seg_inode + FSEG_NOT_FULL, descr + XDES_FLST_NODE, mtr);
     flst_add_last(seg_inode + FSEG_FULL, descr + XDES_FLST_NODE, mtr);
 
+    ut_ad(not_full_n_used >= FSP_EXTENT_SIZE);
     mlog_write_ulint(seg_inode + FSEG_NOT_FULL_N_USED,
                      not_full_n_used - FSP_EXTENT_SIZE, MLOG_4BYTES, mtr);
   }
@@ -3239,7 +3258,7 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
   ib_id_t descr_id;
   ib_id_t seg_id;
   ulint i;
-  DBUG_ENTER("fseg_free_page_low");
+  DBUG_TRACE;
 
   ut_ad(seg_inode != NULL);
   ut_ad(mtr != NULL);
@@ -3291,7 +3310,7 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
 
       fsp_free_page(page_id, page_size, mtr);
 
-      DBUG_VOID_RETURN;
+      return;
     case XDES_FREE:
     case XDES_NOT_INITED:
       ut_error;
@@ -3344,6 +3363,8 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
   the segment.*/
   if (state == XDES_FSEG_FRAG && n_used == XDES_FRAG_N_USED) {
     n_used = 0;
+
+    ut_ad(not_full_n_used >= XDES_FRAG_N_USED);
     not_full_n_used -= XDES_FRAG_N_USED;
   }
 
@@ -3355,8 +3376,6 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
     flst_remove(seg_inode + FSEG_NOT_FULL, descr + XDES_FLST_NODE, mtr);
     fsp_free_extent(page_id, page_size, mtr);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Frees a single page of a segment. */
@@ -3367,7 +3386,7 @@ void fseg_free_page(fseg_header_t *seg_header, /*!< in: segment header */
                                 the adaptive hash index */
                     mtr_t *mtr) /*!< in/out: mini-transaction */
 {
-  DBUG_ENTER("fseg_free_page");
+  DBUG_TRACE;
   fseg_inode_t *seg_inode;
   buf_block_t *iblock;
 
@@ -3387,8 +3406,6 @@ void fseg_free_page(fseg_header_t *seg_header, /*!< in: segment header */
   fseg_free_page_low(seg_inode, page_id, page_size, ahi, mtr);
 
   ut_d(buf_page_set_file_page_was_freed(page_id));
-
-  DBUG_VOID_RETURN;
 }
 
 /** Checks if a single page of a segment is free.
@@ -3518,7 +3535,7 @@ ibool fseg_free_step(
   space_id_t space_id;
   page_no_t header_page;
 
-  DBUG_ENTER("fseg_free_step");
+  DBUG_TRACE;
 
   space_id = page_get_space_id(page_align(header));
   header_page = page_get_page_no(page_align(header));
@@ -3543,7 +3560,7 @@ ibool fseg_free_step(
   if (inode == NULL) {
     ib::info(ER_IB_MSG_424)
         << "Double free of inode from " << page_id_t(space_id, header_page);
-    DBUG_RETURN(TRUE);
+    return TRUE;
   }
 
   fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
@@ -3555,7 +3572,7 @@ ibool fseg_free_step(
 
     fseg_free_extent(inode, space_id, page_size, page, ahi, mtr);
 
-    DBUG_RETURN(FALSE);
+    return FALSE;
   }
 
   /* Free a frag page */
@@ -3565,7 +3582,7 @@ ibool fseg_free_step(
     /* Freeing completed: free the segment inode */
     fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-    DBUG_RETURN(TRUE);
+    return TRUE;
   }
 
   fseg_free_page_low(
@@ -3578,10 +3595,10 @@ ibool fseg_free_step(
     /* Freeing completed: free the segment inode */
     fsp_free_seg_inode(space_id, page_size, inode, mtr);
 
-    DBUG_RETURN(TRUE);
+    return TRUE;
   }
 
-  DBUG_RETURN(FALSE);
+  return FALSE;
 }
 
 /** Frees part of a segment. Differs from fseg_free_step because this function
@@ -3952,10 +3969,11 @@ dberr_t fsp_has_sdi(space_id_t space_id) {
 #endif /* UNIV_DEBUG */
 
   fil_space_release(space);
-  DBUG_EXECUTE_IF("ib_sdi", if (!FSP_FLAGS_HAS_SDI(space->flags)) {
-    ib::warn(ER_IB_MSG_429)
-        << "SDI doesn't exist in tablespace: " << space->name;
-  });
+  DBUG_EXECUTE_IF(
+      "ib_sdi", if (!FSP_FLAGS_HAS_SDI(space->flags)) {
+        ib::warn(ER_IB_MSG_429)
+            << "SDI doesn't exist in tablespace: " << space->name;
+      });
   return (FSP_FLAGS_HAS_SDI(space->flags) ? DB_SUCCESS : DB_ERROR);
 }
 
@@ -4048,6 +4066,11 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
                     buf_LRU_flush_or_remove_pages(
                         space_id, BUF_REMOVE_FLUSH_WRITE, 0, false););
   }
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  /* Confirm that all pages are covered. */
+  ut_ad(progress_monitor.is_completed());
+#endif
 }
 
 /** Encrypt/Unencrypt a tablespace.
@@ -4071,7 +4094,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
   memset(encryption_info, 0, ENCRYPTION_INFO_SIZE);
   mtr_t mtr;
 
-  DBUG_ENTER("fsp_encrypt_or_unencrypt_tablespace");
+  DBUG_TRACE;
 
   /* Page 0 is never encrypted */
   ut_ad(from_page != 0);
@@ -4093,7 +4116,8 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       Encryption::random_value(iv);
 
       /* Prepare encrypted encryption information to be written on page 0. */
-      if (!Encryption::fill_encryption_info(key, iv, encryption_info, false)) {
+      if (!Encryption::fill_encryption_info(key, iv, encryption_info, false,
+                                            true)) {
         ut_ad(0);
       }
 
@@ -4287,7 +4311,7 @@ all_done:
                   log_buffer_flush_to_disk();
                   DBUG_SUICIDE(););
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 #ifdef UNIV_DEBUG
@@ -4513,7 +4537,6 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
 /* Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace() {
-  my_thread_init();
 #ifdef UNIV_PFS_THREAD
   THD *thd =
       create_thd(false, true, true, srv_ts_alter_encrypt_thread_key.m_value);
@@ -4523,11 +4546,6 @@ void fsp_init_resume_alter_encrypt_tablespace() {
 
   resume_alter_encrypt_tablespace(thd);
 
-  srv_threads.m_ts_alter_encrypt_thread_active = false;
-
   destroy_thd(thd);
-  my_thread_end();
-
-  return;
 }
 #endif /* !UNIV_HOTBACKUP */

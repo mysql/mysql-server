@@ -1,28 +1,26 @@
-//>>built
 define("dojox/data/GoogleFeedStore", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/declare", "dojox/data/GoogleSearchStore"], 
   function(dojo, lang, declare, GoogleSearchStore) {
 
 dojo.experimental("dojox.data.GoogleFeedStore");
 
-/*===== var Search = dojox.data.GoogleSearchStore =====*/
 var Search = GoogleSearchStore.Search;
 
 return declare("dojox.data.GoogleFeedStore", Search,{
 	// summary:
-	//	A data store for retrieving RSS and Atom feeds from Google. The
-	//  feeds can come from any source, which is specified in the "url"
-	//  parameter of the query passed to the "fetch" function.
-	//	The following attributes are supported on each item:
-	//		<ul>
-	//			<li>title - The feed entry title.</li>
-	//			<li>link - The URL for the HTML version of the feed entry.</li>
-	//			<li>content - The full content of the blog post, in HTML format</li>
-	//			<li>summary - A snippet of information about the feed entry, in plain text</li>
-	//			<li>published - The string date on which the entry was published.
-	//				You can parse the date with new Date(store.getValue(item, "published")</li>
-	//			<li>categories - An array of string tags for the entry</li>
-	//		</ul>
-	//	The query accepts one parameter: url - The URL of the feed to retrieve
+	//		A data store for retrieving RSS and Atom feeds from Google. The
+	//		feeds can come from any source, which is specified in the "url"
+	//		parameter of the query passed to the "fetch" function.
+	//		The following attributes are supported on each item:
+	//
+	//		- title - The feed entry title. 
+	//		- link - The URL for the HTML version of the feed entry. 
+	//		- content - The full content of the blog post, in HTML format 
+	//		- summary - A snippet of information about the feed entry, in plain text 
+	//		- published - The string date on which the entry was published.
+	//					You can parse the date with new Date(store.getValue(item, "published") 
+	//		- categories - An array of string tags for the entry 
+	//
+	//		The query accepts one parameter: url - The URL of the feed to retrieve
 	_type: "",
 	_googleUrl: "http://ajax.googleapis.com/ajax/services/feed/load",
 	_attributes: ["title", "link", "author", "published",

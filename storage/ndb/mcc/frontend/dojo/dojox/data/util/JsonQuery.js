@@ -1,6 +1,6 @@
 //>>built
 define("dojox/data/util/JsonQuery",["dojo","dojox"],function(_1,_2){
-_1.declare("dojox.data.util.JsonQuery",null,{useFullIdInQueries:false,_toJsonQuery:function(_3,_4){
+return _1.declare("dojox.data.util.JsonQuery",null,{useFullIdInQueries:false,_toJsonQuery:function(_3,_4){
 var _5=true;
 var _6=this;
 function _7(_8,_9){
@@ -76,5 +76,4 @@ return _16.query;
 }
 return this.inherited(arguments);
 }});
-return _2.data.util.JsonQuery;
 });

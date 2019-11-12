@@ -1,37 +1,11 @@
 var common_stmts = require("common_statements");
+var gr_memberships = require("gr_memberships");
 
-var group_replication_membership_online = [
-  [
-    "199b2df7-4aaf-11e6-bb16-28b2bd168d07",
-    "127.0.0.1",
-    process.env.PRIMARY_PORT,
-    "ONLINE",
-  ],
-  [
-    "199bb88e-4aaf-11e6-babe-28b2bd168d07",
-    "127.0.0.1",
-    process.env.SECONDARY_1_PORT,
-    "ONLINE",
-  ],
-  [
-    "1999b9fb-4aaf-11e6-bb54-28b2bd168d07",
-    "127.0.0.1",
-    process.env.SECONDARY_2_PORT,
-    "ONLINE",
-  ],
-  [
-    "19ab72fc-4aaf-11e6-bb51-28b2bd168d07",
-    "127.0.0.1",
-    process.env.SECONDARY_3_PORT,
-    "ONLINE",
-  ],
-  [
-    "19b33846-4aaf-11e6-ba81-28b2bd168d07",
-    "127.0.0.1",
-    process.env.SECONDARY_4_PORT,
-    "ONLINE",
-  ]
-];
+var gr_node_host = "127.0.0.1";
+
+// all nodes are online
+var group_replication_membership_online =
+  gr_memberships.nodes(gr_node_host, mysqld.global.gr_nodes);
 
 // create a partioned membership result
 //
@@ -54,8 +28,6 @@ var options = {
   group_replication_membership: group_replication_membership_online,
 };
 options.group_replication_primary_member = options.group_replication_membership[0][0];
-
-
 
 var router_select_metadata =
   common_stmts.get("router_select_metadata", options);

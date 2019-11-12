@@ -50,36 +50,53 @@ drop table t;
 
 SET DEBUG_SYNC = reset;
 
+# The following testcase has never worked properly
+--disable_testcase BUG#29702764
 --echo #
 --echo # Bug #28510599 THE MYSQL.IBD FILE SIZE IS CONSTANTLY GROWING.
 --echo #
 
 CREATE TABLE t1 (f1 INT AUTO_INCREMENT PRIMARY KEY, f2 LONGBLOB)
 ENGINE=InnoDB;
-let $i=100;
+let $i=10;
 SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME='test/t1');
-#Set t1.ibd file size threshold, which is used to compare
+#Set t1.ibd file size limit to 5 MB, which is used to compare
 #t1.ibd file size after multiple insert-delete operations
-SET @fs_limit = (@fs * 16);
+SET @fs_limit = 5 * 1024 * 1024;
 --echo # Execute multiple insert-delete operations.
 --disable_query_log
+set global innodb_purge_stop_now = 1;
+--let insert_count = 0
 while ($i)
 {
-#Inserting 15764 char data to blob field so whole data will not be
-#accomodated within first lob page (for 16K or below page size)
-  INSERT INTO t1 (f2) VALUES (repeat('x', 15764));
-  DELETE FROM t1;
+  let $j=10;
+  while ($j)
+  {
+    #Inserting 65764 char data to blob field so whole data will not be
+    #accomodated within first lob page.
+    INSERT INTO t1 (f2) VALUES (repeat('x', 65764));
+    DELETE FROM t1;
+    dec $j;
+    inc $insert_count;
+  }
   dec $i;
+  # Purge after every 10 records
+  --source suite/innodb/include/force_purge.inc
+  --disable_query_log
+  set global innodb_purge_stop_now = 1;
 }
+set global innodb_purge_run_now=1;
 --enable_query_log
+--echo Insert/Delete count = $insert_count
 SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME='test/t1');
 if (`SELECT (@fs > @fs_limit) > 0`)
 {
    --echo Error: The test/t1.ibd file size is growing.
+   SELECT @fs;
 }
-if (`SELECT (@fs < @fs_limit) > 0`)
+if (`SELECT (@fs <= @fs_limit) > 0`)
 {
    --echo The test/t1.ibd file size is not growing.
 }
@@ -87,34 +104,50 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (f1 INT AUTO_INCREMENT PRIMARY KEY, f2 LONGBLOB)
 ENGINE=InnoDB;
-#Inserting 15764 char data to blob field so whole data will not be
-#accomodated within first lob page (for 16K or below page size)
-INSERT INTO t1 (f2) VALUES (repeat('x', 15764));
-let $i=50;
+#Inserting 65764 char data to blob field so whole data will not be
+#accomodated within first lob page.
+INSERT INTO t1 (f2) VALUES (repeat('x', 65764));
+let $i=20;
 SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME='test/t1');
-#Set t1.ibd file size threshold, which is used to compare
+#Set t1.ibd file size limit to 10 MB, which is used to compare
 #t1.ibd file size after multiple update operations
-SET @fs_limit = (@fs * 16);
+SET @fs_limit = 10 * 1024 * 1024;
 --echo # Execute multiple update operations.
 --disable_query_log
+--let update_count = 0
+set global innodb_purge_stop_now = 1;
 while ($i)
 {
-#Updating 16764 and 15764 char data to blob field so whole data will not be
-#accomodated within first lob page (for 16K or below page size)
-  UPDATE t1 set f2 = repeat('y', 16764) where f1=1;
-  UPDATE t1 set f2 = repeat('x', 15764) where f1=1;
+  let $j=5;
+  while ($j)
+  {
+    #Updating 66764 and 65764 char data to blob field so whole data will not be
+    #accomodated within first lob page.
+    UPDATE t1 set f2 = repeat('y', 66764) where f1=1;
+    UPDATE t1 set f2 = repeat('x', 65764) where f1=1;
+    dec $j;
+    inc $update_count;
+  }
   dec $i;
+  # Purge after every 5 records
+  --source suite/innodb/include/force_purge.inc
+  --disable_query_log
+  set global innodb_purge_stop_now = 1;
 }
+set global innodb_purge_run_now=1;
 --enable_query_log
+--echo Update count = $update_count
 SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME='test/t1');
 if (`SELECT (@fs > @fs_limit) > 0`)
 {
    --echo Error: The test/t1.ibd file size is growing.
+   SELECT @fs;
 }
-if (`SELECT (@fs < @fs_limit) > 0`)
+if (`SELECT (@fs <= @fs_limit) > 0`)
 {
    --echo The test/t1.ibd file size is not growing.
 }
 DROP TABLE t1;
+--enable_testcase

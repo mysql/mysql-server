@@ -161,6 +161,8 @@ ERROR HY000: Default value expression of column 'b' contains a disallowed functi
 # Test func as DEFAULT with different order
 #
 CREATE TABLE t1 (f1 JSON DEFAULT (JSON_OBJECT("key", id)), id int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(id) VALUES(1), (2), (3);
 SELECT * FROM t1;
 f1	id
@@ -240,7 +242,7 @@ ERROR HY000: DEFAULT function cannot be used with default value expressions
 SELECT DEFAULT(c) from t3;
 ERROR HY000: DEFAULT function cannot be used with default value expressions
 ALTER TABLE t3 DROP COLUMN d;
-ERROR HY000: Column 'd' of table 't3' has a default value expression dependency and cannot be dropped.
+ERROR HY000: Column 'd' of table 't3' has a default value expression dependency and cannot be dropped or renamed.
 DROP TABLE t3;
 #
 # Test UTF8
@@ -934,14 +936,12 @@ DROP TABLE t2;
 # BUG#28040739 - WL#9418: INCORRECT ERROR THROWN WITH RENAME COLUMN
 #
 CREATE TABLE t1 ( i INT, j INT DEFAULT( i * i) ) ;
-# "Unknown column 'i' in 'default value expression'"
 ALTER TABLE t1 RENAME COLUMN i to i1 ;
-ERROR 42S22: Unknown column 'i' in 'default value expression'
+ERROR HY000: Column 'i' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT, j INT DEFAULT (i * i) ) ;
-# "Unknown column 'i' in 'default value expression'"
 ALTER TABLE t1 CHANGE COLUMN i i1 DOUBLE DEFAULT ( 4 * 4 ) ;
-ERROR 42S22: Unknown column 'i' in 'default value expression'
+ERROR HY000: Column 'i' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
 DROP TABLE t1;
 create table t1 (i int, j double DEFAULT (i * i) ) ;
 # "Unknown column 'z' in 'default value expression'"
@@ -998,3 +998,39 @@ ERROR 22001: Data too long for column 'b' at row 1
 SELECT * FROM t1;
 a	b
 DROP TABLE t1;
+#
+# Bug#29480711   DEBUG ASSERTION IN CREATE TABLE WITH ENUM OR SET
+# COLUMNS HAVING EXPLICIT DEFAULT
+#
+CREATE TABLE t1 (truth ENUM('y','n') DEFAULT('y'));
+CREATE TABLE t2 (truths SET('y','n') DEFAULT('y'));
+INSERT INTO t1 values (DEFAULT);
+INSERT INTO t1 values ();
+INSERT INTO t2 values (DEFAULT);
+INSERT INTO t2 values ();
+SELECT * from t1;
+truth
+y
+y
+SELECT * from t2;
+truths
+y
+y
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (truth ENUM('y','n') DEFAULT('s'));
+CREATE TABLE t2 (truths SET('y','n') DEFAULT('p'));
+INSERT INTO t1 values (DEFAULT);
+ERROR 01000: Data truncated for column 'truth' at row 1
+INSERT INTO t1 values ();
+ERROR 01000: Data truncated for column 'truth' at row 1
+INSERT INTO t2 values (DEFAULT);
+ERROR 01000: Data truncated for column 'truths' at row 1
+INSERT INTO t2 values ();
+ERROR 01000: Data truncated for column 'truths' at row 1
+SELECT * from t1;
+truth
+SELECT * from t2;
+truths
+DROP TABLE t1;
+DROP TABLE t2;

@@ -1,48 +1,43 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/drawing/library/greek"],function(_1,_2,_3){
-_2.provide("dojox.drawing.util.typeset");
-_2.require("dojox.drawing.library.greek");
-(function(){
-var _4=_3.drawing.library.greek;
-_3.drawing.util.typeset={convertHTML:function(_5){
-if(_5){
-return _5.replace(/&([^;]+);/g,function(_6,_7){
-if(_7.charAt(0)=="#"){
-var _8=+_7.substr(1);
-if(!isNaN(_8)){
-return String.fromCharCode(_8);
+define("dojox/drawing/util/typeset",["../library/greek"],function(_1){
+return {convertHTML:function(_2){
+if(_2){
+return _2.replace(/&([^;]+);/g,function(_3,_4){
+if(_4.charAt(0)=="#"){
+var _5=+_4.substr(1);
+if(!isNaN(_5)){
+return String.fromCharCode(_5);
 }
 }else{
-if(_4[_7]){
-return String.fromCharCode(_4[_7]);
+if(_1[_4]){
+return String.fromCharCode(_1[_4]);
 }
 }
-console.warn("no HTML conversion for ",_6);
-return _6;
+console.warn("no HTML conversion for ",_3);
+return _3;
 });
 }
-return _5;
-},convertLaTeX:function(_9){
-if(_9){
-return _9.replace(/\\([a-zA-Z]+)/g,function(_a,_b){
-if(_4[_b]){
-return String.fromCharCode(_4[_b]);
+return _2;
+},convertLaTeX:function(_6){
+if(_6){
+return _6.replace(/\\([a-zA-Z]+)/g,function(_7,_8){
+if(_1[_8]){
+return String.fromCharCode(_1[_8]);
 }else{
-if(_b.substr(0,2)=="mu"){
-return String.fromCharCode(_4["mu"])+_b.substr(2);
+if(_8.substr(0,2)=="mu"){
+return String.fromCharCode(_1["mu"])+_8.substr(2);
 }else{
-if(_b.substr(0,5)=="theta"){
-return String.fromCharCode(_4["theta"])+_b.substr(5);
+if(_8.substr(0,5)=="theta"){
+return String.fromCharCode(_1["theta"])+_8.substr(5);
 }else{
-if(_b.substr(0,3)=="phi"){
-return String.fromCharCode(_4["phi"])+_b.substr(3);
+if(_8.substr(0,3)=="phi"){
+return String.fromCharCode(_1["phi"])+_8.substr(3);
 }
 }
 }
 }
 }).replace(/\\\\/g,"\\");
 }
-return _9;
+return _6;
 }};
-})();
 });

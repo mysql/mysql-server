@@ -20,7 +20,7 @@ if (!$wait_for_status_variable)
   die wait_for_status_variables.inc requires 'wait_for_status_variable' variable to be set;
 }
 
-if (!$wait_for_status_value)
+if (`SELECT LENGTH("$wait_for_status_value") = 0`)
 {
   if ($wait_for_status_value != "0")
   {

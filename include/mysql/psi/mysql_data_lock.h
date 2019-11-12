@@ -68,6 +68,6 @@ void inline_mysql_data_lock_unregister(
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 }
 
-  /** @} (end of group psi_api_data_lock) */
+/** @} (end of group psi_api_data_lock) */
 
 #endif

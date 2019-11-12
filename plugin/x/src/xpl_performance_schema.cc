@@ -141,9 +141,9 @@ static PSI_socket_info all_x_sockets[] = {
 
 #endif  // HAVE_PSI_SOCKET_INTERFACE
 
-PSI_memory_key KEY_memory_x_objects;
-PSI_memory_key KEY_memory_x_recv_buffer;
-PSI_memory_key KEY_memory_x_send_buffer;
+PSI_memory_key KEY_memory_x_objects = PSI_NOT_INSTRUMENTED;
+PSI_memory_key KEY_memory_x_recv_buffer = PSI_NOT_INSTRUMENTED;
+PSI_memory_key KEY_memory_x_send_buffer = PSI_NOT_INSTRUMENTED;
 
 static PSI_memory_info all_x_memory[] = {
     {&KEY_memory_x_objects, "objects", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
@@ -173,6 +173,5 @@ void xpl_init_performance_schema() {
                         static_cast<int>(array_elements(all_x_sockets)));
   mysql_memory_register(category, all_x_memory,
                         static_cast<int>(array_elements(all_x_memory)));
-
 #endif  // HAVE_PSI_INTERFACE
 }

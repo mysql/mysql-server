@@ -1,12 +1,12 @@
-//>>built
 // wrapped by build app
-define("dojox/editor/plugins/ResizeTableColumn", ["dijit","dojo","dojox","dojo/require!dojox/editor/plugins/TablePlugins"], function(dijit,dojo,dojox){
+define("dojox/editor/plugins/ResizeTableColumn", ["dojo","dijit","dojox","dojo/require!dojox/editor/plugins/TablePlugins"], function(dojo,dijit,dojox){
 dojo.provide("dojox.editor.plugins.ResizeTableColumn");
 
 dojo.require("dojox.editor.plugins.TablePlugins");
 
 dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.TablePlugins, {
-		
+
+			
 		constructor: function(){
 			// summary:
 			//		Because IE will ignore the cursor style when the editMode of the document is on,
@@ -34,7 +34,7 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 			// should be called when it is loaded.
 			editor.onLoadDeferred.addCallback(dojo.hitch(this, function(){
 				this.connect(this.editor.editNode, "onmousemove", function(evt){
-					var editorCoords = dojo.coords(editor.iframe, true),
+					var editorCoords = dojo.position(editor.iframe, true),
 						ex = editorCoords.x, cx = evt.clientX;
 					
 					if(!this.isDragging){
@@ -44,7 +44,7 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 						var obj = evt.target;
 						
 						if(obj.tagName && obj.tagName.toLowerCase() == "td"){
-							var objCoords = dojo.coords(obj), ox = objCoords.x, ow = objCoords.w,
+							var objCoords = dojo.position(obj), ox = objCoords.x, ow = objCoords.w,
 								pos = ex + objCoords.x - 2;
 							if(this.isLtr){
 								ruleDiv.headerColumn = true;
@@ -76,13 +76,13 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 					}else{
 						// Begin to drag&drop
 						var activeCell = this.activeCell,
-							activeCoords = dojo.coords(activeCell), ax = activeCoords.x, aw = activeCoords.w,
+							activeCoords = dojo.position(activeCell), ax = activeCoords.x, aw = activeCoords.w,
 							sibling = nextSibling(activeCell), siblingCoords, sx, sw,
-							containerCoords = dojo.coords(getTable(activeCell).parentNode),
+							containerCoords = dojo.position(getTable(activeCell).parentNode),
 							ctx = containerCoords.x, ctw = containerCoords.w;
 						
 						if(sibling){
-							siblingCoords = dojo.coords(sibling);
+							siblingCoords = dojo.position(sibling);
 							sx = siblingCoords.x;
 							sw = siblingCoords.w;
 						}
@@ -100,8 +100,8 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 				});
 				
 				this.connect(ruleDiv, "onmousedown", function(evt){
-					var editorCoords = dojo.coords(editor.iframe, true),
-						tableCoords = dojo.coords(getTable(this.activeCell));
+					var editorCoords = dojo.position(editor.iframe, true),
+						tableCoords = dojo.position(getTable(this.activeCell));
 					
 					this.isDragging = true;
 					dojo.style(editor.editNode, {cursor: "col-resize"});
@@ -116,10 +116,10 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 				
 				this.connect(ruleDiv, "onmouseup", function(evt){
 					var activeCell = this.activeCell,
-						activeCoords = dojo.coords(activeCell), aw = activeCoords.w, ax = activeCoords.x,
+						activeCoords = dojo.position(activeCell), aw = activeCoords.w, ax = activeCoords.x,
 						sibling = nextSibling(activeCell), siblingCoords, sx, sw,
-						editorCoords = dojo.coords(editor.iframe), ex = editorCoords.x,
-						table = getTable(activeCell), tableCoords = dojo.coords(table),
+						editorCoords = dojo.position(editor.iframe), ex = editorCoords.x,
+						table = getTable(activeCell), tableCoords = dojo.position(table),
 						cs = table.getAttribute("cellspacing"),
 						cx = evt.clientX,
 						headerCell = getHeaderCell(activeCell), headerSibling,
@@ -128,7 +128,7 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 					if(!cs || (cs = parseInt(cs, 10)) < 0){ cs = 2; }
 					
 					if(sibling){
-						siblingCoords = dojo.coords(sibling);
+						siblingCoords = dojo.position(sibling);
 						sx = siblingCoords.x;
 						sw = siblingCoords.w;
 						headerSibling = getHeaderCell(sibling);
@@ -164,9 +164,9 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 					}
 					// Do it again to consolidate the result,
 					// because maybe the cell cannot be so narrow as you specified.
-					marginBox(headerCell, dojo.coords(activeCell).w);
+					marginBox(headerCell, dojo.position(activeCell).w);
 					if(sibling){
-						marginBox(headerSibling, dojo.coords(sibling).w);
+						marginBox(headerSibling, dojo.position(sibling).w);
 					}
 					dojo.style(editor.editNode, {cursor: "auto"});
 					dojo.style(ruleDiv, {display: "none", top: "-10000px"});
@@ -183,7 +183,7 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 				// b:
 				//		Indicate if the cell node is compared with the first coluln
 				//		or the last column
-				var nodes = dojo.withGlobal(editor.window, "query", dojo, ["> td", n.parentNode]);
+				var nodes = dojo.query("> td", n.parentNode);
 				switch(b){
 					case "first":
 						return nodes[0] == n;
@@ -224,10 +224,10 @@ dojo.declare("dojox.editor.plugins.ResizeTableColumn",	dojox.editor.plugins.Tabl
 				//		column with the node t.
 				// t:
 				//		The node of the table cell
-				var tds = dojo.withGlobal(editor.window, "query", dojo, ["td", getTable(t)]),
+				var tds = dojo.query("td", getTable(t)),
 					len = tds.length;
 				for(var i = 0; i < len; i++){
-					if(dojo.coords(tds[i]).x == dojo.coords(t).x){
+					if(dojo.position(tds[i]).x == dojo.position(t).x){
 						return tds[i];
 					}
 				}
@@ -291,4 +291,5 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 		}
 	}
 });
+
 });

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -198,8 +198,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   tmp_value.set_charset(&my_charset_bin);
   // The tmp_value is supposed to always stores a {uint32,double} pair,
   // and it uses a char tmp_buffer[16] array data member.
-  uchar *result_buf =
-      const_cast<uchar *>(pointer_cast<const uchar *>(tmp_value.ptr()));
+  uchar *result_buf = pointer_cast<uchar *>(tmp_value.ptr());
 
   // Although the result of this item node is never persisted, we still have to
   // use portable endianess access otherwise unaligned access will crash
@@ -348,15 +347,15 @@ Item_func_buffer::Item_func_buffer(const POS &pos, PT_item_list *ilist)
 namespace bgst = boost::geometry::strategy::buffer;
 
 String *Item_func_buffer::val_str(String *str_value_arg) {
-  DBUG_ENTER("Item_func_buffer::val_str");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed == 1);
   String strat_bufs[side_strategy + 1];
 
   String *obj = args[0]->val_str(&tmp_value);
-  if (!obj || args[0]->null_value) DBUG_RETURN(error_str());
+  if (!obj || args[0]->null_value) return error_str();
 
   double dist = args[1]->val_real();
-  if (args[1]->null_value) DBUG_RETURN(error_str());
+  if (args[1]->null_value) return error_str();
 
   Geometry_buffer buffer;
   Geometry *geom;
@@ -375,8 +374,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
   num_strats = arg_count - 2;
   for (uint i = 2; i < arg_count; i++) {
     strategies[i - 2] = args[i]->val_str(&strat_bufs[i]);
-    if (strategies[i - 2] == NULL || args[i]->null_value)
-      DBUG_RETURN(error_str());
+    if (strategies[i - 2] == NULL || args[i]->null_value) return error_str();
   }
 
   /*
@@ -385,7 +383,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
    */
   if (!(geom = Geometry::construct(&buffer, obj))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   if (geom->get_srid() != 0) {
@@ -395,11 +393,11 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(geom->get_srid(), &srs))
-      DBUG_RETURN(error_str());  // Error has already been flagged.
+      return error_str();  // Error has already been flagged.
 
     if (srs == nullptr) {
       my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
 
     if (!srs->is_cartesian()) {
@@ -408,7 +406,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
       parameters.append(", ...");
       my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
                parameters.c_str());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
   }
 
@@ -446,7 +444,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
 
     if (!(geom = Geometry::construct(&buffer, obj))) {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
   }
 
@@ -458,7 +456,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
   if (std::abs(dist) <= GIS_ZERO || is_empty_geocollection(geom)) {
     null_value = 0;
     str_result = obj;
-    DBUG_RETURN(str_result);
+    return str_result;
   }
 
   Geometry::wkbType gtype = geom->get_type();
@@ -466,11 +464,11 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
       gtype != Geometry::wkb_multipolygon &&
       gtype != Geometry::wkb_geometrycollection) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   set_strategies();
-  if (null_value) DBUG_RETURN(error_str());
+  if (null_value) return error_str();
 
   /*
     str_result will refer to BG object's memory directly if any, here we remove
@@ -505,7 +503,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
                       ss3.strategy != invalid_strategy)) ||
         (is_ls && ss3.strategy != invalid_strategy)) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
 
     bgst::distance_symmetric<double> dist_strat(dist);
@@ -578,16 +576,16 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
           break;
       }
 
-      if (ret) DBUG_RETURN(error_str());
+      if (ret) return error_str();
 
       if (result.size() == 0) {
         str_result->reserve(GEOM_HEADER_SIZE + 4);
         write_geometry_header(str_result, geom->get_srid(),
                               Geometry::wkb_geometrycollection, 0);
-        DBUG_RETURN(str_result);
+        return str_result;
       } else if (post_fix_result(&bg_resbuf_mgr, result, str_result))
-        DBUG_RETURN(error_str());
-      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str_result->ptr()));
+        return error_str();
+      bg_resbuf_mgr.set_result_buffer(str_result->ptr());
     } else {
       // Compute buffer for a geometry collection(GC). We first compute buffer
       // for each component of the GC, and put the buffer polygons into another
@@ -606,7 +604,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
         if (dist < 0 && gtype != Geometry::wkb_multipolygon &&
             gtype != Geometry::wkb_polygon) {
           my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-          DBUG_RETURN(error_str());
+          return error_str();
         }
 
         bool ret = false;
@@ -648,10 +646,10 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
             break;
         }
 
-        if (ret) DBUG_RETURN(error_str());
+        if (ret) return error_str();
         if (res.size() == 0) continue;
         if (post_fix_result(&bg_resbuf_mgr, res, &temp_result))
-          DBUG_RETURN(error_str());
+          return error_str();
 
         // A single component's buffer is computed above and stored here.
         bggc2.fill(&res);
@@ -673,6 +671,6 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
     handle_gis_exception("st_buffer");
   }
 
-  if (had_except) DBUG_RETURN(error_str());
-  DBUG_RETURN(str_result);
+  if (had_except) return error_str();
+  return str_result;
 }

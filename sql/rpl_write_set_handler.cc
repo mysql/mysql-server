@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ static void check_foreign_key(
     THD *thd,
 #endif
     std::map<std::string, std::string> &foreign_key_map) {
-  DBUG_ENTER("check_foreign_key");
+  DBUG_TRACE;
   DBUG_ASSERT(!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS));
   DBUG_ASSERT(table->s->foreign_keys > 0);
 
@@ -163,8 +163,6 @@ static void check_foreign_key(
     for (uint c = 0; c < fk[i].columns; c++)
       foreign_key_map[fk[i].column_name[c].str] = pke_prefix;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 #ifndef DBUG_OFF
@@ -403,10 +401,16 @@ static void debug_check_for_write_sets(
 
   @param[in] pke - the string to be hashed.
   @param[in] thd - THD object pointing to current thread.
+  @param[in] write_sets - list of all write sets
 */
 
-static void generate_hash_pke(const std::string &pke, THD *thd) {
-  DBUG_ENTER("generate_hash_pke");
+static void generate_hash_pke(const std::string &pke, THD *thd
+#ifndef DBUG_OFF
+                              ,
+                              std::vector<std::string> &write_sets
+#endif
+) {
+  DBUG_TRACE;
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
               HASH_ALGORITHM_OFF);
 
@@ -414,12 +418,69 @@ static void generate_hash_pke(const std::string &pke, THD *thd) {
       thd->variables.transaction_write_set_extraction, pke.c_str(), pke.size());
   thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash);
 
-  DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
-  DBUG_VOID_RETURN;
+#ifndef DBUG_OFF
+  write_sets.push_back(pke);
+#endif
+  DBUG_PRINT("info", ("pke: %s; hash: %" PRIu64, pke.c_str(), hash));
+}
+
+/**
+  Function to generate set of hashes for a multi-valued key
+
+  @param[in] prefix_pke  - stringified non-multi-valued prefix of key
+  @param[in] thd         - THD object pointing to current thread.
+  @param[in] fld         - multi-valued keypart's field
+  @param[in] write_sets  - DEBUG ONLY, vector of added PKEs
+*/
+
+static void generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
+                                 Field *fld
+#ifndef DBUG_OFF
+                                 ,
+                                 std::vector<std::string> &write_sets
+#endif
+) {
+  Field_typed_array *field = down_cast<Field_typed_array *>(fld);
+  uint length = field->data_length();
+  const char *ptr = field->get_binary();
+
+  json_binary::Value v(json_binary::parse_binary(ptr, length));
+  uint elems = v.element_count();
+  if (!elems || field->is_null()) {
+    // Multi-valued key part doesn't contain actual values.
+    // No need to hash prefix pke as it won't cause conflicts.
+  } else {
+    const CHARSET_INFO *cs = field->charset();
+    int max_length = cs->coll->strnxfrmlen(cs, field->key_length());
+    std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
+    DBUG_ASSERT(v.type() == json_binary::Value::ARRAY);
+
+    for (uint i = 0; i < elems; i++) {
+      std::string pke = prefix_pke;
+      json_binary::Value elt = v.element(i);
+      Json_wrapper wr(elt);
+      /*
+        convert to normalized string and store so that it can be
+        sorted using binary comparison functions like memcmp.
+      */
+      size_t length = field->make_sort_key(&wr, pk_value.get(), max_length);
+      pk_value[length] = 0;
+
+      pke.append(pointer_cast<char *>(pk_value.get()), length);
+      pke.append(HASH_STRING_SEPARATOR);
+      pke.append(std::to_string(length));
+      generate_hash_pke(pke, thd
+#ifndef DBUG_OFF
+                        ,
+                        write_sets
+#endif
+      );
+    }
+  }
 }
 
 void add_pke(TABLE *table, THD *thd, uchar *record) {
-  DBUG_ENTER("add_pke");
+  DBUG_TRACE;
   DBUG_ASSERT(record == table->record[0] || record == table->record[1]);
   /*
     The next section extracts the primary key equivalent of the rows that are
@@ -460,7 +521,7 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
   bool writeset_hashes_added = false;
 
   if (table->key_info && (table->s->primary_key < MAX_KEY)) {
-    my_ptrdiff_t ptrdiff = record - table->record[0];
+    ptrdiff_t ptrdiff = record - table->record[0];
     std::string pke_schema_table;
     pke_schema_table.reserve(NAME_LEN * 3);
     pke_schema_table.append(HASH_STRING_SEPARATOR);
@@ -489,6 +550,8 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
       pke.append(pke_schema_table);
 
       uint i = 0;
+      // Whether the key has mv keypart which have to be handled separately
+      Field *mv_field = nullptr;
       for (/*empty*/; i < table->key_info[key_number].user_defined_key_parts;
            i++) {
         /* Get the primary key field index. */
@@ -497,6 +560,13 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
 
         /* Ignore if the value is NULL. */
         if (field->is_null(ptrdiff)) break;
+        if (field->is_array()) {
+          // There can be only one multi-valued key part per key
+          DBUG_ASSERT(!mv_field);
+          mv_field = field;
+          // Skip it for now
+          continue;
+        }
 
         /*
           Update the field offset as we may be working on table->record[0]
@@ -529,12 +599,24 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
             insert into t1 values (2, 2, NULL); => this is allowed.
       */
       if (i == table->key_info[key_number].user_defined_key_parts) {
-        generate_hash_pke(pke, thd);
-        writeset_hashes_added = true;
-
+        if (mv_field) {
+          mv_field->move_field_offset(ptrdiff);
+          generate_mv_hash_pke(pke, thd, mv_field
 #ifndef DBUG_OFF
-        write_sets.push_back(pke);
+                               ,
+                               write_sets
 #endif
+          );
+          mv_field->move_field_offset(-ptrdiff);
+        } else {
+          generate_hash_pke(pke, thd
+#ifndef DBUG_OFF
+                            ,
+                            write_sets
+#endif
+          );
+        }
+        writeset_hashes_added = true;
       } else {
         /* This is impossible to happen in case of primary keys */
         DBUG_ASSERT(key_number != 0);
@@ -600,12 +682,13 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
             pke_prefix.append(HASH_STRING_SEPARATOR);
             pke_prefix.append(std::to_string(length));
 
-            generate_hash_pke(pke_prefix, thd);
-            writeset_hashes_added = true;
-
+            generate_hash_pke(pke_prefix, thd
 #ifndef DBUG_OFF
-            write_sets.push_back(pke_prefix);
+                              ,
+                              write_sets
 #endif
+            );
+            writeset_hashes_added = true;
           }
           /* revert the field object record offset back */
           field->move_field_offset(-ptrdiff);
@@ -622,6 +705,4 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
   }
 
   if (!writeset_hashes_added) ws_ctx->set_has_missing_keys();
-
-  DBUG_VOID_RETURN;
 }

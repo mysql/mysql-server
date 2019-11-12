@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,8 +220,8 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 
   /* create temporary args list and pass it to handle_options */
   init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
-  if (!(ptr = (char *)alloc_root(&alloc,
-                                 sizeof(alloc) + (*argc + 1) * sizeof(char *))))
+  if (!(ptr =
+            (char *)alloc.Alloc(sizeof(alloc) + (*argc + 1) * sizeof(char *))))
     return 1;
   memset(ptr, 0, (sizeof(char *) * (*argc + 1)));
   res = (char **)(ptr);
@@ -309,7 +309,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
     } else {
       /* persist default value */
       setvar->var->save_default(thd, setvar);
-      setvar->var->saved_value_to_string(thd, setvar, (char *)str.ptr());
+      setvar->var->saved_value_to_string(thd, setvar, str.ptr());
       utf8_str.copy(str.ptr(), str.length(), str.charset(), tocs, &dummy_err);
       var_value = utf8_str.c_ptr_quick();
     }
@@ -619,7 +619,8 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   vector<st_persist_var> *persist_variables = NULL;
   bool result = 0, new_thd = 0;
   const std::vector<std::string> priv_list = {
-      "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN"};
+      "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN",
+      "AUDIT_ADMIN"};
   const ulong static_priv_list = (SUPER_ACL | FILE_ACL);
   Sctx_ptr<Security_context> ctx;
   /*
@@ -660,6 +661,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     thd->set_security_context(ctx.get());
     thd->real_id = my_thread_self();
     new_thd = 1;
+    alloc_and_copy_thd_dynamic_variables(thd, !plugin_options);
   }
   /*
    locking is not needed as this function is executed only during server
@@ -686,8 +688,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     sys_var *sysvar = NULL;
     string var_name = iter->key;
 
-    LEX_STRING base_name = {const_cast<char *>(var_name.c_str()),
-                            var_name.length()};
+    LEX_CSTRING base_name = {var_name.c_str(), var_name.length()};
 
     sysvar = intern_find_sys_var(var_name.c_str(), var_name.length());
     if (sysvar == NULL) {
@@ -740,7 +741,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
         goto err;
     }
 
-    var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, &base_name, res);
+    var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, base_name, res);
     tmp_var_list.push_back(var);
 
     if (sql_set_variables(thd, &tmp_var_list, false)) {
@@ -775,15 +776,48 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     if (it != m_persist_variables.end()) {
       /* persisted variable is found */
       sysvar->set_source(enum_variable_source::PERSISTED);
-      sysvar->set_source_name(m_persist_filename.c_str());
+#ifndef DBUG_OFF
+      bool source_truncated =
+#endif
+          sysvar->set_source_name(m_persist_filename.c_str());
+      DBUG_ASSERT(!source_truncated);
       sysvar->set_timestamp(it->timestamp);
-      sysvar->set_user(it->user.c_str());
-      sysvar->set_host(it->host.c_str());
+      if (sysvar->set_user(it->user.c_str()))
+        LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_USER_TRUNCATED,
+               var_name.c_str());
+      if (sysvar->set_host(it->host.c_str()))
+        LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_HOST_TRUNCATED,
+               var_name.c_str());
     }
   }
 
 err:
   if (new_thd) {
+    /* check for warnings in DA */
+    Diagnostics_area::Sql_condition_iterator it =
+        thd->get_stmt_da()->sql_conditions();
+    const Sql_condition *err = nullptr;
+    while ((err = it++)) {
+      if (err->severity() == Sql_condition::SL_WARNING) {
+        // Rewrite error number for "deprecated" to error log equivalent.
+        if (err->mysql_errno() == ER_WARN_DEPRECATED_SYNTAX)
+          LogEvent()
+              .type(LOG_TYPE_ERROR)
+              .prio(WARNING_LEVEL)
+              .errcode(ER_SERVER_WARN_DEPRECATED)
+              .verbatim(err->message_text());
+        /*
+          Any other (unexpected) message is wrapped to preserve its
+          original error number, and to explain the issue.
+          This is a failsafe; "expected", that is to say, common
+          messages should be handled explicitly like the deprecation
+          warning above.
+        */
+        else
+          LogErr(WARNING_LEVEL, ER_ERROR_INFO_FROM_DA, err->mysql_errno(),
+                 err->message_text());
+      }
+    }
     thd->free_items();
     lex_end(thd->lex);
     thd->release_resources();

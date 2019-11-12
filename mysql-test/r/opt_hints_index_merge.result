@@ -523,6 +523,9 @@ PRIMARY KEY (f2),
 KEY f1 (f1),
 KEY f3 (f3)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('b',1,NULL), ('h',5,NULL);
 SELECT /*+ INDEX_MERGE(t1 f3, primary) */ f2 FROM t1
 WHERE f1 = 'o' AND f2 = f3 AND f3 <= 4;

@@ -35,6 +35,8 @@ HEX(c1)
 2
 DROP TABLE t5;
 CREATE TABLE t5(c1 FLOAT(5,2) PRIMARY KEY) ENGINE = <default_engine>;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (95.95), (-10.10), (1), (0);
 SELECT c1 FROM t5 ORDER BY c1;
 c1
@@ -244,6 +246,8 @@ c1
 3372036854775808
 DROP TABLE t5;
 CREATE TABLE t5(c1 DOUBLE(5,2) PRIMARY KEY) ENGINE = <default_engine>;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t5 VALUES (95.95), (11.11),(5),(-908.92);
 SELECT c1 FROM t5 ORDER BY c1;
 c1

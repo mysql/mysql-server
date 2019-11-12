@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-		previousMessage: "Алдыңғы нұсқалар",
-		nextMessage: "Басқа нұсқалар"
-})
-//end v1.x content
-);
-
+define("dijit/form/nls/kk/ComboBox",({previousMessage:"Алдыңғы нұсқалар",nextMessage:"Басқа нұсқалар"}));

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/fx/flip", [
 	"dojo/_base/kernel",
 	"dojo/_base/html",
@@ -28,40 +27,45 @@ define("dojox/fx/flip", [
 	;
 
 	fxExt.flip = function(/*Object*/ args){
-		// summary: Animate a node flipping following a specific direction
-		//
+		// summary:
+		//		Animate a node flipping following a specific direction
 		// description:
 		//		Returns an animation that will flip the
 		//		node around a central axis:
+		//
 		//		if args.dir is "left" or "right" --> y axis
+		//
 		//		if args.dir is "top" or "bottom" --> x axis
 		//
-		//		This effect is obtained using a border distorsion applied to a helper node.
+		//		This effect is obtained using a border distortion applied to a helper node.
 		//
 		//		The user can specify three background colors for the helper node:
-		//		darkColor: the darkest color reached during the animation
-		//		lightColor: the brightest color
-		//		endColor: the final backgroundColor for the node
 		//
-		//		depth: Float
-		//			 0 <= depth <= 1 overrides the computed "depth"
-		//			(0: min distorsion, 1: max distorsion)
+		//		- darkColor: the darkest color reached during the animation
+		//		- lightColor: the brightest color
+		//		- endColor: the final backgroundColor for the node
 		//
-		//		whichAnim: String
-		//			"first"			 : the first half animation
-		//			"last"			 : the second one
-		//			"both" (default) : both
+		//		Other arguments:
 		//
-		//		axis: String
-		//			"center" (default)	  : the node is flipped around his center
-		//			"shortside"			  : the node is flipped around his "short" (in perspective) side
-		//			"longside"			  : the node is flipped around his "long" (in perspective) side
-		//			"cube"				  : the node flips around the central axis of the cube
+		//		- depth: Float
+		//			 - 0 <= depth <= 1 overrides the computed "depth"
+		//			- (0: min distortion, 1: max distortion)
 		//
-		//		shift: Integer
+		//		- whichAnim: String
+		//			- "first"			 : the first half animation
+		//			- "last"			 : the second one
+		//			- "both" (default) : both
+		//
+		//		- axis: String
+		//			- "center" (default)	  : the node is flipped around his center
+		//			- "shortside"			  : the node is flipped around his "short" (in perspective) side
+		//			- "longside"			  : the node is flipped around his "long" (in perspective) side
+		//			- "cube"				  : the node flips around the central axis of the cube
+		//
+		//		- shift: Integer:
 		//			node translation, perpendicular to the rotation axis
 		//
-		//	example:
+		// example:
 		//	|	var anim = dojox.fx.flip({
 		//	|		node: dojo.byId("nodeId"),
 		//	|		dir: "top",
@@ -238,14 +242,13 @@ define("dojox/fx/flip", [
 	}
 
 	fxExt.flipCube = function(/*Object*/ args){
-		// summary: An extension to `dojox.fx.flip` providing a more 3d-like rotation
-		//
+		// summary:
+		//		An extension to `dojox.fx.flip` providing a more 3d-like rotation
 		// description:
 		//		An extension to `dojox.fx.flip` providing a more 3d-like rotation.
 		//		Behaves the same as `dojox.fx.flip`, using the same attributes and
 		//		other standard `dojo.Animation` properties.
-		//
-		//	example:
+		// example:
 		//		See `dojox.fx.flip`
 		var anims = [],
 			mb = domGeom.getMarginBox(args.node),
@@ -328,14 +331,13 @@ define("dojox/fx/flip", [
 	};
 	
 	fxExt.flipPage = function(/*Object*/ args){
-		// summary: An extension to `dojox.fx.flip` providing a page flip like animation.
-		//
+		// summary:
+		//		An extension to `dojox.fx.flip` providing a page flip like animation.
 		// description:
 		//		An extension to `dojox.fx.flip` providing a page flip effect.
 		//		Behaves the same as `dojox.fx.flip`, using the same attributes and
 		//		other standard `dojo.Animation` properties.
-		//
-		//	example:
+		// example:
 		//		See `dojox.fx.flip`
 		var n = args.node,
 			coords = htmlUtil.coords(n, true),
@@ -412,19 +414,17 @@ define("dojox/fx/flip", [
 	
 	
 	fxExt.flipGrid = function(/*Object*/ args){
-		// summary: An extension to `dojox.fx.flip` providing a decomposition in rows * cols flipping elements
-		//
+		// summary:
+		//		An extension to `dojox.fx.flip` providing a decomposition in rows * cols flipping elements
 		// description:
 		//		An extension to `dojox.fx.flip` providing a page flip effect.
 		//		Behaves the same as `dojox.fx.flip`, using the same attributes and
 		//		other standard `dojo.Animation` properties and
 		//
-		//		cols: Integer columns
-		//		rows: Integer rows
-		//
-		//		duration: the single flip duration
-		//
-		//	example:
+		//		- cols: Integer columns
+		//		- rows: Integer rows
+		//		- duration: the single flip duration
+		// example:
 		//		See `dojox.fx.flip`
 		var rows = args.rows || 4,
 			cols = args.cols || 4,

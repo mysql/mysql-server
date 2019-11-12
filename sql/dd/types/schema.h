@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ class Function;
 class Procedure;
 class Void_key;
 class Time_zone;
+class Properties;
 
 namespace tables {
 class Schemata;
@@ -109,6 +110,16 @@ class Schema : virtual public Entity_object {
 
   virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // se_private_data.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Properties &se_private_data() const = 0;
+
+  virtual Properties &se_private_data() = 0;
+  virtual bool set_se_private_data(const String_type &se_private_data_raw) = 0;
+  virtual bool set_se_private_data(const Properties &se_private_data) = 0;
 
  public:
   virtual Event *create_event(THD *thd) const = 0;

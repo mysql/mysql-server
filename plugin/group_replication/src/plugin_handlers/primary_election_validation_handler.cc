@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,8 +104,8 @@ Primary_election_validation_handler::validate_primary_uuid(std::string &uuid) {
 Primary_election_validation_handler::enum_primary_validation_result
 Primary_election_validation_handler::validate_primary_version(
     std::string &uuid, std::string &error_msg) {
-  uint32 primary_major_version = 0;
-  uint32 lowest_major_version = 9999;
+  Member_version primary_member_version(0x000000);
+  Member_version lowest_member_version(0xFFFFFF);
 
   /*
     Check if any of the members is below the needed version
@@ -122,23 +122,33 @@ Primary_election_validation_handler::validate_primary_version(
     }
 
     if (member_info.second->get_uuid() == uuid) {
-      primary_major_version =
-          member_info.second->get_member_version().get_major_version();
+      primary_member_version = member_info.second->get_member_version();
     }
-    if (member_info.second->get_member_version().get_major_version() <
-        lowest_major_version) {
-      lowest_major_version =
-          member_info.second->get_member_version().get_major_version();
+    if (member_info.second->get_member_version() < lowest_member_version) {
+      lowest_member_version = member_info.second->get_member_version();
     }
   }
 
+  /* If all group members are above 8.0.17, consider patch level.
+     Else only major version is considered for back-portability. */
   if (!uuid.empty()) {
-    if (lowest_major_version < primary_major_version) {
-      error_msg.assign(
-          "The appointed primary member has a major version that is"
-          " greater than the one of some of the members"
-          " in the group.");  /* purecov: inspected */
-      return INVALID_PRIMARY; /* purecov: inspected */
+    if (lowest_member_version >= PRIMARY_ELECTION_PATCH_CONSIDERATION) {
+      if (lowest_member_version < primary_member_version) {
+        error_msg.assign(
+            "The appointed primary member has a version that is"
+            " greater than the one of some of the members"
+            " in the group.");
+        return INVALID_PRIMARY;
+      }
+    } else {
+      if (lowest_member_version.get_major_version() <
+          primary_member_version.get_major_version()) {
+        error_msg.assign(
+            "The appointed primary member has a major version that is"
+            " greater than the one of some of the members"
+            " in the group.");
+        return INVALID_PRIMARY;
+      }
     }
   }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,8 @@ class IsolateOrd
   friend bool printISOLATE_ORD(FILE *, const Uint32*, Uint32, Uint16);
 
 private:
-  STATIC_CONST(SignalLength = 3 + NdbNodeBitmask::Size);
+  STATIC_CONST(SignalLengthWithBitmask48 = 3 + NdbNodeBitmask48::Size);
+  STATIC_CONST(SignalLength = 3);
 
   enum IsolateStep 
   {
@@ -61,8 +62,10 @@ private:
   Uint32 senderRef;
   Uint32 isolateStep;
   Uint32 delayMillis;           /* 0 = immediate */
-  Uint32 nodesToIsolate[NdbNodeBitmask::Size];
 
+  // First two words may be part of signal to old nodes.
+  // For new nodes bitmask is sent in section instead.
+  Uint32 nodesToIsolate[NdbNodeBitmask::Size];
 };
   
 #undef JAM_FILE_ID

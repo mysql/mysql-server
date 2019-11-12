@@ -28,10 +28,11 @@
 %{
 #include "my_inttypes.h"
 #include "sql/derror.h"
+#include "sql/parse_tree_helpers.h"  // check_resource_group_name_len
 #include "sql/parse_tree_hints.h"
+#include "sql/parser_yystype.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/sql_lex.h"
 #include "sql/sql_lex_hints.h"
 
 #define NEW_PTN new (thd->mem_root)
@@ -90,6 +91,8 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token SET_VAR_HINT
 %token SKIP_SCAN_HINT
 %token NO_SKIP_SCAN_HINT
+%token HASH_JOIN_HINT
+%token NO_HASH_JOIN_HINT
 
 /* Other tokens */
 
@@ -460,6 +463,10 @@ table_level_hint_type_on:
           {
             $$= BNL_HINT_ENUM;
           }
+        | HASH_JOIN_HINT
+          {
+            $$= HASH_JOIN_HINT_ENUM;
+          }
         | DERIVED_MERGE_HINT
           {
             $$= DERIVED_MERGE_HINT_ENUM;
@@ -474,6 +481,10 @@ table_level_hint_type_off:
         | NO_BNL_HINT
           {
             $$= BNL_HINT_ENUM;
+          }
+        | NO_HASH_JOIN_HINT
+          {
+            $$= HASH_JOIN_HINT_ENUM;
           }
         | NO_DERIVED_MERGE_HINT
           {
@@ -540,6 +551,9 @@ set_var_hint:
 resource_group_hint:
          RESOURCE_GROUP_HINT '(' HINT_ARG_IDENT ')'
          {
+           if (check_resource_group_name_len($3, Sql_condition::SL_WARNING))
+             YYERROR;
+
            $$= NEW_PTN PT_hint_resource_group($3);
            if ($$ == nullptr)
               YYABORT; // OOM

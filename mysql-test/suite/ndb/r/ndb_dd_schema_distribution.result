@@ -117,3 +117,43 @@ Level	Code	Message
 Warning	1296	Got error 723 'No such table existed' from NDB
 Warning	1296	Failed to get logfile group 'lg1' from NDB
 Error	1529	Failed to drop LOGFILE GROUP
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 16M
+ENGINE NDB;
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+)
+ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+INSERT INTO t1 VALUES(1,'Omar Comin');
+CREATE TABLE t2 (
+a int PRIMARY KEY,
+b varchar(255)
+)
+ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+INSERT INTO t2 VALUES(2,'Harry - yer a wizard');
+MySQL Server 2
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+MySQL Server 1
+SELECT * FROM t1;
+a	b
+1	Omar Comin
+SELECT * FROM t2;
+a	b
+2	Harry - yer a wizard
+DROP TABLE t1,t2;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;

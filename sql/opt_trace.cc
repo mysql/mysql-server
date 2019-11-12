@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -852,7 +852,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
                               bool end_marker_arg, bool one_line_arg,
                               long offset_arg, long limit_arg,
                               ulong max_mem_size_arg, ulonglong features_arg) {
-  DBUG_ENTER("Opt_trace_context::start");
+  DBUG_TRACE;
 
   if (I_S_disabled != 0) {
     DBUG_PRINT("opt", ("opt_trace is already disabled"));
@@ -874,7 +874,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
         It's thus important that it's optimized: we can short-cut the creation
         and starting of Opt_trace_stmt, unlike in the next "else" branch.
       */
-      DBUG_RETURN(false);
+      return false;
     }
     /*
       If we come here, there is a parent statement which has a trace.
@@ -894,7 +894,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
 
   if (pimpl == NULL &&
       ((pimpl = new_nothrow_w_my_error<Opt_trace_context_impl>()) == NULL))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     If tracing is disabled by some caller, then don't change settings (offset
@@ -965,11 +965,11 @@ bool Opt_trace_context::start(bool support_I_S_arg,
     purge_stmts(false);
     // This purge may have freed space, compute max allowed size:
     stmt->set_allowed_mem_size(allowed_mem_size_for_current_stmt());
-    DBUG_RETURN(false);
+    return false;
   err:
     delete stmt;
     DBUG_ASSERT(0);
-    DBUG_RETURN(true);
+    return true;
   }
 }
 
@@ -1021,10 +1021,10 @@ bool Opt_trace_context::support_I_S() const {
 }
 
 void Opt_trace_context::purge_stmts(bool purge_all) {
-  DBUG_ENTER("Opt_trace_context::purge_stmts");
+  DBUG_TRACE;
   if (!purge_all && pimpl->offset >= 0) {
     /* This case is managed in @c Opt_trace_context::start() */
-    DBUG_VOID_RETURN;
+    return;
   }
   long idx;
   static_assert(
@@ -1102,7 +1102,6 @@ void Opt_trace_context::purge_stmts(bool purge_all) {
       delete stmt;
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 size_t Opt_trace_context::allowed_mem_size_for_current_stmt() const {

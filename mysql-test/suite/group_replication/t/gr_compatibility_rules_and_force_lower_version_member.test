@@ -34,7 +34,6 @@
 --connection server1
 --echo server1
 
-SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 
 --source include/start_and_bootstrap_group_replication.inc
@@ -60,8 +59,8 @@ SET session sql_log_bin=0;
 call mtr.add_suppression("Member version is incompatible with the group");
 SET session sql_log_bin=1;
 
-SET @debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error';
+SET @debug2_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error_higher';
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 
@@ -76,7 +75,7 @@ START GROUP_REPLICATION;
 --echo # able to join the group.
 --echo #
 
-SET @@GLOBAL.DEBUG= @debug_save;
+SET @@GLOBAL.DEBUG= @debug2_save;
 
 # restart the server so we have clean compatibility settings.
 --let $allow_rpl_inited=1

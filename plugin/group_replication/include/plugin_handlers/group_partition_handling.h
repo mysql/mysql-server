@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,11 +112,6 @@ class Group_partition_handling {
   bool is_partition_handling_terminated();
 
  private:
-  /**
-    Internal method that contains the logic for leaving and killing transactions
-  */
-  void kill_transactions_and_leave();
-
   // Group_partition_handling variables
 
   /** Is member in partition */

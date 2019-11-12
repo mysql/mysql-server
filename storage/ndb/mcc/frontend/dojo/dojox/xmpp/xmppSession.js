@@ -1,26 +1,26 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/xmpp/TransportSession,dojox/xmpp/RosterService,dojox/xmpp/PresenceService,dojox/xmpp/UserService,dojox/xmpp/ChatService,dojox/xmpp/sasl"],function(_1,_2,_3){
-_2.provide("dojox.xmpp.xmppSession");
-_2.require("dojox.xmpp.TransportSession");
-_2.require("dojox.xmpp.RosterService");
-_2.require("dojox.xmpp.PresenceService");
-_2.require("dojox.xmpp.UserService");
-_2.require("dojox.xmpp.ChatService");
-_2.require("dojox.xmpp.sasl");
+define("dojox/xmpp/xmppSession",["dojo","dijit","dojox","dojo/require!dojox/xmpp/TransportSession,dojox/xmpp/RosterService,dojox/xmpp/PresenceService,dojox/xmpp/UserService,dojox/xmpp/ChatService,dojox/xmpp/sasl"],function(_1,_2,_3){
+_1.provide("dojox.xmpp.xmppSession");
+_1.require("dojox.xmpp.TransportSession");
+_1.require("dojox.xmpp.RosterService");
+_1.require("dojox.xmpp.PresenceService");
+_1.require("dojox.xmpp.UserService");
+_1.require("dojox.xmpp.ChatService");
+_1.require("dojox.xmpp.sasl");
 _3.xmpp.xmpp={STREAM_NS:"http://etherx.jabber.org/streams",CLIENT_NS:"jabber:client",STANZA_NS:"urn:ietf:params:xml:ns:xmpp-stanzas",SASL_NS:"urn:ietf:params:xml:ns:xmpp-sasl",BIND_NS:"urn:ietf:params:xml:ns:xmpp-bind",SESSION_NS:"urn:ietf:params:xml:ns:xmpp-session",BODY_NS:"http://jabber.org/protocol/httpbind",XHTML_BODY_NS:"http://www.w3.org/1999/xhtml",XHTML_IM_NS:"http://jabber.org/protocol/xhtml-im",INACTIVE:"Inactive",CONNECTED:"Connected",ACTIVE:"Active",TERMINATE:"Terminate",LOGIN_FAILURE:"LoginFailure",INVALID_ID:-1,NO_ID:0,error:{BAD_REQUEST:"bad-request",CONFLICT:"conflict",FEATURE_NOT_IMPLEMENTED:"feature-not-implemented",FORBIDDEN:"forbidden",GONE:"gone",INTERNAL_SERVER_ERROR:"internal-server-error",ITEM_NOT_FOUND:"item-not-found",ID_MALFORMED:"jid-malformed",NOT_ACCEPTABLE:"not-acceptable",NOT_ALLOWED:"not-allowed",NOT_AUTHORIZED:"not-authorized",SERVICE_UNAVAILABLE:"service-unavailable",SUBSCRIPTION_REQUIRED:"subscription-required",UNEXPECTED_REQUEST:"unexpected-request"}};
 _3.xmpp.xmppSession=function(_4){
 this.roster=[];
 this.chatRegister=[];
 this._iqId=Math.round(Math.random()*1000000000);
-if(_4&&_2.isObject(_4)){
-_2.mixin(this,_4);
+if(_4&&_1.isObject(_4)){
+_1.mixin(this,_4);
 }
 this.session=new _3.xmpp.TransportSession(_4);
-_2.connect(this.session,"onReady",this,"onTransportReady");
-_2.connect(this.session,"onTerminate",this,"onTransportTerminate");
-_2.connect(this.session,"onProcessProtocolResponse",this,"processProtocolResponse");
+_1.connect(this.session,"onReady",this,"onTransportReady");
+_1.connect(this.session,"onTerminate",this,"onTransportTerminate");
+_1.connect(this.session,"onProcessProtocolResponse",this,"processProtocolResponse");
 };
-_2.extend(_3.xmpp.xmppSession,{roster:[],chatRegister:[],_iqId:0,open:function(_5,_6,_7){
+_1.extend(_3.xmpp.xmppSession,{roster:[],chatRegister:[],_iqId:0,open:function(_5,_6,_7){
 if(!_5){
 throw new Error("User id cannot be null");
 }else{
@@ -259,7 +259,7 @@ _1d.groups.push(r.groups[y]);
 this.roster.splice(x,1);
 _1c=_3.xmpp.roster.REMOVED;
 }else{
-_1e=_2.clone(r);
+_1e=_1.clone(r);
 var _1f=n.getAttribute("name");
 if(_1f){
 this.roster[x].name=_1f;
@@ -323,7 +323,7 @@ case "status":
 case "show":
 p[n.nodeName]=n.firstChild.nodeValue;
 break;
-case "status":
+case "priority":
 p.priority=parseInt(n.firstChild.nodeValue);
 break;
 case "x":

@@ -79,18 +79,18 @@ json_table(
 jpath_i int path '$.a'
                 default '33' on empty
 default '66' on error,
-jpath_r real(10,2) path '$.a'
+jpath_r real path '$.a'
                 default '33.3' on empty
 default '77.7' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,
 jexst int exists path '$.b')
 ) as tt;
 id	jpath_i	jpath_r	jsn_path	jexst
-1	3	3.00	"3"	0
-2	2	2.00	2	0
-3	33	33.30	{"x": 33}	1
+1	3	3	"3"	0
+2	2	2	2	0
+3	33	33.3	{"x": 33}	1
 4	0	0.33	0.33	0
-5	66	77.70	"asd"	0
+5	66	77.7	"asd"	0
 Warnings:
 Warning	3156	Invalid JSON value for CAST to INTEGER from column jpath_i at row 1
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column jpath_r at row 1
@@ -101,7 +101,7 @@ json_table(
 jpath_i int path '$.a'
                 default '33' on empty
 default '66' on error,
-jpath_r real(10,2) path '$.a'
+jpath_r real path '$.a'
                 default '33.3' on empty
 default '77.7' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,
@@ -712,12 +712,12 @@ id	id	jid	val
 1	1	1	1
 1	1	2	3
 1	1	3	5
-2	1	1	2
-2	1	2	4
-2	1	3	6
 1	2	1	1
 1	2	2	3
 1	2	3	5
+2	1	1	2
+2	1	2	4
+2	1	3	6
 2	2	1	2
 2	2	2	4
 2	2	3	6
@@ -913,7 +913,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
 SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
@@ -926,7 +926,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1o	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1o`.`id` AS `id`,`test`.`t1o`.`jc` AS `jc`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join `test`.`t1` `t1o` on((`test`.`t1o`.`id` = `test`.`t1`.`id`)) left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1o`.`id` AS `id`,`test`.`t1o`.`jc` AS `jc`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join `test`.`t1` `t1o` on((`test`.`t1o`.`id` = `test`.`t1`.`id`)) left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
@@ -974,7 +974,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	jt	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.id	2	100.00	Table function: json_table; Using temporary; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id int path '$')) `jt` on((`jt`.`id` = `test`.`t1`.`id`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id int path '$')) `jt` on((`jt`.`id` = `test`.`t1`.`id`)) where true
 SELECT * FROM t1 
 LEFT JOIN
 JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id
@@ -1523,7 +1523,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	innr1	NULL	index_subquery	<auto_key0>	<auto_key0>	43	func	4	100.00	Table function: json_table; Using temporary; Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`col_varchar_key`) in innr1 on <auto_key0> checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`col_varchar_key`) = `innr1`.`col_varchar_key`) or isnull(`innr1`.`col_varchar_key`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`innr1`.`col_varchar_key`), true))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`col_varchar_key`) in innr1 on <auto_key0> checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`col_varchar_key`) = `innr1`.`col_varchar_key`) or (`innr1`.`col_varchar_key` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`innr1`.`col_varchar_key`), true))) is false)
 SELECT * FROM t1 WHERE col_varchar_key IN (
 SELECT col_varchar_key FROM JSON_TABLE(
 '[{"col_key": 1},{"col_key": 2}]', "$[*]" COLUMNS
@@ -1568,40 +1568,40 @@ SELECT * FROM t1 as jj1,
 JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
 id	f1	id	f1
 1	{"1": 1}	1	{"1": 1}
-2	{"1": 2}	1	{"1": 1}
-3	{"1": 3}	1	{"1": 1}
-4	{"1": 4}	1	{"1": 1}
-5	{"1": 5}	1	{"1": 1}
-6	{"1": 6}	1	{"1": 1}
 1	{"1": 1}	2	{"1": 2}
-2	{"1": 2}	2	{"1": 2}
-3	{"1": 3}	2	{"1": 2}
-4	{"1": 4}	2	{"1": 2}
-5	{"1": 5}	2	{"1": 2}
-6	{"1": 6}	2	{"1": 2}
 1	{"1": 1}	3	{"1": 3}
-2	{"1": 2}	3	{"1": 3}
-3	{"1": 3}	3	{"1": 3}
-4	{"1": 4}	3	{"1": 3}
-5	{"1": 5}	3	{"1": 3}
-6	{"1": 6}	3	{"1": 3}
 1	{"1": 1}	4	{"1": 4}
-2	{"1": 2}	4	{"1": 4}
-3	{"1": 3}	4	{"1": 4}
-4	{"1": 4}	4	{"1": 4}
-5	{"1": 5}	4	{"1": 4}
-6	{"1": 6}	4	{"1": 4}
 1	{"1": 1}	5	{"1": 5}
-2	{"1": 2}	5	{"1": 5}
-3	{"1": 3}	5	{"1": 5}
-4	{"1": 4}	5	{"1": 5}
-5	{"1": 5}	5	{"1": 5}
-6	{"1": 6}	5	{"1": 5}
 1	{"1": 1}	6	{"1": 6}
+2	{"1": 2}	1	{"1": 1}
+2	{"1": 2}	2	{"1": 2}
+2	{"1": 2}	3	{"1": 3}
+2	{"1": 2}	4	{"1": 4}
+2	{"1": 2}	5	{"1": 5}
 2	{"1": 2}	6	{"1": 6}
+3	{"1": 3}	1	{"1": 1}
+3	{"1": 3}	2	{"1": 2}
+3	{"1": 3}	3	{"1": 3}
+3	{"1": 3}	4	{"1": 4}
+3	{"1": 3}	5	{"1": 5}
 3	{"1": 3}	6	{"1": 6}
+4	{"1": 4}	1	{"1": 1}
+4	{"1": 4}	2	{"1": 2}
+4	{"1": 4}	3	{"1": 3}
+4	{"1": 4}	4	{"1": 4}
+4	{"1": 4}	5	{"1": 5}
 4	{"1": 4}	6	{"1": 6}
+5	{"1": 5}	1	{"1": 1}
+5	{"1": 5}	2	{"1": 2}
+5	{"1": 5}	3	{"1": 3}
+5	{"1": 5}	4	{"1": 4}
+5	{"1": 5}	5	{"1": 5}
 5	{"1": 5}	6	{"1": 6}
+6	{"1": 6}	1	{"1": 1}
+6	{"1": 6}	2	{"1": 2}
+6	{"1": 6}	3	{"1": 3}
+6	{"1": 6}	4	{"1": 4}
+6	{"1": 6}	5	{"1": 5}
 6	{"1": 6}	6	{"1": 6}
 EXPLAIN SELECT * FROM t1 as jj1,
 (SELECT tt2.* FROM t1 as tt2,
@@ -1946,3 +1946,21 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 SET @@SESSION.character_set_connection = DEFAULT;
+#
+# Bug#28851656: JSON_TABLE RETURN "UNKNOWN DATABASE ''" FROM A FUNCTION
+#
+CREATE FUNCTION FN_COUNT_ROWS(X JSON)
+RETURNS INT DETERMINISTIC
+RETURN (
+SELECT COUNT(*) FROM JSON_TABLE( X, '$[*]' COLUMNS( I INT PATH '$')) der
+);
+SELECT FN_COUNT_ROWS('[1, 2]') CNT;
+CNT
+2
+SELECT FN_COUNT_ROWS('[1, 2, 3]') CNT;
+CNT
+3
+SELECT FN_COUNT_ROWS('[1, 2, 3, 4]') CNT;
+CNT
+4
+DROP FUNCTION FN_COUNT_ROWS;

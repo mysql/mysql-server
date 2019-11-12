@@ -1,39 +1,44 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/Invocation", ["dijit","dojo","dojox","dojo/require!dojox/wire/ml/Action"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/Invocation", ["dojo","dijit","dojox","dojo/require!dojox/wire/ml/Action"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.Invocation");
 
 dojo.require("dojox.wire.ml.Action");
 
 dojo.declare("dojox.wire.ml.Invocation", dojox.wire.ml.Action, {
-	//	summary:
+	// summary:
 	//		A widget to invoke a method or publish a topic
-	//	description:
+	// description:
 	//		This widget represents a controller task to invoke a method or
 	//		publish a topic when an event (a function) or a topic is issued.
-	//	object:
+
+	// object:
 	//		A scope of a method to invoke
-	//	method:
-	//		A name of a method to invoke
-	//	topic:
-	//		A name of a topic to publish
-	//	parameters:
-	//		Arguments for the method or the topic
-	//	result:
-	//		A property to store a return value of the method call
-	//	error:
-	//		A property to store an error on the method call
 	object: "",
+
+	// method:
+	//		A name of a method to invoke
 	method: "",
+
+	// topic:
+	//		A name of a topic to publish
 	topic: "",
+
+	// parameters:
+	//		Arguments for the method or the topic
 	parameters: "",
+
+	// result:
+	//		A property to store a return value of the method call
 	result: "",
+
+	// error:
+	//		A property to store an error on the method call
 	error: "",
 
 	_run: function(){
-		//	summary:
+		// summary:
 		//		Invoke a method or publish a topic
-		//	description:
+		// description:
 		//		If 'topic' is specified, the topic is published with arguments
 		//		specified to 'parameters'.
 		//		If 'method' and 'object' are specified, the method is invoked
@@ -104,13 +109,13 @@ dojo.declare("dojox.wire.ml.Invocation", dojox.wire.ml.Action, {
 	},
 
 	onComplete: function(/*anything*/result){
-		//	summary:
+		// summary:
 		//		A function called when the method or the topic publish
 		//		completed
-		//	description:
+		// description:
 		//		If 'result' attribute is specified, the result object also set
 		//		to the specified property.
-		//	result:
+		// result:
 		//		The return value of a method or undefined for a topic
 		if(this.result){
 			dojox.wire.ml._setValue(this.result, result);
@@ -121,12 +126,12 @@ dojo.declare("dojox.wire.ml.Invocation", dojox.wire.ml.Action, {
 	},
 
 	onError: function(/*anything*/error){
-		//	summary:
+		// summary:
 		//		A function called on an error occurs
-		//	description:
+		// description:
 		//		If 'error' attribute is specified, the error object also set to
 		//		the specified property.
-		//	error:
+		// error:
 		//		The exception or error occurred
 		if(this.error){
 			if(error && error.message){
@@ -137,15 +142,15 @@ dojo.declare("dojox.wire.ml.Invocation", dojox.wire.ml.Action, {
 	},
 
 	_getParameters: function(/*Array*/args){
-		//	summary:
+		// summary:
 		//		Returns arguments to a method or topic to invoke
-		//	description:
+		// description:
 		//		This method retunrs an array of arguments specified by
 		//		'parameters' attribute, a comma-separated list of IDs and
 		//		their properties in a dotted notation.
 		//		If 'parameters' are omitted, the original arguments are
 		//		used.
-		//	args:
+		// args:
 		//		Arguments to a trigger event or topic
 		if(!this.parameters){
 		 	// use arguments as is

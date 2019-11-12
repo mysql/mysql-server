@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,50 +28,54 @@
 
 namespace bootstrap {
 
-/** abstract interface to reading bootstrap commands */
+/** Abstract interface to reading bootstrap commands */
 class Command_iterator {
  public:
-  /** start processing the iterator */
-  virtual void begin(void) {}
+  typedef void (*log_function_t)(const char *message);
+
+  /**
+    start processing the iterator
+    @retval false Success
+    @retval true failure
+  */
+  virtual bool begin(void) { return false; }
 
   /**
     Get the next query string.
 
     @param[out] query return the query
-    @param[out] read_error return the read error code
-    @param[out] query_source return the source of the query
-                             (if it is from a file or a compiled one).
     @return one of the READ_BOOTSTRAP
   */
-  virtual int next(std::string &query, int *read_error, int *query_source) = 0;
+  virtual int next(std::string &query) = 0;
 
-  /** end processing the iterator */
+  virtual void report_error_details(log_function_t log) = 0;
+
+  /** End processing the iterator */
   virtual void end(void) {}
 
-  /** The current bootstrap command reader */
-  static Command_iterator *current_iterator;
-
  protected:
-  /** needed because of the virtual functions */
-  virtual ~Command_iterator() {}
+  Command_iterator() {}
+  ~Command_iterator() {}
 };
 
 /** File bootstrap command reader */
 class File_command_iterator : public Command_iterator {
  public:
-  File_command_iterator(fgets_input_t input, fgets_fn_t fgets_fn)
-      : m_input(input), m_fgets_fn(fgets_fn), is_allocated(false) {}
-  File_command_iterator(const char *file_name);
+  File_command_iterator(const char *file_name, MYSQL_FILE *input,
+                        fgets_fn_t fgets_fn)
+      : m_input(input), m_fgets_fn(fgets_fn) {
+    m_parser_state.init(file_name);
+  }
   virtual ~File_command_iterator();
 
-  int next(std::string &query, int *read_error, int *query_source);
-  void end(void);
-  bool has_file() { return m_input != 0; }
+  int next(std::string &query) override;
+
+  void report_error_details(log_function_t log) override;
 
  protected:
-  fgets_input_t m_input;
+  bootstrap_parser_state m_parser_state;
+  MYSQL_FILE *m_input;
   fgets_fn_t m_fgets_fn;
-  bool is_allocated;
 };
 
 }  // namespace bootstrap

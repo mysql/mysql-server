@@ -1,4 +1,3 @@
-//>>built
 define("dojox/charting/plot2d/_PlotEvents", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/_base/connect"], 
 	function(lang, arr, declare, hub){
 
@@ -8,21 +7,21 @@ define("dojox/charting/plot2d/_PlotEvents", ["dojo/_base/lang", "dojo/_base/arra
 			this._eventSeries = {};
 		},
 		destroy: function(){
-			//	summary:
+			// summary:
 			//		Destroy any internal elements and event handlers.
 			this.resetEvents();
 			this.inherited(arguments);
 		},
 		plotEvent: function(o){
-			//	summary:
+			// summary:
 			//		Stub function for use by specific plots.
-			//	o: Object
+			// o: Object
 			//		An object intended to represent event parameters.
 		},
 		raiseEvent: function(o){
-			//	summary:
+			// summary:
 			//		Raises events in predefined order
-			//	o: Object
+			// o: Object
 			//		An object intended to represent event parameters.
 			this.plotEvent(o);
 			var t = lang.delegate(o);
@@ -37,26 +36,26 @@ define("dojox/charting/plot2d/_PlotEvents", ["dojo/_base/lang", "dojo/_base/arra
 			}, this);
 		},
 		connect: function(object, method){
-			//	summary:
+			// summary:
 			//		Helper function to connect any object's method to our plotEvent.
-			//	object: Object
+			// object: Object
 			//		The object to connect to.
-			//	method: String|Function
+			// method: String|Function
 			//		The method to fire when our plotEvent is fired.
-			//	returns: Array
+			// returns: Array
 			//		The handle as returned from dojo.connect (see dojo.connect).
 			this.dirty = true;
 			return hub.connect(this, "plotEvent", object, method);	//	Array
 		},
 		events: function(){
-			//	summary:
+			// summary:
 			//		Find out if any event handlers have been connected to our plotEvent.
-			//	returns: Boolean
+			// returns: Boolean
 			//		A flag indicating that there are handlers attached.
 			return !!this.plotEvent.after;
 		},
 		resetEvents: function(){
-			//	summary:
+			// summary:
 			//		Reset all events attached to our plotEvent (i.e. disconnect).
 			if(this._shapeEvents.length){
 				arr.forEach(this._shapeEvents, function(item){
@@ -96,16 +95,16 @@ define("dojox/charting/plot2d/_PlotEvents", ["dojo/_base/lang", "dojo/_base/arra
 			}
 		},
 		fireEvent: function(seriesName, eventName, index, eventObject){
-			//	summary:
+			// summary:
 			//		Emulates firing an event for a given data value (specified by
 			//		an index) of a given series.
-			//	seriesName: String:
+			// seriesName: String
 			//		Series name.
-			//	eventName: String:
+			// eventName: String
 			//		Event name to emulate.
-			//	index:	Number:
+			// index: Number
 			//		Valid data value index used to raise an event.
-			//	eventObject: Object?:
+			// eventObject: Object?
 			//		Optional event object. Especially useful for synthetic events.
 			//		Default: null.
 			var s = this._eventSeries[seriesName];

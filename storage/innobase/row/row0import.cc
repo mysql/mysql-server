@@ -63,6 +63,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_aes.h"
 #include "my_dbug.h"
 
+extern bool lower_case_file_system;
+
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
 file size then it will assert. TODO: Fix this limitation of the IO functions.
@@ -3225,6 +3227,73 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
   return (DB_ERROR);
 }
 
+/** It is possible that the import is coming from the versions 8.0.14-16 where
+partition ibd/cfg/cfp names are in lower case. Rename the ibd/cfg/cfp file name
+according to the table name in the dictionary
+@param[in]	table	InnoDB table object
+@param[in]	suffix  suffix of the file */
+static void rename_disk_filename_if_necessary(dict_table_t *table,
+                                              const ib_file_suffix suffix) {
+  ut_ad(suffix == IBD || suffix == CFP || suffix == CFG);
+
+  /* Rename is required only in specific scenario */
+  if (!dict_table_is_partition(table) ||
+      !(innobase_get_lower_case_table_names() == 1) || lower_case_file_system) {
+    return;
+  }
+
+  char existing_cfp_file_path[OS_FILE_MAX_PATH];
+  char new_cfp_file_path[OS_FILE_MAX_PATH];
+  char *dict_file_path = nullptr;
+
+  os_file_type_t type;
+  bool exists = false;
+  std::string datadir_path = dict_table_get_datadir(table);
+
+  /* Get the file name from the dictionary. */
+  if (suffix != CFP) {
+    dict_file_path =
+        Fil_path::make(datadir_path, table->name.m_name, suffix, true);
+  } else {
+    srv_get_encryption_data_filename(table, existing_cfp_file_path,
+                                     sizeof(existing_cfp_file_path));
+    dict_file_path = existing_cfp_file_path;
+  }
+
+  /* If file doesn't exists, check if file exists in lower case. */
+  if (!os_file_status(dict_file_path, &exists, &type) || !exists) {
+    exists = false;
+    char *disk_file_path = nullptr;
+
+    if (suffix != CFP) {
+      char lower_case_table_name[OS_FILE_MAX_PATH];
+      strcpy(lower_case_table_name, table->name.m_name);
+      innobase_casedn_str(lower_case_table_name);
+      disk_file_path =
+          Fil_path::make(datadir_path, lower_case_table_name, suffix, true);
+    } else {
+      srv_get_encryption_data_filename(table, new_cfp_file_path,
+                                       sizeof(new_cfp_file_path), true);
+      disk_file_path = new_cfp_file_path;
+    }
+
+    /* Check and rename the file according to dictionary name */
+    if (os_file_status(disk_file_path, &exists, &type) && exists) {
+      if (!os_file_rename_func(disk_file_path, dict_file_path)) {
+        /* Rename failed . Do nothing */
+      }
+    }
+
+    if (suffix != CFP) {
+      ut_free(disk_file_path);
+    }
+  }
+
+  if (suffix != CFP) {
+    ut_free(dict_file_path);
+  }
+}
+
 /**
 Read the contents of the @<tablename@>.cfg file.
 @param[in]	table		table
@@ -3243,6 +3312,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dd_get_meta_data_filename(table, table_def, name, sizeof(name));
 
   FILE *file = fopen(name, "rb");
+
+  if (file == nullptr) {
+    rename_disk_filename_if_necessary(table, CFG);
+    file = fopen(name, "rb");
+  }
 
   if (file == NULL) {
     char msg[BUFSIZ];
@@ -3272,10 +3346,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 @param[in]	table		table
 @param[in]	file		file to read from
 @param[in]	thd		session
-@param[in,out]	import		meta data
 @return DB_SUCCESS or error code. */
 static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
-                                               THD *thd, row_import &import) {
+                                               THD *thd) {
   byte row[sizeof(ib_uint32_t)];
   ulint key_size;
   byte transfer_key[ENCRYPTION_KEY_LEN];
@@ -3378,22 +3451,21 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
 
   FILE *file = fopen(name, "rb");
 
-  if (file == NULL) {
-    import.m_cfp_missing = true;
-
-    /* If there's no cfp file, we assume it's not an
-    encrpyted table. return directly. */
-
-    import.m_cfp_missing = true;
-
-    err = DB_SUCCESS;
-  } else {
-    import.m_cfp_missing = false;
-
-    err = row_import_read_encryption_data(table, file, thd, import);
-    fclose(file);
+  if (file == nullptr) {
+    rename_disk_filename_if_necessary(table, CFP);
+    file = fopen(name, "rb");
   }
 
+  if (file != NULL) {
+    import.m_cfp_missing = false;
+    err = row_import_read_encryption_data(table, file, thd);
+    fclose(file);
+  } else {
+    /* If there's no cfp file, we assume it's not an
+    encrpyted table. return directly. */
+    import.m_cfp_missing = true;
+    err = DB_SUCCESS;
+  }
   return (err);
 }
 
@@ -3486,12 +3558,40 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   prebuilt->trx->op_info = "read meta-data file";
 
   /* Prevent DDL operations while we are checking. */
-
   rw_lock_s_lock_func(dict_operation_lock, 0, __FILE__, __LINE__);
 
   row_import cfg;
-  ulint space_flags = 0;
 
+  /* Read CFP file */
+  if (dd_is_table_in_encrypted_tablespace(table)) {
+    /* First try to read CFP file here. */
+    err = row_import_read_cfp(table, trx->mysql_thd, cfg);
+    ut_ad(cfg.m_cfp_missing || err == DB_SUCCESS);
+
+    if (err != DB_SUCCESS) {
+      rw_lock_s_unlock_gen(dict_operation_lock, 0);
+      return (row_import_error(prebuilt, trx, err));
+    }
+
+    /* If table is encrypted, but can't find cfp file, return error. */
+    if (cfg.m_cfp_missing) {
+      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Table is in an encrypted tablespace, but the encryption"
+              " meta-data file cannot be found while importing.");
+      err = DB_ERROR;
+      rw_lock_s_unlock_gen(dict_operation_lock, 0);
+      return (row_import_error(prebuilt, trx, err));
+    } else {
+      /* If CFP file is read, encryption_key must have been populted. */
+      ut_ad(table->encryption_key != nullptr &&
+            table->encryption_iv != nullptr);
+    }
+  }
+
+  /* Check and rename ibd file if necessary */
+  rename_disk_filename_if_necessary(table, IBD);
+
+  /* Read CFG file */
   err = row_import_read_cfg(table, table_def, trx->mysql_thd, cfg);
 
   /* Check if the table column definitions match the contents
@@ -3548,44 +3648,22 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
         err = cfg.set_root_by_heuristic();
       }
     }
-
-    space_flags = fetchIndexRootPages.get_space_flags();
-
   } else {
     rw_lock_s_unlock_gen(dict_operation_lock, 0);
   }
 
-  /* Try to read encryption information. */
-  if (err == DB_SUCCESS) {
-    err = row_import_read_cfp(table, trx->mysql_thd, cfg);
+  if (err != DB_SUCCESS) {
+    if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
+      ib_errf(
+          trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+          "Encryption attribute in the file does not match the dictionary.");
 
-    /* If table is not set to encrypted, but the fsp flag
-    is not, then return error. */
-    if (!dd_is_table_in_encrypted_tablespace(table) && space_flags != 0 &&
-        FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table is not marked as encrypted, but"
-              " the tablespace is marked as encrypted");
-
-      err = DB_ERROR;
-      return (row_import_error(prebuilt, trx, err));
+      return (row_import_cleanup(prebuilt, trx, err));
     }
-
-    /* If table is set to encrypted, but can't find
-    cfp file, then return error. */
-    if (cfg.m_cfp_missing == true &&
-        ((space_flags != 0 && FSP_FLAGS_GET_ENCRYPTION(space_flags)) ||
-         dd_is_table_in_encrypted_tablespace(table))) {
-      ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Table is in an encrypted tablespace, but"
-              " can't find the encryption meta-data file"
-              " in importing");
-      err = DB_ERROR;
-      return (row_import_error(prebuilt, trx, err));
-    }
-  } else {
     return (row_import_error(prebuilt, trx, err));
   }
+
+  /* At this point, all required information has been collected for IMPORT. */
 
   prebuilt->trx->op_info = "importing tablespace";
 
@@ -3607,12 +3685,8 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                   err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
   if (err == DB_IO_NO_ENCRYPT_TABLESPACE) {
-    char table_name[MAX_FULL_NAME_LEN + 1];
-
-    innobase_format_name(table_name, sizeof(table_name), table->name.m_name);
-
     ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-            "Encryption attribute is no matched");
+            "Encryption attribute in the file does not match the dictionary.");
 
     return (row_import_cleanup(prebuilt, trx, err));
   }

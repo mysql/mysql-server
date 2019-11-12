@@ -1,0 +1,106 @@
+###############################################################################
+# This test verifies what happens when you don't have the clone plugin
+# installed in the joiner or the donor server.
+#
+# 0. The test requires two servers: M1 and M2.
+# 1. Start group replication on server1 and add some data
+# 2. Configure the threshold on server 2 and start GR
+#    Distributed recovery is used as the clone plugin is not installed in the joiner
+# 3. Install the clone plugin in the joiner and start GR
+#    The joiner tries using clone when it is not installed in the donor
+#    Distributed recovery is used as the clone process errors out
+# 4. Cleanup
+#
+
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo #########################################################
+--echo # 1. Start group replication on server1 and add some data
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ###############################################################
+--echo # 2. Configure the threshold on server 2 and start GR
+--echo #    Distributed recovery is used as the clone plugin
+--echo #    is not installed in the joiner
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
+SET GLOBAL group_replication_clone_threshold= 1;
+
+--source include/start_group_replication.inc
+
+# Verify in the log file that the plugin is not installed
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_not_installed
+--let $assert_text = Clone plugin is not present
+--let $assert_select = There was an issue when configuring the remote cloning process: The clone plugin is not present or active in this server.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo #######################################################################
+--echo # 3. Install the clone plugin in the joiner and start GR
+--echo #    The joiner tries using clone when it is not installed in the donor
+--echo #    Distributed recovery is used as the clone process errors out
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (3);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--source include/start_group_replication.inc
+
+# Verify in the log file that clone failed
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_clone_integration_clone_not_installed
+--let $assert_text = Clone plugin is not present in the donor
+--let $assert_select = There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Cleanup
+
+--eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save;
+
+DROP TABLE t1;
+
+--source include/rpl_sync.inc
+
+UNINSTALL PLUGIN clone;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Plugin group_replication reported: 'Due to the number of missing transactions being higher than *");
+call mtr.add_suppression("There was an issue when configuring the remote cloning process: The clone plugin is not present or active*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("Due to some issue on the previous step distributed recovery is now executing: Incremental Recovery.");
+set session sql_log_bin=1;
+
+--source include/group_replication_end.inc

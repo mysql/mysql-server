@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,22 +70,20 @@ void Channel_observation_manager_list::remove_channel_observation_manager(
 
 std::list<Channel_observation_manager *>
     &Channel_observation_manager_list::get_channel_observation_manager_list() {
-  DBUG_ENTER(
-      "Channel_observation_manager_list::get_channel_observation_manager_list");
-  DBUG_RETURN(channel_observation_manager);
+  DBUG_TRACE;
+  return channel_observation_manager;
 }
 
 Channel_observation_manager *
 Channel_observation_manager_list::get_channel_observation_manager(
     uint position) {
-  DBUG_ENTER(
-      "Channel_observation_manager_list::get_channel_observation_manager(pos)");
+  DBUG_TRACE;
   DBUG_ASSERT(position < channel_observation_manager.size());
   std::list<Channel_observation_manager *>::const_iterator cit =
       channel_observation_manager.begin();
   std::advance(cit, position);
 
-  DBUG_RETURN(*cit);
+  return *cit;
 }
 
 Channel_observation_manager::Channel_observation_manager() {
@@ -113,29 +111,27 @@ Channel_observation_manager::~Channel_observation_manager() {
 
 std::list<Channel_state_observer *>
     &Channel_observation_manager::get_channel_state_observers() {
-  DBUG_ENTER("Channel_observation_manager::get_channel_state_observers");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   channel_list_lock->assert_some_lock();
 #endif
-  DBUG_RETURN(channel_observers);
+  return channel_observers;
 }
 
 void Channel_observation_manager::register_channel_observer(
     Channel_state_observer *observer) {
-  DBUG_ENTER("Channel_observation_manager::register_channel_observer");
+  DBUG_TRACE;
   write_lock_channel_list();
   channel_observers.push_back(observer);
   unlock_channel_list();
-  DBUG_VOID_RETURN;
 }
 
 void Channel_observation_manager::unregister_channel_observer(
     Channel_state_observer *observer) {
-  DBUG_ENTER("Channel_observation_manager::unregister_channel_observer");
+  DBUG_TRACE;
   write_lock_channel_list();
   channel_observers.remove(observer);
   unlock_channel_list();
-  DBUG_VOID_RETURN;
 }
 
 void Channel_observation_manager::read_lock_channel_list() {

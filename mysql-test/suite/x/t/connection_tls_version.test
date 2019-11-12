@@ -1,6 +1,5 @@
 ## Test cases for mysqlx plugin TLS versions
 
---source include/have_ssl.inc
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
 

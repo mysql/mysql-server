@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ void Object_queue::add_ready_items_to_queue(
 
 void Object_queue::task_availability_callback(
     const Abstract_dump_task *available_task) {
-  my_boost::mutex::scoped_lock lock(m_queue_mutex);
+  std::lock_guard<std::mutex> lock(m_queue_mutex);
 
   std::map<const I_dump_task *, std::vector<Item_processing_data *> *>::iterator
       it = m_tasks_map.find(available_task);
@@ -65,7 +65,7 @@ void Object_queue::queue_thread() {
 
     Item_processing_data *item_to_process = NULL;
     {
-      my_boost::mutex::scoped_lock lock(m_queue_mutex);
+      std::lock_guard<std::mutex> lock(m_queue_mutex);
       if (m_items_ready_for_processing.size() > 0) {
         item_to_process = m_items_ready_for_processing.front();
         m_items_ready_for_processing.pop();
@@ -102,7 +102,7 @@ void Object_queue::read_object(Item_processing_data *item_to_process) {
         Mysql::Tools::Base::Message_type_error));
   }
 
-  my_boost::mutex::scoped_lock lock(m_queue_mutex);
+  std::lock_guard<std::mutex> lock(m_queue_mutex);
   /*
     Check if all dependencies are already met, if so, we can directly add
     this processing item to queue. If no, we will create completion callback

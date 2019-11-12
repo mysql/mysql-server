@@ -1,37 +1,44 @@
-//>>built
 define("dojo/selector/lite", ["../has", "../_base/kernel"], function(has, dojo){
 "use strict";
-// summary:
-//		A small lightweight query selector engine that implements CSS2.1 selectors 
-// 		minus pseudo-classes and the sibling combinator, plus CSS3 attribute selectors
+
 var testDiv = document.createElement("div");
 var matchesSelector = testDiv.matchesSelector || testDiv.webkitMatchesSelector || testDiv.mozMatchesSelector || testDiv.msMatchesSelector || testDiv.oMatchesSelector; // IE9, WebKit, Firefox have this, but not Opera yet
 var querySelectorAll = testDiv.querySelectorAll;
+var unionSplit = /([^\s,](?:"(?:\\.|[^"])+"|'(?:\\.|[^'])+'|[^,])*)/g;
 has.add("dom-matches-selector", !!matchesSelector);
 has.add("dom-qsa", !!querySelectorAll); 
 
 // this is a simple query engine. It has handles basic selectors, and for simple
 // common selectors is extremely fast
 var liteEngine = function(selector, root){
+	// summary:
+	//		A small lightweight query selector engine that implements CSS2.1 selectors
+	//		minus pseudo-classes and the sibling combinator, plus CSS3 attribute selectors
+
 	if(combine && selector.indexOf(',') > -1){
 		return combine(selector, root);
 	}
-	var match = (querySelectorAll ? 
-		/^([\w]*)#([\w\-]+$)|^(\.)([\w\-\*]+$)|^(\w+$)/ : // this one only matches on simple queries where we can beat qSA with specific methods
-		/^([\w]*)#([\w\-]+)(?:\s+(.*))?$|(?:^|(>|.+\s+))([\w\-\*]+)(\S*$)/) // this one matches parts of the query that we can use to speed up manual filtering
+	// use the root's ownerDocument if provided, otherwise try to use dojo.doc. Note 
+	// that we don't use dojo/_base/window's doc to reduce dependencies, and 
+	// fallback to plain document if dojo.doc hasn't been defined (by dojo/_base/window).
+	// presumably we will have a better way to do this in 2.0 
+	var doc = root ? root.ownerDocument || root : dojo.doc || document, 
+		match = (querySelectorAll ? 
+			/^([\w]*)#([\w\-]+$)|^(\.)([\w\-\*]+$)|^(\w+$)/ : // this one only matches on simple queries where we can beat qSA with specific methods
+			/^([\w]*)#([\w\-]+)(?:\s+(.*))?$|(?:^|(>|.+\s+))([\w\-\*]+)(\S*$)/) // this one matches parts of the query that we can use to speed up manual filtering
 			.exec(selector);
-	root = root || document;
+	root = root || doc;
 	if(match){
 		// fast path regardless of whether or not querySelectorAll exists
 		if(match[2]){
 			// an #id
-			// use dojo.byId if available as it fixes the id retrieval in IE
-			var found = dojo.byId ? dojo.byId(match[2]) : document.getElementById(match[2]);
+			// use dojo.byId if available as it fixes the id retrieval in IE, note that we can't use the dojo namespace in 2.0, but if there is a conditional module use, we will use that
+			var found = dojo.byId ? dojo.byId(match[2]) : doc.getElementById(match[2]);
 			if(!found || (match[1] && match[1] != found.tagName.toLowerCase())){
 				// if there is a tag qualifer and it doesn't match, no matches
 				return [];
 			}
-			if(root != document){
+			if(root != doc){
 				// there is a root element, make sure we are a child of it
 				var parent = found;
 				while(parent != root){
@@ -90,10 +97,10 @@ var liteEngine = function(selector, root){
 var useRoot = function(context, query, method){
 	// this function creates a temporary id so we can do rooted qSA queries, this is taken from sizzle
 	var oldContext = context,
-		old = context.getAttribute( "id" ),
+		old = context.getAttribute("id"),
 		nid = old || "__dojo__",
 		hasParent = context.parentNode,
-		relativeHierarchySelector = /^\s*[+~]/.test( query );
+		relativeHierarchySelector = /^\s*[+~]/.test(query);
 
 	if(relativeHierarchySelector && !hasParent){
 		return [];
@@ -106,12 +113,17 @@ var useRoot = function(context, query, method){
 	if(relativeHierarchySelector && hasParent){
 		context = context.parentNode;
 	}
+	var selectors = query.match(unionSplit);
+	for(var i = 0; i < selectors.length; i++){
+		selectors[i] = "[id='" + nid + "'] " + selectors[i];
+	}
+	query = selectors.join(",");
 
-	try {
-		return method.call(context, "[id='" + nid + "'] " + query );
-	} finally {
-		if ( !old ) {
-			oldContext.removeAttribute( "id" );
+	try{
+		return method.call(context, query);
+	}finally{
+		if(!old){
+			oldContext.removeAttribute("id");
 		}
 	}
 };
@@ -120,18 +132,25 @@ if(!has("dom-matches-selector")){
 	var jsMatchesSelector = (function(){
 		// a JS implementation of CSS selector matching, first we start with the various handlers
 		var caseFix = testDiv.tagName == "div" ? "toLowerCase" : "toUpperCase";
-		function tag(tagName){
-			tagName = tagName[caseFix]();
-			return function(node){
-				return node.tagName == tagName;
+		var selectorTypes = {
+			"": function(tagName){
+				tagName = tagName[caseFix]();
+				return function(node){
+					return node.tagName == tagName;
+				};
+			},
+			".": function(className){
+				var classNameSpaced = ' ' + className + ' ';
+				return function(node){
+					return node.className.indexOf(className) > -1 && (' ' + node.className + ' ').indexOf(classNameSpaced) > -1;
+				};
+			},
+			"#": function(id){
+				return function(node){
+					return node.id == id;
+				};
 			}
-		}
-		function className(className){
-			var classNameSpaced = ' ' + className + ' ';
-			return function(node){
-				return node.className.indexOf(className) > -1 && (' ' + node.className + ' ').indexOf(classNameSpaced) > -1;
-			}
-		}
+		};
 		var attrComparators = {
 			"^=": function(attrValue, value){
 				return attrValue.indexOf(value) == 0;
@@ -156,15 +175,17 @@ if(!has("dom-matches-selector")){
 			}
 		};
 		function attr(name, value, type){
-			if(value.match(/['"]/)){
-				// it is quoted, do an eval to parse the string (CSS and JS parsing are close enough)
-				value = eval(value);
+			var firstChar = value.charAt(0);
+			if(firstChar == '"' || firstChar == "'"){
+				// it is quoted, remove the quotes
+				value = value.slice(1, -1);
 			}
+			value = value.replace(/\\/g,'');
 			var comparator = attrComparators[type || ""];
 			return function(node){
 				var attrValue = node.getAttribute(name);
 				return attrValue && comparator(attrValue, value);
-			}
+			};
 		}
 		function ancestor(matcher){
 			return function(node, root){
@@ -197,14 +218,9 @@ if(!has("dom-matches-selector")){
 			if(!matcher){
 				// create a matcher function for the given selector
 				// parse the selectors
-				if(selector.replace(/(?:\s*([> ])\s*)|(\.)?([\w-]+)|\[([\w-]+)\s*(.?=)?\s*([^\]]*)\]/g, function(t, combinator, type, value, attrName, attrType, attrValue){
+				if(selector.replace(/(?:\s*([> ])\s*)|(#|\.)?((?:\\.|[\w-])+)|\[\s*([\w-]+)\s*(.?=)?\s*("(?:\\.|[^"])+"|'(?:\\.|[^'])+'|(?:\\.|[^\]])*)\s*\]/g, function(t, combinator, type, value, attrName, attrType, attrValue){
 					if(value){
-						if(type == "."){
-							matcher = and(matcher, className(value));
-						}
-						else{
-							matcher = and(matcher, tag(value));
-						}
+						matcher = and(matcher, selectorTypes[type || ""](value.replace(/\\/g, '')));
 					}
 					else if(combinator){
 						matcher = (combinator == " " ? ancestor : parent)(matcher);
@@ -229,13 +245,15 @@ if(!has("dom-matches-selector")){
 if(!has("dom-qsa")){
 	var combine = function(selector, root){
 		// combined queries
-		selector = selector.split(/\s*,\s*/);
+		var selectors = selector.match(unionSplit);
 		var indexed = [];
 		// add all results and keep unique ones, this only runs in IE, so we take advantage 
 		// of known IE features, particularly sourceIndex which is unique and allows us to 
 		// order the results 
-		for(var i = 0; i < selector.length; i++){
-			var results = liteEngine(selector[i], root);
+		for(var i = 0; i < selectors.length; i++){
+			selector = new String(selectors[i].replace(/\s*$/,''));
+			selector.indexOf = escape; // keep it from recursively entering combine
+			var results = liteEngine(selector, root);
 			for(var j = 0, l = results.length; j < l; j++){
 				var node = results[j];
 				indexed[node.sourceIndex] = node;
@@ -251,7 +269,7 @@ if(!has("dom-qsa")){
 }
 
 liteEngine.match = matchesSelector ? function(node, selector, root){
-	if(root){
+	if(root && root.nodeType != 9){
 		// doesn't support three args, use rooted id trick
 		return useRoot(root, selector, function(query){
 			return matchesSelector.call(node, query);

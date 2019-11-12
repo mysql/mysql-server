@@ -1,12 +1,9 @@
-//>>built
-define("dojo/dnd/TimedMoveable", ["../main", "./Moveable"], function(dojo) {
+define("dojo/dnd/TimedMoveable", ["../_base/declare", "./Moveable" /*=====, "./Mover" =====*/], function(declare, Moveable /*=====, Mover =====*/){
 	// module:
 	//		dojo/dnd/TimedMoveable
-	// summary:
-	//		TODOC
 
 	/*=====
-	dojo.declare("dojo.dnd.__TimedMoveableArgs", [dojo.dnd.__MoveableArgs], {
+	var __TimedMoveableArgs = declare([Moveable.__MoveableArgs], {
 		// timeout: Number
 		//		delay move by this number of ms,
 		//		accumulating position changes during the timeout
@@ -15,9 +12,9 @@ define("dojo/dnd/TimedMoveable", ["../main", "./Moveable"], function(dojo) {
 	=====*/
 
 	// precalculate long expressions
-	var oldOnMove = dojo.dnd.Moveable.prototype.onMove;
+	var oldOnMove = Moveable.prototype.onMove;
 
-	dojo.declare("dojo.dnd.TimedMoveable", dojo.dnd.Moveable, {
+	return declare("dojo.dnd.TimedMoveable", Moveable, {
 		// summary:
 		//		A specialized version of Moveable to support an FPS throttling.
 		//		This class puts an upper restriction on FPS, which may reduce
@@ -32,7 +29,7 @@ define("dojo/dnd/TimedMoveable", ["../main", "./Moveable"], function(dojo) {
 			//		an object that makes a node moveable with a timer
 			// node: Node||String
 			//		a node (or node's id) to be moved
-			// params: dojo.dnd.__TimedMoveableArgs
+			// params: __TimedMoveableArgs
 			//		object with additional parameters.
 
 			// sanitize parameters
@@ -42,16 +39,16 @@ define("dojo/dnd/TimedMoveable", ["../main", "./Moveable"], function(dojo) {
 			}
 		},
 
-		onMoveStop: function(/* dojo.dnd.Mover */ mover){
+		onMoveStop: function(/*Mover*/ mover){
 			if(mover._timer){
 				// stop timer
 				clearTimeout(mover._timer);
 				// reflect the last received position
-				oldOnMove.call(this, mover, mover._leftTop)
+				oldOnMove.call(this, mover, mover._leftTop);
 			}
-			dojo.dnd.Moveable.prototype.onMoveStop.apply(this, arguments);
+			Moveable.prototype.onMoveStop.apply(this, arguments);
 		},
-		onMove: function(/* dojo.dnd.Mover */ mover, /* Object */ leftTop){
+		onMove: function(/*Mover*/ mover, /*Object*/ leftTop){
 			mover._leftTop = leftTop;
 			if(!mover._timer){
 				var _t = this;	// to avoid using dojo.hitch()
@@ -64,7 +61,4 @@ define("dojo/dnd/TimedMoveable", ["../main", "./Moveable"], function(dojo) {
 			}
 		}
 	});
-
-	return dojo.dnd.TimedMoveable;
-	
 });

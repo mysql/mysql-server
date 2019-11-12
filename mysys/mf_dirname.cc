@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,12 +95,12 @@ size_t dirname_length(const char *name) {
 
 size_t dirname_part(char *to, const char *name, size_t *to_res_length) {
   size_t length;
-  DBUG_ENTER("dirname_part");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("'%s'", name));
 
   length = dirname_length(name);
   *to_res_length = (size_t)(convert_dirname(to, name, name + length) - to);
-  DBUG_RETURN(length);
+  return length;
 } /* dirname */
 
 #ifndef FN_DEVCHAR
@@ -141,7 +141,7 @@ char *convert_dirname(char *to, const char *from, const char *from_end) {
 #ifdef _WIN32
   CHARSET_INFO *fs = fs_character_set();
 #endif
-  DBUG_ENTER("convert_dirname");
+  DBUG_TRACE;
 
   /* We use -2 here, becasue we need place for the last FN_LIBCHAR */
   if (!from_end || (from_end - from) > FN_REFLEN - 2)
@@ -179,5 +179,5 @@ char *convert_dirname(char *to, const char *from, const char *from_end) {
     *to++ = FN_LIBCHAR;
     *to = 0;
   }
-  DBUG_RETURN(to); /* Pointer to end of dir */
+  return to; /* Pointer to end of dir */
 } /* convert_dirname */

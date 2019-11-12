@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,7 @@ class Session : public Session_interface {
   const Client_interface &client() const override { return *m_client; }
 
   Protocol_encoder_interface &proto() override { return *m_encoder; }
+  void set_proto(Protocol_encoder_interface *encode) override;
 
  protected:
   virtual bool handle_auth_message(ngs::Message_request &command);

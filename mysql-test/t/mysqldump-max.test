@@ -1,9 +1,6 @@
-
 --source include/have_archive.inc
-
---disable_warnings
-drop table if exists t1, t2, t3, t4, t5, t6;
---enable_warnings
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 create table t1 (id int(8), name varchar(32));
 create table t2 (id int(8), name varchar(32)) ENGINE="MyISAM";
@@ -73,9 +70,6 @@ drop table t6;
 # Show that mysqldump's stand-in tables for views are always of MyISAM
 # type to avoid Inno's column-number limits (~1000 columns) etc.
 # Here because it needs Inno-engine.
-
-SELECT @@global.default_storage_engine INTO @old_engine;
-SET GLOBAL default_storage_engine=InnoDB;
 
 --disable_query_log
 CREATE TABLE `t1` (
@@ -1120,5 +1114,3 @@ SELECT COUNT(*) FROM v1;
 
 DROP VIEW  v1;
 DROP TABLE t1;
-
-SET GLOBAL default_storage_engine=@old_engine;

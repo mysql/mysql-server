@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -60,11 +60,13 @@ void mysql_security_context_init();
 void mysql_backup_lock_service_init();
 void mysql_server_ongoing_transactions_query_init();
 void mysql_audit_api_service_init();
+void mysql_keyring_iterator_service_init();
 
 void clone_protocol_service_init();
 void host_application_signal_imp_init();
 
 void page_track_service_init();
+void mysql_current_thread_reader_imp_init();
 
 /* implementation of the built-in components */
 

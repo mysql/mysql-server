@@ -1,0 +1,3 @@
+$EXAMPLE_PLUGIN_OPT
+$EXAMPLE_PLUGIN_LOAD_EARLY
+--loose-plugin-example-enum-var=e2

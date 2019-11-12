@@ -4,30 +4,33 @@
   z-index: 2000;
   display: block;
   margin: 0;
-  padding: 8px;
-  border: #769dc0 1px solid;
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
-  -webkit-border-radius: 5px;
+  padding: 5px;
+  border-width: 1px;
+  border-style: solid;
   opacity: .97;
+  border-color: #869cbf;
+  border-radius: 3px;
+  background-color: #dedede;
+  background-image: none;
 }
 .mblTooltipBubble {
   overflow: visible;
   padding: 3px;
-  background-color: #5cb0ff;
+  background-color: #f6f6f6;
   background-image: none;
+  color: black;
 }
 .mblTooltipBubble.mblTooltipAbove .mblTooltipInnerArrow {
-  border-bottom-color: #5cb0ff;
+  border-bottom-color: #f6f6f6;
 }
 .mblTooltipBubble.mblTooltipBelow .mblTooltipInnerArrow {
-  border-top-color: #5cb0ff;
+  border-top-color: #f6f6f6;
 }
 .mblTooltipBubble.mblTooltipAfter .mblTooltipInnerArrow {
-  border-left-color: #5cb0ff;
+  border-left-color: #f6f6f6;
 }
 .mblTooltipBubble.mblTooltipBefore .mblTooltipInnerArrow {
-  border-right-color: #5cb0ff;
+  border-right-color: #f6f6f6;
 }
 .mblTooltip.mblTooltipAfter {
   margin-left: -11px;
@@ -74,7 +77,7 @@
   top: 0;
   bottom: auto;
   border-left-width: 0;
-  border-right-color: #769dc0;
+  border-right-color: #adadad;
 }
 .mblTooltipAfter .mblTooltipArrow {
   left: 1px;
@@ -82,7 +85,7 @@
   top: 0;
   bottom: auto;
   border-right-width: 0;
-  border-left-color: #769dc0;
+  border-left-color: #adadad;
 }
 .mblTooltipAbove .mblTooltipArrow {
   top: auto;
@@ -90,7 +93,7 @@
   left: auto;
   right: auto;
   border-top-width: 0;
-  border-bottom-color: #769dc0;
+  border-bottom-color: #adadad;
 }
 .mblTooltipBelow .mblTooltipArrow {
   top: 1px;
@@ -98,7 +101,7 @@
   left: auto;
   right: auto;
   border-bottom-width: 0;
-  border-top-color: #769dc0;
+  border-top-color: #adadad;
 }
 .mblTooltipInnerArrow {
   position: absolute;
@@ -111,30 +114,35 @@
   right: 0;
   top: 0;
   border-left-width: 0;
-  border-right-color: #deefff;
+  border-right-color: #dedede;
 }
 .mblTooltipAfter .mblTooltipInnerArrow {
   left: 0;
   top: 0;
   border-right-width: 0;
-  border-left-color: #deefff;
+  border-left-color: #dedede;
 }
 .mblTooltipAbove .mblTooltipInnerArrow {
   bottom: 0;
   left: 0;
   border-top-width: 0;
-  border-bottom-color: #ffffff;
+  border-bottom-color: #dedede;
 }
 .mblTooltipBelow .mblTooltipInnerArrow {
   top: 0;
   left: 0;
   border-bottom-width: 0;
-  border-top-color: #aed8ff;
+  border-top-color: #dedede;
 }
 .mblTooltipHidden, .mblTooltipHidden * {
   visibility: hidden !important;
 }
+.mblTooltipHidden {
+  top: -99999px !important;
+  left: -99999px !important;
+}
 .mblTooltip .mblHeading {
+  padding-bottom: 3px;
   border-top: 1px solid transparent;
   border-bottom: 1px solid transparent;
   background-color: transparent;

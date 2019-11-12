@@ -69,6 +69,7 @@
 #include "Ndbinfo.hpp"
 #include "portlib/NdbMem.h"
 #include <ndb_global.h>
+#include "BlockThreadBitmask.hpp"
 
 struct CHARSET_INFO;
 
@@ -595,9 +596,26 @@ public:
    *   thread running an instance any of the threads in blocks[]
    *   will have executed a signal
    */
-  void synchronize_threads_for_blocks(Signal*, const Uint32 blocks[],
-                                      const Callback&, JobBufferLevel = JBB);
+  void synchronize_threads(Signal * signal,
+                           const BlockThreadBitmask& threads,
+                           const Callback & cb,
+                           JobBufferLevel req_prio,
+                           JobBufferLevel conf_prio);
+
+  void synchronize_threads_for_blocks(
+           Signal*,
+           const Uint32 blocks[],
+           const Callback&,
+           JobBufferLevel req_prio = JBB,
+           JobBufferLevel conf_prio = ILLEGAL_JB_LEVEL);
   
+  /**
+   * This method will make sure that all external signals from nodes handled by
+   * transporters in current thread are processed.
+   * Should be called from a TRPMAN-worker.
+   */
+  void synchronize_external_signals(Signal* signal, const Callback& cb);
+
   /**
    * This method make sure that the path specified in blocks[]
    *   will be traversed before returning
@@ -624,8 +642,10 @@ public:
 private:
   struct SyncThreadRecord
   {
+    BlockThreadBitmask m_threads;
     Callback m_callback;
     Uint32 m_cnt;
+    Uint32 m_next;
     Uint32 nextPool;
   };
   typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
@@ -633,6 +653,7 @@ private:
   SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
+  void sendSYNC_THREAD_REQ(Signal*, Ptr<SimulatedBlock::SyncThreadRecord>);
 
   void execSYNC_REQ(Signal*);
 
@@ -669,6 +690,7 @@ protected:
   void setNodeOverloadStatus(OverloadStatus new_status);
   void setSendNodeOverloadStatus(OverloadStatus new_status);
   void setNeighbourNode(NodeId node);
+  void setNoSend();
   void getPerformanceTimers(Uint64 &micros_sleep,
                             Uint64 &spin_time,
                             Uint64 &buffer_full_micros_sleep,
@@ -830,7 +852,7 @@ protected:
   void releaseSections(struct SectionHandle&);
 
   bool import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len);
-  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len);
+  bool import(SegmentedSectionPtr& ptr, const Uint32* src, Uint32 len) const;
   bool import(SectionHandle * dst, LinearSectionPtr src[3],Uint32 cnt);
 
   bool appendToSection(Uint32& firstSegmentIVal, const Uint32* src, Uint32 len);
@@ -840,7 +862,8 @@ protected:
   void handle_invalid_sections_in_send_signal(const Signal*) const;
   void handle_lingering_sections_after_execute(const Signal*) const;
   void handle_invalid_fragmentInfo(Signal*) const;
-  void handle_send_failed(SendStatus, Signal*) const;
+  template<typename SecPtr>
+  void handle_send_failed(SendStatus, Signal*, Uint32, SecPtr[]) const;
   void handle_out_of_longsignal_memory(Signal*) const;
 
   /**
@@ -904,7 +927,8 @@ protected:
   /* If send size is > FRAGMENT_WORD_SIZE, fragments of this size
    * will be sent by the sendFragmentedSignal variants
    */
-  STATIC_CONST( FRAGMENT_WORD_SIZE = 240 );
+  static constexpr Uint32 FRAGMENT_WORD_SIZE = 240;
+  static constexpr Uint32 BATCH_FRAGMENT_WORD_SIZE = 240 * 8;
 
   void sendFragmentedSignal(BlockReference ref, 
 			    GlobalSignalNumber gsn, 
@@ -943,6 +967,46 @@ protected:
 			    Uint32 noOfSections,
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                         Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
 
   /**
    * simBlockNodeFailure
@@ -1246,7 +1310,7 @@ protected:
    */
   void infoEvent(const char * msg, ...) const
     ATTRIBUTE_FORMAT(printf, 2, 3);
-  void warningEvent(const char * msg, ...) const
+  void warningEvent(const char * msg, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
   
   /**

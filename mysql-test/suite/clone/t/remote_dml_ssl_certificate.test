@@ -1,0 +1,11 @@
+# Test remote clone with concurrent DML with SSL certificate check
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+--let remote_clone = 1
+
+--let clone_require_ssl = 1
+--let clone_require_ssl_certificate = 1
+
+--source local_dml.test

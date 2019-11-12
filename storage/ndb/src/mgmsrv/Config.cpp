@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,13 +43,11 @@ Config::Config(ConfigValues *config_values) :
 
 Config::Config(const Config* conf)
 {
-  // TODO Magnus, improve copy constructor
-  // to not use pack/unpack
   assert(conf);
   UtilBuffer buf;
-  conf->pack(buf);
+  conf->pack(buf, OUR_V2_VERSION);
   ConfigValuesFactory cvf;
-  cvf.unpack(buf);
+  cvf.unpack_buf(buf);
   m_configValues= (struct ndb_mgm_configuration*)cvf.getConfigValues();
 }
 
@@ -232,19 +230,44 @@ Config::setName(const char* new_name)
 
 
 Uint32
-Config::pack(UtilBuffer& buf) const
+Config::pack(UtilBuffer& buf, bool v2) const
 {
-  return m_configValues->m_config.pack(buf);
+  return v2 ?
+    m_configValues->m_config.pack_v2(buf) :
+    m_configValues->m_config.pack_v1(buf);
 }
 
 
 #include <ndb_base64.h>
 
 bool
-Config::pack64(BaseString& encoded) const
+Config::pack64_v1(BaseString& encoded) const
 {
   UtilBuffer buf;
-  if (m_configValues->m_config.pack(buf) == 0)
+  if (m_configValues->m_config.pack_v1(buf) == 0)
+    return false;
+
+  /*
+    Expand the string to correct length by filling with Z.
+    The base64 encoded data of UtilBuffer can be of max length (1024*1024)/3*4
+    hence using int to store the length.
+  */
+  encoded.assfmt("%*s",
+                 (int)base64_needed_encoded_length(buf.length()),
+                 "Z");
+
+  if (base64_encode(buf.get_data(),
+                    buf.length(),
+                    (char*)encoded.c_str()))
+    return false;
+  return true;
+}
+
+bool
+Config::pack64_v2(BaseString& encoded, Uint32 node_id) const
+{
+  UtilBuffer buf;
+  if (m_configValues->m_config.pack_v2(buf, node_id) == 0)
     return false;
 
   /*
@@ -834,11 +857,11 @@ Config::get_nodemask(NodeBitmask& mask,
 
 
 Uint32
-Config::checksum(void) const {
+Config::checksum(bool v2) const {
   Uint32 chk;
 
   UtilBuffer buf;
-  pack(buf);
+  pack(buf, v2);
 
   // Checksum is the last 4 bytes in buffer
   const char* chk_ptr = (const char*)buf.get_data();

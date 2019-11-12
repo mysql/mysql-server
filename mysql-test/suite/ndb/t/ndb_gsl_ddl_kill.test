@@ -1,0 +1,92 @@
+#
+# Test behaviour of DDL query killed while waiting to acquire
+# global schema lock(GSL).
+#
+# NOTE! The query will not be killed immediately, but rather
+# somewhat later when NDB returns control back to the MySQL Server
+# and it can detect that the query has been killed.
+#
+--source include/have_ndb.inc
+# Test uses DEBUG_SYNC
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  value INT,
+  value2 VARCHAR(50),
+  INDEX(value, value2)
+) ENGINE=NDB;
+
+INSERT INTO t1 VALUES(1, 1, "val1");
+
+# Create two more connection to first mysqld
+--connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--connect (con_kill,127.0.0.1,root,,test,$MASTER_MYPORT,)
+
+--echo # Switch to second connection
+--connection con2
+
+--echo # Reset all DEBUG_SYNC points
+SET DEBUG_SYNC='RESET';
+--echo # Setup ALTER TABLE to wait after GSL acquired
+SET DEBUG_SYNC='ndb_global_schema_lock_acquired
+                  SIGNAL got_GSL WAIT_FOR alter_continue';
+
+--echo # Start ALTER TABLE query, should take GSL, reach the synch
+--echo # point, signal and wait
+--send ALTER TABLE t1 ADD COLUMN value3 BLOB DEFAULT NULL
+
+--echo # Switch to default connection
+--connection default
+
+--echo # Wait for the ALTER TABLE query to signal that it has acquired the GSL
+SET DEBUG_SYNC='now WAIT_FOR got_GSL';
+
+# Switch to third connection
+--connection con_kill
+
+# Save this connections id for the kill
+let $alter_con_id = `SELECT CONNECTION_ID()`;
+#echo alter_con_id: $alter_con_id;
+
+--echo # Start second ALTER TABLE query which will hang waiting on GSL
+--send ALTER TABLE t1 ADD COLUMN value4 BLOB DEFAULT NULL
+
+--echo # Switch to default connection
+--connection default
+
+# Wait until the ALTER is hanging on GSL
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE LIKE "Waiting for ndbcluster global schema lock";
+--source include/wait_condition.inc
+
+--echo # Kill the hanging ALTER
+--replace_result $alter_con_id <CONNECTION_ID>
+eval KILL QUERY $alter_con_id;
+
+--echo # Switch to third connection
+--connection con_kill
+
+--echo # Complete the killed ALTER TABLE query, it's expected to fail since
+--echo # it was killed
+--error ER_LOCK_REFUSED_BY_ENGINE
+--reap
+SHOW WARNINGS;
+
+--echo # Tell the ALTER TABLE which holds GSL to continue processing
+SET DEBUG_SYNC='now SIGNAL alter_continue';
+
+--echo # Switch to second connection
+--connection con2
+
+--echo # Complete the ALTER TABLE query
+--reap
+
+--echo # Switch to default connection
+--connection default
+
+# Reset all DEBUG_SYNC points
+SET DEBUG_SYNC='RESET';
+
+DROP TABLE t1;

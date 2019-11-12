@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -72,7 +72,7 @@ return 0;
 _f=function(_18,_19){
 var _1a=on(_18,"keydown",function(evt){
 var k=evt.keyCode;
-var _1b=(k!=13||(_6("ie")>=9&&!_6("quirks")))&&k!=32&&(k!=27||!_6("ie"))&&(k<48||k>90)&&(k<96||k>111)&&(k<186||k>192)&&(k<219||k>222)&&k!=229;
+var _1b=(k!=13)&&k!=32&&(k!=27||!_6("ie"))&&(k<48||k>90)&&(k<96||k>111)&&(k<186||k>192)&&(k<219||k>222)&&k!=229;
 if(_1b||evt.ctrlKey){
 var c=_1b?0:k;
 if(evt.ctrlKey){

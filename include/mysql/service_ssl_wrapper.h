@@ -26,12 +26,12 @@
 #include "my_compiler.h"
 #include "violite.h"
 
-namespace ssl_wrappe_service {
+namespace ssl_wrapper_service {
 
 int MY_ATTRIBUTE((visibility("default")))
     dummy_function_to_ensure_we_are_linked_into_the_server();
 
-}  // namespace ssl_wrappe_service
+}  // namespace ssl_wrapper_service
 
 /**
   Return version of SSL used in currect connection

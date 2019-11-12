@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -237,7 +237,8 @@ class Gcs_split_header_v2 : public Gcs_stage_metadata {
   /**
    Create a string representation of the header to be logged.
 
-   @param ouput Reference to the output stream where the string will be created.
+   @param output Reference to the output stream where the string will be
+          created.
    */
   virtual void dump(std::ostringstream &output) const;
 
@@ -311,7 +312,7 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
   /**
    Creates an instance of the stage.
 
-   @param sender_id Identifiers the message sender.
+   @param enabled enables this message stage
    @param split_threshold messages with the payload larger
                           than split_threshold in bytes are split.
    */

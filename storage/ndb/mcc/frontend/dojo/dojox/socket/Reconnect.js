@@ -1,36 +1,38 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.socket.Reconnect");
-_3.socket.Reconnect=function(_4,_5){
-_5=_5||{};
-var _6=_5.reconnectTime||10000;
-var _7=_2.connect(_4,"onclose",function(_8){
-clearTimeout(_9);
-if(!_8.wasClean){
-_4.disconnected(function(){
-_3.socket.replace(_4,_a=_4.reconnect());
+define("dojox/socket/Reconnect",["dojox/socket","dojo/aspect"],function(_1,_2){
+_1.Reconnect=function(_3,_4){
+_4=_4||{};
+var _5=_4.reconnectTime||10000;
+var _6=_4.backoffRate||2;
+var _7=_5;
+var _8,_9;
+_2.after(_3,"onclose",function(_a){
+clearTimeout(_8);
+if(!_a.wasClean){
+_3.disconnected(function(){
+_1.replace(_3,_9=_3.reconnect());
 });
 }
-});
-var _9,_a;
-if(!_4.disconnected){
-_4.disconnected=function(_b){
+},true);
+if(!_3.disconnected){
+_3.disconnected=function(_b){
 setTimeout(function(){
 _b();
-_9=setTimeout(function(){
-if(_a.readyState<2){
-_6=_5.reconnectTime||10000;
+_8=setTimeout(function(){
+if(_9.readyState<2){
+_7=_5;
 }
-},10000);
-},_6);
-_6*=_5.backoffRate||2;
+},_5);
+},_7);
+_7*=_6;
 };
 }
-if(!_4.reconnect){
-_4.reconnect=function(){
-return _4.args?_3.socket.LongPoll(_4.args):_3.socket.WebSocket({url:_4.URL||_4.url});
+if(!_3.reconnect){
+_3.reconnect=function(){
+return _3.args?_1.LongPoll(_3.args):_1.WebSocket({url:_3.URL||_3.url});
 };
 }
-return _4;
+return _3;
 };
+return _1.Reconnect;
 });

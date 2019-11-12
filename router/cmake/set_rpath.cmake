@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,69 +20,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(RPATH_ORIGIN "@loader_path")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "CYGWIN")
-  set(RPATH_ORIGIN "\$ORIGIN")
-else()
-  set(RPATH_ORIGIN "\$ORIGIN")
-endif()
-
-# relative to CMAKE_INSTALL_PREFIX or absolute
-SET(ROUTER_INSTALL_BINDIR "${INSTALL_BINDIR}")
-
-# If router libdir not set, use MySQL libdir (for libharness and libmysqlrouter)
-IF("${ROUTER_INSTALL_LIBDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_LIBDIR "${INSTALL_LIBDIR}")
-ENDIF()
-
-# If router plugindir not set, use $router_install_libdir/mysqlrouter
-IF("${ROUTER_INSTALL_PLUGINDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
-ENDIF()
-
-IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_DOCDIR "${INSTALL_DOCDIR}")
-ENDIF()
-IF("${ROUTER_INSTALL_SHAREDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_SHAREDIR "${INSTALL_SHAREDIR}")
-ENDIF()
-
-# if are _pure_ STANDALONE we can write into data/ as it is all ours
-# if we are shared STANDALONE with the the server, we shouldn't write
-# into the server's data/ as that would create a "schemadir" in
-# mysql-servers sense
-IF(INSTALL_LAYOUT STREQUAL "WIN")
-  SET(ROUTER_INSTALL_CONFIGDIR ".")
-  SET(ROUTER_INSTALL_DATADIR ".")
-  SET(ROUTER_INSTALL_LOGDIR "log/mysqlrouter")
-  SET(ROUTER_INSTALL_RUNTIMEDIR ".")
-ELSEIF(INSTALL_LAYOUT STREQUAL "STANDALONE")
-  SET(ROUTER_INSTALL_CONFIGDIR ".")
-  SET(ROUTER_INSTALL_DATADIR "var/lib/mysqlrouter")
-  SET(ROUTER_INSTALL_LOGDIR ".")
-  SET(ROUTER_INSTALL_RUNTIMEDIR "run")
-ELSEIF(INSTALL_LAYOUT STREQUAL "DEFAULT")
-  SET(_destdir "/var/local/mysqlrouter")
-  SET(ROUTER_INSTALL_CONFIGDIR "etc/mysqlrouter")
-  SET(ROUTER_INSTALL_DATADIR "${_destdir}/data")
-  SET(ROUTER_INSTALL_LOGDIR "${_destdir}/log")
-  SET(ROUTER_INSTALL_RUNTIMEDIR "${_destdir}/run")
-ELSEIF(INSTALL_LAYOUT STREQUAL "SVR4")
-  SET(ROUTER_INSTALL_CONFIGDIR "/etc/opt/mysqlrouter")
-  SET(ROUTER_INSTALL_DATADIR "/var/opt/mysqlrouter")
-  SET(ROUTER_INSTALL_LOGDIR "/var/opt/mysqlrouter")
-  SET(ROUTER_INSTALL_RUNTIMEDIR "/var/opt/mysqlrouter")
+IF(APPLE)
+  SET(RPATH_ORIGIN "@loader_path")
 ELSE()
-  SET(ROUTER_INSTALL_CONFIGDIR "/etc/mysqlrouter")
-  SET(ROUTER_INSTALL_DATADIR "/var/lib/mysqlrouter")
-  SET(ROUTER_INSTALL_LOGDIR "/var/log/mysqlrouter")
-  SET(ROUTER_INSTALL_RUNTIMEDIR "/var/run/mysqlrouter")
+  SET(RPATH_ORIGIN "\$ORIGIN")
 ENDIF()
 
 SET(CMAKE_INSTALL_RPATH)
-IF(INSTALL_LAYOUT STREQUAL "STANDALONE" OR INSTALL_LAYOUT STREQUAL "DEFAULT" OR
-   INSTALL_LAYOUT STREQUAL "WIN" OR INSTALL_LAYOUT STREQUAL "SVR4")
+IF(INSTALL_LAYOUT STREQUAL "STANDALONE"
+    OR INSTALL_LAYOUT STREQUAL "SVR4")
   # rpath for lib/mysqlrouter/ plugins that want to find lib/
   SET(RPATH_PLUGIN_TO_LIB "${RPATH_ORIGIN}/../")
   SET(RPATH_PLUGIN_TO_PLUGIN "${RPATH_ORIGIN}/")
@@ -130,5 +76,4 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 #MESSAGE(STATUS "- libdir: ${ROUTER_INSTALL_LIBDIR}")
 #MESSAGE(STATUS "- plugindir: ${ROUTER_INSTALL_PLUGINDIR}")
 #MESSAGE(STATUS "- datadir: ${ROUTER_INSTALL_DATADIR}")
-#MESSAGE(STATUS "- sharedir: ${ROUTER_INSTALL_SHAREDIR}")
 #MESSAGE(STATUS "- rpath: ${CMAKE_INSTALL_RPATH}")

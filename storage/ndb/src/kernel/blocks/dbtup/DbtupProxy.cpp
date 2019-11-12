@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,7 @@ DbtupProxy::newWorker(Uint32 instanceNo)
 void
 DbtupProxy::callREAD_CONFIG_REQ(Signal* signal)
 {
+  jam();
   const ReadConfigReq* req = (const ReadConfigReq*)signal->getDataPtr();
   ndbrequire(req->noOfParameters == 0);
 
@@ -96,9 +97,11 @@ DbtupProxy::callREAD_CONFIG_REQ(Signal* signal)
 void
 DbtupProxy::callSTTOR(Signal* signal)
 {
+  jam();
   Uint32 startPhase = signal->theData[1];
   switch (startPhase) {
   case 1:
+    jam();
     c_pgman = (Pgman*)globalData.getBlock(PGMAN);
     c_tsman = (Tsman*)globalData.getBlock(TSMAN);
     ndbrequire(c_pgman != 0);
@@ -113,6 +116,7 @@ DbtupProxy::callSTTOR(Signal* signal)
 void
 DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
 {
+  jam();
   const CreateTabReq* req = (const CreateTabReq*)signal->getDataPtr();
   const Uint32 tableId = req->tableId;
   const Uint32 create_table_schema_version = req->tableVersion & 0xFFFFFF;
@@ -127,6 +131,7 @@ DbtupProxy::execCREATE_TAB_REQ(Signal* signal)
 void
 DbtupProxy::execDROP_TAB_REQ(Signal* signal)
 {
+  jam();
   const DropTabReq* req = (const DropTabReq*)signal->getDataPtr();
   const Uint32 tableId = req->tableId;
   ndbrequire(tableId < c_tableRecSize);
@@ -140,6 +145,7 @@ DbtupProxy::execDROP_TAB_REQ(Signal* signal)
 void
 DbtupProxy::execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
+  jam();
   const BuildIndxImplReq* req = (const BuildIndxImplReq*)signal->getDataPtr();
   Ss_BUILD_INDX_IMPL_REQ& ss = ssSeize<Ss_BUILD_INDX_IMPL_REQ>();
   ss.m_req = *req;
@@ -151,6 +157,7 @@ void
 DbtupProxy::sendBUILD_INDX_IMPL_REQ(Signal* signal, Uint32 ssId,
                                     SectionHandle* handle)
 {
+  jam();
   Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
 
   BuildIndxImplReq* req = (BuildIndxImplReq*)signal->getDataPtrSend();
@@ -164,6 +171,7 @@ DbtupProxy::sendBUILD_INDX_IMPL_REQ(Signal* signal, Uint32 ssId,
 void
 DbtupProxy::execBUILD_INDX_IMPL_CONF(Signal* signal)
 {
+  jam();
   const BuildIndxImplConf* conf = (const BuildIndxImplConf*)signal->getDataPtr();
   Uint32 ssId = conf->senderData;
   Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
@@ -173,6 +181,7 @@ DbtupProxy::execBUILD_INDX_IMPL_CONF(Signal* signal)
 void
 DbtupProxy::execBUILD_INDX_IMPL_REF(Signal* signal)
 {
+  jam();
   const BuildIndxImplRef* ref = (const BuildIndxImplRef*)signal->getDataPtr();
   Uint32 ssId = ref->senderData;
   Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
@@ -182,20 +191,28 @@ DbtupProxy::execBUILD_INDX_IMPL_REF(Signal* signal)
 void
 DbtupProxy::sendBUILD_INDX_IMPL_CONF(Signal* signal, Uint32 ssId)
 {
+  jam();
   Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
   BlockReference dictRef = ss.m_req.senderRef;
 
   if (!lastReply(ss))
+  {
+    jam();
     return;
+  }
 
-  if (ss.m_error == 0) {
+  if (ss.m_error == 0)
+  {
     jam();
     BuildIndxImplConf* conf = (BuildIndxImplConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = ss.m_req.senderData;
     sendSignal(dictRef, GSN_BUILD_INDX_IMPL_CONF,
                signal, BuildIndxImplConf::SignalLength, JBB);
-  } else {
+  }
+  else
+  {
+    jam();
     BuildIndxImplRef* ref = (BuildIndxImplRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = ss.m_req.senderData;
@@ -252,6 +269,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   case File_formats::Undofile::UNDO_LOCAL_LCP_FIRST:
   case File_formats::Undofile::UNDO_LOCAL_LCP:
   {
+    jam();
     undo.m_table_id = ptr[2] >> 16;
     undo.m_fragment_id = ptr[2] & 0xFFFF;
     undo.m_actions |= Proxy_undo::SendToAll;
@@ -261,6 +279,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   case File_formats::Undofile::UNDO_LCP_FIRST:
   case File_formats::Undofile::UNDO_LCP:
   {
+    jam();
     /**
      * This is the start of the UNDO log, this is the synchronisation
      * point, so we will UNDO information back to here. After this
@@ -276,6 +295,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   }
   case File_formats::Undofile::UNDO_TUP_ALLOC:
   {
+    jam();
     const Dbtup::Disk_undo::Alloc* rec =
       (const Dbtup::Disk_undo::Alloc*)ptr;
     undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
@@ -298,6 +318,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   case File_formats::Undofile::UNDO_TUP_UPDATE:
   case File_formats::Undofile::UNDO_TUP_FIRST_UPDATE_PART:
   {
+    jam();
     const Dbtup::Disk_undo::Update* rec =
       (const Dbtup::Disk_undo::Update*)ptr;
     undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
@@ -310,6 +331,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   }
   case File_formats::Undofile::UNDO_TUP_UPDATE_PART:
   {
+    jam();
     const Dbtup::Disk_undo::UpdatePart* rec =
       (const Dbtup::Disk_undo::UpdatePart*)ptr;
     undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
@@ -323,6 +345,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   case File_formats::Undofile::UNDO_TUP_FREE:
   case File_formats::Undofile::UNDO_TUP_FREE_PART:
   {
+    jam();
     const Dbtup::Disk_undo::Free* rec =
       (const Dbtup::Disk_undo::Free*)ptr;
     undo.m_key.m_file_no = rec->m_file_no_page_idx >> 16;
@@ -349,6 +372,7 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
   }
   case File_formats::Undofile::UNDO_END:
   {
+    jam();
     undo.m_actions |= Proxy_undo::SendToAll;
     break;
   }

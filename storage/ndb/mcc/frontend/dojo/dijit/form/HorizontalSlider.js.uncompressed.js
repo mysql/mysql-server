@@ -1,6 +1,5 @@
-//>>built
 require({cache:{
-'url:dijit/form/templates/HorizontalSlider.html':"<table class=\"dijit dijitReset dijitSlider dijitSliderH\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" rules=\"none\" data-dojo-attach-event=\"onkeypress:_onKeyPress,onkeyup:_onKeyUp\"\n\t><tr class=\"dijitReset\"\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t\t><td data-dojo-attach-point=\"topDecoration\" class=\"dijitReset dijitSliderDecoration dijitSliderDecorationT dijitSliderDecorationH\"></td\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t></tr\n\t><tr class=\"dijitReset\"\n\t\t><td class=\"dijitReset dijitSliderButtonContainer dijitSliderButtonContainerH\"\n\t\t\t><div class=\"dijitSliderDecrementIconH\" style=\"display:none\" data-dojo-attach-point=\"decrementButton\"><span class=\"dijitSliderButtonInner\">-</span></div\n\t\t></td\n\t\t><td class=\"dijitReset\"\n\t\t\t><div class=\"dijitSliderBar dijitSliderBumper dijitSliderBumperH dijitSliderLeftBumper\" data-dojo-attach-event=\"press:_onClkDecBumper\"></div\n\t\t></td\n\t\t><td class=\"dijitReset\"\n\t\t\t><input data-dojo-attach-point=\"valueNode\" type=\"hidden\" ${!nameAttrSetting}\n\t\t\t/><div class=\"dijitReset dijitSliderBarContainerH\" role=\"presentation\" data-dojo-attach-point=\"sliderBarContainer\"\n\t\t\t\t><div role=\"presentation\" data-dojo-attach-point=\"progressBar\" class=\"dijitSliderBar dijitSliderBarH dijitSliderProgressBar dijitSliderProgressBarH\" data-dojo-attach-event=\"press:_onBarClick\"\n\t\t\t\t\t><div class=\"dijitSliderMoveable dijitSliderMoveableH\"\n\t\t\t\t\t\t><div data-dojo-attach-point=\"sliderHandle,focusNode\" class=\"dijitSliderImageHandle dijitSliderImageHandleH\" data-dojo-attach-event=\"press:_onHandleClick\" role=\"slider\" valuemin=\"${minimum}\" valuemax=\"${maximum}\"></div\n\t\t\t\t\t></div\n\t\t\t\t></div\n\t\t\t\t><div role=\"presentation\" data-dojo-attach-point=\"remainingBar\" class=\"dijitSliderBar dijitSliderBarH dijitSliderRemainingBar dijitSliderRemainingBarH\" data-dojo-attach-event=\"press:_onBarClick\"></div\n\t\t\t></div\n\t\t></td\n\t\t><td class=\"dijitReset\"\n\t\t\t><div class=\"dijitSliderBar dijitSliderBumper dijitSliderBumperH dijitSliderRightBumper\" data-dojo-attach-event=\"press:_onClkIncBumper\"></div\n\t\t></td\n\t\t><td class=\"dijitReset dijitSliderButtonContainer dijitSliderButtonContainerH\"\n\t\t\t><div class=\"dijitSliderIncrementIconH\" style=\"display:none\" data-dojo-attach-point=\"incrementButton\"><span class=\"dijitSliderButtonInner\">+</span></div\n\t\t></td\n\t></tr\n\t><tr class=\"dijitReset\"\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t\t><td data-dojo-attach-point=\"containerNode,bottomDecoration\" class=\"dijitReset dijitSliderDecoration dijitSliderDecorationB dijitSliderDecorationH\"></td\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t></tr\n></table>\n"}});
+'url:dijit/form/templates/HorizontalSlider.html':"<table class=\"dijit dijitReset dijitSlider dijitSliderH\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" rules=\"none\" data-dojo-attach-event=\"onkeypress:_onKeyPress,onkeyup:_onKeyUp\"\n\trole=\"presentation\"\n\t><tr class=\"dijitReset\"\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t\t><td data-dojo-attach-point=\"topDecoration\" class=\"dijitReset dijitSliderDecoration dijitSliderDecorationT dijitSliderDecorationH\"></td\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t></tr\n\t><tr class=\"dijitReset\"\n\t\t><td class=\"dijitReset dijitSliderButtonContainer dijitSliderButtonContainerH\"\n\t\t\t><div class=\"dijitSliderDecrementIconH\" style=\"display:none\" data-dojo-attach-point=\"decrementButton\"><span class=\"dijitSliderButtonInner\">-</span></div\n\t\t></td\n\t\t><td class=\"dijitReset\"\n\t\t\t><div class=\"dijitSliderBar dijitSliderBumper dijitSliderBumperH dijitSliderLeftBumper\" data-dojo-attach-event=\"press:_onClkDecBumper\"></div\n\t\t></td\n\t\t><td class=\"dijitReset\"\n\t\t\t><input data-dojo-attach-point=\"valueNode\" type=\"hidden\" ${!nameAttrSetting}\n\t\t\t/><div class=\"dijitReset dijitSliderBarContainerH\" role=\"presentation\" data-dojo-attach-point=\"sliderBarContainer\"\n\t\t\t\t><div role=\"presentation\" data-dojo-attach-point=\"progressBar\" class=\"dijitSliderBar dijitSliderBarH dijitSliderProgressBar dijitSliderProgressBarH\" data-dojo-attach-event=\"press:_onBarClick\"\n\t\t\t\t\t><div class=\"dijitSliderMoveable dijitSliderMoveableH\"\n\t\t\t\t\t\t><div data-dojo-attach-point=\"sliderHandle,focusNode\" class=\"dijitSliderImageHandle dijitSliderImageHandleH\" data-dojo-attach-event=\"press:_onHandleClick\" role=\"slider\"></div\n\t\t\t\t\t></div\n\t\t\t\t></div\n\t\t\t\t><div role=\"presentation\" data-dojo-attach-point=\"remainingBar\" class=\"dijitSliderBar dijitSliderBarH dijitSliderRemainingBar dijitSliderRemainingBarH\" data-dojo-attach-event=\"press:_onBarClick\"></div\n\t\t\t></div\n\t\t></td\n\t\t><td class=\"dijitReset\"\n\t\t\t><div class=\"dijitSliderBar dijitSliderBumper dijitSliderBumperH dijitSliderRightBumper\" data-dojo-attach-event=\"press:_onClkIncBumper\"></div\n\t\t></td\n\t\t><td class=\"dijitReset dijitSliderButtonContainer dijitSliderButtonContainerH\"\n\t\t\t><div class=\"dijitSliderIncrementIconH\" style=\"display:none\" data-dojo-attach-point=\"incrementButton\"><span class=\"dijitSliderButtonInner\">+</span></div\n\t\t></td\n\t></tr\n\t><tr class=\"dijitReset\"\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t\t><td data-dojo-attach-point=\"containerNode,bottomDecoration\" class=\"dijitReset dijitSliderDecoration dijitSliderDecorationB dijitSliderDecorationH\"></td\n\t\t><td class=\"dijitReset\" colspan=\"2\"></td\n\t></tr\n></table>\n"}});
 define("dijit/form/HorizontalSlider", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
@@ -11,10 +10,11 @@ define("dijit/form/HorizontalSlider", [
 	"dojo/dom-style", // domStyle.getComputedStyle
 	"dojo/keys", // keys.DOWN_ARROW keys.END keys.HOME keys.LEFT_ARROW keys.PAGE_DOWN keys.PAGE_UP keys.RIGHT_ARROW keys.UP_ARROW
 	"dojo/_base/lang", // lang.hitch
-	"dojo/_base/sniff", // has("ie") has("mozilla")
+	"dojo/sniff", // has("ie") has("mozilla")
 	"dojo/dnd/Moveable", // Moveable
 	"dojo/dnd/Mover", // Mover Mover.prototype.destroy.apply
 	"dojo/query", // query
+	"dojo/mouse", // mouse.wheel
 	"../registry", // registry.findWidgets
 	"../focus",		// focus.focus()
 	"../typematic",
@@ -22,19 +22,11 @@ define("dijit/form/HorizontalSlider", [
 	"./_FormValueWidget",
 	"../_Container",
 	"dojo/text!./templates/HorizontalSlider.html"
-], function(array, declare, move, event, fx, domGeometry, domStyle, keys, lang, has, Moveable, Mover, query,
+], function(array, declare, move, event, fx, domGeometry, domStyle, keys, lang, has, Moveable, Mover, query, mouse,
 			registry, focus, typematic, Button, _FormValueWidget, _Container, template){
-
-/*=====
-	var Button = dijit.form.Button;
-	var _FormValueWidget = dijit.form._FormValueWidget;
-	var _Container = dijit._Container;
-=====*/
 
 // module:
 //		dijit/form/HorizontalSlider
-// summary:
-//		A form widget that allows one to select a value with a horizontally draggable handle
 
 
 var _SliderMover = declare("dijit.form._SliderMover", Mover, {
@@ -71,7 +63,7 @@ var HorizontalSlider = declare("dijit.form.HorizontalSlider", [_FormValueWidget,
 	//		Show increment/decrement buttons at the ends of the slider?
 	showButtons: true,
 
-	// minimum:: [const] Integer
+	// minimum: [const] Integer
 	//		The minimum value the slider can be set to.
 	minimum: 0,
 
@@ -281,9 +273,7 @@ var HorizontalSlider = declare("dijit.form.HorizontalSlider", [_FormValueWidget,
 		// summary:
 		//		Event handler for mousewheel where supported
 		event.stop(evt);
-		var janky = !has("mozilla");
-		var scroll = evt[(janky ? "wheelDelta" : "detail")] * (janky ? 1 : -1);
-		this._bumpValue(scroll < 0 ? -1 : 1, true); // negative scroll acts like a decrement
+		this._bumpValue(evt.wheelDelta < 0 ? -1 : 1, true); // negative scroll acts like a decrement
 	},
 
 	startup: function(){
@@ -316,7 +306,7 @@ var HorizontalSlider = declare("dijit.form.HorizontalSlider", [_FormValueWidget,
 		// find any associated label element and add to slider focusnode.
 		var label = query('label[for="'+this.id+'"]');
 		if(label.length){
-			label[0].id = (this.id+"_label");
+			if(!label[0].id){ label[0].id = this.id + "_label"; }
 			this.focusNode.setAttribute("aria-labelledby", label[0].id);
 		}
 
@@ -328,12 +318,12 @@ var HorizontalSlider = declare("dijit.form.HorizontalSlider", [_FormValueWidget,
 		this.inherited(arguments);
 
 		if(this.showButtons){
-			this._connects.push(typematic.addMouseListener(
-				this.decrementButton, this, "_typematicCallback", 25, 500));
-			this._connects.push(typematic.addMouseListener(
-				this.incrementButton, this, "_typematicCallback", 25, 500));
+			this.own(
+				typematic.addMouseListener(this.decrementButton, this, "_typematicCallback", 25, 500),
+				typematic.addMouseListener(this.incrementButton, this, "_typematicCallback", 25, 500)
+			);
 		}
-		this.connect(this.domNode, !has("mozilla") ? "onmousewheel" : "DOMMouseScroll", "_mouseWheeled");
+		this.connect(this.domNode, mouse.wheel, "_mouseWheeled");
 
 		// define a custom constructor for a SliderMover that points back to me
 		var mover = declare(_SliderMover, {
@@ -349,7 +339,6 @@ var HorizontalSlider = declare("dijit.form.HorizontalSlider", [_FormValueWidget,
 		if(this._inProgressAnim && this._inProgressAnim.status != "stopped"){
 			this._inProgressAnim.stop(true);
 		}
-		this._supportingWidgets = registry.findWidgets(this.domNode); // tells destroy about pseudo-child widgets (ruler/labels)
 		this.inherited(arguments);
 	}
 });

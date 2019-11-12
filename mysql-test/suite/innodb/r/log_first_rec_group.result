@@ -1,0 +1,97 @@
+# Initialization - create table.
+#
+# Scenario 1. Crash during recovery crash, when recovery ends in the same block as checkpoint_lsn.
+#
+Pass: 0
+# 0. Move to the next log block.
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 1. Execute tiny mini transaction in the current block [only pass 0]
+# 2. Create checkpoint at the current lsn and block further checkpoints
+# 3. Execute transaction to force non-trivial crash recovery: 103.
+include/assert.inc [All must happen within the single log block (this was required for the bug)]
+# 5. Crash when trying to insert B.
+# 6. Recover 103, write new redo record X during recovery and crash just before flushing page with 103
+# 7. Start recovery and ensure all is recovered - we must recover 103.
+#    If first_rec_group was pointing to X we would skip 103.
+SELECT * FROM t;
+a
+100
+101
+102
+103
+Pass: 1
+# 0. Move to the next log block.
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 1. Execute tiny mini transaction in the current block [only pass 0]
+# 2. Create checkpoint at the current lsn and block further checkpoints
+# 3. Execute transaction to force non-trivial crash recovery: 103.
+include/assert.inc [All must happen within the single log block (this was required for the bug)]
+# 5. Crash when trying to insert B.
+# 6. Recover 103, write new redo record X during recovery and crash just before flushing page with 103
+# 7. Start recovery and ensure all is recovered - we must recover 103.
+#    If first_rec_group was pointing to X we would skip 103.
+SELECT * FROM t;
+a
+100
+101
+103
+#
+# Scenario 2. Restart after writing full log block with record ending at boundary,
+#             recovery should start in middle of the last written block (pass 0, 2)
+#             or at the beginning of that block (pass 1, 3) and end before the next
+#             block (pass 0, 1) or just 12 bytes after its beginning (pass 2, 3).
+#
+Pass: 0
+# 0. Move to the next log block
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 1. Execute tiny mini transaction in the current block [pass 0, 2]
+# 2. Write up to the end of the block.
+# 3. Crash on writing next 12 bytes of incomplete block [pass 0, 1].
+# 4. If we still haven't crashed, force mtr to crash.
+# 5. Start MySQL after crash to see how it takes care of recovery
+SELECT * FROM t;
+a
+200
+201
+Pass: 1
+# 0. Move to the next log block
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 1. Execute tiny mini transaction in the current block [pass 0, 2]
+# 2. Write up to the end of the block.
+# 3. Crash on writing next 12 bytes of incomplete block [pass 0, 1].
+# 4. If we still haven't crashed, force mtr to crash.
+# 5. Start MySQL after crash to see how it takes care of recovery
+SELECT * FROM t;
+a
+200
+201
+Pass: 2
+# 0. Move to the next log block
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 1. Execute tiny mini transaction in the current block [pass 0, 2]
+# 2. Write up to the end of the block.
+# 3. Crash on writing next 12 bytes of incomplete block [pass 0, 1].
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 4. If we still haven't crashed, force mtr to crash.
+# 5. Start MySQL after crash to see how it takes care of recovery
+SELECT * FROM t;
+a
+200
+201
+202
+203
+Pass: 3
+# 0. Move to the next log block
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 1. Execute tiny mini transaction in the current block [pass 0, 2]
+# 2. Write up to the end of the block.
+# 3. Crash on writing next 12 bytes of incomplete block [pass 0, 1].
+include/assert.inc [We failed to create log records that would end at boundary between blocks]
+# 4. If we still haven't crashed, force mtr to crash.
+# 5. Start MySQL after crash to see how it takes care of recovery
+SELECT * FROM t;
+a
+200
+201
+203
+# Cleanup...

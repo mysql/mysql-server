@@ -1,0 +1,391 @@
+#
+# Test the Redo-Log Archiving feature. Failure cases.
+#
+
+--disable_query_log
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
+
+--let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
+--let $MYSQLD_DATADIR   = `SELECT @@datadir`
+--let $SECURE_FILE_PRIV = `SELECT @@secure_file_priv`
+--let $SERVER_UUID      = `SELECT @@global.server_uuid`
+--let $IRLA_FILENAME    = archive.$SERVER_UUID.000001.log
+--let $IRLA_DIRECTORY_1 = $MYSQLTEST_VARDIR/log/redo_log_archive_1
+--let $IRLA_DIRECTORY_2 = $MYSQLTEST_VARDIR/log/redo_log_archive_2
+--let $IRLA_PATHNAME_1  = $IRLA_DIRECTORY_1/$IRLA_FILENAME
+--let $IRLA_PATHNAME_2  = $IRLA_DIRECTORY_2/$IRLA_FILENAME
+--let $EXT_DIR          = $MYSQLTEST_VARDIR/log
+
+--echo #
+--echo # Call innodb_redo_log_archive_start() and -stop() with wrong parameters.
+--echo #
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_start();
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_start(NULL);
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_start(1);
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_start('', 1);
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_start('', '', '');
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_stop(NULL);
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_stop(1);
+--error ER_CANT_INITIALIZE_UDF
+DO innodb_redo_log_archive_stop('');
+--echo
+
+--echo #
+--echo # Unprivileged user cannot start nor stop redo log archiving.
+--echo #
+CREATE USER mysqltest_u1@localhost;
+--echo [connection mysqltest_u1]
+--connect (mysqltest_u1, localhost, mysqltest_u1,,)
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DO innodb_redo_log_archive_start('label1');
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DO innodb_redo_log_archive_stop();
+--echo [connection default]
+--connection default
+--disconnect mysqltest_u1
+DROP USER mysqltest_u1@localhost;
+--echo
+
+--echo #
+--echo # NULL innodb_redo_log_archive_dirs.
+--echo #
+SET @@global.innodb_redo_log_archive_dirs = NULL;
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIRS_INVALID
+DO innodb_redo_log_archive_start('label1');
+--echo
+
+--echo #
+--echo # Empty innodb_redo_log_archive_dirs.
+--echo #
+SET @@global.innodb_redo_log_archive_dirs = '';
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIRS_INVALID
+DO innodb_redo_log_archive_start('label1');
+--echo
+
+--echo #
+--echo # Non-existen label.
+--echo #
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+--error ER_INNODB_REDO_LOG_ARCHIVE_LABEL_NOT_FOUND
+DO innodb_redo_log_archive_start('no-such-label');
+--echo
+
+--echo #
+--echo # Subdir with path separator.
+--echo #
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+--error ER_INNODB_REDO_LOG_ARCHIVE_START_SUBDIR_PATH
+DO innodb_redo_log_archive_start('label1', 'tmp/tmp');
+--echo
+
+--echo #
+--echo # Directory does not exist.
+--echo #
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+--error ER_INNODB_REDO_LOG_ARCHIVE_NO_SUCH_DIR
+DO innodb_redo_log_archive_start('label1');
+--echo
+
+--echo #
+--echo # Directory is a file.
+--echo #
+--write_file $IRLA_DIRECTORY_1
+EOF
+# It is a file
+--file_exists $IRLA_DIRECTORY_1
+# It is not a directory
+--error 1
+--rmdir $IRLA_DIRECTORY_1
+# Use it
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+--error ER_INNODB_REDO_LOG_ARCHIVE_NO_SUCH_DIR
+DO innodb_redo_log_archive_start('label1');
+--remove_file $IRLA_DIRECTORY_1
+--echo
+
+--echo #
+--echo # Directory clashes with server directories.
+--echo #
+--echo # Stop server
+--echo #
+--source include/shutdown_mysqld.inc
+--echo #
+--echo # Select unique path names for the server directories
+--echo #
+--let $INNODB_DATA_HOME_DIR         = $EXT_DIR/innodb_data_home_dir
+--let $INNODB_DIRECTORIES           = $EXT_DIR/innodb_directories
+--let $INNODB_LOG_GROUP_HOME_DIR    = $EXT_DIR/innodb_log_group_home_dir
+--let $INNODB_TEMP_TABLESPACES_DIR  = $EXT_DIR/innodb_temp_tablespaces_dir
+--let $INNODB_TMPDIR                = $EXT_DIR/tmp/innodb_tmpdir
+--let $INNODB_UNDO_DIRECTORY        = $EXT_DIR/innodb_undo_directory
+--echo #
+--echo # Precautionary cleanup of the new server directories
+--echo #
+--error 0, 1
+--force-rmdir $MYSQLD_DATADIR/xxx
+--error 0, 1
+--force-rmdir $INNODB_DATA_HOME_DIR
+--error 0, 1
+--force-rmdir $INNODB_DIRECTORIES
+--error 0, 1
+--force-rmdir $INNODB_LOG_GROUP_HOME_DIR
+--error 0, 1
+--force-rmdir $INNODB_TEMP_TABLESPACES_DIR
+--error 0, 1
+--force-rmdir $EXT_DIR/tmp
+--error 0, 1
+--force-rmdir $INNODB_UNDO_DIRECTORY
+--error 0, 1
+--force-rmdir $SECURE_FILE_PRIV/xxx
+--echo #
+--echo # Create the new server directories
+--echo #
+--mkdir $MYSQLD_DATADIR/xxx
+--mkdir $INNODB_DATA_HOME_DIR
+--mkdir $INNODB_DATA_HOME_DIR/xxx
+--mkdir $INNODB_DIRECTORIES
+--mkdir $INNODB_LOG_GROUP_HOME_DIR
+--mkdir $INNODB_TEMP_TABLESPACES_DIR
+--mkdir $EXT_DIR/tmp
+--mkdir $INNODB_TMPDIR
+--mkdir $INNODB_TMPDIR/xxx
+--mkdir $INNODB_UNDO_DIRECTORY
+--mkdir $SECURE_FILE_PRIV/xxx
+--echo #
+--echo # Move files from the default directories to the new server directories
+--echo #
+--move_file $MYSQLD_DATADIR/ibdata1 $INNODB_DATA_HOME_DIR/ibdata1
+--move_file $MYSQLD_DATADIR/ib_buffer_pool $INNODB_DATA_HOME_DIR/ib_buffer_pool
+--move_file $MYSQLD_DATADIR/ib_logfile0 $INNODB_LOG_GROUP_HOME_DIR/ib_logfile0
+--move_file $MYSQLD_DATADIR/ib_logfile1 $INNODB_LOG_GROUP_HOME_DIR/ib_logfile1
+--move_file $MYSQLD_DATADIR/undo_001 $INNODB_UNDO_DIRECTORY/undo_001
+--move_file $MYSQLD_DATADIR/undo_002 $INNODB_UNDO_DIRECTORY/undo_002
+--echo #
+--echo # Restart the server with the new server directories
+--echo #
+--let $restart_parameters="restart: --innodb_data_home_dir=$INNODB_DATA_HOME_DIR --innodb_directories=$INNODB_DIRECTORIES --innodb_log_group_home_dir=$INNODB_LOG_GROUP_HOME_DIR --innodb_temp_tablespaces_dir=$INNODB_TEMP_TABLESPACES_DIR --innodb_tmpdir=$INNODB_TMPDIR --innodb_undo_directory=$INNODB_UNDO_DIRECTORY"
+--source include/start_mysqld_no_echo.inc
+--echo #
+--echo # Set innodb_redo_log_archive_dirs to the server directories
+--echo #
+--echo
+--echo
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $SECURE_FILE_PRIV SECURE_FILE_PRIV
+eval SET @@global.innodb_redo_log_archive_dirs = '1:$MYSQLD_DATADIR/xxx;2:$INNODB_DATA_HOME_DIR/xxx;3:$INNODB_DIRECTORIES;4:$INNODB_LOG_GROUP_HOME_DIR;5:$INNODB_TEMP_TABLESPACES_DIR;6:$EXT_DIR/tmp;7:$INNODB_TMPDIR/xxx;8:$INNODB_UNDO_DIRECTORY;9:$SECURE_FILE_PRIV/xxx';
+--echo #
+--echo # Try to start redo log archiving with each of the server directories
+--echo #
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('1');
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('2');
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('3');
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('4');
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('5');
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('6');
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('7');
+#
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('8');
+#
+--replace_result $SECURE_FILE_PRIV SECURE_FILE_PRIV
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+DO innodb_redo_log_archive_start('9');
+--echo #
+--echo # Stop server
+--echo #
+--source include/shutdown_mysqld.inc
+--echo #
+--echo # Move files back to the default directories
+--echo #
+--move_file $INNODB_DATA_HOME_DIR/ibdata1 $MYSQLD_DATADIR/ibdata1
+--move_file $INNODB_DATA_HOME_DIR/ib_buffer_pool $MYSQLD_DATADIR/ib_buffer_pool
+--move_file $INNODB_LOG_GROUP_HOME_DIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile0
+--move_file $INNODB_LOG_GROUP_HOME_DIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1
+--move_file $INNODB_UNDO_DIRECTORY/undo_001 $MYSQLD_DATADIR/undo_001
+--move_file $INNODB_UNDO_DIRECTORY/undo_002 $MYSQLD_DATADIR/undo_002
+--echo #
+--echo # Remove the new server directories
+--echo #
+--rmdir $SECURE_FILE_PRIV/xxx
+--rmdir $INNODB_UNDO_DIRECTORY
+--rmdir $INNODB_TMPDIR/xxx
+--rmdir $INNODB_TMPDIR
+--rmdir $EXT_DIR/tmp
+--rmdir $INNODB_TEMP_TABLESPACES_DIR
+--rmdir $INNODB_LOG_GROUP_HOME_DIR
+--rmdir $INNODB_DIRECTORIES
+--rmdir $INNODB_DATA_HOME_DIR/xxx
+--rmdir $INNODB_DATA_HOME_DIR
+--rmdir $MYSQLD_DATADIR/xxx
+--echo #
+--echo # Restart the server with default directories
+--echo #
+--let $restart_parameters="restart:"
+--source include/start_mysqld_no_echo.inc
+--echo
+
+--echo #
+--echo # Set innodb_redo_log_archive_dirs for the following tests.
+--echo #
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1 $IRLA_DIRECTORY_2 IRLA_DIRECTORY_2
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1;label2:$IRLA_DIRECTORY_2';
+--echo
+
+--echo #
+--echo # Create the redo log archive directory for the following tests.
+--echo #
+--mkdir $IRLA_DIRECTORY_1
+--mkdir $IRLA_DIRECTORY_2
+--echo
+
+--echo #
+--echo # Create connection con1 for the following tests.
+--echo #
+--connect(con1,localhost,root,,)
+--connection default
+--echo
+
+--echo #
+--echo # Start with active logging.
+--echo #
+DO innodb_redo_log_archive_start('label1');
+--replace_result $IRLA_PATHNAME_1 IRLA_PATHNAME_1
+--replace_regex /[\\]/\//
+--error ER_INNODB_REDO_LOG_ARCHIVE_ACTIVE
+DO innodb_redo_log_archive_start('label1');
+DO innodb_redo_log_archive_stop();
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Stop with inactive logging.
+--echo #
+--error ER_INNODB_REDO_LOG_ARCHIVE_INACTIVE
+DO innodb_redo_log_archive_stop();
+--echo
+
+--echo #
+--echo # Start with active logging from other session.
+--echo #
+DO innodb_redo_log_archive_start('label1');
+--echo [connection con1]
+--connection con1
+--replace_result $IRLA_PATHNAME_1 IRLA_PATHNAME_1
+--replace_regex /[\\]/\//
+--error ER_INNODB_REDO_LOG_ARCHIVE_ACTIVE
+DO innodb_redo_log_archive_start('label2');
+--echo [connection default]
+--connection default
+DO innodb_redo_log_archive_stop();
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Stop from wrong session
+--echo #
+DO innodb_redo_log_archive_start('label1');
+--echo [connection con1]
+--connection con1
+--error ER_INNODB_REDO_LOG_ARCHIVE_SESSION
+DO innodb_redo_log_archive_stop();
+--echo [connection default]
+--connection default
+DO innodb_redo_log_archive_stop();
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Session ends without stop
+--echo #
+--echo [connection con1]
+--connection con1
+DO innodb_redo_log_archive_start('label1');
+--echo # Redo log archive file exists
+--file_exists $IRLA_PATHNAME_1
+--echo #
+--echo # Disconnect con1
+--echo #
+--disconnect con1
+--source include/wait_until_disconnected.inc
+--echo [connection default]
+--connection default
+--echo # Redo log archive file does not exist any more
+--error 1
+--file_exists $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Stop after error - reports the previous error
+--echo #
+--error ER_INNODB_REDO_LOG_ARCHIVE_FAILED
+DO innodb_redo_log_archive_stop();
+--echo
+
+--echo #
+--echo # File exists
+--echo #
+--echo # Create a file with the name of the redo log archive file
+--echo #
+--write_file $IRLA_PATHNAME_1
+EOF
+--replace_result $IRLA_PATHNAME_1 IRLA_PATHNAME_1
+--replace_regex /[\\]/\// /OS errno: .*/OS errno: ## - ###)/
+--error ER_INNODB_REDO_LOG_ARCHIVE_FILE_CREATE
+DO innodb_redo_log_archive_start('label1');
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Call redo log archiving start & stop repeatedly
+--echo # This could catch race conditions between start and stop.
+--echo #
+--LET $i = 20
+WHILE($i > 0) {
+  DO innodb_redo_log_archive_start("label1");
+  DO innodb_redo_log_archive_stop();
+  --remove_file $IRLA_PATHNAME_1
+  --dec $i
+}
+--echo
+
+--echo #
+--echo # Cleanup
+--echo #
+--rmdir $IRLA_DIRECTORY_2
+--rmdir $IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_dirs';

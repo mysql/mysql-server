@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -348,7 +348,8 @@ std::string get_tmp_dir(const std::string &name) {
   return result;
 }
 
-SecurityDescriptorPtr get_security_descriptor(const std::string &file_name) {
+std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> get_security_descriptor(
+    const std::string &file_name) {
   static constexpr SECURITY_INFORMATION kReqInfo = DACL_SECURITY_INFORMATION;
 
   // Get the size of the descriptor.
@@ -368,8 +369,8 @@ SecurityDescriptorPtr get_security_descriptor(const std::string &file_name) {
     }
   }
 
-  SecurityDescriptorPtr sec_desc(
-      static_cast<SECURITY_DESCRIPTOR *>(std::malloc(sec_desc_size)));
+  std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> sec_desc(
+      static_cast<SECURITY_DESCRIPTOR *>(std::malloc(sec_desc_size)), &free);
 
   if (GetFileSecurityA(file_name.c_str(), kReqInfo, sec_desc.get(),
                        sec_desc_size, &sec_desc_size) == FALSE) {

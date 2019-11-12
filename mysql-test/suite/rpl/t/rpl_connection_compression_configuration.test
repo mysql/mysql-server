@@ -1,0 +1,277 @@
+# ==== Requirements ====
+#
+# R1: Test configuration of compression algorithm and level for new channel.
+#  1. ALGORITHM set to different combination of zlib,zstd,uncompressed
+#  2. ALGORITHM set to different combination of zlib,zstd,uncompressed and
+#     LEVEL set to different values.
+#  3. ALGORITHM set to invalid values.
+#  4. ALGORITHM set to invalid values and LEVEL set to different values.
+#  5. ALGORITHM and LEVEL not specified.
+#  6. ALGORITHM specified and LEVEL not specified.
+#  7. ALGORITHM not specified and LEVEL specified.
+#
+# R2: Test configuration of compression algorithm and level for existing
+#     channel.
+#  1. ALGORITHM set to different combination of zlib,zstd,uncompressed which
+#     is different from its previous value.
+#  2. ALGORITHM set to different combination of zlib,zstd,uncompressed which
+#     is different from its previous value and LEVEL set to different values.
+#  3. ALGORITHM changed  to invalid values.
+#  4. ALGORITHM changed  to invalid values and LEVEL set to different values.
+#  5. ALGORITHM and LEVEL not specified.
+#  6. ALGORITHM specified and LEVEL not specified.
+#  7. ALGORITHM not specified and LEVEL specified.
+#
+# ==== References ====
+#
+# WL#12475 - Protocol Changes to specify compression configuration for
+#              connections
+
+--source include/master-slave.inc
+--source include/rpl_connection_slave.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+
+--echo ##### TEST FOR NEW CHANNEL #####
+
+--echo # case 1: ALGORITHM = uncompressed, LEVEL not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL= 0 FOR CHANNEL 'C1';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C1';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C1';
+
+--echo # case 2: ALGORITHM = uncompressed, LEVEL = 2
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C2';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C2';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C2';
+
+--echo # case 3: ALGORITHM not specified, LEVEL = 2
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C3';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C3';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C3';
+
+--echo # case 4: ALGORITHM = ZSTD, LEVEL = not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd' FOR CHANNEL 'C4';
+--echo # algorithm and level should be set to zstd and 0
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C4';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C4';
+
+--echo # case 5: ALGORITHM = ZSTD, LEVEL = 9
+--echo # report error as part of change master
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL= 9 FOR CHANNEL 'C5';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C5';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C5';
+
+--echo # case 6: ALGORITHM = ZSTD, LEVEL = 24
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_LEVEL_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL= 24 FOR CHANNEL 'C6';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C6';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C6';
+
+--echo # case 7: ALGORITHM = invalid value, LEVEL = 2
+--echo # report error as part of change master
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT 
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C7';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C7';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C7';
+
+--echo # case 8: ALGORITHM = invalid value, LEVEL = 29
+--echo # report error as part of change master
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL= 29 FOR CHANNEL 'C8';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C8';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C8';
+
+--echo # case 9: ALGORITHM = invalid value, LEVEL not specified
+--echo # report error as part of change master
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz' FOR CHANNEL 'C9';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C9';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C9';
+
+--echo # case 10: ALGORITHM = invalid value 
+--echo # report error as part of change master
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc' FOR CHANNEL 'C10';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C10';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C10';
+
+--echo # case 11: ALGORITHM specified to more than 3 values
+--echo # report error as part of change master
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_LIST_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc,123' FOR CHANNEL 'C11';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C11';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C11';
+
+--echo # case 12: ALGORITHM specified to upper case, LEVEL not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root',MASTER_COMPRESSION_ALGORITHMS= 'ZLIB,ZSTD' FOR CHANNEL 'C12';
+--echo # algorithm and level should be set to ZLIB,ZSTD/0
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C12';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C12';
+
+--echo # case 13: ALGORITHM = 'zlib,uncompressed', LEVEL not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed' FOR CHANNEL 'C13';
+--echo # algorithm and level should be set to 'zlib,uncompressed'/0
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C13';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C13';
+
+--echo # case 14: ALGORITHM = 'zlib,uncompressed', LEVEL = 4
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL=4 FOR CHANNEL 'C14';
+--echo # algorithm and level should be set to 'zlib,uncompressed'/4
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C14';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C14';
+
+--echo # case 15: ALGORITHM = 'zlib,uncompressed,zstd', LEVEL = 0
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed,zstd', MASTER_ZSTD_COMPRESSION_LEVEL=0 FOR CHANNEL 'C15';
+--echo # algorithm and level should be set to 'zlib,uncompressed,zstd'/0
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C15';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C15';
+
+--echo # case 16: ALGORITHM = 'uncompressed,zstd', LEVEL = 14
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed,zstd', MASTER_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C16';
+--echo # algorithm and level should be set to 'uncompressed,zstd'/14
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C16';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C16';
+
+--echo # case 17: ALGORITHM = 'zlib,uncompressed,zlib', LEVEL = 14
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed,zlib', MASTER_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C17';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C17';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C17';
+
+--echo # case 18: ALGORITHM = 'uncompressed,uncompressed,uncompressed', LEVEL = 14
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed,uncompressed,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C17';
+--echo # algorithm and level should be set to  'uncompressed,uncompressed,uncompressed'/14
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C17';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C17';
+
+--echo # case 19: ALGORITHM = 'zstd,zlib,uncompressed', LEVEL = 2
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd,zlib,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL=2 FOR CHANNEL 'C17';
+--echo # algorithm and level should be set to 'zstd,zlib,uncompressed'/2
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C17';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C17';
+
+--echo ##### TEST FOR EXISTING CHANNEL #####
+--echo # create a new channel
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C21';
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo # case 1: ALGORITHM not specified, LEVEL = 7
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_ZSTD_COMPRESSION_LEVEL = 7 FOR CHANNEL 'C21';
+--echo # algorithm and level should be set to 'zstd'/7
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo # case 2: ALGORITHM not specified, LEVEL 37
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_LEVEL_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_ZSTD_COMPRESSION_LEVEL = 37 FOR CHANNEL 'C21';
+--echo # level should be same as previous which is 7
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo # case 3: ALGORITHM not specified, LEVEL is not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root' FOR CHANNEL 'C21';
+--echo # algorithm and level should not change
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo # case 4: ALGORITHM changed from zstd to zlib, LEVEL = 6
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib', MASTER_ZSTD_COMPRESSION_LEVEL = 6 FOR CHANNEL 'C21';
+--echo # level should be 6 and algorithm should be zlib
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo # case 5: ALGORITHM changed from zlib to zstd/uncompressed, LEVEL = 27
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_LEVEL_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL = 27 FOR CHANNEL 'C21';
+--echo # level should be 6 and algorithm should be zlib
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+
+--echo # case 6: ALGORITHM changed from zstd to zlib, LEVEL not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib' FOR CHANNEL 'C21';
+--echo # level should not change
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo # case 7: ALGORITHM = invalid values, LEVEL = 6
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL = 6 FOR CHANNEL 'C21';
+
+--echo # case 8: ALGORITHM = invalid values, LEVEL = 26
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL = 26 FOR CHANNEL 'C21';
+
+--echo # case 9: ALGORITHM = invalid values, LEVEL is not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+--error ER_CHANGE_MASTER_WRONG_COMPRESSION_ALGORITHM_CLIENT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz' FOR CHANNEL 'C21';
+
+--echo # case 10: ALGORITHM changed from zlib to 'zstd,zlib,uncompressed', LEVEL is not specified
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd,zlib,uncompressed' FOR CHANNEL 'C21';
+--echo # level should be 0 and algorithm should be 'zstd,zlib,uncompressed' and warning is reported
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo # case 11: ALGORITHM changed from 'zstd,zlib,uncompressed' to 'zstd', LEVEL = 3
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL = 3 FOR CHANNEL 'C21';
+--echo # level should be 3 and algorithm should be 'zstd'
+SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
+SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'C21';
+
+--echo
+--echo # cleanup
+--echo
+--source include/stop_slave.inc
+RESET SLAVE ALL FOR CHANNEL 'c1';
+RESET SLAVE ALL FOR CHANNEL 'c10';
+RESET SLAVE ALL FOR CHANNEL 'c11';
+RESET SLAVE ALL FOR CHANNEL 'c12';
+RESET SLAVE ALL FOR CHANNEL 'c13';
+RESET SLAVE ALL FOR CHANNEL 'c14';
+RESET SLAVE ALL FOR CHANNEL 'c15';
+RESET SLAVE ALL FOR CHANNEL 'c16';
+RESET SLAVE ALL FOR CHANNEL 'c17';
+RESET SLAVE ALL FOR CHANNEL 'c2';
+RESET SLAVE ALL FOR CHANNEL 'c21';
+RESET SLAVE ALL FOR CHANNEL 'c3';
+RESET SLAVE ALL FOR CHANNEL 'c4';
+RESET SLAVE ALL FOR CHANNEL 'c5';
+RESET SLAVE ALL FOR CHANNEL 'c6';
+RESET SLAVE ALL FOR CHANNEL 'c7';
+RESET SLAVE ALL FOR CHANNEL 'c8';
+RESET SLAVE ALL FOR CHANNEL 'c9';
+
+--source include/start_slave.inc
+--source include/rpl_end.inc

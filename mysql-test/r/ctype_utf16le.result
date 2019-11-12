@@ -353,130 +353,6 @@ INSERT(a, 1, 2, b)
 defc
 DROP TABLE t1;
 #
-# Bug#1264
-#
-SET NAMES utf8, collation_connection=utf16le_general_ci;
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-#
-# Two fields, index
-#
-CREATE TABLE t1 (
-word VARCHAR(64),
-bar INT(11) DEFAULT 0,
-PRIMARY KEY (word))
-ENGINE=MyISAM
-CHARSET utf16le
-COLLATE utf16le_general_ci ;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a");
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word	bar
-a	0
-aar	0
-aardvar	0
-aardvara	0
-aardvark	0
-aardvarz	0
-EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT word FROM t1 ORDER by word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
-#
-# One field, index
-#
-CREATE TABLE t1 (
-word VARCHAR(64) ,
-PRIMARY KEY (word))
-ENGINE=MyISAM
-CHARSET utf16le
-COLLATE utf16le_general_ci;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a");
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY WORD;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	258	NULL	6	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
-#
-# Two fields, no index
-#
-CREATE TABLE t1 (
-word TEXT,
-bar INT(11) AUTO_INCREMENT,
-PRIMARY KEY (bar))
-ENGINE=MyISAM
-CHARSET utf16le
-COLLATE utf16le_general_ci ;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a" );
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word	bar
-a	2
-aar	1
-aardvar	3
-aardvara	5
-aardvark	4
-aardvarz	6
-EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT word FROM t1 ORDER BY word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
-#
-# END OF Bug 1264 test
-#
-#
 # Check alignment for from-binary-conversion with CAST and CONVERT
 #
 SELECT HEX(CAST(0xAA as char CHARACTER SET utf16le));
@@ -800,34 +676,6 @@ lily
 river
 DROP TABLE t1;
 DEALLOCATE PREPARE stmt;
-#
-# Bug#22052 Trailing spaces are not removed FROM UNICODE fields in an index
-#
-CREATE TABLE t1 (
-a CHAR(10) CHARACTER SET utf16le NOT NULL,
-INDEX a (a)
-) engine=myisam;
-INSERT INTO t1 VALUES (REPEAT(_ucs2 0x201f, 10));
-INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2020, 10));
-INSERT INTO t1 VALUES (REPEAT(_ucs2 0x2021, 10));
-# make sure "index read" is used
-explain SELECT HEX(a) FROM t1 ORDER BY a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	40	NULL	3	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select hex(`test`.`t1`.`a`) AS `HEX(a)` from `test`.`t1` order by `test`.`t1`.`a`
-SELECT HEX(a) FROM t1 ORDER BY a;
-HEX(a)
-1F201F201F201F201F201F201F201F201F201F20
-2020202020202020202020202020202020202020
-2120212021202120212021202120212021202120
-ALTER TABLE t1 DROP INDEX a;
-SELECT HEX(a) FROM t1 ORDER BY a;
-HEX(a)
-1F201F201F201F201F201F201F201F201F201F20
-2020202020202020202020202020202020202020
-2120212021202120212021202120212021202120
-DROP TABLE t1;
 #
 # Bug #20108: corrupted default enum value for a ucs2 field
 #
@@ -1273,19 +1121,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET sql_mode = default;
-#
-# Testing that maximim possible key length is 1000 bytes for MyISAM
-#
-CREATE TABLE t1 (a VARCHAR(250) CHARACTER SET utf16le PRIMARY KEY) engine=MyISAM;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` varchar(250) CHARACTER SET utf16le COLLATE utf16le_general_ci NOT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t1;
-CREATE TABLE t1 (a VARCHAR(334) CHARACTER SET utf16le PRIMARY KEY) engine=MyISAM;
-ERROR 42000: Specified key was too long; max key length is 1000 bytes
 #
 # Testing that maximim possible key length is 767 bytes for InnoDB
 #

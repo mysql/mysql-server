@@ -1,8 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"preview": "Forhåndsvis"
-})
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/nb/Preview",({"preview":"Forhåndsvis"}));

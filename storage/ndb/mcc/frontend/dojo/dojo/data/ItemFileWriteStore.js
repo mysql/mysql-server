@@ -1,11 +1,11 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/data/ItemFileWriteStore",["../_base/lang","../_base/declare","../_base/array","../_base/json","../_base/window","./ItemFileReadStore","../date/stamp"],function(_1,_2,_3,_4,_5,_6,_7){
+define("dojo/data/ItemFileWriteStore",["../_base/lang","../_base/declare","../_base/array","../_base/json","../_base/kernel","./ItemFileReadStore","../date/stamp"],function(_1,_2,_3,_4,_5,_6,_7){
 return _2("dojo.data.ItemFileWriteStore",_6,{constructor:function(_8){
 this._features["dojo.data.api.Write"]=true;
 this._features["dojo.data.api.Notification"]=true;

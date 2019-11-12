@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -47,10 +47,10 @@ class Find_statement_builder_test : public ::testing::Test {
       : args(*msg.mutable_args()), expr_gen(nullptr) {}
 
   std::unique_ptr<Find_statement_builder_stub> builder(
-      Expression_generator::Placeholder_id_list *ids = nullptr) {
+      Expression_generator::Prep_stmt_placeholder_list *ids = nullptr) {
     expr_gen.reset(new Expression_generator(&query, args, schema,
                                             is_table_data_model(msg)));
-    if (ids) expr_gen->set_placeholder_id_list(ids);
+    if (ids) expr_gen->set_prep_stmt_placeholder_list(ids);
 
     std::unique_ptr<Find_statement_builder_stub> stub(
         new Find_statement_builder_stub(expr_gen.get()));
@@ -62,7 +62,7 @@ class Find_statement_builder_test : public ::testing::Test {
   Query_string_builder query;
   std::string schema;
   std::unique_ptr<Expression_generator> expr_gen;
-  Expression_generator::Placeholder_id_list placeholders;
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
 
   enum { k_document = 0, k_table = 1 };
 };
@@ -129,7 +129,7 @@ TEST_F(Find_statement_builder_test,
                       ->add_table_projection(Projection_list{
                           {Column_identifier("alpha")}, {Placeholder(0)}}));
   EXPECT_EQ("`alpha`,?", query.get());
-  EXPECT_EQ(Expression_generator::Placeholder_id_list{0}, placeholders);
+  EXPECT_EQ(Expression_generator::Prep_stmt_placeholder_list{0}, placeholders);
 }
 
 TEST_F(Find_statement_builder_test, add_projection_table_one_item_with_alias) {

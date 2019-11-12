@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-next: "הבא",
-previous: "הקודם",
-done: "סיום"
-})
-//end v1.x content
-);
+define("dojox/widget/nls/he/Wizard",({next:"הבא",previous:"הקודם",done:"סיום"}));

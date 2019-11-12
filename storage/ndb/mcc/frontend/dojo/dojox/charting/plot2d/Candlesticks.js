@@ -1,41 +1,41 @@
 //>>built
-define("dojox/charting/plot2d/Candlesticks",["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","./Base","./common","dojox/lang/functional","dojox/lang/functional/reversed","dojox/lang/utils","dojox/gfx/fx"],function(_1,_2,_3,_4,dc,df,_5,du,fx){
-var _6=_5.lambda("item.purgeGroup()");
-return _2("dojox.charting.plot2d.Candlesticks",_4,{defaultParams:{hAxis:"x",vAxis:"y",gap:2,animate:null},optionalParams:{minBarSize:1,maxBarSize:1,stroke:{},outline:{},shadow:{},fill:{},font:"",fontColor:""},constructor:function(_7,_8){
+define("dojox/charting/plot2d/Candlesticks",["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","./CartesianBase","./_PlotEvents","./common","dojox/lang/functional","dojox/lang/functional/reversed","dojox/lang/utils","dojox/gfx/fx"],function(_1,_2,_3,_4,_5,dc,df,_6,du,fx){
+var _7=_6.lambda("item.purgeGroup()");
+return _2("dojox.charting.plot2d.Candlesticks",[_4,_5],{defaultParams:{hAxis:"x",vAxis:"y",gap:2,animate:null},optionalParams:{minBarSize:1,maxBarSize:1,stroke:{},outline:{},shadow:{},fill:{},font:"",fontColor:""},constructor:function(_8,_9){
 this.opt=_1.clone(this.defaultParams);
-du.updateWithObject(this.opt,_8);
-du.updateWithPattern(this.opt,_8,this.optionalParams);
+du.updateWithObject(this.opt,_9);
+du.updateWithPattern(this.opt,_9,this.optionalParams);
 this.series=[];
 this.hAxis=this.opt.hAxis;
 this.vAxis=this.opt.vAxis;
 this.animate=this.opt.animate;
-},collectStats:function(_9){
-var _a=_1.delegate(dc.defaultStats);
-for(var i=0;i<_9.length;i++){
-var _b=_9[i];
-if(!_b.data.length){
+},collectStats:function(_a){
+var _b=_1.delegate(dc.defaultStats);
+for(var i=0;i<_a.length;i++){
+var _c=_a[i];
+if(!_c.data.length){
 continue;
 }
-var _c=_a.vmin,_d=_a.vmax;
-if(!("ymin" in _b)||!("ymax" in _b)){
-_3.forEach(_b.data,function(_e,_f){
-if(_e!==null){
-var x=_e.x||_f+1;
-_a.hmin=Math.min(_a.hmin,x);
-_a.hmax=Math.max(_a.hmax,x);
-_a.vmin=Math.min(_a.vmin,_e.open,_e.close,_e.high,_e.low);
-_a.vmax=Math.max(_a.vmax,_e.open,_e.close,_e.high,_e.low);
+var _d=_b.vmin,_e=_b.vmax;
+if(!("ymin" in _c)||!("ymax" in _c)){
+_3.forEach(_c.data,function(_f,idx){
+if(_f!==null){
+var x=_f.x||idx+1;
+_b.hmin=Math.min(_b.hmin,x);
+_b.hmax=Math.max(_b.hmax,x);
+_b.vmin=Math.min(_b.vmin,_f.open,_f.close,_f.high,_f.low);
+_b.vmax=Math.max(_b.vmax,_f.open,_f.close,_f.high,_f.low);
 }
 });
 }
-if("ymin" in _b){
-_a.vmin=Math.min(_c,_b.ymin);
+if("ymin" in _c){
+_b.vmin=Math.min(_d,_c.ymin);
 }
-if("ymax" in _b){
-_a.vmax=Math.max(_d,_b.ymax);
+if("ymax" in _c){
+_b.vmax=Math.max(_e,_c.ymax);
 }
 }
-return _a;
+return _b;
 },getSeriesStats:function(){
 var _10=this.collectStats(this.series);
 _10.hmin-=0.5;
@@ -48,7 +48,7 @@ return this.performZoom(dim,_11);
 this.resetEvents();
 this.dirty=this.isDirty();
 if(this.dirty){
-_3.forEach(this.series,_6);
+_3.forEach(this.series,_7);
 this._eventSeries={};
 this.cleanGroup();
 var s=this.group;

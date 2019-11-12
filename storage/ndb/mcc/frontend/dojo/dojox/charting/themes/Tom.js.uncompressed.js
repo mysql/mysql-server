@@ -1,4 +1,3 @@
-//>>built
 define("dojox/charting/themes/Tom", ["../Theme", "dojox/gfx/gradutils", "./common"], function(Theme, gradutils, themes){
 
 	// created by Tom Trenka

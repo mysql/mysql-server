@@ -1,4 +1,3 @@
-//>>built
 define("dojox/rpc/Client", ["dojo", "dojox"], function(dojo, dojox) {
 
 	dojo.getObject("rpc.Client", true, dojox);

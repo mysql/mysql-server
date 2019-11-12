@@ -1,10 +1,10 @@
-//>>built
 define("dojox/grid/enhanced/plugins/exporter/CSVWriter", [
 	"dojo/_base/declare",
+	"dojo/_base/lang",
 	"dojo/_base/array",
 	"./_ExportWriter",
 	"../Exporter"
-], function(declare, array, _ExportWriter, Exporter){
+], function(declare, lang, array, _ExportWriter, Exporter){
 
 Exporter.registerWriter("csv", "dojox.grid.enhanced.plugins.exporter.CSVWriter");
 
@@ -53,7 +53,7 @@ return declare("dojox.grid.enhanced.plugins.exporter.CSVWriter", _ExportWriter, 
 		// summary:
 		//		Overrided from _ExportWriter
 		var row = [],
-			func = this._formatCSVCell;
+			func = lang.hitch(this, this._formatCSVCell);
 		array.forEach(arg_obj.grid.layout.cells, function(cell){
 			//We are not interested in indirect selectors and row indexes.
 			if(!cell.hidden && array.indexOf(arg_obj.spCols,cell.index) < 0){

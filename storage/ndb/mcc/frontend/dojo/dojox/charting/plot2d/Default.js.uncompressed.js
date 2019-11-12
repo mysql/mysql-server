@@ -1,106 +1,115 @@
-//>>built
 define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", 
-		"./Base", "./common", "dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"], 
-	function(lang, declare, arr, Base, dc, df, dfr, du, fx){
+		"./CartesianBase", "./_PlotEvents", "./common", "dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"],
+	function(lang, declare, arr, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
 
 	/*=====
-	dojo.declare("dojox.charting.plot2d.__DefaultCtorArgs", dojox.charting.plot2d.__PlotCtorArgs, {
-		//	summary:
+	declare("dojox.charting.plot2d.__DefaultCtorArgs", dojox.charting.plot2d.__PlotCtorArgs, {
+		// summary:
 		//		The arguments used for any/most plots.
 	
-		//	hAxis: String?
+		// hAxis: String?
 		//		The horizontal axis name.
 		hAxis: "x",
 	
-		//	vAxis: String?
+		// vAxis: String?
 		//		The vertical axis name
 		vAxis: "y",
 	
-		//	lines: Boolean?
+		// lines: Boolean?
 		//		Whether or not to draw lines on this plot.  Defaults to true.
 		lines:   true,
 	
-		//	areas: Boolean?
+		// areas: Boolean?
 		//		Whether or not to draw areas on this plot. Defaults to false.
 		areas:   false,
 	
-		//	markers: Boolean?
+		// markers: Boolean?
 		//		Whether or not to draw markers at data points on this plot. Default is false.
 		markers: false,
 	
-		//	tension: Number|String?
+		// tension: Number|String?
 		//		Whether or not to apply 'tensioning' to the lines on this chart.
 		//		Options include a number, "X", "x", or "S"; if a number is used, the
 		//		simpler bezier curve calculations are used to draw the lines.  If X, x or S
 		//		is used, the more accurate smoothing algorithm is used.
 		tension: "",
 	
-		//	animate: Boolean?
+		// animate: Boolean?
 		//		Whether or not to animate the chart to place.
 		animate: false,
 	
-		//	stroke: dojox.gfx.Stroke?
+		// stroke: dojox.gfx.Stroke?
 		//		An optional stroke to use for any series on the plot.
 		stroke:		{},
 	
-		//	outline: dojox.gfx.Stroke?
+		// outline: dojox.gfx.Stroke?
 		//		An optional stroke used to outline any series on the plot.
 		outline:	{},
 	
-		//	shadow: dojox.gfx.Stroke?
+		// shadow: dojox.gfx.Stroke?
 		//		An optional stroke to use to draw any shadows for a series on a plot.
 		shadow:		{},
 	
-		//	fill: dojox.gfx.Fill?
+		// fill: dojox.gfx.Fill?
 		//		Any fill to be used for elements on the plot (such as areas).
 		fill:		{},
+
+		// styleFunc: Function?
+		//		A function that returns a styling object for the a given data item.
+		styleFunc:	null,
 	
-		//	font: String?
+		// font: String?
 		//		A font definition to be used for labels and other text-based elements on the plot.
 		font:		"",
 	
-		//	fontColor: String|dojo.Color?
+		// fontColor: String|dojo.Color?
 		//		The color to be used for any text-based elements on the plot.
 		fontColor:	"",
 	
-		//	markerStroke: dojo.gfx.Stroke?
+		// markerStroke: dojo.gfx.Stroke?
 		//		An optional stroke to use for any markers on the plot.
 		markerStroke:		{},
 	
-		//	markerOutline: dojo.gfx.Stroke?
+		// markerOutline: dojo.gfx.Stroke?
 		//		An optional outline to use for any markers on the plot.
 		markerOutline:		{},
 	
-		//	markerShadow: dojo.gfx.Stroke?
+		// markerShadow: dojo.gfx.Stroke?
 		//		An optional shadow to use for any markers on the plot.
 		markerShadow:		{},
 	
-		//	markerFill: dojo.gfx.Fill?
+		// markerFill: dojo.gfx.Fill?
 		//		An optional fill to use for any markers on the plot.
 		markerFill:			{},
 	
-		//	markerFont: String?
+		// markerFont: String?
 		//		An optional font definition to use for any markers on the plot.
 		markerFont:			"",
 	
-		//	markerFontColor: String|dojo.Color?
+		// markerFontColor: String|dojo.Color?
 		//		An optional color to use for any marker text on the plot.
 		markerFontColor:	"",
 		
-		//	enableCache: Boolean?
+		// enableCache: Boolean?
 		//		Whether the markers are cached from one rendering to another. This improves the rendering performance of
 		//		successive rendering but penalize the first rendering.  Default false.
-		enableCache: false
+		enableCache: false,
+
+		// interpolate: Boolean?
+		//		Whether when there is a null data point in the data the plot interpolates it or if the lines is split at that
+		//		point.	Default false.
+		interpolate: false
 	});
-	
-	var Base = dojox.charting.plot2d.Base;
 =====*/
 
 	var purgeGroup = dfr.lambda("item.purgeGroup()");
 
 	var DEFAULT_ANIMATION_LENGTH = 1200;	// in ms
 
-	return declare("dojox.charting.plot2d.Default", Base, {
+	return declare("dojox.charting.plot2d.Default", [CartesianBase, _PlotEvents], {
+		
+		// defaultParams:
+		//		The default parameters of this plot.
 		defaultParams: {
 			hAxis: "x",		// use a horizontal axis named "x"
 			vAxis: "y",		// use a vertical axis named "y"
@@ -109,16 +118,22 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			markers: false,	// draw markers
 			tension: "",	// draw curved lines (tension is "X", "x", or "S")
 			animate: false, // animate chart to place
-			enableCache: false 
+			enableCache: false,
+			interpolate: false
 		},
+		
+		// optionalParams:
+		//		The optional parameters of this plot.
 		optionalParams: {
 			// theme component
 			stroke:		{},
 			outline:	{},
 			shadow:		{},
 			fill:		{},
+			styleFunc: null,
 			font:		"",
 			fontColor:	"",
+			marker:             "",
 			markerStroke:		{},
 			markerOutline:		{},
 			markerShadow:		{},
@@ -128,15 +143,15 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 		},
 
 		constructor: function(chart, kwArgs){
-			//	summary:
+			// summary:
 			//		Return a new plot.
-			//	chart: dojox.charting.Chart
+			// chart: dojox/charting/Chart
 			//		The chart this plot belongs to.
-			//	kwArgs: dojox.charting.plot2d.__DefaultCtorArgs?
+			// kwArgs: dojox.charting.plot2d.__DefaultCtorArgs?
 			//		An optional arguments object to help define this plot.
 			this.opt = lang.clone(this.defaultParams);
-            du.updateWithObject(this.opt, kwArgs);
-            du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
+			du.updateWithObject(this.opt, kwArgs);
+			du.updateWithPattern(this.opt, kwArgs, this.optionalParams);
 			this.series = [];
 			this.hAxis = this.opt.hAxis;
 			this.vAxis = this.opt.vAxis;
@@ -161,14 +176,39 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 			return path;
 		},
 
+		buildSegments: function(i, indexed){
+			var run = this.series[i],
+				min = indexed?Math.max(0, Math.floor(this._hScaler.bounds.from - 1)):0,
+				max = indexed?Math.min(run.data.length, Math.ceil(this._hScaler.bounds.to)):run.data.length,
+				rseg = null, segments = [];
+
+			// split the run data into dense segments (each containing no nulls)
+			// except if interpolates is false in which case ignore null between valid data
+			for(var j = min; j < max; j++){
+				if(run.data[j] != null && (indexed || run.data[j].y != null)){
+					if(!rseg){
+						rseg = [];
+						segments.push({index: j, rseg: rseg});
+					}
+					rseg.push((indexed && run.data[j].hasOwnProperty("y"))?run.data[j].y:run.data[j]);
+				}else{
+					if(!this.opt.interpolate || indexed){
+						// we break the line only if not interpolating or if we have indexed data
+						rseg = null;
+					}
+				}
+			}
+			return segments;
+		},
+
 		render: function(dim, offsets){
-			//	summary:
+			// summary:
 			//		Render/draw everything on this plot.
-			//	dim: Object
+			// dim: Object
 			//		An object of the form { width, height }
-			//	offsets: Object
+			// offsets: Object
 			//		An object of the form { l, r, t, b }
-			//	returns: dojox.charting.plot2d.Default
+			// returns: dojox/charting/plot2d/Default
 			//		A reference to this plot for functional chaining.
 
 			// make sure all the series is not modified
@@ -178,12 +218,13 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 
 			this.resetEvents();
 			this.dirty = this.isDirty();
+			var s;
 			if(this.dirty){
 				arr.forEach(this.series, purgeGroup);
 				this._eventSeries = {};
 				this.cleanGroup();
 				this.group.setTransform(null);
-				var s = this.group;
+				s = this.group;
 				df.forEachRev(this.series, function(item){ item.cleanGroup(s); });
 			}
 			var t = this.chart.theme, stroke, outline, marker, events = this.events();
@@ -207,52 +248,60 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 				}
 
 				var theme = t.next(this.opt.areas ? "area" : "line", [this.opt, run], true),
-					s = run.group, rsegments = [], startindexes = [], rseg = null, lpoly,
+					lpoly,
 					ht = this._hScaler.scaler.getTransformerFromModel(this._hScaler),
 					vt = this._vScaler.scaler.getTransformerFromModel(this._vScaler),
 					eventSeries = this._eventSeries[run.name] = new Array(run.data.length);
+
+				s = run.group;
 				
 				// optim works only for index based case
-				var indexed = typeof run.data[0] == "number";
-				var min = indexed?Math.max(0, Math.floor(this._hScaler.bounds.from - 1)):0, 
-						max = indexed?Math.min(run.data.length, Math.ceil(this._hScaler.bounds.to)):run.data.length;
+				var indexed = arr.some(run.data, function(item){
+					return typeof item == "number" || (item && !item.hasOwnProperty("x"));
+				});
 
-                // split the run data into dense segments (each containing no nulls)
-                for(var j = min; j < max; j++){
-                    if(run.data[j] != null){
-                        if(!rseg){
-                            rseg = [];
-                            startindexes.push(j);
-                            rsegments.push(rseg);
-                        }
-                        rseg.push(run.data[j]);
-                    }else{
-                        rseg = null;
-                    }
-                }
-
-                for(var seg = 0; seg < rsegments.length; seg++){
-					if(typeof rsegments[seg][0] == "number"){
-						lpoly = arr.map(rsegments[seg], function(v, i){
+				var rsegments = this.buildSegments(i, indexed);
+				for(var seg = 0; seg < rsegments.length; seg++){
+					var rsegment = rsegments[seg];
+					if(indexed){
+						lpoly = arr.map(rsegment.rseg, function(v, i){
 							return {
-								x: ht(i + startindexes[seg] + 1) + offsets.l,
-								y: dim.height - offsets.b - vt(v)
+								x: ht(i + rsegment.index + 1) + offsets.l,
+								y: dim.height - offsets.b - vt(v),
+								data: v
 							};
 						}, this);
 					}else{
-						lpoly = arr.map(rsegments[seg], function(v, i){
+						lpoly = arr.map(rsegment.rseg, function(v){
 							return {
 								x: ht(v.x) + offsets.l,
-								y: dim.height - offsets.b - vt(v.y)
+								y: dim.height - offsets.b - vt(v.y),
+								data: v
 							};
 						}, this);
 					}
 
+					// if we are indexed & we interpolate we need to put all the segments as a single one now
+					if(indexed && this.opt.interpolate){
+						while(seg < rsegments.length) {
+							seg++;
+							rsegment = rsegments[seg];
+							if(rsegment){
+								lpoly = lpoly.concat(arr.map(rsegment.rseg, function(v, i){
+									return {
+										x: ht(i + rsegment.index + 1) + offsets.l,
+										y: dim.height - offsets.b - vt(v),
+										data: v
+									};
+								}, this));
+							}
+						}
+					} 
+
 					var lpath = this.opt.tension ? dc.curve(lpoly, this.opt.tension) : "";
 
 					if(this.opt.areas && lpoly.length > 1){
-						var fill = theme.series.fill;
-						var apoly = lang.clone(lpoly);
+						var fill = this._plotFill(theme.series.fill, dim, offsets), apoly = lang.clone(lpoly);
 						if(this.opt.tension){
 							var apath = "L" + apoly[apoly.length-1].x + "," + (dim.height - offsets.b) +
 								" L" + apoly[0].x + "," + (dim.height - offsets.b) +
@@ -312,27 +361,37 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 						}
 					}
 					if(this.opt.markers){
+						var markerTheme = theme; 
 						frontMarkers = new Array(lpoly.length);
 						outlineMarkers = new Array(lpoly.length);
 						outline = null;
-						if(theme.marker.outline){
-							outline = dc.makeStroke(theme.marker.outline);
-							outline.width = 2 * outline.width + (theme.marker.stroke ? theme.marker.stroke.width : 0);
+						if(markerTheme.marker.outline){
+							outline = dc.makeStroke(markerTheme.marker.outline);
+							outline.width = 2 * outline.width + (markerTheme.marker.stroke ? markerTheme.marker.stroke.width : 0);
 						}
 						arr.forEach(lpoly, function(c, i){
-							var path = "M" + c.x + " " + c.y + " " + theme.symbol;
+							if(this.opt.styleFunc || typeof c.data != "number"){
+								var tMixin = typeof c.data != "number" ? [c.data] : [];
+								if(this.opt.styleFunc){
+									tMixin.push(this.opt.styleFunc(c.data));
+								}
+								markerTheme = t.addMixin(theme, "marker", tMixin, true);
+							}else{
+								markerTheme = t.post(theme, "marker");
+							}
+							var path = "M" + c.x + " " + c.y + " " + markerTheme.symbol;
 							if(outline){
 								outlineMarkers[i] = this.createPath(run, s, path).setStroke(outline);
 							}
-							frontMarkers[i] = this.createPath(run, s, path).setStroke(theme.marker.stroke).setFill(theme.marker.fill);
+							frontMarkers[i] = this.createPath(run, s, path).setStroke(markerTheme.marker.stroke).setFill(markerTheme.marker.fill);
 						}, this);
-						run.dyn.markerFill = theme.marker.fill;
-						run.dyn.markerStroke = theme.marker.stroke;
+						run.dyn.markerFill = markerTheme.marker.fill;
+						run.dyn.markerStroke = markerTheme.marker.stroke;
 						if(events){
 							arr.forEach(frontMarkers, function(s, i){
 								var o = {
 									element: "marker",
-									index:   i + startindexes[seg],
+									index:   i + rsegment.index,
 									run:     run,
 									shape:   s,
 									outline: outlineMarkers[i] || null,
@@ -340,21 +399,21 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 									cx:      lpoly[i].x,
 									cy:      lpoly[i].y
 								};
-								if(typeof rsegments[seg][0] == "number"){
-									o.x = i + startindexes[seg] + 1;
-									o.y = rsegments[seg][i];
+								if(indexed){
+									o.x = i + rsegment.index + 1;
+									o.y = rsegment.rseg[i];
 								}else{
-									o.x = rsegments[seg][i].x;
-									o.y = rsegments[seg][i].y;
+									o.x = rsegment.rseg[i].x;
+									o.y = rsegment.rseg[i].y;
 								}
 								this._connectEvents(o);
-								eventSeries[i + startindexes[seg]] = o;
+								eventSeries[i + rsegment.index] = o;
 							}, this);
 						}else{
 							delete this._eventSeries[run.name];
 						}
 					}
-                }
+				}
 				run.dirty = false;
 			}
 			if(this.animate){
@@ -371,7 +430,7 @@ define("dojox/charting/plot2d/Default", ["dojo/_base/lang", "dojo/_base/declare"
 				}, this.animate)).play();
 			}
 			this.dirty = false;
-			return this;	//	dojox.charting.plot2d.Default
+			return this;	//	dojox/charting/plot2d/Default
 		}
 	});
 });

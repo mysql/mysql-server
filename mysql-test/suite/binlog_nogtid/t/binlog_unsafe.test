@@ -84,6 +84,7 @@
 # BUG#47995: Mark user functions as unsafe
 # BUG#49222: Mark RAND() unsafe
 # BUG#11758262: MARK INSERT...SEL...ON DUP KEY UPD,REPLACE...SEL,CREATE...[IGN|REPL] SEL
+# BUG#28297486: WL#9418: ERROR AND WARNING RELATED ISSUES
 #
 # ==== Related test cases ====
 #
@@ -763,5 +764,22 @@ DROP TABLE replace_table;
 DROP TABLE create_ignore_test;
 DROP TABLE create_replace_test;
 DROP TABLE insert_2_keys;
+
+--echo #
+--echo # Bug#28297486: WL#9418: ERROR AND WARNING RELATED ISSUES
+--echo #
+CREATE TABLE t(d DOUBLE DEFAULT (RAND()));
+DELIMITER |;
+CREATE FUNCTION f() RETURNS INT
+BEGIN
+INSERT INTO t VALUES ();
+RETURN 123;
+END|
+DELIMITER ;|
+# Expect a warning because f() invokes an INSERT statement with an
+# unsafe DEFAULT expression.
+SELECT f();
+DROP FUNCTION f;
+DROP TABLE t;
 
 --echo "End of tests"

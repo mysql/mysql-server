@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,10 @@ static uint get_collation_number_internal(const char *name) {
   my_casedn_str(&my_charset_latin1, lower_case_name);
 
   DBUG_ASSERT(coll_name_num_map != nullptr);
-  return (*coll_name_num_map)[lower_case_name];
+  auto name_num_map_it = coll_name_num_map->find(lower_case_name);
+  if (name_num_map_it != coll_name_num_map->end())
+    return name_num_map_it->second;
+  return 0;
 }
 
 static void simple_cs_init_functions(CHARSET_INFO *cs) {
@@ -392,7 +395,7 @@ error:
 char *get_charsets_dir(char *buf) {
   const char *sharedir = SHAREDIR;
   char *res;
-  DBUG_ENTER("get_charsets_dir");
+  DBUG_TRACE;
 
   if (charsets_dir != NULL)
     strmake(buf, charsets_dir, FN_REFLEN - 1);
@@ -406,7 +409,7 @@ char *get_charsets_dir(char *buf) {
   }
   res = convert_dirname(buf, buf, NullS);
   DBUG_PRINT("info", ("charsets dir: '%s'", buf));
-  DBUG_RETURN(res);
+  return res;
 }
 
 CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE] = {NULL};
@@ -640,7 +643,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
                                      myf flags) {
   uint cs_number;
   CHARSET_INFO *cs;
-  DBUG_ENTER("get_charset_by_csname");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: '%s'", cs_name));
 
   std::call_once(charsets_initialized, init_available_charsets);
@@ -654,7 +657,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
     my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_name, index_file);
   }
 
-  DBUG_RETURN(cs);
+  return cs;
 }
 
 CHARSET_INFO *get_charset_by_csname(const char *cs_name, uint cs_flags,

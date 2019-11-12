@@ -44,10 +44,10 @@ class Field;
 
 class Gtid_table_access_context : public System_table_access {
  public:
-  static const LEX_STRING DB_NAME;
-  static const LEX_STRING TABLE_NAME;
+  static const LEX_CSTRING DB_NAME;
+  static const LEX_CSTRING TABLE_NAME;
 
-  Gtid_table_access_context() : m_drop_thd_object(NULL) {}
+  Gtid_table_access_context() : m_drop_thd_object(nullptr) {}
   virtual ~Gtid_table_access_context() {}
 
   /**
@@ -145,12 +145,14 @@ class Gtid_table_persistor {
     @param gtid_set  contains a set of gtid, which holds
                      the sidno and the gno.
 
+    @param compress notify to compress gtid_executed table
+
     @retval
       0    OK
     @retval
       -1   Error
   */
-  int save(const Gtid_set *gtid_set);
+  int save(const Gtid_set *gtid_set, bool compress = true);
   /**
     Delete all rows from the table.
 
@@ -206,7 +208,7 @@ class Gtid_table_persistor {
     @retval 2 Push an error to client.
   */
   int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table) {
-    DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
+    DBUG_TRACE;
 
     if (!thd->is_operating_gtid_table_implicitly &&
         table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
@@ -219,7 +221,7 @@ class Gtid_table_persistor {
         */
         thd->raise_error_printf(ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                 table->table_name);
-        DBUG_RETURN(2);
+        return 2;
       } else {
         /*
           Push a warning to client if user is modifying the gtid_executed
@@ -227,11 +229,11 @@ class Gtid_table_persistor {
         */
         thd->raise_warning_printf(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                   table->table_name);
-        DBUG_RETURN(1);
+        return 1;
       }
     }
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
  private:

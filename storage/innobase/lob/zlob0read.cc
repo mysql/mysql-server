@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -91,6 +91,16 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
   }
 
   ut_ad(page_type == FIL_PAGE_TYPE_ZLOB_FIRST);
+
+  if (page_type != FIL_PAGE_TYPE_ZLOB_FIRST) {
+    /* In the optimized build, assume that the BLOB has been freed and return
+    without taking further action.  This condition is hit when there are stale
+    LOB references in the clustered index record, especially when there are
+    server crashes during updation of delete-marked clustered index record
+    with external fields. */
+    mtr_commit(&mtr);
+    return (0);
+  }
 
   flst_base_node_t *flst = first.index_list();
 

@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/ListSelector", ["dijit","dojo","dojox","dojo/require!dojox/mobile/app/_Widget,dojo/fx"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/ListSelector", ["dojo","dijit","dojox","dojo/require!dojox/mobile/app/_Widget,dojo/fx"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app.ListSelector");
 dojo.experimental("dojox.mobile.app.ListSelector");
 
@@ -10,17 +9,17 @@ dojo.require("dojo.fx");
 dojo.declare("dojox.mobile.app.ListSelector", dojox.mobile.app._Widget, {
 
 	// data: Array
-	//    The array of items to display.  Each element in the array
-	//    should have both a label and value attribute, e.g.
-	//    [{label: "Open", value: 1} , {label: "Delete", value: 2}]
+	//		The array of items to display.  Each element in the array
+	//		should have both a label and value attribute, e.g.
+	//		[{label: "Open", value: 1} , {label: "Delete", value: 2}]
 	data: null,
 
 	// controller: Object
-	//    The current SceneController widget.
+	//		The current SceneController widget.
 	controller: null,
 
 	// onChoose: Function
-	//    The callback function for when an item is selected
+	//		The callback function for when an item is selected
 	onChoose: null,
 
 	destroyOnHide: false,
@@ -186,7 +185,7 @@ dojo.declare("dojox.mobile.app.ListSelector", dojox.mobile.app._Widget, {
 
 	render: function(){
 		// summary:
-		//    Renders
+		//		Renders
 	
 		dojo.empty(this.domNode);
 		dojo.style(this.domNode, "opacity", 0);

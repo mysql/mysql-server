@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,40 +26,21 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 
 # MYSQL_ADD_COMPONENT(component source1...sourceN
 #
-# [STATIC|MODULE|TEST]
-#
+# [STATIC|MODULE_ONLY]
+# [TEST_ONLY]
 # [LINK_LIBRARIES lib1...libN]
-
+# [SKIP_INSTALL]
+#
 # STATIC - generate new static library,
-# MODULE - generate dynamic library,
-# TEST - include library only with test distribution
-
-# Append collections files for the component to the common files
-# Make sure we don't copy twice if running cmake again
-MACRO(COMPONENT_APPEND_COLLECTIONS)
-  SET(fcopied "${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/FilesCopied")
-  IF(NOT EXISTS ${fcopied})
-    FILE(GLOB collections ${CMAKE_CURRENT_SOURCE_DIR}/tests/collections/*)
-    FOREACH(cfile ${collections})
-      FILE(READ ${cfile} contents)
-      GET_FILENAME_COMPONENT(fname ${cfile} NAME)
-      FILE(APPEND ${CMAKE_SOURCE_DIR}/mysql-test/collections/${fname}
-        "${contents}")
-      FILE(APPEND ${fcopied} "${fname}\n")
-      MESSAGE(STATUS "Appended ${cfile}")
-    ENDFOREACH()
-  ENDIF()
-ENDMACRO()
+# MODULE_ONLY - generate dynamic library,
+# TEST_ONLY - include library only with test distribution
 
 MACRO(MYSQL_ADD_COMPONENT)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES"
-    "STATIC;MODULE;TEST;NO_INSTALL"
+    "STATIC;MODULE_ONLY;TEST_ONLY;SKIP_INSTALL"
     ${ARGN}
-  )
-
-  # Add common include directories
-  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
+    )
 
   LIST(GET ARG_DEFAULT_ARGS 0 component)
   SET(SOURCES ${ARG_DEFAULT_ARGS})
@@ -67,6 +48,13 @@ MACRO(MYSQL_ADD_COMPONENT)
   STRING(TOUPPER ${component} component)
   STRING(TOLOWER ${component} component_lower)
   STRING(TOLOWER component_${component} target)
+
+  GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  LIST(FIND CWD_DEFINITIONS "MYSQL_SERVER" FOUND_DEFINITION)
+  IF(NOT FOUND_DEFINITION EQUAL -1)
+    MESSAGE(FATAL_ERROR
+      "component ${component} has -DMYSQL_SERVER")
+  ENDIF()
 
   # If not dynamic component, add it to list of built-ins
   IF (ARG_STATIC)
@@ -78,61 +66,49 @@ MACRO(MYSQL_ADD_COMPONENT)
   # Build either static library or module
   IF (ARG_STATIC)
     SET(kind STATIC)
-    SET(BUILD_COMPONENT 1)
-
-    # Update mysqld dependencies
-    SET(MYSQLD_STATIC_COMPONENT_LIBS ${MYSQLD_STATIC_COMPONENT_LIBS}
-        ${target} ${ARG_LINK_LIBRARIES} CACHE INTERNAL "" FORCE)
-
-  ELSEIF(ARG_MODULE AND NOT DISABLE_SHARED)
+  ELSEIF(ARG_MODULE_ONLY)
     SET(kind MODULE)
-    SET(BUILD_COMPONENT 1)
   ELSE()
-    SET(BUILD_COMPONENT 0)
+    MESSAGE(FATAL_ERROR "Unknown component type ${target}")
   ENDIF()
 
-  IF(BUILD_COMPONENT)
-    ADD_VERSION_INFO(${target} ${kind} SOURCES)
-    ADD_LIBRARY(${target} ${kind} ${SOURCES})
+  ADD_VERSION_INFO(${target} ${kind} SOURCES)
+  ADD_LIBRARY(${target} ${kind} ${SOURCES})
 
-    # For internal testing in PB2, append collections files
-    IF(DEFINED ENV{PB2WORKDIR})
-      COMPONENT_APPEND_COLLECTIONS()
+  IF(ARG_LINK_LIBRARIES)
+    TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
+  SET_TARGET_PROPERTIES(${target} PROPERTIES PREFIX "")
+  ADD_DEPENDENCIES(${target} GenError)
+
+  IF (ARG_MODULE_ONLY)
+    # Store all components in the same directory, for easier testing.
+    SET_TARGET_PROPERTIES(${target} PROPERTIES
+      LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
+      )
+    IF(WIN32_CLANG AND WITH_ASAN)
+      TARGET_LINK_LIBRARIES(${target}
+        "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
     ENDIF()
 
-    IF(ARG_LINK_LIBRARIES)
-      TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
-    ENDIF()
-
-    SET_TARGET_PROPERTIES(${target} PROPERTIES PREFIX "")
-    ADD_DEPENDENCIES(${target} GenError)
-
-    IF (ARG_MODULE)
-      # Store all components in the same directory, for easier testing.
-      SET_TARGET_PROPERTIES(${target} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
-        )
-      IF(WIN32_CLANG AND WITH_ASAN)
-        TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+    IF(NOT ARG_SKIP_INSTALL)
+      # Install dynamic library.
+      IF(ARG_TEST_ONLY)
+        SET(INSTALL_COMPONENT Test)
+      ELSE()
+        SET(INSTALL_COMPONENT Server)
       ENDIF()
-      IF(NOT ARG_NO_INSTALL)
-        # Install dynamic library.
-        IF(NOT ARG_TEST)
-          SET(INSTALL_COMPONENT Server)
-        ELSE()
-          SET(INSTALL_COMPONENT Test)
-        ENDIF()
 
-        IF(LINUX_INSTALL_RPATH_ORIGIN)
-          SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
-        ENDIF()
-        MYSQL_INSTALL_TARGETS(${target}
-          DESTINATION ${INSTALL_PLUGINDIR}
-          COMPONENT ${INSTALL_COMPONENT})
-        INSTALL_DEBUG_TARGET(${target}
-          DESTINATION ${INSTALL_PLUGINDIR}/debug
-          COMPONENT ${INSTALL_COMPONENT})
+      IF(LINUX_INSTALL_RPATH_ORIGIN)
+        ADD_INSTALL_RPATH(${target} "\$ORIGIN/")
       ENDIF()
+      MYSQL_INSTALL_TARGETS(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}
+        COMPONENT ${INSTALL_COMPONENT})
+      INSTALL_DEBUG_TARGET(${target}
+        DESTINATION ${INSTALL_PLUGINDIR}/debug
+        COMPONENT ${INSTALL_COMPONENT})
     ENDIF()
   ENDIF()
 ENDMACRO()

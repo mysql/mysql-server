@@ -3,6 +3,9 @@ USE xtest;
 
 
 ## Test setup
+RUN DROP TABLE IF EXISTS xtest.coll
+
+0 rows affected
 
 command ok
 send Mysqlx.Crud.Insert {

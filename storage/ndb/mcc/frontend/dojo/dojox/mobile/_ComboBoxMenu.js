@@ -1,5 +1,5 @@
 //>>built
-define("dojox/mobile/_ComboBoxMenu",["dojo/_base/kernel","dojo/_base/declare","dojo/dom-class","dojo/dom-construct","dijit/form/_ComboBoxMenuMixin","dijit/_WidgetBase","dojox/mobile/_ListTouchMixin","./scrollable"],function(_1,_2,_3,_4,_5,_6,_7,_8){
+define("dojox/mobile/_ComboBoxMenu",["dojo/_base/kernel","dojo/_base/declare","dojo/dom-class","dojo/dom-construct","dijit/form/_ComboBoxMenuMixin","dijit/_WidgetBase","./_ListTouchMixin","./scrollable"],function(_1,_2,_3,_4,_5,_6,_7,_8){
 return _2("dojox.mobile._ComboBoxMenu",[_6,_7,_5],{baseClass:"mblComboBoxMenu",bgIframe:true,buildRendering:function(){
 this.domNode=this.focusNode=_4.create("div",{"class":"mblReset"});
 this.containerNode=_4.create("div",{style:{position:"absolute",top:0,left:0}},this.domNode);
@@ -22,9 +22,8 @@ this.bgIframe=false;
 this.inherited(arguments);
 },postCreate:function(){
 this.inherited(arguments);
-this.scrollable=new _8(_1,dojox);
+this.scrollable=new _8();
 this.scrollable.resize=function(){
 };
-this.scrollable.androidWorkaroud=false;
 }});
 });

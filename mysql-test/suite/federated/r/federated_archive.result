@@ -5,6 +5,8 @@ CREATE TABLE federated.archive_table (
 `id` int(4) NOT NULL,
 `name` varchar(54) default NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(4) NOT NULL,
@@ -13,6 +15,8 @@ PRIMARY KEY (`id`)
 )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/archive_table';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'bar');
 SELECT * FROM federated.t1;

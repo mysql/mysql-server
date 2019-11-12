@@ -16,6 +16,10 @@
 #
 ########################################################
 
+# Test takes too long and fails with valgrind, see
+# Bug#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
+--source include/not_valgrind.inc
+
 --source include/have_ndb.inc
 --source include/have_multi_ndb.inc
 

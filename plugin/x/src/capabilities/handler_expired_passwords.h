@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -46,14 +46,14 @@ class Cap_handles_expired_passwords : public Capability_handler {
   bool is_settable() const override { return true; }
   bool is_gettable() const override { return true; }
 
-  void get_impl(::Mysqlx::Datatypes::Any &any) override {
+  void get_impl(::Mysqlx::Datatypes::Any *any) override {
     ngs::Setter_any::set_scalar(any, m_value);
   }
 
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override {
     try {
       m_value = ngs::Getter_any::get_numeric_value<bool>(any);
-    } catch (const ngs::Error_code &error) {
+    } catch (const ngs::Error_code &DEBUG_VAR(error)) {
       log_debug("Capability expired password failed with error: %s",
                 error.message.c_str());
       return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,

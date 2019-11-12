@@ -1,4 +1,3 @@
-//>>built
 define("dojox/dtl/_Templated", [
 	"dojo/_base/declare",
 	"./_base",
@@ -7,22 +6,16 @@ define("dojox/dtl/_Templated", [
 	"dojo/cache",
 	"dojo/_base/array",
 	"dojo/string",
-	"dojo/parser",
-	"dijit/_base/manager"
-], function(declare,dd,TemplatedMixin, domConstruct,Cache,Array,dString,Parser,dijitMgr){
-	/*=====
-		Cache = dojo.cache;
-		dString = dojo.string;
-		Parser = dojo.parser;
-		TemplatedMixin = dijit._TemplatedMixin;
-		dd = dojox.dtl;
-	=====*/
+	"dojo/parser"
+], function(declare,dd,TemplatedMixin, domConstruct,Cache,Array,dString,Parser){
+
 	return declare("dojox.dtl._Templated", TemplatedMixin, {
-		// summary: The base-class for DTL-templated widgets.
+		// summary:
+		//		The base-class for DTL-templated widgets.
 
 		_dijitTemplateCompat: false,
+		
 		buildRendering: function(){
-			// summary: The method overrides dijit._TemplatedMixin.startup.
 			var node;
 
 			if(this.domNode && !this._template){
@@ -38,7 +31,7 @@ define("dojox/dtl/_Templated", [
 				if(t instanceof dd.Template) {
 					this._template = t;
 				}else{
-					node = t;
+					node = t.cloneNode(true);
 				}
 			}
 			if(!node){
@@ -90,8 +83,6 @@ define("dojox/dtl/_Templated", [
 					parser._attrName = attr;
 				}
 
-				this._supportingWidgets = dijitMgr.findWidgets(node);
-
 				this._attachTemplateNodes(cw, function(n,p){
 					return n[p];
 				});
@@ -132,11 +123,11 @@ define("dojox/dtl/_Templated", [
 			}
 		},
 		render: function(){
-			// summary: Renders the widget.
+			// summary:
+			//		Renders the widget.
 			this.buildRendering();
 		},
 		startup: function(){
-			// summary: The method overrides dijit._TemplatedMixin.startup.
 			Array.forEach(this._startupWidgets, function(w){
 				if(w && !w._started && w.startup){
 					w.startup();

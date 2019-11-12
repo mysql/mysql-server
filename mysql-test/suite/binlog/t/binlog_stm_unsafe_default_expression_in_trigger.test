@@ -1,0 +1,99 @@
+# ==== Purpose ====
+#
+# Test warnings for unsafe statements generated inside the DEFAULT expression
+# of a column in a table modified by a triggered statement.
+#
+# ==== Requirements ====
+#
+# R1. If a statement triggers another statement which may modify a table that
+#     has a column with a non-deterministic DEFAULT expression, a warning
+#     should be raised for BINLOG_FORMAT=STATEMENT, specifically an unsafe
+#     statement warning - ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT.
+#
+# R2. If none of the triggered statements modifies a table that has a
+#     non-deterministic DEFAULT expression, and the triggering statement is not
+#     unsafe by itself, no warning shall be raised.
+#
+# R3. If a statement directly modifies a table with a column that has a
+#     non-deterministic DEFAULT expression, and the statement provides an
+#     explicit value for the column, no warning shall be raised.
+#
+# ==== Implementation ====
+#
+# Test firing triggers which modify tables with non-deterministic column
+# defaults, and verify that the expected warnings are raised.
+#
+# ==== References ====
+#
+# WL#9418: Permit default value to be a function or expression, support for LOBs
+# Bug#28297486: WL#9418: ERROR AND WARNING RELATED ISSUES
+#
+
+--source include/have_binlog_format_statement.inc
+
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+CREATE TABLE t1 (a DOUBLE DEFAULT (PI()),
+                 b DOUBLE DEFAULT (RAND()));
+CREATE TABLE t2 (x INT);
+CREATE TABLE t3 (y DOUBLE DEFAULT (PI()));
+
+--echo # Test R1.
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1 VALUES ();
+# Expect warning due to unsafe DEFAULT expression.
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(a) VALUES (1);
+# Expect warning due to unsafe DEFAULT expression.
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(b) VALUES (DEFAULT);
+# Expect warning due to unsafe DEFAULT expression.
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t1(b) VALUES (1);
+# Not really unsafe, since an explicit value is given instead of DEFAULT.
+# A warning is raised regardless.
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW UPDATE t1 SET a = DEFAULT;
+# Not really unsafe, since the DEFAULT expression for a is safe.
+# A warning is raised regardless.
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW UPDATE t1 SET b = DEFAULT;
+# Expect warning due to unsafe DEFAULT expression for b.
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+
+--echo # Test R2.
+
+CREATE TRIGGER t2_trigger AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO t3 VALUES ();
+# No warning, since the triggered statement does not touch a table with any
+# non-deterministic DEFAULT expressions.
+INSERT INTO t2 VALUES ();
+DROP TRIGGER t2_trigger;
+
+--echo # Test R3.
+
+# Warn when the DEFAULT expression is used.
+INSERT INTO t1 VALUES ();
+INSERT INTO t1 (b) VALUES (DEFAULT);
+# No warning when the DEFAULT expression is not used.
+INSERT INTO t1 (b) VALUES (1);
+
+# Clean up
+DROP TABLE t1, t2, t3;

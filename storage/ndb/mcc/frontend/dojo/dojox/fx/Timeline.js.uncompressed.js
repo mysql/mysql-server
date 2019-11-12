@@ -1,19 +1,8 @@
-//>>built
 define("dojox/fx/Timeline", ["dojo/_base/lang","dojo/fx/easing","dojo/_base/fx","dojo/dom","./_base","dojo/_base/connect",
 		"dojo/_base/html", "dojo/_base/array","dojo/_base/Color"],
  function(lang, easingUtil, baseFx, dom, dojoxFx, connectUtil, htmlUtil, arrayUtil, Color){
 
-dojoxFx.animateTimeline = function(/* Object */options, /* DomNode|String */node){
-	// options: Object
-	// 		The paramters passed to the timeline animation. Includes:
-	// 			keys: Array
-	// 				An array of objects, with style properties and values.
-	// 			duration:
-	// 				Duration of the animation in milliseconds.
-	// 				Defaults to 1000.
-	// node: DomNode
-	// 		The DomNode or id to be animated.
-	//
+dojoxFx.animateTimeline = function(options, node){
 	// summary:
 	//		An add-on to dojo.fx that provides the ability to create
 	//		a complex property animation based on an array of "keyframes".
@@ -27,34 +16,41 @@ dojoxFx.animateTimeline = function(/* Object */options, /* DomNode|String */node
 	//		keyframe to the third. "width" is transitioned from the first
 	//		to the second to the third.
 	//		Each keyframe can accept the following custom properties:
-	//	step: String
-	//		The start, finish or percentage that this keyframe represents.
-	//		Allowed parameters are:
-	//			0%-100%
-	//			from (same as 0%, used to conform with the Webkit animation spec)
-	//			to (same as 100%, used to conform with the Webkit animation spec)
-	//	ease: String
-	//		The string name of a dojo.fx.easing ease. Defaults to "linear". Use
-	//		the suffix name of the ease, like: "quadIn", not: "dojo.fx.quadIn".
 	//
+	//		- step: String:
+	//		  The start, finish or percentage that this keyframe represents.
+	//		  Allowed parameters are:
+	//			- 0%-100%
+	//			- from (same as 0%, used to conform with the Webkit animation spec)
+	//			- to (same as 100%, used to conform with the Webkit animation spec)
+	//		- ease: String:
+	//		  The string name of a dojo.fx.easing ease. Defaults to "linear". Use
+	//		  the suffix name of the ease, like: "quadIn", not: "dojo.fx.quadIn".
+	// options: Object
+	//		The parameters passed to the timeline animation. Includes:
+	//
+	//		- keys: Array: An array of objects, with style properties and values.
+	//		- duration: Duration of the animation in milliseconds.  Defaults to 1000.
+	// node: DomNode|String
+	//		The DomNode or id to be animated.
 	// example:
-	// 		|	var keys = [
-	// 		|	{
-	// 		|		step:"0px",
-	// 		|		ease:"quadInOut",
-	// 		|		width:"50px",
-	// 		|		height:"50px",
-	// 		|	},{
-	// 		|		step:"25%",
-	// 		|		width:"190px"
-	// 		|	},{
-	// 		|		step:"100%",
-	// 		|		width:"10px",
-	// 		|		height:"200px",
-	// 		|	}
-	// 		|	];
-	// 		|	ani = dojox.fx.animateTimeline({keys:keys, duration:2000}, "myDiv").play();
-	//
+	//	|	var keys = [
+	//	|	{
+	//	|		step:"0px",
+	//	|		ease:"quadInOut",
+	//	|		width:"50px",
+	//	|		height:"50px",
+	//	|	},{
+	//	|		step:"25%",
+	//	|		width:"190px"
+	//	|	},{
+	//	|		step:"100%",
+	//	|		width:"10px",
+	//	|		height:"200px",
+	//	|	}
+	//	|	];
+	//	|	ani = dojox.fx.animateTimeline({keys:keys, duration:2000}, "myDiv").play();
+
 	var _curve = new Timeline(options.keys);
 	var ani = baseFx.animateProperty({
 		node:dom.byId(node || options.node),
@@ -81,7 +77,7 @@ dojoxFx.animateTimeline = function(/* Object */options, /* DomNode|String */node
 		_curve.ani = ani;
 	})
 	return ani; // dojo.Animation
-}
+};
 
 var Timeline = function(/* Array */keys){
 	// summary:
@@ -90,7 +86,7 @@ var Timeline = function(/* Array */keys){
 	// tags:
 	//		private
 	this.keys = lang.isArray(keys) ? this.flatten(keys) : keys;
-}
+};
 
 Timeline.prototype.flatten = function(keys){
 	// summary:
@@ -104,7 +100,7 @@ Timeline.prototype.flatten = function(keys){
 			return idx==0 ? 0 : idx / (keys.length - 1)
 		}
 		return parseInt(str, 10) * .01
-	}
+	};
 	var p = {}, o = {};
 	arrayUtil.forEach(keys, function(k, i){
 		var step = getPercent(k.step, i);
@@ -148,7 +144,7 @@ Timeline.prototype.flatten = function(keys){
 	this._properties = p;
 	return o; // Object
 	
-}
+};
 
 Timeline.prototype.getValue = function(/*float*/ p){
 	// summary:
@@ -162,7 +158,7 @@ Timeline.prototype.getValue = function(/*float*/ p){
 		return self._properties[nm].units!="isColor" ?
 			self.keys[nm].values[i] + self._properties[nm].units :
 			self.keys[nm].values[i].toCss();
-	}
+	};
 	
 	for(var nm in this.keys){
 		var k = this.keys[nm];

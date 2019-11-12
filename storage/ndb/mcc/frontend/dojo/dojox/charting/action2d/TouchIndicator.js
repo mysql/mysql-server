@@ -35,8 +35,6 @@ this._onTouchDual(_b);
 }
 },_onTouchSingle:function(_c,_d){
 if(this.chart._delayedRenderHandle&&!_d){
-clearTimeout(this.chart._delayedRenderHandle);
-this.chart._delayedRenderHandle=null;
 this.chart.render();
 }
 var _e=this.chart.getPlot(this._uName);
@@ -49,6 +47,9 @@ this.chart.render();
 }
 _3.stop(_c);
 },_onTouchDual:function(_f){
+if(this.chart._delayedRenderHandle){
+this.chart.render();
+}
 var _10=this.chart.getPlot(this._uName);
 _10.pageCoord={x:_f.touches[0].pageX,y:_f.touches[0].pageY};
 _10.secondCoord={x:_f.touches[1].pageX,y:_f.touches[1].pageY};

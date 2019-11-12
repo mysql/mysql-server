@@ -2012,9 +2012,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/query.sql;
 #
 
 echo Failing multi statement query;
-# PS does not support multi statement
---exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
---exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                          > $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "select 'select-me';"                     >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
@@ -2035,9 +2033,7 @@ drop table t1;
 
 
 echo Multi statement using expected error;
-# PS does not support multi statement
---exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
---exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                          > $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "--error 1064"                            >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
@@ -2689,6 +2685,69 @@ INSERT INTO t1 SELECT f1 - 512 FROM t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#29224561: USE "SORTED_RESULT" OF MYSQL-TEST , CAUSE ERROR RESULT
+--echo #               ( FOR TYPE OF BINARY )
+--echo #
+
+CREATE TABLE t1(a BINARY(32), b BINARY(32));
+INSERT INTO t1 VALUES
+('1abc', 'abc2'), ('\0', '\0'), ('1a', 'ba');
+--replace_regex /[^[:print:]]/#/
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a CHAR(32), b CHAR(32));
+INSERT INTO t1 VALUES
+('\0', 'abc2'), ('abcd', '\0'), ('1a', 'ba');
+--replace_regex /[^[:print:]]/#/
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# Tests for partially_sorted_result
+#
+
+CREATE TABLE t1(a CHAR(32), b CHAR(32), c CHAR(32));
+INSERT INTO t1 VALUES
+('abc', '1a', '2a'), ('abc', 'west', 'east'), ('\0', '1a', 'north'),
+('\0', 'west', 'south'), ('abc', 'sun', 'moon');
+
+# Order on columns b,c also for deterministic results
+--replace_regex /[^[:print:]]/#/
+--partially_sorted_result 1
+SELECT a, b, c FROM t1 ORDER by a;
+
+# Order on column c also for deterministic results
+--replace_regex /[^[:print:]]/#/
+--partially_sorted_result 2
+SELECT a, b, c FROM t1 ORDER by a, b;
+
+DROP TABLE t1;
+
+
+CREATE TABLE t1(i INT, j INT, k INT);
+INSERT INTO t1 VALUES
+(1, 2, 1),
+(1, 2, 4),
+(1, 2, 3),
+(2, 3, 1),
+(3, 4, 1),
+(2, 5, 0),
+(1, 6, 0),
+(1, 7, 1);
+
+# Sort on columns j,k also for deterministic results
+--partially_sorted_result 1
+SELECT i, j, k FROM t1 ORDER by i;
+
+# Sort on column k also for deterministic results
+--partially_sorted_result 2
+SELECT i, j, k FROM t1 ORDER by i, j;
+
+DROP TABLE t1;
 # ----------------------------------------------------------------------------
 # test for lowercase_result
 # ----------------------------------------------------------------------------

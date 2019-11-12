@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,11 +21,17 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv)
+INCLUDE_DIRECTORIES(
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmsrv
+  )
+
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_mgmapiclient.cmake)
 
 ADD_CONVENIENCE_LIBRARY(ndbmgmcommon
+  ConfigObject.cpp
   ConfigRetriever.cpp
-  IPCConfig.cpp)
+  ConfigSection.cpp
+  IPCConfig.cpp
+  )
 

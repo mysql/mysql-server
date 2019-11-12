@@ -1,7 +1,6 @@
 //>>built
 define("dojox/sketch/_Plugin",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/array","dojo/_base/declare","dojo/_base/connect","dijit/form/ToggleButton"],function(_1){
-_1.getObject("sketch",true,dojox);
-_1.declare("dojox.sketch._Plugin",null,{constructor:function(_2){
+return _1.declare("dojox.sketch._Plugin",null,{constructor:function(_2){
 if(_2){
 _1.mixin(this,_2);
 }
@@ -40,5 +39,4 @@ if(this.itemGroup){
 _8.addGroupItem(this,this.itemGroup);
 }
 }});
-return dojox.sketch._Plugin;
 });

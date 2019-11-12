@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <cstddef>
 
 #include "adapter_global.h"
 #include "unified_debug.h"
@@ -180,12 +181,12 @@ Uint32 Record::getValueLength(int idx, const char *data) const {
   if(col->getType() == NdbDictionary::Column::Varchar ||
      col->getType() == NdbDictionary::Column::Varbinary)
   {
-    uint8_t size8 = *((uint8_t *) (data));
+    uint8_t size8 = *((const uint8_t *) (data));
     size = size8;
   } else if(col->getType() == NdbDictionary::Column::Longvarchar ||
             col->getType() == NdbDictionary::Column::Longvarbinary)
   {
-    uint16_t size16 = *((uint16_t *) (data));
+    uint16_t size16 = *((const uint16_t *) (data));
     size = size16;
   }
   else size = col->getSizeInBytes();

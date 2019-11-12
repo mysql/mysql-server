@@ -1,7 +1,7 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.storage.Provider");
-_2.declare("dojox.storage.Provider",null,{constructor:function(){
+define("dojox/storage/Provider",["dojo","dijit","dojox"],function(_1,_2,_3){
+_1.provide("dojox.storage.Provider");
+_1.declare("dojox.storage.Provider",null,{constructor:function(){
 },SUCCESS:"success",FAILED:"failed",PENDING:"pending",SIZE_NOT_AVAILABLE:"Size not available",SIZE_NO_LIMIT:"No size limit",DEFAULT_NAMESPACE:"default",onHideSettingsUI:null,initialize:function(){
 console.warn("dojox.storage.initialize not implemented");
 },isAvailable:function(){
@@ -39,10 +39,10 @@ for(var i=0;i<_17.length;i++){
 _3.storage.remove(_17[i],_18);
 }
 },isValidKeyArray:function(_19){
-if(_19===null||_19===undefined||!_2.isArray(_19)){
+if(_19===null||_19===undefined||!_1.isArray(_19)){
 return false;
 }
-return !_2.some(_19,function(key){
+return !_1.some(_19,function(key){
 return !this.isValidKey(key);
 },this);
 },hasSettingsUI:function(){

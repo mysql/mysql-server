@@ -1,25 +1,17 @@
-//>>built
 define("dojox/dtl/Context", [
 	"dojo/_base/lang",
 	"./_base"
 ], function(lang,dd){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
-	
-	/*=====
-	 dd.Context = function(dict){
-	 	// summary: Represents a runtime context used by DTL templates.
-	 }
-	 
-	=====*/
-	dd.Context = lang.extend(function(dict){
+	dd.Context = lang.extend(function(/*Object*/dict){
+	 	// summary:
+	 	//		Represents a runtime context used by DTL templates.
 		this._this = {};
-		dd._Context.call(this, dict);
-	}, dd._Context.prototype,
+		dd._Context.call(this, dict);	// TODO: huh?
+	}, dd._Context.prototype,		// TODO: huh?
 	{
 		getKeys: function(){
-			// summary: Returns the set of keys exported by this context.
+			// summary:
+			//		Returns the set of keys exported by this context.
 			var keys = [];
 			for(var key in this){
 				if(this.hasOwnProperty(key) && key != "_this"){
@@ -28,14 +20,16 @@ define("dojox/dtl/Context", [
 			}
 			return keys;
 		},
-		extend: function(/*dojox.dtl.Context|Object*/ obj){
-			// summary: Returns a clone of this context object, with the items from the
-			//		passed objecct mixed in.
+		extend: function(/*dojox/dtl/Context|Object*/ obj){
+			// summary:
+			//		Returns a clone of this context object, with the items from the passed objecct mixed in.
+			// obj:
+			//		The object to extend.
 			return  lang.delegate(this, obj);
 		},
-		filter: function(/*dojox.dtl.Context|Object|String...*/ filter){
-			// summary: Returns a clone of this context, only containing the items
-			//		defined in the filter.
+		filter: function(/*dojox/dtl/Context|Object|String...*/ filter){
+			// summary:
+			//		Returns a clone of this context, only containing the items defined in the filter.
 			var context = new dd.Context();
 			var keys = [];
 			var i, arg;
@@ -59,18 +53,23 @@ define("dojox/dtl/Context", [
 
 			return context;
 		},
-		setThis: function(/*Object*/ _this){
-			// summary: Sets the object on which to perform operations. 
-			// _this: the this ref.
-			this._this = _this;
+		setThis: function(/*Object*/ scope){
+			// summary:
+			//		Sets the object on which to perform operations. 
+			// scope:
+			//		the this ref.
+			this._this = scope;
 		},
 		getThis: function(){
-			// summary: Gets the object on which to perform operations. 
+			// summary:
+			//		Gets the object on which to perform operations. 
 			return this._this;
 		},
 		hasKey: function(/*String*/key){
-			// summary: Indicates whether the specified key is defined on this context.
-			// key: The key to look up.
+			// summary:
+			//		Indicates whether the specified key is defined on this context.
+			// key:
+			//		The key to look up.
 			if(this._getter){
 				var got = this._getter(key);
 				if(typeof got != "undefined"){
@@ -83,7 +82,7 @@ define("dojox/dtl/Context", [
 			}
 
 		return false;
-	}
-});
-return dojox.dtl.Context; 
+		}
+	});
+return dd.Context; 
 });

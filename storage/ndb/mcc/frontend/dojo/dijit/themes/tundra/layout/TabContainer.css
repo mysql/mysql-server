@@ -8,12 +8,9 @@
 .tundra .dijitTab {
 	line-height:normal;
 	margin-right:4px;	
-	padding:0;
+    padding:2px 8px 2px 9px;
 	border:1px solid #ccc;
 	background:#e2e2e2 url("../images/tabEnabled.png") repeat-x;
-}
-.tundra .dijitTabInnerDiv {
-	padding:2px 8px 2px 9px;
 }
 .tundra .dijitTabSpacer {
 	display: none;
@@ -78,12 +75,10 @@
 	border: none;
 	top: 0;		
 }
-.tundra .dijitTabContainerTabListNested .dijitTab .dijitTabContent {
-}
-.tundra .dijitTabContainerTabListNested .dijitTabHover .dijitTabContent .tabLabel {
+.tundra .dijitTabContainerTabListNested .dijitTabHover .tabLabel {
 	text-decoration: underline;
 }
-.tundra .dijitTabContainerTabListNested .dijitTabChecked .dijitTabContent .tabLabel {
+.tundra .dijitTabContainerTabListNested .dijitTabChecked .tabLabel {
 	text-decoration: underline;
 	font-weight: bold;
 	
@@ -214,24 +209,14 @@
 	z-index: 12;
 }
 .tundra .dijitTabContainerBottom .tabStripButton {
-	padding-top: 2px;
+	padding-top: 3px;
 }
-.tundra .tabStrip-disabled .tabStripButton .dijitTabInnerDiv {
+.tundra .tabStrip-disabled .tabStripButton {
 	padding-bottom: 3px;
 	padding-top: 1px;
 }
-.tundra .tabStripButton .dijitTabInnerDiv {
+.tundra .tabStripButton {
 	padding: 3px 2px 4px 2px;
-}
-.dj_ie6 .tundra .tabStripButton .dijitTabInnerDiv,
-.dj_ie7 .tundra .tabStripButton .dijitTabInnerDiv,
-.dj_opera .tundra .tabStripButton .dijitTabInnerDiv {
-	padding-bottom: 5px;
-}
-.dj_ie6 .tundra .tabStrip-disabled .tabStripButton .dijitTabInnerDiv,
-.dj_ie7 .tundra .tabStrip-disabled .tabStripButton .dijitTabInnerDiv,
-.dj_opera .tundra .tabStrip-disabled .tabStripButton .dijitTabInnerDiv {
-	padding-bottom: 4px;
 }
 .tundra .dijitTabStripIcon {
 	height: 14px;

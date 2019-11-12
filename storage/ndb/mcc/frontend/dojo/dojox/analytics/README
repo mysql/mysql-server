@@ -11,6 +11,7 @@ Project state:
 Project authors
 	Dustin Machi  (dmachi)
 	Peter Higgins (dante)
+	Ed Chatelain  (edchat) added touch and gesture support 11/15/2011.
 -------------------------------------------------------------------------------
 Project description
 	analytics and client monitoring system.  Including the base analytics
@@ -22,7 +23,10 @@ back to the server.  Plugins included at this time:
 	mouseOver - allows periodic sampling of mouseOver 
 	mouseClick - reports any mouse clicks to the server
 	idle - reports idle/activity 
-	consoleMessages - reports console.* messages to the server	
+	consoleMessages - reports console.* messages to the server
+	touchPress - reports touch.press and touch.release
+	touchMove - allows periodic sampling during a touch.move
+	gestureEvents - reports swipe, tap, tap.doubletap, tap.taphold	
 
 	Additionally, a Google Analytics (Urchin tracker) helper is included
 	in this project, though is unrelated to the Core dojox.analytics 
@@ -51,7 +55,7 @@ can use the system as such:
                 //tracks mouse clicks on the page
                 dojo.require("dojox.analytics.plugins.mouseClick");
 
-                // this plugin returns the informatin dojo collects when it launches
+                // this plugin returns the information dojo collects when it launches
                 dojo.require("dojox.analytics.plugins.dojo");
 
                 // this plugin return the information the window has when it launches
@@ -68,6 +72,17 @@ can use the system as such:
                 // tracks where a mouse is on a page an what it is over, periodically sampling
                 // and storing this data
                 dojo.require("dojox.analytics.plugins.mouseOver");
+
+                //tracks touch press and touch release on the page
+                dojo.require("dojox.analytics.plugins.touchPress");
+
+                // tracks where a touch move is done on a page, what it is over, periodically sampling
+                // and storing this data
+                dojo.require("dojox.analytics.plugins.touchMove");
+
+                // tracks these gesture events tap, taphold, doubletap, and swipe using the dojox.gesture 
+                // support. For swipe it will periodically sample and store the data
+                dojo.require("dojox.analytics.plugins.gestureEvents");
 
                 //tracks when the user has gone idle
                 dojo.require("dojox.analytics.plugins.idle");
@@ -100,26 +115,71 @@ Available Configuration Parameters:
 
 	consoleLogFuncs - functions from the console object that you will log to 
 			the server. If the console object doesn't exist
-			or a particuarl method doesn't exist it will be
+			or a particular method doesn't exist it will be
 			created as a remote logging only method. This provides
-			a quick and convient way to automatically define
-			a remote logging funciton that includes the functions
-			name in the log.  The 'rlog' in the default paramerters
+			a quick and convenient way to automatically define
+			a remote logging function that includes the functions
+			name in the log.  The 'rlog' in the default parameters
 			is an example of this.  Defaults to ["error", "warn", "info", "rlog"]	
 
 	idle Config:
 	
 		idleTime - Number of ms to be idle before being reported to the server as idle
 
+	mouseClick config:
+		targetProps - the properties whose values will be reported for each target from
+				a mouse click sample.  
+				defaults to ["id","className","nodeName", "localName","href", "spellcheck", "lang"]
+
+		textContentMaxChars - the max number of characters to show for text or textContent, defaults to 50
+
 	mouseOver config:
 		targetProps - the properties whose values will be reported for each target from
-				a mouse over sample.  defaults to ["id","className","localName","href", "spellcheck", "lang", "textContent", "value" ]
+				a mouse over sample.  
+				defaults to ["id","className","localName","href", "spellcheck", "lang", "textContent", "value" ]
+
+		watchMouseOver - log mouseover and mouseout events defaults to true
 
 		sampleDelay - the delay in ms between mouseover samples. Defaults to 2500
+
+		textContentMaxChars - the max number of characters to show for text or textContent, defaults to 50
 
 	window config:
 		windowConnects - methods on the window objec that will be attached to 
 				have its data passed to the server when called.
+
+	touchPress config:
+		targetProps - the properties whose values will be reported for each target from
+				a touch.press or touch.release sample.  
+				defaults to ["id","className","nodeName", "localName","href", "spellcheck", "lang"]
+
+		textContentMaxChars - the max number of characters to show for text or textContent, defaults to 50
+
+		showTouchesDetails - include the details for the touches in the touches array, defaults to true
+
+
+	touchMove config:
+		targetProps - the properties whose values will be reported for each target from
+				a touch move sample.  
+				defaults to ["id","className","localName","href", "spellcheck", "lang", "textContent", "value" ]
+
+		textContentMaxChars - the max number of characters to show for text or textContent, defaults to 50
+
+		showTouchesDetails - include the details for the touches in the touches array, defaults to true
+
+		touchSampleDelay - the delay in ms between touch.move samples. Defaults to 1000
+
+	gestureEvents config:
+		targetProps - the properties whose values will be reported for each target from
+				a gesture event (tap, taphold, doubletap, swipe) sample.  
+				defaults to ["id","className","localName","href", "spellcheck", "lang", "textContent", "value" ]
+
+		swipeSampleDelay - the delay in ms between swipe samples. Defaults to 1000
+
+		textContentMaxChars - the max number of characters to show for text or textContent, defaults to 50
+
+		watchSwipe - log swipe events in addition to the tap events, defaults to true
+
 
 	
 Note that the basic usage of this system simply serializes json with toJson() when passed

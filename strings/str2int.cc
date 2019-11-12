@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
   easy task.  Coping with integer overflow and the asymmetric range of
   twos complement machines is anything but easy.
 
-  So that users of atoi and atol can check whether an error occured,
+  So that users of atoi and atol can check whether an error occurred,
   I have taken a wholly unprecedented step: errno is CLEARED if this
   call has no problems.
 */

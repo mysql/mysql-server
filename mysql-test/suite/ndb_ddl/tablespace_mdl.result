@@ -1,40 +1,111 @@
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-SET GLOBAL ndb_metadata_check_interval = 5;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'lg1_undofile.dat'
   INITIAL_SIZE 1M
 UNDO_BUFFER_SIZE = 1M
-ENGINE=NDB;
+ENGINE NDB;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile.dat'
   USE LOGFILE GROUP lg1
 INITIAL_SIZE 16M
 ENGINE NDB;
-CREATE TABLE progress(
-stop_flag int
+CREATE TABLE procedure_control(
+stop_flag INT
 ) ENGINE NDB;
-create procedure p1()
-begin
-declare done int default 0;
-repeat
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE done INT DEFAULT 0;
+REPEAT
 CREATE TABLE t1 (
-a int PRIMARY KEY,
-b varchar(255)
+a INT PRIMARY KEY,
+b VARCHAR(255)
 )
 ENGINE NDB TABLESPACE ts1 STORAGE DISK;
 DROP TABLE t1;
-SELECT stop_flag INTO done FROM progress;
-until done end repeat;
-end%
-INSERT INTO progress value(0);
+SELECT stop_flag INTO done FROM procedure_control;
+UNTIL done END REPEAT;
+END//
+INSERT INTO procedure_control VALUE(0);
 Start background load of CREATE + DROP TABLE t1 which uses tablespace ts1
-call p1();
+CALL p1();
 Start CREATE + DROP TABLE t2 which uses tablespace ts1
-update progress set stop_flag=1;
+UPDATE procedure_control SET stop_flag=1;
 Wait for background load to complete
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 DROP PROCEDURE p1;
-DROP TABLE progress;
+DROP TABLE procedure_control;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 16M
+ENGINE NDB;
+CREATE TABLE procedure_control(
+stop_flag INT
+) ENGINE NDB;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE done INT DEFAULT 0;
+REPEAT
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+SELECT stop_flag INTO done FROM procedure_control;
+UNTIL done END REPEAT;
+END//
+INSERT INTO procedure_control VALUE(0);
+Start background load of ALTER TABLESPACE ts1 ADD/DROP DATAFILE
+CALL p1();
+Start CREATE + DROP TABLE t1 which uses tablespace ts1
+UPDATE procedure_control SET stop_flag=1;
+Wait for background load to complete
+DROP PROCEDURE p1;
+DROP TABLE procedure_control;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 16M
+ENGINE NDB;
+CREATE TABLE procedure_control(
+stop_flag INT
+) ENGINE NDB;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE done INT DEFAULT 0;
+REPEAT
+ALTER TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile2.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile2.dat';
+SELECT stop_flag INTO done FROM procedure_control;
+UNTIL done END REPEAT;
+END//
+INSERT INTO procedure_control VALUE(0);
+Start background load of ALTER TABLESPACE ts1 ADD/DROP DATAFILE
+CALL p1();
+Start ALTER TABLESPACE ts1 ADD/DROP DATAFILE
+UPDATE procedure_control SET stop_flag=1;
+Wait for background load to complete
+DROP PROCEDURE p1;
+DROP TABLE procedure_control;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 DROP TABLESPACE ts1;

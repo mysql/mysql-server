@@ -1,11 +1,13 @@
 //>>built
-define("dojox/analytics/plugins/mouseClick",["dojo/_base/lang","../_base","dojo/_base/window","dojo/on"],function(_1,_2,_3,on){
+define("dojox/analytics/plugins/mouseClick",["dojo/_base/lang","../_base","dojo/_base/config","dojo/_base/window","dojo/on"],function(_1,_2,_3,_4,on){
 return (_2.plugins.mouseClick=new (function(){
 this.addData=_1.hitch(_2,"addData","mouseClick");
+this.targetProps=_3["targetProps"]||["id","className","nodeName","localName","href","spellcheck","lang"];
+this.textContentMaxChars=_3["textContentMaxChars"]||50;
 this.onClick=function(e){
 this.addData(this.trimEvent(e));
 };
-on(_3.doc,"click",_1.hitch(this,"onClick"));
+on(_4.doc,"click",_1.hitch(this,"onClick"));
 this.trimEvent=function(e){
 var t={};
 for(var i in e){
@@ -13,16 +15,16 @@ switch(i){
 case "target":
 case "originalTarget":
 case "explicitOriginalTarget":
-var _4=["id","className","nodeName","localName","href","spellcheck","lang"];
+var _5=this.targetProps;
 t[i]={};
-for(var j=0;j<_4.length;j++){
-if(e[i][_4[j]]){
-if(_4[j]=="text"||_4[j]=="textContent"){
+for(var j=0;j<_5.length;j++){
+if(e[i][_5[j]]){
+if(_5[j]=="text"||_5[j]=="textContent"){
 if((e[i]["localName"]!="HTML")&&(e[i]["localName"]!="BODY")){
-t[i][_4[j]]=e[i][_4[j]].substr(0,50);
+t[i][_5[j]]=e[i][_5[j]].substr(0,this.textContentMaxChars);
 }
 }else{
-t[i][_4[j]]=e[i][_4[j]];
+t[i][_5[j]]=e[i][_5[j]];
 }
 }
 }

@@ -1,26 +1,19 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License, version 2.0,
-as published by the Free Software Foundation.
-
-This program is also distributed with certain software (including
-but not limited to OpenSSL) that is licensed under separate terms,
-as designated in a particular file or component or in included license
-documentation.  The authors of MySQL hereby grant you an additional
-permission to link the program and your derivative works with the
-separately licensed software that they have included with MySQL.
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License, version 2.0, for more details.
+GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 -->
 
 <html dir="ltr">
@@ -58,30 +51,27 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 <h2><a name="introduction">Introduction</a></h2>
 <p>This is the user guide for the MySQL Cluster configuration tool. The aim of this
-    tool is to help you configure and deploy NDB Cluster quickly using GUI. It is 
+    tool is to help you install, configure and deploy NDB Cluster quickly using GUI. It is 
     also a great learning tool. You can read the user guide sequentially, or you can 
     get help regarding the wizard page you are currently at by choosing the proper 
     entry in the Help menu. This user guide is divided into the following main parts: </p>
 
 <ul>
-<li><i>Installing and Starting</i> will describe what the system requirements 
-    are for running the configuration tool. How to install and start it will 
-    also be explained.</li>
-<li>The <i>Wizard Overview</i> will provide a high level description of the 
-    main parts of the system and how they interact. How to use the configuration 
+<li><strong><i>Installing and Starting</i></strong> will describe what the system 
+    requirements are for running the configuration tool. Also, how to install and 
+    start it will be explained.</li>
+<li>The <strong><i>Wizard Overview</i></strong> will provide a high level description 
+    of the main parts of the wizard and how they interact. How to use the configuration 
     tool in terms of navigation, settings, etc. will also be covered. </li>
-<li>In <i>Wizard Pages</i>, the individual pages of the wizard will be examined. 
-    The various input widgets will be explained in detail. </li>
-<!--
+<li>In <strong><i>Wizard Pages</i></strong>, the individual pages of the wizard 
+    will be examined. The various input widgets will be explained in detail. </li>
 <li>Finally, the <i>Troubleshooting</i> section will present various topics 
-    that deserve further attention in terms of potentially leading to problems, 
-    in particular when starting the MySQL Cluster. </li>
--->
+    that deserve further attention in terms of potentially leading to problems.</li>
 </ul>
 
 <h3>Tool Name</h3>
 <p>The configuration tool is a part of the MySQL Cluster Software, and hence, it 
-    does not have a particular name. In this user guide, we refer to the 
+    does not have a particular name. In this user guide, we refer to it as the 
     <i>(Auto)installer</i>, <i>configurator</i>, <i>configuration tool</i>, 
     <i>configuration wizard</i>, <i>MCC</i> or simply <i>wizard</i>. </p>
 
@@ -112,14 +102,68 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 <h3><a name="limitations">Limitations</a></h3>
 <p><ul>
     <li>The tool works at least with MySQL NDB Cluster version 7.6 and up.</li>
-    <li>We do not support installing Cluster processes on hosts. Please make sure 
-        each host in the cluster has proper installation of MySQL software. This is 
-        the limitation in the current version.</li>
+    <li>We support installing Cluster processes on RPM/YUM hosts from official 
+        MySQL repository. Please make sure each host in the cluster that is not 
+        running OL or similar, has proper installation of MySQL software. This is 
+        the limitation of current version.</li>
+    <li>If you are installing on your own, please make sure MySQL Cluster community 
+        binaries are installed on every management node as well as MySQL Server 
+        community binaries on every sql node. Client binaries are used for starting, 
+        stopping and querying status of various Cluster processes so client 
+        packages are required too.</li>
     <li>You can not mix your local box with remote hosts. If you still wish to use 
-        your local box, please enter proper external IP address for HOST::Name and 
-        avoid using 127.0.0.1/localhost.</li>
+        your local box in multi-host setup, please enter proper external IP address 
+        of your local box in HOST::Name and avoid using 127.0.0.1/localhost.</li>
     <li>We are constantly updating configurable parameters but there is always a 
         chance the tool is missing some of them.</li>
+    <li>Some configuration parameters are intentionally hidden, such as MaxNoOfExecutionThreads, 
+        NoOfFragmentLogParts, ThreadConfig etc., to allow for continuous starting 
+        and stopping of Cluster. These are mostly parameters that depend on each 
+        other. For example, if you change MaxNoOfExecutionThreads from 4 to 9 and 
+        Cluster was already started with 4, NoOfFragmentLogParts should be adjusted 
+        from 2 to 4 (#LDM threads). If you do so, your Cluster will not start.</li>
+    <li>Users who wish to install Cluster on Linux should be in SUDOers list 
+    while starting Cluster and MCC on Windows requires Administrator privileges.</li>
+    <li>Although configuration files you create (~/.mcc/name.mcc) are transferable 
+        between various browsers on same MCC host as well as between different 
+        MCC hosts it is not easy to set up new Cluster using configuration file 
+        created for different deployment. Should you try to attempt such task, I 
+        advise you to create new configuration with all the new hosts, fetch HW 
+        resources for them on <a href="#configWizardDefineHosts">Define Hosts</a> 
+        and save it. Then copy the last two JSON objects with nodes assignment 
+        and settings you might have changed from old configuration to new one. 
+        Mind the <b>"host": N,</b> lines, this is where you connect certain 
+        process with host via <b>"id": N,</b>! 
+        Example:<br>
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>,{
+    "identifier": "id",
+    "label": "name",
+    "items": [
+        {
+            "id": 5,
+            "name": "Any host",
+            "anyHost": true
+        },
+        {
+            "id": 6,
+            "name": "10.172.165.189",
+...
+}</code></pre>
+So, to put the Management process on new host <em><code>10.172.165.189</code></em> 
+you should locate <em><code>"name": "Management node 1",</code></em> and put <b>6</b> 
+into field <em><code>"host"</code></em> so it looks like <pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>{
+    "identifier": "id",
+    "label": "name",
+    "items": [
+        {
+            "id": 9,
+            "name": "Management node 1",
+            "host": 6,
+            "processtype": 0,
+            "NodeId": 49,
+            "seqno": 1
+        },</code></pre>Assuming, of course, that the host ID 6 (10.172.165.189) has proper binaries installed.
+    </li>
 </ul></p>
 
 <!--
@@ -127,13 +171,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 <li><b>Part of MySQL Cluster package: </b></li>
 <ul>
 <li><b>ZIP: </b>
-Default path to wizard startup command: <tt>./MySQL_blabla/bin/ndb_setup</tt>
+Default path to wizard startup command: <code>./MySQL_Cluster/bin/ndb_setup</code>
 </li>
 <li><b>RPM: </b>
-Default path to wizard startup command: <tt>/usr/local/bin/ndb_setup</tt>
+Default path to wizard startup command: <code>/usr/local/bin/ndb_setup</code>
 </li>
 <li><b>MSI: </b>
-Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\ndb_setup.exe</tt>
+Default path to wizard startup command: <code>C:\Program Files\MySQL_Cluster\bin\ndb_setup.exe</code>
 </li>
 </ul>
 <li><b>Separate installer package: </b></li>
@@ -163,8 +207,10 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     debug level (DEBUG, INFO, WARNING, ERROR or CRITICAL). [default: WARNING]</li>
 <li><b>-o SERVER_LOG_FILE, --server-log-file=SERVER_LOG_FILE </b> log requests to 
     this file. The value - means log to stderr: [default: ndb_setup-1541.log]</li>
-<li><b>-H, --use-http </b> use http for communication with browser.</li>
-<li><b>-S, --use-https </b> use https to secure communication with browser</li>
+<li><b>-H, --use-http </b> use http for communication between back-end and front-end in browser.
+If you are using certificate provided by us, Safari, for example, will not start 
+unless this option is included [default].</li>
+<li><b>-S, --use-https </b> use https to secure communication between back-end and front-end in browser</li>
 <li><b>-c CERT_FILE, --cert-file=CERT_FILE </b> file containing X509 certificate 
     which identifies the server (possibly self-signed): [default: cfg.pem]</li>
 <li><b>-k KEY_FILE, --key-file=KEY_FILE </b> file containing private key when if 
@@ -173,27 +219,29 @@ Default path to wizard startup command: <tt>C:\Program Files\MySQL_blabla\bin\nd
     of client certificates allowed to connect to the server [default: none (no 
     client authentication)]</li>
 </ul>
-<p>If no options are given, we default to HTTPS (-S) using self-signed certificate provided 
-with the software. If you want to use HTTP you have to add -H (or --use-http) to command
+<p>If no options are given, we default to HTTP (-H) using self-signed certificate provided 
+with the software. If you want to use HTTPS you have to add -S (or --use-https) to command
 line.
 </p>
 <!-- ====================== Starting the wizard ============================ -->
 
 <h3><a name="startingTheWizard">Starting the Wizard</a></h3>
-<p>First, you need to identify the directory where the <tt>ndb_setup</tt> tool 
+<p>First, you need to identify the directory where the <strong><code>ndb_setup</code></strong> tool 
     is located. This location depends on which package was downloaded and how 
     it was installed. Then, you can start in the following ways: </p>
 
 <ul>
 <li><b>From the command line: </b> Either change current directory to the one 
-    identified above, or enter the command prefixed by its absolute or relative 
-    path. </li>
+    identified above, or enter the command prefixed by its path. </li>
 <li><b>Double clicking the appropriate icon: </b> Open the file browser, go to 
-    the appropriate directory, identify the <tt>ndb_setup</tt> executable, and 
+    the appropriate directory, identify the <strong><code>ndb_setup</code></strong> executable, and 
     double click it. </li>
 <li><b>Note: </b> Web server is Python process started in shell. Please refer
     to on-screen instructions on how to stop it properly. If you exit the shell 
-    abruptly, you might need to manually remove mcc.pid file before retrying. </li>
+    abruptly, you might need to manually remove [HOME]mcc.pid file before retrying. </li>
+<li><b>Note: </b> On Windows, locate setup.bat in root of your MySQL software 
+installation and run it.</li>
+
 </ul>
 
 <!-- ====================== Supported platforms ============================ -->
@@ -216,7 +264,6 @@ line.
 
 <ul>
 <li>Ubuntu 11</li>
-<li>Windows Vista</li>
 <li>Solaris 11 Sparc</li>
 <li>Solaris 11 x86</li>
 <li>Mac OS x 10.7</li>
@@ -225,32 +272,42 @@ line.
 <!-- ======================= Supported browsers ============================ -->
 
 <h3><a name="supportedBrowsers">Supported Browsers</a></h3>
+<p> Development is based on ES6 specifications. Browsers not supporting it fully, 
+like IE11, might not work properly.</p>
 <p>The configuration tool makes it a top priority to support the following 
     browsers: </p>
 
 <ul>
 <li>Firefox</li>
 <li>Chrome</li>
-<li>Safari</li>
+<li>Microsoft Edge</li>
+<li>Vivaldi</li>
 </ul>
 
 <p>Additionally, the following browsers are supported as far as possible: </p>
 
 <ul>
 <li>Opera</li>
-<li>Microsoft Internet Explorer</li>
-<li>Microsoft Edge</li>
+<li>Microsoft Internet Explorer 11</li>
+<li>Safari: Use -H parameter (http), allow pop-ups and add exception for MCC site 
+if you're using default certificate provided by us and/or old, expired certificate.</li>
 </ul>
 
 <p>There have been no issues detected with Microsoft Edge browser. However, IE insists 
    on parsing DOJO requirements too early in the process which effectively disables 
-   loading DIJIT templates from cache thus forcing load from different domain. As cross-
-   domain scripting is disabled in IE by default, should the problem occur you will have 
-   to change Internet options/Security/Miscellaneous/Access datasources across domains 
-   to ENABLE or PROMPT for MCC to work. Also, local sites can trigger "compatibility 
-   mode" in IE thus rendering happens with some decade old engine. In such case, uncheck 
-   Internet options/Advanced/Go to an intranet site for...</p>
+   loading DIJIT templates from cache thus forcing load from different domain. As 
+   cross-domain scripting is disabled in IE by default, should the problem occur, you will have 
+   to change <i>Internet options/Security/Custom level</i> under <i>Miscellaneous/Access datasources 
+   across domains</i> to ENABLE or PROMPT for MCC to work. Also, local sites can trigger 
+   "compatibility mode" in IE thus rendering happens with some decade old engine. 
+   In such case, uncheck <i>Internet options/Advanced/Go to an intranet site for</i>...</p>
 
+<p style="text-align: left">
+    <img src="../img/IEsecset.png" width="320" alt="IE setting">
+</p>
+
+<p> IE11 doesn't support ES6 fully and receives no development from Microsoft so we 
+may stop supporting it very soon.</p>
 <!-- ======================== Required software ============================ -->
 
 <h3><a name="requiredSoftware">Required Software</a></h3>
@@ -260,20 +317,18 @@ line.
 
 <ul>
 <li><b>Python: </b> Interpreter and libraries for the configuration tool. 
-    Version 2.6 or higher is required, and can be downloaded from 
+    Version 2.7 is required (2.6 might work but we did not test it), and can be downloaded from 
     <a href="http://python.org/download/">http://python.org/download/</a></li>
 <li><b>Paramiko: </b> SSH implementation required to communicate with remote hosts. 
     Version 2 or higher is required, and can be downloaded from 
     <a href="http://www.lag.net/paramiko/">http://www.lag.net/paramiko/</a></li>
 <li><b>Cryptography: </b> Cryptography module required by Paramiko. Version 1.9 or 
-    higher is required, and can be installed with $ pip install cryptography.</li>
-<li>For development, we use Python 2.7.13, Paramiko 2.1.2 and cryptography 1.9.</li>
+    higher is required, and can be installed with $ pip install cryptography==1.9.</li>
+<li>For development, we use Python 2.7.14, Paramiko 2.1.2 and cryptography 1.9.</li>
 </ul>
 
 <p>If you install the Windows version of the configuration tool, the above 
-    software comes bundled and is installed automatically. If you intend to 
-    deploy MySQL Cluster only on the same host as the configuration tool is 
-    running, you will not need Paramiko. </p>
+    software comes bundled and is installed automatically. </p>
 
 <p>The following software must be installed on the remote hosts that will be 
     used to deploy the MySQL Cluster: </p>
@@ -295,19 +350,19 @@ line.
 <ul>
 <li><b>SSH: </b>Secure shell is used to enable the back end to perform actions 
     on remote hosts. Thus, the remote host being accessed must have an SSH server 
-    up and running. Additionally, the configuration tool user must have access 
+    up and running. Additionally, the configuration tool user must have SSH access 
     to the remote server by means of a <i>user name and password</i>, or by <i>keys</i>. </li>
-<li><b>https: </b>Communication between the front end and the back end is not 
-    encrypted by default. This means that e.g. the SSH password is transmitted 
-    in a format that is readable to anyone. For communication to be encrypted, 
-    the back end must have a <i>certificate</i>, and the front end must 
-    communicate with the back end using <i>https</i> rather than <i>http</i>. 
-    The easiest way to enable this is to issue a <i>self signed certificate</i>. 
+<li><b>https: </b>If the communication between front end (JS running in your browser) 
+    and back end (Python web server) is not encrypted, the SSH password, for 
+    example, is transmitted in a format that is readable to anyone. 
+    For communication to be encrypted, the back end must have a <i>certificate</i>, 
+    and the front end must communicate with the back end using <i>https</i> rather 
+    than <i>http</i>. The easiest way to enable this is to issue a <i>self signed certificate</i>. 
     After the certificate is issued, it must be made available to, and used by, 
     the back end. This can be done by starting the wizard with the options 
-    <tt>--use-https</tt> and <tt>--cert-file=&lt;certificate file name&gt;</tt>.
+    <strong><code>--use-https</code></strong> and <strong><code>--cert-file=&lt;certificate file name&gt;</code></strong>.
     We provide sample certificate in root directory (cfg.pem) so using just
-    <tt>-S</tt> should suffice to get you going.</li>
+    <strong><code>-S</code></strong> should suffice to get you going.</li>
 <li><b>Authentication: </b>The back end process can execute commands on its 
     local host as well as remote hosts. Thus, anyone connecting to the back end 
     can take charge of how commands are executed. To reject unwanted connections 
@@ -315,12 +370,11 @@ line.
     Thus, a certificate must be issued by the user, installed in the browser, 
     and made available to the back end for authentication purposes. This can be 
     done by starting the back end with the option 
-    <tt>--ca-certs-file=&lt;certificate list file name&gt;</tt>.</li>
-<li><b>Configuration file: </b>Configuration is saved to file with extension .mcc
-    in current users HOME directory. File is encrypted with Fernet. Passphrase,
-    provided by user, is used to generate SHA256 key for AES 128 encryption.
-    Beware that, much like above, passphrase is sent plain text from front end to
-    back end so HTTPS is highly recommended.</li>
+    <strong><code>--ca-certs-file=&lt;certificate list file name&gt;</code></strong>.</li>
+<li><b>Configuration file: </b>Configuration is saved to a file with extension .mcc
+    in current users HOME/.mcc directory. File is plain text holding external and 
+    internal IP addresses of hosts, their HW resources as well as user/key name(s) 
+    for authentication but <b>no passwords</b>.</li>
 </ul>
 
 
@@ -336,15 +390,18 @@ line.
 <p>Two main components comprise the cluster configuration tool: </p>
 
 <ul>
-<li>The <i>front end</i> is a client implemented in Javascript, running in your favorite web browser.
-<li>The <i>back end</i> is a server implemented in Python, running on your desktop or on another host. 
+<li>The <i>front end</i> is a client implemented in JavaScript, running on your 
+desktop in your favorite web browser.</li>
+<li>The <i>back end</i> is a server implemented in Python, running on your desktop 
+or on another host. However, it is best, security-wise, to run both front and back 
+end on your desktop.</li>
 </ul>
 
 <p>The two main components communicate using messages wrapped in http(s). The back 
     end can manage MySQL cluster software on any host. If the software is on the 
     same host as the back end itself, the Python interfaces are used for file 
     system operations, process manipulation, etc. If the MySQL Cluster software 
-    is on another host, the back end relies on SSH access the hosts, using the 
+    is on remote host, the back end relies on SSH access to that hosts, using the 
     Paramiko package for executing commands remotely. </p>
 
 <p>The remainder of this section will describe overall usage of the wizard in 
@@ -359,65 +416,47 @@ line.
     titles of the various pages. A specific page can be selected by clicking the 
     page title: </p>
 
-<p style="text-align: center">
+<p style="text-align: left">
     <img src="../img/breadcrumb_trail.png" alt="Breadcrumb trail">
 </p>
 
 <p>In the breadcrumb trail, the title of the current page is highlighted. The 
     advantage of the breadcrumb trail is that you can jump more than one page 
-    in either direction. </p>
+    in either direction. The main feature is that navigation doesn't persist your 
+    configuration changes to external file making it preferred way when testing 
+    temporary changes and/or just jumping to <a href="#configWizardDeployConfig">Deploy Configuration</a> 
+    page of already prepared configuration. You can also use this jump to attach 
+    to already running Cluster.</p>
 
-<p style="text-align: center">
+<b><a name="troublenavigation">How can navigation via breadcrumb get you in trouble</a></b>
+<p>Say you wanted to persist your changes, it won't happen. Maybe you made changes to number and/or 
+    arrangement or processes on Parameters page possibly invalidating configuration which was already 
+    deployed or started and skipping directly to Deploy page will not adjust parameter values thus 
+    resulting in failed deploy/start. And so on.
+    Do not skip pages if you are not sure what you're doing.<br /><br />
+</p>
+
+<p style="text-align: left">
     <img src="../img/page_buttons.png" alt="Page buttons">
 </p>
 
 <p>The second navigation mechanism is to use the three navigation buttons at the 
     bottom of the page. These can be used to advance to the next or previous 
     page, or to go to the very last page. The buttons are disabled as needed, 
-    e.g., if you are at the last page, the <i>Next</i> and <i>Finish</i> buttons 
-    are disabled, while if you are on the first page, the <i>Prev</i> button is 
-    disabled. </p>
+    e.g., if you are at the last page, the <span class="guibutton">Save&Next</span> 
+    and <span class="guibutton">Finish</span> buttons are disabled, while if you 
+    are on the first page, the <span class="guibutton">Previous</span> button is 
+    disabled. If you are making changes to configuration you wish to persist over 
+    MCC sessions, you need to use <span class="guibutton">Save&Next</span>.</p>
 
 <!-- =========================== Settings ================================== -->
-
-<h3><a name="settings">Settings</a></h3>
-<p>At the top right in the wizard window, next to the <i>Help</i> menu, you will 
-    find the <i>Settings</i> menu: </p>
-
-<p style="text-align: center">
-    <img src="../img/settings_menu.png" alt="Settings menu">
-</p>
-
-<p>The various menu entries in the Settings menu are: </p>
-
-<ul>
-<li><i>Automatically save configuration as cookies: </i>This option is now always
-    on saving general information such as items for drop down lists and such. </li>
-<li><i>Show advanced configuration options: </i>This setting means that advanced 
-    configuration parameters will be visible in the wizard and editable for the 
-    user. The advanced parameters will always be used in the configuration file, 
-    this setting just controls whether they are visible in the wizard. </li>
-<li><i>Automatically get resource information for new hosts: </i>With this setting 
-    checked, new hosts that are added will be queried automatically for hardware 
-    resource information. The information can be overridden afterwards if desired.
-    We recommend leaving this option ON for simple Cluster (i.e. one where same set
-    credentials works for all hosts) skipping need to refresh host information. On 
-    Cluster where each host has it's own credentials worst thing that can happen is
-    an alert window saying we were unable to collect host info. Once you provide
-    proper credentials on Hosts list page, you can refresh it.</li>
-</ul>
-
-<p>Some of the entries in the menu might be disabled if they are irrelevant due 
-    to choices you have made in the wizard. We will come back to that later in 
-    this user guide. </p>
 
 <!-- ========================= Getting help ================================ -->
 
 <h3><a name="gettingHelp">Getting Help</a></h3>
-<p>At the very top right in the wizard window, next to the <i>Settings</i> menu, 
-    you will find the <i>Help</i> menu: </p>
+<p>At the very top right in the wizard window you will find the <i>Help</i> menu: </p>
 
-<p style="text-align: center">
+<p style="text-align: left">
     <img src="../img/help_menu.png" alt="Help menu">
 </p>
 
@@ -434,11 +473,149 @@ line.
 </ul>
 
 <p>In addition to the help menu, there are tool tips for most of the input widgets. 
-    They are displayed when you hover the widget, or there is a small orange 
+    They are displayed when you hover over the widget, or there is a small  
     question mark next to the widget's label which can be hovered for help. 
     For the configuration parameters, the parameter names are linked to the 
     MySQL Cluster documentation, so if you click the parameter name, the 
     appropriate documentation is displayed in a separate frame. </p>
+
+<!-- ========================= Internal workings ================================  -->
+<h3><a name="internalWorkings">Internals</a></h3>
+<button class="collapsible">Click to show/hide Internals</button>
+<div class="content">
+<p><b>Back end</b> is web server in Python. It is started with (s)bin/ndb_setup.py 
+(or with setup.bat on Windows). Ultimately, ndb_setup.py reaches share/mcc/request_handler.py 
+and MCC is started. request_handler is central script processing all the HTTP requests 
+from front end (mcc/server/api.js).</br>
+First, it determines the type of request (resources info, management node status etc.), 
+then it creates proper object by calling clusterhost::produce_ABClusterHost(). 
+produce_ABClusterHost() determines whether the host towards which command is directed 
+is local or remote and returns LocalClusterHost() or remote_clusterhost.RemoteClusterHost(). 
+The only difference is that LocalClusterHost has no credentials attached to object. 
+This newly created object is used to authenticate (RemoteClusterHost), run command 
+and return result at which time it is destroyed. The entry point for request is 
+def handle_req(req) and exit point is def make_rep(req, body=None). Synchronization 
+is done via <b>def make_rep</b> where sequence number coming from front end is passed back 
+in <b>rSeq</b> member:<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+<code>rep: {'head': { 'seq': req['head']['seq'] +1,
+    'cmd': req['head']['cmd'],
+    'rSeq': req['head']['seq'] }
+}</code></pre>
+Some requests, like def handle_copyKeyReq(req, body) are self-sufficient and return but OK, 
+some do the heavy lifting by employing appropriate routines in local/remote clusterhost 
+objects like def handle_readCfgFileReq(req, body).</br>The most elaborate one is management 
+command handler, def handle_runMgmdCommandReq(req, body). This routine creates 
+permanent SSH connections to remote host(s) running ndb_mgmd process in setupMGMTConnection. 
+Through this connection object, commands are sent to ndb_mgm client library to get 
+status of all Cluster nodes which is then parsed and returned to front end properly 
+formatted. runMgmdCommandReq can also process special input from front end, like 
+"STOP" command which instructs it to clean up list of MGMTConnection objects. 
+This happens, for example, when Cluster is stopped and you navigate away from 
+<a href="#configWizardDeployConfig">Deploy Configuration</a> page in front end 
+and also when you terminate Python web server. If host running ndb_mgmd process 
+is local, another mechanism is used, a socket connection 
+socket.create_connection(localhost, port). There are several points to take into 
+account here:
+<ul>
+<li>Different mechanisms employed for same task of gathering Cluster info for local
+ and remote hosts running ndb_mgmd process. Socket connection used for localhost is 
+the preferred way but it would require that firewall port (usually 1186) is open 
+on remote host(s) for outside connection. This is security risk so we opted for 
+installing Cluster client library on every remote host and using ndb_mgm to 
+collect status via SSH channel.</li>
+<li>Permanent connections to remote host(s) in MGMTConnection list can become 
+stale/invalid. For example, connection may become invalid in following scenario: 
+You started configuration A connecting to ndb_mgmd process on host N. Then you close 
+front end while leaving back end running. You then start front end by typing the 
+URL in browser and load configuration B which has ndb_mgmd process running on host M.
+This makes permanent management connection to host N in back end invalid. We did 
+our best to detect those situations and provide info requested.</li>
+<li>For remote host(s) running ndb_mgmd process, default is to collect info via 
+SSH channel command "ndb_mgm -e"SHOW" to client library ndb_mgm. Should the 
+connection fail, we will try socket connection as if it's localhost. Should all 
+the attempts fail, front end will stop polling for Cluster status. </li>
+</ul>
+Next to note is <b>def start_proc(proc, body)</b>. This function is used to start, stop 
+and, if necessary, kill Cluster processes on hosts. Each command object employing 
+this function has procCtrl (process control) object attached. Most important members 
+defined in "params" section are: </br>
+<i>autoComplete</i>: Should the 'bin', 'sbin', 'scripts'... directories get appended to 
+path provided with command. This is important, for example, for defining path for 
+Cluster binaries in front end (<b>Hosts page</b><em>MySQL Cluster install directory</em>). If 
+you're running Cluster deployment on RPM/YUM platform, ndb_mgmd will be in /usr/sbin, 
+while ndb_mgm will be in /usr/bin directory (same applies to mysqld and mysqladmin). 
+So START/STOP command will utilize autoComplete and HOSTS::MySQL Cluster install 
+directory should be set to just /usr/. There is no autoComplete for Windows host(s) 
+meaning Hosts page, MySQL Cluster install directory should point all the way down 
+to BIN (...\mysql-cluster-7.6-winx64\bin)</br>
+<i>isCommand</i>: This is a special flag used for, for example, service removal command 
+on Windows which might need retrying.</br>
+<i>exec_cmdv</i>: We call this command to get actual work done. The behavior is governed 
+with two more flags: waitForCompletion and daemonWait. If there is waitForCompletion 
+but no daemonWait, we wait for command to return indefinitely. If there is waitForCompletion 
+and daemonWait then we wait for daemonWait seconds before starting to poll for 
+result of command every 0.5 seconds for another 2 minutes (localhost) or 3 minutes 
+(for remote host). If it doesn't complete, (Remote)ExecException is risen. This is 
+useful when issuing command we know will take some amount of time before completing 
+(like starting data node processes) but we still want to be able to recover from 
+failure (i.e. not wait indefinitely).</br>
+<i>noRaise</i>: Special flag telling exec_cmdv not to fail for specific return value 
+(other than 0).</br>
+Next we check that procCtrl doesn't have kill member and treat such commands as 
+"ordinary". Otherwise we proceed to special handling of commands with kill members 
+where we first determine if recipient OS is Windows (procCtrl.servicename is not empty) 
+or *nix since Windows require different handling due to fact that we install 
+Cluster processes as services there. In general, when stopping Cluster, we first 
+stop mysqld(s) by issuing mysqladmin --shutdown/net stop N5x with kill member and 
+getPID member describing how to obtain PID for the concrete process (see deploy.js, 
+getStopProcessCommands for details). If, for some reason, mysqladmin/net stop fails 
+to stop mysqld(s) then we will obtain the PID(s) one by one and kill those mysqld 
+processes. Things are bit trickier for Cluster processes. First we try to connect 
+to primary management host and issue ndb_mgm -e"SHUTDOWN" there. If this fails, 
+we try to kill the offending ndb_mgmd process. Then, if Cluster has second management 
+node, we repeat the above on that host. Ultimately, if all management nodes (hosts 
+running ndb_mgmd process) fail to take Cluster down, we will issue kill to all data 
+node processes. This means killing both angel and data node process so "DNODE" is 
+sent as special command and not "KILL". Data node processes also have additional 
+member, procCtrl.getPIDchild, in addition to procCtrl.getPID (Angel/actual process).</br>
+Starting Cluster is bit simpler. First we start primary management process (ndb_mgmd) 
+and then secondary (if present). After that we start all data node processes (ndbmtd) 
+in parallel, and then all of mysqld processes also in parallel (except for IE11 where 
+processes are started sequentially).</br></br>
+The approach of one ClusterHost object per command helps with resources and 
+synchronization but it's slow. So we introduced permanent SSH connections to all 
+of remote hosts in ConnArr list of paramiko.SSHClient() objects which are extended 
+with several new members explaining host OS, CPU etc. Thus first command going to 
+remote host is going to be much slower than subsequent ones. If you are creating 
+new Cluster, this will probably be getting resource info. If you are working with 
+already defined Cluster, probably Start Cluster command. This list of SSH connections 
+is maintained and checked for stale connections upon each new command. It is released 
+once you stop Python process in console to exit MCC.</br></br>
+Finally, on Windows, we have noticed Python web server going to "sleep" on occasion. 
+This manifests as if nothing is happening in front end. So if you notice, for example, 
+progress bar not advancing at all for longer period of time, click on Python console 
+and press ENTER key once or twice to get things going again. You should see logging 
+resuming. Also, Windows Server OS tends to ignore Ctrl+C in Python shell. If so, 
+use Ctrl+Break to exit properly.</br>
+Cleaning up lists of SSHClient() objects upon exit:<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><samp>^C received, shutting down web server
+17:01:13,091: WARNING [cleanupMGMTConnections;request_handler.py:98]: Cleaning up MGMT connections array.
+17:01:13,091: WARNING [cleanupConnections;remote_clusterhost.py:61]:  Cleaning up connections array.
+Removing C:\Users\user_name\mcc.pid
+Terminate batch job (Y/N)? y</samp></pre></br>
+<b>Cluster is started</b> if management process is running and and responds to 
+client poll for status. For example, mysqld process may start (green light on 
+DEPLOY page) and then die (red light on DEPLOY page) but we still consider Cluster 
+started. To investigate what happened with specific command to start failing SQL node, 
+you can check JavaScript console, click <span class="guibutton">View commands</span> 
+or click <span class="guibutton">Cluster tools</span> and choose <i>Get log files</i>.</br>
+<b>Cluster is stopped</b> if all mysqld processes can not be polled for status and 
+ndb_mgm client reports management process begun Cluster shutdown procedure. If this 
+fails, we kill the processes. Assuming standard shutdown procedure is in effect 
+(ndb_mgm -e'SHUTDOWN') the processes tree on DEPLOY page will show some processes 
+as running even after we alert you Cluster has stopped. Just wait 5-10 seconds for 
+all statuses to refresh.</br></br>
+</p>
+</div>
 
 
 <!--
@@ -456,88 +633,256 @@ line.
 
 <h3><a name="welcome">Welcome</a></h3>
 
-<p>The first page displayed after the <tt>ndb_setup</tt> command is invoked is 
-    the <i>welcome</i> page. Here, you have three major areas: </p>
-
-<ul>
-<li><b>Radio box with configurations: </b> Upon startup, backend lists all non empty
-    .mcc files from current user HOME and sends the list to front end in URL. Front end
-    then appends NEW CONFIGURATION (default item). This is the first choice to make. If
-    you choose "NEW CONFIGURATION" and leave Radio box (say, by clicking to PASSPHRASE box),
-    you will be prompted to enter the name for new configuration. You can omit .mcc part. </li>
-<li><b>PASSPHRASE/CONFIRM PP: </b> Passphrase is used to secure your configuration file.
-    If you choose "NEW CONFIGURATION", you will have to confirm the passphrase. If you
-    choose existing configuration, you will be moved to PASSPHRASE box immediately and 
-    you will not need to confirm it.</li>
-<li><b>VIEW CFG: </b> The button is disabled until all the requirements are met:
-    - Configuration is picked, passphrase is provided.
-    The validation code is triggered when you leave PASSPHRASE/CONFIRM PP boxes either
-    by pressing ENTER or TAB.</li>
-<li><b>CONTINUE: </b> The button is disabled until all the requirements are met:
-    - Configuration is picked.
-    - In case you picked existing configuration, passphrase is provided.
-    - In case you picked "NEW CONFIGURATION", passphrase is provided as well as
-    matching confirmation.
-    The validation code is triggered when you leave PASSPHRASE/CONFIRM PP boxes either
-    by pressing ENTER or TAB.</li>
-</ul>
-
 <p style="text-align: center">
     <img src="../img/welcome.png" width="800" alt="Welcome page">
 </p>
 
-<p>Once you click CONTINUE button, the back end server will get contacted to read from
-    chosen configuration and pass decrypted data back. This information, including your
-    credentials for Cluster/host(s) will then get attached to window.name environment
+<p>The first page displayed after the <strong><code>ndb_setup</code></strong> command is invoked is 
+    the <b><i>Welcome</i></b> page. Here, you have three major areas: </p>
+
+<ul>
+<li><b>Radio box with configuration(s): </b> Upon startup, backend lists all non empty
+    .mcc files from current user's HOME/.mcc directory and sends the list to front end in URL. Front end
+    then appends NEW CONFIGURATION (default item) to the list. This is the first choice to make. If
+    you choose "NEW CONFIGURATION", you will be prompted to enter the name for new 
+    configuration after running it. You can omit .mcc part. </li>
+<li><span class="guibutton"><b>RUN configuration</b></span>  When configuration is picked, clicking this button 
+will load your configuration into MCC and advance to the next page in wizard.</li>
+</ul>
+
+<p>When you click <span class="guibutton">RUN configuration</span>, the back end server 
+    will get contacted to read from chosen configuration and pass it back. 
+    This information will then get attached to <b><var>window.name</var></b> environment 
     variable and passed to next page where it will be loaded into in-memory stores.
-    <br/>Providing existing configuration name when prompted for "NEW CONFIGURATION" name is 
-    not treated as error. MCC will simply read the existing configuration and proceed.
-    <br/>VIEW CFG button displays pop-up window with configuration details. Can be blocked by 
-    browser's pop-up blocker.
+    <br/>Providing existing configuration name when prompted for "New configuration" name is 
+    not treated as error. Instead, MCC will simply read the existing configuration and proceed.
 </p>
 
+<!-- ======================== Configuration files ===============================  -->
+<h3><a name="configFiles">Configuration files</a></h3>
+<button class="collapsible">Click to show/hide information about configuration files</button>
+<div class="content">
+Configurations are files with .mcc extension residing in current user's HOME/.mcc directory. 
+The name of the file is copied to "Cluster name" member of ClusterStore. File consists 
+of saved contents of 5 in-memory stores:
+<ol>
+    <li><em>ClusterStore</em>: Single entry, encompassed in {}</li>
+    <li><em>HostStore</em>: Array of as many entries as there are hosts in Cluster, encompassed in {}</li>
+    <li><em>EmptyStore</em>: Just {}, placeholder for processTypeStore</li>
+    <li><em>processStore</em>: Array of as many entries as there are processes in Cluster, encompassed in {}</li>
+    <li><em>processTreeStore</em>: Array of as many entries as there are families of processes in Cluster, encompassed in {}</li>
+</ol>
+<b>1)   ClusterStore:</b><br/>
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>{
+	"identifier": "id",
+	"label": "name",
+	"items": [
+		{
+			"id": 0,
+			"ssh_keybased": "on",
+			"ssh_user": "",
+			"savepwds": false,
+			"name": "v39-v40-frigg",
+			"apparea": "simple testing",
+			"writeload": "low",
+			"installCluster": "NONE",
+			"openfw": false,
+			"Started": true,
+			"ssh_ClKeyUser": "my_username",
+			"ssh_ClKeyFile": "",
+			"ssh_ClKeyPass": "-"
+		}
+	]
+}</code></pre> This array has just one member ("id": 0,) meaning there can be only 
+one Cluster configuration per file. The rest represents various choices available 
+on <a href="#configWizardDefineCluster">Define Cluster</a> page.<br/><br/>
+<b>2)   HostStore:</b><br/>
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>{
+	"identifier": "id",
+	"label": "name",
+	"items": [
+		{
+			"id": 5,
+			"name": "Any host",
+			"anyHost": true
+		},
+		{
+			"id": 6,
+			"name": "External IP or FQDN of 1st host",
+			"anyHost": false,
+			"openfwhost": false,
+			"installonhost": false,
+			"SWInstalled": true,
+			"hwResFetch": "OK",
+			"hwResFetchSeq": 2,
+			"ram": 524155,
+			"cores": 88,
+			"uname": "Windows",
+			"osver": "10",
+			"osflavor": "Microsoft Windows 10 Enterprise",
+			"dockerinfo": "NOT INSTALLED",
+			"datadir_predef": true,
+			"diskfree": "418G",
+			"fqdn": "myhost1.mydomain.org",
+			"internalIP": "10.172.165.189",
+			"installonhostrepourl": "",
+			"installonhostdockerurl": "mysql/mysql-cluster:7.6",
+			"installonhostdockernet": "",
+			"installdir": "E:\\MCCtest\\server\\bin\\",
+			"installdir_predef": false,
+			"datadir": "C:\\Users\\user\\MySQL_Cluster\\"
+		},
+		{
+			"id": 7,
+			"name": "External IP or FQDN of 2nd host",
+			"anyHost": false,
+			"openfwhost": false,
+			"installonhost": false,
+            ...
+	]
+}</code></pre> This array has as many members as there are hosts in Cluster. Key 
+to linking this store with processStore is <b>"id"</b> field which is always 
+different for every host (HostStore.id=processStore.host). It does not need a link 
+to <em>ClusterStore</em> since there can be just one Cluster configuration per file.<br/>
+The lowest ID is always reserved for dummy entry <b>"Any host"</b> which serves to 
+initialize empty store. It is the only entry with <b>"anyHost": true</b>!<br/>
+The rest represent various choices available on 
+<a href="#configWizardDefineHosts">Define Hosts</a> page.<br/><br/>
+<b>4)   processStore:</b><br/>
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>{
+	"identifier": "id",
+	"label": "name",
+	"items": [
+		{
+			"id": 9,
+			"name": "Management node 1",
+			"host": 6,
+			"processtype": 0,
+			"NodeId": 49,
+			"seqno": 1
+		},
+		{
+			"id": 10,
+			"name": "Management node 2",
+			"host": 7,
+			"processtype": 0,
+			"NodeId": 50,
+			"seqno": 2
+		}, 
+        ...
+		{
+			"id": 15,
+			"name": "SQL node 2",
+			"host": 8,
+			"processtype": 3,
+			"NodeId": 54,
+			"seqno": 2,
+			"Port": 3308
+		},
+        ...
+		{
+			"id": 17,
+			"name": "Multi threaded data node 2",
+			"host": 8,
+			"processtype": 2,
+			"NodeId": 2,
+			"seqno": 2
+		}
+	]
+}</code></pre> This array has as many members as there are processes running on 
+Cluster hosts. Key to linking this store with host store is <b>"host"</b> field 
+(ID in HostStore).<br/>
+If you change some parameter on process level, it will be recorded here. For example, 
+you can see that mysqld process id=15, running on host=8 has Port=3308 which is 
+not the default setting thus recorded here.<br/>
+The rest represent various choices available on <a href="#configWizardDefineProcesses">Define Processes</a> and 
+<a href="#configWizardDefineParameters">Define Parameters</a> pages.<br/><br/>
+<b>5)   processTreeStore:</b><br/>
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>{
+	"identifier": "id",
+	"label": "name",
+	"items": [
+		{
+			"id": 0,
+			"name": "ndb_mgmd",
+			"family": "management",
+			"familyLabel": "Management layer",
+			"nodeLabel": "Management node",
+			"minNodeId": 49,
+			"maxNodeId": 50,
+			"currSeq": 2
+		},
+		{
+			"id": 1,
+			"name": "ndbd",
+			"family": "data",
+			"familyLabel": "Data layer",
+			"nodeLabel": "Single threaded data node",
+			"minNodeId": 1,
+			"maxNodeId": 9,
+			"currSeq": 3,
+			"NoOfReplicas": 2,
+			"FragmentLogFileSize": 64,
+			"NoOfFragmentLogFiles": 16
+		},
+        ...
+	]
+}</code></pre> This array has as many members as there are process families running 
+on Cluster. Families are hardcoded into MCC thus this field will always be of same 
+size. So, if you change some parameter on family level (i.e. value is the same for 
+all processes of the same family), it will be recorded here. For example, you can 
+see that data family has NoOfReplicas=2, FragmentLogFileSize=64 and 
+NoOfFragmentLogFiles=16 which applies to all processes belonging to <em>data</em> 
+family (processStore.processtype 1 and 2). The link is processTreeStore.ID=ProcessStore.processtype (
+0 - management family, 1 and 2 - data family (ndbd/ndbmtd), 3 - sql family and 4 
+- API family).<br/>
+The rest represent various choices available on 
+<a href="#configWizardDefineParameters">Define Parameters</a> page.<br/>
+We do not encourage editing configuration files, however, sometimes it might be 
+the fastest way to transfer settings from one Cluster to the other.
+</p></div>
 <!-- ======================== Define cluster =============================== -->
 
 <h3><a name="configWizardDefineCluster">Define Cluster</a></h3>
-<p>On <i>define cluster</i> page you can decide on overall settings for the
+<p>On <b><i>Define cluster</i></b> page you can decide on overall settings for the
     cluster you are going to configure. Setting provided here are "Cluster-wide"
     meaning for every host added, if there are no per-host entries, these will
-    be used. This allows for quick deployment of simple configurations where
-    there is just localhost or where, for example, credentials are the same for
-    every host in Cluster. There are also receipts for various Cluster settings
-    depending on what you want (see below).
-    Please note that you can override any of the settings here later in the process.
+    be used. This allows for quick deployment of configurations where there is 
+    just localhost or where, for example, credentials are the same for every host 
+    in Cluster (cloud deployment). There are also receipts for various Cluster settings
+    depending on what you want (see below). Please note that you can override any 
+    of the settings here later in the process.<br />
+    Edits on this page are disable while Cluster configured is running.
 </p>
 
 <p style="text-align: center">
     <img src="../img/define_cluster.png" width="800" alt="Define cluster">
 </p>
 
-<p>The page contains the following fields: </p>
-
+<p>The page contains following fields: </p>
+<b>Cluster properties:</b> various Cluster level properties
 <ul>
 <li><b>Cluster name: </b>This field reflects loaded cluster configuration
     name and so it can't be changed. </li>
 <li><b>Host list: </b>Here, a comma separated list of host names can be added. 
-    The default is to list only <i>127.0.0.1</i>, which means the host where 
-    the <tt>ndb_setup</tt> command was issued. Host names can be added to or 
-    deleted from this list. If a host name is deleted, the processes configured 
-    to run on that host will also be deleted. This is convenient way to add host(s)
-    especially if they all use same basic credentials (unencrypted PK or user 
-    /password combination). If you want more control over your hosts definition, 
-    or you have hosts in Cluster with different credentials, you can leave this box 
-    completely empty.</li>
+    If you list only <i>127.0.0.1</i> or <i>localhost</i> it means the host where 
+    the <strong><code>ndb_setup</code></strong> command was issued. Host names can be 
+    added to or deleted from this list. If a host name is deleted, the processes 
+    configured to run on that host will also be deleted. This is convenient way 
+    to add host(s) especially if they all use same credentials. If you want more 
+    control over your hosts definition, or you have hosts in Cluster with different 
+    credentials, you can leave this box completely empty.</li>
 <li><b>Application area: </b>This describes the overall way the cluster will be 
     used. You can choose between the following three receipts: 
     <ul>
     <li><b>Simple testing: </b>Here, the cluster will require little hardware 
         resources, but this will also make the cluster performance suffer greatly. 
-        This application area should not be used in a production context. </li>
+        This application area is fit for quick testing for example. </li>
     <li><b>Web application: </b>For a web application, the configuration parameters 
         will be defined in a way that maximizes performance, given the host hardware 
         resources. </li>
     <li><b>Realtime: </b>The realtime configuration is much the same as the web 
-        application, the difference is that the realtime configuration is more 
+        application. The difference is that the realtime configuration is more 
         sensitive to timeouts in the heartbeat mechanism to detect failing 
         processes faster. </li>
     </ul>
@@ -552,90 +897,161 @@ line.
         per second for the entire cluster. </li>
     </ul>
     </li>
-<li><b>SSH Property: </b>Here you can specify the use of SSH credentials to 
+<li><b>Master node: </b>Drop down list presenting external IP address of "Master node" 
+or text "UNASSIGNED". This value is changed when running "Copy SSH keys" on 
+<a href="#configWizardDeployConfig">Deploy Configuration</a> page so please refer 
+to the explanation there. Field is read-only for now.
+    </li>
+</ul>
+<b>SSH Property: </b>Here you can specify the use of SSH credentials to 
     access remote host(s). If your host list (see above) only contains <i>127.0.0.1</i>, 
-    no SSH credentials are required. The credentials that can be specified are: 
-    <ul>
+    no SSH credentials are required.
+<ul>
+    <li><span class="guibutton"><b>RESET credentials for this cluster</b></span> This button clears 
+        the Cluster level credentials from memory storage and various variables. If you need to 
+        change the way you're connecting to your Cluster, please use this button to reset all first. 
+        The button has no effect on Host-level credentials you might have entered.
+    </li>
     <li><b>Key based SSH: </b>Check this box if you have enabled key based login 
         on the remote host. This will disable the two fields below. If the private
-        key is id_rsa and not encrypted and resides in ~/.ssh it will be used. For all 
+        key is not encrypted id_rsa and resides in ~/.ssh it will be used. For all 
         other cases, please fill in <b>Key user</b> (if different than logged in one), <b>Key 
         passphrase</b> (if key is encrypted) and <b>Key file</b> (if not ~/.ssh/id_rsa).</li>
     <li><b>User name: </b>Submit your remote SSH user name here. </li>
     <li><b>Password: </b>Submit your remote SSH password here. </li>
     <li><b>The credentials entered here are the same for every host, unless overridden 
         with Edit Host, meaning they are kept on Cluster level. If you have per host 
-        credentials or specific requirements on your PK(s), please use Add Host on next page.</b></li>
-    </ul>
-    </li>
-<li><b>Install properties: </b>Here you define Cluster installation parameters as well
-    as firewall manipulation.
-    <ul>
+        credentials, please use Add Host on 
+        <a href="#configWizardDefineHosts">Define Hosts</a> page.</b></li>
+</ul>
+<b>Install properties: </b>Here you define Cluster installation parameters as well 
+as firewall manipulation.
+<ul>
     <li><b>Install MySQL Cluster:</b> Option for installing Cluster on hosts
         <ul>
-        <li><b>NONE: </b>No installation of Cluster will take place (default). </li>
+        <li><b>NONE: </b>No installation of Cluster will take place. </li>
         <li><b>BOTH: </b>Both DOCKER and installation from REPO will be considered 
             depending on OS and available images. Should both installation mechanisms
             be available on certain host, we will prefer REPO over DOCKER.</li>
         <li><b>REPO: </b>For every host in Cluster, the attempt will be made to install
-            Cluster SW from the repository URL.</li>
+            Cluster SW from the repository URL (default).</li>
         <li><b>DOCKER: </b>For every host in Cluster, the attempt will be made to install
             Cluster SW DOCKER image.</li>
         </ul>
     </li>
     <li><b>Open FW ports:</b> Check if you need the tool to try to open necessary ports
         for Cluster processes on every hosts. </li>
-    </ul>
-</li>
+    <li><b>Use internal IP address (VPN):</b> This governs forming of connection 
+    string between Cluster nodes. If checked, Internal IP will be used for nodes 
+    communication. If unchecked, External IP address will be used.<br/>
+    If only some of your hosts have Internal IP address, it is better to use External 
+    IP. If all of your hosts are inside VPN, make sure you enter InternalIP's and 
+    use them.
+    </li>
 </ul>
 
-<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
-    chosen configuration file in your HOME and advances to next page. If you close the
-    wizard here, no changes you made will be saved.</p>
+<b>Changes monitor: </b>Four buttons at lower-left showing if there were modifications to configuration.
+<p style="text-align: left">
+    <img src="../img/define_parameters-paramchg.png" width="250" alt="Define cluster"> </p>
+<ul>
+    <li><b>C:</b> Changes on Cluster level. If significant change appears, button turns red.</li>
+    <li><b>H:</b> Changes on Host level. If significant change appears, button turns red.</li>
+    <li><b>P:</b> Changes on Process level. If significant change appears, button turns red.</li>
+    <li><b>G:</b> General log of changes.</li>
+    <li><b>Synchronization:</b> All logs but General are synced with configuration when cluster 
+        is deployed or started.</li>
+</ul>
+<p> To view what changed, just click the button:</p>
+<p style="text-align: left">
+    <img src="../img/define_parameters-paramchg-view-shadow.png" width="250" alt="Define cluster"> </p>
+
+<p> <b>Password reminder:</b></p>
+<p> If passwords were present at Cluster level in previous run, look for red labels 
+and put your passwords into their respective input field(s).
+</p>
+<p style="text-align: left">
+    <img src="../img/define_cluster-pwdreminder.png" width="250" alt="Define cluster"> </p>
+<p> <b>OCI deployment tips:</b> When creating deployment on Oracle cloud infrastructure, 
+you should check "Key based SSH" and enter "opc" into "Key user". Provide 
+"Key passphrase" if your key is encrypted. If your key file is different than 
+~/.mcc/id_rsa.pub, you should put it, with fully qualified path, to "Key file". 
+Also make sure "Install MySQL Cluster" is set to "REPO"(/"BOTH") and check 
+"Open ports in firewall". To take full advantage of MCC capabilities, please use 
+instances with RPM/YUM OS such as Oracle Linux. For RPM/YUM platforms and default 
+install, "MySQL Cluster install directory" should be set to "/usr/".</p>
+
+<b><a name="troubleCluster">How can this page get you into trouble</a></b>
+<p>If you enter any credentials here you won't be able to change them for particular host 
+    on Hosts page, i.e. credentials entered here are used for all hosts.<br />
+    If you're installing on RPMYUM platform, be sure to pick right Cluster Version and 
+    REPO installation.<br /><br />
+</p>
+
+<p>The <span class="guibutton"><b>Save&amp;Next</b></span> button sends asynchronous request for your changes to be saved to
+    configuration file and advances to next page. If you close the wizard here, 
+    or use breadcrumb navigation, no changes you made will be saved unless special 
+    event, like successful start of Cluster, occurs. However, even if not saved, 
+    changes will persist throughout current browser session.</p>
 
 <!-- ========================= Define hosts ================================ -->
 
 <h3><a name="configWizardDefineHosts">Define Hosts</a></h3>
 <p>After the overall cluster properties have been defined, you can refine the 
-    host details as well as define new hosts. The wizard page is shown below: </p>
+    host details as well as define new hosts here. <br />
+    Edits on this page are disable while Cluster configured is running.<br />
+    The wizard page is shown below: </p>
 
 <p style="text-align: center">
     <img src="../img/define_hosts.png" width="800" alt="Define hosts">
 </p>
 
-<p>Here, hosts can be added by pressing the <i>Add hosts</i> button and entering 
-    host name or Host external ip address as well as credentials. Field <i>Key_file<i> 
+<p><b> Password reminder:</b></p>
+<p> If passwords were present for some hosts during previous run, you will be notified 
+to reenter them on this page. In concrete example, you need to select host "192.168.56.102" 
+and click <span class="guibutton">Edit selected host</span>. On that screen you need to 
+reenter ordinary password (no SSH authentication selected for this host). After saving changes, 
+select host "192.168.56.101", click <span class="guibutton">Edit selected host</span> and on 
+new screen enter passphrase for public key used (SSH authentication is checked for this host)</p>
+<p style="text-align: left">
+    <img src="../img/hosts-pwd-reminder.png" width="250" alt="Define hosts">
+</p>
+    
+<p>Here, hosts can be added by clicking the <span class="guibutton">Add hosts</span> button and entering 
+    host name (host external ip address) as well as credentials. Field <i>Key_file</i> 
     should point to private key file to be used with selected host
     (i.e. C:\Users\user\.ssh\key_file_name). If the key has default name (id_rsa),
     it will be automatically picked up by Paramiko.
-    <br><b>Host external ip address:</b> IP address making host accessible from the box MCC is 
+    <br><b>Host name (Host external ip address):</b> IP address making host accessible from the box MCC is 
     running on.
-    <br><b>Host internal ip address:</b> Imagine you have five hosts Cluster running on Oracle
-    Cloud then, in this field, you would enter the IP address used inside cloud service 
-    for safer and faster communication between hosts.
-    <br>The hosts currently entered are displayed in the grid with various pieces of
-    information. A host, or a selection of hosts, can be removed from the 
-    configuration by pressing <i>Remove selected host(s)</i> button. If processes 
-    have been configured to run on these hosts, the processes will be removed from 
-    the configuration too: </p>
+    <br><b>Host internal ip address:</b> Host IP address inside VPN or external IP 
+    address if no VPN is used. Imagine you have five hosts Cluster running in 
+    Oracle Cloud then, in this field, you would enter the IP address used inside 
+    cloud service for safer and faster communication between hosts. If your instances 
+    are RPM/YUM OS, such as Oracle Linux, this information will be provided for you. 
+    We also try and guess InternalIP on other platforms but do not fill it in unless 
+    absolutely certain. Our best guess on InternalIP will be logged in JavaScript 
+    console for you to check:
+    <pre><samp>[INF]Array of IP's is:
+(index)     Values
+    0       192.168.56.1
+    1       192.168.0.105</samp></pre>
+</p>
 
-<p style="text-align: center">
+<p style="text-align: left">
     <img src="../img/add_host.png" width="240" alt="Define hosts">
 </p>
 
-<p>If the setting <i>Automatically get resource information for new hosts</i> is 
-    checked in the settings menu (see previous section), the platform name, RAM 
-    size and number of CPU cores will be filled in automatically and displayed 
-    in the grid. Otherwise, an ellipsis in the grid will indicate that the 
-    information was not obtained. The status of the automated resource 
-    information fetching is displayed in the <i>Resource info</i> column. Please 
-    note that fetching the information may take some time, particularly on  
-    Windows hosts. Should the automatic resource fetch fail, correct the host 
-    information by clicking <i>Edit selected host</i> button and refetch by clicking 
-    <i>Refresh selected host(s)</i> button.
+<p>If you fetched hosts resources, the platform name, RAM size and number of CPU 
+    cores will be filled in automatically and displayed in the grid. Otherwise, 
+    an ellipsis in the grid will indicate that the information was not obtained. 
+    The status of the resource information fetching is displayed in the 
+    <i>Resource info</i> column. Please note that fetching the information may 
+    take some time. Should the resource fetch fail, correct the host information 
+    by clicking <span class="guibutton">Edit selected host</span> and refetch by 
+    clicking <span class="guibutton">Refresh selected host(s)</span>.
 </p>
 
-<p>If the SSH user credentials on the <i>define cluster</i> page are changed, 
+<p>If the SSH user credentials on <a href="#configWizardDefineCluster">Define Cluster</a> page are changed, 
     the tool will try to re-fetch the hardware information for hosts where a 
     piece of information is missing. When the information is re-fetched, the 
     various fields will be updated. If a field has been edited by the user, the 
@@ -644,92 +1060,129 @@ line.
 <p>The hardware resource information, platform name, install directory, data 
     directory and free disk space can be edited by the user by clicking the 
     appropriate cell in the grid. It is also possible to select a host and press 
-    the button <i>Edit selected host(s)</i>. Then, a dialog will appear where various 
+    the button <span class="guibutton">Edit selected host</span>. Then, a dialog will appear where various 
     fields can be edited. The edited values will be applied to selected host: </p>
 
-<p style="text-align: center">
+<p style="text-align: left">
     <img src="../img/edit_selected_hosts.png" width="600" alt="Edit selected hosts">
 </p>
 
 <p>Please note that REPO/DOCKER install details are available for editing only on
     this screen.<br>
-    Turning your attention to two more things: I do not have "user" supplied but
-    just Passphrase. This is indicative of my key being id_rsa and placed in ~/.ssh.<br>
-    Also, I am deploying Cluster in VPN so instead of "supra07.no...." I have proper 
-    IP address, not accessible from the outside, in "Host internal IP" box. This will 
-    allow Cluster to skip resolving names.
+    Turning your attention to two more things: I do not have "User" supplied. This 
+    is indicative of my key being id_rsa and placed in ~/.ssh. If I supply 
+    "Passphrase", this would mean my id_rsa is encrypted.<br>
+    Also, I am deploying Cluster in VPN so I have proper IP address, not accessible 
+    from the outside, in "Host internal IP" box. This will allow Cluster to skip 
+    resolving names.
 </p>
 
 <h4>Details on hosts naming</h4>
 <p>One should always keep in mind the goal, i.e. deployment of the Cluster processes 
-    over any number of hosts. Thus it is best to refer to Hosts via their external IP 
-    address. I.e., for anything other than simple deployment just on localhost, you 
-    should follow these rules:
+    over any number of hosts. Thus we refer to Hosts via their external IP address 
+    and not FQDN, for example, even though it is possible. I.e., for anything other 
+    than simple deployment just on localhost, you should follow these rules:
     <ul>
     <li><b>HOST::Name: </b> 
         External IP address of the host making it possible for MCC to reach it via SSH tunnel. </li>
-    <li><b>HOST::FQDN: </b>
-        Internal field to be used when forming connection string (see below). </li>
     <li><b>HOST::InternalIP: </b>
-        When processes run inside cloud/VPN, put internal IP address of the environment here.
-        This way you will allow processes on hosts to communicate in fastest way.</li>
+        When processes run inside cloud/VPN, put internal IP address from the environment here.
+        This way you will allow processes on hosts to communicate in fastest way possible. If 
+        the host is running RPM/YUM OS on OCI, this field will be automatically filled when fetching 
+        host resource info. For other OS's, list of internal ip's fetched will be 
+        logged in web console.<br/>
+        If the wizard was able to fetch just one IP address recognized as Internal, 
+        it will save it to this field.<br/>
+        General usage of Internal vs. External IP addresses for communication 
+        between Cluster processes is governed by <b>Use internal IP address (VPN)</b> 
+        checkbox on <a href="#configWizardDefineCluster">Define Cluster</a> page.<br />
+        This field will be disabled for configuration with just localhost/127.0.0.1.
+        </li>
     <li><b>Initial values: </b>
         HOST::Name is propagated to both HOST::FQDN and HOST::InternalIP members.</li>
     </ul><br/>
-    The nodes are governed by config.ini file, distributed to each one, containing hosts 
+    The nodes are governed by config.ini file, distributed to each management node, containing hosts 
     designation on per process basis as well as connection strings. It might look like this:<br/>
-    <code>[NDB_MGMD]
-    <br/>NodeId=49
-    <br/>HostName=10.172.165.190
-    <br/>DataDir=C:/Users/user/MySQL_Cluster/49/
-    <br/>Portnumber=1186
-    <br/>[NDBD]
-    <br/>NodeId=2
-    <br/>HostName=10.172.162.24
-    <br/>DataDir=C:/Users/user/MySQL_Cluster/2/</code><br/>
+    <pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>[NDB_MGMD]
+NodeId=49
+HostName=10.172.165.190
+DataDir=C:/Users/user/MySQL_Cluster/49/
+Portnumber=1186
+
+[NDBD]
+NodeId=2
+HostName=10.172.162.24
+DataDir=C:/Users/user/MySQL_Cluster/2/</code></pre>
     In this particular case, HostName=10.172.162.24 is actually localhost. The reason
-    to define it as 10.172.162.24 and not "localhost" lies in that when config.ini is 
+    to define it as <em>10.172.162.24</em> and not "localhost" lies in that when config.ini is 
     distributed to second host, 127.0.0.1 will point to that host (10.172.165.190) and 
     the Cluster will not start. This is why you cannot mix 127.0.0.1/localhost with
     remote hosts.<br/>
-    It is necessary for you to also enter Internal IP when adding/editing hosts if Cluster 
-    is running inside VPN (say Cloud deployment).<br/>
+    We strongly advise using Internal IP field when adding/editing hosts if Cluster 
+    is running inside VPN (say Cloud deployment).<br/><br/>
     Let's recapitulate various scenarios:
     <ul>
     <li><b>Small localhost deployment: </b> 
-        Enter 127.0.0.1 or localhost in HostList on 1st page. </li>
+        Enter <i>127.0.0.1</i> or <i>localhost</i> in HostList on <a href="#configWizardDefineCluster">Define Cluster</a> page. </li>
     <li><b>Small deployment, home or office network: </b>
-        Enter proper IP address of your localhost into HostList on 1st page, add other 
-        hosts using "Add Host" button on next page. Ignore InternalIP member. </li>
+        Enter proper IP address of your localhost into HostList on <a href="#configWizardDefineCluster">Define Cluster</a> page, add 
+        other hosts using <span class="guibutton">Add Host</span> button on next page. Ignore InternalIP member. </li>
     <li><b>Deployment to Cloud/other VPN environment: </b>
-        When adding hosts on 2nd page, fill in Internal IP member. Name hosts by their 
-        external IP address. </li>
+        Check <b>Use internal IP address (VPN)</b> on <a href="#configWizardDefineCluster">Define Cluster</a> page. 
+        When adding hosts on <a href="#configWizardDefineHosts">Define Hosts</a> page, fill in Internal IP member. Name hosts by 
+        their external IP address. </li>
     </ul>
-    MCC will always use <b>FQDN</b> member to connect, distribute configuration and start processes.
-    Configuration files and Cluster processes will always use <b>Internal IP</b> member.
-    This way the communication between nodes will be as fast as possible and bypassing any 
-    errors on DNS level.
+    MCC will always use <b>Host (Host external IP)</b> member to connect, distribute 
+    configuration and start processes. Configuration files and Cluster processes 
+    will always use what is configured. If it's InternalIP, communication between 
+    nodes will be as fast as possible and bypassing any errors on DNS level.
 </p>
-
+<p>The hosts currently entered are displayed in the grid with various pieces of
+    information. A host, or a selection of hosts, can be removed from the 
+    configuration by pressing <span class="guibutton">Remove selected host(s)</span>. 
+    If processes have been configured to run on these hosts, the processes will 
+    be removed from the configuration too.
+</p>
 <p>Finally, HostGrid can have two states, collapsed (default): </p>
-<p style="text-align: center">
+<p style="text-align: left">
     <img src="../img/hostgrid-collapsed.png" width="600" alt="HostGrid collapsed">
 </p>
 <p>and expanded: </p>
-<p style="text-align: center">
+<p style="text-align: left">
     <img src="../img/hostgrid-expanded.png" width="600" alt="HostGrid collapsed">
 </p>
-<p>toggled by Show/Hide extended info button. </p>
+<p>toggled by Show/Hide extended info button. Images show actual settings for OCI 
+deployment.</p>
 
-<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
-    chosen configuration file in your HOME and advances to next page. If you close the
-    wizard here, no changes you made will be saved.</p>
+<p>If you are using per-host credentials and not Cluster level ones, after editing 
+hosts, you should SHIFT-Click to select them all and press 
+<span class="guibutton">Refresh selected host(s)</span> to check connections work 
+and fill in various data for hosts.</p>
+
+<b><a name="troubleHosts">How can this page get you into trouble</a></b>
+<p>Forgetting to refresh hosts info can lead to unpredictable results. For example, maybe 
+    disk space is running low or you entered bad credentials and so on.<br />
+    If you changed DataDir(s) or Platform be sure to visit 
+    <a href="#configWizardDefineParameters">Define Parameters</a> page and make sure 
+    all is fine with groups of processes and processes.<br />
+    If you removed host be sure to visit both <a href="#configWizardDefineProcesses">Define Processes</a> 
+    and <a href="#configWizardDefineParameters">Define Parameters</a> page and make sure 
+    all is fine with groups of processes and processes. Same goes for adding the host to configuration.<br /><br />
+</p>
+
+<p>The <span class="guibutton"><b>Save&amp;Next</b></span> button sends asynchronous request for your changes to be saved to
+    configuration file and advances to next page. If you close the wizard here, 
+    or use breadcrumb navigation, no changes you made will be saved unless special 
+    event, like successful start of Cluster, occurs. However, even if not saved, 
+    changes will persist throughout current browser session.</p>
 
 <!-- ======================= Define processes ============================== -->
 
 <h3><a name="configWizardDefineProcesses">Define Processes</a></h3>
 <p>After the hosts have been defined, the next step is to define which processes 
-    should be part of the cluster. This page is shown below: </p>
+    should be part of the cluster and the way they will be distributed.<br />
+    Edits on this page are disable while Cluster configured is running.<br />
+    The page is shown below: </p>
 
 <p style="text-align: center">
     <img src="../img/define_processes.png" width="800" alt="Define processes">
@@ -739,20 +1192,20 @@ line.
     with the various hosts and the processes configured to run on them. To the 
     right is an information pane which displays information about the currently 
     selected item in the tree. When the user enters this page the first time for 
-    a cluster configuration, a set of processes is defined as default. The 
+    a cluster configuration, a set of processes is defined by default. The 
     processes defined depend on the number of hosts. If the user goes back to 
-    the previous page, removes all hosts, and adds other hosts, then a new set 
-    of processes will also be defined. </p>
+    the previous page, removes all hosts, and adds new ones, then a new set 
+    of processes will be defined. </p>
 
 <p>The processes are of the following main types: </p>
 
 <ul>
 <li><b>Management node: </b>Node for administrative tasks such as stopping 
-    individual data nodes, querying status, running backup, etc. </li>
+    individual data nodes, querying status, running backup, etc. There can not be more than two management processes (ndb_mgmd) per Cluster although one is enough. The node ID's should be 49 (primary) and 50.</li>
 <li><b>Single threaded data node: </b>Node for storing the actual data and 
-    executing queries. </li>
+    executing queries. ID range is 1 to 48.</li>
 <li><b>Multi threaded data node: </b>Same as above, but with several working 
-    threads executing in parallel. </li>
+    threads executing in parallel. ID range is 1 to 48.</li>
 <li><b>SQL node: </b>MySQL server for executing SQL queries against the database. </li>
 <li><b>API node: </b>Node accessing the database through a proprietary API rather than SQL. </li>
 </ul>
@@ -765,23 +1218,23 @@ line.
     an arbitrary host may be located. Usually, a process is configured to run 
     on a specific host, and thus will not be allowed to run on an arbitrary host. 
     If this is desirable, the process should be added to the <i>Any host</i> 
-    entry. Please note that only API processes may be located on the special 
-    entry<i>Any host</i>. </p>
+    entry. Please note that only API processes may be located under special 
+    entry <i>Any host</i>. </p>
 
 <p>In the process tree, you can right click a host for a pop up menu displaying 
     an entry <i>Add process</i>. Selecting this entry will take you to the 
-    <i>add process dialog</i>. Alternatively, you can select a host, and press 
-    the <i>Add process</i> button below the process tree. The 
+    <i>Add new process</i> dialog. Alternatively, you can select a host, and press 
+    the <span class="guibutton">Add process</span> button below the process tree. The 
     <i>add process dialog</i> lets you select among the available process types, 
     and you can also enter an arbitrary process name instead of the default 
     suggestion:  </p>
 
-<p style="text-align: center">
+<p style="text-align: left">
     <img src="../img/add_process.png" width="400" alt="Add process">
 </p>
 
 <p>In the tree, you can also right click a process and select <i>delete process</i> 
-    from the pop up menu, or select a process and press the <i>delete process</i> 
+    from the pop up menu, or select a process and press the <span class="guibutton">Del process</span> 
     button below the process tree. If a process is selected in the process tree, 
     information about that process is displayed in the information pane to the 
     right. You may edit the process name, and you may change the process type to 
@@ -790,16 +1243,36 @@ line.
     want to change to an entirely different type, you need to delete the process 
     first, and then add a new process with the desired type. </p>
 
-<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
-    chosen configuration file in your HOME and advances to next page. If you close the
-    wizard here, no changes you made will be saved.</p>
+<b><a name="troubleProcesses">How can this page get you into trouble</a></b>
+<p>Say you have old configuration which you already started one or more times with even number of 
+    DATA processes. Then you decide to add/remove some processes. Say you remove 1 SQL process 
+    and add 1 DATA process. If you skip <a href="#configWizardDefineParameters">Define Parameters</a> page 
+    and go directly to Deployment page not all variables will be properly set. For example, NoOfReplicas 
+    for even number of DATA processes (started configuration) is 2 but for odd (new configuration) is 1. 
+    Visiting <a href="#configWizardDefineParameters">Define Parameters</a> page and checking on 
+    processes and families will warn you about this:<br />
+    <img src="../img/changed-no-of-repl.png" width="400" alt="Trouble processes"><br />
+    We also removed one SQL process and skipping directly to Deploy page can result in hanging start of 
+    SQL processes.<br /><br />
+    In short, if you made any changes here, make sure everything is fine on 
+    <a href="#configWizardDefineParameters">Define Parameters</a> page and consider redeploying 
+    Cluster, even, maybe, deleting old data from DataDirs.<br /><br />
+</p>
+
+<p>The <span class="guibutton"><b>Save&amp;Next</b></span> button sends asynchronous request for your changes to be saved to
+    configuration file and advances to next page. If you close the wizard here, 
+    or use breadcrumb navigation, no changes you made will be saved unless special 
+    event, like successful start of Cluster, occurs. However, even if not saved, 
+    changes will persist throughout current browser session.</p>
 
 <!-- ======================= Define parameters ============================= -->
 
 <h3><a name="configWizardDefineParameters">Define Parameters</a></h3>
 <p>The page for defining parameters looks somewhat similar to the previous page 
-    for defining processes. To the left is a tree with the processes, to the 
-    right is a pane with information regarding the currently selected tree item: </p>
+    (<a href="#configWizardDefineProcesses">Define Processes</a>).<br />
+    Edits on this page are disable while Cluster configured is running.<br />
+    To the left is a tree with the processes, to the right is a pane with information regarding 
+    the currently selected tree item: </p>
 
 <p style="text-align: center">
     <img src="../img/define_parameters.png" width="800" alt="Define parameters">
@@ -809,20 +1282,21 @@ line.
     organized differently. On the previous page, it reflected which hosts the 
     processes were running on, whereas on this page, it shows the processes 
     grouped by process type. Thus, the root nodes in the tree are the process 
-    types, and the children are the process instances. You may notice that the 
-    compatible processes are grouped into the same process type, hence, the two 
-    data node processes will both be in the <i>Data layer</i> process type. </p>
+    types (families), and the children are the process instances. You may notice 
+    that the compatible processes are grouped into the same process type, hence, 
+    the two data node processes will both be in the <i>Data layer</i> process type. </p>
 
 <p>Below the process tree, you will see a check box labeled 
     <i>Show advanced configuration parameters</i>. This check box will make advanced 
     parameters visible or hidden in the information pane to the right. If you, 
-    e.g., select the <i>Data layer</i> process group, you will see that toggling 
+    select the <i>Data layer</i> process group, you will see that toggling 
     the check box makes a lot of parameters appear or disappear in the pane to 
     the right. The significance of this visibility is only that the parameters 
     need to be visible for you to be able to change them. The parameters will be 
-    set anyway and used in the configuration of the cluster. </p>
+    set anyway (if nothing then to default values) and used in the configuration 
+    of the cluster. </p>
 
-<p>Now, the purpose of this page is to define the various configuration parameters 
+<p>The purpose of this page is to define the various configuration parameters 
     for the processes. This can be done in two main ways: </p>
 
 <ul>
@@ -832,17 +1306,20 @@ line.
 <li>If a <i>process group</i> is selected in the tree to the left, you will also 
     see a list of available configuration parameters in the pane to the right. 
     However, if you change a parameter in this pane, the changed value will 
-    apply to <i>all process instances  in that process group unless the instance 
-    also has an overridden value for the parameter that was changed</i>. Thus, 
+    apply to <b>all process instances in that process group unless the instance 
+    also has an overridden value for the parameter that was changed</b>. Thus, 
     parameter changes done for a process instance will overrule changes done for 
-    the process group. </li>
+    the process group. Best way to look at this is that "process group" parameters 
+    go into DEFAULT section(s) while "instance parameters" go to section of config.ini 
+    reserved for that instance. For example, you can have "Portbase" set to 3308 
+    in SQL layer but still override that for first SQL node "Port" to be 3366.</li>
 </ul>
 
-<p>When a process group or process instance is selected, you will see, e.g., the 
-    following information in the pane to the right (if an SQL process is selected): </p>
+<p>When a process group or process instance is selected, you will see the 
+    following information in the pane to the right (for SQL process): </p>
 
 <p style="text-align: center">
-    <img src="../img/mysqld_parameters.png" width="800" alt="Parameters for mysqld">
+    <img src="../img/define_parameters.png" width="800" alt="Parameters for mysqld">
 </p>
 
 <p>In the information pane shown above, you see the various parameter names, their 
@@ -850,14 +1327,14 @@ line.
     to the right. That button means that the parameter can be overridden. Thus, 
     if you push the button, the input widget for the parameter will be enabled, 
     and you will be able to change its value. The various parameters will have 
-    predefined values. If you, e.g., look at the parameter <i>DataDir</i> you 
+    predefined values. If you look at the parameter <i>DataDir</i>, for example, you 
     will see it is a predefined path. This path is constructed based on the host 
     on which the process will run, taking the data directory you entered for 
-    this host on the <i>define hosts</i> page, and appending the node id. All 
+    this host on the <a href="#configWizardDefineHosts">Define Hosts</a> page, and appending the node id. All 
     configuration parameters displayed by the tool will have predefined values, 
     and usually, the values may just be left as they are. It is highly 
     recommended that you read the documentation before making changes to the 
-    parameter values. Each parameter name is a hyper link into the MySQL 
+    parameter values. Each parameter name is a hyper link to the MySQL 
     documentation, so it is easy to find the relevant information. </p>
 
 <p>If a configuration parameter has been changed, you may revert the change and 
@@ -865,15 +1342,36 @@ line.
     green button with a plus sign turns into a big red X, as shown below: </p>
 
 <p style="text-align: center">
-    <img src="../img/mysqld_parameters_overridden.png" width="800" alt="Overriding parameters">
+    <img src="../img/define_parameters-paramchg.png" width="800" alt="Overriding parameters">
 </p>
 
-<p>Now, if you press this red X, the change is reverted, and the parameter is 
-    reset to the predefined value. </p>
+<p>If you press this red X, the change is reverted and the parameter is 
+    reset to predefined value. </p>
 
-<p>The <b>Save&amp;Next</b> button sends asynchronous request for your changes to be saved into
-    chosen configuration file in your HOME and advances to next page. If you close the
-    wizard here, no changes you made will be saved.</p>
+<p>There are circumstances where changing parameter value or reverting to default 
+is not possible. Imagine you started Cluster with one Data node and then stopped 
+it. NoOfReplicas in such case would be 1. Then you add more hosts/data nodes to 
+your Cluster but it is not possible to change NoOfReplicas to higher value as this 
+would lead to original data node process not starting. In such case, it is best 
+to delete all DATADIRs (loosing all data) and redeploy or leave NoOfReplicas as 
+it was (1).</p>
+
+<b><a name="troubleParameters">How can this page get you into trouble</a></b>
+<p>Any number of things can be changed on this page leading to troubles starting the configuration. 
+    Most notably, NoOfReplicas is set according to number of DATA processes (1 for odd, 2 for even) 
+    and it's not possible to restart Cluster using old data once this value changes.<br />
+    There is a documentation link alongside every option and it would be prudent to use it 
+    before changing things.<br />
+    This page also makes sure to assign proper port numbers to processes on same/different hosts 
+    and this change can require new deployment.<br /><br />
+    The greatest trouble for you comes from not checking on this page.<br /><br />
+</p>
+
+<p>The <span class="guibutton"><b>Save&amp;Next</b></span> button sends asynchronous request for your changes to be saved to
+    configuration file and advances to next page. If you close the wizard here, 
+    or use breadcrumb navigation, no changes you made will be saved unless special 
+    event, like successful start of Cluster, occurs. However, even if not saved, 
+    changes will persist throughout current browser session.</p>
 
 
 <!-- ======================== Deploy configuration ========================= -->
@@ -883,64 +1381,344 @@ line.
     inspect the startup commands and actual configuration files that will be 
     applied, you can distribute the configuration files and create the necessary 
     files and directories on the hosts involved, and you can start and stop the 
-    cluster you have configured. Currently, "Install" button is not in effect. The 
-    page looks similar to the previous one: </p>
+    cluster you have configured. Currently, <span class="guibutton"><b>Install cluster</b></span> 
+    button is in effect only for hosts running Oracle Linux or compatible RPM/YUM OS. 
+    The page looks similar to the previous one: </p>
 
 <p style="text-align: center">
     <img src="../img/deploy.png" width="800" alt="Deploy configuration">
-
+</p>
 <p>To the left, you will find the same process tree as on the previous page. The 
     processes are listed grouped by the process type they belong to. To the right 
     of the process tree, there are two information panes. The upper one will 
     display the startup commands necessary to start the process. For some 
-    processes, more than one command may be required, e.g. if initialization is 
-    needed. The lower pane will show the contents of the configuration file for 
-    the given process. Currently, the only processes having a configuration file 
-    are the <i>management nodes</i>. The other processes are configured by means 
-    of command line parameters submitted with the startup command, or by getting 
+    processes, more than one command may be required. The lower pane will show 
+    the contents of the configuration file for the given process. Currently, the 
+    only processes having a configuration file are the <i>management</i> and 
+    <i>sql nodes</i>. The <i>data node</i> processes are configured by means of 
+    command line parameters submitted with the startup command or by getting 
     their configuration parameters by asking the management nodes dynamically. </p>
 
 <p>In the process tree, the icons in front of the processes will change 
     depending on the status of the processes. I.e., when the cluster starts or 
     stops, the icons will turn red (stopped), yellow (starting or stopping) or 
     green (running). This status information is based on querying the management 
-    daemon. </p>
+    daemon by means of ndb_mgm client library. </p>
 
-<p>Below the process three, you will find four buttons: </p>
+<p>Below the process tree, you will find six buttons: </p>
 
 <ul>
-<li><b>Install cluster: </b>Not available in this version. </li>
+<li><b>Install cluster: </b>If host OS is RPM/YUM based and you chose to install 
+    Cluster SW on <a href="#configWizardDefineCluster">Define Cluster</a>/
+    <a href="#configWizardDefineHosts">Define Hosts</a> pages, MCC will compose a 
+    command array consisting of "Host preparation" and "Cluster install" commands. 
+    The array will be presented to you before any execution happens so you can 
+    chose whether or not to run them. You can use this button to gain understanding 
+    of installation procedure.
+    <p style="text-align: left">
+        <img src="../img/deploypageinstallconfirm.png" width="400" alt="Install cluster">
+    </p>
+    "Host preparation" commands will try to <b>remove</b> any SW matching 
+    '^postfix', '^mysql*' and '^mariadb*' so be careful! Every host designated for 
+    SW installation will receive full set of "Cluster install" commands meaning 
+    full set of MySQL SW will be installed on each of them. The installation runs 
+    in parallel on all supported browsers <b>except</b> IE11 meaning no matter how 
+    many hosts there are in Cluster this procedure will take 5 to 7 minutes assuming 
+    regular conditions. On IE11, installation will run sequentially (host by host) 
+    taking 4 to 5 minutes per host in Cluster.</li>
 <li><b>Deploy cluster: </b>First, the configuration is verified, e.g., if you 
     have specified the same value for two different data directories, you will 
-    not be allowed to deploy the configuration. Secondly, the required directories 
-    are created on the hosts involved, and the configuration files are distributed 
-    onto the hosts. A progress bar will show how the deployment proceeds. </li>
-<li><b>Start cluster: </b>First, the configuration is deployed and the 
-    directories are created, i.e., the same as the above. Then, the processes 
-    that are defined are started in the correct order. Please note that starting 
-    the processes may take some time. If the estimated time usage is large, you 
-    will be alerted and asked to cancel or confirm continuation of the startup 
-    procedure. A progress bar will inform you about the current status of the 
-    startup procedure, and the icons in the process tree will also indicate how 
-    the start progresses. </li>
-<li><b>Stop cluster: </b>When the cluster has been started, you may stop it 
-    using the <i>Stop</i> button. Here, you will also see a progress bar displaying 
-    the current status of the stopping procedure, and the icons the process tree 
-    are also updated regularly.</li>
+    not be allowed to deploy the configuration. Then, if the deploy procedure determines 
+    this Cluster configuration was already started at least once, it will offer 
+    you to delete all the files and data from previous deployment. Since deploying 
+    anew configuration that has not changed is unnecessary, we assume you made 
+    changes and have to redeploy. If your changes include, for example, moving 
+    data node processes on different hosts or changes in, say, FragmentLogFiles, 
+    you do not have much choice but to delete old files and data. If you made no changes 
+    but hit "Deploy cluster" by accident or you know your changes were minor you can 
+    skip this and keep your data.</br>
+    Next, the open firewall commands will be generated for hosts with "Open FW" 
+    set to true and you will be asked to confirm opening of ports in firewall. 
+    You will be presented with HOST::PORT pairs MCC will attempt opening. 
+    Next, the required directories are created on the hosts involved, and the 
+    configuration files are distributed to the hosts. A progress bar will show 
+    how the deployment proceeds. Worth noting is that if you are reusing already 
+    deployed configuration, you do not need to deploy it again. For all browsers 
+    but IE11, creating necessary directories and distributing configuration files 
+    etc. is done in parallel and should take about 1 minute to complete. For IE11 
+    it is done in sequence (host by host) and, depending on number of hosts in Cluster, 
+    can take 4-5 minutes or more.</br>
+    Finally, all mysqld's will get initialized in parallel with --initialize-insecure.</li>
+<li><b>Start cluster: </b>Start requires that the configuration is deployed and 
+    the directories are created, otherwise it will exit. In such case, just press 
+    <span class="guibutton"><b>Deploy cluster</b></span> first. Then, the processes 
+    that are defined are started in the correct order. A progress bar will inform 
+    you about the current status of the startup procedure and the icons in the 
+    process tree will also indicate how the start progresses. It is also possible 
+    to cancel Cluster start by closing the progress window (it may take few seconds 
+    for your click to get processes) in which case you will have to check hosts 
+    for already started processes and stop those either by using 
+    <span class="guibutton"><b>Stop cluster</b></span> or by hand. Start cluster 
+    first opens firewall ports if so configured and not done during Deploy stage. 
+    Once Cluster is successfully started, FW configuration will be written to the 
+    configuration file and you will not be prompted about this any more unless you 
+    change your configuration so that open ports do not match Cluster topology any more.<br />
+    Next phase is checking for proper deployment and initialization. After that, we 
+    start management process(es). If there are more than one, they will be started 
+    in parallel. After that, we start all data node processes in parallel and finally 
+    all SQL processes in parallel.</br>
+    Upon successful start, all changes made to configuration will be saved with 
+    Cluster.Started: true, Cluster.FWHostPortPairs: list_of_open_ports_per_host and 
+    for each host SWInstalled will be set to true.</br>
+    There are also some functions specific to Windows, like installing and modifying 
+    services. Progress dialog will inform you when those are running.</br>
+    It is possible for, for example, SQL node to turn green and then red again. 
+    We are collecting status of Cluster from management node and if SQL process 
+    reported "Started" the light will turn green. Actual start command can 
+    afterwards fail and the light will turn red upon next collection of statuses. 
+    To check on such failure, you can look into web console, press 
+    <span class="guibutton">View commands</span>, look into Python console or 
+    press <span class="guibutton">Cluster tools</span> choosing <i>Get log files</i> 
+    and examine those locally. Failure of API node start is not considered critical.</li>
+<li><b>Stop cluster: </b>This button will also display a progress bar showing 
+    current status of the stopping procedure, and the icons in the process tree 
+    are also updated regularly. First we stop all SQL processes in parallel. Should 
+    any SQL process fail to stop with <strong><code>mysqladmin --shutdown/net stop N5x</code></strong>, 
+    we will try to kill it. Then we take Cluster processes down using ndb_mgm 
+    client library on primary management node. Should the ndb_mgm fail to stop 
+    Cluster on primary management node the ndb_mgmd process will be killed and second management node 
+    will be used to bring Cluster down normally and so on. If all attempts to bring Cluster properly 
+    down with <strong><code>ndb_mgm -e'SHUTDOWN'</code></strong> fail, we will kill all the stray 
+    data node processes.</br>
+    There are also some functions specific to Windows, like trying to stop data 
+    node services before resorting to kill.</br>
+    It is normal for management process(es) to show running state for a while after 
+    you are notified how Cluster is stopped. Polling for status takes some time 
+    to catch up but it will.</br>
+    More details on Start/Stop procedures is available in <b>Internals</b> section 
+    which is initially collapsed.</li>
+<li><b>View commands: </b>Each command sent to hosts is logged into command buffer. 
+Clicking this button saves contents of session buffer to  ~/.mcc/YYYY-MM-DD_HH-M_cmdslog.txt 
+file which is then read and presented in MCC.<br />
+The log has following structure:<br />
+PROCEDURE::SUCCESS/FAIL::(WorkerID@host if parallel execution)COMMAND( ERROR:error: error text).<br />
+For example:<br />
+INSTALL::SUCC::Worker0@129.146.114.119::sudo yum install -y mysql-cluster-community-server<br />
+INSTALL::FAIL::Worker3@129.146.72.184::sudo rpm -e $(rpm -qa '^mysql*') ERROR: package is not installed.<br />
+It is completely fine for <b>some</b> installation commands to fail, you can determine 
+that by looking into log, while no deploy command should ever fail because if it does, 
+Cluster will probably not start at all. So each command has "TERMINAL" flag attached 
+to it and if command with TERMINAL == true fails, whole procedure is considered as 
+failed.<br />
+Only procedure that stands apart from the rest is exchange of SSH keys which is run 
+completely in the back end. It only reports overall result:<br />
+CopyPK ::SUCC::
+</li>
+<li><b>Cluster tools: </b>
+<p style="text-align: left">
+    <img src="../img/ClusterToolsMenu.png" width="150" alt="Cluster tools">
+</p>
+This is a drop down button displaying the menu with commands 
+you might wish to run independently of main procedures such as Start/Deploy etc. 
+The list of commands with description is:
+<ul>
+<li><b>Copy SSH keys:</b> Makes connection from Master node 
+to all other Cluster hosts inside VPN. The use case would be you want to run 
+scripts touching all Cluster nodes from within VPN and hosts are not set up for 
+SSH connection.</br>
+Longer explanation: If Cluster is deployed on OCI and running Oracle Linux, you 
+can allow the public key exchange. The procedure is as follows: check that 
+procedure never run (there is no "Master node" defined at Cluster level), take 
+first host in list and check if it has id_rsa.pub residing in HOST::~/.ssh/id_rsa.pub. 
+If there is none, generate key pair. Copy generated id_rsa.pub file over to MCC 
+host from where it is distributed to all other hosts and entered into 
+~/.ssh/authorized_keys. A code is in place minding not to add duplicate entries. 
+This procedure is completely coded in back end so progress bar does not show real 
+progress of operation. This is useful if you want to run some scripts against 
+Cluster hosts inside VPN, otherwise you can safely skip this step.</li>
+<li><b>Show FW host:port pairs:</b> Displays which ports are open on which hosts 
+    (29.146.61.218:3306,129.146.61.218:11860,...).</li>
+<li><b>Open Firewall ports:</b> For hosts configured to get ports in firewall open, issue actual firewall commands.</li>
+<li><b>Verify configuration:</b> This is done during Deploy stage but you might wish to check the 
+    configuration validity even without distributing configuration files.</li>
+<li><b>DELETE all data and files:</b> Remove all the deployed and generated files 
+from all the hosts including data! Essentially removed entire DATADIR on every 
+host in Cluster. Useful for redeploying significantly changed configuration.</li>
+<li><b>Remove Widows services:</b> In case Stop Cluster failed and services remained
+installed on Windows hosts you can clean them up here.</li>
+<li><b>Get log files:</b> This function fetches all Cluster log files from all 
+processes on all hosts and places them into your local [HOME].mcc directory. Files 
+are all tagged with same timestamp for better overview.
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><samp>
+Directory of C:\Users\user\.mcc
+12.03.19.    15:35                        13.426  2019-03-12_15-34_mysqld.53.err
+12.03.19.    15:35                        13.216  2019-03-12_15-34_mysqld.54.err
+12.03.19.    15:35                        18.920  2019-03-12_15-34_ndb_1_out.log
+12.03.19.    15:35                        17.435  2019-03-12_15-34_ndb_2_out.log
+12.03.19.    15:34                        14.262  2019-03-12_15-34_ndb_49_cluster.log
+12.03.19.    15:34                            56  2019-03-12_15-34_ndb_49_out.log
+12.03.19.    15:35                        10.441  2019-03-12_15-34_ndb_50_cluster.log
+12.03.19.    15:35                            14  2019-03-12_15-34_ndb_50_out.log
+</samp></pre>
+</li>
+<li><b>Connect remote hosts:</b> Check the permanent SSH connection array against 
+current list of hosts. Create permanent connections to all hosts that does not have 
+one or connection to them went stale.</li>
+<li><b>Ping remote hosts:</b> Send ping to all remote hosts external IP address 
+and display the result in alert box.</li>
 </ul>
+</li>
+</ul>
+
+<p>If you left the configuration running and closed the MCC session, upon next load 
+of the same configuration MCC will realize Cluster is up providing you entered 
+missing credentials.</p>
 
 <p>Below is an example of a progress bar displayed while starting the cluster: </p>
 
-<p style="text-align: center">
-    <img src="../img/starting_cluster.png" width="800" alt="Starting cluster">
+<p style="text-align: left">
+    <img src="../img/starting_cluster.png" width="500" alt="Starting cluster">
+</p>
+
+<p>When it's impossible to tell the progress of the process (for example, when it's run in back end)
+ or when process status is determined by means other than command returning 
+ (starting data/sql nodes) then we show indeterminate progress bar: </p>
+<p style="text-align: left">
+    <img src="../img/unknown-progress.png" width="300" alt="Deploying cluster">
 </p>
 
 <p>It is worth noticing that the configuration tool cannot guarantee that the 
-    cluster is available for usage when it has been started. Hence, after the 
-    processes have been started, you will be informed that the processes are 
-    starting, but may need some time to initialize before they are ready for 
-    usage.  </p>
+    cluster is available for usage when it has been started. Some processes may 
+    need some time to initialize before they are ready for usage.  </p>
 
+
+<b><a name="troubleDeploy">How can this page get you into trouble</a></b>
+<p>Make sure to observe Changes monitor when arriving to this page:<br />
+    <img src="../img/define_parameters-paramchg.png" width="350" alt="Change monitor"> <br />
+    If any of the buttons is red, review your changes by clicking both the red and G(eneral) 
+    button to make sure if new deployment or even removal of old data is needed to start the 
+    configuration.<br />
+    Here, people usually forget to deploy, which, in some cases can lead to unstartable 
+    configuration. Rule of thumb is, if any of the parameters changed, by you or automatically, 
+    new deployment is needed.<br />
+    Make sure to redeploy and remove old data when appropriate.<br />
+    Useful command to run is Verify configuration. It runs automatically before Deploy and Start 
+    but you can also find it in Cluster tools menu. Here is a sample of mocked errors:<br />
+    <img src="../img/invalid-config.png" width="350" alt="Verify trouble"> <br />
+    First we have IP address that is invalid in general but since I opted to use VPN, InternalIP 
+    member of Host store is checked.<br />
+    Then we have address not belonging to private range entered into InternalIP member of Host 
+    store.<br />
+    Then we have ExternalIP address entered into Internal which obviously does not satisfy private 
+    range check.<br/>
+    This all makes configuration invalid.<br />
+    Then we check if all hosts use IP addresses consistently.<br />
+    Finally, since I added 3rd DATA process, NoOfReplicas changed from 2 to 1 making this 
+    configuration unstartable without redeployment and deletion of old DataDirs.<br /><br />
+</p>
+<!--
+********************************************************************************
+***                                                                          ***
+***                          Quick start                                     ***
+***                                                                          ***
+********************************************************************************
+-->
+<br>
+<a name="QuickStart"><h2>Quick start on Oracle Cloud Infrastructure</h2></a>
+<button class="collapsible">Click to show/hide information about Oracle Cloud setup</button>
+<div class="content">
+<ul>
+<li> Set up Oracle Cloud account:<br />
+Sign up for free trial of Oracle Cloud <a href="https://cloud.oracle.com/en_US/tryit" target="_blank">here</a> 
+or use account you have to log in.<br />
+</li>
+<li> Set up Oracle Virtual Cloud Network:<br />
+Easiest is to create it plus related resources.
+Open Security list for the VCN and add following ingress rule (Stateless NO for all):</li>
+<ul>
+    <li>Source: 10.0.0.0/16, IP protocol: TCP, Source Port Range: all, Destination Port Range: all, TCP traffic for ports: All</li>
+</ul>
+This opens up all ports for communication within the VCN. <br />
+</li>
+<li> Set up Oracle Compute Instances: <br />
+Pick Compute/Instances from menu bar.<br />
+Click Create instance and leave everything default on next page if VM.Standard2.1 is enough.<br />
+Use the appropriate Availability Domain. <br />
+Use the appropriate Compartment for the cluster setup. <br />
+Provide your public key for authentication to instance.<br />
+Use the VCN created for this cluster setup.<br />
+Set the appropriate Failure Domain (under Show Advanced Options) <br />
+Start the VM or Bare Metal server by clicking the Create button. <br />
+<li>Make note of the External IP addresses of your VMs. <br />
+These are found on the instance information page under Primary VNIC information, pick the Public IP Address:<br />
+Those you will provide to MCC on the Cluster configuration page.</li><br />
+</ul>
+</div>
+<button class="collapsible">Click to show/hide information about setting up box that will be running MCC</button>
+<div class="content">
+<ul>
+<li> Setup: Make sure you have Python 2.7 installed and in path on box running MCC. 
+Add cryptography 1.9 to your Python site packages via pip ($ pip install cryptography==1.9). 
+After that, add Paramiko 2.1.2 to your site packages too ($ pip install paramiko==2.1.2). 
+Order matters. If you add Paramiko before Cryptography, it will pull latest version which is 
+not guaranteed to work with MCC.<br />
+</li>
+<li>Install MySQL Cluster locally or extract archive somewhere to get MCC scripts.</li>
+<ul>
+  <li>Startup Python script will be in your /bin directory always, either OS /bin 
+  or rootDirectoryOfYourInstallation/bin. If you installed MySQL Cluster on Linux, 
+  MCC will be in /usr/share/mcc. If you just extracted archive or if you're on 
+  Windows, it will be in rootDirectory/share/mcc.</li>
+  <li>Windows: Open command prompt as <b>Administrator</b> and browse to rootDirectory of your installation. 
+  Locate and start setup.bat or setup-debug.bat.</li>
+  <li>Linux: Open shell and start ndb_setup.py: <samp>python /usr/bin/ndb_setup.py -H -d DEBUG -o - %*</samp> 
+  or <samp>python /usr/bin/ndb_setup.py -H -d WARNING -o - %*</samp></li>
+</ul>
+<li>MCC should open in your default browser. If not, you will see the URL printed in console.</li>
+<li>Pick "New configuration" on welcome page and click <span class="guibutton"><b>Run configuration</b></span>. 
+Give some meaningful name. The configuration will be saved in your HOME/.mcc/your_config_name.mcc file.</li>
+<li>On Cluster page, enter external IP addresses into <i>Host list</i> box separated by comma: 
+129.146.79.107,129.146.164.105,129.146.116.59<br />
+as described on <a href="#configWizardDefineCluster">Define Cluster</a> page. Set or leave 
+defaults for Application area, Write load and Cluster version.<br />
+Check <i>Key based SSH</i> box and enter "opc" into <i>Key user</i> field. If the key you provided 
+when creating OCI instances is HOME/.ssh/id_rsa.pub, you are done with credentials. If not, 
+you need to enter full path to and key name in <i>Key file</i> field such as: /home/user/.ssh/my_key.pem 
+or similar. If your key is protected with passphrase, please put it into <i>Key passphrase</i> field.<br />
+Set <i>Install MySQL Cluster</i> to REPO and check <b>both</b> <i>Open ports in firewall</i> 
+and <i>Use internal IP addresses (VPN)</i>.<br />
+Click <span class="guibutton"><b>Save&amp;Next</b></span> to get to Hosts page.</li>
+<li>Since we already provided everything necessary, Hosts page will start collecting 
+information on your hosts immediately. Please wait till process finishes and you see 
+all the information on hosts in Cluster inside the grid. To check on Internal IP 
+address discovered, press <span class="guibutton"><b>Show extended info</b></span> button. 
+If some host does not have proper address in InternalIP field, you can enter it by hand 
+from Instance details in OCI console.<br />
+Standard <i>DATADIR</i> will be <i>/home/opc/MySQL_Cluster</i>. You can change this if you 
+want it somewhere else.<br />
+Click <span class="guibutton"><b>Save&amp;Next</b></span> to get to Processes page.</li>
+<li>MCC will distribute default processes over your hosts so you can just click 
+<span class="guibutton"><b>Save&amp;Next</b></span> to get to Parameters page.</li>
+<li>MCC will configure default processes over your hosts so you can just click 
+<span class="guibutton"><b>Save&amp;Next</b></span> to get to Deploy page.</li>
+<li>On DEPLOY page, click <span class="guibutton"><b>Install cluster</b></span>. 
+Check on generated commands and click OK in confirm dialog.<br />
+After Installation is done, check on success of commands issued by clicking on  <span class="guibutton"><b>View commands</b></span> 
+button. Some commands are allowed to fail, such as removing mysqld.service if none is encountered, 
+but some are not, like opening ports in firewall. Use your better judgment when reviewing log.<br />
+If all is fine, click <span class="guibutton"><b>Deploy cluster</b></span>. This command will do sanity check on 
+configuration, create all necessary directories, distribute configuration files, open 
+ports in firewall necessary for Cluster processes to communicate and initialize (insecure) 
+all SQL processes. Check the success either by looking into WebConsole or by clicking 
+<span class="guibutton"><b>View commands</b></span> again.<br />
+If all is fine, you can click <span class="guibutton"><b>Start cluster</b></span> now. 
+Depending on your settings, full startup should be over in a minute or so.<br />
+You can now connect to any SQL node and issue queries against the Cluster or use your 
+own NDBAPI code to attach from any API node you defined.<br />
+Once you have no use for running Cluster, stop it with <span class="guibutton"><b>Stop cluster</b></span> button.
+</li>
+</div>
+<br />
 
 <!--
 ********************************************************************************
@@ -948,21 +1726,307 @@ line.
 ***                          Troubleshooting                                 ***
 ***                                                                          ***
 ********************************************************************************
-
-<a name=""><h2>Troubleshooting</h2></a>
-
-<a name=""><h3>Viewing Logs</h3></a>
-
-<a name=""><h3>Starting and Stopping MySQL Cluster</h3></a>
-
-<a name=""><h3>Manually Killing Processes</h3></a>
-
-<a name=""><h3>Excessive Memory Usage</h3></a>
-
 <a name=""><h3>Time to Initialize</h3></a>
+<a name=""><h3>Excessive Memory Usage</h3></a>
+<br>
+<strong>Manually Killing the Processes</strong>
+<br>
+Not advised.
+<br>
 -->
-
+<br>
+<a name="Troubleshooting"><h2>Troubleshooting & FAQ</h2></a>
+<strong>Viewing the Logs</strong>
+<br>
+Logs can be found in HOST:MySQL Cluster data directory/NODEID. DATADIR can be 
+configured for each host individually and the defaults for different OS can be 
+found in storage/MCCStorage.js file:
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><code>SunOS: {
+    installdir: "/usr/local/bin/",
+    datadir: "/var/lib/mysql-cluster/"
+},
+Linux: ...{</code></pre>Important ones are:
+<ul>
+    <li><strong>DATA NODE:</strong> <i>HOST:DATADIR/DATANODEID/ndb_DATANODEID_out.log</i></li>
+    <li><strong>MANAGEMENT NODE:</strong> <i>HOST:DATADIR/MGMTNODEID/ndb_MGMTNODEID_cluster.log and 
+    ndb_MGMTNODEID_out.log.</i></li>
+    <li><strong>SQL NODE:</strong> <i>HOST:DATADIR/NODEID/DATA/mysqld.SQLNODEID.err.</i></li>
+</ul>
+For my 6 node test Cluster running on OL7.6 this translates to <pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><samp>~/MySQL_Cluster/1/ndb_1_out.log,
+~/MySQL_Cluster/2/ndb_2_out.log,
+~/MySQL_Cluster/49/ndb_49_cluster.log and ~/MySQL_Cluster/49/ndb_49_out.log,
+~/MySQL_Cluster/53/data/mysqld.53.err and ~/MySQL_Cluster/54/data/mysqld.54.err</samp></pre>
+On Windows, <b>"~"</b> expands to <em>"C:\Users\user\"</em> and on Linux to <em>"/home/user/"</em>. 
+We strongly recommend using <em>"~/MySQL_Cluster/"</em> for DATADIR. Worth mentioning here 
+is that, upon failure to start Cluster, MCC will alert you to these exact locations.</br>
+You can also use <b>Cluster tools</b>, <em><i>Get log files</i></em> command to fetch and 
+examine logs locally.
+<br>
+<br>
+<strong>MCC fails to fetch all logs:</strong>
+<br>
+There is a known problem with Paramiko sftp-ing big files (hundreds of MB) as 
+described in paramiko/issues/926 on GiTHub. Someone suggested you change the 
+value of MAX_REQUEST_SIZE in Paramiko sftp_file.py to 1024.<br>
+Bear in mind, all other (lazy) methods of download will take "forever".
+<br>
+<br>
+<strong>MCC fails to locate Cluster binaries during START:</strong>
+<br>
+The location of binaries is governed by HOST:installdir setting. Since MCC has 
+to locate both Cluster and client binaries this might not provide enough info (except 
+on Windows) since Cluster binaries are usually in "sbin" and client ones in "bin". 
+This is why MCC will take HOST:installdir setting and try following combinations 
+HOST:installdir/sbin, HOST:installdir/bin and "" when locating binaries. Effectively, 
+for OL7.X, this means HOST:installdir should be set to "/usr/". Empty string "" 
+means MCC will use no designation (binaries are added to PATH).<br>
+When installing Cluster from MCC, or when you have installed SW to default places, 
+you should put parent directory into HOST:installdir. As we said, for Oracle Linux 
+it would be "/usr/", for Windows, "C:\Program Files\MySQL\MySQL Server Version\bin" 
+ (do not forget the "bin"!) and so on.
+<br>
+<br>
+<strong>What does "WARNING" I see in Python console mean:</strong>
+<br>
+Text such as <pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto"><samp>[TS]: WARNING  [handle_fileExistsReq;request_handler.py:495]: FER result is 1.</samp></pre> is for debugging purposes and not the actual warning from the code. Since the default DEBUG level is too verbose, it might be better to switch to WARNING level (start Python process with -d WARNING) when running MCC.
+<br>
+<br>
+<strong>Starting and Stopping MySQL Cluster</strong>
+<br>
+Starting MySQL Cluster happens in sequence:
+<ul>
+    <li>Start management node processes (ndb_mgmd) using HOST:DATADIR/MGMTNODEID/config.ini one by one.</li>
+    <li>Start data node processes (ndbd/ndbmtd) all at once.</li>
+    <li>Start sql node processes (mysqld) using HOST:DATADIR/SQLNODEID/my.cnf all at once.</li>
+</ul>
+Stopping MySQL Cluster happens in reverse:
+<ul>
+    <li>Stop sql node processes (mysqld) all at once. Should mysqladmin --shutdown/
+    net stop N5x fail, kill the process.</li>
+    <li>Send signal to primary management node process (ndb_mgmd ID 49) to shut 
+    down data nodes and then management nodes. Should it fail, kill the process 
+    and try with next management node (if present). Should all management nodes 
+    fail to shut down Cluster gracefully, kill the data node processes.</li>
+</ul> You may observe the actual commands sent both in JS console and in Python 
+output. Commands can be preserved for further inspection by clicking <span class="guibutton">View commands</span>.
+<br/>There might be a slight delay between end of STOP procedure and all processes changing icon in the tree.
+<br>
+<br>
+<strong>My configuration changes are not saved</strong>
+<br>
+This can happen when you use "breadcrumb" toolbar instead of <span class="guibutton">Save&Next</span> button 
+to navigate MCC. Usage scenario for <span class="guibutton">Save&Next</span> button is when you either define 
+new cluster or make changes to existing one. Usage scenario for navigating the tool 
+via "breadcrumb" is to quickly START already configured Cluster, STOP already 
+running Cluster (jump from 1st to last page of MCC) or just browse through settings. 
+In short, using "breadcrumb" does not trigger saving of configuration.</br>
+Also, there is automatic saving of changes. For example, when Cluster successfully 
+starts, configuration will be saved.
+<br>
+<br>
+<strong>I initiated START procedure but it appears stuck</strong>
+<br>
+Depending on Cluster settings, startup procedure can take up significant amount 
+of time. Please refer to Cluster documentation or books for further details. In general, 
+using predefined configurations (apparea: "simple testing", writeload: "low"), 
+starting single process should not take more than a minute. It is worth checking 
+Python console too and pressing ENTER key once or twice there to get things going. 
+If you still feel startup is stuck, you can close the progress window and examine 
+the logs. You will also have to check for started processes over the host(s) and 
+kill them manually or with <span class="guibutton">Stop cluster</span>.
+<br>
+<br>
+<strong>All is fine with my Cluster and configuration, still START/STOP/DEPLOY/INSTALL procedure appears stuck</strong>
+<br>
+On Windows boxes, we have noticed Python web server going to "sleep" on 
+occasion. This manifests as if nothing is happening in front end. It is enough to 
+click on Python console and press ENTER key one or two times to get things going again.</br>
+Installation should take about 5-10 minutes regardless of number of hosts depending 
+on how fast their internet connection is. Deploy/Start/Stop should take about 1-2 
+minutes regardless of number of hosts in Cluster.<br/>Unless you use IE11.<br />
+When adding Data nodes to your Cluster you have to account for time needed to sync them. Depending on lots of 
+factors, this can take couple of minutes. This is log from data nodes I took to illustrate the situation:<br />
+Old data node process starts in matter of seconds:
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+    <samp>
+2019-05-20 11:51:20 [ndbd] INFO     -- Angel pid: 5552 started child: 5553
+2019-05-20 11:51:20 [ndbd] INFO     -- Normal start of data node using checkpoint and log info if existing
+...
+2019-05-20 11:51:30 [ndbd] INFO     -- Grant nodes to start phase: 102, nodes: 0000000000000006
+2019-05-20 11:51:30 [ndbd] INFO     -- Node started
+    </samp>
+</pre>
+New data node process needs much more time to report as started:
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+    <samp>
+2019-05-20 11:51:22 [ndbd] INFO     -- Angel pid: 16638 started child: 16639
+2019-05-20 11:51:22 [ndbd] INFO     -- Normal start of data node using checkpoint and log info if existing
+...
+2019-05-20 11:52:15 [ndbd] INFO     -- Phase 101 was used by SUMA to take over responsibility for sending...
+2019-05-20 11:52:15 [ndbd] INFO     -- Node started
+    </samp>
+</pre>
+<br>
+<br>
+<strong>What are some good practices you can recommend?</strong>
+<br>Do not use more than 2 MGMT nodes.
+<br>Put SQL and DATA nodes on same host.
+<br>When replacing old host with new one, it is best to delete old host and 
+enter new one fresh.
+<br>Do not use IE11.
+<br>
+<br>
+<strong>Cluster fails to start on my Windows box:</strong>
+<br>Starting Cluster on Windows requires Administrator privileges. This means that 
+you need to start MCC (setup.bat) from elevated shell (Administrator: Command prompt). 
+Also, you need to be Administrator on all Windows boxes that are part of Cluster.
+<br>
+<br>
+<strong>There is too much output in Python console:</strong>
+<br>Change logging level to "WARNING":<br />
+<br>Windows: Edit setup.bat, change "-d DEBUG" to "-d WARNING".
+<br>Linux:   Pass -d WARNING to ndb_setup.
+<br>
+<br>
+<strong>Unable to start Python web server:</strong><br/>
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+    <samp>Running out of install dir: ...mysql-cluster-7.6-winx64\bin
+Traceback (most recent call last):
+    File "...mysql-cluster-7.6-winx64\bin\ndb_setup.py", line 38, in module
+        request_handler.main(mcc_config.install_prefix, mcc_config.abs_install_subdir)
+    File "...mysql-cluster-7.6-winx64\share\mcc\request_handler.py", line 1333, in main
+        if is_port_available(options.server_name, port_val):
+    File "...mysql-cluster-7.6-winx64\share\mcc\util.py", line 87, in is_port_available
+        return try_connect(url_host, port, False, _retdict('ECONNREFUSED', True))
+    File "...mysql-cluster-7.6-winx64\share\mcc\util.py", line 63, in try_connect
+        s = socket.create_connection((url_host, port))
+    File "C:\Python27\lib\socket.py", line 575, in create_connection
+        raise err
+socket.error: [Errno 10013] An attempt was made to access a socket in a way forbidden by its access permissions
+</samp></pre>This is indicative of firewall and/or security policy blocking the access to HTTP server. Fix and retry.
+<br>
+<br>
+<strong>I have configuration that has already been started but now I rearranged processes over Cluster hosts. What should I do:</strong>
+<br>Go to <a href="#configWizardDeployConfig">Deploy Configuration</a> page.
+<br>If you have added new host, you will have to click <span class="guibutton">Install cluster</span> button.
+ If Cluster was previously started, you will be prompted to install just new host(s).
+<br>Click <span class="guibutton">Cluster tools</span> button. Choose <b>"Delete all data and files"</b> command. 
+Your <b>DATA</b> is gone!
+<br>Click <span class="guibutton">Deploy cluster</span>.
+<br><b>ALERT</b> this will <b>DELETE</b> all the data you might have saved in Cluster!
+<br>Click <span class="guibutton">Start cluster</span>.
+<br>Alternatively you might try skipping <b>"Delete all data and files"</b> command and see if new configuration is startable.
+ You can always delete DATADIRs later.
+<br>
+<br>
+<strong>I am planning to run some scripts from within Cluster but it's inside VPN. What should I do:</strong>
+<br>Go to <a href="#configWizardDeployConfig">Deploy Configuration</a> page.
+<br>Click <span class="guibutton">Cluster tools</span> button. Choose <b>"Copy SSH keys"</b> command.
+<br>Upon completion, you will be prompted about external IP address of host able to access all other hosts in Cluster. Copy your scripts there and run your scripts from that host.
+<br>
+<br>
+<strong>Where can I see exact commands MCC issued:</strong>
+<br>Go to <a href="#configWizardDeployConfig">Deploy Configuration</a> page.
+<br>Click <span class="guibutton">View commands</span> button. The commands will be displayed in pop up window as well as saved to ~/.mcc/YYYY-MM-DD_HH-MM_cmdslog.txt file for further reference.
+<br>Check Python console.
+<br>Check web console.
+<br>
+<br>
+<strong>I added more Data nodes and now my Cluster won't start:</strong>
+<br>From <a href="#configWizardDeployConfig">Deploy Configuration</a> page, remember the NodeID of Data node failing to start. Probably the first one you added.
+<br>Click <span class="guibutton">Cluster tools</span>, <span class="guibutton">Get log files</span> button. Examine  ~/.mcc/YYYY-MM-DD_HH-MM_ndb_NodeId_out.log for errors. Usual one is "Illegal configuration change"
+<br>NumberOfReplicas changed: -- Illegal configuration change. Initial start needs to be performed when changing no of replicas (1 != 2)
+<br>Go to <a href="#configWizardDefineParameters">Define Parameters</a> page and revert offending values back. Go to <a href="#configWizardDeployConfig">Deploy Configuration</a> page and redeploy and start the Cluster. If reverting to default value is not possible, see next line.
+<br>Usually, best way to deal with this is to clean up DATA directories and start fresh.
+<br>
+<br>
+<strong>How do I remove information dialog from screen?</strong>
+<br>Click anywhere on MCC page, press ESC key or click little X in upper right corner.
+<br>Some information dialogs have time-to-live and will disappear on their own after few seconds. Usually such dialogs leave
+note in JavaScript console too.
+<br>
+<br>
+<strong>I had reminder about badly configured hosts but it's not showing any more:</strong>
+<br>To reduce number of dialogs popping up, we show most of them only once. To see what the message was about, you 
+can click <span class="guibutton">G</span> general log button.
+<br>
+<br>
+<strong>What are these information buttons and why do they turn red or green?</strong>
+<p style="text-align: left">
+    <img src="../img/shadow-buttons.png">
+</p>
+<br>The data about your configuration and changes is stored in in-memory stores. The information buttons 
+represent their "shadow" which is synced only upon successful deployment or start of configuration. Until such time comes, 
+"shadows" are monitoring your changes and noting those that are relevant for deployment and start of Cluster. Should any such 
+important change happen, it will get noted and the button will go red. If not, it will stay green.<br />
+First button monitors ClusterStore, second HostStore and third Processes and Parameters Store.<br />
+Last button never goes red as it's general changes button which logs important and regular changes to configuration as 
+well as some notifications we've shown.
+<br>
+<br>
+<strong>I had failed Start and Stop left rouge processes running on hosts:</strong>
+<br>Even if Cluster appears stopped, you can re-run Stop commands in an effort to remedy the 
+situation.<br />
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+    <samp>
+    [ERR]Error occurred while starting cluster DATA node :
+    Command `/usr/sbin/ndbmtd --ndb-nodeid=3 --ndb-connectstring=10.0.0.246:1186,10.0.0.245:1186,',
+        running on 129.146.116.59 exited with 1
+    [ndbd] INFO -- Angel connected to '10.0.0.246:1186'
+    [ndbd] ERROR -- Failed to allocate nodeid, error:
+        'Error: Could not alloc node id at 10.0.0.246 port 1186: No node defined with id=3 in config file.'
+    </samp></pre><br />
+This is an example where I cooked up above failure by doing numerous insane things which, in turn, 
+made whole lot of mess. Old DATA nodes 1 and 2 failed to start, management process 49 (primary) 
+stopped itself but not the secondary, SQL processes failed to start completely and include into 
+Cluster and so on and so on. This is when you try to stop the "stopped" cluster.<br />
+Also, look into Python console/Commands log, it will give you and idea of which commands you need 
+to execute to get things to shut down manually. Normal way:<br />
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+    <samp>
+[19:18:01]STOPTCL::SUCC::mysqladmin --port=3306 --user=root shutdown --socket=/home/opc/MySQL_Clusterv2/54/mysql.socket
+[19:18:14]STOPTCL::SUCC::ndb_mgm localhost 1186 --execute=shutdown --connect-retries=2
+</samp></pre><br />
+Kill processes:<br />
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+    <samp>
+[16:27:45]STOPTCL::SUCC::kill -9 $(cat /home/opc/MySQL_Cluster/1/*.pid)
+[16:27:55]STOPTCL::SUCC::kill -9 $(cat /home/opc/MySQL_Cluster/2/*.pid)
+</samp></pre><br />
+We recommend to always try and stop Cluster properly.
+<br>
+<br>
+<strong>What does failure in commands log mean?</strong><br />
+There are failures<br />
+<pre style="font-family: Andale Mono, Lucida Console, Monaco, fixed, monospace; color: #000000; background-color: #eee;font-size: 12px;border: 1px dashed #999999;line-height: 14px;padding: 5px; overflow: auto; width: auto">
+    <samp>
+[17:01:39]CHKFILE::FAIL::129.146.79.107:/home/opc/MySQL_Clusterv2/54/data/:auto.cnf
+[17:01:40]CHKFILE::FAIL::129.146.116.59:/home/opc/MySQL_Clusterv2/49/:ndb_49_config.bin.1
+</samp></pre>which are normal (here they mean configuration files are not found so we need to Deploy) 
+and failures that are rather serious, you should use your better judgement when viewing them.<br />
+Usually, when things go wrong, I look into commands log, Python/JavaScript console and download log 
+files from remote hosts to examine what went wrong.
+<br>
+<br>
+<strong>Paramiko takes too long to connect/fail?</strong><br />
+There is a known problem in Paramiko when you provide wrong credentials described 
+<a href="https://github.com/paramiko/paramiko/issues/387">here</a> and 
+<a href="https://github.com/paramiko/paramiko/issues/1317">here</a>.
+<br>
+<br>
+        <script type="text/javascript">
+            var coll = document.getElementsByClassName("collapsible");
+            for (var i = 0; i < coll.length; i++) {
+                coll[i].addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    var content = this.nextElementSibling;
+                    if (content.style.display === "block") {
+                      content.style.display = "none";
+                    } else {
+                      content.style.display = "block";
+                    }
+                });
+            }
+        </script>
     </body>
 </html>
-
-

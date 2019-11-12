@@ -1,59 +1,62 @@
-//>>built
-// wrapped by build app
-define("dojox/socket/Reconnect", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.socket.Reconnect");
+define("dojox/socket/Reconnect", [
+	"dojox/socket",
+	"dojo/aspect"
+], function(dxSocket, aspect) {
 
-dojox.socket.Reconnect = function(socket, options){
-	// summary:
-	//		Provides auto-reconnection to a websocket after it has been closed
-	//	socket:
-	//		Socket to add reconnection support to.
-	// returns:
-	// 		An object that implements the WebSocket API
-	// example:
-	//		You can use the Reconnect module:
-	//		| dojo.require("dojox.socket");
-	//		| dojo.require("dojox.socket.Reconnect");
-	//		| var socket = dojox.socket({url:"/comet"});
-	//		| // add auto-reconnect support
-	//		| socket = dojox.socket.Reconnect(socket);
-	options = options || {};
-	var reconnectTime = options.reconnectTime || 10000;
-	
-	var connectHandle = dojo.connect(socket, "onclose", function(event){
-		clearTimeout(checkForOpen);
-		if(!event.wasClean){
-			socket.disconnected(function(){
-				dojox.socket.replace(socket, newSocket = socket.reconnect());
-			});
+	dxSocket.Reconnect = function(socket, options){
+		// summary:
+		//		Provides auto-reconnection to a websocket after it has been closed
+		// socket:
+		//		Socket to add reconnection support to.
+		// returns:
+		//		An object that implements the WebSocket API
+		// example:
+		//		You can use the Reconnect module:
+		//		| require["dojox/socket", "dojox/socket/Reconnect"], function(dxSocket, reconnect){
+		//		|    var socket = dxSocket({url:"/comet"});
+		//		|    // add auto-reconnect support
+		//		|    socket = reconnect(socket);
+		options = options || {};
+
+		var reconnectTime = options.reconnectTime || 10000;
+		var backoffRate = options.backoffRate || 2;
+		var timeout = reconnectTime;
+		var checkForOpen, newSocket;
+
+		aspect.after(socket, "onclose", function(event){
+			clearTimeout(checkForOpen);
+			if(!event.wasClean){
+				socket.disconnected(function(){
+					dxSocket.replace(socket, newSocket = socket.reconnect());
+				});
+			}
+		}, true);
+		if(!socket.disconnected){
+			// add a default impl if it doesn't exist
+			socket.disconnected = function(reconnect){
+				setTimeout(function(){
+					reconnect();
+					checkForOpen = setTimeout(function(){
+						//reset the backoff
+						if(newSocket.readyState < 2){
+							timeout = reconnectTime;
+						}
+					}, reconnectTime);
+				}, timeout);
+				// backoff each time
+				timeout *= backoffRate;
+			};
 		}
-	});
-	var checkForOpen, newSocket;
-	if(!socket.disconnected){
-		// add a default impl if it doesn't exist
-		socket.disconnected = function(reconnect){
-			setTimeout(function(){
-				reconnect();
-				checkForOpen = setTimeout(function(){
-					//reset the backoff
-					if(newSocket.readyState < 2){
-						reconnectTime = options.reconnectTime || 10000;
-					}
-				}, 10000);
-			}, reconnectTime);
-			// backoff each time
-			reconnectTime *= options.backoffRate || 2;
-		};
-	}
-	if(!socket.reconnect){
-		// add a default impl if it doesn't exist
-		socket.reconnect = function(){
-			return socket.args ?
-				dojox.socket.LongPoll(socket.args) :
-				dojox.socket.WebSocket({url: socket.URL || socket.url}); // different cases for different impls
-		};
-	}
-	return socket;
-};
+		if(!socket.reconnect){
+			// add a default impl if it doesn't exist
+			socket.reconnect = function(){
+				return socket.args ?
+					dxSocket.LongPoll(socket.args) :
+					dxSocket.WebSocket({url: socket.URL || socket.url}); // different cases for different impls
+			};
+		}
+		return socket;
+	};
 
+	return dxSocket.Reconnect;
 });

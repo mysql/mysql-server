@@ -25,6 +25,10 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SESSION_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SESSION_H_
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
@@ -94,7 +98,7 @@ class Mock_server : public Server_interface {
   MOCK_METHOD2(get_auth_handler2,
                Authentication_interface_ptr::element_type *(
                    const std::string &, Session_interface *));
-  MOCK_CONST_METHOD0(get_config, std::shared_ptr<Protocol_config>());
+  MOCK_CONST_METHOD0(get_config, std::shared_ptr<Protocol_global_config>());
   MOCK_METHOD0(is_running, bool());
   MOCK_CONST_METHOD0(get_worker_scheduler,
                      std::shared_ptr<Scheduler_dynamic>());
@@ -152,7 +156,6 @@ class Mock_sql_data_context : public Sql_session_interface {
   MOCK_METHOD1(execute_kill_sql_session, Error_code(uint64_t));
   MOCK_CONST_METHOD0(is_killed, bool());
   MOCK_CONST_METHOD0(password_expired, bool());
-  MOCK_METHOD0(proto, Protocol_encoder &());
   MOCK_CONST_METHOD0(get_authenticated_user_name, std::string());
   MOCK_CONST_METHOD0(get_authenticated_user_host, std::string());
   MOCK_CONST_METHOD0(has_authenticated_user_a_super_priv, bool());
@@ -163,9 +166,8 @@ class Mock_sql_data_context : public Sql_session_interface {
                           const Authentication_interface &, bool));
   MOCK_METHOD3(execute,
                Error_code(const char *, std::size_t, Resultset_interface *));
-  MOCK_METHOD4(execute_statement,
-               Error_code(const std::uint32_t, const bool, const Arg_list &,
-                          Resultset_interface *));
+  MOCK_METHOD3(execute_sql,
+               Error_code(const char *, std::size_t, Resultset_interface *));
   MOCK_METHOD3(fetch_cursor,
                Error_code(const std::uint32_t, const std::uint32_t,
                           Resultset_interface *));
@@ -174,11 +176,12 @@ class Mock_sql_data_context : public Sql_session_interface {
   MOCK_METHOD2(deallocate_prep_stmt,
                Error_code(const uint32_t, Resultset_interface *));
   MOCK_METHOD5(execute_prep_stmt,
-               Error_code(const uint32_t, const bool, PS_PARAM *, std::size_t,
-                          Resultset_interface *));
+               Error_code(const uint32_t, const bool, const PS_PARAM *,
+                          std::size_t, Resultset_interface *));
   MOCK_METHOD0(attach, Error_code());
   MOCK_METHOD0(detach, Error_code());
   MOCK_METHOD0(reset, Error_code());
+  MOCK_METHOD1(is_sql_mode_set, bool(const std::string &));
 };
 
 class Mock_protocol_encoder : public Protocol_encoder_interface {
@@ -205,19 +208,40 @@ class Mock_protocol_encoder : public Protocol_encoder_interface {
 
   MOCK_METHOD6(send_column_metadata,
                bool(uint64_t, int, int, uint32_t, uint32_t, uint32_t));
-  MOCK_METHOD0(row_builder, Row_builder &());
+  MOCK_METHOD0(row_builder, protocol::XRow_encoder *());
+  MOCK_METHOD0(raw_encoder, protocol::XMessage_encoder *());
   MOCK_METHOD0(start_row, void());
   MOCK_METHOD0(abort_row, void());
   MOCK_METHOD0(send_row, bool());
-  MOCK_METHOD0(get_buffer, Page_output_stream *());
-  MOCK_METHOD3(send_message, bool(uint8_t, const Message &, bool));
+  MOCK_METHOD3(send_protobuf_message,
+               bool(const uint8_t, const Message &, bool));
   MOCK_METHOD1(on_error, void(int error));
   MOCK_METHOD0(get_protocol_monitor, Protocol_monitor_interface &());
   MOCK_METHOD0(get_metadata_builder, Metadata_builder *());
 
   MOCK_METHOD1(enqueue_empty_message, uint8 *(const uint8_t message_id));
 
-  MOCK_METHOD0(get_flusher, Protocol_flusher *());
+  MOCK_METHOD0(get_flusher, xpl::iface::Protocol_flusher *());
+
+  MOCK_METHOD2(send_error,
+               bool(const Error_code &error_code, const bool init_error));
+
+  MOCK_METHOD1(send_notice_rows_affected, void(const uint64_t value));
+  MOCK_METHOD1(send_notice_client_id, void(const uint64_t id));
+  MOCK_METHOD1(send_notice_last_insert_id, void(const uint64_t id));
+  MOCK_METHOD0(send_notice_account_expired, void());
+  MOCK_METHOD1(send_notice_generated_document_ids,
+               void(const std::vector<std::string> &ids));
+  MOCK_METHOD1(send_notice_txt_message, void(const std::string &message));
+  MOCK_METHOD1(set_flusher_raw, xpl::iface::Protocol_flusher *(
+                                    xpl::iface::Protocol_flusher *flusher));
+
+  std::unique_ptr<xpl::iface::Protocol_flusher> set_flusher(
+      std::unique_ptr<xpl::iface::Protocol_flusher> flusher) override {
+    std::unique_ptr<xpl::iface::Protocol_flusher> result{
+        set_flusher_raw(flusher.get())};
+    return result;
+  }
 };
 
 class Mock_session : public Session_interface {
@@ -243,6 +267,7 @@ class Mock_session : public Session_interface {
   MOCK_CONST_METHOD0(get_thd, THD *());
   MOCK_METHOD0(data_context, Sql_session_interface &());
   MOCK_METHOD0(proto, Protocol_encoder_interface &());
+  MOCK_METHOD1(set_proto, void(Protocol_encoder_interface *));
   MOCK_METHOD0(get_notice_configuration, Notice_configuration_interface &());
   MOCK_METHOD0(get_notice_output_queue, Notice_output_queue_interface &());
   MOCK_CONST_METHOD2(get_prepared_statement_id,
@@ -277,10 +302,17 @@ class Mock_protocol_monitor : public Protocol_monitor_interface {
   MOCK_METHOD0(on_fatal_error_send, void());
   MOCK_METHOD0(on_init_error_send, void());
   MOCK_METHOD0(on_row_send, void());
-  MOCK_METHOD1(on_send, void(long));
-  MOCK_METHOD1(on_receive, void(long));
+  MOCK_METHOD1(on_send, void(const uint32_t));
+  MOCK_METHOD1(on_send_compressed, void(const uint32_t bytes_transferred));
+  MOCK_METHOD1(on_send_before_compression,
+               void(const uint32_t bytes_transferred));
+  MOCK_METHOD1(on_receive, void(const uint32_t));
+  MOCK_METHOD1(on_receive_compressed, void(const uint32_t bytes_transferred));
+  MOCK_METHOD1(on_receive_after_decompression,
+               void(const uint32_t bytes_transferred));
   MOCK_METHOD0(on_error_send, void());
   MOCK_METHOD0(on_error_unknown_msg_type, void());
+  MOCK_METHOD1(on_messages_sent, void(const uint32_t messages));
 };
 
 class Mock_id_generator : public Document_id_generator_interface {
@@ -289,7 +321,7 @@ class Mock_id_generator : public Document_id_generator_interface {
                std::string(const Document_id_generator_interface::Variables &));
 };
 
-class Mock_wait_for_io : public Protocol_decoder::Waiting_for_io_interface {
+class Mock_wait_for_io : public xpl::iface::Waiting_for_io {
  public:
   MOCK_METHOD0(has_to_report_idle_waiting, bool());
   MOCK_METHOD0(on_idle_or_before_read, void());
@@ -299,9 +331,11 @@ class Mock_notice_output_queue : public Notice_output_queue_interface {
  public:
   MOCK_METHOD2(emplace, void(const Notice_type type,
                              const Buffer_shared &binary_notice));
-  MOCK_METHOD0(get_callbacks_waiting_for_io, Waiting_for_io_interface &());
+  MOCK_METHOD0(get_callbacks_waiting_for_io, xpl::iface::Waiting_for_io *());
   MOCK_METHOD1(encode_queued_items,
                void(const bool last_notice_does_force_fulsh));
+
+  MOCK_METHOD1(set_encoder, void(Protocol_encoder_interface *encoder));
 };
 
 class Mock_id_aggregator : public Document_id_aggregator_interface {
@@ -314,6 +348,12 @@ class Mock_id_aggregator : public Document_id_aggregator_interface {
   MOCK_METHOD1(set_id_retention, void(const bool));
 };
 
+class Mock_message_dispatcher
+    : public Message_decoder::Message_dispatcher_interface {
+ public:
+  MOCK_METHOD1(handle, void(Message_request *));
+};
+
 }  // namespace test
 }  // namespace ngs
 
@@ -323,12 +363,13 @@ namespace test {
 class Mock_ngs_client : public ngs::Client {
  public:
   using ngs::Client::Client;
-  using ngs::Client::read_one_message;
+  using ngs::Client::read_one_message_and_dispatch;
   using ngs::Client::set_encoder;
 
   MOCK_METHOD0(resolve_hostname, std::string());
   MOCK_CONST_METHOD0(is_interactive, bool());
   MOCK_METHOD1(set_is_interactive, void(const bool));
+  MOCK_METHOD1(handle_message, void(ngs::Message_request *));
 };
 
 class Mock_client : public ngs::Client_interface {
@@ -348,7 +389,7 @@ class Mock_client : public ngs::Client_interface {
   MOCK_CONST_METHOD0(client_port, int());
 
   MOCK_CONST_METHOD0(get_accept_time, chrono::Time_point());
-  MOCK_CONST_METHOD0(get_state, Client_state());
+  MOCK_CONST_METHOD0(get_state, ngs::Client_interface::State());
 
   MOCK_METHOD0(session, ngs::Session_interface *());
   MOCK_CONST_METHOD0(session_smart_ptr,
@@ -362,6 +403,16 @@ class Mock_client : public ngs::Client_interface {
   MOCK_METHOD1(set_interactive_timeout, void(const unsigned int));
   MOCK_METHOD1(set_read_timeout, void(const unsigned int));
   MOCK_METHOD1(set_write_timeout, void(const unsigned int));
+
+  MOCK_METHOD1(enable_compression_algo,
+               void(const ngs::Compression_algorithm algo));
+  MOCK_METHOD1(configure_compression_style,
+               void(const ngs::Compression_style style));
+  MOCK_METHOD1(configure_compression_client_style,
+               void(const ngs::Compression_style style));
+  MOCK_METHOD1(configure_compression_messages,
+               void(const std::vector<uint32_t> &ids));
+  MOCK_METHOD1(handle_message, void(ngs::Message_request *));
 
   MOCK_METHOD1(get_capabilities,
                void(const Mysqlx::Connection::CapabilitiesGet &));

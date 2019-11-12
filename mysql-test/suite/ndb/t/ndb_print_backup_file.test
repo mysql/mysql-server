@@ -1,0 +1,61 @@
+source include/have_ndb.inc;
+
+--echo Verify that one can run ndb_print_backup_file on all saved backup files
+--echo without errors.
+--echo That should cover most kinds of backup files, and both newer and older
+--echo formats.
+
+--perl
+use strict;
+use lib "lib/";
+use My::Find;
+use File::Basename;
+use File::Find;
+use locale ':not_characters';
+
+my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
+my $basedir = dirname($mysql_test_dir);
+
+# In the RPM case, binaries and libraries are installed in the
+# default system locations, instead of having our own private base
+# directory. And we install "usr/share/mysql-test". Moving up two
+# more directory relative to "mysql-test" gives us a usable base
+# directory for RPM installs.
+if (! -d "$basedir/sql" and ! -d "$basedir/bin" )
+{
+  $basedir= dirname($basedir);
+}
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
+
+my $NDB_PRINT_BACKUP_FILE =  my_find_bin($bindir,
+                                         ["runtime_output_directory", "bin"],
+                                         "ndb_print_backup_file");
+
+# Directory containing backups from earlier versions of NDB
+my $NDB_SAVED_BACKUPS = "$ENV{MYSQL_TEST_DIR}/suite/ndb/backups";
+
+sub sorted
+{
+  sort(@_);
+}
+
+sub process
+{
+  return unless -f;
+  print "ndb_print_backup_file " .
+        "suite/ndb/backups" .
+          substr($File::Find::name, length($NDB_SAVED_BACKUPS)) .
+        "\n";
+  my $output = `$NDB_PRINT_BACKUP_FILE $File::Find::name`;
+  if (!defined($output))
+  {
+    die "Failed running: $NDB_PRINT_BACKUP_FILE $File::Find::name";
+  }
+  # make sure lines ends with LF
+  $output =~ s/\r[\n]?/\n/gm;
+  print length($output) . " bytes in output\n";
+}
+
+find({ wanted => \&process, preprocess => \&sorted }, $NDB_SAVED_BACKUPS);
+
+EOF

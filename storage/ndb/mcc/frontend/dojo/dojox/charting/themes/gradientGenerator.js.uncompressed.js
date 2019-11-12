@@ -1,19 +1,18 @@
-//>>built
 define("dojox/charting/themes/gradientGenerator", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/Color", "../Theme", "dojox/color/_base", "./common"], 
 	function(lang, arr, Color, Theme, dxcolor, themes){
 	
 	var gg = lang.getObject("gradientGenerator", true, themes);
 
 	gg.generateFills = function(colors, fillPattern, lumFrom, lumTo){
-		//	summary:
+		// summary:
 		//		generates 2-color gradients using pure colors, a fill pattern, and two luminance values
-		//	colors: Array:
+		// colors: Array
 		//		Array of colors to generate gradients for each.
-		//	fillPattern: Object:
+		// fillPattern: Object
 		//		Gradient fill descriptor which colors list will be generated.
-		//	lumFrom: Number:
+		// lumFrom: Number
 		//		Initial luminance value (0-100).
-		//	lumTo: Number:
+		// lumTo: Number
 		//		Final luminance value (0-100).
 		return arr.map(colors, function(c){	// Array
 			return Theme.generateHslGradient(c, fillPattern, lumFrom, lumTo);
@@ -21,15 +20,15 @@ define("dojox/charting/themes/gradientGenerator", ["dojo/_base/lang", "dojo/_bas
 	};
 	
 	gg.updateFills = function(themes, fillPattern, lumFrom, lumTo){
-		//	summary:
+		// summary:
 		//		transforms solid color fills into 2-color gradients using a fill pattern, and two luminance values
-		//	themes: Array:
+		// themes: Array
 		//		Array of mini-themes (usually series themes or marker themes), which fill will be transformed.
-		//	fillPattern: Object:
+		// fillPattern: Object
 		//		Gradient fill descriptor which colors list will be generated.
-		//	lumFrom: Number:
+		// lumFrom: Number
 		//		Initial luminance value (0-100).
-		//	lumTo: Number:
+		// lumTo: Number
 		//		Final luminance value (0-100).
 		arr.forEach(themes, function(t){
 			if(t.fill && !t.fill.type){
@@ -39,17 +38,17 @@ define("dojox/charting/themes/gradientGenerator", ["dojo/_base/lang", "dojo/_bas
 	};
 	
 	gg.generateMiniTheme = function(colors, fillPattern, lumFrom, lumTo, lumStroke){
-		//	summary:
+		// summary:
 		//		generates mini-themes with 2-color gradients using colors, a fill pattern, and three luminance values
-		//	colors: Array:
+		// colors: Array
 		//		Array of colors to generate gradients for each.
-		//	fillPattern: Object:
+		// fillPattern: Object
 		//		Gradient fill descriptor which colors list will be generated.
-		//	lumFrom: Number:
+		// lumFrom: Number
 		//		Initial luminance value (0-100).
-		//	lumTo: Number:
+		// lumTo: Number
 		//		Final luminance value (0-100).
-		//	lumStroke: Number:
+		// lumStroke: Number
 		//		Stroke luminance value (0-100).
 		return arr.map(colors, function(c){	// Array
 			c = new dxcolor.Color(c);
@@ -61,11 +60,11 @@ define("dojox/charting/themes/gradientGenerator", ["dojo/_base/lang", "dojo/_bas
 	};
 	
 	gg.generateGradientByIntensity = function(color, intensityMap){
-		//	summary:
+		// summary:
 		//		generates gradient colors using an intensity map
-		//	color: dojo.Color:
+		// color: dojo.Color
 		//		Color to use to generate gradients.
-		//	intensityMap: Array:
+		// intensityMap: Array
 		//		Array of tuples {o, i}, where o is a gradient offset (0-1),
 		//		and i is an intensity (0-255).
 		color = new Color(color);

@@ -127,6 +127,47 @@ EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
 SET DEBUG = "-d,secondary_engine_mock_compare_cost_error";
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#29615190: SELECTS ON TABLES OFFLOADED TO SECONDARY ENGINE ARE
+--echo #               WRITTEN TWICE TO THE MYSQLD GENERAL LOG
+--echo #
+
+# Test what is written to the general log if a statement is attempted
+# offloaded, but rejected by the secondary engine. It used to be
+# written three times to the general log. Once is enough.
+
+CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+
+SET @saved_general_log = @@global.general_log;
+SET @saved_log_output = @@global.log_output;
+SET GLOBAL general_log = 1;
+SET GLOBAL log_output = 'table';
+SET DEBUG = '+d,secondary_engine_mock_optimize_error';
+
+TRUNCATE TABLE mysql.general_log;
+SELECT * FROM t;
+# Expect the query to be written once to the general log (or twice
+# under ps protocol - once for preparation and once for execution).
+--disable_query_log
+eval SELECT COUNT(*) - $PS_PROTOCOL AS statement_count
+     FROM mysql.general_log
+     WHERE argument = 'SELECT * FROM t';
+--enable_query_log
+TRUNCATE TABLE mysql.general_log;
+PREPARE ps FROM 'SELECT * FROM t';
+SELECT COUNT(*) FROM mysql.general_log WHERE argument = 'SELECT * FROM t';
+EXECUTE ps;
+SELECT COUNT(*) FROM mysql.general_log WHERE argument = 'SELECT * FROM t';
+DROP PREPARE ps;
+
+SET GLOBAL general_log = @saved_general_log;
+SET GLOBAL log_output = @saved_log_output;
+SET DEBUG = '-d,secondary_engine_mock_optimize_error';
+
+TRUNCATE TABLE mysql.general_log;
+DROP TABLE t;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

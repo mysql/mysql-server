@@ -384,7 +384,13 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
 DROP TABLE t1,t2;
 SET @@optimizer_trace_features="default";
 CREATE TABLE t1 (a FLOAT(5,4) zerofill);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE TABLE t2 (a FLOAT(5,4),b FLOAT(2,0));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 SELECT t1.a
 FROM t1
 WHERE t1.a= (SELECT b FROM t2 LIMIT 1) AND NOT
@@ -555,7 +561,7 @@ WHERE NOT EXISTS
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where (not(exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3)))))"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3))) is false"
           }
         ] /* steps */
       } /* join_preparation */
@@ -567,19 +573,19 @@ WHERE NOT EXISTS
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(not(exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3)))))",
+              "original_condition": "exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3))) is false",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3)))))"
+                  "resulting_condition": "exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3))) is false"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3)))))"
+                  "resulting_condition": "exists(/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3))) is false"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -685,7 +691,7 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where (not(exists(/* select#2 */ select `t2`.`a` from `t2`)))"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where exists(/* select#2 */ select `t2`.`a` from `t2`) is false"
           }
         ] /* steps */
       } /* join_preparation */
@@ -697,19 +703,19 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(not(exists(/* select#2 */ select `t2`.`a` from `t2`)))",
+              "original_condition": "exists(/* select#2 */ select `t2`.`a` from `t2`) is false",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(exists(/* select#2 */ select `t2`.`a` from `t2`)))"
+                  "resulting_condition": "exists(/* select#2 */ select `t2`.`a` from `t2`) is false"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(exists(/* select#2 */ select `t2`.`a` from `t2`)))"
+                  "resulting_condition": "exists(/* select#2 */ select `t2`.`a` from `t2`) is false"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -1984,7 +1990,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using where; Using index; LooseScan
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = `test`.`t3`.`filler`) and (`test`.`t3`.`filler` = (`test`.`t1`.`a` * 3)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t2`.`filler` = `test`.`t3`.`filler`) and (`test`.`t3`.`filler` = (`test`.`t1`.`a` * 3)))
 SELECT show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"recalculate_access_paths_and_cost": {', TRACE)
@@ -2057,7 +2063,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	a	a	10	NULL	100	100.00	Using where; Using index; LooseScan
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	100	1.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and ((`test`.`t3`.`filler` + 2) = (`test`.`t1`.`a` * 3)) and ((`test`.`t2`.`filler` + 10) = (`test`.`t3`.`filler` + 20)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t1`.`a`) and ((`test`.`t3`.`filler` + 2) = (`test`.`t1`.`a` * 3)) and ((`test`.`t2`.`filler` + 10) = (`test`.`t3`.`filler` + 20)))
 SELECT show_json_object('"considered_execution_plans": [', TRACE)
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 show_json_object('"considered_execution_plans": [', TRACE)
@@ -2830,6 +2836,9 @@ b varchar(100) DEFAULT NULL,
 c int(11) DEFAULT NULL,
 KEY b_c_a (b,c,a)
 ) ENGINE=InnoDB, CHARSET utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 explain select *
 from t1 left join t1 as t2
 on (t2.a= t1.a and (t2.a,t2.b) in (select a,b from t1 as t3))
@@ -2884,7 +2893,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	Using where; Start temporary; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` `t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t1`.`a` = 10) and (`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`b` = (`test`.`t1`.`b` * 3)))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` `t3` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`a` = 10) and (`test`.`t2`.`b` = `test`.`t3`.`b`) and (`test`.`t3`.`b` = (`test`.`t1`.`b` * 3)))
 SELECT TRACE LIKE '%"some_index_part_used": false%'
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 TRACE LIKE '%"some_index_part_used": false%'
@@ -3129,10 +3138,18 @@ TRACE
           {
             "rows_estimation": [
               {
-                "table": "`q`"
+                "table": "`q`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 2.525
+                } /* table_scan */
               },
               {
-                "table": "`q` `q1`"
+                "table": "`q` `q1`",
+                "table_scan": {
+                  "rows": 2,
+                  "cost": 2.525
+                } /* table_scan */
               }
             ] /* rows_estimation */
           },
@@ -3308,18 +3325,18 @@ TRACE
             } /* creating_tmp_table */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           }
         ] /* steps */
       } /* join_execution */
@@ -3355,32 +3372,25 @@ show_json_object('"join_execution": {', TRACE)
             } /* creating_tmp_table */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
-          },
-          {
-            "join_execution": {
-              "select#": 3,
-              "steps": [
-              ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           }
         ] /* steps */
       } 
@@ -3412,18 +3422,18 @@ show_json_object('"join_execution": {', TRACE)
             } /* creating_tmp_table */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 3,
               "steps": [
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           }
         ] /* steps */
       } 

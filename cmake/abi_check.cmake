@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,13 +29,13 @@
 # only be run  on Unix and only if gcc is used. On some Unixes,
 # (Solaris) sed or diff might act differently from GNU, so we run only 
 # on systems we can trust.
-IF(APPLE OR CMAKE_SYSTEM_NAME MATCHES "Linux")
- SET(RUN_ABI_CHECK 1)
+IF(LINUX)
+  SET(RUN_ABI_CHECK 1)
 ELSE()
- SET(RUN_ABI_CHECK 0)
+  SET(RUN_ABI_CHECK 0)
 ENDIF()
 
-IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
+IF(MY_COMPILER_IS_GNU AND RUN_ABI_CHECK)
   IF(CMAKE_C_COMPILER MATCHES "ccache$")
     SET(COMPILER ${CMAKE_C_COMPILER_ARG1})
     STRING(REGEX REPLACE "^ " "" COMPILER ${COMPILER})

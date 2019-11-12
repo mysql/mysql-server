@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
 #include "sql/system_variables.h"
 #include "sql_string.h"
+#include "template_utils.h"
 #include "typelib.h"
 
 /**
@@ -65,17 +66,17 @@ bool plugin_var_memalloc_global_update(THD *thd, SYS_VAR *var, char **dest,
                                        const char *value) {
   char *old_value = *dest;
   DBUG_EXECUTE_IF("simulate_bug_20292712", my_sleep(1000););
-  DBUG_ENTER("plugin_var_memalloc_global_update");
+  DBUG_TRACE;
 
   if (value && !(value = my_strdup(key_memory_global_system_variables, value,
                                    MYF(MY_WME))))
-    DBUG_RETURN(true);
+    return true;
 
   var->update(thd, var, (void **)dest, (const void *)&value);
 
   if (old_value) my_free(old_value);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -121,14 +122,14 @@ bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
 {
   LIST *old_element = NULL;
   struct System_variables *vars = &thd->variables;
-  DBUG_ENTER("plugin_var_memalloc_session_update");
+  DBUG_TRACE;
 
   if (value) {
     size_t length = strlen(value) + 1;
     LIST *element;
     if (!(element = (LIST *)my_malloc(key_memory_THD_variables,
                                       sizeof(LIST) + length, MYF(MY_WME))))
-      DBUG_RETURN(true);
+      return true;
     memcpy(element + 1, value, length);
     value = (const char *)(element + 1);
     vars->dynamic_variables_allocs =
@@ -140,14 +141,14 @@ bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
   if (var)
     var->update(thd, var, (void **)dest, (const void *)&value);
   else
-    *dest = (char *)value;
+    *dest = const_cast<char *>(value);
 
   if (old_element) {
     vars->dynamic_variables_allocs =
         list_delete(vars->dynamic_variables_allocs, old_element);
     my_free(old_element);
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {
@@ -309,7 +310,8 @@ uchar *sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd,
   result = real_value_ptr(target_thd, type);
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_ENUM)
-    result = (uchar *)get_type(plugin_var_typelib(), *(ulong *)result);
+    result = pointer_cast<uchar *>(const_cast<char *>(
+        get_type(plugin_var_typelib(), *pointer_cast<ulong *>(result))));
   else if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_SET)
     result = (uchar *)set_to_string(running_thd, 0, *(ulonglong *)result,
                                     plugin_var_typelib()->type_names);
@@ -344,8 +346,9 @@ bool sys_var_pluginvar::session_update(THD *thd, set_var *var) {
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
       plugin_var->flags & PLUGIN_VAR_MEMALLOC)
-    rc = plugin_var_memalloc_session_update(thd, plugin_var, (char **)tgt,
-                                            *(const char **)src);
+    rc = plugin_var_memalloc_session_update(thd, plugin_var,
+                                            static_cast<char **>(tgt),
+                                            *static_cast<char *const *>(src));
   else
     plugin_var->update(thd, plugin_var, tgt, src);
 
@@ -417,8 +420,9 @@ bool sys_var_pluginvar::global_update(THD *thd, set_var *var) {
 
   if ((plugin_var->flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR &&
       plugin_var->flags & PLUGIN_VAR_MEMALLOC)
-    rc = plugin_var_memalloc_global_update(thd, plugin_var, (char **)tgt,
-                                           *(const char **)src);
+    rc = plugin_var_memalloc_global_update(thd, plugin_var,
+                                           static_cast<char **>(tgt),
+                                           *static_cast<char *const *>(src));
   else
     plugin_var->update(thd, plugin_var, tgt, src);
 
@@ -442,8 +446,8 @@ bool sys_var_pluginvar::is_default(THD *thd, set_var *var) {
     case PLUGIN_VAR_BOOL:
       return (((sysvar_bool_t *)plugin_var)->def_val == *(bool *)tgt);
     case PLUGIN_VAR_STR:
-      return !strcmp((char *)(((sysvar_str_t *)plugin_var)->def_val),
-                     *(char **)tgt);
+      return !strcmp(pointer_cast<sysvar_str_t *>(plugin_var)->def_val,
+                     *static_cast<char **>(tgt));
     case PLUGIN_VAR_DOUBLE:
       return (((sysvar_double_t *)plugin_var)->def_val == *(double *)tgt);
     case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
@@ -459,8 +463,8 @@ bool sys_var_pluginvar::is_default(THD *thd, set_var *var) {
     case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
       return (((thdvar_bool_t *)plugin_var)->def_val == *(bool *)tgt);
     case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-      return !strcmp((char *)(((thdvar_str_t *)plugin_var)->def_val),
-                     *(char **)tgt);
+      return !strcmp(pointer_cast<thdvar_str_t *>(plugin_var)->def_val,
+                     *static_cast<char **>(tgt));
     case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
       return (((thdvar_double_t *)plugin_var)->def_val == *(double *)tgt);
   }
@@ -610,7 +614,10 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         longlong10_to_str(var->save_result.ulonglong_value, def_val, 10);
         return;
       case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-        strcpy(def_val, ((thdvar_str_t *)plugin_var)->def_val);
+        if (((thdvar_str_t *)plugin_var)->def_val != NULL)
+          strcpy(def_val, ((thdvar_str_t *)plugin_var)->def_val);
+        else /* no default: consider empty */
+          def_val[0] = 0;
         return;
       case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
         var->save_result.double_value =
@@ -754,7 +761,6 @@ err:
 }
 
 int check_func_set(THD *, SYS_VAR *var, void *save, st_mysql_value *value) {
-  char buff[STRING_BUFFER_USUAL_SIZE], *error = 0;
   const char *str;
   TYPELIB *typelib;
   ulonglong result;
@@ -768,6 +774,8 @@ int check_func_set(THD *, SYS_VAR *var, void *save, st_mysql_value *value) {
     typelib = ((sysvar_set_t *)var)->typelib;
 
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    const char *error = nullptr;
     length = sizeof(buff);
     if (!(str = value->val_str(value, buff, &length))) goto err;
     result =
@@ -799,27 +807,27 @@ int check_func_double(THD *thd, SYS_VAR *var, void *save,
 }
 
 void update_func_bool(THD *, SYS_VAR *, void *tgt, const void *save) {
-  *(bool *)tgt = *(bool *)save ? true : false;
+  *static_cast<bool *>(tgt) = *static_cast<const bool *>(save);
 }
 
 void update_func_int(THD *, SYS_VAR *, void *tgt, const void *save) {
-  *(int *)tgt = *(int *)save;
+  *static_cast<int *>(tgt) = *static_cast<const int *>(save);
 }
 
 void update_func_long(THD *, SYS_VAR *, void *tgt, const void *save) {
-  *(long *)tgt = *(long *)save;
+  *static_cast<long *>(tgt) = *static_cast<const long *>(save);
 }
 
 void update_func_longlong(THD *, SYS_VAR *, void *tgt, const void *save) {
-  *(longlong *)tgt = *(ulonglong *)save;
+  *static_cast<longlong *>(tgt) = *static_cast<const ulonglong *>(save);
 }
 
 void update_func_str(THD *, SYS_VAR *, void *tgt, const void *save) {
-  *(char **)tgt = *(char **)save;
+  *static_cast<char **>(tgt) = *static_cast<char *const *>(save);
 }
 
 void update_func_double(THD *, SYS_VAR *, void *tgt, const void *save) {
-  *(double *)tgt = *(double *)save;
+  *static_cast<double *>(tgt) = *static_cast<const double *>(save);
 }
 
 /*
@@ -859,93 +867,109 @@ void plugin_opt_set_limits(struct my_option *options, const SYS_VAR *opt) {
           (PLUGIN_VAR_TYPEMASK | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL)) {
     /* global system variables */
     case PLUGIN_VAR_INT:
-      OPTION_SET_LIMITS(GET_INT, options, (sysvar_int_t *)opt);
+      OPTION_SET_LIMITS(GET_INT, options,
+                        pointer_cast<const sysvar_int_t *>(opt));
       break;
     case PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED:
-      OPTION_SET_LIMITS(GET_UINT, options, (sysvar_uint_t *)opt);
+      OPTION_SET_LIMITS(GET_UINT, options,
+                        pointer_cast<const sysvar_uint_t *>(opt));
       break;
     case PLUGIN_VAR_LONG:
-      OPTION_SET_LIMITS(GET_LONG, options, (sysvar_long_t *)opt);
+      OPTION_SET_LIMITS(GET_LONG, options,
+                        pointer_cast<const sysvar_long_t *>(opt));
       break;
     case PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED:
-      OPTION_SET_LIMITS(GET_ULONG, options, (sysvar_ulong_t *)opt);
+      OPTION_SET_LIMITS(GET_ULONG, options,
+                        pointer_cast<const sysvar_ulong_t *>(opt));
       break;
     case PLUGIN_VAR_LONGLONG:
-      OPTION_SET_LIMITS(GET_LL, options, (sysvar_longlong_t *)opt);
+      OPTION_SET_LIMITS(GET_LL, options,
+                        pointer_cast<const sysvar_longlong_t *>(opt));
       break;
     case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED:
-      OPTION_SET_LIMITS(GET_ULL, options, (sysvar_ulonglong_t *)opt);
+      OPTION_SET_LIMITS(GET_ULL, options,
+                        pointer_cast<const sysvar_ulonglong_t *>(opt));
       break;
     case PLUGIN_VAR_ENUM:
       options->var_type = GET_ENUM;
-      options->typelib = ((sysvar_enum_t *)opt)->typelib;
-      options->def_value = ((sysvar_enum_t *)opt)->def_val;
+      options->typelib = pointer_cast<const sysvar_enum_t *>(opt)->typelib;
+      options->def_value = pointer_cast<const sysvar_enum_t *>(opt)->def_val;
       options->min_value = options->block_size = 0;
       options->max_value = options->typelib->count - 1;
       break;
     case PLUGIN_VAR_SET:
       options->var_type = GET_SET;
-      options->typelib = ((sysvar_set_t *)opt)->typelib;
-      options->def_value = ((sysvar_set_t *)opt)->def_val;
+      options->typelib = pointer_cast<const sysvar_set_t *>(opt)->typelib;
+      options->def_value = pointer_cast<const sysvar_set_t *>(opt)->def_val;
       options->min_value = options->block_size = 0;
       options->max_value = (1ULL << options->typelib->count) - 1;
       break;
     case PLUGIN_VAR_BOOL:
       options->var_type = GET_BOOL;
-      options->def_value = ((sysvar_bool_t *)opt)->def_val;
+      options->def_value = pointer_cast<const sysvar_bool_t *>(opt)->def_val;
       break;
     case PLUGIN_VAR_STR:
       options->var_type =
           ((opt->flags & PLUGIN_VAR_MEMALLOC) ? GET_STR_ALLOC : GET_STR);
-      options->def_value = (intptr)((sysvar_str_t *)opt)->def_val;
+      options->def_value =
+          (intptr)pointer_cast<const sysvar_str_t *>(opt)->def_val;
       break;
     case PLUGIN_VAR_DOUBLE:
-      OPTION_SET_LIMITS_DOUBLE(options, (sysvar_double_t *)opt);
+      OPTION_SET_LIMITS_DOUBLE(options,
+                               pointer_cast<const sysvar_double_t *>(opt));
       break;
     /* threadlocal variables */
     case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
-      OPTION_SET_LIMITS(GET_INT, options, (thdvar_int_t *)opt);
+      OPTION_SET_LIMITS(GET_INT, options,
+                        pointer_cast<const thdvar_int_t *>(opt));
       break;
     case PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL:
-      OPTION_SET_LIMITS(GET_UINT, options, (thdvar_uint_t *)opt);
+      OPTION_SET_LIMITS(GET_UINT, options,
+                        pointer_cast<const thdvar_uint_t *>(opt));
       break;
     case PLUGIN_VAR_LONG | PLUGIN_VAR_THDLOCAL:
-      OPTION_SET_LIMITS(GET_LONG, options, (thdvar_long_t *)opt);
+      OPTION_SET_LIMITS(GET_LONG, options,
+                        pointer_cast<const thdvar_long_t *>(opt));
       break;
     case PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL:
-      OPTION_SET_LIMITS(GET_ULONG, options, (thdvar_ulong_t *)opt);
+      OPTION_SET_LIMITS(GET_ULONG, options,
+                        pointer_cast<const thdvar_ulong_t *>(opt));
       break;
     case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_THDLOCAL:
-      OPTION_SET_LIMITS(GET_LL, options, (thdvar_longlong_t *)opt);
+      OPTION_SET_LIMITS(GET_LL, options,
+                        pointer_cast<const thdvar_longlong_t *>(opt));
       break;
     case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED | PLUGIN_VAR_THDLOCAL:
-      OPTION_SET_LIMITS(GET_ULL, options, (thdvar_ulonglong_t *)opt);
+      OPTION_SET_LIMITS(GET_ULL, options,
+                        pointer_cast<const thdvar_ulonglong_t *>(opt));
       break;
     case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
-      OPTION_SET_LIMITS_DOUBLE(options, (thdvar_double_t *)opt);
+      OPTION_SET_LIMITS_DOUBLE(options,
+                               pointer_cast<const thdvar_double_t *>(opt));
       break;
     case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
       options->var_type = GET_ENUM;
-      options->typelib = ((thdvar_enum_t *)opt)->typelib;
-      options->def_value = ((thdvar_enum_t *)opt)->def_val;
+      options->typelib = pointer_cast<const thdvar_enum_t *>(opt)->typelib;
+      options->def_value = pointer_cast<const thdvar_enum_t *>(opt)->def_val;
       options->min_value = options->block_size = 0;
       options->max_value = options->typelib->count - 1;
       break;
     case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
       options->var_type = GET_SET;
-      options->typelib = ((thdvar_set_t *)opt)->typelib;
-      options->def_value = ((thdvar_set_t *)opt)->def_val;
+      options->typelib = pointer_cast<const thdvar_set_t *>(opt)->typelib;
+      options->def_value = pointer_cast<const thdvar_set_t *>(opt)->def_val;
       options->min_value = options->block_size = 0;
       options->max_value = (1ULL << options->typelib->count) - 1;
       break;
     case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
       options->var_type = GET_BOOL;
-      options->def_value = ((thdvar_bool_t *)opt)->def_val;
+      options->def_value = pointer_cast<const thdvar_bool_t *>(opt)->def_val;
       break;
     case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
       options->var_type =
           ((opt->flags & PLUGIN_VAR_MEMALLOC) ? GET_STR_ALLOC : GET_STR);
-      options->def_value = (intptr)((thdvar_str_t *)opt)->def_val;
+      options->def_value =
+          (intptr)pointer_cast<const thdvar_str_t *>(opt)->def_val;
       break;
     default:
       DBUG_ASSERT(0);

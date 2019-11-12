@@ -33,6 +33,7 @@
 #include <sys/types.h>
 
 #include "my_base.h"
+#include "my_hostname.h" /* HOSTNAME_LENGTH */
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/rpl_gtid.h"

@@ -1,4 +1,3 @@
-//>>built
 define("dijit/form/_ButtonMixin", [
 	"dojo/_base/declare", // declare
 	"dojo/dom", // dom.setSelectable
@@ -8,23 +7,22 @@ define("dijit/form/_ButtonMixin", [
 
 // module:
 //		dijit/form/_ButtonMixin
-// summary:
-//		A mixin to add a thin standard API wrapper to a normal HTML button
 
 return declare("dijit.form._ButtonMixin", null, {
 	// summary:
 	//		A mixin to add a thin standard API wrapper to a normal HTML button
 	// description:
 	//		A label should always be specified (through innerHTML) or the label attribute.
-	//		Attach points:
-	//			focusNode (required): this node receives focus
-	//			valueNode (optional): this node's value gets submitted with FORM elements
-	//			containerNode (optional): this node gets the innerHTML assignment for label
-	// example:
-	// |	<button data-dojo-type="dijit.form.Button" onClick="...">Hello world</button>
 	//
+	//		Attach points:
+	//
+	//		- focusNode (required): this node receives focus
+	//		- valueNode (optional): this node's value gets submitted with FORM elements
+	//		- containerNode (optional): this node gets the innerHTML assignment for label
 	// example:
-	// |	var button1 = new dijit.form.Button({label: "hello world", onClick: foo});
+	// |	<button data-dojo-type="dijit/form/Button" onClick="...">Hello world</button>
+	// example:
+	// |	var button1 = new Button({label: "hello world", onClick: foo});
 	// |	dojo.body().appendChild(button1.domNode);
 
 	// label: HTML String

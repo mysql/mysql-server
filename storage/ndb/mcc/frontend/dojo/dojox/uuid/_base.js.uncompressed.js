@@ -1,4 +1,3 @@
-//>>built
 define("dojox/uuid/_base", ['dojo/_base/kernel', 'dojo/_base/lang'], function(dojo){
 
 dojo.getObject("uuid", true, dojox);
@@ -82,10 +81,10 @@ dojox.uuid.getVariant = function(/*String*/ uuidString){
 	//		var variant = dojox.uuid.getVariant("3b12f1df-5232-4804-897e-917bf397618a");
 	//		dojox.uuid.assert(variant == dojox.uuid.variant.DCE);
 	// example:
-	// "3b12f1df-5232-4804-897e-917bf397618a"
-	//                     ^
-	//                     |
-	//         (variant "10__" == DCE)
+	//	|	"3b12f1df-5232-4804-897e-917bf397618a"
+	//	|                   ^
+	//	|                   |
+	//	|       (variant "10__" == DCE)
 	if(!dojox.uuid._ourVariantLookupTable){
 		var variant = dojox.uuid.variant;
 		var lookupTable = [];
@@ -135,9 +134,9 @@ dojox.uuid.getVersion = function(/*String*/ uuidString){
 	uuidString = uuidString.toString();
 	
 		// "b4308fb0-86cd-11da-a72b-0800200c9a66"
-		//                ^
-		//                |
-		//       (version 1 == TIME_BASED)
+		//			      ^
+		//			      |
+		//		 (version 1 == TIME_BASED)
 	var versionCharacter = uuidString.charAt(14);
 	var HEX_RADIX = 16;
 	var versionNumber = parseInt(versionCharacter, HEX_RADIX);
@@ -166,7 +165,8 @@ dojox.uuid.getTimestamp = function(/*String*/ uuidString, /*String?*/ returnType
 	//		the timestamp value encoded in the UUID.  The caller can ask for the
 	//		timestamp to be returned either as a JavaScript Date object or as a
 	//		15-character string of hex digits.
-	// returnType: Any of these five values: "string", String, "hex", "date", Date
+	// returnType:
+	//		Any of these five values: "string", String, "hex", "date", Date
 	// returns:
 	//		Returns the timestamp value as a JavaScript Date object or a 15-character string of hex digits.
 	// examples:

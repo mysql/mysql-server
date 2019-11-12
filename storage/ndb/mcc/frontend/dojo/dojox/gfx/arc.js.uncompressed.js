@@ -1,19 +1,11 @@
-//>>built
 define("dojox/gfx/arc", ["./_base", "dojo/_base/lang", "./matrix"], 
   function(g, lang, m){
-/*===== 
-	g = dojox.gfx;
-	dojox.gfx.arc = {
-		// summary:
-		//		This module contains the core graphics Arc functions.
-	};
-  =====*/
-
 	var twoPI = 2 * Math.PI, pi4 = Math.PI / 4, pi8 = Math.PI / 8,
 		pi48 = pi4 + pi8, curvePI4 = unitArcAsBezier(pi8);
 
 	function unitArcAsBezier(alpha){
-		// summary: return a start point, 1st and 2nd control points, and an end point of
+		// summary:
+		//		return a start point, 1st and 2nd control points, and an end point of
 		//		a an arc, which is reflected on the x axis
 		// alpha: Number
 		//		angle in radians, the arc will be 2 * angle size
@@ -28,23 +20,30 @@ define("dojox/gfx/arc", ["./_base", "dojo/_base/lang", "./matrix"],
 	}
 
 	var arc = g.arc = {
+		// summary:
+		//		This module contains the core graphics Arc functions.
+		
 		unitArcAsBezier: unitArcAsBezier,
 		/*===== 
-			unitArcAsBezier: function(alpha) {
-			// summary: return a start point, 1st and 2nd control points, and an end point of
+		unitArcAsBezier: function(alpha) {
+			// summary:
+			//		return a start point, 1st and 2nd control points, and an end point of
 			//		a an arc, which is reflected on the x axis
 			// alpha: Number
 			//		angle in radians, the arc will be 2 * angle size
-			},
+		},
 		=====*/
+
+		// curvePI4: Object
+		//		an object with properties of an arc around a unit circle from 0 to pi/4
 		curvePI4: curvePI4,
-			// curvePI4: Object
-			//		an object with properties of an arc around a unit circle from 0 to pi/4
+
 		arcAsBezier: function(last, rx, ry, xRotg, large, sweep, x, y){
-			// summary: calculates an arc as a series of Bezier curves
-			//	given the last point and a standard set of SVG arc parameters,
-			//	it returns an array of arrays of parameters to form a series of
-			//	absolute Bezier curves.
+			// summary:
+			//		calculates an arc as a series of Bezier curves
+			//		given the last point and a standard set of SVG arc parameters,
+			//		it returns an array of arrays of parameters to form a series of
+			//		absolute Bezier curves.
 			// last: Object
 			//		a point-like object as a start of the arc
 			// rx: Number

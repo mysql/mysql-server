@@ -520,7 +520,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 --echo # could see anyway:
 --replace_column 7 #
 show create trigger trg2;
-select * from t2, t3 limit 1;
+select * from t2, t3 order by t2.a, t3.a limit 1;
 --echo # Trace exposed content of t1 which we could see anyway:
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select a from (select a from t1 where a like "f%") as tt where a like "fi%";

@@ -1,0 +1,79 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap M2.
+
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 values (1);
+
+# 2. Start GR on M3 with higher patch version.
+
+[connection server3]
+SET @debug3_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+include/start_group_replication.inc
+
+# 3. Start GR on M1, and block it before recovery.
+
+[connection server1]
+SET @debug1_save= @@GLOBAL.DEBUG;
+SET @recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET @recovery_retry_count_interval_save= @@GLOBAL.group_replication_recovery_retry_count;
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+SET GLOBAL group_replication_recovery_retry_count= 3;
+SET @@GLOBAL.DEBUG= '+d,recovery_thread_start_wait';
+include/start_group_replication.inc
+SET DEBUG_SYNC= "now wait_for signal.recovery_waiting";
+
+# 4. Stop M2 the only donor.
+#    M3 is ONLINE but due to higher version it's not considered as donor.
+#    M1 error out since no lower or equal version donor exist.
+
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+include/gr_wait_for_member_state.inc
+include/assert_grep.inc [No valid donor exist in the group.]
+include/stop_group_replication.inc
+
+# 5. Start M2.
+#    allow_local_lower_version turns off donor version check.
+
+[connection server2]
+SET @allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local_lower_version_join;
+SET GLOBAL group_replication_allow_local_lower_version_join= 1;
+include/start_group_replication.inc
+include/assert.inc [The super_read_only mode should be 0 on server2.]
+[connection server3]
+include/assert.inc [The super_read_only mode should be 0 on server3.]
+
+# 6. Cleanup.
+
+[connection server2]
+DROP TABLE t1;
+include/rpl_sync.inc
+[connection server3]
+SET @@GLOBAL.DEBUG= @debug3_save;
+include/stop_group_replication.inc
+[connection server1]
+SET @@GLOBAL.DEBUG= @debug1_save;
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @recovery_reconnect_interval_save;
+SET @@GLOBAL.group_replication_recovery_retry_count= @recovery_retry_count_interval_save;
+include/start_group_replication.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET @@GLOBAL.group_replication_allow_local_lower_version_join= @allow_local_lower_version_join_save;
+include/group_replication_end.inc

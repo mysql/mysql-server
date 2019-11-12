@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,8 +82,8 @@ struct TABLE_REF {
     If a table in a subquery has this it means that the table access
     will switch from ref access to table scan when the outer query
     produces a NULL value to be checked for in the subquery. This will
-    be used by NOT IN subqueries and IN subqueries for which
-    is_top_level_item() returns false.
+    be used by NOT IN subqueries and IN subqueries which need to distinguish
+    NULL and FALSE, where ignore_unknown() is false.
   */
   bool **cond_guards;
   /**
@@ -507,7 +507,7 @@ class QEP_shared_owner {
   void mark_condition_as_pushed_to_sort() {
     m_qs->mark_condition_as_pushed_to_sort();
   }
-  Key_map &keys() { return m_qs->keys(); }
+  Key_map &keys() const { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
   QUICK_SELECT_I *quick() const { return m_qs->quick(); }

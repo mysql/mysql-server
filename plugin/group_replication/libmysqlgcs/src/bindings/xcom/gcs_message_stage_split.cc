@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,13 +141,10 @@ bool Gcs_message_stage_split_v2::update_members_information(
   }
 
   /*
-   Update the sender uuid based on the newly informed member if it was not
-   previously updated.
+   Update the sender uuid based on the newly informed member.
    */
-  if (m_sender_id == 0) {
-    const Gcs_xcom_node_information *const local_node = xcom_nodes.get_node(me);
-    m_sender_id = calculate_sender_id(*local_node);
-  }
+  const Gcs_xcom_node_information *const local_node = xcom_nodes.get_node(me);
+  m_sender_id = calculate_sender_id(*local_node);
 
   /*
    Remove mapping for a node that does not belong to the group anymore.
@@ -542,7 +539,7 @@ std::pair<bool, Gcs_packet> Gcs_message_stage_split_v2::reassemble_fragments(
   bool constexpr OK = false;
   auto result = std::make_pair(ERROR, Gcs_packet());
 
-  auto &some_fragment = fragments[0];
+  auto &last_delivered_fragment = fragments.back();
 
   /*
    Create a packet big enough to hold the reassembled payload.
@@ -551,11 +548,13 @@ std::pair<bool, Gcs_packet> Gcs_message_stage_split_v2::reassemble_fragments(
    the payload size before the stage was applied.
    */
   unsigned long long whole_payload_length =
-      some_fragment.get_current_dynamic_header().get_payload_length();
+      last_delivered_fragment.get_current_dynamic_header().get_payload_length();
   bool packet_ok;
   Gcs_packet whole_packet;
+  /* We base the reassembled packet on the last delivered fragment because the
+     last delivered packet has the up to date synod. */
   std::tie(packet_ok, whole_packet) = Gcs_packet::make_from_existing_packet(
-      some_fragment, whole_payload_length);
+      last_delivered_fragment, whole_payload_length);
   if (!packet_ok) goto end;
 
   // clang-format off

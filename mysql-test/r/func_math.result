@@ -288,6 +288,8 @@ f2 smallint(5) unsigned not null,
 f3 int(10) unsigned not null default '0')
 default charset=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('zombie',0,0),('gold',1,10000),('silver',2,10000);
 create table t2
@@ -296,6 +298,9 @@ f2 int(10) unsigned not null,
 f3 smallint(5) unsigned not null)
 default charset=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (16777216,16787215,1),(33554432,33564431,2);
 select format(t2.f2-t2.f1+1,0) from t1,t2
@@ -1135,6 +1140,9 @@ c5 BIGINT,
 c6 DECIMAL(7,5),
 c7 FLOAT(7,5),
 c8 DOUBLE(7,5));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (B'10101', 127, 8388607, 2147483647,
 9223372036854775807, 10.5, 11.5, 12.5);
 SELECT CRC32(c1) FROM t1;
@@ -1404,3 +1412,30 @@ SELECT 1-CAST(POW(2,100) AS SIGNED);
 ERROR 22003: BIGINT value is out of range in 'pow(2,100)'
 SELECT 1-CAST(POW(2,1000) AS SIGNED);
 ERROR 22003: BIGINT value is out of range in 'pow(2,1000)'
+#
+# Bug#29581610 UBSAN ERROR IN ITEM_FUNC_MUL::INT_OP()
+#
+do ((3273059463432352943 )* (-9223372036854775808 )) ;
+ERROR 22003: BIGINT value is out of range in '(3273059463432352943 * -(9223372036854775808))'
+do ((-9223372036854775808)* ( 3273059463432352943)) ;
+ERROR 22003: BIGINT value is out of range in '(-(9223372036854775808) * 3273059463432352943)'
+select -9223372036854775808 * 0 as result;
+result
+0
+select 0 * -9223372036854775808 as result;
+result
+0
+select -9223372036854775808 * 1 as result;
+result
+-9223372036854775808
+select 1 * -9223372036854775808 as result;
+result
+-9223372036854775808
+select -9223372036854775808 * -1 as result;
+ERROR 22003: BIGINT value is out of range in '(-(9223372036854775808) * -(1))'
+select -1 * -9223372036854775808 as result;
+ERROR 22003: BIGINT value is out of range in '(-(1) * -(9223372036854775808))'
+select -9223372036854775808 * 2 as result;
+ERROR 22003: BIGINT value is out of range in '(-(9223372036854775808) * 2)'
+select 2 * -9223372036854775808 as result;
+ERROR 22003: BIGINT value is out of range in '(2 * -(9223372036854775808))'

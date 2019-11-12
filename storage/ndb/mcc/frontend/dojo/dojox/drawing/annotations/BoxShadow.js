@@ -1,15 +1,14 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.drawing.annotations.BoxShadow");
-_3.drawing.annotations.BoxShadow=_3.drawing.util.oo.declare(function(_4){
-this.stencil=_4.stencil;
-this.util=_4.stencil.util;
-this.mouse=_4.stencil.mouse;
-this.style=_4.stencil.style;
-var _5={size:6,mult:4,alpha:0.05,place:"BR",color:"#646464"};
-delete _4.stencil;
-this.options=_2.mixin(_5,_4);
-this.options.color=new _2.Color(this.options.color);
+define("dojox/drawing/annotations/BoxShadow",["dojo","dojo/_base/Color","../util/oo"],function(_1,_2,oo){
+return oo.declare(function(_3){
+this.stencil=_3.stencil;
+this.util=_3.stencil.util;
+this.mouse=_3.stencil.mouse;
+this.style=_3.stencil.style;
+var _4={size:6,mult:4,alpha:0.05,place:"BR",color:"#646464"};
+delete _3.stencil;
+this.options=_1.mixin(_4,_3);
+this.options.color=new _2(this.options.color);
 this.options.color.a=this.options.alpha;
 switch(this.stencil.shortType){
 case "image":
@@ -41,8 +40,8 @@ this.container.removeShape();
 }
 this.container=this.stencil.container.createGroup();
 this.container.moveToBack();
-var o=this.options,_6=o.size,_7=o.mult,d=this.method=="createForPath"?this.stencil.points:this.stencil.data,r=d.r||1,p=o.place,c=o.color;
-this[this.method](o,_6,_7,d,r,p,c);
+var o=this.options,_5=o.size,_6=o.mult,d=this.method=="createForPath"?this.stencil.points:this.stencil.data,r=d.r||1,p=o.place,c=o.color;
+this[this.method](o,_5,_6,d,r,p,c);
 },hide:function(){
 if(this.showing){
 this.showing=false;
@@ -53,39 +52,39 @@ if(!this.showing){
 this.showing=true;
 this.stencil.container.add(this.container);
 }
-},createForPath:function(o,_8,_9,_a,r,p,c){
-var sh=_8*_9/4,_b=/B/.test(p)?sh:/T/.test(p)?sh*-1:0,_c=/R/.test(p)?sh:/L/.test(p)?sh*-1:0;
-var _d=true;
-for(var i=1;i<=_8;i++){
-var _e=i*_9;
-if(_3.gfx.renderer=="svg"){
-var _f=[];
-_2.forEach(_a,function(o,i){
+},createForPath:function(o,_7,_8,_9,r,p,c){
+var sh=_7*_8/4,_a=/B/.test(p)?sh:/T/.test(p)?sh*-1:0,_b=/R/.test(p)?sh:/L/.test(p)?sh*-1:0;
+var _c=true;
+for(var i=1;i<=_7;i++){
+var _d=i*_8;
+if(dojox.gfx.renderer=="svg"){
+var _e=[];
+_1.forEach(_9,function(o,i){
 if(i==0){
-_f.push("M "+(o.x+_c)+" "+(o.y+_b));
+_e.push("M "+(o.x+_b)+" "+(o.y+_a));
 }else{
-var cmd=o.t||"L ";
-_f.push(cmd+(o.x+_c)+" "+(o.y+_b));
+var _f=o.t||"L ";
+_e.push(_f+(o.x+_b)+" "+(o.y+_a));
 }
 },this);
-if(_d){
-_f.push("Z");
+if(_c){
+_e.push("Z");
 }
-this.container.createPath(_f.join(", ")).setStroke({width:_e,color:c,cap:"round"});
+this.container.createPath(_e.join(", ")).setStroke({width:_d,color:c,cap:"round"});
 }else{
-var pth=this.container.createPath({}).setStroke({width:_e,color:c,cap:"round"});
-_2.forEach(this.points,function(o,i){
+var pth=this.container.createPath({}).setStroke({width:_d,color:c,cap:"round"});
+_1.forEach(this.points,function(o,i){
 if(i==0||o.t=="M"){
-pth.moveTo(o.x+_c,o.y+_b);
+pth.moveTo(o.x+_b,o.y+_a);
 }else{
 if(o.t=="Z"){
-_d&&pth.closePath();
+_c&&pth.closePath();
 }else{
-pth.lineTo(o.x+_c,o.y+_b);
+pth.lineTo(o.x+_b,o.y+_a);
 }
 }
 },this);
-_d&&pth.closePath();
+_c&&pth.closePath();
 }
 }
 },createForLine:function(o,_10,_11,d,r,p,c){
@@ -134,9 +133,9 @@ pts=this.arrowPoints();
 if(!pts){
 return;
 }
-if(_3.gfx.renderer=="svg"){
+if(dojox.gfx.renderer=="svg"){
 var _20=[];
-_2.forEach(pts,function(o,i){
+_1.forEach(pts,function(o,i){
 if(i==0){
 _20.push("M "+(o.x+shx)+" "+(o.y+shy));
 }else{
@@ -150,7 +149,7 @@ _20.push("Z");
 this.container.createPath(_20.join(", ")).setStroke({width:_1f,color:c,cap:"round"}).setFill(c);
 }else{
 var pth=this.container.createPath({}).setStroke({width:_1f,color:c,cap:"round"});
-_2.forEach(pts,function(o,i){
+_1.forEach(pts,function(o,i){
 if(i==0||o.t=="M"){
 pth.moveTo(o.x+shx,o.y+shy);
 }else{

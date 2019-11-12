@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,9 @@
  * Note that actual value = MAX_NODES - 1,
  *  since NodeId = 0 can not be used
  */
-#define MAX_NDB_NODES 49
-#define MAX_NDB_NODE_GROUPS 48
+#define MAX_NDB_NODES 145
+#define MAX_NDB_NODES_v1 49
+#define MAX_NDB_NODE_GROUPS 72
 #define MAX_NODES     256
 #define NDB_UNDEF_NODEGROUP 0xFFFF
 #define MAX_BACKUPS   0xFFFFFFFF
@@ -43,7 +44,7 @@
  * IT SHOULD BE (MAX_NDB_NODES - 1).
  * WHEN MAX_NDB_NODE IS CHANGED, IT SHOULD BE CHANGED ALSO
  **************************************************************************/
-#define MAX_DATA_NODE_ID 48
+#define MAX_DATA_NODE_ID 144
 /**************************************************************************
  * IT SHOULD BE (MAX_NODES - 1).
  * WHEN MAX_NODES IS CHANGED, IT SHOULD BE CHANGED ALSO
@@ -86,21 +87,7 @@
 #define MAX_ATTR_DEFAULT_VALUE_SIZE ((MAX_TUPLE_SIZE_IN_WORDS + 1) * 4)  //Add 1 word for AttributeHeader
 #define MAX_ATTRIBUTES_IN_TABLE 512
 #define MAX_ATTRIBUTES_IN_INDEX 32
-#define MAX_TUPLE_SIZE_IN_WORDS 3500
-
-/**
- * When sending a SUB_TABLE_DATA from SUMA to API
- *
- */
-#define MAX_SUMA_MESSAGE_IN_WORDS 8028
-
-/**
- * When sending a SUB_TABLE_DATA
- *  this is is the maximum size that it can become
- */
-#define CHECK_SUMA_MESSAGE_SIZE(NO_KEYS,KEY_SIZE_IN_WORDS,NO_COLUMNS,TUPLE_SIZE_IN_WORDS) \
-  ((NO_KEYS + KEY_SIZE_IN_WORDS + 2 * (NO_COLUMNS + TUPLE_SIZE_IN_WORDS)) <= MAX_SUMA_MESSAGE_IN_WORDS)
-
+#define MAX_TUPLE_SIZE_IN_WORDS 7500
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_NULL_BITS 4096
 
@@ -145,8 +132,10 @@
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define MAX_NDB_PARTITIONS 240
-#else
+#elif NDB_VERSION_D < NDB_MAKE_VERSION(7,6,8)
 #define MAX_NDB_PARTITIONS 2048
+#else
+#define MAX_NDB_PARTITIONS 8160
 #endif
 
 #define NDB_PARTITION_BITS 16
@@ -271,6 +260,7 @@
  */
 
 #define NDB_MAX_HASHMAP_BUCKETS (3840 * 2 * 3)
+#define NDB_DEFAULT_HASHMAP_MAX_FRAGMENTS 1536
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
@@ -289,6 +279,8 @@
 #define NDBMT_MAX_WORKER_INSTANCES (NDBMT_MAX_BLOCK_INSTANCES - 1)
 
 #define NDB_DEFAULT_LOG_PARTS 4
+
+#define NDBMT_MAIN_THREADS         2 /* Without receiver threads */
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_MAX_LOG_PARTS          4
@@ -314,7 +306,7 @@
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_FS_RW_PAGES 32
 #else
-#define NDB_FS_RW_PAGES 268
+#define NDB_FS_RW_PAGES 268 * 4
 #endif
 
 /**
@@ -363,6 +355,12 @@
  */
 #define MAX_NORMAL_ROW_SIZE 2048
 
+/**
+ * Maximum size that an EVENT_REP signal can carry in its
+ * long signal section.
+ */
+#define MAX_EVENT_REP_SIZE_WORDS 1024
+
 #define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
 // Max. number of pending undo records allowed per LDM
 #define MAX_PENDING_UNDO_RECORDS 100
@@ -404,7 +402,7 @@ static inline void ndb_limits_constraints()
   NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= MAX_NDB_PARTITIONS);
 
   // The default hashmap should atleast support the maximum default partitioning
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_DEFAULT_HASHMAP_BUCKETS);
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_MAX_HASHMAP_BUCKETS);
 }
 
 #endif

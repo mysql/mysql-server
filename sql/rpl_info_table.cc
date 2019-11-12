@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,9 +56,10 @@
 Rpl_info_table::Rpl_info_table(uint nparam, const char *param_schema,
                                const char *param_table,
                                const uint param_n_pk_fields,
-                               const uint *param_pk_field_indexes)
-    : Rpl_info_handler(nparam), is_transactional(false) {
-  str_schema.str = str_table.str = NULL;
+                               const uint *param_pk_field_indexes,
+                               MY_BITMAP const *nullable_bitmap)
+    : Rpl_info_handler(nparam, nullable_bitmap), is_transactional(false) {
+  str_schema.str = str_table.str = nullptr;
   str_schema.length = str_table.length = 0;
 
   size_t schema_length = strlen(param_schema);
@@ -108,11 +109,11 @@ int Rpl_info_table::do_init_info(uint instance) {
 int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
   int error = 1;
   enum enum_return_id res = FOUND_ID;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rlp_info_table::do_init_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
 
@@ -123,8 +124,9 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(),
-                         TL_WRITE, &table, &backup))
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_WRITE,
+                         &table, &backup))
     goto end;
 
   if (verify_table_primary_key_fields(table)) goto end;
@@ -160,24 +162,23 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error = access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Rpl_info_table::do_flush_info(const bool force) {
   int error = 1;
   enum enum_return_id res = FOUND_ID;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rpl_info_table::do_flush_info");
+  DBUG_TRACE;
 
-  if (!(force || (sync_period && ++(sync_counter) >= sync_period)))
-    DBUG_RETURN(0);
+  if (!(force || (sync_period && ++(sync_counter) >= sync_period))) return 0;
 
   THD *thd = access->create_thd();
 
@@ -190,8 +191,9 @@ int Rpl_info_table::do_flush_info(const bool force) {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(),
-                         TL_WRITE, &table, &backup))
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_WRITE,
+                         &table, &backup))
     goto end;
 
   /*
@@ -260,12 +262,12 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error = access->close_table(thd, table, &backup, error) || error;
   thd->is_operating_substatement_implicitly = false;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Rpl_info_table::do_remove_info() { return do_clean_info(); }
@@ -273,11 +275,11 @@ int Rpl_info_table::do_remove_info() { return do_clean_info(); }
 int Rpl_info_table::do_clean_info() {
   int error = 1;
   enum enum_return_id res = FOUND_ID;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rpl_info_table::do_remove_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
 
@@ -288,8 +290,9 @@ int Rpl_info_table::do_clean_info() {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(),
-                         TL_WRITE, &table, &backup))
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_WRITE,
+                         &table, &backup))
     goto end;
 
   /*
@@ -310,11 +313,11 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error = access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -324,25 +327,28 @@ end:
    @param param_schema       schema name
    @param param_table        table name
    @param channel_name       channel name
+   @param nullable_bitmap    fields allowed to be null.
 
    @return 0   on success
            1   when a failure happens
 */
 int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
                                   const char *param_table,
-                                  const char *channel_name) {
+                                  const char *channel_name,
+                                  MY_BITMAP const *nullable_bitmap) {
   int error = 0;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
-  Rpl_info_table *info = NULL;
-  THD *thd = NULL;
+  Rpl_info_table *info = nullptr;
+  THD *thd = nullptr;
   int handler_error = 0;
 
-  DBUG_ENTER("Rpl_info_table::do_reset_info");
+  DBUG_TRACE;
 
-  if (!(info = new Rpl_info_table(nparam, param_schema, param_table)))
-    DBUG_RETURN(1);
+  if (!(info = new Rpl_info_table(nparam, param_schema, param_table, 0, nullptr,
+                                  nullable_bitmap)))
+    return 1;
 
   thd = info->access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -352,7 +358,8 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (info->access->open_table(thd, info->str_schema, info->str_table,
+  if (info->access->open_table(thd, to_lex_cstring(info->str_schema),
+                               to_lex_cstring(info->str_table),
                                info->get_number_info(), TL_WRITE, &table,
                                &backup)) {
     error = 1;
@@ -404,21 +411,21 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  info->access->close_table(thd, table, &backup, error);
+  error = info->access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   info->access->drop_thd(thd);
   delete info;
-  DBUG_RETURN(error);
+  return error;
 }
 
 enum_return_check Rpl_info_table::do_check_info() {
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check = ERROR_CHECKING_REPOSITORY;
 
-  DBUG_ENTER("Rpl_info_table::do_check_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -426,7 +433,8 @@ enum_return_check Rpl_info_table::do_check_info() {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(), TL_READ,
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_READ,
                          &table, &backup)) {
     LogErr(WARNING_LEVEL, ER_RPL_CANT_OPEN_INFO_TABLE, str_schema.str,
            str_table.str);
@@ -458,16 +466,16 @@ end:
                       return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode = saved_mode;
   access->drop_thd(thd);
-  DBUG_RETURN(return_check);
+  return return_check;
 }
 
 enum_return_check Rpl_info_table::do_check_info(uint instance) {
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check = ERROR_CHECKING_REPOSITORY;
 
-  DBUG_ENTER("Rpl_info_table::do_check_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -475,7 +483,8 @@ enum_return_check Rpl_info_table::do_check_info(uint instance) {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(), TL_READ,
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_READ,
                          &table, &backup)) {
     LogErr(WARNING_LEVEL, ER_RPL_CANT_OPEN_INFO_TABLE, str_schema.str,
            str_table.str);
@@ -512,22 +521,25 @@ end:
                       return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode = saved_mode;
   access->drop_thd(thd);
-  DBUG_RETURN(return_check);
+  return return_check;
 }
 
 bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
-                                   const char *param_table, uint *counter) {
+                                   const char *param_table,
+                                   MY_BITMAP const *nullable_bitmap,
+                                   uint *counter) {
   int error = 1;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
-  Rpl_info_table *info = NULL;
-  THD *thd = NULL;
+  Rpl_info_table *info = nullptr;
+  THD *thd = nullptr;
 
-  DBUG_ENTER("Rpl_info_table::do_count_info");
+  DBUG_TRACE;
 
-  if (!(info = new Rpl_info_table(nparam, param_schema, param_table)))
-    DBUG_RETURN(true);
+  if (!(info = new Rpl_info_table(nparam, param_schema, param_table, 0, nullptr,
+                                  nullable_bitmap)))
+    return true;
 
   thd = info->access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -535,7 +547,8 @@ bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (info->access->open_table(thd, info->str_schema, info->str_table,
+  if (info->access->open_table(thd, to_lex_cstring(info->str_schema),
+                               to_lex_cstring(info->str_table),
                                info->get_number_info(), TL_READ, &table,
                                &backup)) {
     /*
@@ -560,11 +573,11 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  info->access->close_table(thd, table, &backup, error);
+  error = info->access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   info->access->drop_thd(thd);
   delete info;
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Rpl_info_table::do_end_info() {}
@@ -574,6 +587,7 @@ int Rpl_info_table::do_prepare_info_for_read() {
 
   cursor = 0;
   prv_error = false;
+  prv_get_error = Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 
   return false;
 }
@@ -585,28 +599,44 @@ int Rpl_info_table::do_prepare_info_for_write() {
 uint Rpl_info_table::do_get_rpl_info_type() { return INFO_REPOSITORY_TABLE; }
 
 bool Rpl_info_table::do_set_info(const int pos, const char *value) {
-  return (field_values->value[pos].copy(value, strlen(value), &my_charset_bin));
+  if (value == nullptr)
+    return do_set_info(pos, nullptr);
+  else {
+    bitmap_clear_bit(&field_values->is_null, pos);
+    return (
+        field_values->value[pos].copy(value, strlen(value), &my_charset_bin));
+  }
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const uchar *value,
                                  const size_t size) {
-  return (field_values->value[pos].copy((char *)value, size, &my_charset_bin));
+  if (value == nullptr)
+    return do_set_info(pos, nullptr, 0);
+  else {
+    bitmap_clear_bit(&field_values->is_null, pos);
+    return (field_values->value[pos].copy(pointer_cast<const char *>(value),
+                                          size, &my_charset_bin));
+  }
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const ulong value) {
+  bitmap_clear_bit(&field_values->is_null, pos);
   return (field_values->value[pos].set_int(value, true, &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const int value) {
+  bitmap_clear_bit(&field_values->is_null, pos);
   return (field_values->value[pos].set_int(value, false, &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const float value) {
-  return (
-      field_values->value[pos].set_real(value, NOT_FIXED_DEC, &my_charset_bin));
+  bitmap_clear_bit(&field_values->is_null, pos);
+  return (field_values->value[pos].set_real(value, DECIMAL_NOT_SPECIFIED,
+                                            &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value) {
+  bitmap_clear_bit(&field_values->is_null, pos);
   if (const_cast<Server_ids *>(value)->pack_dynamic_ids(
           &field_values->value[pos]))
     return true;
@@ -614,75 +644,107 @@ bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value) {
   return false;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t,
-                                 const char *default_value) {
-  if (field_values->value[pos].length())
-    strmake(value, field_values->value[pos].c_ptr_safe(),
-            field_values->value[pos].length());
-  else if (default_value)
-    strmake(value, default_value, strlen(default_value));
-  else
-    *value = '\0';
-
+bool Rpl_info_table::do_set_info(const int pos, const std::nullptr_t) {
+  if (!this->is_field_nullable(pos)) return true;
+  bitmap_set_bit(&field_values->is_null, pos);
   return false;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, uchar *value, const size_t size,
-                                 const uchar *default_value
-                                     MY_ATTRIBUTE((unused))) {
-  if (field_values->value[pos].length() == size)
-    return (
-        !memcpy((char *)value, field_values->value[pos].c_ptr_safe(), size));
-  return true;
+bool Rpl_info_table::do_set_info(const int pos, const std::nullptr_t,
+                                 const size_t) {
+  if (!this->is_field_nullable(pos)) return true;
+  bitmap_set_bit(&field_values->is_null, pos);
+  return false;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, ulong *value,
-                                 const ulong default_value) {
-  if (field_values->value[pos].length()) {
-    *value = strtoul(field_values->value[pos].c_ptr_safe(), 0, 10);
-    return false;
-  } else if (default_value) {
-    *value = default_value;
-    return false;
+Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
+    const int pos, char *value, const size_t, const char *default_value) {
+  if (bitmap_is_set(&field_values->is_null, pos)) {
+    return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
+  } else {
+    if (field_values->value[pos].length())
+      strmake(value, field_values->value[pos].c_ptr_safe(),
+              field_values->value[pos].length());
+    else if (default_value)
+      strmake(value, default_value, strlen(default_value));
+    else
+      *value = '\0';
+    return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
   }
-
-  return true;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, int *value,
-                                 const int default_value) {
-  if (field_values->value[pos].length()) {
-    *value = atoi(field_values->value[pos].c_ptr_safe());
-    return false;
-  } else if (default_value) {
-    *value = default_value;
-    return false;
+Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
+    const int pos, uchar *value, const size_t size,
+    const uchar *default_value MY_ATTRIBUTE((unused))) {
+  if (bitmap_is_set(&field_values->is_null, pos)) {
+    return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
+  } else {
+    if (field_values->value[pos].length() == size)
+      return Rpl_info_handler::enum_field_get_status(
+          !memcpy((char *)value, field_values->value[pos].c_ptr_safe(), size));
+    return Rpl_info_handler::enum_field_get_status::FAILURE;
   }
-
-  return true;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, float *value,
-                                 const float default_value) {
-  if (field_values->value[pos].length()) {
-    if (sscanf(field_values->value[pos].c_ptr_safe(), "%f", value) != 1)
-      return true;
-    return false;
-  } else if (default_value != 0.0) {
-    *value = default_value;
-    return false;
+Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
+    const int pos, ulong *value, const ulong default_value) {
+  if (bitmap_is_set(&field_values->is_null, pos)) {
+    return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
+  } else {
+    if (field_values->value[pos].length()) {
+      *value = strtoul(field_values->value[pos].c_ptr_safe(), 0, 10);
+      return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
+    } else if (default_value) {
+      *value = default_value;
+      return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
+    }
+
+    return Rpl_info_handler::enum_field_get_status::FAILURE;
   }
-
-  return true;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
-                                 const Server_ids *default_value
-                                     MY_ATTRIBUTE((unused))) {
+Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
+    const int pos, int *value, const int default_value) {
+  if (bitmap_is_set(&field_values->is_null, pos)) {
+    return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
+  } else {
+    if (field_values->value[pos].length()) {
+      *value = atoi(field_values->value[pos].c_ptr_safe());
+      return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
+    } else if (default_value) {
+      *value = default_value;
+      return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
+    }
+
+    return Rpl_info_handler::enum_field_get_status::FAILURE;
+  }
+}
+
+Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
+    const int pos, float *value, const float default_value) {
+  if (bitmap_is_set(&field_values->is_null, pos)) {
+    return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
+  } else {
+    if (field_values->value[pos].length()) {
+      if (sscanf(field_values->value[pos].c_ptr_safe(), "%f", value) != 1)
+        return Rpl_info_handler::enum_field_get_status::FAILURE;
+      return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
+    } else if (default_value != 0.0) {
+      *value = default_value;
+      return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
+    }
+
+    return Rpl_info_handler::enum_field_get_status::FAILURE;
+  }
+}
+
+Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
+    const int pos, Server_ids *value,
+    const Server_ids *default_value MY_ATTRIBUTE((unused))) {
   if (value->unpack_dynamic_ids(field_values->value[pos].c_ptr_safe()))
-    return true;
+    return Rpl_info_handler::enum_field_get_status::FAILURE;
 
-  return false;
+  return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL;
 }
 
 char *Rpl_info_table::do_get_description_info() { return description; }
@@ -692,12 +754,11 @@ bool Rpl_info_table::do_is_transactional() { return is_transactional; }
 bool Rpl_info_table::do_update_is_transactional() {
   bool error = true;
   sql_mode_t saved_mode;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rpl_info_table::do_update_is_transactional");
-  DBUG_EXECUTE_IF("simulate_update_is_transactional_error",
-                  { DBUG_RETURN(true); });
+  DBUG_TRACE;
+  DBUG_EXECUTE_IF("simulate_update_is_transactional_error", { return true; });
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -707,7 +768,8 @@ bool Rpl_info_table::do_update_is_transactional() {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(), TL_READ,
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_READ,
                          &table, &backup))
     goto end;
 
@@ -715,15 +777,15 @@ bool Rpl_info_table::do_update_is_transactional() {
   error = false;
 
 end:
-  access->close_table(thd, table, &backup, 0);
+  error = access->close_table(thd, table, &backup, 0) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Rpl_info_table::verify_table_primary_key_fields(TABLE *table) {
-  DBUG_ENTER("Rpl_info_table::verify_table_primary_key_fields");
+  DBUG_TRACE;
   KEY *key_info = table->key_info;
   bool error;
 
@@ -758,5 +820,5 @@ bool Rpl_info_table::verify_table_primary_key_fields(TABLE *table) {
     }
   }
 
-  DBUG_RETURN(error);
+  return error;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,17 +345,25 @@ NdbColumnImpl::~NdbColumnImpl()
 }
 
 bool
-NdbColumnImpl::equal(const NdbColumnImpl& col) const 
+NdbColumnImpl::equal_skip(const NdbColumnImpl& col, column_change_flags& change_flags) const
 {
-  DBUG_ENTER("NdbColumnImpl::equal");
-  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
+  DBUG_ENTER("equal_skip");
+  DBUG_PRINT("info", ("supported change flags %llu", change_flags));
   /* New member comparisons added here should also be
    * handled in the BackupRestore::column_compatible_check()
    * member of tools/restore/consumer_restore.cpp
    */
   if(strcmp(m_name.c_str(), col.m_name.c_str()) != 0){
-    DBUG_RETURN(false);
+    if (! check_change_flag(change_flags, COLUMN_NAME))
+    {
+      DBUG_RETURN(false);
+    }
   }
+  else
+  {
+    remove_change_flag(change_flags, COLUMN_NAME);
+  }
+
   if(m_type != col.m_type){
     DBUG_RETURN(false);
   }
@@ -397,6 +405,33 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   }
 
   DBUG_RETURN(true);
+}
+
+bool
+NdbColumnImpl::equal(const NdbColumnImpl& col) const
+{
+  DBUG_ENTER("NdbColumnImpl::equal");
+  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
+
+  column_change_flags change_flags = 0;
+  if (equal_skip(col, change_flags))
+    DBUG_RETURN(true);
+  else
+    DBUG_RETURN(false);
+}
+
+/*
+  Check for any supported changes to a column
+  and add any changes found to the column_change_flags
+ */
+bool
+NdbColumnImpl::alter_supported(const NdbColumnImpl& col,
+                               column_change_flags& change_flags) const
+{
+  DBUG_ENTER("NdbColumnImpl::alter_supported");
+
+  add_change_flag(change_flags, COLUMN_NAME);
+  DBUG_RETURN(equal_skip(col, change_flags));
 }
 
 void
@@ -2915,10 +2950,21 @@ NdbDictInterface::execSignal(void* dictImpl,
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
                                            signal->getDataPtr());
     Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-    assert(len == NodeBitmask::Size); // only full length in ndbapi
-    for (Uint32 i = BitmaskImpl::find_first(len, rep->theAllNodes);
+    const Uint32* nbm;
+    if (signal->m_noOfSections >= 1)
+    {
+      assert (len == 0);
+      nbm = ptr[0].p;
+      len = ptr[0].sz;
+    }
+    else
+    {
+      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      nbm = rep->theAllNodes;
+    }
+    for (Uint32 i = BitmaskImpl::find_first(len, nbm);
          i != BitmaskImpl::NotFound;
-         i = BitmaskImpl::find_next(len, rep->theAllNodes, i + 1))
+         i = BitmaskImpl::find_next(len, nbm, i + 1))
     {
       if (i <= MAX_DATA_NODE_ID)
       {
@@ -3403,7 +3449,8 @@ void NdbTableImpl::IndirectReader(SimpleProperties::Reader & it,
   NdbTableImpl * impl = static_cast<NdbTableImpl *>(dest);
   Uint16 key = it.getKey();
 
-  if(key == DictTabInfo::FrmData) {
+  /* Metadata may be stored as FrmData or MysqlDictMetadata */
+  if(key == DictTabInfo::FrmData || key == DictTabInfo::MysqlDictMetadata) {
     /* Expand the UtilBuffer to the required length, then copy data in */
     impl->m_frm.grow(it.getPaddedLength());
     it.getString(static_cast<char *>(impl->m_frm.append(it.getValueLen())));
@@ -3415,7 +3462,8 @@ bool NdbTableImpl::IndirectWriter(SimpleProperties::Writer & it,
                                   const void * src) {
   const NdbTableImpl * impl = static_cast<const NdbTableImpl *>(src);
 
-  if(key == DictTabInfo::FrmData)
+  /* Always store metadata as MysqlDictMetadata */
+  if(key == DictTabInfo::MysqlDictMetadata)
     return it.add(key, impl->m_frm.get_data(), impl->m_frm.length());
 
   return true;
@@ -4357,7 +4405,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   /*
     Check for new columns.
     We can add one or more new columns at the end, with some restrictions:
-     - All existing columns must be unchanged.
+     - All existing column definitions except name must be unchanged
      - The new column must be dynamic.
      - The new column must be nullable.
      - The new column must be memory based.
@@ -4369,11 +4417,17 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   found_varpart= old_impl.getForceVarPart();
   for(Uint32 i= 0; i<old_sz; i++)
   {
-    const NdbColumnImpl *col= impl.m_columns[i];
-    if(!col->equal(*(old_impl.m_columns[i])))
+    const NdbColumnImpl *col = impl.m_columns[i];
+    NdbColumnImpl::column_change_flags change_flags = 0;
+    if(!col->alter_supported(*(old_impl.m_columns[i]), change_flags))
     {
-      DBUG_PRINT("info", ("Old and new column not equal"));
+      DBUG_PRINT("info", ("Columns are not compatible for alter"));
       goto invalid_alter_table;
+    }
+    if(change_flags != 0)
+    {
+      DBUG_PRINT("info", ("Supported column change found"));
+      AlterTableReq::setModifyAttrFlag(change_mask, true);
     }
     if(col->m_storageType == NDB_STORAGETYPE_MEMORY &&
        (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED))

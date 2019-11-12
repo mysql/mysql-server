@@ -1,8 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"blockquote": "區塊引文"
-})
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/zh-tw/Blockquote",({"blockquote":"區塊引文"}));

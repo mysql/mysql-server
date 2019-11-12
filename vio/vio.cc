@@ -352,12 +352,12 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
                void *ssl MY_ATTRIBUTE((unused)), uint flags) {
   int ret = false;
   Vio new_vio(flags);
-  DBUG_ENTER("vio_reset");
+  DBUG_TRACE;
 
   /* The only supported rebind is from a socket-based transport type. */
   DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
 
-  if (vio_init(&new_vio, type, sd, flags)) DBUG_RETURN(true);
+  if (vio_init(&new_vio, type, sd, flags)) return true;
 
   /* Preserve perfschema info for this connection */
   new_vio.mysql_socket.m_psi = vio->mysql_socket.m_psi;
@@ -406,7 +406,7 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
     *vio = std::move(new_vio);
   }
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 Vio *internal_vio_create(uint flags) {
@@ -421,17 +421,17 @@ Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum_vio_type type,
                           uint flags) {
   Vio *vio;
   my_socket sd = mysql_socket_getfd(mysql_socket);
-  DBUG_ENTER("mysql_socket_vio_new");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("sd: %d", sd));
 
   if ((vio = internal_vio_create(flags))) {
     if (vio_init(vio, type, sd, flags)) {
       internal_vio_delete(vio);
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
     vio->mysql_socket = mysql_socket;
   }
-  DBUG_RETURN(vio);
+  return vio;
 }
 
 /* Open the socket or TCP/IP connection and read the fnctl() status */
@@ -439,35 +439,35 @@ Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum_vio_type type,
 Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags) {
   Vio *vio;
   MYSQL_SOCKET mysql_socket = MYSQL_INVALID_SOCKET;
-  DBUG_ENTER("vio_new");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("sd: %d", sd));
 
   mysql_socket_setfd(&mysql_socket, sd);
   vio = mysql_socket_vio_new(mysql_socket, type, flags);
 
-  DBUG_RETURN(vio);
+  return vio;
 }
 
 #ifdef _WIN32
 
 Vio *vio_new_win32pipe(HANDLE hPipe) {
   Vio *vio;
-  DBUG_ENTER("vio_new_handle");
+  DBUG_TRACE;
   if ((vio = internal_vio_create(VIO_LOCALHOST))) {
     if (vio_init(vio, VIO_TYPE_NAMEDPIPE, 0, VIO_LOCALHOST)) {
       internal_vio_delete(vio);
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
     /* Create an object for event notification. */
     vio->overlapped.hEvent = CreateEvent(NULL, false, false, NULL);
     if (vio->overlapped.hEvent == NULL) {
       internal_vio_delete(vio);
-      DBUG_RETURN(NULL);
+      return NULL;
     }
     vio->hPipe = hPipe;
   }
-  DBUG_RETURN(vio);
+  return vio;
 }
 
 Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
@@ -477,11 +477,11 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
                                 HANDLE event_client_read,
                                 HANDLE event_conn_closed) {
   Vio *vio;
-  DBUG_ENTER("vio_new_win32shared_memory");
+  DBUG_TRACE;
   if ((vio = internal_vio_create(VIO_LOCALHOST))) {
     if (vio_init(vio, VIO_TYPE_SHARED_MEMORY, 0, VIO_LOCALHOST)) {
       internal_vio_delete(vio);
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
     vio->handle_file_map = handle_file_map;
     vio->handle_map = reinterpret_cast<char *>(handle_map);
@@ -493,7 +493,7 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
     vio->shared_memory_remain = 0;
     vio->shared_memory_pos = reinterpret_cast<char *>(handle_map);
   }
-  DBUG_RETURN(vio);
+  return vio;
 }
 #endif
 
@@ -553,9 +553,7 @@ void vio_delete(Vio *vio) { internal_vio_delete(vio); }
 
 */
 void vio_end(void) {
-#if defined(HAVE_WOLFSSL)
-  wolfSSL_Cleanup();
-#elif defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL)
   vio_ssl_end();
 #endif
 }

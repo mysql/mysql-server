@@ -1,5 +1,5 @@
 //>>built
-define("dijit/layout/utils",["dojo/_base/array","dojo/dom-class","dojo/dom-geometry","dojo/dom-style","dojo/_base/lang",".."],function(_1,_2,_3,_4,_5,_6){
+define("dijit/layout/utils",["dojo/_base/array","dojo/dom-class","dojo/dom-geometry","dojo/dom-style","dojo/_base/lang","../main"],function(_1,_2,_3,_4,_5,_6){
 var _7=_5.getObject("layout",true,_6);
 _7.marginBox2contentBox=function(_8,mb){
 var cs=_4.getComputedStyle(_8);

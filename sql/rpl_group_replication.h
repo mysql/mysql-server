@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ bool is_group_replication_plugin_loaded();
 int group_replication_start(char **error_message);
 int group_replication_stop(char **error_message);
 bool is_group_replication_running();
+bool is_group_replication_cloning();
 int set_group_replication_retrieved_certification_info(
     View_change_log_event *view_change_event);
 

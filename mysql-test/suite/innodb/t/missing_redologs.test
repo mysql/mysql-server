@@ -1,0 +1,83 @@
+--source include/have_innodb_max_16k.inc
+--source include/not_asan.inc
+--source include/not_valgrind.inc
+
+--echo #
+--echo # Bug #29820184 REDO LOGS MAY SILENTLY BE IGNORED WHEN ENCRYPTED TABLE
+--echo # CANNOT BE DECRYPTED.
+--echo #
+
+CREATE TABLE t1(
+  a INT NOT NULL PRIMARY KEY,
+  c CHAR(200),
+  b BLOB,
+  INDEX(b(10))) ENGINE=innodb ROW_FORMAT=compressed ENCRYPTION='Y';
+
+CREATE TABLE t2(
+  a INT NOT NULL PRIMARY KEY,
+  c CHAR(200),
+  b BLOB,
+  INDEX(b(10))) ENGINE=innodb ROW_FORMAT=compressed ENCRYPTION='Y';
+
+CREATE TABLE t3(
+  a INT NOT NULL PRIMARY KEY,
+  c CHAR(200),
+  b BLOB,
+  INDEX(b(10))) ENGINE=innodb ENCRYPTION='Y';
+
+CREATE TABLE t4(
+  a INT NOT NULL PRIMARY KEY,
+  c CHAR(200),
+  b BLOB,
+  INDEX(b(10))) ENGINE=innodb ENCRYPTION='Y';
+
+--source include/restart_mysqld.inc
+
+--source include/no_checkpoint_start.inc
+
+--disable_query_log
+--let $i = 20
+BEGIN;
+WHILE ($i)
+{
+  eval INSERT INTO t1(a,c,b) VALUES ($i, REPEAT('secret1',20), REPEAT('secret2',6000));
+  dec $i;
+}
+--enable_query_log
+
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t3 SELECT * FROM t1;
+INSERT INTO t4 SELECT * FROM t1;
+COMMIT;
+
+# If checkpoint happens we will skip this test.
+# If no checkpoint  happens, InnoDB refuses to
+# start as used  encryption key is not found.
+
+SET GLOBAL innodb_flush_log_at_trx_commit=1;
+BEGIN;
+UPDATE t1 SET c = REPEAT('secret3', 20);
+UPDATE t2 SET c = REPEAT('secret4', 20);
+UPDATE t3 set c = REPEAT('secret4', 20);
+UPDATE t4 set c = REPEAT('secret4', 20);
+INSERT INTO t1 (a,c,b) VALUES (21, REPEAT('secret5',20), REPEAT('secret6',6000));
+INSERT INTO t2 (a,c,b) VALUES (21, REPEAT('secret7',20), REPEAT('secret8',6000));
+INSERT into t3 (a,c,b) VALUES (21, REPEAT('secret9',20), REPEAT('secre10',6000));
+INSERT into t4 (a,c,b) VALUES (21, REPEAT('secre11',20), REPEAT('secre12',6000));
+COMMIT;
+
+let $cleanup= drop TABLE t1,t2,t3,t4;
+--let CLEANUP_IF_CHECKPOINT= $cleanup; --skip "Unexpected checkpoint happened";
+--source include/no_checkpoint_end.inc
+
+--echo # Restart mysqld without keyring plugin
+
+--error 1
+--exec $MYSQLD_CMD
+
+--echo # Restart mysqld with keyring plugin
+--let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQLTEST_VARDIR/std_data/keys2.txt
+--source include/start_mysqld_no_echo.inc
+
+drop TABLE t1,t2,t3,t4;
+--remove_file $MYSQLTEST_VARDIR/std_data/keys2.txt

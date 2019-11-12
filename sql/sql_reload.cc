@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,8 +39,8 @@
 #include "sql/current_thd.h"  // my_thread_set_THR_THD
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
-#include "sql/hostname.h"  // hostname_cache_refresh
-#include "sql/log.h"       // query_logger
+#include "sql/hostname_cache.h"  // hostname_cache_refresh
+#include "sql/log.h"             // query_logger
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                 // select_errors
 #include "sql/opt_costconstantcache.h"  // reload_optimizer_cost_constants
@@ -97,7 +97,7 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
     }
 
     if (thd) {
-      bool reload_acl_failed = reload_acl_caches(thd);
+      bool reload_acl_failed = reload_acl_caches(thd, false);
       bool reload_servers_failed = servers_reload(thd);
       notify_flush_event(thd);
       if (reload_acl_failed || reload_servers_failed) {
@@ -507,7 +507,7 @@ bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables) {
   for (TABLE_LIST *table_list = all_tables; table_list;
        table_list = table_list->next_global) {
     handler *handler_file = table_list->table->file;
-    int error = handler_file->extra(HA_EXTRA_EXPORT);
+    int error = handler_file->ha_extra(HA_EXTRA_EXPORT);
     if (error) {
       handler_file->print_error(error, MYF(0));
       return true;

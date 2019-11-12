@@ -1,19 +1,16 @@
-//>>built
 define("dojox/dtl/tag/date", [
 	"dojo/_base/lang",
 	"../_base",
 	"../utils/date"
 ], function(lang,dd,ddud){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.tag.date", true);
 
 	dojox.dtl.tag.date.NowNode = function(format, node){
 		this._format = format;
 		this.format = new ddud.DateFormat(format);
 		this.contents = node;
-	}
+	};
 	lang.extend(dd.tag.date.NowNode, {
 		render: function(context, buffer){
 			this.contents.set(this.format.format(new Date()));

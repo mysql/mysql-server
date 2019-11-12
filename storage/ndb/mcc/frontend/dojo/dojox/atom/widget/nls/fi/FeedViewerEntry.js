@@ -1,8 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	deleteButton: "[Poista]"
-})
-//end v1.x content
-);
+define("dojox/atom/widget/nls/fi/FeedViewerEntry",({deleteButton:"[Poista]"}));

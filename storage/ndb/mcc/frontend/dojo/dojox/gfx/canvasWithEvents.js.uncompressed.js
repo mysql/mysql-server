@@ -1,57 +1,35 @@
-//>>built
 define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/connect", "dojo/_base/Color", "dojo/dom", 
 		"dojo/dom-geometry", "./_base","./canvas", "./shape", "./matrix"], 
-  function(lang, declare, hub, Color, dom, domGeom, g, canvas, shapeLib, m){
-/*===== 
-	dojox.gfx.canvasWithEvents = {
-	// module:
-	//		dojox/gfx/canvasWithEvents
-	// summary:
-	//		This the graphics rendering bridge for W3C Canvas compliant browsers which extends
-	//		the basic canvas drawing renderer bridge to add additional support for graphics events
-	//		on Shapes.
-	//		Since Canvas is an immediate mode graphics api, with no object graph or
-	//		eventing capabilities, use of the canvas module alone will only add in drawing support.
-	//		This additional module, canvasWithEvents extends this module with additional support
-	//		for handling events on Canvas.  By default, the support for events is now included 
-	//		however, if only drawing capabilities are needed, canvas event module can be disabled
-	//		using the dojoConfig option, canvasEvents:true|false.
-	//		The id of the Canvas renderer is 'canvasWithEvents'.  This id can be used when switch Dojo's
-	//		graphics context between renderer implementations.  See dojox.gfx._base switchRenderer
-	//		API.	
+function(lang, declare, hub, Color, dom, domGeom, g, canvas, shapeLib, m){
+	var canvasWithEvents = g.canvasWithEvents = {
+		// summary:
+		//		This the graphics rendering bridge for W3C Canvas compliant browsers which extends
+		//		the basic canvas drawing renderer bridge to add additional support for graphics events
+		//		on Shapes.
+		//		Since Canvas is an immediate mode graphics api, with no object graph or
+		//		eventing capabilities, use of the canvas module alone will only add in drawing support.
+		//		This additional module, canvasWithEvents extends this module with additional support
+		//		for handling events on Canvas.  By default, the support for events is now included
+		//		however, if only drawing capabilities are needed, canvas event module can be disabled
+		//		using the dojoConfig option, canvasEvents:true|false.
+		//		The id of the Canvas renderer is 'canvasWithEvents'.  This id can be used when switch Dojo's
+		//		graphics context between renderer implementations.  See dojox/gfx/_base.switchRenderer
+		//		API.
 	};
-	g = dojox.gfx;
-	canvas.Shape = dojox.gfx.canvas.Shape;
-	canvas.Group = dojox.gfx.canvas.Group;
-	canvas.Image = dojox.gfx.canvas.Image;
-	canvas.Text = dojox.gfx.canvas.Text;
-	canvas.Rect = dojox.gfx.canvas.Rect;
-	canvas.Circle = dojox.gfx.canvas.Circle;
-	canvas.Ellipse = dojox.gfx.canvas.Ellipse;
-	canvas.Line = dojox.gfx.canvas.Line;
-	canvas.PolyLine = dojox.gfx.canvas.PolyLine;
-	canvas.TextPath = dojox.gfx.canvas.TextPath;
-	canvas.Path = dojox.gfx.canvas.Path;
-	canvas.Surface = dojox.gfx.canvas.Surface;
-	canvasEvent.Shape = dojox.gfx.canvasWithEvents.Shape;
-	
-  =====*/
-	var canvasEvent = g.canvasWithEvents = {};
 
-	declare("dojox.gfx.canvasWithEvents.Shape", canvas.Shape, {
+	canvasWithEvents.Shape = declare("dojox.gfx.canvasWithEvents.Shape", canvas.Shape, {
 		
 		_testInputs: function(/* Object */ctx, /* Array */ pos){
-			if (!this.canvasFill && this.strokeStyle) {
+			if(this.clip || (!this.canvasFill && this.strokeStyle)){
 				// pixel-based until a getStrokedPath-like api is available on the path
 				this._hitTestPixel(ctx, pos);
-			} else {
+			}else{
 				this._renderShape(ctx);
 				var cnt = pos.length, t = this.getTransform();
-				for (var i = 0; i < pos.length; ++i) {
+				for(var i = 0; i < pos.length; ++i){
 					var input = pos[i];
 					// already hit
-					if (input.target) 
-						continue;
+					if(input.target) continue;
 					var x = input.x, y = input.y;
 					var p = t ? m.multiplyPoint(m.invert(t), x, y) : {
 						x: x,
@@ -62,10 +40,9 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			}
 		},
 		_hitTestPixel: function(/* Object */ctx, /* Array */ pos){
-			for (var i = 0; i < pos.length; ++i) {
+			for(var i = 0; i < pos.length; ++i){
 				var input = pos[i];
-				if (input.target) 
-					continue;
+				if(input.target) continue;
 				var x = input.x, y = input.y;
 				ctx.clearRect(0,0,1,1);
 				ctx.save();
@@ -77,8 +54,7 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		},
 		_hitTestGeometry: function(ctx, x, y){
 			return ctx.isPointInPath(x, y) ? this : null;
-		},		
-		
+		},				
 		_renderFill: function(/* Object */ ctx, /* Boolean */ apply){
 			// summary:
 			//		render fill for the shape
@@ -87,7 +63,9 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			// apply:
 			//		whether ctx.fill() shall be called
 			if(ctx.pickingMode){
-				if("canvasFill" in this && apply){ ctx.fill(); }
+				if("canvasFill" in this && apply){
+					ctx.fill();
+				}
 				return;
 			}
 			this.inherited(arguments);
@@ -99,15 +77,15 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			//		a canvas context object
 			// apply:
 			//		whether ctx.stroke() shall be called
-			if (this.strokeStyle && ctx.pickingMode) {
+			if(this.strokeStyle && ctx.pickingMode){
 				var c = this.strokeStyle.color;
-				try {
+				try{
 					this.strokeStyle.color = new Color(ctx.strokeStyle);
 					this.inherited(arguments);
-				} finally {
+				}finally{
 					this.strokeStyle.color = c;
 				}
-			} else{
+			}else{
 				this.inherited(arguments);				
 			}
 		},
@@ -115,13 +93,21 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		// events
 		
 		getEventSource: function(){
-			// summary: returns this gfx shape event source, which is the surface rawnode in the case of canvas.
-			
+			// summary:
+			//		returns this gfx shape event source, which is the surface rawnode in the case of canvas.
 			return this.surface.getEventSource();
-		},
-		
+		},		
 		connect: function(name, object, method){
-			// summary: connects a handler to an event on this shape
+			// summary:
+			//		connects a handler to an event on this shape
+			
+			// mouse events *must* start with "on" but touch events *must not* start with on
+			if(name.indexOf("mouse") === 0){
+				name = "on" + name;
+			}else if(name.indexOf("ontouch") === 0){
+				name = name.slice(2);
+			}
+			
 			this.surface._setupEvents(name); // setup events on demand
 			// No need to fix callback. The listeners registered by
 			// '_setupEvents()' are always invoked first and they
@@ -130,10 +116,13 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 					 hub.connect(this, name, object, method) : hub.connect(this, name, object);
 		},
 		disconnect: function(token){
-			// summary: disconnects an event handler
+			// summary:
+			//		disconnects an event handler
 			hub.disconnect(token);
 		},
+		
 		// connect hook
+		
 		oncontextmenu:  function(){},
 		onclick:        function(){},
 		ondblclick:     function(){},
@@ -153,16 +142,16 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		onkeydown:      function(){},
 		onkeyup:        function(){}
 	});
-	
-	declare("dojox.gfx.canvasWithEvents.Group", [canvasEvent.Shape, canvas.Group], {
+
+	canvasWithEvents.Group = declare("dojox.gfx.canvasWithEvents.Group", [canvasWithEvents.Shape, canvas.Group], {
 		_testInputs: function(/*Object*/ctx, /*Array*/ pos){
-			var children = this.children, t = this.getTransform(), i, j;
-			if(children.length == 0){
+			var children = this.children, t = this.getTransform(), i, j, input;
+			if(children.length === 0){
 				return;
 			}
 			var posbk = [];
 			for(i = 0; i < pos.length; ++i){
-				var input = pos[i];
+				input = pos[i];
 				// backup position before transform applied
 				posbk[i] = {
 					x: input.x,
@@ -191,14 +180,33 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 					break;
 				}
 			}
-			for(i = 0; i < pos.length; ++i){
-				pos[i].x = posbk[i].x;
-				pos[i].y = posbk[i].y;
-			}	
+			if(this.clip){
+				// filter positive hittests against the group clipping area
+				for(i = 0; i < pos.length; ++i){
+					input = pos[i];
+					input.x = posbk[i].x;
+					input.y = posbk[i].y;
+					if(input.target){
+						ctx.clearRect(0,0,1,1);
+						ctx.save();
+						ctx.translate(-input.x, -input.y);
+						this._render(ctx, true);
+						if(!ctx.getImageData(0, 0, 1, 1).data[0]){
+							input.target = null;
+						}
+						ctx.restore();
+					}
+				}
+			}else{
+				for(i = 0; i < pos.length; ++i){
+					pos[i].x = posbk[i].x;
+					pos[i].y = posbk[i].y;
+				}	
+			}
 		}	
 	});
-	
-	declare("dojox.gfx.canvasWithEvents.Image", [canvasEvent.Shape, canvas.Image], {
+
+	canvasWithEvents.Image = declare("dojox.gfx.canvasWithEvents.Image", [canvasWithEvents.Shape, canvas.Image], {
 		_renderShape: function(/* Object */ ctx){
 			// summary:
 			//		render image
@@ -210,29 +218,27 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			}else{
 				this.inherited(arguments);
 			}
-		},
-		
+		},		
 		_hitTestGeometry: function(ctx, x, y){
 			// TODO: improve hit testing to take into account transparency
 			var s = this.shape;
 			return x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height ? this : null;
 		}
 	});
-	
-	declare("dojox.gfx.canvasWithEvents.Text", [canvasEvent.Shape, canvas.Text], {
+
+	canvasWithEvents.Text = declare("dojox.gfx.canvasWithEvents.Text", [canvasWithEvents.Shape, canvas.Text], {
 		_testInputs: function(ctx, pos){
 			return this._hitTestPixel(ctx, pos);
 		}
 	});
 
-
-	declare("dojox.gfx.canvasWithEvents.Rect", [canvasEvent.Shape, canvas.Rect], {});
-	declare("dojox.gfx.canvasWithEvents.Circle", [canvasEvent.Shape, canvas.Circle], {});
-	declare("dojox.gfx.canvasWithEvents.Ellipse", [canvasEvent.Shape, canvas.Ellipse],{});
-	declare("dojox.gfx.canvasWithEvents.Line", [canvasEvent.Shape, canvas.Line],{});
-	declare("dojox.gfx.canvasWithEvents.Polyline", [canvasEvent.Shape, canvas.Polyline],{});
-	declare("dojox.gfx.canvasWithEvents.Path", [canvasEvent.Shape, canvas.Path],{});
-	declare("dojox.gfx.canvasWithEvents.TextPath", [canvasEvent.Shape, canvas.TextPath],{});
+	canvasWithEvents.Rect = declare("dojox.gfx.canvasWithEvents.Rect", [canvasWithEvents.Shape, canvas.Rect], {});
+	canvasWithEvents.Circle = declare("dojox.gfx.canvasWithEvents.Circle", [canvasWithEvents.Shape, canvas.Circle], {});
+	canvasWithEvents.Ellipse = declare("dojox.gfx.canvasWithEvents.Ellipse", [canvasWithEvents.Shape, canvas.Ellipse],{});
+	canvasWithEvents.Line = declare("dojox.gfx.canvasWithEvents.Line", [canvasWithEvents.Shape, canvas.Line],{});
+	canvasWithEvents.Polyline = declare("dojox.gfx.canvasWithEvents.Polyline", [canvasWithEvents.Shape, canvas.Polyline],{});
+	canvasWithEvents.Path = declare("dojox.gfx.canvasWithEvents.Path", [canvasWithEvents.Shape, canvas.Path],{});
+	canvasWithEvents.TextPath = declare("dojox.gfx.canvasWithEvents.TextPath", [canvasWithEvents.Shape, canvas.TextPath],{});
 
 	
 	// a map that redirects shape-specific events to the canvas event handler that deals with these events
@@ -255,8 +261,8 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		isiOS = uagent.search('iphone') > -1 || 
 			    uagent.search('ipad') > -1 || 
 				uagent.search('ipod') > -1;
-	
-	declare("dojox.gfx.canvasWithEvents.Surface", canvas.Surface, {
+
+	canvasWithEvents.Surface = declare("dojox.gfx.canvasWithEvents.Surface", canvas.Surface, {
 		constructor:function(){
 			this._pick = { curr: null, last: null };
 			this._pickOfMouseDown = null;
@@ -264,15 +270,16 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		},
 		
 		connect: function(/*String*/name, /*Object*/object, /*Function|String*/method){
-			// summary: connects a handler to an event on this surface
-			// name : String
+			// summary:
+			//		connects a handler to an event on this surface
+			// name: String
 			//		The event name
 			// object: Object
 			//		The object that method will receive as "this".
 			// method: Function
 			//		A function reference, or name of a function in context.
 			 
-			if (name.indexOf('touch') !== -1) {
+			if(name.indexOf('touch') !== -1){
 				// in case of surface.connect('touchXXX'...), we must root the handler to the
 				// specific touch event processing (done in fireTouchEvents) so that the event is properly configured.
 				// So, we activate the shape-level event processing calling _setupEvents,
@@ -280,7 +287,7 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 				this._setupEvents(name);
 				name = "_on" + name + "Impl_";
 				return hub.connect(this, name, object, method);
-			} else {
+			}else{
 				this._initMirrorCanvas();
 				return hub.connect(this.getEventSource(), name, null,
 							shapeLib.fixCallback(this, g.fixTarget, object, method));
@@ -293,7 +300,7 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		_ontouchmoveImpl_:  function(){},
 		
 		_initMirrorCanvas: function(){
-			if (!this.mirrorCanvas) {
+			if(!this.mirrorCanvas){
 				var p = this._parent, mirror = p.ownerDocument.createElement("canvas");
 				mirror.width = 1;
 				mirror.height = 1;
@@ -306,24 +313,26 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		},
 
 		_setupEvents: function(eventName){
-			// summary: 
+			// summary:
 			//		setup event listeners if not yet
 
 			// onmouseenter and onmouseleave shape events are handled in the onmousemove surface handler
-			if (eventName in _eventsRedirectMap)
+			if(eventName in _eventsRedirectMap){
 				eventName = _eventsRedirectMap[eventName];
-			if (this._eventsH && this._eventsH[eventName]) {
+			}
+			if(this._eventsH && this._eventsH[eventName]){
 				// the required listener has already been connected
 				return;
 			}
 			// a mirror canvas for shape picking
 			this._initMirrorCanvas();
-			if (!this._eventsH)
+			if(!this._eventsH){
 				this._eventsH = {};
+			}
 			// register event hooks if not done yet
 			this._eventsH[eventName] = hub.connect(this.getEventSource(), eventName,
 					shapeLib.fixCallback(this, g.fixTarget, this, "_" + eventName));
-			if (eventName === 'onclick' || eventName==='ondblclick') {
+			if(eventName === 'onclick' || eventName==='ondblclick'){
 				if(!this._eventsH['onmousedown']){
 					this._eventsH['onmousedown'] = hub.connect(this.getEventSource(),
 							'onmousedown', shapeLib.fixCallback(this, g.fixTarget, this, "_onmousedown"));
@@ -332,13 +341,13 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 					this._eventsH['onmouseup'] = hub.connect(this.getEventSource(),
 							'onmouseup', shapeLib.fixCallback(this, g.fixTarget, this, "_onmouseup"));
 				}
-			} 			
+			}
 		},
 		
 		destroy: function(){
-			// summary: stops the move, deletes all references, so the object can be garbage-collected
-			canvas.Surface.destroy.apply(this);
-			
+			// summary:
+			//		stops the move, deletes all references, so the object can be garbage-collected
+			this.inherited(arguments);
 			// destroy events and objects
 			for(var i in this._eventsH){
 				hub.disconnect(this._eventsH[i]);
@@ -348,7 +357,8 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		
 		// events
 		getEventSource: function(){
-			// summary: returns the canvas DOM node for surface-level events
+			// summary:
+			//		returns the canvas DOM node for surface-level events
 			return this.rawNode;
 		},
 
@@ -375,33 +385,40 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			}
 			// Propagates event up in the DOM hierarchy only if event
 			// has not been stopped (event.cancelBubble is true)
-			if (!isEventStopped(event) && base.parent) {
+			if(!isEventStopped(event) && base.parent){
 				this._invokeHandler(base.parent, method, event);
 			}
 		},
 		_oncontextmenu: function(e){
-			// summary: triggers onclick
+			// summary:
+			//		triggers onclick
+			
 			// this._pick.curr = an array of target for touch event, one target instance for mouse events
 			if(this._pick.curr){
 				this._invokeHandler(this._pick.curr, 'oncontextmenu', e);
 			}
 		},
 		_ondblclick: function(e){
-			// summary: triggers onclick
+			// summary:
+			//		triggers onclick
+			
 			// this._pick.curr = an array of target for touch event, one target instance for mouse events
 			if(this._pickOfMouseUp){
 				this._invokeHandler(this._pickOfMouseUp, 'ondblclick', e);
 			}
 		},
 		_onclick: function(e){
-			// summary: triggers onclick
+			// summary:
+			//		triggers onclick
+			
 			// this._pick.curr = an array of target for touch event, one target instance for mouse events
 			if(this._pickOfMouseUp && this._pickOfMouseUp == this._pickOfMouseDown){
 				this._invokeHandler(this._pickOfMouseUp, 'onclick', e);
 			}
 		},
 		_onmousedown: function(e){
-			// summary: triggers onmousedown
+			// summary:
+			//		triggers onmousedown
 			this._pickOfMouseDown = this._pick.curr;
 			// this._pick.curr = an array of target for touch event, one target instance for mouse events
 			if(this._pick.curr){
@@ -409,15 +426,18 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			}
 		},
 		_ontouchstart: function(e){
-			// summary: triggers ontouchstart			
-			// this._pick.curr = an array of target for touch event, one target instance for mouse events
-			if (this._pick.curr) {
-				this._fireTouchEvent(e);
-			}
+			// summary:
+			//		triggers ontouchstart
 			
+			// this._pick.curr = an array of target for touch event, one target instance for mouse events
+			if(this._pick.curr) {
+				this._fireTouchEvent(e);
+			}			
 		},
 		_onmouseup: function(e){
-			// summary: triggers onmouseup
+			// summary:
+			//		triggers onmouseup
+			
 			// this._pick.curr = an array of target for touch event, one target instance for mouse events
 			this._pickOfMouseUp = this._pick.curr;
 			if(this._pick.curr){
@@ -425,7 +445,9 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			}
 		},
 		_ontouchend: function(e){
-			// summary: triggers ontouchend
+			// summary:
+			//		triggers ontouchend
+			
 			// this._pick.curr = an array of target for touch event, one target instance for mouse events
 			if(this._pick.curr){
 				for(var i = 0; i < this._pick.curr.length; ++i){
@@ -437,7 +459,9 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			}
 		},
 		_onmousemove: function(e){
-			// summary: triggers onmousemove, onmouseenter, onmouseleave
+			// summary:
+			//		triggers onmousemove, onmouseenter, onmouseleave
+			
 			// this._pick.curr = an array of target for touch event, one target instance for mouse events
 			if(this._pick.last && this._pick.last != this._pick.curr){
 				this._invokeHandler(this._pick.last, 'onmouseleave', e);
@@ -453,7 +477,8 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			}
 		},
 		_ontouchmove: function(e){
-			// summary: triggers ontouchmove
+			// summary:
+			//		triggers ontouchmove
 			if(this._pick.curr){
 				this._fireTouchEvent(e);
 			}
@@ -513,8 +538,10 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		_onkeyup:   function(){},	// needed?
 
 		_whatsUnderEvent: function(evt){
-			// summary:	returns the shape under the mouse event
-			// evt:		mouse event
+			// summary:
+			//		returns the shape under the mouse event
+			// evt:
+			//		mouse event
 			
 			var surface = this, i,
 				pos = domGeom.position(surface.rawNode, true),
@@ -574,11 +601,15 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		}		
 	});
 	
-	canvasEvent.createSurface = function(parentNode, width, height){
-		// summary: creates a surface (Canvas)
-		// parentNode: Node: a parent node
-		// width: String: width of surface, e.g., "100px"
-		// height: String: height of surface, e.g., "100px"
+	canvasWithEvents.createSurface = function(parentNode, width, height){
+		// summary:
+		//		creates a surface (Canvas)
+		// parentNode: Node
+		//		a parent node
+		// width: String
+		//		width of surface, e.g., "100px"
+		// height: String
+		//		height of surface, e.g., "100px"
 
 		if(!width && !height){
 			var pos = domGeom.position(parentNode);
@@ -592,7 +623,7 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 			height = height + "px";
 		}
 
-		var s = new canvasEvent.Surface(),
+		var s = new canvasWithEvents.Surface(),
 			p = dom.byId(parentNode),
 			c = p.ownerDocument.createElement("canvas");
 
@@ -603,41 +634,42 @@ define("dojox/gfx/canvasWithEvents", ["dojo/_base/lang", "dojo/_base/declare", "
 		s.rawNode = c;
 		s._parent = p;
 		s.surface = s;
-		return s;	// dojox.gfx.Surface
+		return s;	// dojox/gfx.Surface
 	};
 
 
 	// Mouse/Touch event
 	var isEventStopped = function(/*Event*/ evt){
 		// summary:
-		//    queries whether an event has been stopped or not
+		//		queries whether an event has been stopped or not
 		// evt: Event
-		//    The event object.
+		//		The event object.
 		if(evt.cancelBubble !== undefined){
 			return evt.cancelBubble;
 		}
 		return false;
 	};
 	
-	canvasEvent.fixTarget = function(event, gfxElement){
-		// summary: 
-		//     Adds the gfxElement to event.gfxTarget if none exists. This new 
-		//     property will carry the GFX element associated with this event.
+	canvasWithEvents.fixTarget = function(event, gfxElement){
+		// summary:
+		//		Adds the gfxElement to event.gfxTarget if none exists. This new
+		//		property will carry the GFX element associated with this event.
 		// event: Object 
-		//     The current input event (MouseEvent or TouchEvent)
+		//		The current input event (MouseEvent or TouchEvent)
 		// gfxElement: Object
-		//     The GFX target element (a Surface in this case)
+		//		The GFX target element (a Surface in this case)
 		if(isEventStopped(event)){
 			return false;
 		}
 		if(!event.gfxTarget){
 			gfxElement._pick.last = gfxElement._pick.curr;
 			gfxElement._pick.curr = gfxElement._whatsUnderEvent(event);
-			if (!lang.isArray(gfxElement._pick.curr))
+			if(!lang.isArray(gfxElement._pick.curr)){
 				event.gfxTarget = gfxElement._pick.curr;
+			}
 		}
 		return true;
 	};
 
-	return canvasEvent;
+	return canvasWithEvents;
 });

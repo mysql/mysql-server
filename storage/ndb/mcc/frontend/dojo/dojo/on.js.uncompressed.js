@@ -1,44 +1,72 @@
-//>>built
 define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./has"], function(aspect, dojo, has){
-	// summary:
-	//		The export of this module is a function that provides core event listening functionality. With this function
-	//		you can provide a target, event type, and listener to be notified of
-	//		future matching events that are fired.
-	// target: Element|Object
-	//		This is the target object or DOM element that to receive events from
-	// type: String|Function
-	// 		This is the name of the event to listen for or an extension event type.
-	// listener: Function
-	// 		This is the function that should be called when the event fires.
-	// returns: Object
-	// 		An object with a remove() method that can be used to stop listening for this
-	// 		event.
-	// description:
-	// 		To listen for "click" events on a button node, we can do:
-	// 		|	define(["dojo/on"], function(listen){
-	// 		|		on(button, "click", clickHandler);
-	//		|		...
-	//  	Evented JavaScript objects can also have their own events.
-	// 		|	var obj = new Evented;
-	//		|	on(obj, "foo", fooHandler);
-	//		And then we could publish a "foo" event:
-	//		|	on.emit(obj, "foo", {key: "value"});
-	//		We can use extension events as well. For example, you could listen for a tap gesture:
-	// 		|	define(["dojo/on", "dojo/gesture/tap", function(listen, tap){
-	// 		|		on(button, tap, tapHandler);
-	//		|		...
-	//		which would trigger fooHandler. Note that for a simple object this is equivalent to calling:
-	//		|	obj.onfoo({key:"value"});
-	//		If you use on.emit on a DOM node, it will use native event dispatching when possible.
 
- 	"use strict";
-	if(1){ // check to make sure we are in a browser, this module should work anywhere
+	"use strict";
+	if( 1 ){ // check to make sure we are in a browser, this module should work anywhere
 		var major = window.ScriptEngineMajorVersion;
 		has.add("jscript", major && (major() + ScriptEngineMinorVersion() / 10));
 		has.add("event-orientationchange", has("touch") && !has("android")); // TODO: how do we detect this?
+		has.add("event-stopimmediatepropagation", window.Event && !!window.Event.prototype && !!window.Event.prototype.stopImmediatePropagation);
+		has.add("event-focusin", function(global, doc, element){
+			return 'onfocusin' in element;
+		});
+		
+		if(has("touch")){
+			has.add("touch-can-modify-event-delegate", function(){
+				// This feature test checks whether deleting a property of an event delegate works
+				// for a touch-enabled device. If it works, event delegation can be used as fallback
+				// for browsers such as Safari in older iOS where deleting properties of the original
+				// event does not work.
+				var EventDelegate = function(){};
+				EventDelegate.prototype =
+					document.createEvent("MouseEvents"); // original event
+				// Attempt to modify a property of an event delegate and check if
+				// it succeeds. Depending on browsers and on whether dojo/on's
+				// strict mode is stripped in a Dojo build, there are 3 known behaviors:
+				// it may either succeed, or raise an error, or fail to set the property
+				// without raising an error.
+				try{
+					var eventDelegate = new EventDelegate;
+					eventDelegate.target = null;
+					return eventDelegate.target === null;
+				}catch(e){
+					return false; // cannot use event delegation
+				}
+			});
+		}
 	}
 	var on = function(target, type, listener, dontFix){
-		if(target.on){ 
+		// summary:
+		//		A function that provides core event listening functionality. With this function
+		//		you can provide a target, event type, and listener to be notified of
+		//		future matching events that are fired.
+		// target: Element|Object
+		//		This is the target object or DOM element that to receive events from
+		// type: String|Function
+		//		This is the name of the event to listen for or an extension event type.
+		// listener: Function
+		//		This is the function that should be called when the event fires.
+		// returns: Object
+		//		An object with a remove() method that can be used to stop listening for this
+		//		event.
+		// description:
+		//		To listen for "click" events on a button node, we can do:
+		//		|	define(["dojo/on"], function(on){
+		//		|		on(button, "click", clickHandler);
+		//		|		...
+		//		Evented JavaScript objects can also have their own events.
+		//		|	var obj = new Evented;
+		//		|	on(obj, "foo", fooHandler);
+		//		And then we could publish a "foo" event:
+		//		|	on.emit(obj, "foo", {key: "value"});
+		//		We can use extension events as well. For example, you could listen for a tap gesture:
+		//		|	define(["dojo/on", "dojo/gesture/tap", function(on, tap){
+		//		|		on(button, tap, tapHandler);
+		//		|		...
+		//		which would trigger fooHandler. Note that for a simple object this is equivalent to calling:
+		//		|	obj.onfoo({key:"value"});
+		//		If you use on.emit on a DOM node, it will use native event dispatching when possible.
+
+		if(typeof target.on == "function" && typeof type != "function" && !target.nodeType){
 			// delegate to the target's on() method, so it can handle it's own listening if it wants
 			return target.on(type, listener);
 		}
@@ -48,7 +76,7 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 	on.pausable =  function(target, type, listener, dontFix){
 		// summary:
 		//		This function acts the same as on(), but with pausable functionality. The
-		// 		returned signal object has pause() and resume() functions. Calling the
+		//		returned signal object has pause() and resume() functions. Calling the
 		//		pause() method will cause the listener to not be called for future events. Calling the
 		//		resume() method will cause the listener to again be called for future events.
 		var paused;
@@ -68,7 +96,7 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 	on.once = function(target, type, listener, dontFix){
 		// summary:
 		//		This function acts the same as on(), but will only call the listener once. The 
-		// 		listener will be called for the first
+		//		listener will be called for the first
 		//		event that takes place and then listener will automatically be removed.
 		var signal = on(target, type, function(){
 			// remove this listener
@@ -81,7 +109,7 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 	on.parse = function(target, type, listener, addListener, dontFix, matchesTarget){
 		if(type.call){
 			// event handler function
-			// on(node, dojo.touch.press, touchListener);
+			// on(node, touch.press, touchListener);
 			return type.call(matchesTarget, target, listener);
 		}
 
@@ -101,10 +129,10 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 			};
 			return handles;
 		}
-		return addListener(target, type, listener, dontFix, matchesTarget)
+		return addListener(target, type, listener, dontFix, matchesTarget);
 	};
 	var touchEvents = /^touch/;
-	function addListener(target, type, listener, dontFix, matchesTarget){		
+	function addListener(target, type, listener, dontFix, matchesTarget){
 		// event delegation:
 		var selector = type.match(/(.*):(.*)/);
 		// if we have a selector:event, the last one is interpreted as an event, and we use event delegation
@@ -128,16 +156,21 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 				listener = fixTouchListener(listener);
 			} 
 		}
+		if(addStopImmediate){
+			// add stopImmediatePropagation if it doesn't exist
+			listener = addStopImmediate(listener);
+		}
 		// normal path, the target is |this|
 		if(target.addEventListener){
 			// the target has addEventListener, which should be used if available (might or might not be a node, non-nodes can implement this method as well)
 			// check for capture conversions
-			var capture = type in captures;
-			target.addEventListener(capture ? captures[type] : type, listener, capture);
+			var capture = type in captures,
+				adjustedType = capture ? captures[type] : type;
+			target.addEventListener(adjustedType, listener, capture);
 			// create and return the signal
 			return {
 				remove: function(){
-					target.removeEventListener(type, listener, capture);
+					target.removeEventListener(adjustedType, listener, capture);
 				}
 			};
 		}
@@ -145,45 +178,53 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 		if(fixAttach && target.attachEvent){
 			return fixAttach(target, type, listener);
 		}
-	 	throw new Error("Target must be an event emitter");
+		throw new Error("Target must be an event emitter");
 	}
 
 	on.selector = function(selector, eventType, children){
 		// summary:
 		//		Creates a new extension event with event delegation. This is based on
-		// 		the provided event type (can be extension event) that
-		// 		only calls the listener when the CSS selector matches the target of the event.
-		//	selector:
+		//		the provided event type (can be extension event) that
+		//		only calls the listener when the CSS selector matches the target of the event.
+		//
+		//		The application must require() an appropriate level of dojo/query to handle the selector.
+		// selector:
 		//		The CSS selector to use for filter events and determine the |this| of the event listener.
-		//	eventType:
+		// eventType:
 		//		The event to listen for
 		// children:
 		//		Indicates if children elements of the selector should be allowed. This defaults to 
-		// 		true (except in the case of normally non-bubbling events like mouse.enter, in which case it defaults to false).
-		//	example:
-		//		define(["dojo/on", "dojo/mouse"], function(listen, mouse){
-		//			on(node, on.selector(".my-class", mouse.enter), handlerForMyHover);
+		//		true
+		// example:
+		// |	require(["dojo/on", "dojo/mouse", "dojo/query!css2"], function(on, mouse){
+		// |		on(node, on.selector(".my-class", mouse.enter), handlerForMyHover);
 		return function(target, listener){
-			var matchesTarget = this;
-			var bubble = eventType.bubble;
-			if(bubble){
-				// the event type doesn't naturally bubble, but has a bubbling form, use that
-				eventType = bubble;
-			}else if(children !== false){
-				// for normal bubbling events we default to allowing children of the selector
-				children = true;
-			}
-			return on(target, eventType, function(event){
-				var eventTarget = event.target;
+			// if the selector is function, use it to select the node, otherwise use the matches method
+			var matchesTarget = typeof selector == "function" ? {matches: selector} : this,
+				bubble = eventType.bubble;
+			function select(eventTarget){
 				// see if we have a valid matchesTarget or default to dojo.query
 				matchesTarget = matchesTarget && matchesTarget.matches ? matchesTarget : dojo.query;
 				// there is a selector, so make sure it matches
 				while(!matchesTarget.matches(eventTarget, selector, target)){
-					if(eventTarget == target || !children || !(eventTarget = eventTarget.parentNode)){ // intentional assignment
+					if(eventTarget == target || children === false || !(eventTarget = eventTarget.parentNode) || eventTarget.nodeType != 1){ // intentional assignment
 						return;
 					}
 				}
-				return listener.call(eventTarget, event);
+				return eventTarget;
+			}
+			if(bubble){
+				// the event type doesn't naturally bubble, but has a bubbling form, use that, and give it the selector so it can perform the select itself
+				return on(target, bubble(select), listener);
+			}
+			// standard event delegation
+			return on(target, eventType, function(event){
+				// call select to see if we match
+				var eventTarget = select(event.target);
+				// if it matches we call the listener
+				if (eventTarget) {
+					return listener.call(eventTarget, event);
+				}
 			});
 		};
 	};
@@ -198,38 +239,38 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 		syntheticDispatch = on.emit = function(target, type, event){
 		// summary:
 		//		Fires an event on the target object.
-		//	target:
+		// target:
 		//		The target object to fire the event on. This can be a DOM element or a plain 
-		// 		JS object. If the target is a DOM element, native event emiting mechanisms
+		//		JS object. If the target is a DOM element, native event emiting mechanisms
 		//		are used when possible.
-		//	type:
+		// type:
 		//		The event type name. You can emulate standard native events like "click" and 
-		// 		"mouseover" or create custom events like "open" or "finish".
-		//	event:
+		//		"mouseover" or create custom events like "open" or "finish".
+		// event:
 		//		An object that provides the properties for the event. See https://developer.mozilla.org/en/DOM/event.initEvent 
-		// 		for some of the properties. These properties are copied to the event object.
+		//		for some of the properties. These properties are copied to the event object.
 		//		Of particular importance are the cancelable and bubbles properties. The
 		//		cancelable property indicates whether or not the event has a default action
-		// 		that can be cancelled. The event is cancelled by calling preventDefault() on
-		// 		the event object. The bubbles property indicates whether or not the
+		//		that can be cancelled. The event is cancelled by calling preventDefault() on
+		//		the event object. The bubbles property indicates whether or not the
 		//		event will bubble up the DOM tree. If bubbles is true, the event will be called
 		//		on the target and then each parent successively until the top of the tree
 		//		is reached or stopPropagation() is called. Both bubbles and cancelable 
-		// 		default to false.
-		//	returns:
+		//		default to false.
+		// returns:
 		//		If the event is cancelable and the event is not cancelled,
-		// 		emit will return true. If the event is cancelable and the event is cancelled,
-		// 		emit will return false.
-		//	details:
+		//		emit will return true. If the event is cancelable and the event is cancelled,
+		//		emit will return false.
+		// details:
 		//		Note that this is designed to emit events for listeners registered through
 		//		dojo/on. It should actually work with any event listener except those
-		// 		added through IE's attachEvent (IE8 and below's non-W3C event emiting
-		// 		doesn't support custom event types). It should work with all events registered
-		// 		through dojo/on. Also note that the emit method does do any default
-		// 		action, it only returns a value to indicate if the default action should take
-		// 		place. For example, emiting a keypress event would not cause a character
-		// 		to appear in a textbox.
-		//	example:
+		//		added through IE's attachEvent (IE8 and below's non-W3C event emiting
+		//		doesn't support custom event types). It should work with all events registered
+		//		through dojo/on. Also note that the emit method does do any default
+		//		action, it only returns a value to indicate if the default action should take
+		//		place. For example, emiting a keypress event would not cause a character
+		//		to appear in a textbox.
+		// example:
 		//		To fire our own click event
 		//	|	on.emit(dojo.byId("button"), "click", {
 		//	|		cancelable: true,
@@ -264,17 +305,22 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 		}while(event && event.bubbles && (target = target.parentNode));
 		return event && event.cancelable && event; // if it is still true (was cancelable and was cancelled), return the event to indicate default action should happen
 	};
-	var captures = {}; 
-	if(has("dom-addeventlistener")){
-		// normalize focusin and focusout
-		captures = {
-			focusin: "focus",
-			focusout: "blur"
+	var captures = has("event-focusin") ? {} : {focusin: "focus", focusout: "blur"};
+	if(!has("event-stopimmediatepropagation")){
+		var stopImmediatePropagation =function(){
+			this.immediatelyStopped = true;
+			this.modified = true; // mark it as modified so the event will be cached in IE
 		};
-		if(has("opera")){
-			captures.keydown = "keypress"; // this one needs to be transformed because Opera doesn't support repeating keys on keydown (and keypress works because it incorrectly fires on all keydown events)
+		var addStopImmediate = function(listener){
+			return function(event){
+				if(!event.immediatelyStopped){// check to make sure it hasn't been stopped immediately
+					event.stopImmediatePropagation = stopImmediatePropagation;
+					return listener.apply(this, arguments);
+				}
+			};
 		}
-
+	} 
+	if(has("dom-addeventlistener")){
 		// emiter that works with native event handling
 		on.emit = function(target, type, event){
 			if(target.dispatchEvent && document.createEvent){
@@ -284,7 +330,8 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 				// that would be a lot of extra code, with little benefit that I can see, seems 
 				// best to use the generic constructor and copy properties over, making it 
 				// easy to have events look like the ones created with specific initializers
-				var nativeEvent = document.createEvent("HTMLEvents");
+				var ownerDocument = target.ownerDocument || document;
+				var nativeEvent = ownerDocument.createEvent("HTMLEvents");
 				nativeEvent.initEvent(type, !!event.bubbles, !!event.cancelable);
 				// and copy all our properties over
 				for(var i in event){
@@ -311,7 +358,11 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 				var w = sender && (sender.ownerDocument || sender.document || sender).parentWindow || window;
 				evt = w.event;
 			}
-			if(!evt){return(evt);}
+			if(!evt){return evt;}
+			if(lastEvent && evt.type == lastEvent.type){
+				// should be same event, reuse event object (so it can be augmented)
+				evt = lastEvent;
+			}
 			if(!evt.target){ // check to see if it has been fixed yet
 				evt.target = evt.srcElement;
 				evt.currentTarget = (sender || evt.srcElement);
@@ -346,7 +397,7 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 			}
 			return evt;
 		};
-		var IESignal = function(handle){
+		var lastEvent, IESignal = function(handle){
 			this.handle = handle;
 		};
 		IESignal.prototype.remove = function(){
@@ -356,9 +407,19 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 			// this is a minimal function for closing on the previous listener with as few as variables as possible
 			return function(evt){
 				evt = on._fixEvent(evt, this);
-				return listener.call(this, evt);
-			}
-		}
+				var result = listener.call(this, evt);
+				if(evt.modified){
+					// cache the last event and reuse it if we can
+					if(!lastEvent){
+						setTimeout(function(){
+							lastEvent = null;
+						});
+					}
+					lastEvent = evt;
+				}
+				return result;
+			};
+		};
 		var fixAttach = function(target, type, listener){
 			listener = fixListener(listener);
 			if(((target.ownerDocument ? target.ownerDocument.parentWindow : target.parentWindow || target.window || window) != top || 
@@ -372,8 +433,9 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 				var emiter = target[type];
 				if(!emiter || !emiter.listeners){
 					var oldListener = emiter;
-					target[type] = emiter = Function('event', 'var callee = arguments.callee; for(var i = 0; i<callee.listeners.length; i++){var listener = _dojoIEListeners_[callee.listeners[i]]; if(listener){listener.call(this,event);}}');
+					emiter = Function('event', 'var callee = arguments.callee; for(var i = 0; i<callee.listeners.length; i++){var listener = _dojoIEListeners_[callee.listeners[i]]; if(listener){listener.call(this,event);}}');
 					emiter.listeners = [];
+					target[type] = emiter;
 					emiter.global = this;
 					if(oldListener){
 						emiter.listeners.push(_dojoIEListeners_.push(oldListener) - 1);
@@ -410,11 +472,12 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 				}catch(e){
 				}
 			}
+			this.defaultPrevented = true;
 			this.returnValue = false;
 		};
 	}
 	if(has("touch")){ 
-		var Event = function (){};
+		var EventDelegate = function(){};
 		var windowOrientation = window.orientation; 
 		var fixTouchListener = function(listener){ 
 			return function(originalEvent){ 
@@ -431,9 +494,20 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 						delete originalEvent.type; // on some JS engines (android), deleting properties make them mutable
 					}catch(e){} 
 					if(originalEvent.type){
-						// deleting properties doesn't work (older iOS), have to use delegation
-						Event.prototype = originalEvent;
-						var event = new Event;
+						// Deleting the property of the original event did not work (this is the case of
+						// browsers such as older Safari iOS), hence fallback:
+						if(has("touch-can-modify-event-delegate")){
+							// If deleting properties of delegated event works, use event delegation:
+							EventDelegate.prototype = originalEvent;
+							event = new EventDelegate;
+						}else{
+							// Otherwise last fallback: other browsers, such as mobile Firefox, do not like
+							// delegated properties, so we have to copy
+							event = {};
+							for(var name in originalEvent){
+								event[name] = originalEvent[name];
+							}
+						}
 						// have to delegate methods to make them work
 						event.preventDefault = function(){
 							originalEvent.preventDefault();
@@ -460,11 +534,13 @@ define("dojo/on", ["./has!dom-addeventlistener?:./aspect", "./_base/kernel", "./
 						event.rotation = 0; 
 						event.scale = 1;
 					}
-					//use event.changedTouches[0].pageX|pageY|screenX|screenY|clientX|clientY|target
-					var firstChangeTouch = event.changedTouches[0];
-					for(var i in firstChangeTouch){ // use for-in, we don't need to have dependency on dojo/_base/lang here
-						delete event[i]; // delete it first to make it mutable
-						event[i] = firstChangeTouch[i];
+					if (window.TouchEvent && originalEvent instanceof TouchEvent) {
+						//use event.changedTouches[0].pageX|pageY|screenX|screenY|clientX|clientY|target
+						var firstChangeTouch = event.changedTouches[0];
+						for(var i in firstChangeTouch){ // use for-in, we don't need to have dependency on dojo/_base/lang here
+							delete event[i]; // delete it first to make it mutable
+							event[i] = firstChangeTouch[i];
+						}
 					}
 				}
 				return listener.call(this, event); 

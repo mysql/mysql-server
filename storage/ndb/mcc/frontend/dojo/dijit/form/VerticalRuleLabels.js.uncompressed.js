@@ -1,21 +1,14 @@
-//>>built
 define("dijit/form/VerticalRuleLabels", [
 	"dojo/_base/declare", // declare
 	"./HorizontalRuleLabels"
 ], function(declare, HorizontalRuleLabels){
 
-/*=====
-	var HorizontalRuleLabels = dijit.form.HorizontalRuleLabels;
-=====*/
-
 	// module:
 	//		dijit/form/VerticalRuleLabels
-	// summary:
-	//		Labels for the `dijit.form.VerticalSlider`
 
 	return declare("dijit.form.VerticalRuleLabels", HorizontalRuleLabels, {
 		// summary:
-		//		Labels for the `dijit.form.VerticalSlider`
+		//		Labels for the `dijit/form/VerticalSlider`
 
 		templateString: '<div class="dijitRuleContainer dijitRuleContainerV dijitRuleLabelsContainer dijitRuleLabelsContainerV"></div>',
 

@@ -585,6 +585,8 @@ drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
 geometry NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET sql_mode = default;
 insert into t1 values ('85984',ST_GeomFromText('MULTIPOLYGON(((-115.006363
 36.305435,-114.992394 36.305202,-114.991219 36.305975,-114.991163
@@ -1024,6 +1026,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 DROP TABLE t2;
 End of 5.0 tests
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create view v1 as select * from t1;
 desc v1;
 Field	Type	Null	Key	Default	Extra

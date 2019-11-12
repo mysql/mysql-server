@@ -2,6 +2,8 @@ update  performance_schema.setup_instruments set enabled='YES' where name like '
 update performance_schema.setup_consumers set enabled='YES';
 use test;
 CREATE TABLE `t1`(`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT, `name1` varchar(180) NOT NULL, `name2` varchar(180) DEFAULT NULL, `name3` varchar(180) DEFAULT NULL, `name4` varchar(180) DEFAULT NULL, PRIMARY KEY (`id`,`name1`(10)) ) engine=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 set @id:=0;
 insert into t1 values
 (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))

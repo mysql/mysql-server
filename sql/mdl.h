@@ -44,6 +44,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql_com.h"
 #include "sql/sql_plist.h"
+#include "template_utils.h"
 
 class MDL_context;
 class MDL_lock;
@@ -402,7 +403,7 @@ struct MDL_key {
     NAMESPACE_END
   };
 
-  const uchar *ptr() const { return (uchar *)m_ptr; }
+  const uchar *ptr() const { return pointer_cast<const uchar *>(m_ptr); }
   uint length() const { return m_length; }
 
   const char *db_name() const { return m_ptr + 1; }
@@ -806,7 +807,7 @@ class MDL_request {
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
                                 std::nothrow) noexcept {
-    return alloc_root(mem_root, size);
+    return mem_root->Alloc(size);
   }
 
   static void operator delete(void *, MEM_ROOT *,
@@ -855,8 +856,8 @@ class MDL_request {
 
     - TABLE_LIST objects are sometimes default-constructed. We plan to remove
       this as there is no practical reason, the call to the default
-      constructor is always followed by either a call to
-      TABLE_LIST::init_one_table() or memberwise assignments.
+      constructor is always followed by either a call to TABLE_LIST::operator=
+      or memberwise assignments.
 
     - In some legacy cases TABLE_LIST objects are copy-assigned without
       intention to copy the TABLE_LIST::mdl_request member. In this cases they

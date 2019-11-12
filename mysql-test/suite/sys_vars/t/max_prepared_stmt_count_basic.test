@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
 # Default Value: 16382                                                        #
-# Range: 0-1048576                                                            #
+# Range: 0-4194304                                                            #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-07                                                   #
@@ -93,6 +93,10 @@ SELECT @@global.max_prepared_stmt_count;
 SET @@global.max_prepared_stmt_count = -1024;
 SELECT @@global.max_prepared_stmt_count;
 SET @@global.max_prepared_stmt_count = 1048577;
+SELECT @@global.max_prepared_stmt_count;
+SET @@global.max_prepared_stmt_count = 4194304;
+SELECT @@global.max_prepared_stmt_count;
+SET @@global.max_prepared_stmt_count = 4194305;
 SELECT @@global.max_prepared_stmt_count;
 SET @@global.max_prepared_stmt_count = 104857612;
 SELECT @@global.max_prepared_stmt_count;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ int myrg_create(const char *name, const char **table_names, uint insert_method,
   uint errpos;
   File file;
   char buff[FN_REFLEN], *end;
-  DBUG_ENTER("myrg_create");
+  DBUG_TRACE;
 
   errpos = 0;
   if ((file = mysql_file_create(rg_key_file_MRG,
@@ -74,7 +74,7 @@ int myrg_create(const char *name, const char **table_names, uint insert_method,
       goto err;
   }
   if (mysql_file_close(file, MYF(0))) goto err;
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   save_errno = my_errno() ? my_errno() : -1;
@@ -83,5 +83,5 @@ err:
       (void)mysql_file_close(file, MYF(0));
   }
   set_my_errno(save_errno);
-  DBUG_RETURN(save_errno);
+  return save_errno;
 } /* myrg_create */

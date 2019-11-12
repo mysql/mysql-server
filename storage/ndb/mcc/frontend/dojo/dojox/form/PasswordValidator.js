@@ -121,11 +121,10 @@ if(i&&i.set){
 i.set("disabled",_1b);
 }
 });
-},_setRequiredAttribute:function(_1c){
+},_setRequiredAttr:function(_1c){
 this.required=_1c;
 _3.set(this.focusNode,"required",_1c);
 this.focusNode.setAttribute("aria-required",_1c);
-this._refreshState();
 _1.forEach(this._inputWidgets,function(i){
 if(i&&i.set){
 i.set("required",_1c);

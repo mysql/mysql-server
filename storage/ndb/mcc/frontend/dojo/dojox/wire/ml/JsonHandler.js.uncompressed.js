@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/JsonHandler", ["dijit","dojo","dojox","dojo/require!dojox/wire/ml/RestHandler,dojox/wire/_base,dojox/wire/ml/util"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/JsonHandler", ["dojo","dijit","dojox","dojo/require!dojox/wire/ml/RestHandler,dojox/wire/_base,dojox/wire/ml/util"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.JsonHandler");
 
 dojo.require("dojox.wire.ml.RestHandler");
@@ -9,25 +8,25 @@ dojo.require("dojox.wire.ml.util");
 
 
 dojo.declare("dojox.wire.ml.JsonHandler", dojox.wire.ml.RestHandler, {
-	//	summary:
+	// summary:
 	//		A REST service handler for JSON
-	//	description:
+	// description:
 	//		This class provides JSON handling for a REST service.
 	contentType: "text/json",
 	handleAs: "json",
 	headers: {"Accept": "*/json"},
 
 	_getContent: function(/*String*/method, /*Array*/parameters){
-		//	summary:
+		// summary:
 		//		Generate a request content
-		//	description:
+		// description:
 		//		If 'method' is "POST" or "PUT", the first parameter in
 		//		'parameter' is used to generate a JSON content.
-		//	method:
+		// method:
 		//		A method name
-		//	parameters:
+		// parameters:
 		//		An array of parameters
-		//	returns:
+		// returns:
 		//		A request content
 		var content = null;
 		if(method == "POST" || method == "PUT"){

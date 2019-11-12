@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/widget/DataPresentation", ["dijit","dojo","dojox","dojo/require!dojox/grid/DataGrid,dojox/charting/Chart2D,dojox/charting/widget/Legend,dojox/charting/action2d/Tooltip,dojox/charting/action2d/Highlight,dojo/colors,dojo/data/ItemFileWriteStore"], function(dijit,dojo,dojox){
+define("dojox/widget/DataPresentation", ["dojo","dijit","dojox","dojo/require!dojox/grid/DataGrid,dojox/charting/Chart2D,dojox/charting/widget/Legend,dojox/charting/action2d/Tooltip,dojox/charting/action2d/Highlight,dojo/colors,dojo/data/ItemFileWriteStore"], function(dojo,dijit,dojox){
 dojo.provide("dojox.widget.DataPresentation");
 dojo.experimental("dojox.widget.DataPresentation");
 
@@ -360,216 +359,212 @@ dojo.require("dojo.data.ItemFileWriteStore");
 	};
 	
 	dojo.declare("dojox.widget.DataPresentation", null, {
-		//	summary:
-		//
-		//		DataPresentation
-		//
+		// summary:
 		//		A widget that connects to a data store in a simple manner,
-		//      and also provides some additional convenience mechanisms
-		//      for connecting to common data sources without needing to
-		//      explicitly construct a Dojo data store. The widget can then
-		//      present the data in several forms: as a graphical chart,
-		//      as a tabular grid, or as display panels presenting meta-data
-		//      (title, creation information, etc) from the data. The
-		//      widget can also create and manage several of these forms
-		//      in one simple construction.
+		//		and also provides some additional convenience mechanisms
+		//		for connecting to common data sources without needing to
+		//		explicitly construct a Dojo data store. The widget can then
+		//		present the data in several forms: as a graphical chart,
+		//		as a tabular grid, or as display panels presenting meta-data
+		//		(title, creation information, etc) from the data. The
+		//		widget can also create and manage several of these forms
+		//		in one simple construction.
 		//
-		//      Note: this is a first experimental draft and any/all details
-		//      are subject to substantial change in later drafts.
+		//		Note: this is a first experimental draft and any/all details
+		//		are subject to substantial change in later drafts.
+		// example:
+		// |	var pres = new dojox.data.DataPresentation("myChartNode", {
+		// |		type: "chart",
+		// |		url: "/data/mydata",
+		// |		gridNode: "myGridNode"
+		// |	});
+
+		// store: Object
+		//		Dojo data store used to supply data to be presented. This may
+		//		be supplied on construction or created implicitly based on
+		//		other construction parameters ('data', 'url').
+
+		// query: String
+		//		Query to apply to the Dojo data store used to supply data to
+		//		be presented.
+
+		// queryOptions: String
+		//		Query options to apply to the Dojo data store used to supply
+		//		data to be presented.
+
+		// data: Object
+		//		Data to be presented. If supplied on construction this property
+		//		will override any value supplied for the 'store' property.
+
+		// url: String
+		//		URL to fetch data from in JSON format. If supplied on
+		//		construction this property will override any values supplied
+		//		for the 'store' and/or 'data' properties. Note that the data
+		//		can also be comment-filtered JSON, although this will trigger
+		//		a warning message in the console unless djConfig.useCommentedJson
+		//		has been set to true.
+
+		// urlContent: Object
+		//		Content to be passed to the URL when fetching data. If a URL has
+		//		not been supplied, this value is ignored.
+
+		// urlError: function
+		//		A function to be called if an error is encountered when fetching
+		//		data from the supplied URL. This function will be supplied with
+		//		two parameters exactly as the error function supplied to the
+		//		dojo.xhrGet function. This function may be called multiple times
+		//		if a refresh interval has been supplied.
+
+		// refreshInterval: Number
+		//		the time interval in milliseconds after which the data supplied
+		//		via the 'data' property or fetched from a URL via the 'url'
+		//		property should be regularly refreshed. This property is
+		//		ignored if neither the 'data' nor 'url' property has been
+		//		supplied. If the refresh interval is zero, no regular refresh is done.
+
+		// refreshIntervalPending:
+		//		the JavaScript set interval currently in progress, if any
+
+		// series: Array
+		//		an array of objects describing the data series to be included
+		//		in the data presentation. Each object may contain the
+		//		following fields:
 		//
-		//	example:
+		//		- datapoints: the name of the field from the source data which
+		//			contains an array of the data points for this data series.
+		//			If not supplied, the source data is assumed to be an array
+		//			of data points to be used.
+		//		- field: the name of the field within each data point which
+		//			contains the data for this data series. If not supplied,
+		//			each data point is assumed to be the value for the series.
+		//		- name: a name for the series, used in the legend and grid headings
+		//		- namefield:
+		//			the name of the field from the source data which
+		//			contains the name the series, used in the legend and grid
+		//			headings. If both name and namefield are supplied, name takes
+		//		    precedence. If neither are supplied, a default name is used.
+		//		- chart: true if the series should be included in a chart presentation (default: true)
+		//		- charttype: the type of presentation of the series in the chart, which can be
+		//			"range", "line", "bar" (default: "bar")
+		//		- linestyle: the stroke style for lines (if applicable) (default: "Solid")
+		//		- axis: the dependant axis to which the series will be attached in the chart,
+		//		    which can be "primary" or "secondary"
+		//		- grid: true if the series should be included in a data grid presentation (default: true)
+		//		- gridformatter: an optional formatter to use for this series in the data grid
 		//
-		//	 	var pres = new dojox.data.DataPresentation("myChartNode", {
-		//	 		type: "chart",
-		//	 		url: "/data/mydata",
-		//          gridNode: "myGridNode"
-		//	 	});
-		//
-		//	properties:
-		//
-		//  store: Object
-		//      Dojo data store used to supply data to be presented. This may
-		//      be supplied on construction or created implicitly based on
-		//      other construction parameters ('data', 'url').
-		//
-		//  query: String
-		//      Query to apply to the Dojo data store used to supply data to
-		//      be presented.
-		//
-		//  queryOptions: String
-		//      Query options to apply to the Dojo data store used to supply
-		//      data to be presented.
-		//
-		//  data: Object
-		//      Data to be presented. If supplied on construction this property
-		//      will override any value supplied for the 'store' property.
-		//
-		//  url: String
-		//      URL to fetch data from in JSON format. If supplied on
-		//      construction this property will override any values supplied
-		//      for the 'store' and/or 'data' properties. Note that the data
-		//      can also be comment-filtered JSON, although this will trigger
-		//      a warning message in the console unless djConfig.useCommentedJson
-		//      has been set to true.
-		//
-		//  urlContent: Object
-		//      Content to be passed to the URL when fetching data. If a URL has
-		//      not been supplied, this value is ignored.
-		//
-		//  urlError: function
-		//      A function to be called if an error is encountered when fetching
-		//      data from the supplied URL. This function will be supplied with
-		//      two parameters exactly as the error function supplied to the
-		//      dojo.xhrGet function. This function may be called multiple times
-		//      if a refresh interval has been supplied.
-		//
-		//  refreshInterval: Number
-		//      the time interval in milliseconds after which the data supplied
-		//      via the 'data' property or fetched from a URL via the 'url'
-		//      property should be regularly refreshed. This property is
-		//      ignored if neither the 'data' nor 'url' property has been
-		//      supplied. If the refresh interval is zero, no regular refresh is done.
-		//
-		//  refreshIntervalPending:
-		//      the JavaScript set interval currently in progress, if any
-		//
-		//  series: Array
-		//      an array of objects describing the data series to be included
-		//      in the data presentation. Each object may contain the
-		//      following fields:
-		//			datapoints: the name of the field from the source data which
-		//				contains an array of the data points for this data series.
-		//				If not supplied, the source data is assumed to be an array
-		//				of data points to be used.
-		//			field: the name of the field within each data point which
-		//				contains the data for this data series. If not supplied,
-		//				each data point is assumed to be the value for the series.
-		//      	name: a name for the series, used in the legend and grid headings
-		//          namefield: the name of the field from the source data which
-		//              contains the name the series, used in the legend and grid
-		//              headings. If both name and namefield are supplied, name takes
-		//              precedence. If neither are supplied, a default name is used.
-		//			chart: true if the series should be included in a chart presentation (default: true)
-		//          charttype: the type of presentation of the series in the chart, which can be
-		//				"range", "line", "bar" (default: "bar")
-		//          linestyle: the stroke style for lines (if applicable) (default: "Solid")
-		//          axis: the dependant axis to which the series will be attached in the chart,
-		//              which can be "primary" or "secondary"
-		//			grid: true if the series should be included in a data grid presentation (default: true)
-		//			gridformatter: an optional formatter to use for this series in the data grid
-		//
-		//      a call-back function may alternatively be supplied. The function takes
-		//      a single parameter, which will be the data (from the 'data' field or
-		//      loaded from the value in the 'url' field), and should return the array
-		//      of objects describing the data series to be included in the data
-		//      presentation. This enables the series structures to be built dynamically
-		//      after data load, and rebuilt if necessary on data refresh. The call-back
-		//      function will be called each time new data is set, loaded or refreshed.
-		//      A call-back function cannot be used if the data is supplied directly
-		//      from a Dojo data store.
-		//
-		//  type: String
-		//      the type of presentation to be applied at the DOM attach point.
-		//      This can be 'chart', 'legend', 'grid', 'title', 'footer'. The
-		//      default type is 'chart'.
+		//		a call-back function may alternatively be supplied. The function takes
+		//		a single parameter, which will be the data (from the 'data' field or
+		//		loaded from the value in the 'url' field), and should return the array
+		//		of objects describing the data series to be included in the data
+		//		presentation. This enables the series structures to be built dynamically
+		//		after data load, and rebuilt if necessary on data refresh. The call-back
+		//		function will be called each time new data is set, loaded or refreshed.
+		//		A call-back function cannot be used if the data is supplied directly
+		//		from a Dojo data store.
+
+		// type: String
+		//		the type of presentation to be applied at the DOM attach point.
+		//		This can be 'chart', 'legend', 'grid', 'title', 'footer'. The
+		//		default type is 'chart'.
 		type: "chart",
-		//
-		//  chartType: String
-		//      the type of chart to display. This can be 'clusteredbars',
-		//      'areas', 'stackedcolumns', 'stackedbars', 'stackedareas',
-		//      'lines', 'hybrid'. The default type is 'bar'.
+
+		// chartType: String
+		//		the type of chart to display. This can be 'clusteredbars',
+		//		'areas', 'stackedcolumns', 'stackedbars', 'stackedareas',
+		//		'lines', 'hybrid'. The default type is 'bar'.
 		chartType: "clusteredBars",
-		//
-		//  reverse: Boolean
-		//      true if the chart independant axis should be reversed.
+
+		// reverse: Boolean
+		//		true if the chart independent axis should be reversed.
 		reverse: false,
-		//
-		//  animate: Object
-		//      if an object is supplied, then the chart bars or columns will animate
-		//      into place. If the object contains a field 'duration' then the value
-		//      supplied is the duration of the animation in milliseconds, otherwise
-		//      a default duration is used. A boolean value true can alternatively be
-		//      supplied to enable animation with the default duration.
-		//      The default is null (no animation).
+
+		// animate: Object
+		//		if an object is supplied, then the chart bars or columns will animate
+		//		into place. If the object contains a field 'duration' then the value
+		//		supplied is the duration of the animation in milliseconds, otherwise
+		//		a default duration is used. A boolean value true can alternatively be
+		//		supplied to enable animation with the default duration.
+		//		The default is null (no animation).
 		animate: null,
-		//
-		//  labelMod: Integer
-		//      the frequency of label annotations to be included on the
-		//      independent axis. 1=every label. 0=no labels. The default is 1.
+
+		// labelMod: Integer
+		//		the frequency of label annotations to be included on the
+		//		independent axis. 1=every label. 0=no labels. The default is 1.
 		labelMod: 1,
+
+		// tooltip: String|Function
+		//		a string pattern defining the tooltip text to be applied to chart
+		//		data points, or a function which takes a single parameter and returns
+		//		the tooltip text to be applied to chart data points. The string pattern
+		//		will have the following substitutions applied:
 		//
-		//  tooltip: String | Function
-		//      a string pattern defining the tooltip text to be applied to chart
-		//      data points, or a function which takes a single parameter and returns
-		//      the tooltip text to be applied to chart data points. The string pattern
-		//      will have the following substitutions applied:
-		//       {0} - the type of chart element ('bar', 'surface', etc)
-		//       {1} - the name of the data series
-		//       {2} - the independent axis value at the tooltip data point
-		//       {3} - the series value at the tooltip data point point
-		//      The function, if supplied, will receive a single parameter exactly
-		//      as per the dojox.charting.action2D.Tooltip class. The default value
-		//      is to apply the default tooltip as defined by the
-		//      dojox.charting.action2D.Tooltip class.
+		//		- {0} - the type of chart element ('bar', 'surface', etc)
+		//		- {1} - the name of the data series
+		//		- {2} - the independent axis value at the tooltip data point
+		//		- {3} - the series value at the tooltip data point point
 		//
-		//  legendHorizontal: Boolean | Number
-		//      true if the legend should be rendered horizontally, or a number if
-		//      the legend should be rendered as horizontal rows with that number of
-		//      items in each row, or false if the legend should be rendered
-		//      vertically (same as specifying 1). The default is true (legend
-		//      rendered horizontally).
+		//		The function, if supplied, will receive a single parameter exactly
+		//		as per the dojox.charting.action2D.Tooltip class. The default value
+		//		is to apply the default tooltip as defined by the
+		//		dojox.charting.action2D.Tooltip class.
+
+		// legendHorizontal: Boolean|Number
+		//		true if the legend should be rendered horizontally, or a number if
+		//		the legend should be rendered as horizontal rows with that number of
+		//		items in each row, or false if the legend should be rendered
+		//		vertically (same as specifying 1). The default is true (legend
+		//		rendered horizontally).
 		legendHorizontal: true,
-		//
-		//  theme: String|Theme
-		//      a theme to use for the chart, or the name of a theme.
-		//
-		//  chartNode: String|DomNode
-		//      an optional DOM node or the id of a DOM node to receive a
-		//      chart presentation of the data. Supply only when a chart is
-		//      required and the type is not 'chart'; when the type is
-		//      'chart' this property will be set to the widget attach point.
-		//
-		//  legendNode: String|DomNode
-		//      an optional DOM node or the id of a DOM node to receive a
-		//      chart legend for the data. Supply only when a legend is
-		//      required and the type is not 'legend'; when the type is
-		//      'legend' this property will be set to the widget attach point.
-		//
-		//  gridNode: String|DomNode
-		//      an optional DOM node or the id of a DOM node to receive a
-		//      grid presentation of the data. Supply only when a grid is
-		//      required and the type is not 'grid'; when the type is
-		//      'grid' this property will be set to the widget attach point.
-		//
-		//  titleNode: String|DomNode
-		//      an optional DOM node or the id of a DOM node to receive a
-		//      title for the data. Supply only when a title is
-		//      required and the type is not 'title'; when the type is
-		//      'title' this property will be set to the widget attach point.
-		//
-		//  footerNode: String|DomNode
-		//      an optional DOM node or the id of a DOM node to receive a
-		//      footer presentation of the data. Supply only when a footer is
-		//      required and the type is not 'footer'; when the type is
-		//      'footer' this property will be set to the widget attach point.
-		//
-		//  chartWidget: Object
-		//      the chart widget, if any
-		//
-		//  legendWidget: Object
-		//      the legend widget, if any
-		//
-		//  gridWidget: Object
-		//      the grid widget, if any
+
+		// theme: String|Theme
+		//		a theme to use for the chart, or the name of a theme.
+
+		// chartNode: String|DomNode
+		//		an optional DOM node or the id of a DOM node to receive a
+		//		chart presentation of the data. Supply only when a chart is
+		//		required and the type is not 'chart'; when the type is
+		//		'chart' this property will be set to the widget attach point.
+
+		// legendNode: String|DomNode
+		//		an optional DOM node or the id of a DOM node to receive a
+		//		chart legend for the data. Supply only when a legend is
+		//		required and the type is not 'legend'; when the type is
+		//		'legend' this property will be set to the widget attach point.
+
+		// gridNode: String|DomNode
+		//		an optional DOM node or the id of a DOM node to receive a
+		//		grid presentation of the data. Supply only when a grid is
+		//		required and the type is not 'grid'; when the type is
+		//		'grid' this property will be set to the widget attach point.
+
+		// titleNode: String|DomNode
+		//		an optional DOM node or the id of a DOM node to receive a
+		//		title for the data. Supply only when a title is
+		//		required and the type is not 'title'; when the type is
+		//		'title' this property will be set to the widget attach point.
+
+		// footerNode: String|DomNode
+		//		an optional DOM node or the id of a DOM node to receive a
+		//		footer presentation of the data. Supply only when a footer is
+		//		required and the type is not 'footer'; when the type is
+		//		'footer' this property will be set to the widget attach point.
+
+		// chartWidget: Object
+		//		the chart widget, if any
+
+		// legendWidget: Object
+		//		the legend widget, if any
+
+		// gridWidget: Object
+		//		the grid widget, if any
 		
 		constructor: function(node, args){
 			// summary:
 			//		Set up properties and initialize.
-			//
-			//	arguments:
-			//		node: DomNode
-			//			The node to attach the data presentation to.
-			//		kwArgs:	Object (see above)
+			// node: DomNode
+			//		The node to attach the data presentation to.
+			// args: Object
+			//		(see above)
 			
 			// apply arguments directly
 			dojo.mixin(this, args);
@@ -613,9 +608,9 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		
 		setURL: function(/*String?*/url, /*Object?*/ urlContent, /*Number?*/refreshInterval){
 			// summary:
-			//      Sets the URL to fetch data from, with optional content
-			//      supplied with the request, and an optional
-			//      refresh interval in milliseconds (0=no refresh)
+			//		Sets the URL to fetch data from, with optional content
+			//		supplied with the request, and an optional
+			//		refresh interval in milliseconds (0=no refresh)
 
 			// if a refresh interval is supplied we will start a fresh
 			// refresh after storing the supplied url
@@ -652,8 +647,8 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		
 		setData: function(/*Object?*/data, /*Number?*/refreshInterval){
 			// summary:
-			//      Sets the data to be presented, and an optional
-			//      refresh interval in milliseconds (0=no refresh)
+			//		Sets the data to be presented, and an optional
+			//		refresh interval in milliseconds (0=no refresh)
 			
 			// if a refresh interval is supplied we will start a fresh
 			// refresh after storing the supplied data reference
@@ -762,11 +757,11 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		
 		refresh: function(){
 			// summary:
-			//      If a URL or data has been supplied, refreshes the
-			//      presented data from the URL or data. If a refresh
-			//      interval is also set, the periodic refresh is
-			//      restarted. If a URL or data was not supplied, this
-			//      method has no effect.
+			//		If a URL or data has been supplied, refreshes the
+			//		presented data from the URL or data. If a refresh
+			//		interval is also set, the periodic refresh is
+			//		restarted. If a URL or data was not supplied, this
+			//		method has no effect.
 			if(this.url){
 				this.setURL(this.url, this.urlContent, this.refreshInterval);
 			}else if(this.data){
@@ -776,7 +771,7 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		
 		cancelRefresh: function(){
 			// summary:
-			//      Cancels any and all outstanding data refreshes
+			//		Cancels any and all outstanding data refreshes
 			if(this.refreshIntervalPending){
 				// cancel existing refresh
 				clearInterval(this.refreshIntervalPending);
@@ -792,7 +787,7 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		setPreparedStore: function(/*Object?*/store, /*String?*/query, /*Object?*/queryOptions){
 			// summary:
 			//		Sets the store and query.
-			//
+
 			this.preparedstore = store || this.store;
 			this.query = query || this.query;
 			this.queryOptions = queryOptions || this.queryOptions;
@@ -820,9 +815,9 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		
 		renderChartWidget: function(){
 			// summary:
-			//      Renders the chart widget (if any). This method is
-			//      called whenever a chart widget is created or
-			//      configured, and may be connected to.
+			//		Renders the chart widget (if any). This method is
+			//		called whenever a chart widget is created or
+			//		configured, and may be connected to.
 			if(this.chartWidget){
 				this.chartWidget.render();
 			}
@@ -830,9 +825,9 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		
 		renderGridWidget: function(){
 			// summary:
-			//      Renders the grid widget (if any). This method is
-			//      called whenever a grid widget is created or
-			//      configured, and may be connected to.
+			//		Renders the grid widget (if any). This method is
+			//		called whenever a grid widget is created or
+			//		configured, and may be connected to.
 			if(this.gridWidget){
 				this.gridWidget.render();
 			}
@@ -840,15 +835,15 @@ dojo.require("dojo.data.ItemFileWriteStore");
 		
 		getChartWidget: function(){
 			// summary:
-			//      Returns the chart widget (if any) created if the type
-			//      is "chart" or the "chartNode" property was supplied.
+			//		Returns the chart widget (if any) created if the type
+			//		is "chart" or the "chartNode" property was supplied.
 			return this.chartWidget;
 		},
 		
 		getGridWidget: function(){
 			// summary:
-			//      Returns the grid widget (if any) created if the type
-			//      is "grid" or the "gridNode" property was supplied.
+			//		Returns the grid widget (if any) created if the type
+			//		is "grid" or the "gridNode" property was supplied.
 			return this.gridWidget;
 		},
 		

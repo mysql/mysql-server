@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"name" : "Ad",
-	"size" : "Həcmi (bayt cinsindən)",
-	"path" : "Yol"
-})
-//end v1.x content
-);
+define("dojox/widget/nls/az/FilePicker",({"name":"Ad","size":"Həcmi (bayt cinsindən)","path":"Yol"}));

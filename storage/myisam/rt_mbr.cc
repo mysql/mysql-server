@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,10 +66,10 @@
 #define RT_CMP_GET(type, get_func, len, nextflag) \
   {                                               \
     type amin, amax, bmin, bmax;                  \
-    get_func(amin, a);                            \
-    get_func(bmin, b);                            \
-    get_func(amax, a + len);                      \
-    get_func(bmax, b + len);                      \
+    amin = get_func(a);                           \
+    bmin = get_func(b);                           \
+    amax = get_func(a + len);                     \
+    bmax = get_func(b + len);                     \
     RT_CMP(nextflag);                             \
   }
 
@@ -158,8 +158,8 @@ end:
 #define RT_VOL_GET(type, get_func, len, cast) \
   {                                           \
     type amin, amax;                          \
-    get_func(amin, a);                        \
-    get_func(amax, a + len);                  \
+    amin = get_func(a);                       \
+    amax = get_func(a + len);                 \
     res *= (cast(amax) - cast(amin));         \
   }
 
@@ -232,8 +232,8 @@ double rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length) {
 #define RT_D_MBR_GET(type, get_func, len, cast) \
   {                                             \
     type amin, amax;                            \
-    get_func(amin, a);                          \
-    get_func(amax, a + len);                    \
+    amin = get_func(a);                         \
+    amax = get_func(a + len);                   \
     *res++ = cast(amin);                        \
     *res++ = cast(amax);                        \
   }
@@ -311,10 +311,10 @@ int rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res) {
 #define RT_COMB_GET(type, get_func, store_func, len) \
   {                                                  \
     type amin, amax, bmin, bmax;                     \
-    get_func(amin, a);                               \
-    get_func(bmin, b);                               \
-    get_func(amax, a + len);                         \
-    get_func(bmax, b + len);                         \
+    amin = get_func(a);                              \
+    bmin = get_func(b);                              \
+    amax = get_func(a + len);                        \
+    bmax = get_func(b + len);                        \
     amin = MY_MIN(amin, bmin);                       \
     amax = MY_MAX(amax, bmax);                       \
     store_func(c, amin);                             \
@@ -398,10 +398,10 @@ int rtree_combine_rect(HA_KEYSEG *keyseg, uchar *a, uchar *b, uchar *c,
 #define RT_OVL_AREA_GET(type, get_func, len) \
   {                                          \
     type amin, amax, bmin, bmax;             \
-    get_func(amin, a);                       \
-    get_func(bmin, b);                       \
-    get_func(amax, a + len);                 \
-    get_func(bmax, b + len);                 \
+    amin = get_func(a);                      \
+    bmin = get_func(b);                      \
+    amax = get_func(a + len);                \
+    bmax = get_func(b + len);                \
     amin = MY_MAX(amin, bmin);               \
     amax = MY_MIN(amax, bmax);               \
     if (amin >= amax) return 0;              \
@@ -480,10 +480,10 @@ double rtree_overlapping_area(HA_KEYSEG *keyseg, uchar *a, uchar *b,
 #define RT_AREA_INC_GET(type, get_func, len)                                  \
   {                                                                           \
     type amin, amax, bmin, bmax;                                              \
-    get_func(amin, a);                                                        \
-    get_func(bmin, b);                                                        \
-    get_func(amax, a + len);                                                  \
-    get_func(bmax, b + len);                                                  \
+    amin = get_func(a);                                                       \
+    bmin = get_func(b);                                                       \
+    amax = get_func(a + len);                                                 \
+    bmax = get_func(b + len);                                                 \
     a_area *= (((double)amax) - ((double)amin));                              \
     loc_ab_area *= ((double)MY_MAX(amax, bmax) - (double)MY_MIN(amin, bmin)); \
   }
@@ -572,10 +572,10 @@ safe_end:
 #define RT_PERIM_INC_GET(type, get_func, len)                               \
   {                                                                         \
     type amin, amax, bmin, bmax;                                            \
-    get_func(amin, a);                                                      \
-    get_func(bmin, b);                                                      \
-    get_func(amax, a + len);                                                \
-    get_func(bmax, b + len);                                                \
+    amin = get_func(a);                                                     \
+    bmin = get_func(b);                                                     \
+    amax = get_func(a + len);                                               \
+    bmax = get_func(b + len);                                               \
     a_perim += (((double)amax) - ((double)amin));                           \
     *ab_perim += ((double)MY_MAX(amax, bmax) - (double)MY_MIN(amin, bmin)); \
   }
@@ -666,12 +666,12 @@ double rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar *a, uchar *b,
 #define RT_PAGE_MBR_GET(type, get_func, store_func, len)         \
   {                                                              \
     type amin, amax, bmin, bmax;                                 \
-    get_func(amin, k + inc);                                     \
-    get_func(amax, k + inc + len);                               \
+    amin = get_func(k + inc);                                    \
+    amax = get_func(k + inc + len);                              \
     k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);                    \
     for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag)) { \
-      get_func(bmin, k + inc);                                   \
-      get_func(bmax, k + inc + len);                             \
+      bmin = get_func(k + inc);                                  \
+      bmax = get_func(k + inc + len);                            \
       if (amin > bmin) amin = bmin;                              \
       if (amax < bmax) amax = bmax;                              \
     }                                                            \

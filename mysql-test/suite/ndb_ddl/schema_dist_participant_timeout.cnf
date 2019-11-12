@@ -1,0 +1,6 @@
+!include suite/ndb_ddl/my.cnf
+
+[mysqld]
+# Set schema distribution timeout to low value
+ndb-schema-dist-timeout=5
+

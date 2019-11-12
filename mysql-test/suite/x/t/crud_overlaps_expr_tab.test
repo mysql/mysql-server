@@ -1,0 +1,60 @@
+## Tests related to overlaps operator
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/crud_overlaps_expr_tab.xpl
+--write_file $xtest_file
+-->quiet
+
+-->title =1. Looking up for some overlaps
+CREATE TABLE xtest.xtable (`overlaps` JSON, `list` JSON, `Name` varchar(50));
+INSERT INTO xtest.xtable (overlaps, list, Name) VALUES
+  ('{"one":1, "two":2, "three":3}', '{"one":1,"two":2, "three":3}', 'one'),
+  ('{"one":1, "two":2, "three":3}', '{"four":4, "five":5, "six":6}', 'two'),
+  ('{"one":1, "three":3, "five":5}', '{"two":2, "four":4, "six":6}', 'three'),
+  ('{"one":1, "three":3, "five":5}', '{"three":3, "six":9, "nine":9}', 'four'),
+  ('{"one":1, "three":3, "five":5}', '{"three":6, "six":12, "nine":18}', 'five'),
+  ('{"one":[1,2,3]}', '{"one":[3,4,5]}', 'six'),
+  ('{"one":[1,2,3]}', '{"one":[1,2,3]}', 'seven'),
+  ('[1,2,3]', '[2,3,4]', 'eight');
+
+Mysqlx.Crud.Find {
+ collection {
+    name: "xtable"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "overlaps"
+      param {
+        type: IDENT
+        identifier {
+          name: "overlaps"
+        }
+      }
+      param {
+        type: IDENT
+        identifier {
+          name: "list"
+        }
+      }
+    }
+  }
+}
+-->recvresult
+EOF
+
+CREATE SCHEMA xtest;
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

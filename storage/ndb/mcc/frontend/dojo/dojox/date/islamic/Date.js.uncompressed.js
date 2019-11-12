@@ -1,22 +1,13 @@
-//>>built
-define("dojox/date/islamic/Date", ["dojo/_base/kernel", "dojo/_base/declare", "dojo/date"], function(dojo, declare, dd){
+define("dojox/date/islamic/Date", ["dojo/_base/lang", "dojo/_base/declare", "dojo/date"], function(lang, declare, dd){
 
-dojo.getObject("date.buddhist.Date", true, dojox);
-dojo.experimental("dojox.date.buddhist.Date");
-
-dojo.requireLocalization("dojo.cldr", "islamic");
-
-dojo.declare("dojox.date.islamic.Date", null, {
-	// summary: The component defines the Islamic (Hijri) Calendar Object
-	//
+	var IDate = declare("dojox.date.islamic.Date", null, {
+	// summary:
+	//		The component defines the Islamic (Hijri) Calendar Object
 	// description:
-	//	This module is similar to the Date() object provided by JavaScript
-	//
+	//		This module is similar to the Date() object provided by JavaScript
 	// example:
-	// |	dojo.require("dojox.date.islamic.Date");
-	// |
-	// |	var date = new dojox.date.islamic.Date();
-	// |	document.writeln(date.getFullYear()+'\'+date.getMonth()+'\'+date.getDate());
+	//	|	var date = new dojox.date.islamic.Date();
+	//	|	document.writeln(date.getFullYear()+'\'+date.getMonth()+'\'+date.getDate());
 
 
 	_date: 0,
@@ -31,18 +22,15 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	_ISLAMIC_EPOCH : 1948439.5,
 
 	constructor: function(){
-		// summary: This is the constructor
+		// summary:
+		//		This is the constructor
 		// description:
-		//	This function initialize the date object values
-		//
+		//		This function initialize the date object values
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |
-		// |		var date2 = new dojox.date.islamic.Date("12\2\1429");
-		// |
-		// |		var date3 = new dojox.date.islamic.Date(date2);
-		// |
-		// |		var date4 = new dojox.date.islamic.Date(1429,2,12);
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	var date2 = new dojox.date.islamic.Date("12\2\1429");
+		//	|	var date3 = new dojox.date.islamic.Date(date2);
+		//	|	var date4 = new dojox.date.islamic.Date(1429,2,12);
 
 		var len = arguments.length;
 		if(!len){// use the current date value, added "" to the similarity to date
@@ -80,73 +68,74 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	},
 
 	getDate:function(){
-		// summary: This function returns the date value (1 - 30)
-		//
+		// summary:
+		//		This function returns the date value (1 - 30)
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |
-		// |		document.writeln(date1.getDate);
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	document.writeln(date1.getDate);
 		return this._date;
 	},
 	
 	getMonth:function(){
-		// summary: This function return the month value ( 0 - 11 )
-		//
+		// summary:
+		//		This function return the month value ( 0 - 11 )
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |
-		// |		document.writeln(date1.getMonth()+1);
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	document.writeln(date1.getMonth()+1);
 
 		return this._month;
 	},
 
 	getFullYear:function(){
-		// summary: This function return the Year value
-		//
+		// summary:
+		//		This function return the Year value
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |
-		// |		document.writeln(date1.getFullYear());
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	document.writeln(date1.getFullYear());
 
 		return this._year;
 	},
 		
 	getDay:function(){
-		// summary: This function return Week Day value ( 0 - 6 )
-		//
+		// summary:
+		//		This function return Week Day value ( 0 - 6 )
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |
-		// |		document.writeln(date1.getDay());
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	document.writeln(date1.getDay());
 
 		return this.toGregorian().getDay();
 	},
 		
 	getHours:function(){
-		//summary: returns the Hour value
+		// summary:
+		//		returns the Hour value
 		return this._hours;
 	},
 	
 	getMinutes:function(){
-		//summary: returns the Minuites value
+		// summary:
+		//		returns the Minutes value
 		return this._minutes;
 	},
 
 	getSeconds:function(){
-		//summary: returns the seconde value
+		// summary:
+		//		returns the seconds value
 		return this._seconds;
 	},
 
 	getMilliseconds:function(){
-		//summary: returns the Milliseconds value
+		// summary:
+		//		returns the Milliseconds value
 		return this._milliseconds;
 	},
 
 	setDate: function(/*number*/date){
-		// summary: This function sets the Date
+		// summary:
+		//		This function sets the Date
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |		date1.setDate(2);
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	date1.setDate(2);
 
 		date = parseInt(date);
 
@@ -179,21 +168,21 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	},
 
 	setFullYear:function(/*number*/year){
-		// summary: This function set Year
-		//
+		// summary:
+		//		This function set Year
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |		date1.setYear(1429);
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	date1.setYear(1429);
 
 		this._year = +year;
 	},
 
 	setMonth: function(/*number*/month) {
-		// summary: This function set Month
-		//
+		// summary:
+		//		This function set Month
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |		date1.setMonth(2);
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	date1.setMonth(2);
 
 		this._year += Math.floor(month / 12);
 		if(month > 0){
@@ -204,7 +193,8 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	},
 
 	setHours:function(){
-		//summary: set the Hours
+		// summary:
+		//		set the Hours
 		var hours_arg_no = arguments.length;
 		var hours = 0;
 		if(hours_arg_no >= 1){
@@ -258,13 +248,15 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	},
 
 	setMinutes: function(/*Number*/minutes){
-		//summary: sets the minutes (0-59) only.
+		// summary:
+		//		sets the minutes (0-59) only.
 		this._minutes = minutes % 60;
 		return this;
 	},
 
 	setSeconds: function(/*Number*/seconds){
-		//summary: sets the seconds (0-59) only.
+		// summary:
+		//		sets the seconds (0-59) only.
 		this._seconds = seconds % 60;
 		return this;
 	},
@@ -275,26 +267,32 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	},
 		
 	toString:function(){
-		// summary: This returns a string representation of the date in "DDDD MMMM DD YYYY HH:MM:SS" format
+		// summary:
+		//		This returns a string representation of the date in "DDDD MMMM DD YYYY HH:MM:SS" format
 		// example:
-		// |		var date1 = new dojox.date.islamic.Date();
-		// |		document.writeln(date1.toString());
+		//	|	var date1 = new dojox.date.islamic.Date();
+		//	|	document.writeln(date1.toString());
 
 		//FIXME: TZ/DST issues?
-		var x = new Date();
-		x.setHours(this._hours);
-		x.setMinutes(this._minutes);
-		x.setSeconds(this._seconds);
-		x.setMilliseconds(this._milliseconds);
-		return this._month+" "+ this._date + " " + this._year + " " + x.toTimeString();
+		if(isNaN(this._date)){
+			return "Invalidate Date";
+		}else{
+			var x = new Date();
+			x.setHours(this._hours);
+			x.setMinutes(this._minutes);
+			x.setSeconds(this._seconds);
+			x.setMilliseconds(this._milliseconds);
+			return this._month+" "+ this._date + " " + this._year + " " + x.toTimeString();
+		}
 	},
 		
 		
 	toGregorian:function(){
-		// summary: This returns the equevalent Grogorian date value in Date object
+		// summary:
+		//		This returns the equevalent Grogorian date value in Date object
 		// example:
-		// |		var dateIslamic = new dojox.date.islamic.Date(1429,11,20);
-		// |		var dateGregorian = dateIslamic.toGregorian();
+		//	|	var dateIslamic = new dojox.date.islamic.Date(1429,11,20);
+		//	|	var dateGregorian = dateIslamic.toGregorian();
 
 		var hYear = this._year;
 		var hMonth = this._month;
@@ -343,11 +341,12 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	//TODO: would it make more sense to make this a constructor option? or a static?
 	// ported from the Java class com.ibm.icu.util.IslamicCalendar from ICU4J v3.6.1 at http://www.icu-project.org/
 	fromGregorian:function(/*Date*/gdate){
-		// summary: This function returns the equivalent Islamic Date value for the Gregorian Date
+		// summary:
+		//		This function returns the equivalent Islamic Date value for the Gregorian Date
 		// example:
-		// |		var dateIslamic = new dojox.date.islamic.Date();
-		// |		var dateGregorian = new Date(2008,10,12);
-		// |		dateIslamic.fromGregorian(dateGregorian);
+		//	|	var dateIslamic = new dojox.date.islamic.Date();
+		//	|	var dateGregorian = new Date(2008,10,12);
+		//	|	dateIslamic.fromGregorian(dateGregorian);
 
 		var date = new Date(gdate);
 		var gYear = date.getFullYear(),
@@ -378,34 +377,39 @@ dojo.declare("dojox.date.islamic.Date", null, {
 	},
 	
 	valueOf:function(){
-		// summary: This function returns The stored time value in milliseconds
-		// since midnight, January 1, 1970 UTC
+		// summary:
+		//		This function returns The stored time value in milliseconds
+		//		since midnight, January 1, 1970 UTC
 
 		return this.toGregorian().valueOf();
 	},
 
 	// ported from the Java class com.ibm.icu.util.IslamicCalendar from ICU4J v3.6.1 at http://www.icu-project.org/
 	_yearStart:function(/*Number*/year){
-		//summary: return start of Islamic year
+		// summary:
+		//		return start of Islamic year
 		return (year-1)*354 + Math.floor((3+11*year)/30.0);
 	},
 
 	// ported from the Java class com.ibm.icu.util.IslamicCalendar from ICU4J v3.6.1 at http://www.icu-project.org/
 	_monthStart:function(/*Number*/year, /*Number*/month){
-		//summary: return the start of Islamic Month
+		// summary:
+		//		return the start of Islamic Month
 		return Math.ceil(29.5*month) +
 			(year-1)*354 + Math.floor((3+11*year)/30.0);
 	},
 
 	// ported from the Java class com.ibm.icu.util.IslamicCalendar from ICU4J v3.6.1 at http://www.icu-project.org/
 	_civilLeapYear:function(/*Number*/year){
-		//summary: return Boolean value if Islamic leap year
+		// summary:
+		//		return Boolean value if Islamic leap year
 		return (14 + 11 * year) % 30 < 11;
 	},
 
 	// ported from the Java class com.ibm.icu.util.IslamicCalendar from ICU4J v3.6.1 at http://www.icu-project.org/
 	getDaysInIslamicMonth:function(/*Number*/month, /*Number*/ year){
-		//summary: returns the number of days in the given Islamic Month
+		// summary:
+		//		returns the number of days in the given Islamic Month
 		var length = 0;
 		length = 29 + ((month+1) % 2);
 		if(month == 11 && this._civilLeapYear(year)){
@@ -420,8 +424,8 @@ dojo.declare("dojox.date.islamic.Date", null, {
 });
 
 //TODOC
-dojox.date.islamic.Date.getDaysInIslamicMonth = function(/*dojox.date.islamic.Date*/month){
-	return new dojox.date.islamic.Date().getDaysInIslamicMonth(month.getMonth(),month.getFullYear()); // dojox.date.islamic.Date
+IDate.getDaysInIslamicMonth = function(/*dojox/date/islamic.Date*/month){
+	return new IDate().getDaysInIslamicMonth(month.getMonth(),month.getFullYear()); // dojox.date.islamic.Date
 };
-return dojox.date.islamic.Date;
+return IDate;
 });

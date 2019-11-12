@@ -5,6 +5,7 @@ this.watchMouse=_3["watchMouseOver"]||true;
 this.mouseSampleDelay=_3["sampleDelay"]||2500;
 this.addData=_1.hitch(_2,"addData","mouseOver");
 this.targetProps=_3["targetProps"]||["id","className","localName","href","spellcheck","lang","textContent","value"];
+this.textContentMaxChars=_3["textContentMaxChars"]||50;
 this.toggleWatchMouse=function(){
 if(this._watchingMouse){
 this._watchingMouse.remove();
@@ -43,7 +44,7 @@ for(var j=0;j<_5.length;j++){
 if((typeof e[i]=="object"||typeof e[i]=="function")&&_5[j] in e[i]){
 if(_5[j]=="text"||_5[j]=="textContent"){
 if(e[i]["localName"]&&(e[i]["localName"]!="HTML")&&(e[i]["localName"]!="BODY")){
-t[i][_5[j]]=e[i][_5[j]].substr(0,50);
+t[i][_5[j]]=e[i][_5[j]].substr(0,this.textContentMaxChars);
 }
 }else{
 t[i][_5[j]]=e[i][_5[j]];
@@ -51,6 +52,8 @@ t[i][_5[j]]=e[i][_5[j]];
 }
 }
 break;
+case "screenX":
+case "screenY":
 case "x":
 case "y":
 if(e[i]){

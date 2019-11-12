@@ -1,7 +1,7 @@
 #ifndef SQL_JOIN_CACHE_INCLUDED
 #define SQL_JOIN_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,35 @@ struct CACHE_FIELD {
 };
 
 /**
+  Filter the base columns of virtual generated columns if using a covering index
+  scan.
+
+  Adjust table->read_set so that it only contains the columns that are needed in
+  the join operation and afterwards. A copy of the original read_set is stored
+  in "saved_bitmaps".
+
+  For a virtual generated column, all base columns are added to the read_set
+  of the table. The storage engine will then copy all base column values so
+  that the value of the GC can be calculated inside the executor.
+  But when a virtual GC is fetched using a covering index, the actual GC
+  value is fetched by the storage engine and the base column values are not
+  needed. Join buffering code must not try to copy them (in
+  create_remaining_fields()).
+  So, we eliminate from read_set those columns that are available from the
+  covering index.
+*/
+void filter_virtual_gcol_base_cols(
+    const QEP_TAB *qep_tab, MEM_ROOT *mem_root,
+    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
+
+/**
+  Restore table->read_set to the value stored in "saved_bitmaps".
+*/
+void restore_virtual_gcol_base_cols(
+    const QEP_TAB *qep_tab,
+    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
+
+/**
   JOIN_CACHE is the base class to support the implementations of both
   Blocked-Based Nested Loops (BNL) Join Algorithm and Batched Key Access (BKA)
   Join Algorithm. The first algorithm is supported by the derived class
@@ -113,6 +142,12 @@ class JOIN_CACHE : public QEP_operation {
   uint size_of_rec_len;
   /// Size of the offset of a field within a record in the cache.
   uint size_of_fld_ofs;
+
+  /**
+     In init() there are several uses of TABLE::tmp_set, so one tmp_set isn't
+     enough; this one is specific of generated column handling.
+  */
+  memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> save_read_set_for_gcol;
 
  protected:
   /// @return the number of bytes used to store an offset value
@@ -318,8 +353,6 @@ class JOIN_CACHE : public QEP_operation {
   /// Cached value of calc_check_only_first_match(join_tab).
   bool check_only_first_match;
 
-  void filter_virtual_gcol_base_cols();
-  void restore_virtual_gcol_base_cols();
   void calc_record_fields();
   int alloc_fields(uint external_fields);
   void create_flag_fields();
@@ -453,6 +486,13 @@ class JOIN_CACHE : public QEP_operation {
   /* Pointer to the next join cache if there is any */
   JOIN_CACHE *next_cache;
 
+  // See if this operation can be replaced with a hash join. In order to be
+  // replaced with hash join, the operation must be a block nested loop,
+  // and the table must have at least one equi-join condition attached. If there
+  // are other conditions that are not equi-join conditions, they will be
+  // attached as filters after the hash join.
+  virtual bool can_be_replaced_with_hash_join() const { return false; }
+
   /**
     Initialize the join cache.
     @retval 0 on success
@@ -506,6 +546,7 @@ class JOIN_CACHE : public QEP_operation {
   */
   JOIN_CACHE(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
       : QEP_operation(qep_tab_arg),
+        save_read_set_for_gcol(*THR_MALLOC),
         join(j),
         buff(NULL),
         prev_cache(prev),
@@ -560,6 +601,8 @@ class JOIN_CACHE_BNL final : public JOIN_CACHE {
   int init() override;
 
   enum_join_cache_type cache_type() const override { return ALG_BNL; }
+
+  bool can_be_replaced_with_hash_join() const override;
 
  private:
   Item *const_cond;
@@ -661,8 +704,9 @@ class JOIN_CACHE_BKA : public JOIN_CACHE {
     return space - aux_buff_size;
   }
 
-  /// @return the key built over the next record from the join buffer
-  virtual uint get_next_key(uchar **key);
+  /// @return false if a key was built successfully over the next record
+  /// from the join buffer, true otherwise.
+  virtual bool get_next_key(key_range *key);
 
   /// @return whether the record combination does not match the index condition
   bool skip_index_tuple(range_seq_t rseq, char *range_info);
@@ -944,7 +988,7 @@ class JOIN_CACHE_BKA_UNIQUE final : public JOIN_CACHE_BKA {
   */
   bool check_all_match_flags_for_key(uchar *key_chain_ptr);
 
-  uint get_next_key(uchar **key) override;
+  bool get_next_key(key_range *key) override;
 
   /// @return the head of the record chain attached to the current key entry
   uchar *get_curr_key_chain() {

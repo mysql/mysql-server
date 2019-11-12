@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 #
 # This program is free software; you can redistribute it and/or modify
@@ -307,8 +307,9 @@ table_replication_applier_filters.cc
 table_replication_applier_global_filters.cc
 )
 
-MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE MANDATORY STATIC_ONLY)
-IF(WITH_PERFSCHEMA_STORAGE_ENGINE AND WITH_UNIT_TESTS)
+MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES}
+  STORAGE_ENGINE MANDATORY STATIC_ONLY)
+IF(WITH_UNIT_TESTS)
   ENABLE_TESTING()
   ADD_SUBDIRECTORY(unittest)
 ENDIF()

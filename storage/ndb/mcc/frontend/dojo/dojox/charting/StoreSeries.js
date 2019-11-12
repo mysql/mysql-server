@@ -27,10 +27,11 @@ return _a.value;
 };
 }
 this.data=[];
+this._initialRendering=true;
 this.fetch();
 },destroy:function(){
 if(this.observeHandle){
-this.observeHandle.dismiss();
+this.observeHandle.remove();
 }
 },setSeriesObject:function(_b){
 this.series=_b;
@@ -38,7 +39,7 @@ this.series=_b;
 var _c=this.objects=[];
 var _d=this;
 if(this.observeHandle){
-this.observeHandle.dismiss();
+this.observeHandle.remove();
 }
 var _e=this.store.query(this.kwArgs.query,this.kwArgs);
 _3.when(_e,function(_f){
@@ -56,7 +57,8 @@ _d._pushDataChanges();
 };
 },_pushDataChanges:function(){
 if(this.series){
-this.series.chart.updateSeries(this.series.name,this);
+this.series.chart.updateSeries(this.series.name,this,this._initialRendering);
+this._initialRendering=false;
 this.series.chart.delayedRender();
 }
 }});

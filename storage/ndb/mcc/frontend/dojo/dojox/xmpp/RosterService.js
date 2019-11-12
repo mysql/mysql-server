@@ -1,8 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.xmpp.RosterService");
+define("dojox/xmpp/RosterService",["dojo","dijit","dojox"],function(_1,_2,_3){
+_1.provide("dojox.xmpp.RosterService");
 _3.xmpp.roster={ADDED:101,CHANGED:102,REMOVED:103};
-_2.declare("dojox.xmpp.RosterService",null,{constructor:function(_4){
+_1.declare("dojox.xmpp.RosterService",null,{constructor:function(_4){
 this.session=_4;
 },addRosterItem:function(_5,_6,_7){
 if(!_5){

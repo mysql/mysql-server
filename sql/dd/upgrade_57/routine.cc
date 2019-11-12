@@ -73,48 +73,42 @@ static Check_table_intact table_intact;
   Column definitions for 5.7 mysql.proc table (5.7.13 and up).
 */
 static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("db")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("name")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("type")},
-     {C_STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
+    {{STRING_WITH_LEN("db")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("name")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("type")},
+     {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("specific_name")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("language")},
-     {C_STRING_WITH_LEN("enum('SQL')")},
+    {{STRING_WITH_LEN("specific_name")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("language")},
+     {STRING_WITH_LEN("enum('SQL')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("sql_data_access")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("sql_data_access")},
+     {STRING_WITH_LEN(
          "enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("is_deterministic")},
-     {C_STRING_WITH_LEN("enum('YES','NO')")},
+    {{STRING_WITH_LEN("is_deterministic")},
+     {STRING_WITH_LEN("enum('YES','NO')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("security_type")},
-     {C_STRING_WITH_LEN("enum('INVOKER','DEFINER')")},
+    {{STRING_WITH_LEN("security_type")},
+     {STRING_WITH_LEN("enum('INVOKER','DEFINER')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("param_list")}, {C_STRING_WITH_LEN("blob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("param_list")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
 
-    {{C_STRING_WITH_LEN("returns")},
-     {C_STRING_WITH_LEN("longblob")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("body")}, {C_STRING_WITH_LEN("longblob")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("definer")},
-     {C_STRING_WITH_LEN("char(93)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("created")},
-     {C_STRING_WITH_LEN("timestamp")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("modified")},
-     {C_STRING_WITH_LEN("timestamp")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("sql_mode")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("returns")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("definer")},
+     {STRING_WITH_LEN("char(93)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("sql_mode")},
+     {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
          "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_"
          "SUBTRACTION',"
@@ -128,21 +122,19 @@ static const TABLE_FIELD_TYPE proc_table_fields[MYSQL_PROC_FIELD_COUNT] = {
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("comment")},
-     {C_STRING_WITH_LEN("text")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("character_set_client")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("collation_connection")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("db_collation")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("body_utf8")},
-     {C_STRING_WITH_LEN("longblob")},
-     {NULL, 0}}};
+    {{STRING_WITH_LEN("comment")},
+     {STRING_WITH_LEN("text")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("character_set_client")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("collation_connection")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("db_collation")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
 
 static const TABLE_FIELD_DEF proc_table_def = {MYSQL_PROC_FIELD_COUNT,
                                                proc_table_fields};
@@ -152,48 +144,42 @@ static const TABLE_FIELD_DEF proc_table_def = {MYSQL_PROC_FIELD_COUNT,
 */
 
 static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("db")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("name")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("type")},
-     {C_STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
+    {{STRING_WITH_LEN("db")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("name")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("type")},
+     {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("specific_name")},
-     {C_STRING_WITH_LEN("char(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("language")},
-     {C_STRING_WITH_LEN("enum('SQL')")},
+    {{STRING_WITH_LEN("specific_name")},
+     {STRING_WITH_LEN("char(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("language")},
+     {STRING_WITH_LEN("enum('SQL')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("sql_data_access")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("sql_data_access")},
+     {STRING_WITH_LEN(
          "enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("is_deterministic")},
-     {C_STRING_WITH_LEN("enum('YES','NO')")},
+    {{STRING_WITH_LEN("is_deterministic")},
+     {STRING_WITH_LEN("enum('YES','NO')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("security_type")},
-     {C_STRING_WITH_LEN("enum('INVOKER','DEFINER')")},
+    {{STRING_WITH_LEN("security_type")},
+     {STRING_WITH_LEN("enum('INVOKER','DEFINER')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("param_list")}, {C_STRING_WITH_LEN("blob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("param_list")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
 
-    {{C_STRING_WITH_LEN("returns")},
-     {C_STRING_WITH_LEN("longblob")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("body")}, {C_STRING_WITH_LEN("longblob")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("definer")},
-     {C_STRING_WITH_LEN("char(77)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("created")},
-     {C_STRING_WITH_LEN("timestamp")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("modified")},
-     {C_STRING_WITH_LEN("timestamp")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("sql_mode")},
-     {C_STRING_WITH_LEN(
+    {{STRING_WITH_LEN("returns")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("body")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("definer")},
+     {STRING_WITH_LEN("char(77)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("created")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("modified")}, {STRING_WITH_LEN("timestamp")}, {NULL, 0}},
+    {{STRING_WITH_LEN("sql_mode")},
+     {STRING_WITH_LEN(
          "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES',"
          "'IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_"
          "SUBTRACTION',"
@@ -207,21 +193,19 @@ static const TABLE_FIELD_TYPE proc_table_fields_old[MYSQL_PROC_FIELD_COUNT] = {
          "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_"
          "LENGTH')")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("comment")},
-     {C_STRING_WITH_LEN("text")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("character_set_client")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("collation_connection")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("db_collation")},
-     {C_STRING_WITH_LEN("char(32)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("body_utf8")},
-     {C_STRING_WITH_LEN("longblob")},
-     {NULL, 0}}};
+    {{STRING_WITH_LEN("comment")},
+     {STRING_WITH_LEN("text")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("character_set_client")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("collation_connection")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("db_collation")},
+     {STRING_WITH_LEN("char(32)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("body_utf8")}, {STRING_WITH_LEN("longblob")}, {NULL, 0}}};
 
 static const TABLE_FIELD_DEF proc_table_def_old = {MYSQL_PROC_FIELD_COUNT,
                                                    proc_table_fields_old};
@@ -423,7 +407,7 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
       goto err;
 
     // Set actual routine body.
-    sp->m_body.str = const_cast<char *>(body);
+    sp->m_body.str = body;
     sp->m_body.length = strlen(body);
   }
 
@@ -449,16 +433,15 @@ err:
 
 bool migrate_routines_to_dd(THD *thd) {
   TABLE *proc_table;
-  TABLE_LIST tables, *table_list;
   int error = 0;
   uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
   DML_prelocking_strategy prelocking_strategy;
   MEM_ROOT records_mem_root;
   Thd_mem_root_guard root_guard(thd, &records_mem_root);
 
-  tables.init_one_table("mysql", 5, "proc", 4, "proc", TL_READ);
+  TABLE_LIST tables("mysql", "proc", TL_READ);
+  auto table_list = &tables;
 
-  table_list = &tables;
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy)) {
     LogErr(ERROR_LEVEL, ER_CANT_OPEN_TABLE_MYSQL_PROC);
     return true;

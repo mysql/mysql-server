@@ -42,11 +42,11 @@
 #include "tcp_address.h"
 
 using mysqlrouter::to_string;
+using std::out_of_range;
+using std::runtime_error;
 using std::chrono::duration_cast;
 using std::chrono::seconds;
 using std::chrono::system_clock;
-using std::out_of_range;
-using std::runtime_error;
 
 using metadata_cache::ManagedInstance;
 IMPORT_LOG_FUNCTIONS()
@@ -213,7 +213,7 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
 DestMetadataCacheGroup::AvailableDestinations
 DestMetadataCacheGroup::get_available(
     const metadata_cache::LookupResult &managed_servers,
-    bool for_new_connections) {
+    bool for_new_connections) const {
   DestMetadataCacheGroup::AvailableDestinations result;
 
   bool primary_fallback{false};
@@ -438,6 +438,17 @@ int DestMetadataCacheGroup::get_server_socket(
 
   *error = errno;
   return -1;
+}
+
+DestMetadataCacheGroup::AddrVector DestMetadataCacheGroup::get_destinations()
+    const {
+  // don't call lookup if the cache-api is not ready yet.
+  if (!cache_api_->is_initialized()) return {};
+
+  auto available = get_available(
+      cache_api_->lookup_replicaset(ha_replicaset_).instance_vector);
+
+  return available.address;
 }
 
 void DestMetadataCacheGroup::on_instances_change(

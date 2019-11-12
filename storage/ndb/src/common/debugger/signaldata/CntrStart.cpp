@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB
-    Use is subject to license terms.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,10 +52,17 @@ printCNTR_START_CONF(FILE * output, const Uint32 * theData,
   fprintf(output, " masterNodeId: %x\n", sig->masterNodeId);
   fprintf(output, " noStartNodes: %x\n", sig->noStartNodes);
 
-  char buf[32*NdbNodeBitmask::Size+1];
-  fprintf(output, " startedNodes: %s\n", 
-	  BitmaskImpl::getText(NdbNodeBitmask::Size, sig->startedNodes, buf));
-  fprintf(output, " startingNodes: %s\n", 
-	  BitmaskImpl::getText(NdbNodeBitmask::Size, sig->startingNodes, buf));
+  if (len == sig->SignalLength_v1)
+  {
+    char buf[NdbNodeBitmask::TextLength + 1];
+    fprintf(output, " startedNodes: %s\n",
+      BitmaskImpl::getText(NdbNodeBitmask48::Size, sig->startedNodes_v1, buf));
+    fprintf(output, " startingNodes: %s\n",
+      BitmaskImpl::getText(NdbNodeBitmask48::Size, sig->startingNodes_v1, buf));
+  }
+  else
+  {
+    fprintf(output, " startedNodes and startingNodes in signal section");
+  }
   return true;
 }

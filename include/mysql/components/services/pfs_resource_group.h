@@ -115,11 +115,27 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 */
 
-BEGIN_SERVICE_DEFINITION(pfs_resource_group)
+/*
+  SERVICE_DEFINITION(pfs_resource_group)
+  Introduced in MySQL 8.0.2
+  Removed in MySQL 8.0.17
+  Status: Removed, use version 3 instead.
+*/
+
+/*
+  Version 3.
+  Introduced in MySQL 8.0.17
+  Status: active
+*/
+
+BEGIN_SERVICE_DEFINITION(pfs_resource_group_v3)
 set_thread_resource_group_v1_t set_thread_resource_group;
 set_thread_resource_group_by_id_v1_t set_thread_resource_group_by_id;
-get_thread_system_attrs_v1_t get_thread_system_attrs;
-get_thread_system_attrs_by_id_v1_t get_thread_system_attrs_by_id;
-END_SERVICE_DEFINITION(pfs_resource_group)
+get_thread_system_attrs_v3_t get_thread_system_attrs;
+get_thread_system_attrs_by_id_v3_t get_thread_system_attrs_by_id;
+END_SERVICE_DEFINITION(pfs_resource_group_v3)
+
+#define REQUIRES_PFS_RESOURCE_GROUP_SERVICE \
+  REQUIRES_SERVICE(pfs_resource_group_v3)
 
 #endif

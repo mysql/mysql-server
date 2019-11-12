@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -187,9 +187,8 @@ que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
  the wait state of a query thread waiting for a lock or a stored procedure
  completion.
  @return the query thread that needs to be released. */
-que_thr_t *que_thr_end_lock_wait(
-    trx_t *trx) /*!< in: transaction with que_state in
-                QUE_THR_LOCK_WAIT */
+que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
+                                             in QUE_THR_LOCK_WAIT */
 {
   que_thr_t *thr;
   ibool was_active;
@@ -374,10 +373,10 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
   upd_node_t *upd;
   purge_node_t *purge;
 
-  DBUG_ENTER("que_graph_free_recursive");
+  DBUG_TRACE;
 
   if (node == NULL) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   DBUG_PRINT("que_graph_free_recursive",
@@ -504,17 +503,14 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
     default:
       ut_error;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Frees a query graph. */
-void que_graph_free(
-    que_t *graph) /*!< in: query graph; we assume that the memory
-                  heap where this graph was created is private
-                  to this graph: if not, then use
-                  que_graph_free_recursive and free the heap
-                  afterwards! */
+void que_graph_free(que_t *graph) /*!< in: query graph; we assume that the
+                                  memory heap where this graph was created is
+                                  private to this graph: if not, then use
+                                  que_graph_free_recursive and free the heap
+                                  afterwards! */
 {
   ut_ad(graph);
   ut_ad(!mutex_own(&dict_sys->mutex));
@@ -1060,7 +1056,7 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
   que_thr_t *thr;
   que_t *graph;
 
-  DBUG_ENTER("que_eval_sql");
+  DBUG_TRACE;
   DBUG_PRINT("que_eval_sql", ("query: %s", sql));
 
   ut_a(trx->error_state == DB_SUCCESS);
@@ -1084,7 +1080,7 @@ dberr_t que_eval_sql(pars_info_t *info, /*!< in: info struct, or NULL */
 
   ut_a(trx->error_state != 0);
 
-  DBUG_RETURN(trx->error_state);
+  return trx->error_state;
 }
 
 /** Initialise the query sub-system. */

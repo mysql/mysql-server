@@ -7,6 +7,10 @@ passwd varchar(32) binary DEFAULT '' NOT NULL,
 PRIMARY KEY (id),
 UNIQUE ggid (ggid)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 (ggid,passwd) values ('test1','xxx');
 insert into t1 (ggid,passwd) values ('test2','yyy');
 insert into t1 (ggid,passwd) values ('test2','this will fail');

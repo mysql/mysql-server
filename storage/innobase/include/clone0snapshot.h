@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -126,6 +126,9 @@ class Clone_Snapshot {
   /** Release contexts and free heap */
   ~Clone_Snapshot();
 
+  /** @return estimated bytes on disk */
+  uint64_t get_disk_estimate() const { return (m_data_bytes_disk); }
+
   /** Get unique snapshot identifier
   @return snapshot ID */
   ib_uint64_t get_id() { return (m_snapshot_id); }
@@ -215,11 +218,12 @@ class Clone_Snapshot {
   @param[in]	new_state	state to move for apply
   @param[in]	temp_buffer	buffer used for collecting page IDs
   @param[in]	temp_buffer_len	buffer length
+  @param[in]	cbk		alter callback for long wait
   @param[out]	pending_clones	clones yet to transit to next state
   @return error code */
   int change_state(Clone_Desc_State *state_desc, Snapshot_State new_state,
                    byte *temp_buffer, uint temp_buffer_len,
-                   uint &pending_clones);
+                   Clone_Alert_Func cbk, uint &pending_clones);
 
   /** Check if transition is complete
   @param[in]	new_state	new state after transition
@@ -297,7 +301,49 @@ class Clone_Snapshot {
   @param[in]	file_size	new file size */
   void update_file_size(uint32_t file_index, uint64_t file_size);
 
+  /** Encrypt tablespace key in header page with master key.
+  @param[in]		page_size	page size descriptor
+  @param[in,out]	page_data	page data to update
+  @return true, if successful. */
+  bool encrypt_key_in_header(const page_size_t &page_size, byte *page_data);
+
+  /** Encrypt tablespace key in header page with master key.
+  @param[in,out]	log_header	page data to update
+  @param[in]		header_len	length of log header
+  @return true, if successful. */
+  bool encrypt_key_in_log_header(byte *log_header, uint32_t header_len);
+
+  /** Decrypt tablespace key in header page with master key.
+  @param[in]		space		tablespace
+  @param[in]		page_size	page size descriptor
+  @param[in,out]	page_data	page data to update
+  @return true, if successful. */
+  void decrypt_key_in_header(fil_space_t *space, const page_size_t &page_size,
+                             byte *&page_data);
+
  private:
+  /** Synchronize snapshot with binary log and GTID.
+  @param[in]	cbk	alert callback for long wait
+  @return error code. */
+  int synchronize_binlog_gtid(Clone_Alert_Func cbk);
+
+  /** Make sure that the trx sys page binary log position correctly reflects
+  all transactions committed to innodb. It updates binary log position
+  in transaction sys page, if required. The caller must ensure that any new
+  transaction is committed in order of binary log.
+  @return error code. */
+  int update_binlog_position();
+
+  /** Wait for already prepared binlog transactions to end.
+  @return error code. */
+  int wait_for_binlog_prepared_trx();
+
+  /** Wait for a transaction to end.
+  @param[in]	thd	current THD
+  @param[in]	trx_id	transaction to wait for
+  @return error code. */
+  int wait_trx_end(THD *thd, trx_id_t trx_id);
+
   /** Check if state transition is in progress
   @return true during state transition */
   bool in_transit_state() {
@@ -309,13 +355,20 @@ class Clone_Snapshot {
   @param[in]	state_desc	descriptor for the state
   @param[in]	temp_buffer	buffer used during page copy initialize
   @param[in]	temp_buffer_len	buffer length
+  @param[in]	cbk		alert callback for long wait
   @return error code */
   int init_state(Clone_Desc_State *state_desc, byte *temp_buffer,
-                 uint temp_buffer_len);
+                 uint temp_buffer_len, Clone_Alert_Func cbk);
 
   /** Initialize snapshot state for file copy
   @return error code */
   int init_file_copy();
+
+  /** Initialize disk byte estimate. */
+  void init_disk_estimate() {
+    /* Initial size is set to the redo file size on disk. */
+    m_data_bytes_disk = log_get_file_capacity(*log_sys);
+  }
 
   /** Initialize snapshot state for page copy
   @param[in]	page_buffer	temporary buffer to copy page IDs
@@ -324,8 +377,9 @@ class Clone_Snapshot {
   int init_page_copy(byte *page_buffer, uint page_buffer_len);
 
   /** Initialize snapshot state for redo copy
+  @param[in]	cbk	alert callback for long wait
   @return error code */
-  int init_redo_copy();
+  int init_redo_copy(Clone_Alert_Func cbk);
 
   /** Initialize state while applying cloned data
   @param[in]	state_desc	snapshot state descriptor
@@ -366,11 +420,20 @@ class Clone_Snapshot {
   /** Get page from buffer pool and make ready for write
   @param[in]	page_id		page ID chunk
   @param[in]	page_size	page size descriptor
+  @param[in]	file_meta	file metadata for page
   @param[out]	page_data	data page
   @param[out]	data_size	page size in bytes
   @return error code */
   int get_page_for_write(const page_id_t &page_id, const page_size_t &page_size,
-                         byte *&page_data, uint &data_size);
+                         Clone_File_Meta *file_meta, byte *&page_data,
+                         uint &data_size);
+
+  /* Make page ready for flush by updating LSN anc checksum
+  @param[in]		page_size	page size descriptor
+  @param[in]		page_lsn	LSN to update the page with
+  @param[in,out]	page_data	data page */
+  void page_update_for_flush(const page_size_t &page_size, lsn_t page_lsn,
+                             byte *&page_data);
 
   /** Build file metadata entry
   @param[in]	file_name	name of the file
@@ -379,8 +442,8 @@ class Clone_Snapshot {
   @param[in]	num_chunks	total number of chunks in the file
   @param[in]	copy_file_name	copy the file name or use reference
   @return file metadata entry */
-  Clone_File_Meta *build_file(const char *file_name, ib_uint64_t file_size,
-                              ib_uint64_t file_offset, uint &num_chunks,
+  Clone_File_Meta *build_file(const char *file_name, uint64_t file_size,
+                              uint64_t file_offset, uint &num_chunks,
                               bool copy_file_name);
 
   /** Add buffer pool dump file to the file list
@@ -390,11 +453,12 @@ class Clone_Snapshot {
   /** Add file to snapshot
   @param[in]	name		file name
   @param[in]	size_bytes	file size in bytes
-  @param[in]	space_id	tablespace id
+  @param[in]	alloc_bytes	allocation size on disk for sparse file
+  @param[in]	node		file node
   @param[in]	copy_name	copy the file name or use reference
   @return error code. */
-  int add_file(const char *name, ib_uint64_t size_bytes, ulint space_id,
-               bool copy_name);
+  int add_file(const char *name, uint64_t size_bytes, uint64_t alloc_bytes,
+               fil_node_t *node, bool copy_name);
 
   /** Get chunk size
   @return chunk size in pages */
@@ -422,6 +486,36 @@ class Clone_Snapshot {
     ut_a(m_block_size_pow2 <= m_chunk_size_pow2);
     return (1 << (m_chunk_size_pow2 - m_block_size_pow2));
   }
+
+  /** Update file name in descriptor from configuration.
+  @param[in]		data_dir	clone data directory
+  @param[in,out]	file_desc	file descriptor
+  @param[in,out]	path		buffer for updated path
+  @param[in]		path_len	path buffer length
+  @return error code */
+  int update_file_name(const char *data_dir, Clone_File_Meta *file_desc,
+                       char *path, size_t path_len);
+
+  /** Build file name along with path for cloned data files.
+  @param[in]		data_dir	clone data directory
+  @param[in]		alloc_size	new file size to be allocated
+  @param[in,out]	file_desc	file descriptor
+  @return error code */
+  int build_file_path(const char *data_dir, ulint alloc_size,
+                      Clone_File_Meta *&file_desc);
+
+  /** Check for existing file and add clone extension.
+  @param[in]		replace		if data directory is replaced
+  @param[in,out]	file_desc	file descriptor
+  @return error code */
+  int handle_existing_file(bool replace, Clone_File_Meta *file_desc);
+
+  /** Compute total length of cloned data file name and path.
+  @param[in]	data_dir	clone data directory
+  @param[in]	file_desc	file descriptor
+  @return total size in bytes */
+  size_t compute_path_length(const char *data_dir,
+                             const Clone_File_Meta *file_desc);
 
  private:
   /** @name Snapshot type and ID */
@@ -491,6 +585,12 @@ class Clone_Snapshot {
 
   /** Total number of data chunks */
   uint m_num_data_chunks;
+
+  /** Number of bytes on disk. */
+  uint64_t m_data_bytes_disk;
+
+  /** Index into m_data_file_vector for all undo files. */
+  std::vector<int> m_undo_file_indexes;
 
   /** @name Snapshot page data */
 

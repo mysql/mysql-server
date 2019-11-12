@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/StageController", ["dijit","dojo","dojox","dojo/require!dojox/mobile/app/SceneController"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/StageController", ["dojo","dijit","dojox","dojo/require!dojox/mobile/app/SceneController"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app.StageController");
 dojo.experimental("dojox.mobile.app.StageController");
 
@@ -9,7 +8,7 @@ dojo.require("dojox.mobile.app.SceneController");
 dojo.declare("dojox.mobile.app.StageController", null,{
 
 	// scenes: Array
-	//    The list of scenes currently in existance in the app.
+	//		The list of scenes currently in existence in the app.
 	scenes: null,
 
 	effect: "fade",

@@ -218,7 +218,8 @@ bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_last_altered, val, "last_altered");
   read_enum(&m_hidden, val, "hidden");
   read_properties(&m_options, val, "options");
-  deserialize_each(rctx, [this]() { return add_column(); }, val, "columns");
+  deserialize_each(
+      rctx, [this]() { return add_column(); }, val, "columns");
   return deserialize_schema_ref(rctx, &m_schema_id, val, "schema_ref");
 }
 

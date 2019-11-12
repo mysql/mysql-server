@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,10 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <mutex>
 #include <queue>
 
 #include "client/base/abstract_program.h"
-#include "client/base/mutex.h"
 #include "client/dump/abstract_dump_task.h"
 #include "client/dump/abstract_object_reader_wrapper.h"
 #include "client/dump/i_object_reader.h"
@@ -89,7 +89,7 @@ class Object_queue : public Abstract_object_reader_wrapper,
     Group of threads to process objects on queue.
   */
   my_boost::thread_group m_thread_group;
-  my_boost::mutex m_queue_mutex;
+  std::mutex m_queue_mutex;
   /*
     Maps task to all processing items that processes specified task.
   */

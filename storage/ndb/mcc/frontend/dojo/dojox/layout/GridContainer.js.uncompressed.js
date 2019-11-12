@@ -1,27 +1,31 @@
-//>>built
 define("dojox/layout/GridContainer", [
 	"dojo/_base/kernel",
+	"dojo/_base/declare", // declare
 	"dojo/_base/array",
 	"dojo/_base/connect",
-	"dojo/_base/declare",
-	"dojo/_base/html",
+	"dojo/_base/sniff",
+	"dojo/dom-class",
+	"dojo/dom-style",
+	"dojo/dom-geometry",
+	"dojo/dom-construct",
 	"dojo/_base/lang",
 	"dojo/_base/window",
 	"dojo/ready",	// dojo.ready
 	"dojox/layout/GridContainerLite"
-],function(dojo){
-	return dojo.declare(
+],function(dojo, declare, array, connect, has, domClass, domStyle, geom, domConstruct, lang, win, ready, GridContainerLite){
+	return declare(
 		"dojox.layout.GridContainer",
-		dojox.layout.GridContainerLite,
+		GridContainerLite,
 	{
 		// summary:
 		//		A grid containing any kind of objects and acting like web portals.
 		//
 		// description:
 		//		This component inherits of all features of gridContainerLite plus :
-		//			- Resize colums
-		//			- Add / remove columns
-		//			- Fix columns at left or at right.
+		//
+		//		- Resize colums
+		//		- Add / remove columns
+		//		- Fix columns at left or at right.
 		// example:
 		// 	|	<div dojoType="dojox.layout.GridContainer" nbZones="3" isAutoOrganized="true">
 		// 	|		<div dojoType="dijit.layout.ContentPane">Content Pane 1 : Drag Me !</div>
@@ -58,7 +62,7 @@ define("dojox/layout/GridContainer", [
 		minColWidth: 20,
 
 		// minChildWidth: Integer
-		// 		Minimum children width in pixel (only used for IE6 which doesn't handle min-width css property)
+		//		Minimum children width in pixel (only used for IE6 which doesn't handle min-width css property)
 		minChildWidth: 150,
 
 		// mode: String
@@ -93,7 +97,7 @@ define("dojox/layout/GridContainer", [
 					//		The CSS property height:100% for the grip
 					//		doesn't work anytime. It's necessary to wait
 					//		the end of loading before to place grips.
-					dojo.ready(dojo.hitch(this, "_placeGrips"));
+					ready(lang.hitch(this, "_placeGrips"));
 				}
 			}
 		},
@@ -108,7 +112,7 @@ define("dojox/layout/GridContainer", [
 			// targetArea:
 			//		AreaManager Object containing information of targetArea
 			// indexChild:
-			// 		Index where the dropped widget has been placed
+			//		Index where the dropped widget has been placed
 
 			if(this.inherited(arguments)){
 				this._placeGrips();
@@ -137,7 +141,7 @@ define("dojox/layout/GridContainer", [
 			//		IE6 calls method resize itself.
 			//		If the GridContainer is not visible at this time,
 			//		the method _placeGrips can return a negative value with
-			// 		contentBox method. (see method _placeGrip() with Fix Ie6 for the height)
+			//		contentBox method. (see method _placeGrip() with Fix Ie6 for the height)
 			if(this._isShown() && this.hasResizableColumns){
 				this._placeGrips();
 			}
@@ -153,26 +157,24 @@ define("dojox/layout/GridContainer", [
 
 			//console.log("dojox.layout.GridContainer ::: _createGrip");
 			var dropZone = this._grid[index],
-				grip = dojo.create("div", { 'class': "gridContainerGrip" }, this.domNode);
+				grip = domConstruct.create("div", { 'class': "gridContainerGrip" }, this.domNode);
 			dropZone.grip = grip;
 			dropZone.gripHandler = [
 				this.connect(grip, "onmouseover", function(e){
 					var gridContainerGripShow = false;
 					for(var i = 0; i < this._grid.length - 1; i++){
-						if(dojo.hasClass(this._grid[i].grip, "gridContainerGripShow")){
+						if(domClass.contains(this._grid[i].grip, "gridContainerGripShow")){
 							gridContainerGripShow = true;
 							break;
 						}
 					}
 					if(!gridContainerGripShow){
-						dojo.removeClass(e.target, "gridContainerGrip");
-						dojo.addClass(e.target, "gridContainerGripShow");
+						domClass.replace(e.target, "gridContainerGripShow", "gridContainerGrip");
 					}
 				})[0],
 				this.connect(grip, "onmouseout", function(e){
 					if(!this._isResized){
-						dojo.removeClass(e.target, "gridContainerGripShow");
-						dojo.addClass(e.target, "gridContainerGrip");
+						domClass.replace(e.target, "gridContainerGrip", "gridContainerGripShow");
 					}
 				})[0],
 				this.connect(grip, "onmousedown", "_resizeColumnOn")[0],
@@ -188,24 +190,24 @@ define("dojox/layout/GridContainer", [
 
 			//console.log("dojox.layout.GridContainer ::: _placeGrips");
 			var gripWidth, height, left = 0, grip;
-			var scroll = this.domNode.style.overflowY;
+			//var scroll = this.domNode.style.overflowY;
 
-			dojo.forEach(this._grid, function(dropZone){
+			array.forEach(this._grid, function(dropZone){
 				if(dropZone.grip){
 					grip = dropZone.grip;
 					if(!gripWidth){
 						gripWidth = grip.offsetWidth / 2;
 					}
 
-					left += dojo.marginBox(dropZone.node).w;
+					left += geom.getMarginBox(dropZone.node).w;
 
-					dojo.style(grip, "left", (left - gripWidth) + "px");
+					domStyle.set(grip, "left", (left - gripWidth) + "px");
 					//if(dojo.isIE == 6){ do it fot all navigators
 					if(!height){
-						height = dojo.contentBox(this.gridNode).h;
+						height = geom.getContentBox(this.gridNode).h;
 					}
 					if(height > 0){
-						dojo.style(grip, "height", height + "px");
+						domStyle.set(grip, "height", height + "px");
 					}
 					//}
 				}
@@ -237,7 +239,7 @@ define("dojox/layout/GridContainer", [
 			this._initX = e.pageX;
 			e.preventDefault();
 
-			dojo.body().style.cursor = "ew-resize";
+			win.body().style.cursor = "ew-resize";
 
 			this._isResized = true;
 
@@ -246,7 +248,7 @@ define("dojox/layout/GridContainer", [
 			var i;
 
 			for(i = 0; i < this._grid.length; i++){
-				tabSize[i] = dojo.contentBox(this._grid[i].node).w;
+				tabSize[i] = geom.getContentBox(this._grid[i].node).w;
 			}
 
 			this._oldTabSize = tabSize;
@@ -267,10 +269,10 @@ define("dojox/layout/GridContainer", [
 				var width = 0;
 				var childMinWidth = 0;
 
-				dojo.forEach(childNodes, function(child){
+				array.forEach(childNodes, function(child){
 					if(child.nodeType == 1){
-						var objectStyle = dojo.getComputedStyle(child);
-						var minWidth = (dojo.isIE) ? minChild : parseInt(objectStyle.minWidth);
+						var objectStyle = domStyle.getComputedStyle(child);
+						var minWidth = (has("ie")) ? minChild : parseInt(objectStyle.minWidth);
 
 						childMinWidth = minWidth +
 									parseInt(objectStyle.marginLeft) +
@@ -282,12 +284,12 @@ define("dojox/layout/GridContainer", [
 					}
 				});
 				return width;
-			}
+			};
 			var currentColumnMinWidth = calculateChildMinWidth(this._currentColumn.childNodes, this.minChildWidth);
 
 			var nextColumnMinWidth = calculateChildMinWidth(this._nextColumn.childNodes, this.minChildWidth);
 
-			var minPix = Math.round((dojo.marginBox(this.gridContainerTable).w * this.minColWidth) / 100);
+			var minPix = Math.round((geom.getMarginBox(this.gridContainerTable).w * this.minColWidth) / 100);
 
 			this._currentMinCol = currentColumnMinWidth;
 			this._nextMinCol = nextColumnMinWidth;
@@ -298,8 +300,8 @@ define("dojox/layout/GridContainer", [
 			if(minPix > this._nextMinCol){
 				this._nextMinCol = minPix;
 			}
-			this._connectResizeColumnMove = dojo.connect(dojo.doc, "onmousemove", this, "_resizeColumnMove");
-			this._connectOnGripMouseUp = dojo.connect(dojo.doc, "onmouseup", this, "_onGripMouseUp");
+			this._connectResizeColumnMove = connect.connect(win.doc, "onmousemove", this, "_resizeColumnMove");
+			this._connectOnGripMouseUp = connect.connect(win.doc, "onmouseup", this, "_onGripMouseUp");
 		},
 
 		_onGripMouseUp: function(){
@@ -309,16 +311,15 @@ define("dojox/layout/GridContainer", [
 			//		callback
 
 			//console.log(dojox.layout.GridContainer ::: _onGripMouseUp");
-			dojo.body().style.cursor = "default";
+			win.body().style.cursor = "default";
 
-			dojo.disconnect(this._connectResizeColumnMove);
-			dojo.disconnect(this._connectOnGripMouseUp);
+			connect.disconnect(this._connectResizeColumnMove);
+			connect.disconnect(this._connectOnGripMouseUp);
 
 			this._connectOnGripMouseUp = this._connectResizeColumnMove = null;
 
 			if(this._activeGrip){
-				dojo.removeClass(this._activeGrip, "gridContainerGripShow");
-				dojo.addClass(this._activeGrip, "gridContainerGrip");
+				domClass.replace(this._activeGrip, "gridContainerGrip", "gridContainerGripShow");
 			}
 
 			this._isResized = false;
@@ -333,9 +334,9 @@ define("dojox/layout/GridContainer", [
 			//console.log("dojox.layout.GridContainer ::: _resizeColumnMove");
 			e.preventDefault();
 			if(!this._connectResizeColumnOff){
-				dojo.disconnect(this._connectOnGripMouseUp);
+				connect.disconnect(this._connectOnGripMouseUp);
 				this._connectOnGripMouseUp = null;
-				this._connectResizeColumnOff = dojo.connect(dojo.doc, "onmouseup", this, "_resizeColumnOff");
+				this._connectResizeColumnOff = connect.connect(win.doc, "onmouseup", this, "_resizeColumnOff");
 			}
 
 			var d = e.pageX - this._initX;
@@ -365,10 +366,10 @@ define("dojox/layout/GridContainer", [
 			//		callback
 
 			//console.log("dojox.layout.GridContainer ::: _resizeColumnOff");
-			dojo.body().style.cursor = "default";
+			win.body().style.cursor = "default";
 
-			dojo.disconnect(this._connectResizeColumnMove);
-			dojo.disconnect(this._connectResizeColumnOff);
+			connect.disconnect(this._connectResizeColumnMove);
+			connect.disconnect(this._connectResizeColumnOff);
 
 			this._connectResizeColumnOff = this._connectResizeColumnMove = null;
 
@@ -387,12 +388,12 @@ define("dojox/layout/GridContainer", [
 
 			for(i = 0; i < this._grid.length; i++){
 				node = this._grid[i].node;
-				if(dojo.isIE){
-					tabSize[i] = dojo.marginBox(node).w;
-					testSize[i] = dojo.contentBox(node).w;
+				if(has("ie")){
+					tabSize[i] = geom.getMarginBox(node).w;
+					testSize[i] = geom.getContentBox(node).w;
 				}
 				else{
-					tabSize[i] = dojo.contentBox(node).w;
+					tabSize[i] = geom.getContentBox(node).w;
 					testSize = tabSize;
 				}
 			}
@@ -405,7 +406,7 @@ define("dojox/layout/GridContainer", [
 			}
 
 			if(update){
-				var mul = dojo.isIE ? 100 : 10000;
+				var mul = has("ie") ? 100 : 10000;
 				for(i = 0; i < this._grid.length; i++){
 					this._grid[i].node.style.width = Math.round((100 * mul * tabSize[i]) / tabWidth) / mul + "%";
 				}
@@ -413,8 +414,7 @@ define("dojox/layout/GridContainer", [
 			}
 
 			if(this._activeGrip){
-				dojo.removeClass(this._activeGrip, "gridContainerGripShow");
-				dojo.addClass(this._activeGrip, "gridContainerGrip");
+				domClass.replace(this._activeGrip, "gridContainerGrip", "gridContainerGripShow");
 			}
 
 			this._isResized = false;
@@ -454,7 +454,7 @@ define("dojox/layout/GridContainer", [
 							}
 						}
 						if(count.length < delta){
-							dojo.publish("/dojox/layout/gridContainer/noEmptyColumn", [this]);
+							connect.publish("/dojox/layout/gridContainer/noEmptyColumn", [this]);
 						}
 					}
 					else{ // mode = "left"
@@ -477,7 +477,7 @@ define("dojox/layout/GridContainer", [
 						}
 						if(count.length < delta){
 							//Not enough empty columns
-							dojo.publish("/dojox/layout/gridContainer/noEmptyColumn", [this]);
+							connect.publish("/dojox/layout/gridContainer/noEmptyColumn", [this]);
 						}
 					}
 				}
@@ -515,7 +515,7 @@ define("dojox/layout/GridContainer", [
 			for(var i = 0; i < nbColumns; i++){
 				// Fix CODEX defect #53025 :
 				//		Apply acceptType attribute on each new column.
-				node = dojo.create("td", {
+				node = domConstruct.create("td", {
 					'class': "gridContainerZone dojoxDndArea" ,
 					'accept': accept,
 					'id': this.id + "_dz" + this.nbZones
@@ -584,15 +584,15 @@ define("dojox/layout/GridContainer", [
 				grid = this._grid[index];
 
 				if(this.hasResizableColumns && grid.grip){
-					dojo.forEach(grid.gripHandler, function(handler){
-						dojo.disconnect(handler);
+					array.forEach(grid.gripHandler, function(handler){
+						connect.disconnect(handler);
 					});
-					dojo.destroy(this.domNode.removeChild(grid.grip));
+					domConstruct.destroy(this.domNode.removeChild(grid.grip));
 					grid.grip = null;
 				}
 
 				m.unregister(grid.node);
-				dojo.destroy(this.gridNode.removeChild(grid.node));
+				domConstruct.destroy(this.gridNode.removeChild(grid.node));
 				this._grid.splice(index, 1);
 				this.nbZones--;
 				nbDelZones++;
@@ -601,8 +601,8 @@ define("dojox/layout/GridContainer", [
 			// last grip
 			var lastGrid = this._grid[this.nbZones-1];
 			if(lastGrid.grip){
-				dojo.forEach(lastGrid.gripHandler, dojo.disconnect);
-				dojo.destroy(this.domNode.removeChild(lastGrid.grip));
+				array.forEach(lastGrid.gripHandler, connect.disconnect);
+				domConstruct.destroy(this.domNode.removeChild(lastGrid.grip));
 				lastGrid.grip = null;
 			}
 
@@ -619,11 +619,14 @@ define("dojox/layout/GridContainer", [
 
 			//console.log("dojox.layout.GridContainer ::: _updateColumnsWidth");
 			this.inherited(arguments);
+			if(manager === null){
+				manager = this._dragManager;
+			}
 			manager._dropMode.updateAreas(manager._areaList);
 		},
 
 		destroy: function(){
-			dojo.unsubscribe(this._dropHandler);
+			connect.unsubscribe(this._dropHandler);
 			this.inherited(arguments);
 		}
 	});

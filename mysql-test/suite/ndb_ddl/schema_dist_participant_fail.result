@@ -1,0 +1,18 @@
+#
+# Test participant crash during schema operation
+#
+CREATE TABLE t1(
+a int primary key
+) engine = NDB;
+# Setup participant to crash when schema operation starts
+set GLOBAL debug="+d,ndb_schema_op_start_crash";
+# Write file to make mtr.pl restart the server
+# Run schema operation to trigger participant failure
+ALTER TABLE t1 ALGORITHM=copy, ADD COLUMN b int;
+Warnings:
+Warning	1296	Node <nodeid> 'Node unsubscribed'
+# Check that schema operation suceeded on another MySQL Server
+SELECT * FROM t1;
+a	b
+DROP TABLE t1;
+# Wait for failed participant to finish restarting

@@ -1,4 +1,5 @@
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 -- source include/force_binlog_format_statement.inc
 

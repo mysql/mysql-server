@@ -14,6 +14,8 @@ show session variables like 'named_pipe_full_access_group';
 Variable_name	Value
 named_pipe_full_access_group	
 set global named_pipe_full_access_group = '*everyone*';
+Warnings:
+Warning	1887	Setting named_pipe_full_access_group='*everyone*' is insecure. Consider using a Windows group with fewer members.
 select * from performance_schema.global_variables where variable_name='named_pipe_full_access_group';
 VARIABLE_NAME	VARIABLE_VALUE
 named_pipe_full_access_group	*everyone*

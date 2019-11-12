@@ -20,26 +20,21 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-FILE(GLOB protoc_plugin_SRC
-  "${CMAKE_CURRENT_SOURCE_DIR}/xprotocol_plugin.cc"
-  "${CMAKE_CURRENT_SOURCE_DIR}/message_field_chain.cc"
+SET(protoc_plugin_SRC
+  message_field_chain.cc
+  messages_used_by_server.cc
+  xprotocol_plugin.cc
 )
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
 )
 
-# Protoc version 2.6.1 generates calls to
-# OSAtomicCompareAndSwap64 and others which are deprecated.
-IF(APPLE)
-  ADD_COMPILE_FLAGS(
-    "${CMAKE_CURRENT_SOURCE_DIR}/message_field_chain.cc"
-    COMPILE_FLAGS "-Wno-deprecated-declarations")
-ENDIF()
-
 ADD_COMPILE_FLAGS(${protoc_plugin_SRC}
-  COMPILE_FLAGS "${PUBLIC_XPROTOCOL_FLAGS}"
+  COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
+
+MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 
 MYSQL_ADD_EXECUTABLE(
   xprotocol_plugin
@@ -49,7 +44,7 @@ MYSQL_ADD_EXECUTABLE(
 
 TARGET_LINK_LIBRARIES(
   xprotocol_plugin
-  ${PROTOCOL_FULL_LIB_NAME}
+  ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_PROTOC_LIBRARY}
   ${PROTOBUF_LIBRARY}
 )
@@ -64,8 +59,8 @@ ADD_CUSTOM_COMMAND(
   ARGS --plugin=protoc-gen-yplg=$<TARGET_FILE:xprotocol_plugin>
        --yplg_out "${MYSQLX_GENERATE_DIR}"
        -I "${PROTOBUF_INCLUDE_DIR}"
-       -I "${MYSQLX_PROTOBUF_INCLUDE_DIR}"
-       ${MYSQLX_PROTOBUF_FILES}
+       -I "${MYSQLX_PROTOBUF_PROTO_DIR}"
+       ${MYSQLX_PROTOBUF_PROTO_FILES}
   DEPENDS
   xprotocol_plugin
   COMMENT "Running protocol buffer plugin on all 'proto' files"

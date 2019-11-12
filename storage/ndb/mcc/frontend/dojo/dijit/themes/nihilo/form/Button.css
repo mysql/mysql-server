@@ -7,12 +7,12 @@
 	padding: 0.1em 0.2em 0.2em 0.2em;
 	background: #fff url("../images/buttonEnabled.png") repeat-x top left;
 }
-.nihilo .dijitSelect .dijitButtonContents {
-	border-right: none;
-}
 .nihilo .dijitButtonText {
 	text-align: center;
 	padding: 0 0.3em;
+}
+.nihilo .dijitInputField {
+	padding: 0; 
 }
 .nihilo .dijitComboBox .dijitButtonNode {
 	border-width: 0 0 0 1px;

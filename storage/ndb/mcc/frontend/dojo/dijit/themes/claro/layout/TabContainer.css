@@ -27,7 +27,8 @@
   
   display: none;
 }
-.claro .dijitTabInnerDiv {
+.claro .dijitTab {
+  border: 1px solid #b5bcc7;
   background-color: #efefef;
   -webkit-transition-property: background-color, border;
   -moz-transition-property: background-color, border;
@@ -37,194 +38,163 @@
   transition-duration: 0.35s;
   color: #494949;
 }
-.claro .dijitTabHover .dijitTabInnerDiv {
+.claro .dijitTabHover {
+  border-color: #759dc0;
   background-color: #abd6ff;
   -webkit-transition-duration: 0.25s;
   -moz-transition-duration: 0.25s;
   transition-duration: 0.25s;
   color: #000000;
 }
-.claro .dijitTabActive .dijitTabInnerDiv {
+.claro .dijitTabActive {
+  border-color: #759dc0;
   background-color: #7dbdfa;
   color: #000000;
   -webkit-transition-duration: 0.1s;
   -moz-transition-duration: 0.1s;
   transition-duration: 0.1s;
 }
-.claro .dijitTabChecked .dijitTabInnerDiv {
+.claro .dijitTabChecked {
+  border-color: #b5bcc7;
   background-color: #cfe5fa;
   color: #000000;
 }
-.claro .dijitTabContent {
-  border: 1px solid #b5bcc7;
+.claro .dijitTabDisabled {
+  background-color: #d3d3d3;
 }
-.claro .dijitTabHover .dijitTabContent {
-  border-color: #759dc0;
-}
-.claro .dijitTabActive .dijitTabContent {
-  border-color: #759dc0;
-}
-.claro .dijitTabChecked .dijitTabContent {
-  color: #000000;
-  border-color: #b5bcc7;
-}
-.claro .tabStripButton .dijitTabInnerDiv {
+.claro .tabStripButton {
   background-color: transparent;
-}
-.claro .tabStripButton .dijitTabContent {
   border: none;
 }
 .claro .dijitTabContainerTop-tabs .dijitTab {
+  
   top: 1px;
   
   margin-right: 1px;
-  padding-top: 3px;
-}
-.dj_ie7 .claro .dijitTabContainerTop-tabs .dijitTab {
-  top: 3px;
-}
-.claro .dijitTabContainerTop-tabs .dijitTabContent {
   padding: 3px 6px;
   border-bottom-width: 0;
-  background-image: url("../layout/images/tabTop.png");
-  background-position: 0 0;
-  background-repeat: repeat-x;
   min-width: 60px;
   text-align: center;
-}
-.claro .dijitTabContainerTop-tabs .dijitTabChecked .dijitTabContent {
-  padding-bottom: 4px;
-  padding-top: 6px;
-}
-.claro .dijitTabContainerTop-tabs .dijitTabInnerDiv {
-  background-image: url("../layout/images/tabTop.png");
-  background-position: 0 -248px;
-  background-position: bottom;
+  background-image: url("images/tabTopUnselected.png");
   background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
   -webkit-box-shadow: 0 -1px 1px rgba(0, 0, 0, 0.04);
   -moz-box-shadow: 0 -1px 1px rgba(0, 0, 0, 0.04);
   box-shadow: 0 -1px 1px rgba(0, 0, 0, 0.04);
 }
-.claro .dijitTabContainerTop-tabs .dijitTabChecked .dijitTabInnerDiv {
-  background-image: none;
+.claro .dijitTabContainerTop-tabs .dijitTabChecked {
+  
+  padding-bottom: 4px;
+  padding-top: 9px;
+  background-image: url("images/tabTopSelected.png");
+  background-image: -moz-linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
+  background-image: -webkit-linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
+  background-image: -o-linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
+  background-image: linear-gradient(top, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
   -webkit-box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.05);
   -moz-box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.05);
   box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.05);
 }
-.claro .dijitTabContainerTop-tabs .dijitTabChecked .dijitTabContent {
-  background-position: 0 -102px;
-  background-repeat: repeat-x;
-}
 .claro .dijitTabContainerBottom-tabs .dijitTab {
+  
   top: -1px;
   
   margin-right: 1px;
-}
-.claro .dijitTabContainerBottom-tabs .dijitTabContent {
   padding: 3px 6px;
   border-top-width: 0;
-  background-image: url("../layout/images/tabBottom.png");
-  background-position: 0 -249px;
-  background-repeat: repeat-x;
-  background-position: bottom;
   min-width: 60px;
   text-align: center;
-}
-.claro .dijitTabContainerBottom-tabs .dijitTab {
-  padding-bottom: 3px;
-}
-.claro .dijitTabContainerBottom-tabs .dijitTabInnerDiv {
-  background-image: url("../layout/images/tabBottom.png");
-  background-position: top;
+  background-image: url("images/tabBottomUnselected.png");
   background-repeat: repeat-x;
+  background-position: bottom;
+  background-image: -moz-linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
   -webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
   -moz-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 }
-.claro .dijitTabContainerBottom-tabs .dijitTabChecked .dijitTabContent {
-  padding-bottom: 7px;
-  padding-top: 4px;
-  background-position: 0 -119px;
-}
 .claro .dijitTabContainerBottom-tabs .dijitTabChecked {
-  padding-bottom: 0;
-}
-.claro .dijitTabContainerBottom-tabs .dijitTabChecked .dijitTabInnerDiv {
-  background-image: none;
+  padding-bottom: 9px;
+  padding-top: 4px;
+  background-image: url("images/tabBottomSelected.png");
+  background-image: -moz-linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
+  background-image: -webkit-linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
+  background-image: -o-linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
+  background-image: linear-gradient(bottom, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0) 2px, #ffffff 7px);
   -webkit-box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   -moz-box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .claro .dijitTabContainerLeft-tabs .dijitTab {
-  border-right-width: 0;
+  
   left: 1px;
   
   margin-bottom: 1px;
-}
-.claro .dijitTabContainerLeft-tabs .dijitTabInnerDiv {
-  background-image: url("../layout/images/tabLeft.png");
-  background-position: -347px -340px;
-  background-repeat: repeat-y;
-}
-.claro .dijitTabContainerLeft-tabs .dijitTabContent {
   padding: 3px 8px 4px 4px;
-  background-image: url("../layout/images/tabLeft.png");
+  background-image: url("images/tabLeftUnselected.png");
   background-repeat: repeat-y;
-  background-position: 0 0;
+  background-image: -moz-linear-gradient(left, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(left, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(left, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(left, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
 }
-.claro .dijitTabContainerLeft-tabs .dijitTabChecked .dijitTabContent {
+.claro .dijitTabContainerLeft-tabs .dijitTabChecked {
+  border-right-width: 0;
   padding-right: 9px;
-  border-right: none;
-  background-image: none;
-}
-.claro .dijitTabContainerLeft-tabs .dijitTabChecked .dijitTabInnerDiv {
-  background-position: 0 -179px;
-  background-repeat: repeat-y;
+  background-image: url("images/tabLeftSelected.png");
+  background-image: -moz-linear-gradient(left, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
+  background-image: -webkit-linear-gradient(left, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
+  background-image: -o-linear-gradient(left, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
+  background-image: linear-gradient(left, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
   -webkit-box-shadow: -1px 0 2px rgba(0, 0, 0, 0.05);
   -moz-box-shadow: -1px 0 2px rgba(0, 0, 0, 0.05);
   box-shadow: -1px 0 2px rgba(0, 0, 0, 0.05);
 }
 .claro .dijitTabContainerRight-tabs .dijitTab {
-  border-left-width: 0;
+  
   left: -1px;
   
   margin-bottom: 1px;
-}
-.claro .dijitTabContainerRight-tabs .dijitTabInnerDiv {
-  background-image: url("../layout/images/tabRight.png");
-  background-repeat: repeat-y;
-  background-position: -1px -347px;
-}
-.claro .dijitTabContainerRight-tabs .dijitTabContent {
   padding: 3px 8px 4px 4px;
-  background-image: url("../layout/images/tabRight.png");
-  background-position: right top;
+  background-image: url("images/tabRightUnselected.png");
   background-repeat: repeat-y;
+  background-position: right;
+  background-image: -moz-linear-gradient(right, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(right, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(right, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(right, #ffffff 0px, #ffffff 1px, rgba(255, 255, 255, 0.1) 2px, rgba(255, 255, 255, 0.6) 7px, rgba(255, 255, 255, 0) 100%);
 }
-.claro .dijitTabContainerRight-tabs .dijitTabChecked .dijitTabContent {
+.claro .dijitTabContainerRight-tabs .dijitTabChecked {
+  
   padding-left: 5px;
-  border-left: none;
-  background-image: none;
-}
-.claro .dijitTabContainerRight-tabs .dijitTabChecked .dijitTabInnerDiv {
-  background-position: -348px -179px;
+  border-left-width: 0;
+  background-image: url("images/tabRightSelected.png");
+  background-image: -moz-linear-gradient(right, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
+  background-image: -webkit-linear-gradient(right, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
+  background-image: -o-linear-gradient(right, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
+  background-image: linear-gradient(right, rgba(255, 255, 255, 0.5) 0px, #ffffff 30px);
   -webkit-box-shadow: 1px 0 2px rgba(0, 0, 0, 0.07);
   -moz-box-shadow: 1px 0 2px rgba(0, 0, 0, 0.07);
   box-shadow: 1px 0 2px rgba(0, 0, 0, 0.07);
 }
-.claro .dijitTabContainerTop-tabs .dijitTabInnerDiv, .claro .dijitTabContainerTop-tabs .dijitTabContent {
+.claro .dijitTabContainerTop-tabs .dijitTab {
   -moz-border-radius: 2px 2px 0 0;
   border-radius: 2px 2px 0 0;
 }
-.claro .dijitTabContainerBottom-tabs .dijitTabInnerDiv, .claro .dijitTabContainerBottom-tabs .dijitTabContent {
+.claro .dijitTabContainerBottom-tabs .dijitTab {
   -moz-border-radius: 0 0 2px 2px;
   border-radius: 0 0 2px 2px;
 }
-.claro .dijitTabContainerLeft-tabs .dijitTabInnerDiv, .claro .dijitTabContainerLeft-tabs .dijitTabContent {
+.claro .dijitTabContainerLeft-tabs .dijitTab {
   -moz-border-radius: 2px 0 0 2px;
   border-radius: 2px 0 0 2px;
 }
-.claro .dijitTabContainerRight-tabs .dijitTabInnerDiv, .claro .dijitTabContainerRight-tabs .dijitTabContent {
+.claro .dijitTabContainerRight-tabs .dijitTab {
   -moz-border-radius: 0 2px 2px 0;
   border-radius: 0 2px 2px 0;
 }
@@ -235,15 +205,18 @@
 .claro .dijitTabListContainer-top .tabStripButton {
   padding: 4px 3px;
   margin-top: 7px;
-  background-image: url("../layout/images/tabTop.png");
-  background-position: 0 0;
+  background-image: -moz-linear-gradient(top, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(top, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(top, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(top, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
 }
 .claro .dijitTabListContainer-bottom .tabStripButton {
-  padding: 5px 3px;
-  margin-bottom: 4px;
-  background-image: url("../layout/images/tabTop.png");
-  background-position: 0 -248px;
-  background-position: bottom;
+  padding: 4px 3px;
+  margin-bottom: 7px;
+  background-image: -moz-linear-gradient(bottom, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(bottom, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(bottom, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(bottom, #ffffff 0px, rgba(255, 255, 255, 0.1) 1px, rgba(255, 255, 255, 0.6) 6px, rgba(255, 255, 255, 0) 100%);
 }
 .claro .tabStripButtonHover {
   background-color: #abd6ff;
@@ -283,10 +256,9 @@
 }
 .claro .dijitTabContainerNested .dijitTabContainerTop-tabs {
   border-bottom: solid 1px #b5bcc7;
-  padding: 1px 2px 4px;
-  margin-top: -2px;
+  padding: 2px 2px 4px;
 }
-.claro .dijitTabContainerTabListNested .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTab {
   background: rgba(255, 255, 255, 0) none repeat scroll 0 0;
   border: none;
   padding: 4px;
@@ -300,8 +272,7 @@
   -moz-border-radius: 2px;
   border-radius: 2px;
 }
-.claro .dijitTabContainerTabListNested .dijitTab .dijitTabInnerDiv {
-  
+.claro .dijitTabContainerTabListNested .dijitTab {
   background: none;
   border: none;
   top: 0;
@@ -310,7 +281,7 @@
   -moz-box-shadow: none;
   box-shadow: none;
 }
-.claro .dijitTabContainerTabListNested .dijitTabHover .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTabHover {
   background-color: #e5f2fe;
   border: solid 1px #cfe5fa;
   padding: 3px;
@@ -321,18 +292,21 @@
 .claro .dijitTabContainerTabListNested .dijitTabHover .tabLabel {
   text-decoration: none;
 }
-.claro .dijitTabContainerTabListNested .dijitTabActive .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTabActive {
   border: solid 1px #759dc0;
   padding: 3px;
-  background: #abd6ff url("../layout/images/tabNested.png") repeat-x;
+  background: #abd6ff url("images/tabNested.png") repeat-x;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.61) 0%, rgba(255, 255, 255, 0) 17%, rgba(255, 255, 255, 0) 83%, rgba(255, 255, 255, 0.61) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.61) 0%, rgba(255, 255, 255, 0) 17%, rgba(255, 255, 255, 0) 83%, rgba(255, 255, 255, 0.61) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.61) 0%, rgba(255, 255, 255, 0) 17%, rgba(255, 255, 255, 0) 83%, rgba(255, 255, 255, 0.61) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.61) 0%, rgba(255, 255, 255, 0) 17%, rgba(255, 255, 255, 0) 83%, rgba(255, 255, 255, 0.61) 100%);
   -webkit-transition-duration: 0.1s;
   -moz-transition-duration: 0.1s;
   transition-duration: 0.1s;
 }
-.claro .dijitTabContainerTabListNested .dijitTabChecked .dijitTabContent {
+.claro .dijitTabContainerTabListNested .dijitTabChecked {
   padding: 3px;
   border: solid 1px #759dc0;
-  background-position: 0 105px;
   background-color: #cfe5fa;
 }
 .claro .dijitTabContainerTabListNested .dijitTabChecked .tabLabel {
@@ -343,9 +317,6 @@
   border: none;
   
 }
-.dj_ie6 .claro .dijitTabContent,
-.dj_ie6 .claro .dijitTabInnerDiv,
-.dj_ie6 .dijitTabListContainer-top .tabStripButton,
-.dj_ie6 .dijitTabListContainer-bottom .tabStripButton {
-  background-image: none;
+.claro .dijitTab, .claro .tabStripButton {
+  _background-image: none !important;
 }

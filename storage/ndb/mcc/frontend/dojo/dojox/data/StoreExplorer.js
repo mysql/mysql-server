@@ -1,18 +1,18 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/grid/DataGrid,dojox/data/ItemExplorer,dijit/layout/BorderContainer,dijit/layout/ContentPane"],function(_1,_2,_3){
-_2.provide("dojox.data.StoreExplorer");
-_2.require("dojox.grid.DataGrid");
-_2.require("dojox.data.ItemExplorer");
-_2.require("dijit.layout.BorderContainer");
-_2.require("dijit.layout.ContentPane");
-_2.declare("dojox.data.StoreExplorer",_1.layout.BorderContainer,{constructor:function(_4){
-_2.mixin(this,_4);
+define("dojox/data/StoreExplorer",["dojo","dijit","dojox","dojo/require!dojox/grid/DataGrid,dojox/data/ItemExplorer,dijit/layout/BorderContainer,dijit/layout/ContentPane"],function(_1,_2,_3){
+_1.provide("dojox.data.StoreExplorer");
+_1.require("dojox.grid.DataGrid");
+_1.require("dojox.data.ItemExplorer");
+_1.require("dijit.layout.BorderContainer");
+_1.require("dijit.layout.ContentPane");
+_1.declare("dojox.data.StoreExplorer",_2.layout.BorderContainer,{constructor:function(_4){
+_1.mixin(this,_4);
 },store:null,columnWidth:"",stringQueries:false,showAllColumns:false,postCreate:function(){
 var _5=this;
 this.inherited(arguments);
-var _6=new _1.layout.ContentPane({region:"top"}).placeAt(this);
+var _6=new _2.layout.ContentPane({region:"top"}).placeAt(this);
 function _7(_8,_9){
-var _a=new _1.form.Button({label:_8});
+var _a=new _2.form.Button({label:_8});
 _6.containerNode.appendChild(_a.domNode);
 _a.onClick=_9;
 return _a;
@@ -25,10 +25,10 @@ _c.type="text";
 _c.id="queryTextBox";
 _7("Query",function(){
 var _d=_c.value;
-_5.setQuery(_5.stringQueries?_d:_2.fromJson(_d));
+_5.setQuery(_5.stringQueries?_d:_1.fromJson(_d));
 });
 _6.containerNode.appendChild(document.createElement("span")).innerHTML="&nbsp;&nbsp;&nbsp;";
-var _e=_7("Create New",_2.hitch(this,"createNew"));
+var _e=_7("Create New",_1.hitch(this,"createNew"));
 var _f=_7("Delete",function(){
 var _10=_11.selection.getSelected();
 for(var i=0;i<_10.length;i++){
@@ -36,7 +36,7 @@ _5.store.deleteItem(_10[i]);
 }
 });
 this.setItemName=function(_12){
-_e.attr("label","<img style='width:12px; height:12px' src='"+_2.moduleUrl("dijit.themes.tundra.images","dndCopy.png")+"' /> Create New "+_12);
+_e.attr("label","<img style='width:12px; height:12px' src='"+_1.moduleUrl("dijit.themes.tundra.images","dndCopy.png")+"' /> Create New "+_12);
 _f.attr("label","Delete "+_12);
 };
 _7("Save",function(){
@@ -51,21 +51,21 @@ _5.store.revert();
 _7("Add Column",function(){
 var _14=prompt("Enter column name:","property");
 if(_14){
-_5.gridLayout.push({field:_14,name:_14,formatter:_2.hitch(_5,"_formatCell"),editable:true});
+_5.gridLayout.push({field:_14,name:_14,formatter:_1.hitch(_5,"_formatCell"),editable:true});
 _5.grid.attr("structure",_5.gridLayout);
 }
 });
-var _15=new _1.layout.ContentPane({region:"center"}).placeAt(this);
+var _15=new _2.layout.ContentPane({region:"center"}).placeAt(this);
 var _11=this.grid=new _3.grid.DataGrid({store:this.store});
 _15.attr("content",_11);
 _11.canEdit=function(_16,_17){
 var _18=this._copyAttr(_17,_16.field);
 return !(_18&&typeof _18=="object")||_18 instanceof Date;
 };
-var _19=new _1.layout.ContentPane({region:"trailing",splitter:true,style:"width: 300px"}).placeAt(this);
+var _19=new _2.layout.ContentPane({region:"trailing",splitter:true,style:"width: 300px"}).placeAt(this);
 var _1a=this.tree=new _3.data.ItemExplorer({store:this.store});
 _19.attr("content",_1a);
-_2.connect(_11,"onCellClick",function(){
+_1.connect(_11,"onCellClick",function(){
 var _1b=_11.selection.getSelected()[0];
 _1a.setItem(_1b);
 });
@@ -135,7 +135,7 @@ this.tree.setStore(_1f);
 var _2d=prompt("Enter any properties (in JSON literal form) to put in the new item (passed to the newItem constructor):","{ }");
 if(_2d){
 try{
-this.store.newItem(_2.fromJson(_2d));
+this.store.newItem(_1.fromJson(_2d));
 }
 catch(e){
 alert(e);

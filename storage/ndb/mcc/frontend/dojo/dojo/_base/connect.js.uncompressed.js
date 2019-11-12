@@ -1,15 +1,7 @@
-//>>built
-define("dojo/_base/connect", ["./kernel", "../on", "../topic", "../aspect", "./event", "../mouse", "./sniff", "./lang", "../keys"], function(kernel, on, hub, aspect, eventModule, mouse, has, lang){
-//  module:
-//    dojo/_base/connect
-//  summary:
-//    This module defines the dojo.connect API.
-//		This modules also provides keyboard event handling helpers.
-//		This module exports an extension event for emulating Firefox's keypress handling.
-//		However, this extension event exists primarily for backwards compatibility and
-//		is not recommended. WebKit and IE uses an alternate keypress handling (only
-//		firing for printable characters, to distinguish from keydown events), and most
-//		consider the WebKit/IE behavior more desirable.
+define("dojo/_base/connect", ["./kernel", "../on", "../topic", "../aspect", "./event", "../mouse", "./sniff", "./lang", "../keys"], function(dojo, on, hub, aspect, eventModule, mouse, has, lang){
+// module:
+//		dojo/_base/connect
+
 has.add("events-keypress-typed", function(){ // keypresses should only occur a printable character is hit
 	var testKeyEvent = {charCode: 0};
 	try{
@@ -24,13 +16,13 @@ function connect_(obj, event, context, method, dontFix){
 	if(!obj || !(obj.addEventListener || obj.attachEvent)){
 		// it is a not a DOM node and we are using the dojo.connect style of treating a
 		// method like an event, must go right to aspect
-		return aspect.after(obj || kernel.global, event, method, true);
+		return aspect.after(obj || dojo.global, event, method, true);
 	}
 	if(typeof event == "string" && event.substring(0, 2) == "on"){
 		event = event.substring(2);
 	}
 	if(!obj){
-		obj = kernel.global;
+		obj = dojo.global;
 	}
 	if(!dontFix){
 		switch(event){
@@ -100,7 +92,7 @@ if(has("events-keypress-typed")){
 			var k=evt.keyCode;
 			// These are Windows Virtual Key Codes
 			// http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/WinUI/WindowsUserInterface/UserInput/VirtualKeyCodes.asp
-			var unprintable = (k!=13 || (has("ie") >= 9 && !has("quirks"))) && k!=32 && (k!=27||!has("ie")) && (k<48||k>90) && (k<96||k>111) && (k<186||k>192) && (k<219||k>222) && k!=229;
+			var unprintable = (k!=13) && k!=32 && (k!=27||!has("ie")) && (k<48||k>90) && (k<96||k>111) && (k<186||k>192) && (k<219||k>222) && k!=229;
 			// synthesize keypress for most unprintables and CTRL-keys
 			if(unprintable||evt.ctrlKey){
 				var c = unprintable ? 0 : k;
@@ -165,9 +157,115 @@ if(has("events-keypress-typed")){
 }
 
 var connect = {
+	// summary:
+	//		This module defines the dojo.connect API.
+	//		This modules also provides keyboard event handling helpers.
+	//		This module exports an extension event for emulating Firefox's keypress handling.
+	//		However, this extension event exists primarily for backwards compatibility and
+	//		is not recommended. WebKit and IE uses an alternate keypress handling (only
+	//		firing for printable characters, to distinguish from keydown events), and most
+	//		consider the WebKit/IE behavior more desirable.
+
 	_keypress:keypress,
 
 	connect:function(obj, event, context, method, dontFix){
+		// summary:
+		//		`dojo.connect` is a deprecated event handling and delegation method in
+		//		Dojo. It allows one function to "listen in" on the execution of
+		//		any other, triggering the second whenever the first is called. Many
+		//		listeners may be attached to a function, and source functions may
+		//		be either regular function calls or DOM events.
+		//
+		// description:
+		//		Connects listeners to actions, so that after event fires, a
+		//		listener is called with the same arguments passed to the original
+		//		function.
+		//
+		//		Since `dojo.connect` allows the source of events to be either a
+		//		"regular" JavaScript function or a DOM event, it provides a uniform
+		//		interface for listening to all the types of events that an
+		//		application is likely to deal with though a single, unified
+		//		interface. DOM programmers may want to think of it as
+		//		"addEventListener for everything and anything".
+		//
+		//		When setting up a connection, the `event` parameter must be a
+		//		string that is the name of the method/event to be listened for. If
+		//		`obj` is null, `kernel.global` is assumed, meaning that connections
+		//		to global methods are supported but also that you may inadvertently
+		//		connect to a global by passing an incorrect object name or invalid
+		//		reference.
+		//
+		//		`dojo.connect` generally is forgiving. If you pass the name of a
+		//		function or method that does not yet exist on `obj`, connect will
+		//		not fail, but will instead set up a stub method. Similarly, null
+		//		arguments may simply be omitted such that fewer than 4 arguments
+		//		may be required to set up a connection See the examples for details.
+		//
+		//		The return value is a handle that is needed to
+		//		remove this connection with `dojo.disconnect`.
+		//
+		// obj: Object?
+		//		The source object for the event function.
+		//		Defaults to `kernel.global` if null.
+		//		If obj is a DOM node, the connection is delegated
+		//		to the DOM event manager (unless dontFix is true).
+		//
+		// event: String
+		//		String name of the event function in obj.
+		//		I.e. identifies a property `obj[event]`.
+		//
+		// context: Object|null
+		//		The object that method will receive as "this".
+		//
+		//		If context is null and method is a function, then method
+		//		inherits the context of event.
+		//
+		//		If method is a string then context must be the source
+		//		object object for method (context[method]). If context is null,
+		//		kernel.global is used.
+		//
+		// method: String|Function
+		//		A function reference, or name of a function in context.
+		//		The function identified by method fires after event does.
+		//		method receives the same arguments as the event.
+		//		See context argument comments for information on method's scope.
+		//
+		// dontFix: Boolean?
+		//		If obj is a DOM node, set dontFix to true to prevent delegation
+		//		of this connection to the DOM event manager.
+		//
+		// example:
+		//		When obj.onchange(), do ui.update():
+		//	|	dojo.connect(obj, "onchange", ui, "update");
+		//	|	dojo.connect(obj, "onchange", ui, ui.update); // same
+		//
+		// example:
+		//		Using return value for disconnect:
+		//	|	var link = dojo.connect(obj, "onchange", ui, "update");
+		//	|	...
+		//	|	dojo.disconnect(link);
+		//
+		// example:
+		//		When onglobalevent executes, watcher.handler is invoked:
+		//	|	dojo.connect(null, "onglobalevent", watcher, "handler");
+		//
+		// example:
+		//		When ob.onCustomEvent executes, customEventHandler is invoked:
+		//	|	dojo.connect(ob, "onCustomEvent", null, "customEventHandler");
+		//	|	dojo.connect(ob, "onCustomEvent", "customEventHandler"); // same
+		//
+		// example:
+		//		When ob.onCustomEvent executes, customEventHandler is invoked
+		//		with the same scope (this):
+		//	|	dojo.connect(ob, "onCustomEvent", null, customEventHandler);
+		//	|	dojo.connect(ob, "onCustomEvent", customEventHandler); // same
+		//
+		// example:
+		//		When globalEvent executes, globalHandler is invoked
+		//		with the same scope (this):
+		//	|	dojo.connect(null, "globalEvent", null, globalHandler);
+		//	|	dojo.connect("globalEvent", globalHandler); // same
+
 		// normalize arguments
 		var a=arguments, args=[], i=0;
 		// if a[0] is a String, obj was omitted
@@ -181,220 +279,95 @@ var connect = {
 	},
 
 	disconnect:function(handle){
+		// summary:
+		//		Remove a link created by dojo.connect.
+		// description:
+		//		Removes the connection between event and the method referenced by handle.
+		// handle: Handle
+		//		the return value of the dojo.connect call that created the connection.
+
 		if(handle){
 			handle.remove();
 		}
 	},
 
 	subscribe:function(topic, context, method){
+		// summary:
+		//		Attach a listener to a named topic. The listener function is invoked whenever the
+		//		named topic is published (see: dojo.publish).
+		//		Returns a handle which is needed to unsubscribe this listener.
+		// topic: String
+		//		The topic to which to subscribe.
+		// context: Object?
+		//		Scope in which method will be invoked, or null for default scope.
+		// method: String|Function
+		//		The name of a function in context, or a function reference. This is the function that
+		//		is invoked when topic is published.
+		// example:
+		//	|	dojo.subscribe("alerts", null, function(caption, message){ alert(caption + "\n" + message); });
+		//	|	dojo.publish("alerts", [ "read this", "hello world" ]);
 		return hub.subscribe(topic, lang.hitch(context, method));
 	},
 
 	publish:function(topic, args){
+		// summary:
+		//		Invoke all listener method subscribed to topic.
+		// topic: String
+		//		The name of the topic to publish.
+		// args: Array?
+		//		An array of arguments. The arguments will be applied
+		//		to each topic subscriber (as first class parameters, via apply).
+		// example:
+		//	|	dojo.subscribe("alerts", null, function(caption, message){ alert(caption + "\n" + message); };
+		//	|	dojo.publish("alerts", [ "read this", "hello world" ]);
 		return hub.publish.apply(hub, [topic].concat(args));
 	},
 
 	connectPublisher:function(topic, obj, event){
+		// summary:
+		//		Ensure that every time obj.event() is called, a message is published
+		//		on the topic. Returns a handle which can be passed to
+		//		dojo.disconnect() to disable subsequent automatic publication on
+		//		the topic.
+		// topic: String
+		//		The name of the topic to publish.
+		// obj: Object?
+		//		The source object for the event function. Defaults to kernel.global
+		//		if null.
+		// event: String
+		//		The name of the event function in obj.
+		//		I.e. identifies a property obj[event].
+		// example:
+		//	|	dojo.connectPublisher("/ajax/start", dojo, "xhrGet");
 		var pf = function(){ connect.publish(topic, arguments); };
 		return event ? connect.connect(obj, event, pf) : connect.connect(obj, pf); //Handle
 	},
 
 	isCopyKey: function(e){
+		// summary:
+		//		Checks an event for the copy key (meta on Mac, and ctrl anywhere else)
+		// e: Event
+		//		Event object to examine
 		return e[evtCopyKey];	// Boolean
 	}
 };
+
 connect.unsubscribe = connect.disconnect;
+/*=====
+ connect.unsubscribe = function(handle){
+	 // summary:
+	 //		Remove a topic listener.
+	 // handle: Handle
+	 //		The handle returned from a call to subscribe.
+	 // example:
+	 //	|	var alerter = dojo.subscribe("alerts", null, function(caption, message){ alert(caption + "\n" + message); };
+	 //	|	...
+	 //	|	dojo.unsubscribe(alerter);
+ };
+ =====*/
 
-1 && lang.mixin(kernel, connect);
+ 1  && lang.mixin(dojo, connect);
 return connect;
-
-/*=====
-dojo.connect = function(obj, event, context, method, dontFix){
-	// summary:
-	//		`dojo.connect` is the core event handling and delegation method in
-	//		Dojo. It allows one function to "listen in" on the execution of
-	//		any other, triggering the second whenever the first is called. Many
-	//		listeners may be attached to a function, and source functions may
-	//		be either regular function calls or DOM events.
-	//
-	// description:
-	//		Connects listeners to actions, so that after event fires, a
-	//		listener is called with the same arguments passed to the original
-	//		function.
-	//
-	//		Since `dojo.connect` allows the source of events to be either a
-	//		"regular" JavaScript function or a DOM event, it provides a uniform
-	//		interface for listening to all the types of events that an
-	//		application is likely to deal with though a single, unified
-	//		interface. DOM programmers may want to think of it as
-	//		"addEventListener for everything and anything".
-	//
-	//		When setting up a connection, the `event` parameter must be a
-	//		string that is the name of the method/event to be listened for. If
-	//		`obj` is null, `kernel.global` is assumed, meaning that connections
-	//		to global methods are supported but also that you may inadvertently
-	//		connect to a global by passing an incorrect object name or invalid
-	//		reference.
-	//
-	//		`dojo.connect` generally is forgiving. If you pass the name of a
-	//		function or method that does not yet exist on `obj`, connect will
-	//		not fail, but will instead set up a stub method. Similarly, null
-	//		arguments may simply be omitted such that fewer than 4 arguments
-	//		may be required to set up a connection See the examples for details.
-	//
-	//		The return value is a handle that is needed to
-	//		remove this connection with `dojo.disconnect`.
-	//
-	// obj: Object|null:
-	//		The source object for the event function.
-	//		Defaults to `kernel.global` if null.
-	//		If obj is a DOM node, the connection is delegated
-	//		to the DOM event manager (unless dontFix is true).
-	//
-	// event: String:
-	//		String name of the event function in obj.
-	//		I.e. identifies a property `obj[event]`.
-	//
-	// context: Object|null
-	//		The object that method will receive as "this".
-	//
-	//		If context is null and method is a function, then method
-	//		inherits the context of event.
-	//
-	//		If method is a string then context must be the source
-	//		object object for method (context[method]). If context is null,
-	//		kernel.global is used.
-	//
-	// method: String|Function:
-	//		A function reference, or name of a function in context.
-	//		The function identified by method fires after event does.
-	//		method receives the same arguments as the event.
-	//		See context argument comments for information on method's scope.
-	//
-	// dontFix: Boolean?
-	//		If obj is a DOM node, set dontFix to true to prevent delegation
-	//		of this connection to the DOM event manager.
-	//
-	// example:
-	//		When obj.onchange(), do ui.update():
-	//	|	dojo.connect(obj, "onchange", ui, "update");
-	//	|	dojo.connect(obj, "onchange", ui, ui.update); // same
-	//
-	// example:
-	//		Using return value for disconnect:
-	//	|	var link = dojo.connect(obj, "onchange", ui, "update");
-	//	|	...
-	//	|	dojo.disconnect(link);
-	//
-	// example:
-	//		When onglobalevent executes, watcher.handler is invoked:
-	//	|	dojo.connect(null, "onglobalevent", watcher, "handler");
-	//
-	// example:
-	//		When ob.onCustomEvent executes, customEventHandler is invoked:
-	//	|	dojo.connect(ob, "onCustomEvent", null, "customEventHandler");
-	//	|	dojo.connect(ob, "onCustomEvent", "customEventHandler"); // same
-	//
-	// example:
-	//		When ob.onCustomEvent executes, customEventHandler is invoked
-	//		with the same scope (this):
-	//	|	dojo.connect(ob, "onCustomEvent", null, customEventHandler);
-	//	|	dojo.connect(ob, "onCustomEvent", customEventHandler); // same
-	//
-	// example:
-	//		When globalEvent executes, globalHandler is invoked
-	//		with the same scope (this):
-	//	|	dojo.connect(null, "globalEvent", null, globalHandler);
-	//	|	dojo.connect("globalEvent", globalHandler); // same
-}
-=====*/
-
-/*=====
-dojo.disconnect = function(handle){
-	// summary:
-	//		Remove a link created by dojo.connect.
-	// description:
-	//		Removes the connection between event and the method referenced by handle.
-	// handle: Handle:
-	//		the return value of the dojo.connect call that created the connection.
-}
-=====*/
-
-/*=====
-dojo.subscribe = function(topic, context, method){
-	//	summary:
-	//		Attach a listener to a named topic. The listener function is invoked whenever the
-	//		named topic is published (see: dojo.publish).
-	//		Returns a handle which is needed to unsubscribe this listener.
-	//	topic: String:
-	//		The topic to which to subscribe.
-	//	context: Object|null:
-	//		Scope in which method will be invoked, or null for default scope.
-	//	method: String|Function:
-	//		The name of a function in context, or a function reference. This is the function that
-	//		is invoked when topic is published.
-	//	example:
-	//	|	dojo.subscribe("alerts", null, function(caption, message){ alert(caption + "\n" + message); });
-	//	|	dojo.publish("alerts", [ "read this", "hello world" ]);
-}
-=====*/
-
-/*=====
-dojo.unsubscribe = function(handle){
-	//	summary:
-	//		Remove a topic listener.
-	//	handle: Handle
-	//		The handle returned from a call to subscribe.
-	//	example:
-	//	|	var alerter = dojo.subscribe("alerts", null, function(caption, message){ alert(caption + "\n" + message); };
-	//	|	...
-	//	|	dojo.unsubscribe(alerter);
-}
-=====*/
-
-/*=====
-dojo.publish = function(topic, args){
-	//	summary:
-	//		Invoke all listener method subscribed to topic.
-	//	topic: String:
-	//		The name of the topic to publish.
-	//	args: Array?
-	//		An array of arguments. The arguments will be applied
-	//		to each topic subscriber (as first class parameters, via apply).
-	//	example:
-	//	|	dojo.subscribe("alerts", null, function(caption, message){ alert(caption + "\n" + message); };
-	//	|	dojo.publish("alerts", [ "read this", "hello world" ]);
-}
-=====*/
-
-/*=====
-dojo.connectPublisher = function(topic, obj, event){
-	//	summary:
-	//		Ensure that every time obj.event() is called, a message is published
-	//		on the topic. Returns a handle which can be passed to
-	//		dojo.disconnect() to disable subsequent automatic publication on
-	//		the topic.
-	//	topic: String:
-	//		The name of the topic to publish.
-	//	obj: Object|null:
-	//		The source object for the event function. Defaults to kernel.global
-	//		if null.
-	//	event: String:
-	//		The name of the event function in obj.
-	//		I.e. identifies a property obj[event].
-	//	example:
-	//	|	dojo.connectPublisher("/ajax/start", dojo, "xhrGet");
-}
-=====*/
-
-/*=====
-dojo.isCopyKey = function(e){
-	// summary:
-	//		Checks an event for the copy key (meta on Mac, and ctrl anywhere else)
-	// e: Event
-	//		Event object to examine
-}
-=====*/
 
 });
 

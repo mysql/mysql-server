@@ -1,87 +1,34 @@
-{
-    "stmts": [
-        {
-            "stmt": "START TRANSACTION",
-            "exec_time": 0.057513,
-            "ok": {}
-        },
-        {
-            "stmt": "SELECT h.host_id, h.host_name FROM mysql_innodb_cluster_metadata.routers r JOIN mysql_innodb_cluster_metadata.hosts h    ON r.host_id = h.host_id WHERE r.router_id = 8",
-            "exec_time": 0.175663,
-            "result": {
-                "columns": [
-                    {
-                        "name": "host_id",
-                        "type": "LONG"
-                    },
-                    {
-                        "name": "host_name",
-                        "type": "VAR_STRING"
-                    }
-                ],
-                "rows": [
-                    [
-                        "8",
-                        process.env.MYSQL_SERVER_MOCK_HOST_NAME
-                    ]
-                ]
-            }
-        },
+var common_stmts = require("common_statements");
 
+var options = {
+    innodb_cluster_hosts: [ [ 8, "dont.query.dns", null ]],
+};
 
+var common_responses = common_stmts.prepare_statement_responses([
+  "router_start_transaction",
+  "router_commit",
+], options);
 
-        // ConfigGenerator::delete_account_for_all_hosts() : check if there exist accounts for this Router
-        {
-            "stmt.regex": "^SELECT host FROM mysql.user WHERE user = '.*'",
-            "result": {
-                "columns": [
-                    {
-                        "type": "LONGLONG",
-                        "name": "COUNT..."
-                    }
-                ],
-                "rows": [["foo"], ["bar"], ["baz"]] // report back that there are 3 accounts
-            }
-        },
-        // ConfigGenerator::delete_account_for_all_hosts() : erase them
-        {
-           "stmt.regex": "^DROP USER mysql_router8_[0-9a-z]{12}@.*'foo',mysql_router8_[0-9a-z]{12}@.*'bar',mysql_router8_[0-9a-z]{12}@.*'baz'",
-            "ok": {}
-        },
+var common_responses_regex = common_stmts.prepare_statement_responses_regex([
+  "router_select_hosts_join_routers",
+  "router_delete_old_accounts",
+  "router_create_user",
+  "router_grant_on_metadata_db",
+  "router_grant_on_pfs_db",
+  "router_update_routers_in_metadata",
+  "router_drop_users",
+], options);
 
-
-        // ConfigGenerator::create_account()
-        {
-            "stmt.regex": "^CREATE USER mysql_router8_[0-9a-z]{12}@'%' IDENTIFIED WITH mysql_native_password AS '\\*[0-9A-Z]{40}'",
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^GRANT SELECT ON mysql_innodb_cluster_metadata.* TO mysql_router8_.*@'%'",
-            "exec_time": 8.536869,
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^GRANT SELECT ON performance_schema.replication_group_members TO mysql_router8_.*@'%'",
-            "exec_time": 8.584342,
-            "ok": {}
-        },
-        {
-            "stmt.regex": "^GRANT SELECT ON performance_schema.replication_group_member_stats TO mysql_router8_.*@'%'",
-            "exec_time": 6.240789,
-            "ok": {}
-        },
-
-
-
-        {
-            "stmt.regex": "^UPDATE mysql_innodb_cluster_metadata.routers SET attributes =    JSON_SET\\(JSON_SET\\(JSON_SET\\(JSON_SET\\(attributes,    'RWEndpoint', '6446'\\),    'ROEndpoint', '6447'\\),    'RWXEndpoint', '64460'\\),    'ROXEndpoint', '64470'\\) WHERE router_id = .*",
-            "exec_time": 0.319936,
-            "ok": {}
-        },
-        {
-            "stmt": "COMMIT",
-            "exec_time": 0.106985,
-            "ok": {}
-        }
-    ]
-}
+({
+  stmts: function (stmt) {
+    if (common_responses.hasOwnProperty(stmt)) {
+      return common_responses[stmt];
+    }
+    else if ((res = common_stmts.handle_regex_stmt(stmt, common_responses_regex)) !== undefined) {
+      return res;
+    }
+    else {
+      return common_stmts.unknown_statement_response(stmt);
+    }
+  }
+})

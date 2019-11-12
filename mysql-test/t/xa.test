@@ -351,42 +351,54 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#12352846 - TRANS_XA_START(THD*):
 --echo #                ASSERTION THD->TRANSACTION.XID_STATE.XID.IS_NULL()
---echo #                FAILED 
+--echo #                FAILED
 --echo #
 
+# We need to create a deadlock in which xa transaction will be chosen as
+# a victim and rolled back. To keep it simple we will use this scenario:
+# 1. connection default obtains LOCK_S on a record
+# 2. connection con2 waits for LOCK_X on the same record
+# 3. connection default tries to obtain LOCK_X on the record which causes
+#    a cycle, which is resolved by choosing con2 as a victim.
+
 --disable_warnings
-DROP TABLE IF EXISTS t1, t2;
+DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
-CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
 
 START TRANSACTION;
-INSERT INTO t1 VALUES (1);
+
+# Step 1.
+SELECT a FROM t1 WHERE a=1 FOR SHARE;
 
 --echo # Connection con2
 --connect (con2,localhost,root)
 XA START 'xid1';
 --echo # Sending:
---send INSERT INTO t2 SELECT a FROM t1
+
+# Step 2.
+--send SELECT a FROM t1 WHERE a=1 FOR UPDATE
 
 --echo # Connection default
 --connection default
---echo # Waiting for until a transaction with 'INSERT SELECT'
+--echo # Waiting for until a transaction with 'SELECT...FOR UPDATE'
 --echo # will be locked inside innodb subsystem.
 
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.innodb_trx
-  WHERE trx_query = 'INSERT INTO t2 SELECT a FROM t1' AND
+  WHERE trx_query = 'SELECT a FROM t1 WHERE a=1 FOR UPDATE' AND
   trx_operation_state = 'starting index read' AND
   trx_state = 'LOCK WAIT';
 --source include/wait_condition.inc
 
-DELETE FROM t1;
+# Step 3.
+SELECT a FROM t1 WHERE a=1 FOR UPDATE;
 
 --echo # Connection con2
 --connection con2
---echo # Reaping: INSERT INTO t2 SELECT a FROM t1
+--echo # Reaping: SELECT a FROM t1 WHERE a=1 FOR UPDATE
 --error ER_LOCK_DEADLOCK
 --reap
 --error ER_XA_RBDEADLOCK
@@ -408,7 +420,7 @@ XA ROLLBACK 'xid1';
 
 --echo # Connection default
 connection default;
-DROP TABLE t1, t2;
+DROP TABLE t1;
 disconnect con2;
 
 
@@ -416,7 +428,7 @@ disconnect con2;
 --source include/wait_until_count_sessions.inc
 
 --echo #
---echo # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED 
+--echo # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED
 --echo #              XID DATA IN XA RECOVER OUTPUT
 --echo #
 --echo #
@@ -448,8 +460,8 @@ call mtr.add_suppression("Found 1 prepared XA transactions");
 --enable_query_log
 
 --echo #
---echo # WL#7155: Test 1: check that if a thread of control terminates then 
---echo # the Resource Manager dissociate and rollback any associated 
+--echo # WL#7155: Test 1: check that if a thread of control terminates then
+--echo # the Resource Manager dissociate and rollback any associated
 --echo # transaction branch (see ref. 3.6 on page 18 of XA spec)
 --echo #
 
@@ -470,7 +482,7 @@ DROP TABLE t1;
 --echo #
 --echo # WL#7155: Test 2: Check that if the Resource Manager is doing work outside
 --echo # any global transaction on behalf of the application,
---echo # xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)  
+--echo # xa_start() returns XAER_OUTSIDE (see xa_start description on page 52 of XA spec)
 --echo #
 
 connect (con1,localhost,root,,);
@@ -487,7 +499,7 @@ connection default;
 
 --echo #
 --echo # WL#7155: Test 3: Check that the Resource Manager returns error
---echo # if the Transaction Manager tries to resume non-existent transaction. 
+--echo # if the Transaction Manager tries to resume non-existent transaction.
 --echo #
 
 --error ER_XAER_INVAL
@@ -496,7 +508,7 @@ XA START 'xid1' RESUME;
 --echo #
 --echo # WL#7155: Test 4: Check that the Resource Manager returns ok
 --echo # if the Transaction Manager tries to resume transaction
---echo # that has been ended before. 
+--echo # that has been ended before.
 --echo #
 
 connect (con1,localhost,root,,);
@@ -527,7 +539,7 @@ disconnect con1;
 connection default;
 
 --echo #
---echo # WL#7155: Test 6: Check that the SUSPEND clause isn't supported for XA END. 
+--echo # WL#7155: Test 6: Check that the SUSPEND clause isn't supported for XA END.
 --echo #
 
 connect (con1,localhost,root,,);
@@ -542,8 +554,8 @@ disconnect con1;
 connection default;
 
 --echo #
---echo # WL#7155: Test 7: Check that attempt to end non-existent XA transaction 
---echo # while another XA transaction is active leads to an error 
+--echo # WL#7155: Test 7: Check that attempt to end non-existent XA transaction
+--echo # while another XA transaction is active leads to an error
 --echo #
 
 connect (con1,localhost,root,,);
@@ -588,8 +600,8 @@ disconnect con1;
 connection default;
 
 --echo #
---echo # WL#7155: Test 10: Check that rollback of XA transaction with unknown xid 
---echo # leads to an error when there is other prepared XA transaction. 
+--echo # WL#7155: Test 10: Check that rollback of XA transaction with unknown xid
+--echo # leads to an error when there is other prepared XA transaction.
 --echo #
 
 XA START 'xid1';

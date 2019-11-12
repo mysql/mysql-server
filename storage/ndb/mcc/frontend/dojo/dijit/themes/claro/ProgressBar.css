@@ -4,12 +4,19 @@
 }
 .claro .dijitProgressBarEmpty {
   
-  background: #ffffff url("images/progressBarEmpty.png") no-repeat left;
+  background-color: #ffffff;
   border-color: #759dc0;
 }
 .claro .dijitProgressBarTile {
   
-  background: #abd6ff url("images/progressBarFull.png") repeat-x top;
+  background-color: #abd6ff;
+  background-image: url("images/progressBarFull.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.93) 0px, rgba(255, 255, 255, 0.41) 1px, rgba(255, 255, 255, 0.7) 2px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.93) 0px, rgba(255, 255, 255, 0.41) 1px, rgba(255, 255, 255, 0.7) 2px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.93) 0px, rgba(255, 255, 255, 0.41) 1px, rgba(255, 255, 255, 0.7) 2px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.93) 0px, rgba(255, 255, 255, 0.41) 1px, rgba(255, 255, 255, 0.7) 2px, rgba(255, 255, 255, 0) 100%);
+  background-attachment: scroll;
 }
 .dj_ie6 .claro .dijitProgressBarTile {
   background-image: none;

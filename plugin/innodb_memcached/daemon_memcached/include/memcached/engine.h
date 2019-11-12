@@ -75,7 +75,7 @@ extern "C" {
      * @param cas The cas to put in the return packet
      * @param cookie The cookie provided by the frontend
      * @return true if return message was successfully created, false if an
-     *              error occured that prevented the message from being sent
+     *              error occurred that prevented the message from being sent
      */
     typedef bool (*ADD_RESPONSE)(const void *key, uint16_t keylen,
                                  const void *ext, uint8_t extlen,

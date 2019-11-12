@@ -10,7 +10,7 @@ where thread_id = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	threads	NULL	const	PRIMARY	PRIMARY	8	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `THREAD_ID`,'thread/sql/main' AS `NAME` from `performance_schema`.`threads` where 1
+Note	1003	/* select#1 */ select '1' AS `THREAD_ID`,'thread/sql/main' AS `NAME` from `performance_schema`.`threads` where true
 explain select * from performance_schema.threads
 where thread_id > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -145,19 +145,19 @@ select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root";
 thread_id = @tid	name	processlist_state	processlist_info
-1	thread/sql/one_connection	Sending data	select thread_id = @tid, name, processlist_state, processlist_info
+1	thread/sql/one_connection	executing	select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root"
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_USER = "impossible" and PROCESSLIST_HOST = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	374	const,const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	389	const,const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'impossible') and (`performance_schema`.`threads`.`PROCESSLIST_USER` = 'impossible'))
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	374	const,const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_ACCOUNT,PROCESSLIST_HOST	PROCESSLIST_ACCOUNT	389	const,const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where ((`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'localhost') and (`performance_schema`.`threads`.`PROCESSLIST_USER` = 'root'))
 explain select * from performance_schema.threads
@@ -182,19 +182,19 @@ select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost";
 thread_id = @tid	name	processlist_state	processlist_info
-1	thread/sql/one_connection	Sending data	select thread_id = @tid, name, processlist_state, processlist_info
+1	thread/sql/one_connection	executing	select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_USER = "root" and PROCESSLIST_HOST = "localhost"
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_HOST = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	243	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	258	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'impossible')
 explain select THREAD_ID from performance_schema.threads
 where PROCESSLIST_HOST = "localhost";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	243	const	10	100.00	NULL
+1	SIMPLE	threads	NULL	ref	PROCESSLIST_HOST	PROCESSLIST_HOST	258	const	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID` from `performance_schema`.`threads` where (`performance_schema`.`threads`.`PROCESSLIST_HOST` = 'localhost')
 explain select * from performance_schema.threads
@@ -219,6 +219,6 @@ select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_HOST = "localhost";
 thread_id = @tid	name	processlist_state	processlist_info
-1	thread/sql/one_connection	Sending data	select thread_id = @tid, name, processlist_state, processlist_info
+1	thread/sql/one_connection	executing	select thread_id = @tid, name, processlist_state, processlist_info
 from performance_schema.threads
 where PROCESSLIST_HOST = "localhost"

@@ -1,11 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	buttonOk: "OK",
-	buttonCancel: "Annuler",
-	buttonSave: "Sauvegarder",
-	itemClose: "Fermer"
-})
-//end v1.x content
-);
+define("dijit/nls/fr/common",({buttonOk:"OK",buttonCancel:"Annuler",buttonSave:"Enregistrer",itemClose:"Fermer"}));

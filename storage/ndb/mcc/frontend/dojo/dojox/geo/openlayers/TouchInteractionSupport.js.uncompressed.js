@@ -1,32 +1,32 @@
-//>>built
-define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
-				"dojo/_base/declare",
-				"dojo/_base/connect",
-				"dojo/_base/html",
-				"dojo/_base/lang",
-				"dojo/_base/event",
-				"dojo/_base/window"], function(dojo, declare, connect, html, lang, event, window){
+define("dojox/geo/openlayers/TouchInteractionSupport", [
+	"dojo/_base/declare",
+	"dojo/_base/connect",
+	"dojo/_base/html",
+	"dojo/_base/lang",
+	"dojo/_base/event",
+	"dojo/_base/window"
+], function(declare, connect, html, lang, event, win){
 
 	return declare("dojox.geo.openlayers.TouchInteractionSupport", null, {
-		//	summary: 
+		// summary:
 		//		class to handle touch interactions on a OpenLayers.Map widget
-		//	tags:
+		// tags:
 		//		private
 
-		_map : null,
-		_centerTouchLocation : null,
-		_touchMoveListener : null,
-		_touchEndListener : null,
-		_initialFingerSpacing : null,
-		_initialScale : null,
-		_tapCount : null,
-		_tapThreshold : null,
-		_lastTap : null,
+		_map: null,
+		_centerTouchLocation: null,
+		_touchMoveListener: null,
+		_touchEndListener: null,
+		_initialFingerSpacing: null,
+		_initialScale: null,
+		_tapCount: null,
+		_tapThreshold: null,
+		_lastTap: null,
 
-		constructor : function(/* OpenLayers.Map */map){
-			//	summary: 
+		constructor: function(map){
+			// summary:
 			//		Constructs a new TouchInteractionSupport instance
-			//	map: OpenLayers.Map
+			// map: OpenLayers.Map
 			//		the Map widget this class provides touch navigation for.
 			this._map = map;
 			this._centerTouchLocation = new OpenLayers.LonLat(0, 0);
@@ -40,28 +40,28 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 
 			this._tapCount = 0;
 			this._lastTap = {
-				x : 0,
-				y : 0
+				x: 0,
+				y: 0
 			};
 			this._tapThreshold = 100; // square distance in pixels
 
 		},
 
-		_getTouchBarycenter : function(touchEvent){
-			//	summary: 
+		_getTouchBarycenter: function(touchEvent){
+			// summary:
 			//		returns the midpoint of the two first fingers (or the first finger location if only one)
-			//	touchEvent: Event
+			// touchEvent: TouchEvent
 			//		a touch event
-			//	returns: dojox.gfx.Point
-			//		the midpoint
-			//	tags:
+			// returns:
+			//		the midpoint as an {x,y} object.
+			// tags:
 			//		private
 			var touches = touchEvent.touches;
 			var firstTouch = touches[0];
 			var secondTouch = null;
-			if (touches.length > 1) {
+			if(touches.length > 1){
 				secondTouch = touches[1];
-			} else {
+			}else{
 				secondTouch = touches[0];
 			}
 
@@ -71,24 +71,24 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 			var middleY = (firstTouch.pageY + secondTouch.pageY) / 2.0 - marginBox.t;
 
 			return {
-				x : middleX,
-				y : middleY
-			};
+				x: middleX,
+				y: middleY
+			}; // Object
 
 		},
 
-		_getFingerSpacing : function(touchEvent){
-			//	summary: 
+		_getFingerSpacing: function(touchEvent){
+			// summary:
 			//		computes the distance between the first two fingers
-			//	touchEvent: Event
+			// touchEvent: Event
 			//		a touch event
-			//	returns: float
+			// returns: float
 			//		a distance. -1 if less that 2 fingers
-			//	tags:
+			// tags:
 			//		private
 			var touches = touchEvent.touches;
 			var spacing = -1;
-			if (touches.length >= 2) {
+			if(touches.length >= 2){
 				var dx = (touches[1].pageX - touches[0].pageX);
 				var dy = (touches[1].pageY - touches[0].pageY);
 				spacing = Math.sqrt(dx * dx + dy * dy);
@@ -96,26 +96,26 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 			return spacing;
 		},
 
-		_isDoubleTap : function(touchEvent){
-			//	summary: 
+		_isDoubleTap: function(touchEvent){
+			// summary:
 			//		checks whether the specified touchStart event is a double tap 
 			//		(i.e. follows closely a previous touchStart at approximately the same location)
-			//	touchEvent: Event
+			// touchEvent: TouchEvent
 			//		a touch event
-			//	returns: boolean
+			// returns: boolean
 			//		true if this event is considered a double tap
-			//	tags:
+			// tags:
 			//		private
 			var isDoubleTap = false;
 			var touches = touchEvent.touches;
-			if ((this._tapCount > 0) && touches.length == 1) {
+			if((this._tapCount > 0) && touches.length == 1){
 				// test distance from last tap
 				var dx = (touches[0].pageX - this._lastTap.x);
 				var dy = (touches[0].pageY - this._lastTap.y);
 				var distance = dx * dx + dy * dy;
-				if (distance < this._tapThreshold) {
+				if(distance < this._tapThreshold){
 					isDoubleTap = true;
-				} else {
+				}else{
 					this._tapCount = 0;
 				}
 			}
@@ -129,13 +129,14 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 			return isDoubleTap;
 		},
 
-		_doubleTapHandler : function(touchEvent){
-			//	summary: 
+		_doubleTapHandler: function(touchEvent){
+			// summary:
 			//		action performed on the map when a double tap was triggered 
-			//	touchEvent: Event 
+			// touchEvent: TouchEvent
 			//		a touch event
-			//	tags:
+			// tags:
 			//		private
+
 			// perform a basic 2x zoom on touch
 			var touches = touchEvent.touches;
 			var marginBox = html.marginBox(this._map.div);
@@ -147,17 +148,17 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 			this._map.setCenter(new OpenLayers.LonLat(mapPoint.lon, mapPoint.lat), this._map.getZoom() + 1);
 		},
 
-		_touchStartHandler : function(touchEvent){
-			//	summary: 
+		_touchStartHandler: function(touchEvent){
+			// summary:
 			//		action performed on the map when a touch start was triggered 
-			//	touchEvent: Event 
-			// 		a touch event
-			//	tags:
+			// touchEvent: Event
+			//		a touch event
+			// tags:
 			//		private
 			event.stop(touchEvent);
 
 			// test double tap
-			if (this._isDoubleTap(touchEvent)) {
+			if(this._isDoubleTap(touchEvent)){
 				this._doubleTapHandler(touchEvent);
 				return;
 			}
@@ -174,35 +175,36 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 			this._initialScale = this._map.getScale();
 
 			// install touch move and up listeners (if not done by other fingers before)
-			if (!this._touchMoveListener)
-				this._touchMoveListener = connect.connect(window.global, "touchmove", this, this._touchMoveHandler);
-			if (!this._touchEndListener)
-				this._touchEndListener = connect.connect(window.global, "touchend", this, this._touchEndHandler);
-
+			if(!this._touchMoveListener){
+				this._touchMoveListener = connect.connect(win.global, "touchmove", this, this._touchMoveHandler);
+			}
+			if(!this._touchEndListener){
+				this._touchEndListener = connect.connect(win.global, "touchend", this, this._touchEndHandler);
+			}
 		},
 
-		_touchEndHandler : function(touchEvent){
-			//	summary: 
+		_touchEndHandler: function(touchEvent){
+			// summary:
 			//		action performed on the map when a touch end was triggered 
-			//	touchEvent: Event 
+			// touchEvent: Event
 			//		a touch event
-			//	tags:
+			// tags:
 			//		private
 			event.stop(touchEvent);
 
 			var touches = touchEvent.touches;
 
-			if (touches.length == 0) {
+			if(touches.length == 0){
 				// disconnect listeners only when all fingers are up
-				if (this._touchMoveListener) {
+				if(this._touchMoveListener){
 					connect.disconnect(this._touchMoveListener);
 					this._touchMoveListener = null;
 				}
-				if (this._touchEndListener) {
+				if(this._touchEndListener){
 					connect.disconnect(this._touchEndListener);
 					this._touchEndListener = null;
 				}
-			} else {
+			}else{
 				// recompute touch center
 				var middlePoint = this._getTouchBarycenter(touchEvent);
 
@@ -210,12 +212,12 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 			}
 		},
 
-		_touchMoveHandler : function(touchEvent){
-			//	summary: 
+		_touchMoveHandler: function(touchEvent){
+			// summary:
 			//		action performed on the map when a touch move was triggered 
-			//	touchEvent: Event
+			// touchEvent: Event
 			//		a touch event
-			//	tags:
+			// tags:
 			//		private
 
 			// prevent browser interaction
@@ -231,10 +233,10 @@ define("dojox/geo/openlayers/TouchInteractionSupport", ["dojo/_base/kernel",
 			// compute scale factor
 			var scaleFactor = 1;
 			var touches = touchEvent.touches;
-			if (touches.length >= 2) {
+			if(touches.length >= 2){
 				var fingerSpacing = this._getFingerSpacing(touchEvent);
 				scaleFactor = fingerSpacing / this._initialFingerSpacing;
-				// weird openlayer bug : setting several times the same scale value lead to visual zoom...
+				// weird openlayer bug: setting several times the same scale value lead to visual zoom...
 				this._map.zoomToScale(this._initialScale / scaleFactor);
 			}
 

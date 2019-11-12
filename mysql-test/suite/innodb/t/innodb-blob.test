@@ -40,7 +40,7 @@ connect (con2,localhost,root,,);
 # Check that the above SELECT is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state in ('Sending data', 'Opening tables') and
+  where state in ('executing', 'Opening tables') and
         info = 'SELECT a, RIGHT(b,20) FROM t1';
 --source include/wait_condition.inc
 

@@ -1,9 +1,14 @@
-//>>built
 define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sniff", "dojo/dom", "dojo/_base/html", "dojo/_base/array",
 		"./utils", "./shape", "dojox/string/BidiEngine"], 
-  function(g, lang, has, dom, html, arr, utils, shapeLib, BidiEngine){
+function(g, lang, has, dom, html, arr, utils, shapeLib, BidiEngine){
 	lang.getObject("dojox.gfx._gfxBidiSupport", true);
-	/*===== g = dojox.gfx; =====*/
+
+	/*=====
+	// Prevent changes here from masking the definitions in _base.js from the doc parser
+	var origG = g;
+	g = {};
+	=====*/
+
 	switch (g.renderer){
 		case 'vml':
 			g.isVml = true;
@@ -18,6 +23,7 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 			g.isSilverlight = true;
 			break;
 		case 'canvas':
+		case 'canvasWithEvents':
 			g.isCanvas = true;
 			break;
 	}
@@ -30,6 +36,8 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 		RLE : '\u202B'
 	};
 
+	/*===== g = origG; =====*/
+
 	// the object that performs text transformations.
 	var bidiEngine = new BidiEngine();
 
@@ -37,16 +45,17 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 		// textDir: String
 		//		Will be used as default for Text/TextPath/Group objects that created by this surface
 		//		and textDir wasn't directly specified for them, though the bidi support was loaded.
-		//		Can be setted in two ways:
-		//			1. When the surface is created and textDir value passed to it as fourth 
-		//			parameter.
-		//			2. Using the setTextDir(String) function, when this function is used the value
-		//			of textDir propogates to all of it's children and the children of children (for Groups) etc.
+		//		Can be set in two ways:
+		//
+		//		1. When the surface is created and textDir value passed to it as fourth
+		//		parameter.
+		//		2. Using the setTextDir(String) function, when this function is used the value
+		//		of textDir propagates to all of it's children and the children of children (for Groups) etc.
 		textDir: "",
 
 		setTextDir: function(/*String*/newTextDir){
 			// summary:
-			//		Used for propogation and change of textDir.
+			//		Used for propagation and change of textDir.
 			//		newTextDir will be forced as textDir for all of it's children (Group/Text/TextPath).
 			setTextDir(this, newTextDir);
 		},
@@ -64,7 +73,7 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 
 		setTextDir: function(/*String*/newTextDir){
 			// summary:
-			//		Used for propogation and change of textDir.
+			//		Used for propagation and change of textDir.
 			//		newTextDir will be forced as textDir for all of it's children (Group/Text/TextPath).
 			setTextDir(this, newTextDir);
 		},
@@ -76,123 +85,134 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 	
 	lang.extend(g.Text, {  
 		// summary:
-		//		Overrides some of dojox.gfx.Text properties, and adds some 
+		//		Overrides some of dojox/gfx.Text properties, and adds some
 		//		for bidi support.
 		
 		// textDir: String
 		//		Used for displaying bidi scripts in right layout.
 		//		Defines the base direction of text that displayed, can have 3 values:
-		//			1. "ltr" - base direction is left to right.
-		//			2. "rtl" - base direction is right to left.
-		//			3. "auto" - base direction is contextual (defined by first strong character).
+		//
+		//		1. "ltr" - base direction is left to right.
+		//		2. "rtl" - base direction is right to left.
+		//		3. "auto" - base direction is contextual (defined by first strong character).
 		textDir: "",
 
 		formatText: function (/*String*/ text, /*String*/ textDir){
-			// summary: 
+			// summary:
 			//		Applies the right transform on text, according to renderer.
 			// text:	
 			//		the string for manipulation, by default return value.
 			// textDir:	
 			//		Text direction.
 			//		Can be:
-			//			1. "ltr" - for left to right layout.
-			//			2. "rtl" - for right to left layout
-			//			3. "auto" - for contextual layout: the first strong letter decides the direction.	
-			// discription:
+			//
+			//		1. "ltr" - for left to right layout.
+			//		2. "rtl" - for right to left layout
+			//		3. "auto" - for contextual layout: the first strong letter decides the direction.
+			// description:
 			//		Finds the right transformation that should be applied on the text, according to renderer.
 			//		Was tested in:
-			//			Renderers (browser for testing): 
-			//				canvas (FF, Chrome, Safari), 
-			//				vml (IE), 
-			//				svg (FF, Chrome, Safari, Opera), 
-			//				silverlight (IE, Chrome, Safari, Opera), 
-			//				svgWeb(FF, Chrome, Safari, Opera, IE).
-			//			Browsers [browser version that was tested]: 
-			//				IE [6,7,8], FF [3.6], 
-			//				Chrome (latest for March 2011), 
-			//				Safari [5.0.3], 
-			//				Opera [11.01].
+			//
+			//		Renderers (browser for testing):
+			//
+			//		- canvas (FF, Chrome, Safari),
+			//		- vml (IE),
+			//		- svg (FF, Chrome, Safari, Opera),
+			//		- silverlight (IE, Chrome, Safari, Opera),
+			//		- svgWeb(FF, Chrome, Safari, Opera, IE).
+			//
+			//		Browsers [browser version that was tested]:
+			//
+			//		- IE [6,7,8], FF [3.6],
+			//		- Chrome (latest for March 2011),
+			//		- Safari [5.0.3],
+			//		- Opera [11.01].
 
 			if(textDir && text && text.length > 1){
-			var sourceDir = "ltr", targetDir = textDir;
-
-			if(targetDir == "auto"){
-				//is auto by default
+				var sourceDir = "ltr", targetDir = textDir;
+	
+				if(targetDir == "auto"){
+					//is auto by default
+					if(g.isVml){
+						return text;
+					}
+					targetDir = bidiEngine.checkContextual(text);
+				}
+	
 				if(g.isVml){
+					sourceDir = bidiEngine.checkContextual(text);
+					if(targetDir != sourceDir){
+						if(targetDir == "rtl"){
+							return !bidiEngine.hasBidiChar(text) ? bidiEngine.bidiTransform(text,"IRNNN","ILNNN") : bidi_const.RLM + bidi_const.RLM + text;
+						}else{
+							return bidi_const.LRM + text;
+						}
+					}
 					return text;
 				}
-				targetDir = bidiEngine.checkContextual(text);
-			}
-
-			if(g.isVml){
-				sourceDir = bidiEngine.checkContextual(text);
-				if(targetDir != sourceDir){
+	
+				if(g.isSvgWeb){
 					if(targetDir == "rtl"){
-						return !bidiEngine.hasBidiChar(text) ? bidiEngine.bidiTransform(text,"IRNNN","ILNNN") : bidi_const.RLM + bidi_const.RLM + text;
-					}else{
-						return bidi_const.LRM + text;
+						return bidiEngine.bidiTransform(text,"IRNNN","ILNNN");
 					}
+					return text;
 				}
-				return text;
-			}
-
-			if(g.isSvgWeb){
-				if(targetDir == "rtl"){
-					return bidiEngine.bidiTransform(text,"IRNNN","ILNNN");
+	
+				if(g.isSilverlight){
+					return (targetDir == "rtl") ? bidiEngine.bidiTransform(text,"IRNNN","VLYNN") : bidiEngine.bidiTransform(text,"ILNNN","VLYNN");
 				}
-				return text;
-			}
-
-			if(g.isSilverlight){
-				return (targetDir == "rtl") ? bidiEngine.bidiTransform(text,"IRNNN","VLYNN") : bidiEngine.bidiTransform(text,"ILNNN","VLYNN");
-			}
-
-			if(g.isCanvas){
-				return (targetDir == "rtl") ? bidi_const.RLE + text + bidi_const.PDF : bidi_const.LRE + text + bidi_const.PDF;
-			}
-
-			if(g.isSvg){
-				if(has("ff")){
-					return (targetDir == "rtl") ? bidiEngine.bidiTransform(text,"IRYNN","VLNNN") : bidiEngine.bidiTransform(text,"ILYNN","VLNNN");
+	
+				if(g.isCanvas){
+					return (targetDir == "rtl") ? bidi_const.RLE + text + bidi_const.PDF : bidi_const.LRE + text + bidi_const.PDF;
 				}
-				if(has("chrome") || has("safari") || has("opera")){
-					return bidi_const.LRM + (targetDir == "rtl" ? bidi_const.RLE : bidi_const.LRE) + text + bidi_const.PDF;
+	
+				if(g.isSvg){
+					if(has("ff") < 4){
+						return (targetDir == "rtl") ? bidiEngine.bidiTransform(text,"IRYNN","VLNNN") : bidiEngine.bidiTransform(text,"ILYNN","VLNNN");
+					}else{
+						return bidi_const.LRM + (targetDir == "rtl" ? bidi_const.RLE : bidi_const.LRE) + text + bidi_const.PDF;
+					}					
 				}					
-			}					
-}
+			}
 			return text;
 		},	
 
 		bidiPreprocess: function(newShape){     
 			return newShape;
-		}	
+		}
 	});
 
 	lang.extend(g.TextPath, {          
-			// textDir: String
-			//		Used for displaying bidi scripts in right layout.
-			//		Defines the base direction of text that displayed, can have 3 values:
-			//			1. "ltr" - base direction is left to right.
-			//			2. "rtl" - base direction is right to left.
-			//			3. "auto" - base direction is contextual (defined by first strong character).
+		// textDir: String
+		//		Used for displaying bidi scripts in right layout.
+		//		Defines the base direction of text that displayed, can have 3 values:
+		//
+		//		1. "ltr" - base direction is left to right.
+		//		2. "rtl" - base direction is right to left.
+		//		3. "auto" - base direction is contextual (defined by first strong character).
 		textDir: "",
 
 		formatText: function (/*String*/text, /*String*/textDir){
-			// summary: 
+			// summary:
 			//		Applies the right transform on text, according to renderer.
-			// text:	the string for manipulation, by default return value.
-			// textDir:	text direction direction.
+			// text:
+			//		the string for manipulation, by default return value.
+			// textDir:
+			//		text direction direction.
 			//		Can be:
-			//			1. "ltr" - for left to right layout.
-			//			2. "rtl" - for right to left layout
-			//			3. "auto" - for contextual layout: the first strong letter decides the direction.	
-			// discription:
+			//
+			//		1. "ltr" - for left to right layout.
+			//		2. "rtl" - for right to left layout
+			//		3. "auto" - for contextual layout: the first strong letter decides the direction.
+			// description:
 			//		Finds the right transformation that should be applied on the text, according to renderer.
 			//		Was tested in:
-			//			Renderers: 
-			//				canvas (FF, Chrome, Safari), vml (IE), svg (FF, Chrome, Safari, Opera), silverlight (IE8), svgWeb(FF, Chrome, Safari, Opera, IE).
-			//			Browsers: 
-			//				IE [6,7,8], FF [3.6], Chrome (latest for February 2011), Safari [5.0.3], Opera [11.01].
+			//
+			//		Renderers:
+			//		canvas (FF, Chrome, Safari), vml (IE), svg (FF, Chrome, Safari, Opera), silverlight (IE8), svgWeb(FF, Chrome, Safari, Opera, IE).
+			//
+			//		Browsers:
+			//		IE [6,7,8], FF [3.6], Chrome (latest for February 2011), Safari [5.0.3], Opera [11.01].
 
 			if(textDir && text && text.length > 1){
 				var sourceDir = "ltr", targetDir = textDir;
@@ -223,9 +243,9 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 					return text;
 				}
 				//unlike the g.Text that is rendered in logical layout for Bidi scripts.
-				//for g.TextPath in svg always visual -> bidi script is unreadable (except Opera).
+				//for g.TextPath in svg always visual -> bidi script is unreadable (except Opera and FF start from version 4)
 				if(g.isSvg){
-					if(has("opera")){
+					if(has("opera") || has("ff") >= 4){
 						text = bidi_const.LRM + (targetDir == "rtl"? bidi_const.RLE : bidi_const.LRE) + text + bidi_const.PDF;
 					}else{
 						text = (targetDir == "rtl") ? bidiEngine.bidiTransform(text,"IRYNN","VLNNN") : bidiEngine.bidiTransform(text,"ILYNN","VLNNN");
@@ -244,12 +264,13 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 	});	
 		
 	var extendMethod = function(shape, method, before, after){
-		// Some helper function. Used for extending metod of shape.
+		// summary:
+		//		Some helper function. Used for extending methods of shape.
 		// shape: Object
-		//		The shape we overriding it's metod.
+		//		The shape we overriding it's method.
 		// method: String
-		//		The method that is extended, the original metod is called before or after
-		//		functions that passed to extendMethod. 
+		//		The method that is extended, the original method is called before or after
+		//		functions that passed to extendMethod.
 		// before: function
 		//		If defined this function will be executed before the original method.
 		// after: function
@@ -290,7 +311,7 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 
 	};
 
-	// Istead of adding bidiPreprocess to all renders one by one
+	// Instead of adding bidiPreprocess to all renders one by one
 	// use the extendMethod, at first there's a need for bidi transformation 
 	// on text then call to original setShape.
 	extendMethod(g.Text,"setShape", bidiPreprocess, null);
@@ -304,7 +325,7 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 		return obj;
 	};
 
-	// Istead of adding restoreText to all renders one by one
+	// Instead of adding restoreText to all renders one by one
 	// use the extendMethod, at first get the shape by calling the original getShape,
 	// than resrore original text (without the text transformations).
 	extendMethod(g.Text, "getShape", null, restoreText);
@@ -316,7 +337,7 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 			textDir = validateTextDir(args[0]);
 		}
 		group.setTextDir(textDir ? textDir : this.textDir);
-		return group;	// dojox.gfx.Group				
+		return group;	// dojox/gfx.Group
 	};
 
 	// In creation of Group there's a need to update it's textDir,
@@ -328,7 +349,7 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 	extendMethod(g.Group, "createGroup", null, groupTextDir);
 
 	var textDirPreprocess =  function(text){
-		//  inherit from surface / group  if textDir is defined there
+		// inherit from surface / group  if textDir is defined there
 		if(text){
 			var textDir = text.textDir ? validateTextDir(text.textDir) : this.textDir;
 			if(textDir){
@@ -347,7 +368,12 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 	extendMethod(g.Group,"createText", textDirPreprocess, null);
 	extendMethod(g.Group,"createTextPath", textDirPreprocess, null);
 
-	g.createSurface = function(parentNode, width, height, textDir) {        
+	/*=====
+	// don't mask definition of original createSurface() function from doc parser
+	g = {};
+	=====*/
+
+	g.createSurface = function(parentNode, width, height, textDir) {
 		var s = g[g.renderer].createSurface(parentNode, width, height);
 		var tDir = validateTextDir(textDir);
 		
@@ -368,6 +394,7 @@ define("dojox/gfx/_gfxBidiSupport", ["./_base", "dojo/_base/lang","dojo/_base/sn
 		
 		return s;
 	};
+	/*===== g = origG; =====*/
 
 	// some helper functions
 	

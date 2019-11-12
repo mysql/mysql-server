@@ -1,0 +1,25 @@
+########################################################################
+# This test scripts covers meta data related aspects of upgrade
+# after 8.0. For upgrade from 5.7 to 8.0, see dd_upgrade_test.
+########################################################################
+#
+# Bug#29917793: REJECT UPGRADE 8.0.14-16 -> 8.0.17 FOR LCTN=1 AND PARTITIONED TABLES
+#
+# This is the test case for case insensitive file systems. A corresponding test case
+# for case sensitive file systems can be found in dd_upgrade_cs.test.
+#
+# Test with lctn=1 and no partitioned tables. Upgrade should succeed.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
+# Stop the server and do cleanup.
+# Test with lctn=1 and partitioned tables. Upgrade should succeed since we are on a
+# case insensitive file system.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
+# Table rebuild will succeed.
+ALTER TABLE test.t ENGINE = InnoDB;
+# Stop the server and do cleanup.
+# Restart the server with default options.
+# restart:

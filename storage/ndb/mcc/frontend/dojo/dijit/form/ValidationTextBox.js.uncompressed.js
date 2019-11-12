@@ -1,45 +1,34 @@
-//>>built
 require({cache:{
 'url:dijit/form/templates/ValidationTextBox.html':"<div class=\"dijit dijitReset dijitInline dijitLeft\"\n\tid=\"widget_${id}\" role=\"presentation\"\n\t><div class='dijitReset dijitValidationContainer'\n\t\t><input class=\"dijitReset dijitInputField dijitValidationIcon dijitValidationInner\" value=\"&#935; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"presentation\"\n\t/></div\n\t><div class=\"dijitReset dijitInputField dijitInputContainer\"\n\t\t><input class=\"dijitReset dijitInputInner\" data-dojo-attach-point='textbox,focusNode' autocomplete=\"off\"\n\t\t\t${!nameAttrSetting} type='${type}'\n\t/></div\n></div>\n"}});
 define("dijit/form/ValidationTextBox", [
 	"dojo/_base/declare", // declare
+	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/i18n", // i18n.getLocalization
 	"./TextBox",
 	"../Tooltip",
 	"dojo/text!./templates/ValidationTextBox.html",
 	"dojo/i18n!./nls/validate"
-], function(declare, i18n, TextBox, Tooltip, template){
-
-/*=====
-	var Tooltip = dijit.Tooltip;
-	var TextBox = dijit.form.TextBox;
-=====*/
+], function(declare, kernel, i18n, TextBox, Tooltip, template){
 
 	// module:
 	//		dijit/form/ValidationTextBox
-	// summary:
-	//		Base class for textbox widgets with the ability to validate content of various types and provide user feedback.
 
 
 	/*=====
-		dijit.form.ValidationTextBox.__Constraints = function(){
-			// locale: String
-			//		locale used for validation, picks up value from this widget's lang attribute
-			// _flags_: anything
-			//		various flags passed to regExpGen function
-			this.locale = "";
-			this._flags_ = "";
-		}
+	var __Constraints = {
+		// locale: String
+		//		locale used for validation, picks up value from this widget's lang attribute
+		// _flags_: anything
+		//		various flags passed to pattern function
+	};
 	=====*/
 
-	return declare("dijit.form.ValidationTextBox", TextBox, {
+	var ValidationTextBox;
+	return ValidationTextBox = declare("dijit.form.ValidationTextBox", TextBox, {
 		// summary:
 		//		Base class for textbox widgets with the ability to validate content of various types and provide user feedback.
-		// tags:
-		//		protected
 
 		templateString: template,
-		baseClass: "dijitTextBox dijitValidationTextBox",
 
 		// required: Boolean
 		//		User is required to enter data into this field.
@@ -55,15 +44,15 @@ define("dijit/form/ValidationTextBox", [
 		promptMessage: "",
 
 		// invalidMessage: String
-		// 		The message to display if value is invalid.
+		//		The message to display if value is invalid.
 		//		The translated string value is read from the message file by default.
-		// 		Set to "" to use the promptMessage instead.
+		//		Set to "" to use the promptMessage instead.
 		invalidMessage: "$_unset_$",
 
 		// missingMessage: String
-		// 		The message to display if value is empty and the field is required.
+		//		The message to display if value is empty and the field is required.
 		//		The translated string value is read from the message file by default.
-		// 		Set to "" to use the invalidMessage instead.
+		//		Set to "" to use the invalidMessage instead.
 		missingMessage: "$_unset_$",
 
 		// message: String
@@ -72,22 +61,23 @@ define("dijit/form/ValidationTextBox", [
 		//		displayed when the field is focused.
 		message: "",
 
-		// constraints: dijit.form.ValidationTextBox.__Constraints
+		// constraints: __Constraints
 		//		user-defined object needed to pass parameters to the validator functions
 		constraints: {},
 
-		// regExp: [extension protected] String
-		//		regular expression string used to validate the input
-		//		Do not specify both regExp and regExpGen
-		regExp: ".*",
+		// pattern: [extension protected] String|Function(constraints) returning a string.
+		//		This defines the regular expression used to validate the input.
+		//		Do not add leading ^ or $ characters since the widget adds these.
+		//		A function may be used to generate a valid pattern when dependent on constraints or other runtime factors.
+		//		set('pattern', String|Function).
+		pattern: ".*",
 
-		regExpGen: function(/*dijit.form.ValidationTextBox.__Constraints*/ /*===== constraints =====*/){
+		// regExp: Deprecated [extension protected] String.  Use "pattern" instead.
+		regExp: "",
+
+		regExpGen: function(/*__Constraints*/ /*===== constraints =====*/){
 			// summary:
-			//		Overridable function used to generate regExp when dependent on constraints.
-			//		Do not specify both regExp and regExpGen.
-			// tags:
-			//		extension protected
-			return this.regExp; // String
+			//		Deprecated.  Use set('pattern', Function) instead.
 		},
 
 		// state: [readonly] String
@@ -95,22 +85,36 @@ define("dijit/form/ValidationTextBox", [
 		state: "",
 
 		// tooltipPosition: String[]
-		//		See description of `dijit.Tooltip.defaultPosition` for details on this parameter.
+		//		See description of `dijit/Tooltip.defaultPosition` for details on this parameter.
 		tooltipPosition: [],
+
+		_deprecateRegExp: function(attr, value){
+			if(value != ValidationTextBox.prototype[attr]){
+				kernel.deprecated("ValidationTextBox id="+this.id+", set('" + attr + "', ...) is deprecated.  Use set('pattern', ...) instead.", "", "2.0");
+				this.set('pattern', value);
+			}
+		},
+		_setRegExpGenAttr: function(/*Function*/ newFcn){
+			this._deprecateRegExp("regExpGen", newFcn);
+			this.regExpGen = this._getPatternAttr; // backward compat with this.regExpGen(this.constraints)
+		},
+		_setRegExpAttr: function(/*String*/ value){
+			this._deprecateRegExp("regExp", value);
+		},
 
 		_setValueAttr: function(){
 			// summary:
 			//		Hook so set('value', ...) works.
 			this.inherited(arguments);
-			this.validate(this.focused);
+			this._refreshState();
 		},
 
-		validator: function(/*anything*/ value, /*dijit.form.ValidationTextBox.__Constraints*/ constraints){
+		validator: function(/*anything*/ value, /*__Constraints*/ constraints){
 			// summary:
 			//		Overridable function used to validate the text input against the regular expression.
 			// tags:
 			//		protected
-			return (new RegExp("^(?:" + this.regExpGen(constraints) + ")"+(this.required?"":"?")+"$")).test(value) &&
+			return (new RegExp("^(?:" + this._getPatternAttr(constraints) + ")"+(this.required?"":"?")+"$")).test(value) &&
 				(!this.required || !this._isEmpty(value)) &&
 				(this._isEmpty(value) || this.parse(value, constraints) !== undefined); // Boolean
 		},
@@ -142,7 +146,11 @@ define("dijit/form/ValidationTextBox", [
 			//		Return an error message to show if appropriate
 			// tags:
 			//		protected
-			return (this.required && this._isEmpty(this.textbox.value)) ? this.missingMessage : this.invalidMessage; // String
+			var invalid = this.invalidMessage == "$_unset_$" ? this.messages.invalidMessage :
+				!this.invalidMessage ? this.promptMessage : this.invalidMessage;
+			var missing = this.missingMessage == "$_unset_$" ? this.messages.missingMessage :
+				!this.missingMessage ? invalid : this.missingMessage;
+			return (this.required && this._isEmpty(this.textbox.value)) ? missing : invalid; // String
 		},
 
 		getPromptMessage: function(/*Boolean*/ /*===== isFocused =====*/){
@@ -166,8 +174,8 @@ define("dijit/form/ValidationTextBox", [
 			if(isValid){ this._maskValidSubsetError = true; }
 			var isEmpty = this._isEmpty(this.textbox.value);
 			var isValidSubset = !isValid && isFocused && this._isValidSubset();
-			this._set("state", isValid ? "" : (((((!this._hasBeenBlurred || isFocused) && isEmpty) || isValidSubset) && this._maskValidSubsetError) ? "Incomplete" : "Error"));
-			this.focusNode.setAttribute("aria-invalid", isValid ? "false" : "true");
+			this._set("state", isValid ? "" : (((((!this._hasBeenBlurred || isFocused) && isEmpty) || isValidSubset) && (this._maskValidSubsetError || (isValidSubset && !this._hasBeenBlurred && isFocused))) ? "Incomplete" : "Error"));
+			this.focusNode.setAttribute("aria-invalid", this.state == "Error" ? "true" : "false");
 
 			if(this.state == "Error"){
 				this._maskValidSubsetError = isFocused && isValidSubset; // we want the error to show up after a blur and refocus
@@ -198,68 +206,96 @@ define("dijit/form/ValidationTextBox", [
 
 		_refreshState: function(){
 			// Overrides TextBox._refreshState()
-			this.validate(this.focused);
+			if(this._created){ // should instead be this._started but that would require all programmatic ValidationTextBox instantiations to call startup()
+				this.validate(this.focused);
+			}
 			this.inherited(arguments);
 		},
 
 		//////////// INITIALIZATION METHODS ///////////////////////////////////////
 
-		constructor: function(){
+		constructor: function(params /*===== , srcNodeRef =====*/){
+			// summary:
+			//		Create the widget.
+			// params: Object|null
+			//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
+			//		and functions, typically callbacks like onClick.
+			//		The hash can contain any of the widget's properties, excluding read-only properties.
+			// srcNodeRef: DOMNode|String?
+			//		If a srcNodeRef (DOM node) is specified, replace srcNodeRef with my generated DOM tree.
+
 			this.constraints = {};
+			this.baseClass += ' dijitValidationTextBox';
 		},
 
-		_setConstraintsAttr: function(/*Object*/ constraints){
+		startup: function(){
+			this.inherited(arguments);
+			this._refreshState(); // after all _set* methods have run
+		},
+
+		_setConstraintsAttr: function(/*__Constraints*/ constraints){
 			if(!constraints.locale && this.lang){
 				constraints.locale = this.lang;
 			}
 			this._set("constraints", constraints);
-			this._computePartialRE();
+			this._refreshState();
 		},
 
-		_computePartialRE: function(){
-			var p = this.regExpGen(this.constraints);
-			this.regExp = p;
-			var partialre = "";
-			// parse the regexp and produce a new regexp that matches valid subsets
-			// if the regexp is .* then there's no use in matching subsets since everything is valid
-			if(p != ".*"){ this.regExp.replace(/\\.|\[\]|\[.*?[^\\]{1}\]|\{.*?\}|\(\?[=:!]|./g,
-				function(re){
-					switch(re.charAt(0)){
-						case '{':
-						case '+':
-						case '?':
-						case '*':
-						case '^':
-						case '$':
-						case '|':
-						case '(':
-							partialre += re;
-							break;
-						case ")":
-							partialre += "|$)";
-							break;
-						 default:
-							partialre += "(?:"+re+"|$)";
-							break;
-					}
+		_setPatternAttr: function(/*String|Function*/ pattern){
+			this._set("pattern", pattern); // don't set on INPUT to avoid native HTML5 validation
+			this._refreshState();
+		},
+
+		_getPatternAttr: function(/*__Constraints*/ constraints){
+			// summary:
+			//		Hook to get the current regExp and to compute the partial validation RE.
+			var p = this.pattern;
+			var type = (typeof p).toLowerCase();
+			if(type == "function"){
+				p = this.pattern(constraints || this.constraints);
+			}
+			if(p != this._lastRegExp){
+				var partialre = "";
+				this._lastRegExp = p;
+				// parse the regexp and produce a new regexp that matches valid subsets
+				// if the regexp is .* then there's no use in matching subsets since everything is valid
+				if(p != ".*"){
+					p.replace(/\\.|\[\]|\[.*?[^\\]{1}\]|\{.*?\}|\(\?[=:!]|./g,
+					function(re){
+						switch(re.charAt(0)){
+							case '{':
+							case '+':
+							case '?':
+							case '*':
+							case '^':
+							case '$':
+							case '|':
+							case '(':
+								partialre += re;
+								break;
+							case ")":
+								partialre += "|$)";
+								break;
+							 default:
+								partialre += "(?:"+re+"|$)";
+								break;
+						}
+					});
 				}
-			);}
-			try{ // this is needed for now since the above regexp parsing needs more test verification
-				"".search(partialre);
-			}catch(e){ // should never be here unless the original RE is bad or the parsing is bad
-				partialre = this.regExp;
-				console.warn('RegExp error in ' + this.declaredClass + ': ' + this.regExp);
-			} // should never be here unless the original RE is bad or the parsing is bad
-			this._partialre = "^(?:" + partialre + ")$";
+				try{ // this is needed for now since the above regexp parsing needs more test verification
+					"".search(partialre);
+				}catch(e){ // should never be here unless the original RE is bad or the parsing is bad
+					partialre = this.pattern;
+					console.warn('RegExp error in ' + this.declaredClass + ': ' + this.pattern);
+				} // should never be here unless the original RE is bad or the parsing is bad
+				this._partialre = "^(?:" + partialre + ")$";
+			}
+			return p;
 		},
 
 		postMixInProperties: function(){
 			this.inherited(arguments);
 			this.messages = i18n.getLocalization("dijit.form", "validate", this.lang);
-			if(this.invalidMessage == "$_unset_$"){ this.invalidMessage = this.messages.invalidMessage; }
-			if(!this.invalidMessage){ this.invalidMessage = this.promptMessage; }
-			if(this.missingMessage == "$_unset_$"){ this.missingMessage = this.messages.missingMessage; }
-			if(!this.missingMessage){ this.missingMessage = this.invalidMessage; }
 			this._setConstraintsAttr(this.constraints); // this needs to happen now (and later) due to codependency on _set*Attr calls attachPoints
 		},
 
@@ -280,7 +316,7 @@ define("dijit/form/ValidationTextBox", [
 		},
 
 		reset:function(){
-			// Overrides dijit.form.TextBox.reset() by also
+			// Overrides dijit/form/TextBox.reset() by also
 			// hiding errors about partial matches
 			this._maskValidSubsetError = true;
 			this.inherited(arguments);

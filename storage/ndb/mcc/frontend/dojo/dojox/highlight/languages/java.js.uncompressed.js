@@ -1,7 +1,6 @@
-//>>built
-define("dojox/highlight/languages/java", ["dojox/main", "../_base"], function(dojox){
+define("dojox/highlight/languages/java", ["../_base"], function(dh){
 
-	var dh = dojox.highlight, dhc = dh.constants;
+	var dhc = dh.constants;
 	var javakeywords = {
 				'false': 1, 'int': 1, 'float': 1, 'while': 1, 'private': 1,
 				'char': 1, 'catch': 1, 'abstract': 1, 'assert': 1,
@@ -17,7 +16,8 @@ define("dojox/highlight/languages/java", ["dojox/main", "../_base"], function(do
 				'try': 1, 'this': 1, 'switch': 1, 'continue': 1
 			}
 	dh.languages.java = {
-		// summary: Java highlight definitions
+		// summary:
+		//		Java highlight definitions
 		defaultMode: {
 			lexems: [dhc.UNDERSCORE_IDENT_RE],
 			illegal: '</',

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/charting/plot3d/Base", ["dojo/_base/declare"], 
   function(declare) {
 	return declare("dojox.charting.plot3d.Base", null, {

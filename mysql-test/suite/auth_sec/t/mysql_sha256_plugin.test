@@ -15,8 +15,6 @@
 #                                                                             #
 ###############################################################################
 
---source include/have_ssl.inc
---source include/have_openssl.inc
 --source include/mysql_upgrade_preparation.inc
 
 # This test will intentionally generate errors in the server error log

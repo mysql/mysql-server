@@ -17,7 +17,9 @@
 
 --source include/have_case_sensitive_file_system.inc
 --source include/have_debug.inc
+--source include/not_valgrind.inc
 --source include/big_test.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo ########################################################################
 --echo # Assert target schema ids.
@@ -49,10 +51,8 @@
 --echo ########################################################################
 --echo # Stop the running server.
 --echo ########################################################################
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
 
 --echo ########################################################################
 --let  $VERSION = 80011
@@ -84,6 +84,11 @@
 --echo ########################################################################
 --source include/dd_schema_definition_after_upgrade_debug.inc
 
+--echo ########################################################################
+--let  $VERSION = 80016
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
 
 --echo ########################################################################
 --echo # Cleanup: Remove definition files and restart with default options.

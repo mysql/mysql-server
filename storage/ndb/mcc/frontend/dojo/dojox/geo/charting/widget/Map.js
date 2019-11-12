@@ -1,5 +1,5 @@
 //>>built
-define("dojox/geo/charting/widget/Map",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/declare","dojo/_base/html","dojo/dom-geometry","dijit/_Widget","dojox/geo/charting/Map"],function(_1,_2,_3,_4,_5,_6,_7){
+define("dojox/geo/charting/widget/Map",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/declare","dojo/_base/html","dojo/dom-geometry","dijit/_Widget","../Map"],function(_1,_2,_3,_4,_5,_6,_7){
 return _3("dojox.geo.charting.widget.Map",_6,{shapeData:"",dataStore:null,dataBindingAttribute:"",dataBindingValueFunction:null,markerData:"",series:"",adjustMapCenterOnResize:null,adjustMapScaleOnResize:null,animateOnResize:null,onFeatureClick:null,onFeatureOver:null,enableMouseSupport:null,enableTouchSupport:null,enableMouseZoom:null,enableMousePan:null,enableKeyboardSupport:false,showTooltips:false,enableFeatureZoom:null,colorAnimationDuration:0,mouseClickThreshold:2,_mouseInteractionSupport:null,_touchInteractionSupport:null,_keyboardInteractionSupport:null,constructor:function(_8,_9){
 this.map=null;
 },startup:function(){
@@ -64,18 +64,18 @@ this.map.showTooltips=this.showTooltips;
 this.map.enableFeatureZoom=this.enableFeatureZoom;
 this.map.colorAnimationDuration=this.colorAnimationDuration;
 }
-},resize:function(b){
-var _d;
+},resize:function(b,_d){
+var _e;
 switch(arguments.length){
 case 0:
 break;
 case 1:
-_d=_2.mixin({},b);
-_5.getMarginBox(this.domNode,_d);
+_e=_2.mixin({},b);
+_5.setMarginBox(this.domNode,_e);
 break;
 case 2:
-_d={w:arguments[0],h:arguments[1]};
-_5.getMarginBox(this.domNode,_d);
+_e={w:arguments[0],h:arguments[1]};
+_5.setMarginBox(this.domNode,_e);
 break;
 }
 if(this.map){

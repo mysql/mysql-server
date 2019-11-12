@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,18 @@ IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
 
+IF(EXISTS "/etc/fedora-release")
+  SET(LINUX_FEDORA 1)
+  FILE(READ "/etc/fedora-release" FEDORA_RELEASE)
+  IF(FEDORA_RELEASE MATCHES "Fedora" AND
+      FEDORA_RELEASE MATCHES "28")
+    SET(LINUX_FEDORA_28 1)
+  ENDIF()
+ENDIF()
+
 # We require at least GCC 5.3 or Clang 3.4.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
-  IF(CMAKE_COMPILER_IS_GNUCC)
+  IF(MY_COMPILER_IS_GNU)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE GCC_VERSION)
@@ -50,7 +59,7 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       MESSAGE(${WARNING_LEVEL}
         "GCC 5.3 or newer is required (-dumpversion says ${GCC_VERSION})")
     ENDIF()
-  ELSEIF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  ELSEIF(MY_COMPILER_IS_CLANG)
     CHECK_C_SOURCE_RUNS("
       int main()
       {

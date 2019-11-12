@@ -20,9 +20,11 @@
 -- along with this program; if not, write to the Free Software
 -- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-delimiter ||;
+delimiter ;
 
-use mtr||
+use mtr;
+
+DELIMITER $$
 
 CREATE DEFINER=root@localhost PROCEDURE check_testcase_perfschema()
 BEGIN
@@ -61,12 +63,11 @@ BEGIN
       ORDER BY UDF_NAME;
   END;
   END IF;
-END||
+END$$
 
---
 -- Procedure used to check if server has been properly
 -- restored after testcase has been run
---
+
 CREATE DEFINER=root@localhost PROCEDURE check_testcase()
 BEGIN
 
@@ -122,7 +123,8 @@ BEGIN
          ACTION_REFERENCE_OLD_ROW, ACTION_REFERENCE_NEW_ROW, SQL_MODE, DEFINER CHARACTER_SET_CLIENT,
          COLLATION_CONNECTION, DATABASE_COLLATION
     FROM INFORMATION_SCHEMA.TRIGGERS
-      WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert');
+      WHERE TRIGGER_NAME NOT IN ('gs_insert', 'ts_insert')
+      ORDER BY TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME;
   -- Dump all created procedures, only those in the sys schema should exist
   -- do not select the CREATED or LAST_ALTERED columns however, as tests like mysqldump.test / mysql_ugprade.test update this
   SELECT SPECIFIC_NAME,ROUTINE_CATALOG,ROUTINE_SCHEMA,ROUTINE_NAME,ROUTINE_TYPE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH,
@@ -146,9 +148,12 @@ BEGIN
   -- not find consistent result in information_schema.processlist, hence
   -- excluding it from check-testcase. Similar reasoning applies to the event
   -- scheduler.
+  --
+  -- For "unauthenticated user", see Bug#30035699 "UNAUTHENTICATED USER" SHOWS UP IN CHECK-TESTCASE
+  --
   SELECT USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
     WHERE COMMAND NOT IN ('Sleep')
-      AND USER NOT IN ('mysql.session', 'event_scheduler')
+      AND USER NOT IN ('unauthenticated user','mysql.session', 'event_scheduler')
         ORDER BY COMMAND;
 
   -- Checksum system tables to make sure they have been properly
@@ -181,14 +186,15 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
-END||
+END$$
 
---
 -- Procedure used by test case used to force all
 -- servers to restart after testcase and thus skipping
 -- check test case after test
---
 CREATE DEFINER=root@localhost PROCEDURE force_restart()
 BEGIN
   SELECT 1 INTO OUTFILE 'force_restart';
-END||
+END$$
+
+DELIMITER ;
+

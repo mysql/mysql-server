@@ -273,10 +273,9 @@ const rec_t *dict_startscan_system(
 
 /** This function gets the next system table record as it scans the table.
  @return the next record if found, NULL if end of scan */
-const rec_t *dict_getnext_system(
-    btr_pcur_t *pcur, /*!< in/out: persistent cursor
-                      to the record */
-    mtr_t *mtr)       /*!< in: the mini-transaction */
+const rec_t *dict_getnext_system(btr_pcur_t *pcur, /*!< in/out: persistent
+                                                   cursor to the record */
+                                 mtr_t *mtr) /*!< in: the mini-transaction */
 {
   const rec_t *rec;
 
@@ -1249,7 +1248,7 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
   const rec_t *rec;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_check_sys_tablespaces");
+  DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1306,7 +1305,7 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
 
   mtr_commit(&mtr);
 
-  DBUG_RETURN(max_space_id);
+  return max_space_id;
 }
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
@@ -1395,7 +1394,7 @@ space_id_t dict_check_sys_tables(bool validate) {
   const rec_t *rec;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_check_sys_tables");
+  DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1491,14 +1490,20 @@ space_id_t dict_check_sys_tables(bool validate) {
       continue;
     }
 
-    /* Set the expected filepath from the data dictionary.
-    If the file is found elsewhere (from an ISL or the default
-    location) or this path is the same file but looks different,
-    fil_ibd_open() will update the dictionary with what is
-    opened. */
-    char *filepath = space_id == dict_sys_t::s_space_id
-                         ? mem_strdup(dict_sys_t::s_dd_space_file_name)
-                         : dict_get_first_path(space_id);
+    /* Set the expected filepath from the data dictionary. */
+    char *filepath = nullptr;
+    if (space_id == dict_sys_t::s_space_id) {
+      filepath = mem_strdup(dict_sys_t::s_dd_space_file_name);
+    } else {
+      filepath = dict_get_first_path(space_id);
+      if (filepath == nullptr) {
+        /* This record in dd::tablespaces does not have a path in
+        dd:tablespace_files. This has been shown to occur during
+        upgrade of some FTS tablespaces created in 5.6.
+        Build a filepath in the default location from the table name. */
+        filepath = Fil_path::make_ibd_from_table_name(tbl_name);
+      }
+    }
 
     /* Check that the .ibd file exists. */
     uint32_t fsp_flags = dict_tf_to_fsp_flags(flags);
@@ -1543,7 +1548,7 @@ space_id_t dict_check_sys_tables(bool validate) {
 
   mtr_commit(&mtr);
 
-  DBUG_RETURN(max_space_id);
+  return max_space_id;
 }
 
 /** Loads definitions for table columns. */
@@ -1911,10 +1916,7 @@ loading the index definition */
       mutex_enter(&dict_sys->mutex);
 
       /* The data dictionary tables should never contain
-      invalid index definitions.  If we ignored this error
-      and simply did not load this index definition, the
-      .frm file would disagree with the index definitions
-      inside InnoDB. */
+      invalid index definitions. */
       if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
         goto func_exit;
       }
@@ -1976,7 +1978,7 @@ static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
   dict_table_decode_n_col(t_num, &n_cols, &n_v_col);
 
   *table = dict_mem_table_create(name.m_name, space_id, n_cols + n_v_col,
-                                 n_v_col, flags, flags2);
+                                 n_v_col, 0, flags, flags2);
 
   (*table)->id = table_id;
   (*table)->ibd_file_missing = FALSE;
@@ -2116,7 +2118,7 @@ dict_table_t *dict_load_table(const char *name, bool cached,
   table_name_t table_name;
   dict_table_t *result;
 
-  DBUG_ENTER("dict_load_table");
+  DBUG_TRACE;
   DBUG_PRINT("dict_load_table", ("loading table: '%s'", name));
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -2140,7 +2142,7 @@ dict_table_t *dict_load_table(const char *name, bool cached,
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /** Opens a tablespace for dict_load_table_one()
@@ -2294,7 +2296,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   const char *err_msg;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_load_table_one");
+  DBUG_TRACE;
   DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -2358,7 +2360,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
     mtr_commit(&mtr);
     mem_heap_free(heap);
 
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_TABLES__NAME, &len);
@@ -2442,11 +2444,12 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
     table->flags2 = 0;
   }
 
-  DBUG_EXECUTE_IF("ib_table_invalid_flags",
-                  if (strcmp(table->name.m_name, "test/t1") == 0) {
-                    table->flags2 = 255;
-                    table->flags = 255;
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_table_invalid_flags",
+      if (strcmp(table->name.m_name, "test/t1") == 0) {
+        table->flags2 = 255;
+        table->flags = 255;
+      });
 
   if (!dict_tf2_is_valid(table->flags, table->flags2)) {
     ib::error(ER_IB_MSG_209) << "Table " << table->name
@@ -2528,7 +2531,7 @@ func_exit:
 
   ut_ad(err != DB_SUCCESS || dict_foreign_set_validate(*table));
 
-  DBUG_RETURN(table);
+  return table;
 }
 
 /** Loads a table object based on the table id.
@@ -2793,7 +2796,7 @@ stack. */
   dict_table_t *ref_table;
   size_t id_len;
 
-  DBUG_ENTER("dict_load_foreign");
+  DBUG_TRACE;
   DBUG_PRINT("dict_load_foreign",
              ("id: '%s', check_recursive: %d", id, check_recursive));
 
@@ -2831,7 +2834,7 @@ stack. */
     mtr_commit(&mtr);
     mem_heap_free(heap2);
 
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_FOREIGN__ID, &len);
@@ -2849,7 +2852,7 @@ stack. */
     mtr_commit(&mtr);
     mem_heap_free(heap2);
 
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   /* Read the table names and the number of columns associated
@@ -2911,7 +2914,7 @@ stack. */
     dict_sys->size += new_size - old_size;
 
     dict_foreign_remove_from_cache(foreign);
-    DBUG_RETURN(DB_SUCCESS);
+    return DB_SUCCESS;
   }
 
   ut_a(for_table || ref_table);
@@ -2924,8 +2927,8 @@ stack. */
   a new foreign key constraint but loading one from the data
   dictionary. */
 
-  DBUG_RETURN(dict_foreign_add_to_cache(foreign, col_names, check_charsets,
-                                        true, ignore_err));
+  return dict_foreign_add_to_cache(foreign, col_names, check_charsets, true,
+                                   ignore_err);
 }
 
 /** Loads foreign key constraints where the table is either the foreign key
@@ -2965,7 +2968,7 @@ foreign key constraints. */
   dberr_t err;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_load_foreigns");
+  DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -2975,7 +2978,7 @@ foreign key constraints. */
     /* No foreign keys defined yet in this database */
 
     ib::info(ER_IB_MSG_212) << "No foreign key system tables in the database";
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   ut_ad(!dict_table_is_comp(sys_foreign));
@@ -3061,7 +3064,7 @@ loop:
   if (err != DB_SUCCESS) {
     btr_pcur_close(&pcur);
 
-    DBUG_RETURN(err);
+    return err;
   }
 
   mtr_start(&mtr);
@@ -3089,7 +3092,7 @@ load_next_index:
     goto start_load;
   }
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Load all tablespaces during upgrade */

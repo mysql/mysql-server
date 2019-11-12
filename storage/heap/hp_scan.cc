@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,18 +36,18 @@
 */
 
 int heap_scan_init(HP_INFO *info) {
-  DBUG_ENTER("heap_scan_init");
+  DBUG_TRACE;
   info->lastinx = -1;
   info->current_record = (ulong)~0L; /* No current record */
   info->update = 0;
   info->next_block = 0;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int heap_scan(HP_INFO *info, uchar *record) {
   HP_SHARE *share = info->s;
   ulong pos;
-  DBUG_ENTER("heap_scan");
+  DBUG_TRACE;
 
   pos = ++info->current_record;
   if (pos < info->next_block) {
@@ -65,7 +65,7 @@ int heap_scan(HP_INFO *info, uchar *record) {
       if (pos >= info->next_block) {
         info->update = 0;
         set_my_errno(HA_ERR_END_OF_FILE);
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
+        return HA_ERR_END_OF_FILE;
       }
     }
     hp_find_record(info, pos);
@@ -74,10 +74,10 @@ int heap_scan(HP_INFO *info, uchar *record) {
     DBUG_PRINT("warning", ("Found deleted record"));
     info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
     set_my_errno(HA_ERR_RECORD_DELETED);
-    DBUG_RETURN(HA_ERR_RECORD_DELETED);
+    return HA_ERR_RECORD_DELETED;
   }
   info->update = HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
   memcpy(record, info->current_ptr, (size_t)share->reclength);
   info->current_hash_ptr = 0; /* Can't use read_next */
-  DBUG_RETURN(0);
+  return 0;
 } /* heap_scan */

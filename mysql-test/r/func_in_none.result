@@ -104,6 +104,8 @@ A
 NULL
 drop table t1;
 create table t1 (id int(10) primary key);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 select * from t1 where id in (2,5,9);
 id
@@ -359,6 +361,8 @@ create table t1 (
 some_id smallint(5) unsigned,
 key (some_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1),(2);
 select some_id from t1 where some_id not in(2,-1);
 some_id

@@ -34,7 +34,6 @@
 #
 source include/not_valgrind.inc;
 source include/master-slave.inc;
-source include/have_ssl.inc;
 source include/have_binlog_format_mixed.inc;
 
 --let $assert_text= On master, the table should return an empty set.

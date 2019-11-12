@@ -23,10 +23,7 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
@@ -37,7 +34,7 @@ B	Berlin	Mitte	6	BERLIN
 C	Cottbus	West	7	COTTBUS
 D	Darmstadt	City	9	DARMSTADT
 H	Hamburg	Norderstedt	7	HAMBURG
-Here the memcached results after set:
+Here are the memcached results after set:
 Essen|Ost
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
@@ -46,7 +43,7 @@ C	Cottbus	West	7	COTTBUS
 D	Darmstadt	City	9	DARMSTADT
 E	Essen	Ost	5	ESSEN
 H	Hamburg	Norderstedt	7	HAMBURG
-Here the memcached results after add:
+Here are the memcached results after add:
 Frankfurt|Sachsenhause
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
@@ -56,7 +53,7 @@ D	Darmstadt	City	9	DARMSTADT
 E	Essen	Ost	5	ESSEN
 F	Frankfurt	Sachsenhause	9	FRANKFURT
 H	Hamburg	Norderstedt	7	HAMBURG
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
@@ -66,7 +63,7 @@ D	Darmstadt	City	9	DARMSTADT
 E	Essen	Ost	5	ESSEN
 F	Frankfurt a. M.	Sachsenhausen	15	FRANKFURT A. M.
 H	Hamburg	Norderstedt	7	HAMBURG
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
 B	Berlin	Mitte	6	BERLIN
@@ -74,9 +71,9 @@ C	Cottbus	West	7	COTTBUS
 D	Darmstadt	City	9	DARMSTADT
 E	Essen	Ost	5	ESSEN
 H	Hamburg	Norderstedt	7	HAMBURG
-Here the memcached results after add Frankfurt|:
+Here are the memcached results after add Frankfurt|:
 Frankfurt|
-Here the memcached results after add |Airport:
+Here are the memcached results after add |Airport:
 Frankfurt|
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
@@ -86,9 +83,9 @@ D	Darmstadt	City	9	DARMSTADT
 E	Essen	Ost	5	ESSEN
 F	Frankfurt	NULL	9	FRANKFURT
 H	Hamburg	Norderstedt	7	HAMBURG
-Here the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Frankfurt a.M.:
 Frankfurt a. M.|
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results after replace Sachsenhausen:
 |Sachsenhausen
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
@@ -115,9 +112,9 @@ D	0	City
 E	0	Ost
 F	NULL	Sachsenhausen
 H	0	Norderstedt
-Here the memcached results after add Frankfurt|:
+Here are the memcached results after add Frankfurt|:
 |Sachsenhausen
-Here the memcached results after add |Airport:
+Here are the memcached results after add |Airport:
 |Sachsenhausen
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
@@ -127,7 +124,7 @@ D	0	City	1	0
 E	0	Ost	1	0
 F	NULL	Sachsenhausen	NULL	NULL
 H	0	Norderstedt	1	0
-Here the memcached results after flush_all:
+Here are the memcached results after flush_all:
 SELECT c1,c2,c21,length(c2) as c22,upper(c2) as c23 FROM t1;
 c1	c2	c21	c22	c23
 Bug#18652854 INNODB MEMCACHED ASSERTION `!CONN_DATA->CRSR_TRX' FAILED.

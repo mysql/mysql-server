@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -284,6 +284,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
   peerUpIndicators    = new bool              [maxTransporters];
   connectingTime      = new Uint32            [maxTransporters];
   m_disconnect_errnum = new int               [maxTransporters];
+  m_disconnect_enomem_error = new Uint32      [maxTransporters];
   m_error_states      = new ErrorState        [maxTransporters];
 
   m_has_extra_wakeup_socket = false;
@@ -309,6 +310,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
                                   // cleared at first connect attempt
     connectingTime[i]     = 0;
     m_disconnect_errnum[i]= 0;
+    m_disconnect_enomem_error[i] = 0;
     m_error_states[i]     = default_error_state;
   }
   DBUG_VOID_RETURN;
@@ -353,6 +355,7 @@ TransporterRegistry::~TransporterRegistry()
   delete[] peerUpIndicators;
   delete[] connectingTime;
   delete[] m_disconnect_errnum;
+  delete[] m_disconnect_enomem_error;
   delete[] m_error_states;
 
   if (m_mgm_handle)
@@ -760,14 +763,23 @@ TransporterRegistry::prepareSendTemplate(
       const Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, section.m_ptr);
       if (likely(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE))
       {
-	Uint32 *insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	if (likely(insertPtr != NULL))
+        SendStatus error = SEND_OK;
+        Uint32 *insertPtr = getWritePtr(sendHandle,
+                                        nodeId,
+                                        lenBytes,
+                                        prio,
+                                        &error);
+        if (likely(insertPtr != nullptr))
 	{
 	  t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	  updateWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  return SEND_OK;
 	}
-
+        if (unlikely(error == SEND_MESSAGE_TOO_BIG))
+        {
+          g_eventLogger->info("Send message too big");
+	  return SEND_MESSAGE_TOO_BIG;
+        }
         set_status_overloaded(nodeId, true);
         const int sleepTime = 2;
 
@@ -779,8 +791,8 @@ TransporterRegistry::prepareSendTemplate(
 	{
 	  NdbSleep_MilliSleep(sleepTime);
           /* FC : Consider counting sleeps here */
-	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
-	  if (insertPtr != NULL)
+	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio, &error);
+	  if (likely(insertPtr != nullptr))
 	  {
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
@@ -791,8 +803,13 @@ TransporterRegistry::prepareSendTemplate(
 	    report_error(nodeId, TE_SEND_BUFFER_FULL);
 	    return SEND_OK;
 	  }
+          if (unlikely(error == SEND_MESSAGE_TOO_BIG))
+          {
+            g_eventLogger->info("Send message too big");
+	    return SEND_MESSAGE_TOO_BIG;
+          }
 	}
-	
+
 	WARNING("Signal to " << nodeId << " lost(buffer)");
 	DEBUG_FPRINTF((stderr, "TE_SIGNAL_LOST_SEND_BUFFER_FULL\n"));
 	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
@@ -800,7 +817,7 @@ TransporterRegistry::prepareSendTemplate(
       }
       else
       {
-        g_eventLogger->info("Send message too big");
+        g_eventLogger->info("Send message too big: length %u", lenBytes);
 	return SEND_MESSAGE_TOO_BIG;
       }
     }
@@ -1934,17 +1951,23 @@ TransporterRegistry::do_connect(NodeId node_id)
  *
  * This works asynchronously, similar to do_connect().
  */
-void
-TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
+bool
+TransporterRegistry::do_disconnect(NodeId node_id,
+                                   int errnum,
+                                   bool send_source)
 {
   DEBUG_FPRINTF((stderr, "(%u)REG:do_disconnect(%u, %d)\n",
                          localNodeId, node_id, errnum));
   PerformState &curr_state = performStates[node_id];
   switch(curr_state){
   case DISCONNECTED:
-    return;
+  {
+    return true;
+  }
   case CONNECTED:
+  {
     break;
+  }
   case CONNECTING:
     /**
      * This is a correct transition. But it should only occur for nodes
@@ -1955,13 +1978,40 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
     //DBUG_ASSERT(false);
     break;
   case DISCONNECTING:
-    return;
+  {
+    return true;
+  }
+  }
+  if (errnum == ENOENT)
+  {
+    m_disconnect_enomem_error[node_id]++;
+    if (m_disconnect_enomem_error[node_id] < 10)
+    {
+      NdbSleep_MilliSleep(40);
+      g_eventLogger->info("Socket error %d on nodeId: %u in state: %u",
+                          errnum, node_id, (Uint32)curr_state);
+      return false;
+    }
+  }
+  if (errnum == 0)
+  {
+    g_eventLogger->info("Node %u disconnected in state: %d",
+                        node_id, (int)curr_state);
+  }
+  else
+  {
+    g_eventLogger->info("Node %u disconnected in %s with errnum: %d"
+                        " in state: %d",
+                        node_id,
+                        send_source ? "send" : "recv",
+                        errnum,
+                        (int)curr_state);
   }
   DBUG_ENTER("TransporterRegistry::do_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTING",node_id));
   curr_state= DISCONNECTING;
   m_disconnect_errnum[node_id] = errnum;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 /**
@@ -2626,13 +2676,20 @@ TransporterRegistry::connect_ndb_mgmd(const char* server_name,
 
 Uint32 *
 TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
-                                 NodeId node, Uint32 lenBytes, Uint32 prio)
+                                 NodeId node,
+                                 Uint32 lenBytes,
+                                 Uint32 prio,
+                                 SendStatus *error)
 {
   Transporter *t = theTransporters[node];
-  Uint32 *insertPtr = handle->getWritePtr(node, lenBytes, prio,
-                                          t->get_max_send_buffer());
+  Uint32 *insertPtr = handle->getWritePtr(node,
+                                          lenBytes,
+                                          prio,
+                                          t->get_max_send_buffer(),
+                                          error);
 
-  if (insertPtr == 0) {
+  if (unlikely(insertPtr == nullptr && *error != SEND_MESSAGE_TOO_BIG))
+  {
     //-------------------------------------------------
     // Buffer was completely full. We have severe problems.
     // We will attempt to wait for a small time
@@ -2648,8 +2705,11 @@ TransporterRegistry::getWritePtr(TransporterSendBufferHandle *handle,
 	// Since send was successful we will make a renewed
 	// attempt at inserting the signal into the buffer.
 	//-------------------------------------------------
-        insertPtr = handle->getWritePtr(node, lenBytes, prio,
-                                        t->get_max_send_buffer());
+        insertPtr = handle->getWritePtr(node,
+                                        lenBytes,
+                                        prio,
+                                        t->get_max_send_buffer(),
+                                        error);
       }//if
     } else {
       return 0;

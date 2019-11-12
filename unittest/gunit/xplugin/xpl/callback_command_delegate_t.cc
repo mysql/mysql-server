@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ class Callback_command_delegate_testsuite : public Test {
 
     // Processing of data should be always successful
     // it doesn't depend on result of start_row !
-    ASSERT_EQ(expected_result, m_sut->start_row());
+    ASSERT_EQ(expected_result, static_cast<bool>(m_sut->start_row()));
     ASSERT_EQ(expect_success, m_sut->get_null());
     ASSERT_EQ(expect_success, m_sut->get_integer(EXPECTED_VALUE_INTEGER));
     ASSERT_EQ(expect_success,
@@ -124,7 +124,7 @@ class Callback_command_delegate_testsuite : public Test {
     ASSERT_EQ(expect_success,
               m_sut->get_string(EXPECTED_VALUE_STRING,
                                 strlen(EXPECTED_VALUE_STRING), NULL));
-    ASSERT_EQ(expected_result, m_sut->end_row());
+    ASSERT_EQ(expected_result, static_cast<bool>(m_sut->end_row()));
   }
 
   void assert_sut_status_should_be_empty() {
@@ -165,11 +165,12 @@ class Callback_command_delegate_testsuite : public Test {
 
     ASSERT_EQ(EXPECTED_VALUE_INTEGER, row_data.fields[1]->value.v_long);
     ASSERT_EQ(EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT,
-              row_data.fields[1]->is_unsigned);
+              static_cast<longlong>(row_data.fields[1]->is_unsigned));
     ASSERT_FALSE(row_data.fields[1]->is_string);
 
     ASSERT_EQ(EXPECTED_VALUE_LONGLONG, row_data.fields[2]->value.v_long);
-    ASSERT_EQ(EXPECTED_IS_LONGLONG_UNSIGNED, row_data.fields[2]->is_unsigned);
+    ASSERT_EQ(EXPECTED_IS_LONGLONG_UNSIGNED,
+              static_cast<longlong>(row_data.fields[2]->is_unsigned));
     ASSERT_FALSE(row_data.fields[2]->is_string);
 
     ASSERT_THAT(row_data.fields[3]->value.v_decimal,

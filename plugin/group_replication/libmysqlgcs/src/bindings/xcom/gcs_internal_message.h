@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -254,7 +254,7 @@ class Gcs_packet {
   /**
    Create a string representation of the packet to be logged.
 
-   @param ouput Reference to the output stream where the string will be
+   @param output Reference to the output stream where the string will be
    created.
    */
   void dump(std::ostringstream &output) const;
@@ -309,7 +309,6 @@ class Gcs_packet {
 
    @param buffer Buffer containing a serialized packet
    @param buffer_size Size of the buffer
-   @param synode XCom synode where this packet was decided/delivered
    @param pipeline The message pipeline
    */
   void deserialize(buffer_ptr &&buffer, unsigned long long buffer_size,

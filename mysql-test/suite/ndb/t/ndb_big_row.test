@@ -1,0 +1,101 @@
+source include/have_ndb.inc;
+
+# let $maxrowsize = 14000 - 64; # for 7.6, 8.0.17
+# let $maxrowsize = 30000 - 64; # from 8.0.18 with WL#13079
+let $maxrowsize = 30000; # from 8.0.18 with Bug#29698277
+
+# Create a table with a big Dbtup internal expanded row format.
+
+let $pkcount = 1;
+let $fixcount = 2;
+let $varcount = 2;
+let $dynfixcount = 2;
+let $dynvarcount = 503;
+let $ddcount = 1;
+let $colcount =
+  ($pkcount + $fixcount + $varcount + $dynfixcount + $dynvarcount + $ddcount);
+# Length of varbinary column which will be added last to fill row size.
+# All other columns are 4 bytes each.
+let $varlen = `select $maxrowsize - $colcount * 4 - 2`;
+
+let $colnum = 1;
+let $colstr = ;
+
+let $count = $dynfixcount;
+while ($count)
+{
+  let $colstr=$colstr,
+              col$colnum binary(1) default '@' column_format dynamic;
+  inc $colnum;
+  dec $count;
+}
+
+let $count = $dynvarcount;
+while ($count)
+{
+  let $colstr=$colstr,
+              col$colnum varbinary(3) default 'ABC' column_format dynamic;
+  inc $colnum;
+  dec $count;
+}
+
+let $count = $fixcount;
+while ($count)
+{
+  let $colstr=$colstr,
+              col$colnum binary(1) default '@' column_format fixed;
+  inc $colnum;
+  dec $count;
+}
+
+let $count = $varcount;
+while ($count)
+{
+  let $colstr=$colstr,
+              col$colnum varbinary(3) null default 'ABC' column_format fixed;
+  inc $colnum;
+  dec $count;
+}
+
+let $count = $ddcount;
+while ($count)
+{
+  let $colstr=$colstr,
+              col$colnum varbinary(3) null default 'ABC' storage disk;
+  inc $colnum;
+  dec $count;
+}
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+eval create table t1 (
+  pk int unsigned primary key
+  $colstr
+) engine = ndb
+  tablespace ts1
+  storage memory
+  partition by key(pk) partitions 1;
+
+insert into t1 (pk) values (0x12345678);
+insert into t1 (pk) values (0x87654321);
+
+eval alter table t1 algorithm=inplace,
+  add column col511 varbinary($varlen) column_format dynamic;
+
+eval update t1 set col511 = repeat('-', $varlen);
+
+drop table t1;
+alter tablespace ts1
+  drop datafile 'datafile.dat';
+drop tablespace ts1;
+drop logfile group lg1 engine ndb;

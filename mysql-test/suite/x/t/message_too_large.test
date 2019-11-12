@@ -1,0 +1,36 @@
+ ## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## TEST STARTS HERE
+--write_file $MYSQL_TMP_DIR/too_large.tmp
+-->import wait_until_disconnect.macro
+
+-->vargen %LARGE_TEXT% . 2000
+
+-->quiet
+-->varsub %1%
+-->echo ## Send large message
+-->expecterror 0,2006
+Mysqlx.Sql.StmtExecute {
+    stmt: "select '%LARGE_TEXT%' as result"
+}
+-->noquiet
+-->echo ## Waiting for disconnection
+-->callmacro Wait_until_disconnect
+EOF
+
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
+SET GLOBAL mysqlx_max_allowed_packet = 1000;
+
+--exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1
+
+## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
+SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;
+--remove_file $MYSQL_TMP_DIR/too_large.tmp
+--source include/xplugin_drop_user.inc

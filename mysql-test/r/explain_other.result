@@ -1130,12 +1130,16 @@ DROP TABLE t1, t2, t3;
 CREATE TABLE h2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into h2 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 CREATE TABLE aa3 (
 col_int_key int(11) DEFAULT NULL,
 KEY col_int_key (col_int_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN SELECT alias1.pk AS field1 FROM h2 AS alias1 LEFT JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	alias1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
@@ -1155,7 +1159,10 @@ CREATE TABLE t1 (
 pk int(11),
 col_int_key int(11) DEFAULT NULL,
 KEY col_int_key (col_int_key)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (NULL,NULL);
 INSERT INTO t1 VALUES (6,NULL);
 INSERT INTO t1 VALUES (8,-1131610112);
@@ -1174,6 +1181,8 @@ numb decimal(15,2) NOT NULL DEFAULT '0.00',
 PRIMARY KEY (login),
 KEY numb (numb)
 )  ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE tbl2 (
 login int(11) NOT NULL,
 cmd tinyint(4) NOT NULL,
@@ -1181,6 +1190,9 @@ nump decimal(15,2) NOT NULL DEFAULT '0.00',
 KEY cmd (cmd),
 KEY login (login)
 ) ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into tbl1 (login) values(1),(2);
 insert ignore into tbl2 (login) values(1),(2);
 Warnings:

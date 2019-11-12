@@ -55,6 +55,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -92,13 +93,13 @@
 #include "sql/sql_select.h"
 #include "sql/table.h"
 #include "sql/table_function.h"  // Table_function
+#include "sql/timing_iterator.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
 class Opt_trace_context;
 
 using std::function;
-using std::string;
 using std::string;
 using std::vector;
 
@@ -697,9 +698,9 @@ bool Explain::prepare_columns() {
 */
 
 bool Explain::send() {
-  DBUG_ENTER("Explain::send");
+  DBUG_TRACE;
 
-  if (fmt->begin_context(context_type, NULL)) DBUG_RETURN(true);
+  if (fmt->begin_context(context_type, NULL)) return true;
 
   /* Don't log this into the slow query log */
   explain_thd->server_status &=
@@ -709,7 +710,7 @@ bool Explain::send() {
 
   if (!ret) ret = fmt->end_context(context_type);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Explain::explain_id() {
@@ -999,8 +1000,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     if (pushed_cond) {
       StringBuffer<64> buff(cs);
       if (can_print_clauses())
-        const_cast<Item *>(pushed_cond)
-            ->print(explain_thd, &buff, cond_print_flags);
+        pushed_cond->print(explain_thd, &buff, cond_print_flags);
       if (push_extra(ET_USING_PUSHED_CONDITION, buff)) return true;
     }
     if (((quick_type >= 0 && tab->quick_optim()->reverse_sorted()) ||
@@ -1772,11 +1772,11 @@ bool Explain_table::explain_extra() {
 bool explain_no_table(THD *explain_thd, const THD *query_thd,
                       SELECT_LEX *select_lex, const char *message,
                       enum_parsing_context ctx) {
-  DBUG_ENTER("explain_no_table");
+  DBUG_TRACE;
   const bool ret = Explain_no_table(explain_thd, query_thd, select_lex, message,
                                     ctx, HA_POS_ERROR)
                        .send();
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -1827,14 +1827,14 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list) {
 bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
                                        SELECT_LEX *select) {
-  DBUG_ENTER("explain_single_table_modification");
+  DBUG_TRACE;
   Query_result_send result;
   const bool other = (query_thd != explain_thd);
   bool ret;
 
   if (explain_thd->lex->explain_format->is_tree()) {
     // These kinds of queries don't have a JOIN with an iterator tree.
-    DBUG_RETURN(ExplainIterator(explain_thd, query_thd, nullptr));
+    return ExplainIterator(explain_thd, query_thd, nullptr);
   }
 
   /**
@@ -1850,7 +1850,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
   */
   List<Item> dummy;
   if (result.prepare(explain_thd, dummy, explain_thd->lex->unit))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   explain_thd->lex->explain_format->send_headers(&result);
 
@@ -1864,8 +1864,9 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
     for (SELECT_LEX_UNIT *unit = select->first_inner_unit(); unit;
          unit = unit->next_unit()) {
       // Derived tables and const subqueries are already optimized
-      if (!unit->is_optimized() && unit->optimize(explain_thd))
-        DBUG_RETURN(true); /* purecov: inspected */
+      if (!unit->is_optimized() &&
+          unit->optimize(explain_thd, /*materialize_destination=*/nullptr))
+        return true; /* purecov: inspected */
     }
   }
 
@@ -1902,7 +1903,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
 
     result.send_eof(explain_thd);
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -1996,6 +1997,28 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
   return ret;
 }
 
+vector<string> FullDebugString(const THD *thd, const RowIterator &iterator) {
+  vector<string> ret = iterator.DebugString();
+  if (iterator.expected_rows() >= 0.0) {
+    // NOTE: We cannot use %.0f, since MSVC and GCC round 0.5 in different
+    // directions, so tests would not be reproducible between platforms.
+    // Round off using llrint() instead.
+    char str[256];
+    snprintf(str, sizeof(str), "  (cost=%.2f rows=%lld)",
+             iterator.estimated_cost(), llrint(iterator.expected_rows()));
+    ret.back() += str;
+  }
+  if (thd->lex->is_explain_analyze) {
+    if (iterator.expected_rows() < 0.0) {
+      // We always want a double space between the iterator name and the costs.
+      ret.back().push_back(' ');
+    }
+    ret.back().push_back(' ');
+    ret.back() += iterator.TimingString();
+  }
+  return ret;
+}
+
 std::string PrintQueryPlan(int level, RowIterator *iterator) {
   string ret;
 
@@ -2006,7 +2029,7 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
 
   int top_level = level;
 
-  for (const string &str : iterator->DebugString()) {
+  for (const string &str : FullDebugString(current_thd, *iterator)) {
     ret.append(level * 4, ' ');
     ret += "-> ";
     ret += str;
@@ -2025,8 +2048,9 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
       ret += PrintQueryPlan(level, child.iterator);
     }
   }
-  if (iterator->join() != nullptr) {
-    for (const auto &child : GetIteratorsFromSelectList(iterator->join())) {
+  if (iterator->join_for_explain() != nullptr) {
+    for (const auto &child :
+         GetIteratorsFromSelectList(iterator->join_for_explain())) {
       ret.append(top_level * 4, ' ');
       ret.append("-> ");
       ret.append(child.description);
@@ -2069,7 +2093,7 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 
   {
     std::string explain;
-    if (unit != nullptr && unit->is_simple()) {
+    if (unit != nullptr) {
       int base_level = 0;
       JOIN *join = unit->first_select()->join;
       const THD::Query_plan *query_plan = &query_thd->query_plan;
@@ -2101,7 +2125,7 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
         default:
           break;
       }
-      explain += PrintQueryPlan(base_level, join->root_iterator());
+      explain += PrintQueryPlan(base_level, unit->root_iterator());
     } else {
       explain += PrintQueryPlan(0, nullptr);
     }
@@ -2116,6 +2140,21 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
   }
   return result.send_eof(ethd);
 }
+
+/**
+  A query result handler that does nothing. It is used during EXPLAIN ANALYZE,
+  to ignore the output of the query when it's being run.
+ */
+class Query_result_null : public Query_result_interceptor {
+ public:
+  Query_result_null() : Query_result_interceptor() {}
+  uint field_count(List<Item> &) const override { return 0; }
+  bool send_result_set_metadata(THD *, List<Item> &, uint) override {
+    return false;
+  }
+  bool send_data(THD *, List<Item> &) override { return false; }
+  bool send_eof(THD *) override { return false; }
+};
 
 /**
   EXPLAIN handling for SELECT, INSERT/REPLACE SELECT, and multi-table
@@ -2152,12 +2191,37 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 
 bool explain_query(THD *explain_thd, const THD *query_thd,
                    SELECT_LEX_UNIT *unit) {
-  DBUG_ENTER("explain_query");
+  DBUG_TRACE;
 
   const bool other = (explain_thd != query_thd);
 
-  if (explain_thd->lex->explain_format->is_tree()) {
-    DBUG_RETURN(ExplainIterator(explain_thd, query_thd, unit));
+  LEX *lex = explain_thd->lex;
+  if (lex->explain_format->is_tree()) {
+    if (lex->is_explain_analyze) {
+      if (explain_thd->lex->m_sql_cmd != nullptr &&
+          explain_thd->lex->m_sql_cmd->using_secondary_storage_engine()) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "EXPLAIN ANALYZE with secondary engine");
+        unit->set_executed();
+        return true;
+      }
+      if (unit->root_iterator() == nullptr) {
+        // TODO(sgunders): Remove when the iterator executor supports
+        // all queries.
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXPLAIN ANALYZE on this query");
+        unit->set_executed();
+        return true;
+      }
+
+      // Run the query, but with the result suppressed.
+      Query_result_null null_result;
+      unit->set_query_result(&null_result);
+      unit->execute(explain_thd);
+      unit->set_executed();
+      if (query_thd->is_error()) return true;
+    }
+
+    return ExplainIterator(explain_thd, query_thd, unit);
   }
 
   Query_result *explain_result = NULL;
@@ -2171,10 +2235,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   if (other) {
     if (!((explain_result = new (explain_thd->mem_root) Query_result_send())))
-      DBUG_RETURN(true); /* purecov: inspected */
+      return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(explain_thd, dummy, explain_thd->lex->unit))
-      DBUG_RETURN(true); /* purecov: inspected */
+      return true; /* purecov: inspected */
   } else {
     DBUG_ASSERT(unit->is_optimized());
     if (explain_result->need_explain_interceptor())
@@ -2233,7 +2297,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   if (other) destroy(explain_result);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**
@@ -2251,7 +2315,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
 bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
                         SELECT_LEX_UNIT *unit) {
-  DBUG_ENTER("mysql_explain_unit");
+  DBUG_TRACE;
   bool res = false;
   if (unit->is_union())
     res = unit->explain(explain_thd, query_thd);
@@ -2260,7 +2324,7 @@ bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
                                       unit->first_select(), CTX_JOIN);
   DBUG_ASSERT(res || !explain_thd->is_error());
   res |= explain_thd->is_error();
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**
@@ -2302,7 +2366,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
   bool res = false;
   THD *query_thd = NULL;
   bool send_ok = false;
-  char *user;
+  const char *user;
   bool unlock_thd_data = false;
   const std::string &db_name = thd->db().str ? thd->db().str : "";
   THD::Query_plan *qp;
@@ -2321,7 +2385,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
                           thd->m_main_security_ctx.priv_host().str,
                           thd->security_context()->priv_host().str))) {
     // Can see only connections of this user
-    user = (char *)thd->security_context()->priv_user().str;
+    user = thd->security_context()->priv_user().str;
   } else {
     // Can see all connections
     user = NULL;
@@ -2522,14 +2586,9 @@ void ForEachSubselect(
       int select_number = select_lex->select_number;
       bool is_dependent = select_lex->is_dependent();
       bool is_cacheable = select_lex->is_cacheable();
-      if (subselect->unit->is_simple()) {
-        JOIN *join = select_lex->join;
-        if (join == nullptr || join->root_iterator() == nullptr) {
-          callback(select_number, is_dependent, is_cacheable, nullptr);
-        } else {
-          callback(select_number, is_dependent, is_cacheable,
-                   join->root_iterator());
-        }
+      if (subselect->unit->root_iterator() != nullptr) {
+        callback(select_number, is_dependent, is_cacheable,
+                 subselect->unit->root_iterator());
       } else {
         callback(select_number, is_dependent, is_cacheable, nullptr);
       }
@@ -2538,31 +2597,50 @@ void ForEachSubselect(
   });
 }
 
+namespace {
+
+void GetIteratorsFromItem(Item *item, vector<RowIterator::Child> *children) {
+  ForEachSubselect(item, [children](int select_number, bool is_dependent,
+                                    bool is_cacheable, RowIterator *iterator) {
+    char description[256];
+    if (is_dependent) {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in projection; dependent)", select_number);
+    } else if (!is_cacheable) {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in projection; uncacheable)",
+               select_number);
+    } else {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in projection; run only once)",
+               select_number);
+    }
+    children->push_back(RowIterator::Child{iterator, description});
+  });
+}
+
+}  // namespace
+
 vector<RowIterator::Child> GetIteratorsFromSelectList(JOIN *join) {
   vector<RowIterator::Child> ret;
   if (join == nullptr) {
     return ret;
   }
 
+  // Look for any Items in the projection list itself.
   for (Item &item : *join->get_current_fields()) {
-    ForEachSubselect(&item, [&ret](int select_number, bool is_dependent,
-                                   bool is_cacheable, RowIterator *iterator) {
-      char description[256];
-      if (is_dependent) {
-        snprintf(description, sizeof(description),
-                 "Select #%d (subquery in projection; dependent)",
-                 select_number);
-      } else if (!is_cacheable) {
-        snprintf(description, sizeof(description),
-                 "Select #%d (subquery in projection; uncacheable)",
-                 select_number);
-      } else {
-        snprintf(description, sizeof(description),
-                 "Select #%d (subquery in projection; run only once)",
-                 select_number);
+    GetIteratorsFromItem(&item, &ret);
+  }
+
+  // Look for any Items that were materialized into fields during execution.
+  for (unsigned table_idx = join->primary_tables; table_idx < join->tables;
+       ++table_idx) {
+    QEP_TAB *qep_tab = &join->qep_tab[table_idx];
+    if (qep_tab != nullptr && qep_tab->tmp_table_param != nullptr) {
+      for (Func_ptr &func : *qep_tab->tmp_table_param->items_to_copy) {
+        GetIteratorsFromItem(func.func(), &ret);
       }
-      ret.push_back(RowIterator::Child{iterator, description});
-    });
+    }
   }
   return ret;
 }

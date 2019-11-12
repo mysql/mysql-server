@@ -161,7 +161,7 @@ SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
 ORDER BY f2;
---replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/ /("max_rows_per_buffer":) [0-9]+/\1 "XXX"/
 select TRACE from information_schema.OPTIMIZER_TRACE;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -678,6 +678,7 @@ insert into t1 values(1),(2),(3);
 create database mysqltest2;
 create table mysqltest2.t2(a int);
 insert into mysqltest2.t2 values(1),(2);
+--sorted_result
 select * from t1,mysqltest2.t2;
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 drop table t1;

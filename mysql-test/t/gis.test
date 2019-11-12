@@ -2389,6 +2389,7 @@ SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
 --error ER_WRONG_ARGUMENTS
 SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t) AS result;
+--error ER_WRONG_VALUE
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
 DROP TABLE t;
 

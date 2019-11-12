@@ -1,147 +1,134 @@
 //>>built
-define("dojox/mobile/TabBarButton",["dojo/_base/declare","dojo/_base/lang","dojo/_base/window","dojo/dom-class","dojo/dom-construct","dijit/registry","./common","./_ItemBase"],function(_1,_2,_3,_4,_5,_6,_7,_8){
-return _1("dojox.mobile.TabBarButton",_8,{icon1:"",icon2:"",iconPos1:"",iconPos2:"",selected:false,transition:"none",tag:"LI",selectOne:true,inheritParams:function(){
+define("dojox/mobile/TabBarButton",["dojo/_base/connect","dojo/_base/declare","dojo/_base/event","dojo/_base/lang","dojo/dom","dojo/dom-class","dojo/dom-construct","dojo/dom-style","./iconUtils","./_ItemBase","./Badge","./sniff"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c){
+return _2("dojox.mobile.TabBarButton",_a,{icon1:"",icon2:"",iconPos1:"",iconPos2:"",selected:false,transition:"none",tag:"li",badge:"",baseClass:"mblTabBarButton",closeIcon:"mblDomButtonWhiteCross",_selStartMethod:"touch",_selEndMethod:"touch",destroy:function(){
+if(this.badgeObj){
+delete this.badgeObj;
+}
+this.inherited(arguments);
+},inheritParams:function(){
 if(this.icon&&!this.icon1){
 this.icon1=this.icon;
 }
-var _9=this.getParent();
-if(_9){
+var _d=this.getParent();
+if(_d){
 if(!this.transition){
-this.transition=_9.transition;
+this.transition=_d.transition;
 }
-if(this.icon1&&_9.iconBase&&_9.iconBase.charAt(_9.iconBase.length-1)==="/"){
-this.icon1=_9.iconBase+this.icon1;
+if(this.icon1&&_d.iconBase&&_d.iconBase.charAt(_d.iconBase.length-1)==="/"){
+this.icon1=_d.iconBase+this.icon1;
 }
 if(!this.icon1){
-this.icon1=_9.iconBase;
+this.icon1=_d.iconBase;
 }
 if(!this.iconPos1){
-this.iconPos1=_9.iconPos;
+this.iconPos1=_d.iconPos;
 }
-if(this.icon2&&_9.iconBase&&_9.iconBase.charAt(_9.iconBase.length-1)==="/"){
-this.icon2=_9.iconBase+this.icon2;
+if(this.icon2&&_d.iconBase&&_d.iconBase.charAt(_d.iconBase.length-1)==="/"){
+this.icon2=_d.iconBase+this.icon2;
 }
 if(!this.icon2){
-this.icon2=_9.iconBase||this.icon1;
+this.icon2=_d.iconBase||this.icon1;
 }
 if(!this.iconPos2){
-this.iconPos2=_9.iconPos||this.iconPos1;
+this.iconPos2=_d.iconPos||this.iconPos1;
+}
+if(_d.closable){
+if(!this.icon1){
+this.icon1=this.closeIcon;
+}
+if(!this.icon2){
+this.icon2=this.closeIcon;
+}
+_6.add(this.domNode,"mblTabBarButtonClosable");
 }
 }
 },buildRendering:function(){
-var a=this.anchorNode=_5.create("A",{className:"mblTabBarButtonAnchor"});
-this.connect(a,"onclick","onClick");
-this.box=_5.create("DIV",{className:"mblTabBarButtonTextBox"},a);
-var _a=this.box;
-var _b="";
-var r=this.srcNodeRef;
-if(r){
-for(var i=0,_c=r.childNodes.length;i<_c;i++){
-var n=r.firstChild;
-if(n.nodeType===3){
-_b+=_2.trim(n.nodeValue);
-}
-_a.appendChild(n);
-}
-}
+this.domNode=this.srcNodeRef||_7.create(this.tag);
+if(this.srcNodeRef){
 if(!this.label){
-this.label=_b;
+this.label=_4.trim(this.srcNodeRef.innerHTML);
 }
-this.domNode=this.srcNodeRef||_5.create(this.tag);
-this.containerNode=this.domNode;
-this.domNode.appendChild(a);
-if(this.domNode.className.indexOf("mblDomButton")!=-1){
-var _d=_5.create("DIV",null,a);
-_7.createDomButton(this.domNode,null,_d);
-_4.add(this.domNode,"mblTabButtonDomButton");
-_4.add(_d,"mblTabButtonDomButtonClass");
+this.srcNodeRef.innerHTML="";
 }
-if((this.icon1||this.icon).indexOf("mblDomButton")!=-1){
-_4.add(this.domNode,"mblTabButtonDomButton");
-}
+this.labelNode=this.box=_7.create("div",{className:"mblTabBarButtonLabel"},this.domNode);
+this.inherited(arguments);
 },startup:function(){
 if(this._started){
 return;
 }
-this.inheritParams();
+this._dragstartHandle=this.connect(this.domNode,"ondragstart",_3.stop);
+this._keydownHandle=this.connect(this.domNode,"onkeydown","_onClick");
 var _e=this.getParent();
-var _f=_e?_e._clsName:"mblTabBarButton";
-_4.add(this.domNode,_f+(this.selected?" mblTabButtonSelected":""));
-if(_e&&_e.barType=="segmentedControl"){
-_4.remove(this.domNode,"mblTabBarButton");
-_4.add(this.domNode,_e._clsName);
-this.box.className="";
+if(_e&&_e.closable){
+this._clickCloseHandler=this.connect(this.iconDivNode,"onclick","_onCloseButtonClick");
+this._keydownCloseHandler=this.connect(this.iconDivNode,"onkeydown","_onCloseButtonClick");
+this.iconDivNode.tabIndex="0";
 }
-this.set({icon1:this.icon1,icon2:this.icon2});
 this.inherited(arguments);
-},select:function(){
-if(arguments[0]){
-this.selected=false;
-_4.remove(this.domNode,"mblTabButtonSelected");
-}else{
-this.selected=true;
-_4.add(this.domNode,"mblTabButtonSelected");
-for(var i=0,c=this.domNode.parentNode.childNodes;i<c.length;i++){
-if(c[i].nodeType!=1){
-continue;
+if(!this._isOnLine){
+this._isOnLine=true;
+this.set({icon:this._pendingIcon!==undefined?this._pendingIcon:this.icon,icon1:this.icon1,icon2:this.icon2});
+delete this._pendingIcon;
 }
-var w=_6.byNode(c[i]);
-if(w&&w!=this){
-w.deselect();
-}
-}
-}
-if(this.iconNode1){
-this.iconNode1.style.visibility=this.selected?"hidden":"";
-}
-if(this.iconNode2){
-this.iconNode2.style.visibility=this.selected?"":"hidden";
-}
-},deselect:function(){
-this.select(true);
-},onClick:function(e){
-this.defaultClickAction();
-},_setIcon:function(_10,pos,num,sel){
-var i="icon"+num,n="iconNode"+num,p="iconPos"+num;
-if(_10){
-this[i]=_10;
-}
-if(pos){
-if(this[p]===pos){
+_5.setSelectable(this.domNode,false);
+},onClose:function(e){
+_1.publish("/dojox/mobile/tabClose",[this]);
+return this.getParent().onCloseButtonClick(this);
+},_onCloseButtonClick:function(e){
+if(e&&e.type==="keydown"&&e.keyCode!==13){
 return;
 }
-this[p]=pos;
+if(this.onCloseButtonClick(e)===false){
+return;
 }
-if(_10&&_10!=="none"){
+if(this.onClose()){
+this.destroy();
+}
+},onCloseButtonClick:function(){
+},_onClick:function(e){
+if(e&&e.type==="keydown"&&e.keyCode!==13){
+return;
+}
+if(this.onClick(e)===false){
+return;
+}
+this.defaultClickAction(e);
+},onClick:function(){
+},_setIcon:function(_f,n){
+if(!this.getParent()){
+return;
+}
+this._set("icon"+n,_f);
 if(!this.iconDivNode){
-this.iconDivNode=_5.create("DIV",{className:"mblTabBarButtonDiv"},this.anchorNode,"first");
+this.iconDivNode=_7.create("div",{className:"mblTabBarButtonIconArea"},this.domNode,"first");
 }
-if(!this[n]){
-this[n]=_5.create("div",{className:"mblTabBarButtonIcon"},this.iconDivNode);
+if(!this["iconParentNode"+n]){
+this["iconParentNode"+n]=_7.create("div",{className:"mblTabBarButtonIconParent mblTabBarButtonIconParent"+n},this.iconDivNode);
+}
+this["iconNode"+n]=_9.setIcon(_f,this["iconPos"+n],this["iconNode"+n],this.alt,this["iconParentNode"+n]);
+this["icon"+n]=_f;
+_6.toggle(this.domNode,"mblTabBarButtonHasIcon",_f&&_f!=="none");
+},_setIcon1Attr:function(_10){
+this._setIcon(_10,1);
+},_setIcon2Attr:function(_11){
+this._setIcon(_11,2);
+},_getBadgeAttr:function(){
+return this.badgeObj&&this.badgeObj.domNode.parentNode&&this.badgeObj.domNode.parentNode.nodeType==1?this.badgeObj.getValue():null;
+},_setBadgeAttr:function(_12){
+if(!this.badgeObj){
+this.badgeObj=new _b({fontSize:11});
+_8.set(this.badgeObj.domNode,{position:"absolute",top:"0px",right:"0px"});
+}
+this.badgeObj.setValue(_12);
+if(_12){
+this.domNode.appendChild(this.badgeObj.domNode);
 }else{
-_5.empty(this[n]);
-}
-_7.createIcon(_10,this[p],null,this.alt,this[n]);
-if(this[p]){
-_4.add(this[n].firstChild,"mblTabBarButtonSpriteIcon");
-}
-_4.remove(this.iconDivNode,"mblTabBarButtonNoIcon");
-this[n].style.visibility=sel?"hidden":"";
-}else{
-if(this.iconDivNode){
-_4.add(this.iconDivNode,"mblTabBarButtonNoIcon");
+if(this.domNode===this.badgeObj.domNode.parentNode){
+this.domNode.removeChild(this.badgeObj.domNode);
 }
 }
-},_setIcon1Attr:function(_11){
-this._setIcon(_11,null,1,this.selected);
-},_setIcon2Attr:function(_12){
-this._setIcon(_12,null,2,!this.selected);
-},_setIconPos1Attr:function(pos){
-this._setIcon(null,pos,1,this.selected);
-},_setIconPos2Attr:function(pos){
-this._setIcon(null,pos,2,!this.selected);
-},_setLabelAttr:function(_13){
-this.label=_13;
-this.box.innerHTML=this._cv?this._cv(_13):_13;
+},_setSelectedAttr:function(_13){
+this.inherited(arguments);
+_6.toggle(this.domNode,"mblTabBarButtonSelected",_13);
 }});
 });

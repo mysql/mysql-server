@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -272,6 +272,7 @@ public:
                 uint& tabid,
                 Error& error);
   const Table& get_table(uint tabid);
+  void remove_table(NdbDictionary::Dictionary* dic, uint tabid);
 
   // rows
 
@@ -365,6 +366,7 @@ public:
 
   Row* alloc_row(const Table& Table, bool dolock = true);
   void alloc_rows(const Table& table, uint cnt, RowList& dst);
+  void free_blobs_from_row(Row *row);
   void free_row(Row* row);
   void free_rows(RowList& src);
 

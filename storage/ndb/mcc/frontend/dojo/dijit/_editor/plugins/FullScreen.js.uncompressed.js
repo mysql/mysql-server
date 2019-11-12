@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_editor/plugins/FullScreen", [
 	"dojo/aspect",
 	"dojo/_base/declare", // declare
@@ -10,7 +9,7 @@ define("dijit/_editor/plugins/FullScreen", [
 	"dojo/keys", // keys.F11 keys.TAB
 	"dojo/_base/lang", // lang.hitch
 	"dojo/on", // on()
-	"dojo/_base/sniff", // has("ie"), has("quirks")
+	"dojo/sniff", // has("ie"), has("quirks")
 	"dojo/_base/window", // win.body
 	"dojo/window", // winUtils.getBox winUtils.scrollIntoView
 	"../../focus",			// focus.focus(), focus.curNode
@@ -21,18 +20,9 @@ define("dijit/_editor/plugins/FullScreen", [
 ], function(aspect, declare, domClass, domGeometry, domStyle, event, i18n, keys, lang, on, has, win, winUtils,
 			focus, _Plugin, ToggleButton, registry){
 
-/*=====
-	var _Plugin = dijit._editor._Plugin;
-=====*/
-
 
 // module:
 //		dijit/_editor/plugins/FullScreen
-// summary:
-//		This plugin provides FullScreen capability to the editor.  When
-//		toggled on, it will render the editor into the full window and
-//		overlay everything.  It also binds to the hotkey: CTRL-SHIFT-F11
-//		for toggling fullscreen mode.
 
 
 var FullScreen = declare("dijit._editor.plugins.FullScreen",_Plugin,{
@@ -76,6 +66,7 @@ var FullScreen = declare("dijit._editor.plugins.FullScreen",_Plugin,{
 			editor = this.editor;
 		this.button = new ToggleButton({
 			label: strings["fullScreen"],
+			ownerDocument: editor.ownerDocument,
 			dir: editor.dir,
 			lang: editor.lang,
 			showLabel: false,
@@ -154,7 +145,7 @@ var FullScreen = declare("dijit._editor.plugins.FullScreen",_Plugin,{
 		//		resizes (window scaled)
 		// tags:
 		//		private
-		var vp = winUtils.getBox();
+		var vp = winUtils.getBox(this.editor.ownerDocument);
 		domGeometry.setMarginBox(this.editor.domNode, {
 			w: vp.w,
 			h: vp.h
@@ -192,19 +183,20 @@ var FullScreen = declare("dijit._editor.plugins.FullScreen",_Plugin,{
 		//		regular view.
 		// tags:
 		//		private
-		var vp = winUtils.getBox();
 
 		//Alias this for shorter code.
 		var ed = this.editor;
-		var body = win.body();
+		var body = ed.ownerDocumentBody;
 		var editorParent = ed.domNode.parentNode;
+
+		var vp = winUtils.getBox(ed.ownerDocument);
 
 		this.isFullscreen = full;
 
 		if(full){
 			//Parent classes can royally screw up this plugin, so we
 			//have to set everything to position static.
-			while(editorParent && editorParent !== win.body()){
+			while(editorParent && editorParent !== body){
 				domClass.add(editorParent, "dijitForceStatic");
 				editorParent = editorParent.parentNode;
 			}
@@ -304,7 +296,7 @@ var FullScreen = declare("dijit._editor.plugins.FullScreen",_Plugin,{
 				// function to handle resize events.
 				// Will check current VP and only resize if
 				// different.
-				var vp = winUtils.getBox();
+				var vp = winUtils.getBox(ed.ownerDocument);
 				if("_prevW" in this && "_prevH" in this){
 					// No actual size change, ignore.
 					if(vp.w === this._prevW && vp.h === this._prevH){
@@ -360,7 +352,7 @@ var FullScreen = declare("dijit._editor.plugins.FullScreen",_Plugin,{
 			}
 
 			//Remove all position static class assigns.
-			while(editorParent && editorParent !== win.body()){
+			while(editorParent && editorParent !== body){
 				domClass.remove(editorParent, "dijitForceStatic");
 				editorParent = editorParent.parentNode;
 			}

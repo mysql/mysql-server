@@ -1,5 +1,9 @@
-#Start server with MyISAM
+# Start server with MyISAM
 --source include/force_myisam_default.inc
+
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
+
 --source include/have_ps_protocol.inc
 --source include/no_sp_protocol.inc
 --source include/no_view_protocol.inc

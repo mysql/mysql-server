@@ -36,6 +36,9 @@ CREATE TABLE t1 (
 PRIMARY KEY  (`a`),
 UNIQUE KEY `b` (`b`)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,2,2), (3,3,3), (4,4,4);
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 BEGIN;

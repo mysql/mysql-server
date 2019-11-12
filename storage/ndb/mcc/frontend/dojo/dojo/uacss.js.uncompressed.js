@@ -1,34 +1,37 @@
-//>>built
-define("dojo/uacss", ["./dom-geometry", "./_base/lang", "./ready", "./_base/sniff", "./_base/window"],
+define("dojo/uacss", ["./dom-geometry", "./_base/lang", "./ready", "./sniff", "./_base/window"],
 	function(geometry, lang, ready, has, baseWindow){
+
 	// module:
 	//		dojo/uacss
-	// summary:
-	//		Applies pre-set CSS classes to the top-level HTML node, based on:
-	//			- browser (ex: dj_ie)
-	//			- browser version (ex: dj_ie6)
-	//			- box model (ex: dj_contentBox)
-	//			- text direction (ex: dijitRtl)
-	//
-	//		In addition, browser, browser version, and box model are
-	//		combined with an RTL flag when browser text is RTL. ex: dj_ie-rtl.
+
+	/*=====
+	return {
+		// summary:
+		//		Applies pre-set CSS classes to the top-level HTML node, based on:
+		//
+		//		- browser (ex: dj_ie)
+		//		- browser version (ex: dj_ie6)
+		//		- box model (ex: dj_contentBox)
+		//		- text direction (ex: dijitRtl)
+		//
+		//		In addition, browser, browser version, and box model are
+		//		combined with an RTL flag when browser text is RTL. ex: dj_ie-rtl.
+		//
+		//		Returns the has() method.
+	};
+	=====*/
 
 	var
 		html = baseWindow.doc.documentElement,
 		ie = has("ie"),
+		trident = has("trident"),
 		opera = has("opera"),
 		maj = Math.floor,
 		ff = has("ff"),
 		boxModel = geometry.boxModel.replace(/-/,''),
 
 		classes = {
-			"dj_ie": ie,
-			"dj_ie6": maj(ie) == 6,
-			"dj_ie7": maj(ie) == 7,
-			"dj_ie8": maj(ie) == 8,
-			"dj_ie9": maj(ie) == 9,
 			"dj_quirks": has("quirks"),
-			"dj_iequirks": ie && has("quirks"),
 
 			// NOTE: Opera not supported by dijit
 			"dj_opera": opera,
@@ -39,9 +42,21 @@ define("dojo/uacss", ["./dom-geometry", "./_base/lang", "./ready", "./_base/snif
 			"dj_safari": has("safari"),
 			"dj_chrome": has("chrome"),
 
-			"dj_gecko": has("mozilla"),
-			"dj_ff3": maj(ff) == 3
+			"dj_gecko": has("mozilla")
 		}; // no dojo unsupported browsers
+
+	if(ie){
+		classes["dj_ie"] = true;
+		classes["dj_ie" + maj(ie)] = true;
+		classes["dj_iequirks"] = has("quirks");
+	}
+	if(trident){
+		classes["dj_trident"] = true;
+		classes["dj_trident" + maj(trident)] = true;
+	}
+	if(ff){
+		classes["dj_ff" + maj(ff)] = true;
+	}
 
 	classes["dj_" + boxModel] = true;
 

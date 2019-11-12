@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/Adobebricks", ["../Theme", "./common"], function(Theme, themes){
-
-	themes.Adobebricks=new Theme({
+define("dojox/charting/themes/Adobebricks", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.Adobebricks = new SimpleTheme({
 		colors: [
 			"#7f2518",
 			"#3e170c",
@@ -10,6 +8,5 @@ define("dojox/charting/themes/Adobebricks", ["../Theme", "./common"], function(T
 			"#8c271c"
 		]
 	});
-	
 	return themes.Adobebricks;
 });

@@ -81,4 +81,4 @@ TEST_F(CallocTest, WarmupTest) { calloc_test(num_iterations); }
 TEST_F(CallocTest, MallocTest) { malloc_test(num_iterations); }
 
 TEST_F(CallocTest, CallocTest) { calloc_test(num_iterations); }
-}
+}  // namespace calloc_unittest

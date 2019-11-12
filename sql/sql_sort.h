@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,6 +131,12 @@ typedef Bounds_checked_array<Merge_chunk> Merge_chunk_array;
   The result of Unique or filesort; can either be stored on disk
   (in which case io_cache points to the file) or in memory in one
   of two ways. See sorted_result_in_fsbuf.
+
+  Note if sort_result points into memory, it does _not_ own the sort buffer;
+  Filesort_info does.
+
+  TODO: Clean up so that Filesort / Filesort_info / Filesort_buffer /
+  Sort_result have less confusing overlap.
 */
 class Sort_result {
  public:
@@ -182,9 +188,11 @@ class Filesort_info {
 
   Filesort_info() : m_using_varlen_keys(false), m_sort_length(0) {}
 
-  /** Sort filesort_buffer */
-  void sort_buffer(Sort_param *param, uint count) {
-    filesort_buffer.sort_buffer(param, count);
+  /** Sort filesort_buffer
+    @return Number of records, after any deduplication
+   */
+  unsigned sort_buffer(Sort_param *param, uint count) {
+    return filesort_buffer.sort_buffer(param, count);
   }
 
   /**

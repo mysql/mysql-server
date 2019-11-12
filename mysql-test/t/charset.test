@@ -65,3 +65,62 @@ DROP DATABASE db21958734;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
+--echo #
+--echo # Bug#29110613: UNICODE STRING INCORRECTLY MARKED AS INVALID
+--echo #
+
+USE test;
+SET NAMES utf8mb4;
+--error ER_CANNOT_CONVERT_STRING
+SELECT 'x' AS '🐬';
+SELECT '🐬';
+CREATE TABLE 🐬(a INT);
+CREATE TABLE t1(🐬 INT);
+CREATE TABLE t2(a INT COMMENT "🐬");
+CREATE TABLE t3(a INT);
+--error ER_CANNOT_CONVERT_STRING
+CREATE VIEW v1 AS SELECT 'x' AS'🐬';
+DROP TABLE 🐬;
+DROP TABLE t1, t2, t3;
+PREPARE stmt FROM "SELECT 'x' AS '🐬'";
+EXECUTE stmt;
+
+SET NAMES utf8mb3;
+SELECT 'x' AS '🐬';
+SELECT '🐬';
+--error ER_INVALID_CHARACTER_STRING
+CREATE TABLE 🐬(a INT);
+--error ER_INVALID_CHARACTER_STRING
+CREATE TABLE t1(🐬 INT);
+--error ER_INVALID_CHARACTER_STRING
+CREATE TABLE t2(a INT COMMENT "🐬");
+CREATE TABLE t3(a INT);
+--error ER_INVALID_CHARACTER_STRING
+CREATE VIEW v1 AS SELECT 'x' AS'🐬';
+DROP TABLE t3;
+PREPARE stmt FROM "SELECT 'x' AS '🐬'";
+EXECUTE stmt;
+
+SET NAMES default;
+
+--echo #
+--echo # Bug#29909573 SHOW CREATE TABLE OUTPUT CAN'T BE EXECUTED
+--echo # The following CREATE TABLE would fail without fix.
+--echo #
+
+CREATE TABLE t1 (f1 CHAR(20) COLLATE binary);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 ENUM('a') COLLATE binary);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# Test the DDL from bug page.
+CREATE TABLE t1 (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `etype` enum('a','b','c') CHARACTER SET binary COLLATE binary DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+DROP TABLE t1;

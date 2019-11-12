@@ -1,8 +1,5 @@
-//>>built
 define("dojox/rpc/OfflineRest", ["dojo", "dojox", "dojox/data/ClientFilter", "dojox/rpc/Rest", "dojox/storage"], function(dojo, dojox) {
-// summary:
-// 		Makes the REST service be able to store changes in local
-// 		storage so it can be used offline automatically.
+
 	var Rest = dojox.rpc.Rest;
 	var namespace = "dojox_rpc_OfflineRest";
 	var loaded;
@@ -54,6 +51,10 @@ define("dojox/rpc/OfflineRest", ["dojo", "dojox", "dojox/data/ClientFilter", "do
 	var syncId = setInterval(sync,15000);
 	dojo.connect(document, "ononline", sync);
 	OfflineRest = dojox.rpc.OfflineRest = {
+		// summary:
+		//		Makes the REST service be able to store changes in local
+		//		storage so it can be used offline automatically.
+
 		turnOffAutoSync: function(){
 			clearInterval(syncId);
 		},
@@ -65,9 +66,9 @@ define("dojox/rpc/OfflineRest", ["dojo", "dojox", "dojox/data/ClientFilter", "do
 		addStore: function(/*data-store*/store,/*query?*/baseQuery){
 			// summary:
 			//		Adds a store to the monitored store for local storage
-			//	store:
+			// store:
 			//		Store to add
-			//	baseQuery:
+			// baseQuery:
 			//		This is the base query to should be used to load the items for
 			//		the store. Generally you want to load all the items that should be
 			//		available when offline.
@@ -253,5 +254,5 @@ define("dojox/rpc/OfflineRest", ["dojo", "dojox", "dojox/data/ClientFilter", "do
 	dojo.connect(index,"onLoad",saveObject);
 	dojo.connect(index,"onUpdate",saveObject);
 
-	return dojox.rpc.OfflineRest;
+	return OfflineRest;
 });

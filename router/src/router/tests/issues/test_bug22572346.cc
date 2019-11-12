@@ -38,9 +38,9 @@
 
 #include "gmock/gmock.h"
 
-using ::testing::StrEq;
 using mysql_harness::Path;
 using std::string;
+using ::testing::StrEq;
 
 string g_cwd;
 Path g_origin;

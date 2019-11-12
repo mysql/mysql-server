@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 # Any files in this directory are auxiliary files for Solaris "pkg" packages.
 # They will be configured during "pkg" creation, not during (binary) build.
 
-IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+IF(NOT SOLARIS)
   RETURN()
 ENDIF()
 

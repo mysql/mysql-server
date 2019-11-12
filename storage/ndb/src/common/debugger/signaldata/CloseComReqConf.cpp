@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,22 +47,15 @@ printCLOSECOMREQCONF(FILE * output,
             refToBlock(cc->xxxBlockRef), refToNode(cc->xxxBlockRef),
             cc->failNo, cc->noOfNodes);
 
-    int hits = 0;
-    fprintf(output, " Nodes: ");
-    for(int i = 0; i<MAX_NODES; i++){
-      if(NodeBitmask::get(cc->theNodes, i)){
-        hits++;
-        fprintf(output, " %d", i);
-      }
-      if(hits == 16){
-        fprintf(output, "\n Nodes: ");
-        hits = 0;
-      }
+    if (cc->failedNodeId == 0)
+    {
+      fprintf(output, " Nodes in bitmask\n");
     }
-    if(hits != 0)
-      fprintf(output, "\n");
+    else
+    {
+      fprintf(output, " Node: %d\n", cc->failedNodeId);
+    }
   }
-
   return true;
 }
 

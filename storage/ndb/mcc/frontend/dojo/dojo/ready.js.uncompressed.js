@@ -1,18 +1,12 @@
-//>>built
-define("dojo/ready", ["./_base/kernel", "./has", "require", "./domReady", "./_base/lang"], function(dojo, has, require, domReady, lang) {
+define("dojo/ready", ["./_base/kernel", "./has", "require", "./domReady", "./_base/lang"], function(dojo, has, require, domReady, lang){
 	// module:
 	//		dojo/ready
-	// summary:
-	//		This module defines the dojo.ready API.
-	//
 	// note:
 	//		This module should be unnecessary in dojo 2.0
+
 	var
 		// truthy if DOMContentLoaded or better (e.g., window.onload fired) has been achieved
 		isDomReady = 0,
-
-		// a function to call to cause onLoad to be called when all requested modules have been loaded
-		requestCompleteSignal,
 
 		// The queue of functions waiting to execute as soon as dojo.ready conditions satisfied
 		loadQ = [],
@@ -23,50 +17,56 @@ define("dojo/ready", ["./_base/kernel", "./has", "require", "./domReady", "./_ba
 		handleDomReady = function(){
 			isDomReady = 1;
 			dojo._postLoad = dojo.config.afterOnLoad = true;
-			if(loadQ.length){
-				requestCompleteSignal(onLoad);
-			}
+			onEvent();
 		},
 
-		// run the next function queued with dojo.ready
-		onLoad = function(){
-			if(isDomReady && !onLoadRecursiveGuard && loadQ.length){
-				//guard against recursions into this function
-				onLoadRecursiveGuard = 1;
+		onEvent = function(){
+			// Called when some state changes:
+			//		- dom ready
+			//		- dojo/domReady has finished processing everything in its queue
+			//		- task added to loadQ
+			//		- require() has finished loading all currently requested modules
+			//
+			// Run the functions queued with dojo.ready if appropriate.
+
+
+			//guard against recursions into this function
+			if(onLoadRecursiveGuard){
+				return;
+			}
+			onLoadRecursiveGuard = 1;
+
+			// Run tasks in queue if require() is finished loading modules, the dom is ready, and there are no
+			// pending tasks registered via domReady().
+			// The last step is necessary so that a user defined dojo.ready() callback is delayed until after the
+			// domReady() calls inside of dojo.   Failure can be seen on dijit/tests/robot/Dialog_ally.html on IE8
+			// because the dijit/focus.js domReady() callback doesn't execute until after the test starts running.
+			while(isDomReady && (!domReady || domReady._Q.length == 0) && (require.idle ? require.idle() : true) && loadQ.length){
 				var f = loadQ.shift();
-					try{
-						f();
-					}
-						// FIXME: signal the error via require.on
-					finally{
-						onLoadRecursiveGuard = 0;
-					}
-				onLoadRecursiveGuard = 0;
-				if(loadQ.length){
-					requestCompleteSignal(onLoad);
+				try{
+					f();
+				}catch(e){
+					// FIXME: signal the error via require.on
 				}
 			}
+
+			onLoadRecursiveGuard = 0;
 		};
 
-	// define requireCompleteSignal; impl depends on loader
-	if(1){
-		require.on("idle", onLoad);
-		requestCompleteSignal = function(){
-			if(require.idle()){
-				onLoad();
-			} // else do nothing, onLoad will be called with the next idle signal
-		};
-	}else{
-		// RequireJS or similar
-		requestCompleteSignal = function(){
-			// the next function call will fail if you don't have a loader with require.ready
-			// in that case, either fix your loader, use dojo's loader, or don't call dojo.ready;
-			require.ready(onLoad);
-		};
+	// Check if we should run the next queue operation whenever require() finishes loading modules or domReady
+	// finishes processing it's queue.
+	require.on && require.on("idle", onEvent);
+	if(domReady){
+		domReady._onQEmpty = onEvent;
 	}
 
 	var ready = dojo.ready = dojo.addOnLoad = function(priority, context, callback){
-		// summary: Add a function to execute on DOM content loaded and all requested modules have arrived and been evaluated.
+		// summary:
+		//		Add a function to execute on DOM content loaded and all requested modules have arrived and been evaluated.
+		//		In most cases, the `domReady` plug-in should suffice and this method should not be needed.
+		//
+		//		When called in a non-browser environment, just checks that all requested modules have arrived and been
+		//		evaluated.
 		// priority: Integer?
 		//		The order in which to exec this callback relative to other callbacks, defaults to 1000
 		// context: Object?|Function
@@ -76,22 +76,30 @@ define("dojo/ready", ["./_base/kernel", "./has", "require", "./domReady", "./_ba
 		//
 		// example:
 		//	Simple DOM and Modules ready syntax
-		//	|	dojo.ready(function(){ alert("Dom ready!"); });
+		//	|	require(["dojo/ready"], function(ready){
+		//	|		ready(function(){ alert("Dom ready!"); });
+		//	|	});
 		//
 		// example:
 		//	Using a priority
-		//	|	dojo.ready(2, function(){ alert("low priority ready!"); })
+		//	|	require(["dojo/ready"], function(ready){
+		//	|		ready(2, function(){ alert("low priority ready!"); })
+		//	|	});
 		//
 		// example:
 		//	Using context
-		//	|	dojo.ready(foo, function(){
-		//	|		// in here, this == foo
-		//	|	})
+		//	|	require(["dojo/ready"], function(ready){
+		//	|		ready(foo, function(){
+		//	|			// in here, this == foo
+		//	|		});
+		//	|	});
 		//
 		// example:
-		//	Using dojo.hitch style args:
-		//	|	var foo = { dojoReady: function(){ console.warn(this, "dojo dom and modules ready."); } };
-		//	|	dojo.ready(foo, "dojoReady");
+		//	Using dojo/hitch style args:
+		//	|	require(["dojo/ready"], function(ready){
+		//	|		var foo = { dojoReady: function(){ console.warn(this, "dojo dom and modules ready."); } };
+		//	|		ready(foo, "dojoReady");
+		//	|	});
 
 		var hitchArgs = lang._toArray(arguments);
 		if(typeof priority != "number"){
@@ -109,18 +117,18 @@ define("dojo/ready", ["./_base/kernel", "./has", "require", "./domReady", "./_ba
 		callback.priority = priority;
 		for(var i = 0; i < loadQ.length && priority >= loadQ[i].priority; i++){}
 		loadQ.splice(i, 0, callback);
-		requestCompleteSignal();
+		onEvent();
 	};
 
-	true || has.add("dojo-config-addOnLoad", 1);
-	if(1){
+	 1 || has.add("dojo-config-addOnLoad", 1);
+	if( 1 ){
 		var dca = dojo.config.addOnLoad;
 		if(dca){
 			ready[(lang.isArray(dca) ? "apply" : "call")](dojo, dca);
 		}
 	}
 
-	if(1 && dojo.config.parseOnLoad && !dojo.isAsync){
+	if( 1  && dojo.config.parseOnLoad && !dojo.isAsync){
 		ready(99, function(){
 			if(!dojo.parser){
 				dojo.deprecated("Add explicit require(['dojo/parser']);", "", "2.0");
@@ -129,7 +137,7 @@ define("dojo/ready", ["./_base/kernel", "./has", "require", "./domReady", "./_ba
 		});
 	}
 
-	if(1){
+	if(domReady){
 		domReady(handleDomReady);
 	}else{
 		handleDomReady();

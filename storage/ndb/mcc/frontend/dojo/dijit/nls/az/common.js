@@ -1,11 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"buttonOk" : "Ok",
-	"buttonCancel" : "Ləğv et",
-	"buttonSave" : "Saxla",
-	"itemClose" : "Bağla"
-})
-//end v1.x content
-);
+define("dijit/nls/az/common",({"buttonOk":"Ok","buttonCancel":"Ləğv et","buttonSave":"Saxla","itemClose":"Bağla"}));

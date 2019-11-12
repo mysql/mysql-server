@@ -89,10 +89,91 @@ FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
 [connection slave]
 START SLAVE IO_THREAD;
 include/wait_for_slave_io_to_start.inc
+
+# Verify if 'DEFAULT ROLE' clause is bin-logged.
+
+[connection master]
+connection master;
+CREATE USER u2@localhost DEFAULT ROLE r1, r2;
+CREATE USER u3@localhost DEFAULT ROLE r1;
+
+SHOW GRANTS FOR u2@localhost;
+Grants for u2@localhost
+GRANT USAGE ON *.* TO `u2`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u2`@`localhost`
+
+SHOW GRANTS FOR u3@localhost;
+Grants for u3@localhost
+GRANT USAGE ON *.* TO `u3`@`localhost`
+GRANT `r1`@`%` TO `u3`@`localhost`
+include/sync_slave_sql_with_master.inc
+connection master;
+connection slave;
+connection slave;
+SHOW GRANTS FOR u2@localhost;
+Grants for u2@localhost
+GRANT USAGE ON *.* TO `u2`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u2`@`localhost`
+SHOW GRANTS FOR u3@localhost;
+Grants for u3@localhost
+GRANT USAGE ON *.* TO `u3`@`localhost`
+GRANT `r1`@`%` TO `u3`@`localhost`
+
+SHOW CREATE USER u2@localhost;
+CREATE USER for u2@localhost
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%`,`r2`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+SHOW CREATE USER u3@localhost;
+CREATE USER for u3@localhost
+CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+[connection master]
+connection master;
+
+ALTER USER u2@localhost DEFAULT ROLE NONE;
+SHOW GRANTS FOR u3@localhost;
+Grants for u3@localhost
+GRANT USAGE ON *.* TO `u3`@`localhost`
+GRANT `r1`@`%` TO `u3`@`localhost`
+ALTER USER u2@localhost DEFAULT ROLE r1;
+GRANT r2 TO u3@localhost;
+ALTER USER u3@localhost DEFAULT ROLE ALL;
+SHOW GRANTS FOR u3@localhost;
+Grants for u3@localhost
+GRANT USAGE ON *.* TO `u3`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u3`@`localhost`
+ALTER USER u3@localhost DEFAULT ROLE r2;
+SHOW GRANTS FOR u2@localhost;
+Grants for u2@localhost
+GRANT USAGE ON *.* TO `u2`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u2`@`localhost`
+SHOW GRANTS FOR u3@localhost;
+Grants for u3@localhost
+GRANT USAGE ON *.* TO `u3`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u3`@`localhost`
+
+include/sync_slave_sql_with_master.inc
+connection master;
+connection slave;
+connection slave;
+SHOW GRANTS FOR u2@localhost;
+Grants for u2@localhost
+GRANT USAGE ON *.* TO `u2`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u2`@`localhost`
+SHOW GRANTS FOR u3@localhost;
+Grants for u3@localhost
+GRANT USAGE ON *.* TO `u3`@`localhost`
+GRANT `r1`@`%`,`r2`@`%` TO `u3`@`localhost`
+
+SHOW CREATE USER u2@localhost;
+CREATE USER for u2@localhost
+CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+SHOW CREATE USER u3@localhost;
+CREATE USER for u3@localhost
+CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r2`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+
 # Cleanup Statement
 [connection master]
 DROP ROLE r1, r2, r3,r4;
-DROP USER u1@localhost;
+DROP USER u1@localhost, u2@localhost, u3@localhost;
 include/sync_slave_sql_with_master.inc
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
@@ -115,8 +196,15 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE ROLE r4
 slave-bin.000001	#	Query	#	#	use `test`; GRANT REPLICATION SLAVE ON *.* TO 'r4'@'%'
 slave-bin.000001	#	Query	#	#	use `test`; GRANT r4 to u1@localhost
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u1@localhost DEFAULT ROLE ALL
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%`,`r2`@`%`
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%`
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u2@localhost DEFAULT ROLE NONE
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u2@localhost DEFAULT ROLE r1
+slave-bin.000001	#	Query	#	#	use `test`; GRANT r2 TO u3@localhost
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u3@localhost DEFAULT ROLE ALL
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u3@localhost DEFAULT ROLE r2
 slave-bin.000001	#	Query	#	#	use `test`; DROP ROLE r1, r2, r3,r4
-slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
+slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost, u2@localhost, u3@localhost
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER='root';
 Warnings:

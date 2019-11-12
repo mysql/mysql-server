@@ -29,4 +29,27 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 include/start_slave.inc
 [connection master]
 include/rpl_reset.inc
+[connection master]
+include/rpl_reset.inc
+[connection master]
+CREATE TABLE t1 (c1 INT);
+DROP TABLE t1;
+[connection slave]
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GTIDS") * 0;
+WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GTIDS") * 0
+0
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GTIDS", 10) * 0;
+WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GTIDS", 10) * 0
+0
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GTIDS", 10, "") * 0;
+WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("GTIDS", 10, "") * 0
+0
+Warnings:
+Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be removed in a future release. Please use WAIT_FOR_EXECUTED_GTID_SET instead
+[connection master]
+include/rpl_reset.inc
 include/rpl_end.inc

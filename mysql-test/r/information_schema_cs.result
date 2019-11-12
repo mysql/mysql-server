@@ -187,7 +187,7 @@ Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	I
 t2	InnoDB	10	Dynamic	0	#	#	#	#	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 t3	InnoDB	10	Dynamic	0	#	#	#	#	0	NULL	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
 t5	InnoDB	10	Dynamic	1	#	#	#	#	0	11	#	#	NULL	utf8mb4_0900_ai_ci	NULL		
-v1	NULL	NULL	NULL	0	#	#	#	#	0	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
+v1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	#	#	NULL	NULL	NULL	NULL	VIEW
 show full columns from t3 like "a%";
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 a	int(11)	NULL	YES	MUL	NULL		select,insert,update,references	
@@ -298,10 +298,11 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	sub1	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test'
+ORDER BY a.ROUTINE_NAME;
 ROUTINE_NAME
-sub1
 sel2
+sub1
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 count(*)
 2
@@ -312,26 +313,30 @@ routine_schema	routine_name
 test	sel2
 test	sub1
 drop view v1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
 show create function sub1;
 ERROR 42000: FUNCTION sub1 does not exist
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
-sub1	NULL
 sel2	NULL
+sub1	NULL
 grant all privileges on test.* to mysqltest_1@localhost;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
-sub1	NULL
 sel2	NULL
+sub1	NULL
 create function sub2(i int) returns int
 return i+1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
+sel2	NULL
 sub1	NULL
 sub2	return i+1
-sel2	NULL
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -490,10 +495,11 @@ select table_name,column_name from information_schema.COLUMNS
 where table_schema like "test%" order by table_name, column_name;
 TABLE_NAME	COLUMN_NAME
 t1	a
-select ROUTINE_NAME from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
+SELECT ROUTINE_NAME FROM information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA != 'sys' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME
-sub1
 sel2
+sub1
 delete from mysql.user where user='mysqltest_1';
 drop table t1;
 drop procedure sel2;
@@ -570,6 +576,10 @@ drop view v1;
 create table t1(a NUMERIC(5,3), b NUMERIC(5,1), c float(5,2),
 d NUMERIC(6,4), e float, f DECIMAL(6,3), g int(11), h DOUBLE(10,3),
 i DOUBLE);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
 CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
@@ -1099,6 +1109,8 @@ select 1 from (select 1 from test.t1) a;
 use test;
 drop table t1;
 create table t1 (f1 int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create view v1 as select * from t1;
 drop table t1;
 select table_type from information_schema.tables
@@ -1191,7 +1203,8 @@ CREATE FUNCTION f1() RETURNS INT RETURN @a + 1;
 CREATE USER mysql_bug20230@localhost;
 GRANT EXECUTE ON PROCEDURE p1 TO mysql_bug20230@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO mysql_bug20230@localhost;
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
 f1	RETURN @a + 1
 p1	SET @a= 1
@@ -1203,7 +1216,8 @@ SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
 RETURN @a + 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
 f1	NULL
 p1	NULL
@@ -1258,7 +1272,12 @@ explain select * from v1;
 explain select * from (select table_name from information_schema.tables) as a;
 drop view v1;
 create table t1 (f1 int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (f1 int(11), f2 int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select table_name from information_schema.tables
 where table_schema = 'test' and table_name not in
 (select table_name from information_schema.columns
@@ -1417,6 +1436,12 @@ End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 MyISAM	YES	MyISAM storage engine	NO	NO	NO
+explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
+EXPLAIN
+-> Filter: (`engines`.`ENGINE` = 'MyISAM')
+    -> Table scan on engines
+        -> Fill information schema table engines
+
 create user user3148@localhost;
 grant select on *.* to user3148@localhost;
 select user,db from information_schema.processlist;
@@ -1663,6 +1688,8 @@ End of 5.1 tests.
 create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
 returns char(10) return null;
 create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
 select * from information_schema.parameters where specific_schema='test';
 SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
@@ -2002,31 +2029,6 @@ ARCHIVE	YES	NO
 #
 # End of 5.6 tests
 #
-#
-# Bug#19307777 ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()' FAILED
-#
-CREATE TABLE mysql.procs_priv_copy ENGINE=MyISAM AS SELECT * FROM mysql.procs_priv;
-EXPLAIN select * from
-information_schema . innodb_cmp as table1
-left outer join mysql . procs_priv_copy as table2
-on ( table2 . routine_name = table1 . compress_time )
-where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
-having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: '2006-09-03 10:11:37.046313'
-Note	1003	/* select#1 */ select `table1`.`page_size` AS `page_size`,`table1`.`compress_ops` AS `compress_ops`,`table1`.`compress_ops_ok` AS `compress_ops_ok`,`table1`.`compress_time` AS `compress_time`,`table1`.`uncompress_ops` AS `uncompress_ops`,`table1`.`uncompress_time` AS `uncompress_time`,NULL AS `Host`,NULL AS `Db`,NULL AS `User`,NULL AS `Routine_name`,NULL AS `Routine_type`,NULL AS `Grantor`,NULL AS `Proc_priv`,NULL AS `Timestamp` from `information_schema`.`INNODB_CMP` `table1` where (`table1`.`compress_time` = 2006) having 0 limit 9
-select * from
-information_schema . innodb_cmp as table1
-left outer join mysql . procs_priv_copy as table2
-on ( table2 . routine_name = table1 . compress_time )
-where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
-having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
-page_size	compress_ops	compress_ops_ok	compress_time	uncompress_ops	uncompress_time	Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: '2006-09-03 10:11:37.046313'
-DROP TABLE mysql.procs_priv_copy;
 #
 # Bug#20665051 SQL_SHOW.CC:7764: ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()
 #
@@ -2709,6 +2711,8 @@ DROP TABLE t1;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 ( id int(11) DEFAULT NULL) ENGINE = INNODB COMMENT =
 '123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__100_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__200_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__300_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__400_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__500_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__600_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__700_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__800_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234__900_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1000_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1100_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1200_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1300_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1400_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1500_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1600_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1700_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1800_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_1900_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234_2000_123456789_123456789_123456789_123456789_123_2048';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # This query would show just 256 characters of comments, without the fix.
 SELECT TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = 't1' ORDER BY TABLE_SCHEMA;
@@ -2777,4 +2781,86 @@ SHOW WARNINGS;
 Level	Code	Message
 SET SESSION max_error_count=default;
 DROP VIEW v1, v2;
+DROP TABLE t1;
+#
+# WL#12984 INFORMATION_SCHEMA and metadata related to secondary engine.
+#
+# Verify that I_S.COLUMNS.EXTRA shows the 'NOT SECONDARY' clause.
+CREATE TABLE t1 (f1 DATE NOT SECONDARY);
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME='t1';
+TABLE_NAME	COLUMN_NAME	EXTRA
+t1	f1	NOT SECONDARY
+DROP TABLE t1;
+CREATE TABLE t1 (f1 DATE);
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME='t1';
+TABLE_NAME	COLUMN_NAME	EXTRA
+t1	f1	
+ALTER TABLE  t1 MODIFY f1 DATE NOT SECONDARY;
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME='t1';
+TABLE_NAME	COLUMN_NAME	EXTRA
+t1	f1	NOT SECONDARY
+DROP TABLE t1;
+# Verify that I_S.TABLES.CREATE_OPTIONS shows 'SECONDARY_ENGINE' clause.
+CREATE TABLE t1 (f1 INT) SECONDARY_ENGINE=myisam;
+SELECT TABLE_NAME, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	SECONDARY_ENGINE="myisam"
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INT);
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	
+ALTER TABLE t1 SECONDARY_ENGINE=myisam;
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 't1';
+TABLE_NAME	CREATE_OPTIONS
+t1	SECONDARY_ENGINE="myisam"
+DROP TABLE t1;
+#
+# BUG#29406053: OPTIMIZER_SWITCH DERIVED_MERGE=OFF CAUSES TABLE COMMENTS
+#               "... IS NOT BASE TABLE"
+#
+SET OPTIMIZER_SWITCH='DERIVED_MERGE=ON';
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'sys' AND TABLE_NAME = 'sys_config';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+sys	sys_config	BASE TABLE	
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'sys' AND TABLE_NAME = 'sys_config';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+sys	sys_config	BASE TABLE	
+SET OPTIMIZER_SWITCH='DERIVED_MERGE=OFF';
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'sys' AND TABLE_NAME = 'sys_config';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+sys	sys_config	BASE TABLE	
+# Without the patch, TABLE_COMMENT field in INFORMATION_SCHEMA.TABLES will
+# contain error information mentioning that one of the views in sys schema
+# is not a BASE TABLE.
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'sys' AND TABLE_NAME = 'sys_config';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
+sys	sys_config	BASE TABLE	
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	test	v1	VIEW	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL	NULL	NULL	NULL	VIEW
+SET OPTIMIZER_SWITCH=default;
+DROP VIEW v1;
 DROP TABLE t1;

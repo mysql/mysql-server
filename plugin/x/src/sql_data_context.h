@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -49,14 +49,8 @@ class Account_verification_handler;
 
 class Sql_data_context : public ngs::Sql_session_interface {
  public:
-  Sql_data_context(ngs::Protocol_encoder_interface *proto,
-                   const bool query_without_authentication = false)
-      : m_proto(proto),
-        m_mysql_session(NULL),
-        m_last_sql_errno(0),
-        m_auth_ok(false),
-        m_query_without_authentication(query_without_authentication),
-        m_password_expired(false) {}
+  Sql_data_context()
+      : m_mysql_session(NULL), m_last_sql_errno(0), m_password_expired(false) {}
 
   ~Sql_data_context() override;
 
@@ -83,12 +77,15 @@ class Sql_data_context : public ngs::Sql_session_interface {
   // can only be executed once authenticated
   ngs::Error_code execute(const char *sql, std::size_t sql_len,
                           ngs::Resultset_interface *rset) override;
+  ngs::Error_code execute_sql(const char *sql, std::size_t sql_len,
+                              ngs::Resultset_interface *rset) override;
   ngs::Error_code prepare_prep_stmt(const char *sql, std::size_t sql_len,
                                     ngs::Resultset_interface *rset) override;
   ngs::Error_code deallocate_prep_stmt(const uint32_t stmt_id,
                                        ngs::Resultset_interface *rset) override;
   ngs::Error_code execute_prep_stmt(const uint32_t stmt_id,
-                                    const bool has_cursor, PS_PARAM *parameters,
+                                    const bool has_cursor,
+                                    const PS_PARAM *parameters,
                                     const std::size_t parameters_count,
                                     ngs::Resultset_interface *rset) override;
 
@@ -99,6 +96,7 @@ class Sql_data_context : public ngs::Sql_session_interface {
   ngs::Error_code attach() override;
   ngs::Error_code detach() override;
   ngs::Error_code reset() override;
+  bool is_sql_mode_set(const std::string &mode) override;
 
   ngs::Error_code init();
   ngs::Error_code init(const int client_port, const Connection_type type);
@@ -123,9 +121,6 @@ class Sql_data_context : public ngs::Sql_session_interface {
   std::string get_user_name() const;
   std::string get_host_or_ip() const;
 
-  ngs::Error_code execute_sql(const char *sql, size_t length,
-                              ngs::Command_delegate *deleg);
-
   ngs::Error_code switch_to_user(const char *username, const char *hostname,
                                  const char *address, const char *db);
 
@@ -147,8 +142,6 @@ class Sql_data_context : public ngs::Sql_session_interface {
   int m_last_sql_errno;
   std::string m_last_sql_error;
 
-  bool m_auth_ok;
-  bool m_query_without_authentication;
   bool m_password_expired;
 };
 

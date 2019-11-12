@@ -128,7 +128,7 @@ static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
   klass->m_class.m_timed = false;  /* N/A */
   klass->m_class.m_flags = PSI_FLAG_ONLY_GLOBAL_STAT;
   klass->m_class.m_volatility = PSI_VOLATILITY_PERMANENT;
-  klass->m_class.m_documentation = (char *)documentation;
+  klass->m_class.m_documentation = const_cast<char *>(documentation);
   klass->m_class.m_event_name_index = 0;
   snprintf(klass->m_class.m_name, sizeof(klass->m_class.m_name), "%.*s",
            PFS_MAX_INFO_NAME_LENGTH - 1, name);

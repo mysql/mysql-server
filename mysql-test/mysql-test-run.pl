@@ -72,6 +72,7 @@ use mtr_unique;
 require "lib/mtr_gcov.pl";
 require "lib/mtr_gprof.pl";
 require "lib/mtr_io.pl";
+require "lib/mtr_lock_order.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_process.pl";
 
@@ -97,6 +98,8 @@ my $opt_helgrind;
 my $opt_json_explain_protocol;
 my $opt_mark_progress;
 my $opt_max_connections;
+my $opt_platform;
+my $opt_platform_exclude;
 my $opt_ps_protocol;
 my $opt_report_features;
 my $opt_skip_core;
@@ -109,7 +112,6 @@ my $opt_start_exit;
 my $opt_strace_client;
 my $opt_strace_server;
 my $opt_stress;
-my $opt_suites;
 my $opt_tmpdir;
 my $opt_tmpdir_pid;
 my $opt_trace_protocol;
@@ -125,6 +127,7 @@ my $opt_debug_sync_timeout = 600;    # Default timeout for WAIT_FOR actions.
 my $opt_do_test_list       = "";
 my $opt_force_restart      = 0;
 my $opt_include_ndbcluster = 0;
+my $opt_lock_order         = env_or_val(MTR_LOCK_ORDER => 0);
 my $opt_max_save_core      = env_or_val(MTR_MAX_SAVE_CORE => 5);
 my $opt_max_save_datadir   = env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail      = env_or_val(MTR_MAX_TEST_FAIL => 10);
@@ -203,14 +206,18 @@ our $opt_non_parallel_test;
 our $opt_record;
 our $opt_report_unstable_tests;
 our $opt_skip_combinations;
-our $opt_ssl;
+our $opt_suites;
 our $opt_suite_opt;
 our $opt_summary_report;
 our $opt_vardir;
 our $opt_xml_report;
 
-our $DEFAULT_SUITES =
-"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_2,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x,secondary_engine,encryption";
+#
+# Suites run by default (i.e. when invoking ./mtr without parameters)
+#
+our $DEFAULT_SUITES = "auth_sec,binlog_gtid,binlog_nogtid,clone,collations,connection_control,encryption,federated,funcs_2,gcol,sysschema,gis,innodb,innodb_fts,innodb_gis,innodb_undo,innodb_zip,json,main,opt_trace,parts,perfschema,query_rewrite_plugins,rpl,rpl_gtid,rpl_nogtid,secondary_engine,service_status_var_registration,service_sys_var_registration,service_udf_registration,sys_vars,binlog,test_service_sql_api,test_services,x";
+
+# End of list of default suites
 
 our $opt_big_test                  = 0;
 our $opt_check_testcases           = 1;
@@ -278,7 +285,6 @@ our $start_only;
 our $glob_debugger      = 0;
 our $group_replication  = 0;
 our $ndbcluster_enabled = 0;
-our $ssl_supported      = 1;
 
 our @share_locations;
 
@@ -362,9 +368,6 @@ sub main {
 
   command_line_setup();
 
-  # Append secondary engiene test suite to list of default suites.
-  add_secondary_engine_suite() if $secondary_engine_support;
-
   # Create build thread id directory
   create_unique_id_dir();
 
@@ -375,10 +378,20 @@ sub main {
   close(FH);
 
   # --help will not reach here, so now it's safe to assume we have binaries
-  My::SafeProcess::find_bin($bindir);
+  My::SafeProcess::find_bin($bindir, $path_client_bindir);
+
+  $secondary_engine_support = ($secondary_engine_support and
+                find_secondary_engine($bindir)) ? 1 : 0 ;
+
+  # Append secondary engine test suite to list of default suites if found.
+  add_secondary_engine_suite() if $secondary_engine_support;
 
   if ($opt_gcov) {
     gcov_prepare($basedir);
+  }
+
+  if ($opt_lock_order) {
+    lock_order_prepare($bindir);
   }
 
   # Collect test cases from a file and put them into '@opt_cases'.
@@ -447,6 +460,14 @@ sub main {
       if (not $ndbcluster_enabled) {
         for my $suite (split(",", $opt_suites)) {
           next if not $suite =~ /ndb/;
+          remove_suite_from_list($suite);
+        }
+      }
+
+      # Remove secondary engine test suites if not supported
+      if (defined $::secondary_engine and not $secondary_engine_support) {
+        for my $suite (split(",", $opt_suites)) {
+          next if not $suite =~ /$::secondary_engine/;
           remove_suite_from_list($suite);
         }
       }
@@ -925,6 +946,13 @@ sub run_test_server ($$$) {
               return undef;
             }
           }
+          else {
+            # Remove testcase .log file produce in var/log/ to save space, if
+            # test has passed, since relevant part of logfile has already been
+            # appended to master log
+            my $logfile = "$opt_vardir/log/$result->{shortname}" . ".log";
+            unlink($logfile);
+          }
 
           resfile_print_test();
 
@@ -1338,7 +1366,6 @@ sub print_global_resfile {
   resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
   resfile_global("sleep",            $opt_sleep);
   resfile_global("sp-protocol",      $opt_sp_protocol      ? 1 : 0);
-  resfile_global("ssl",              $opt_ssl              ? 1 : 0);
   resfile_global("start_time",       isotime $^T);
   resfile_global("suite-opt",        $opt_suite_opt);
   resfile_global("suite-timeout",    $opt_suite_timeout);
@@ -1384,9 +1411,7 @@ sub command_line_setup {
     'json-explain-protocol' => \$opt_json_explain_protocol,
     'opt-trace-protocol'    => \$opt_trace_protocol,
     'ps-protocol'           => \$opt_ps_protocol,
-    'skip-ssl'              => sub { $opt_ssl = 0; $ssl_supported = 0; },
     'sp-protocol'           => \$opt_sp_protocol,
-    'ssl|with-openssl'      => \$opt_ssl,
     'view-protocol'         => \$opt_view_protocol,
     'vs-config=s'           => \$opt_vs_config,
 
@@ -1411,6 +1436,8 @@ sub command_line_setup {
     'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
     'no-skip'                  => \$opt_no_skip,
     'only-big-test'            => \$opt_only_big_test,
+    'platform=s'               => \$opt_platform,
+    'exclude-platform=s'       => \$opt_platform_exclude,
     'skip-combinations'        => \$opt_skip_combinations,
     'skip-im'                  => \&ignore_option,
     'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
@@ -1481,6 +1508,7 @@ sub command_line_setup {
     'gcov'                      => \$opt_gcov,
     'gprof'                     => \$opt_gprof,
     'helgrind'                  => \$opt_helgrind,
+    'lock-order'                => \$opt_lock_order,
     'sanitize'                  => \$opt_sanitize,
     'valgrind-clients'          => \$opt_valgrind_clients,
     'valgrind-mysqld'           => \$opt_valgrind_mysqld,
@@ -1563,6 +1591,8 @@ sub command_line_setup {
 
   usage("") if $opt_usage;
   list_options(\%options) if $opt_list_options;
+
+  check_platform() if defined $ENV{PB2WORKDIR};
 
   # Setup verbosity if verbose option is enabled.
   if ($opt_verbose) {
@@ -1692,6 +1722,10 @@ sub command_line_setup {
       '../internal/mysql-test/include/i_excludenoskip.list';
     push(@noskip_exclude_lists, $i_noskip_exclude_list)
       if (-e $i_noskip_exclude_list);
+    my $cloud_noskip_exclude_list =
+      '../internal/cloud/mysql-test/include/cloud_excludenoskip.list';
+    push(@noskip_exclude_lists, $cloud_noskip_exclude_list)
+       if (-e $cloud_noskip_exclude_list);
 
     foreach my $excludedList (@noskip_exclude_lists) {
       open(my $fh, '<', $excludedList) or
@@ -2060,7 +2094,6 @@ sub command_line_setup {
 
   check_debug_support(\%mysqld_variables);
   check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support();
 
   executable_setup();
 }
@@ -2609,18 +2642,21 @@ sub read_plugin_defs($) {
       $ENV{ $plug_var . '_OPT' } = "--plugin-dir=" . dirname($plugin);
 
       if ($plug_names) {
-        my $lib_name     = basename($plugin);
-        my $load_var     = "--plugin_load=";
-        my $load_add_var = "--plugin_load_add=";
-        my $semi         = '';
+        my $lib_name       = basename($plugin);
+        my $load_var       = "--plugin_load=";
+        my $early_load_var = "--early-plugin_load=";
+        my $load_add_var   = "--plugin_load_add=";
+        my $semi           = '';
 
         foreach my $plug_name (split(',', $plug_names)) {
-          $load_var     .= $semi . "$plug_name=$lib_name";
-          $load_add_var .= $semi . "$plug_name=$lib_name";
+          $load_var       .= $semi . "$plug_name=$lib_name";
+          $early_load_var .= $semi . "$plug_name=$lib_name";
+          $load_add_var   .= $semi . "$plug_name=$lib_name";
           $semi = ';';
         }
 
         $ENV{ $plug_var . '_LOAD' }     = $load_var;
+        $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
         $ENV{ $plug_var . '_LOAD_ADD' } = $load_add_var;
       }
     } else {
@@ -2817,7 +2853,8 @@ sub environment_setup {
   if ($secondary_engine_support) {
     secondary_engine_environment_setup(\&find_plugin, $bindir);
     initialize_function_pointers(\&gdb_arguments, \&mark_log, \&mysqlds,
-                                 \&run_query, \&valgrind_arguments);
+                                 \&run_query, \&valgrind_arguments,
+                                 \&report_failure_and_restart);
   }
 
   # mysql_fix_privilege_tables.sql
@@ -3056,6 +3093,24 @@ sub setup_vardir() {
   }
 }
 
+# Check if detected platform conforms to the rules specified
+# by options --platform and --exclude-platform.
+# Note: These two options are no-op's when MTR is not running
+#       in the pushbuild test environment.
+sub check_platform {
+  my $platform = $ENV{PRODUCT_ID} || "";
+  if(defined $opt_platform and $platform !~ $opt_platform) {
+    print STDERR "mysql-test-run: Detected platform '$platform' does not ".
+                 "match specified platform '$opt_platform', terminating.\n";
+    exit(0);
+  }
+  if(defined $opt_platform_exclude and $platform =~ $opt_platform_exclude) {
+    print STDERR "mysql-test-run: Detected platform '$platform' matches ".
+                 "excluded platform '$opt_platform_exclude', terminating.\n";
+    exit(0);
+  }
+}
+
 # Check if running as root i.e a file can be read regardless what mode
 # we set it to.
 sub check_running_as_root () {
@@ -3088,7 +3143,7 @@ sub check_running_as_root () {
 sub check_debug_support ($) {
   my $mysqld_variables = shift;
 
-  if (!$mysqld_variables->{'debug'}) {
+  if (not exists $mysqld_variables->{'debug'}) {
     $debug_compiled_binaries = 0;
 
     if ($opt_debug) {
@@ -3101,15 +3156,6 @@ sub check_debug_support ($) {
   }
   mtr_report(" - Binaries are debug compiled");
   $debug_compiled_binaries = 1;
-}
-
-# Check if SSL support is enabled.
-sub check_ssl_support {
-  if (!$opt_ssl and !$ssl_supported) {
-    mtr_report(" - Skipping SSL");
-  } elsif ($opt_ssl and !$ssl_supported) {
-    $ssl_supported = 1;
-  }
 }
 
 # Helper function to handle configuration-based subdirectories which
@@ -3822,9 +3868,8 @@ sub mysql_install_db {
     # If init-file is passed, get the file path to merge the contents
     # of the file with bootstrap.sql
     if ($extra_opt =~ /--init[-_]file=(.*)/) {
-      $init_file = $1;
+      $init_file = get_bld_path($1);
     }
-    $init_file = get_bld_path($init_file);
     mtr_add_arg($args, $extra_opt);
   }
 
@@ -3917,13 +3962,13 @@ sub mysql_install_db {
     "INSERT INTO mysql.proxies_priv VALUES ('localhost', 'root',
               '', '', TRUE, '', now());\n");
 
-  # Add help tables and data for warning detection and supression
+  # Add help tables and data for warning detection and suppression
   mtr_tofile($bootstrap_sql_file,
-             sql_to_bootstrap(mtr_grab_file("include/mtr_warnings.sql")));
+             mtr_grab_file("include/mtr_warnings.sql"));
 
   # Add procedures for checking server is restored after testcase
   mtr_tofile($bootstrap_sql_file,
-             sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
+             mtr_grab_file("include/mtr_check.sql"));
 
   if (defined $init_file) {
     # Append the contents of the init-file to the end of bootstrap.sql
@@ -4630,27 +4675,39 @@ sub run_testcase ($) {
 
   my $test = start_mysqltest($tinfo);
 
-  # Set only when we have to keep waiting after expectedly died server
-  my $keep_waiting_proc = 0;
+  # Maintain a queue to keep track of server processes which have
+  # died expectedly in order to wait for them to be restarted.
+  my @waiting_procs = ();
   my $print_timeout     = start_timer($print_freq * 60);
 
   while (1) {
     my $proc;
-    if ($keep_waiting_proc) {
+    if (scalar(@waiting_procs)) {
       # Any other process exited?
       $proc = My::SafeProcess->check_any();
       if ($proc) {
         mtr_verbose("Found exited process $proc");
+
+        # Insert the process into waiting queue and pick an other
+        # process which needs to be checked. This is done to avoid
+        # starvation.
+        unshift @waiting_procs, $proc;
+        $proc = pop @waiting_procs;
       } else {
-        $proc = $keep_waiting_proc;
+        # Pick a process from the waiting queue
+        $proc = pop @waiting_procs;
+
         # Also check if timer has expired, if so cancel waiting
         if (has_expired($test_timeout)) {
-          $keep_waiting_proc = 0;
+          $proc = undef;
+          @waiting_procs = ();
         }
       }
     }
 
-    if (!$keep_waiting_proc) {
+    # Check for test timeout if the waiting queue is empty and no
+    # process needs to be checked if it has been restarted.
+    if (not scalar(@waiting_procs) and not defined $proc) {
       if ($test_timeout > $print_timeout) {
         my $timer = $ENV{'MTR_MANUAL_DEBUG'} ? start_timer(2) : $print_timeout;
         $proc = My::SafeProcess->wait_any_timeout($timer);
@@ -4664,9 +4721,9 @@ sub run_testcase ($) {
           } elsif ($ENV{'MTR_MANUAL_DEBUG'}) {
             my $check_crash = check_expected_crash_and_restart($proc);
             if ($check_crash) {
-              # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
-              $keep_waiting_proc = 0     if $check_crash == 1;
-              $keep_waiting_proc = $proc if $check_crash == 2;
+              # Add process to the waiting queue if the check returns 2
+              # or stop waiting if it returns 1.
+              unshift @waiting_procs, $proc if $check_crash == 2;
               next;
             }
           }
@@ -4675,9 +4732,6 @@ sub run_testcase ($) {
         $proc = My::SafeProcess->wait_any_timeout($test_timeout);
       }
     }
-
-    # Will be restored if we need to keep waiting
-    $keep_waiting_proc = 0;
 
     unless (defined $proc) {
       mtr_error("wait_any failed");
@@ -4812,25 +4866,15 @@ sub run_testcase ($) {
         unlink($path_current_testlog);
       }
 
-      # Remove testcase .log file produce in var/log/ to save space since
-      # relevant part of logfile has already been appended to master log
-      {
-        my $log_file_name =
-          $opt_vardir . "/log/" . $tinfo->{shortname} . ".log";
-        if (-e $log_file_name && ($tinfo->{'result'} ne 'MTR_RES_FAILED')) {
-          unlink($log_file_name);
-        }
-      }
-
       return ($res == 62) ? 0 : $res;
     }
 
     # Check if it was an expected crash
     my $check_crash = check_expected_crash_and_restart($proc, $tinfo);
     if ($check_crash) {
-      # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
-      $keep_waiting_proc = 0     if $check_crash == 1;
-      $keep_waiting_proc = $proc if $check_crash == 2;
+      # Add process to the waiting queue if the check returns 2
+      # or stop waiting if it returns 1
+      unshift @waiting_procs, $proc if $check_crash == 2;
       next;
     }
 
@@ -5384,7 +5428,8 @@ sub check_warnings ($) {
 
   # Return immediately if no check proceess was started
   return 0 unless (keys %started);
-  wait_for_check_warnings(\%started, $tinfo);
+  my $res = wait_for_check_warnings(\%started, $tinfo);
+  return $res if $res;
 
   if ($tinfo->{'secondary-engine'}) {
     # Search for unexpected warnings in secondary engine server error
@@ -5401,7 +5446,8 @@ sub check_warnings ($) {
 
   # Return immediately if no check proceess was started
   return 0 unless (keys %started);
-  wait_for_check_warnings(\%started, $tinfo);
+  $res = wait_for_check_warnings(\%started, $tinfo);
+  return $res if $res;
 }
 
 # Loop through our list of processes and look for and entry with the
@@ -5472,8 +5518,6 @@ sub check_expected_crash_and_restart($$) {
           my $restart_flag = 1;
           # Start secondary engine servers.
           start_secondary_engine_servers($tinfo, $restart_flag);
-          # Load table contents to secondary engine.
-          load_table_contents($mysqld) if defined $tinfo->{'load_pool'};
         }
 
         return 1;
@@ -5753,6 +5797,22 @@ sub mysqld_arguments ($$$) {
     if ($mysql_version_id < 50100) {
       mtr_add_arg($args, "--skip-bdb");
     }
+  }
+
+  if ($opt_lock_order) {
+    my $lo_dep_1 = "$basedir/mysql-test/lock_order_dependencies.txt";
+    my $lo_dep_2 = "$basedir/internal/mysql-test/lock_order_extra_dependencies.txt";
+    my $lo_out = "$bindir/lock_order";
+    mtr_verbose("lock_order dep_1 = $lo_dep_1");
+    mtr_verbose("lock_order dep_2 = $lo_dep_2");
+    mtr_verbose("lock_order out = $lo_out");
+
+    mtr_add_arg($args, "--loose-lock_order");
+    mtr_add_arg($args, "--loose-lock_order_dependencies=$lo_dep_1");
+    if (-e $lo_dep_2) {
+# mtr_add_arg($args, "--loose-lock_order_extra_dependencies=$lo_dep_2");
+    }
+    mtr_add_arg($args, "--loose-lock_order_output_directory=$lo_out");
   }
 
   if ($mysql_version_id >= 50106 && !$opt_user_args) {
@@ -6640,11 +6700,6 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--sleep=%d", $opt_sleep);
   }
 
-  if ($opt_ssl) {
-    # Turn on SSL for _all_ test cases if option --ssl was used
-    mtr_add_arg($args, "--ssl-mode=REQUIRED");
-  }
-
   if ($opt_max_connections) {
     mtr_add_arg($args, "--max-connections=%d", $opt_max_connections);
   }
@@ -7202,9 +7257,7 @@ Options to control what engine/variation to run
   opt-trace-protocol    Print optimizer trace.
   ps-protocol           Use the binary protocol between client and server.
   skip-combinations     Ignore combination file (or options).
-  skip-ssl              Dont start server with support for ssl connections.
   sp-protocol           Create a stored procedure to execute all queries.
-  ssl                   Use ssl protocol between client and server.
   view-protocol         Create a view to execute all non updating queries.
   vs-config             Visual Studio configuration used to create executables
                         (default: MTR_VS_CONFIG environment variable).
@@ -7373,6 +7426,12 @@ Options for debugging the product
                         0 for no limit. Set it's default with MTR_MAX_TEST_FAIL.
   strace-client         Create strace output for mysqltest client.
   strace-server         Create strace output for mysqltest server.
+
+Options for lock_order
+
+  lock-order            Run tests under the lock_order tool.
+                        Set to 1 to enable, 0 to disable.
+                        Defaults to $opt_lock_order, set it's default with MTR_LOCK_ORDER.
 
 Options for valgrind
 

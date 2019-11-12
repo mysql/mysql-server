@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "handler.h"
+#include "sql/handler.h"
 
 /** Get capability flags for clone operation
 @param[out]	flags	capability flag */
@@ -124,6 +124,32 @@ int innodb_clone_apply(handlerton *hton, THD *thd, const byte *loc,
 int innodb_clone_apply_end(handlerton *hton, THD *thd, const byte *loc,
                            uint loc_len, uint task_id, int in_err);
 
+/** Check and delete any old list files. */
+void clone_init_list_files();
+
+/** Add fine name to clone list file for future replacement or rollback.
+@param[in]	list_file_name	list file name where to add the file
+@param[in]	file_name	file name to add to the list
+@return error code */
+int clone_add_to_list_file(const char *list_file_name, const char *file_name);
+
+/** Revert back clone changes in case of an error. */
+void clone_files_error();
+
+#ifdef UNIV_DEBUG
+/** Debug function to check and crash during recovery.
+@param[in]	is_cloned_db	if cloned database recovery */
+bool clone_check_recovery_crashpoint(bool is_cloned_db);
+#endif
+
+/** Change cloned file states during recovery.
+@param[in]	finished	if recovery is finishing */
+void clone_files_recovery(bool finished);
+
+/** Update cloned GTIDs to recovery status file.
+@param[in]	gtids	cloned GTIDs */
+void clone_update_gtid_status(std::string &gtids);
+
 /** Initialize Clone system
 @return inndodb error code */
 dberr_t clone_init();
@@ -138,6 +164,18 @@ bool clone_mark_abort(bool force);
 
 /** Mark clone system as active to allow database clone. */
 void clone_mark_active();
+
+/** Check if active clone is running.
+@return true, if any active clone is found. */
+bool clone_check_active();
+
+/** Check for any active clone. If none, set a marker so that new clones
+operation waits till the marker is freed.
+@return true, if no active clone and marker is set successfully. */
+bool clone_mark_wait();
+
+/** Free the wait marker set earlier and allow clone to proceed. */
+void clone_mark_free();
 
 #else                         /* !UNIV_HOTBACKUP */
 #define clone_mark_abort(_P_) /*clone_mark_abort()*/

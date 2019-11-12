@@ -1,13 +1,18 @@
 CREATE SCHEMA IF NOT EXISTS xtest;
 USE xtest;
-CREATE TABLE xtable (phrase VARCHAR(30), prio INTEGER);
+CREATE PROCEDURE recreate_tables()
+BEGIN
+CREATE TABLE IF NOT EXISTS xtable (phrase VARCHAR(30), prio INTEGER);
+TRUNCATE TABLE xtable;
 INSERT INTO xtable (phrase, prio) VALUES ('Alice has a cat', 0);
 INSERT INTO xtable (phrase, prio) VALUES ('Bob has a dog 1', 1);
 INSERT INTO xtable (phrase, prio) VALUES ('Peppa has a teddy', 0);
 INSERT INTO xtable (phrase, prio) VALUES ('Bob has a dog 2', 2);
 INSERT INTO xtable (phrase, prio) VALUES ('Row to delete', 3);
-CREATE TABLE xtable_with_pk (p_id INTEGER AUTO_INCREMENT PRIMARY KEY, description varchar(40));
+CREATE TABLE IF NOT EXISTS xtable_with_pk (p_id INTEGER AUTO_INCREMENT PRIMARY KEY, description varchar(40));
+TRUNCATE TABLE xtable_with_pk;
 INSERT INTO xtable_with_pk (description) VALUES ('MyRow');
+END //
 CREATE PROCEDURE one_resultsets()
 BEGIN
 SELECT phrase FROM xtable limit 3;
@@ -22,6 +27,7 @@ BEGIN
 SELECT 1/prio as col1 FROM xtable;
 SELECT 1/prio as col1 FROM xtable;
 END //
+CALL recreate_tables();
 
 
 ## I. Validate non dynamic SQL statement where Cursor.Fetch is not needed

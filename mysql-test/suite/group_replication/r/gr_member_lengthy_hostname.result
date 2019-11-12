@@ -1,0 +1,14 @@
+include/start_and_bootstrap_group_replication.inc
+#####################################################################
+# 1.a Verify that when startup options report-host is not set, its value
+# shown on MEMBER_PORT value is as defined on rpl_1slave_base.cnf
+include/assert.inc [The performance_schema.replication_group_members.MEMBER_HOST matches with hostname system variable]
+#####################################################################
+# 2. Verify that when startup options report-host and report-port are
+# set, performance_schema.replication_group_members.MEMBER_HOST and
+# MEMBER_PORT are set equal to report-host and report-port.
+# restart:--report-host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 --report-port=24844 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [Hostname in performance_schema.replication_group_members matches the one set through CHANGE MASTER TO]
+include/stop_group_replication.inc

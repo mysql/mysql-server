@@ -1,129 +1,129 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/_base/Deferred",["./kernel","./lang"],function(_1,_2){
-var _3=function(){
+define("dojo/_base/Deferred",["./kernel","../Deferred","../promise/Promise","../errors/CancelError","../has","./lang","../when"],function(_1,_2,_3,_4,_5,_6,_7){
+var _8=function(){
 };
-var _4=Object.freeze||function(){
+var _9=Object.freeze||function(){
 };
-_1.Deferred=function(_5){
-var _6,_7,_8,_9,_a;
-var _b=(this.promise={});
-function _c(_d){
-if(_7){
+var _a=_1.Deferred=function(_b){
+var _c,_d,_e,_f,_10;
+var _11=(this.promise=new _3());
+function _12(_13){
+if(_d){
 throw new Error("This deferred has already been resolved");
 }
-_6=_d;
-_7=true;
-_e();
+_c=_13;
+_d=true;
+_14();
 };
-function _e(){
-var _f;
-while(!_f&&_a){
-var _10=_a;
-_a=_a.next;
-if((_f=(_10.progress==_3))){
-_7=false;
+function _14(){
+var _15;
+while(!_15&&_10){
+var _16=_10;
+_10=_10.next;
+if((_15=(_16.progress==_8))){
+_d=false;
 }
-var _11=(_8?_10.error:_10.resolved);
-if(_11){
+var _17=(_e?_16.error:_16.resolved);
+if(_5("config-useDeferredInstrumentation")){
+if(_e&&_2.instrumentRejected){
+_2.instrumentRejected(_c,!!_17);
+}
+}
+if(_17){
 try{
-var _12=_11(_6);
-if(_12&&typeof _12.then==="function"){
-_12.then(_2.hitch(_10.deferred,"resolve"),_2.hitch(_10.deferred,"reject"),_2.hitch(_10.deferred,"progress"));
+var _18=_17(_c);
+if(_18&&typeof _18.then==="function"){
+_18.then(_6.hitch(_16.deferred,"resolve"),_6.hitch(_16.deferred,"reject"),_6.hitch(_16.deferred,"progress"));
 continue;
 }
-var _13=_f&&_12===undefined;
-if(_f&&!_13){
-_8=_12 instanceof Error;
+var _19=_15&&_18===undefined;
+if(_15&&!_19){
+_e=_18 instanceof Error;
 }
-_10.deferred[_13&&_8?"reject":"resolve"](_13?_6:_12);
+_16.deferred[_19&&_e?"reject":"resolve"](_19?_c:_18);
 }
 catch(e){
-_10.deferred.reject(e);
+_16.deferred.reject(e);
 }
 }else{
-if(_8){
-_10.deferred.reject(_6);
+if(_e){
+_16.deferred.reject(_c);
 }else{
-_10.deferred.resolve(_6);
+_16.deferred.resolve(_c);
 }
 }
 }
 };
-this.resolve=this.callback=function(_14){
+this.resolve=this.callback=function(_1a){
 this.fired=0;
-this.results=[_14,null];
-_c(_14);
+this.results=[_1a,null];
+_12(_1a);
 };
-this.reject=this.errback=function(_15){
-_8=true;
+this.reject=this.errback=function(_1b){
+_e=true;
 this.fired=1;
-_c(_15);
-this.results=[null,_15];
-if(!_15||_15.log!==false){
-(_1.config.deferredOnError||function(x){
-console.error(x);
-})(_15);
+if(_5("config-useDeferredInstrumentation")){
+if(_2.instrumentRejected){
+_2.instrumentRejected(_1b,!!_10);
+}
+}
+_12(_1b);
+this.results=[null,_1b];
+};
+this.progress=function(_1c){
+var _1d=_10;
+while(_1d){
+var _1e=_1d.progress;
+_1e&&_1e(_1c);
+_1d=_1d.next;
 }
 };
-this.progress=function(_16){
-var _17=_a;
-while(_17){
-var _18=_17.progress;
-_18&&_18(_16);
-_17=_17.next;
-}
-};
-this.addCallbacks=function(_19,_1a){
-this.then(_19,_1a,_3);
+this.addCallbacks=function(_1f,_20){
+this.then(_1f,_20,_8);
 return this;
 };
-_b.then=this.then=function(_1b,_1c,_1d){
-var _1e=_1d==_3?this:new _1.Deferred(_b.cancel);
-var _1f={resolved:_1b,error:_1c,progress:_1d,deferred:_1e};
-if(_a){
-_9=_9.next=_1f;
+_11.then=this.then=function(_21,_22,_23){
+var _24=_23==_8?this:new _a(_11.cancel);
+var _25={resolved:_21,error:_22,progress:_23,deferred:_24};
+if(_10){
+_f=_f.next=_25;
 }else{
-_a=_9=_1f;
+_10=_f=_25;
 }
-if(_7){
-_e();
+if(_d){
+_14();
 }
-return _1e.promise;
+return _24.promise;
 };
-var _20=this;
-_b.cancel=this.cancel=function(){
-if(!_7){
-var _21=_5&&_5(_20);
-if(!_7){
-if(!(_21 instanceof Error)){
-_21=new Error(_21);
+var _26=this;
+_11.cancel=this.cancel=function(){
+if(!_d){
+var _27=_b&&_b(_26);
+if(!_d){
+if(!(_27 instanceof Error)){
+_27=new _4(_27);
 }
-_21.log=false;
-_20.reject(_21);
+_27.log=false;
+_26.reject(_27);
 }
 }
 };
-_4(_b);
+_9(_11);
 };
-_2.extend(_1.Deferred,{addCallback:function(_22){
-return this.addCallbacks(_2.hitch.apply(_1,arguments));
-},addErrback:function(_23){
-return this.addCallbacks(null,_2.hitch.apply(_1,arguments));
-},addBoth:function(_24){
-var _25=_2.hitch.apply(_1,arguments);
-return this.addCallbacks(_25,_25);
+_6.extend(_a,{addCallback:function(_28){
+return this.addCallbacks(_6.hitch.apply(_1,arguments));
+},addErrback:function(_29){
+return this.addCallbacks(null,_6.hitch.apply(_1,arguments));
+},addBoth:function(_2a){
+var _2b=_6.hitch.apply(_1,arguments);
+return this.addCallbacks(_2b,_2b);
 },fired:-1});
-_1.Deferred.when=_1.when=function(_26,_27,_28,_29){
-if(_26&&typeof _26.then==="function"){
-return _26.then(_27,_28,_29);
-}
-return _27?_27(_26):_26;
-};
-return _1.Deferred;
+_a.when=_1.when=_7;
+return _a;
 });

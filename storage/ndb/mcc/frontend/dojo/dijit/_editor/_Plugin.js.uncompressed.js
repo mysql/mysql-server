@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_editor/_Plugin", [
 	"dojo/_base/connect", // connect.connect
 	"dojo/_base/declare", // declare
@@ -18,7 +17,12 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 	//		Base class for a "plugin" to the editor, which is usually
 	//		a single button on the Toolbar and some associated code
 
-	constructor: function(/*Object?*/args){
+	constructor: function(args){
+		// summary:
+		//		Create the plugin.
+		// args: Object?
+		//		Initial settings for any of the attributes.
+
 		this.params = args || {};
 		lang.mixin(this, this.params);
 		this._connects=[];
@@ -33,8 +37,8 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 	//		The CSS class name for the button node is formed from `iconClassPrefix` and `command`
 	iconClassPrefix: "dijitEditorIcon",
 
-	// button: dijit._Widget?
-	//		Pointer to `dijit.form.Button` or other widget (ex: `dijit.form.FilteringSelect`)
+	// button: dijit/_WidgetBase?
+	//		Pointer to `dijit/form/Button` or other widget (ex: `dijit/form/FilteringSelect`)
 	//		that is added to the toolbar to control this plugin.
 	//		If not specified, will be created on initialization according to `buttonClass`
 	button: null,
@@ -49,7 +53,7 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 	useDefaultCommand: true,
 
 	// buttonClass: Widget Class
-	//		Class of widget (ex: dijit.form.Button or dijit.form.FilteringSelect)
+	//		Class of widget (ex: dijit.form.Button or dijit/form/FilteringSelect)
 	//		that is added to the toolbar to control this plugin.
 	//		This is used to instantiate the button, unless `button` itself is specified directly.
 	buttonClass: Button,
@@ -80,6 +84,7 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 			if(!this.button){
 				var props = lang.mixin({
 					label: label,
+					ownerDocument: editor.ownerDocument,
 					dir: editor.dir,
 					lang: editor.lang,
 					showLabel: false,
@@ -109,7 +114,7 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 	connect: function(o, f, tf){
 		// summary:
 		//		Make a connect.connect() that is automatically disconnected when this plugin is destroyed.
-		//		Similar to `dijit._Widget.connect`.
+		//		Similar to `dijit/_Widget.connect()`.
 		// tags:
 		//		protected
 		this._connects.push(connect.connect(o, f, this, tf));
@@ -139,11 +144,13 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 					this.enabled = enabled;
 					this.button.set('disabled', !enabled);
 				}
-				if(typeof this.button.checked == 'boolean'){
-					checked = e.queryCommandState(c);
-					if(this.checked !== checked){
-						this.checked = checked;
-						this.button.set('checked', e.queryCommandState(c));
+				if(enabled){
+					if(typeof this.button.checked == 'boolean'){
+						checked = e.queryCommandState(c);
+						if(this.checked !== checked){
+							this.checked = checked;
+							this.button.set('checked', e.queryCommandState(c));
+						}
 					}
 				}
 			}catch(e){
@@ -152,7 +159,7 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 		}
 	},
 
-	setEditor: function(/*dijit.Editor*/ editor){
+	setEditor: function(/*dijit/Editor*/ editor){
 		// summary:
 		//		Tell the plugin which Editor it is associated with.
 
@@ -179,7 +186,7 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 		this.connect(this.editor, "onNormalizedDisplayChanged", "updateState");
 	},
 
-	setToolbar: function(/*dijit.Toolbar*/ toolbar){
+	setToolbar: function(/*dijit/Toolbar*/ toolbar){
 		// summary:
 		//		Tell the plugin to add it's controller widget (often a button)
 		//		to the toolbar.  Does nothing if there is no controller widget.
@@ -195,14 +202,14 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 	set: function(/* attribute */ name, /* anything */ value){
 		// summary:
 		//		Set a property on a plugin
-		//	name:
+		// name:
 		//		The property to set.
-		//	value:
+		// value:
 		//		The value to set in the property.
 		// description:
 		//		Sets named properties on a plugin which may potentially be handled by a
-		// 		setter in the plugin.
-		// 		For example, if the plugin has a properties "foo"
+		//		setter in the plugin.
+		//		For example, if the plugin has a properties "foo"
 		//		and "bar" and a method named "_setFooAttr", calling:
 		//	|	plugin.set("foo", "Howdy!");
 		//		would be equivalent to writing:
@@ -212,12 +219,12 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 		//		would be equivalent to writing:
 		//	|	plugin.bar = 3;
 		//
-		//	set() may also be called with a hash of name/value pairs, ex:
+		//		set() may also be called with a hash of name/value pairs, ex:
 		//	|	plugin.set({
 		//	|		foo: "Howdy",
 		//	|		bar: 3
 		//	|	})
-		//	This is equivalent to calling set(foo, "Howdy") and set(bar, 3)
+		//		This is equivalent to calling set(foo, "Howdy") and set(bar, 3)
 		if(typeof name === "object"){
 			for(var x in name){
 				this.set(x, name[x]);
@@ -237,13 +244,13 @@ var _Plugin = declare("dijit._editor._Plugin", null, {
 	get: function(name){
 		// summary:
 		//		Get a property from a plugin.
-		//	name:
+		// name:
 		//		The property to get.
 		// description:
 		//		Get a named property from a plugin. The property may
 		//		potentially be retrieved via a getter method. If no getter is defined, this
-		// 		just retrieves the object's property.
-		// 		For example, if the plugin has a properties "foo"
+		//		just retrieves the object's property.
+		//		For example, if the plugin has a properties "foo"
 		//		and "bar" and a method named "_getFooAttr", calling:
 		//	|	plugin.get("foo");
 		//		would be equivalent to writing:

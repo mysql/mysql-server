@@ -10,7 +10,7 @@
 #
 # For example, one MySQL Server may have table t1 in InnoDB while all
 # the other MySQL Servers have table t1 in NDB. The MySQL Server having
-# the table in InnoDB shuod simply ignore all distributed DDL operations
+# the table in InnoDB should simply ignore all distributed DDL operations
 # and print a message to the MySQL Server log file
 #
 
@@ -22,6 +22,18 @@ create table ndb_ddl_test.shadow1 (
 ) engine = InnoDB;
 insert into ndb_ddl_test.shadow1 values(100);
 
+# Supress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table .* shadows the NDB table");
+call mtr.add_suppression("Failed to remove table definition");
+call mtr.add_suppression("Failed to update table definition");
+call mtr.add_suppression("Failed to rename table definition");
+call mtr.add_suppression("Removing the renamed table");
+call mtr.add_suppression("NDB: Distribution of CREATE TABLE");
+call mtr.add_suppression("NDB: Distribution of TRUNCATE TABLE");
+call mtr.add_suppression("NDB: Distribution of ALTER TABLE");
+--enable_query_log
+
 --connection mysqld2
 
 # Check that table does not exist on second mysqld(as it was not
@@ -30,6 +42,7 @@ insert into ndb_ddl_test.shadow1 values(100);
 show create table ndb_ddl_test.shadow1;
 
 # Create a table in NDB with same name as on first mysqld
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 create table ndb_ddl_test.shadow1 (
   in_NDB_engine int primary key
 ) engine = NDB;
@@ -46,6 +59,7 @@ select column_name from
 # Truncate the NDB table, the truncate is implemented
 # by "drop+create" so also now the shadow table on first mysqld should
 # not be truncated
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 truncate table ndb_ddl_test.shadow1;
 
 --connection mysqld1
@@ -62,6 +76,7 @@ select count(*) = 1 from ndb_ddl_test.shadow1;
 
 # Alter the NDB table with algorithm=copy, the shadow table on
 # first mysqld should ignore the alter
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 alter table ndb_ddl_test.shadow1 algorithm=copy,
   add column added_by_copying_alter int;
 
@@ -77,6 +92,7 @@ select column_name from
 
 # Alter the NDB table with algorithm=inplace, the shadow table on
 # first mysqld should ignore the alter
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 alter table ndb_ddl_test.shadow1 algorithm=inplace,
   add column added_by_inplace_alter int default NULL column_format DYNAMIC;
 
@@ -90,8 +106,45 @@ select column_name from
 
 --connection mysqld2
 
-# Drop the NDB table
+# Drop the NDB table. Once again the first mysqld should
+# ignore the drop
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 drop table ndb_ddl_test.shadow1;
+
+
+# Test rename of table to same name as shadow table, the
+# renamed table should be removed on on first mysqld and thus create
+# a shadow table
+rename table ndb_ddl_test.t1 to ndb_ddl_test.shadow1;
+
+--connection mysqld1
+
+# Check that shadow table on first mysqld is still in other engine
+# and have only one column
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+
+# Check that the NDB table on first mysqld has been removed from DD
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 't1';
+
+# Create another "shadow table" in other engine on first mysqld
+create table ndb_ddl_test.shadow2 (
+  in_other_engine int primary key
+) engine = InnoDB;
+insert into ndb_ddl_test.shadow2 values(100);
+
+--connection mysqld2
+
+# Rename the shadowed NDB table to the other shadowed table name.
+# This should fail on the first mysqld
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+rename table ndb_ddl_test.shadow1 to ndb_ddl_test.shadow2;
+
+# Rename the NDB table back to original name
+rename table ndb_ddl_test.shadow2 to ndb_ddl_test.t1;
 
 --connection mysqld1
 
@@ -105,6 +158,9 @@ select count(*) = 1 from ndb_ddl_test.shadow1;
 
 # Drop the "shadow table" from other engine
 drop table ndb_ddl_test.shadow1;
+
+# Drop the second "shadow table" from other engine
+drop table ndb_ddl_test.shadow2;
 
 # Check that all mysqlds have identical DD
 --source verify_mysql_dd.inc
@@ -137,6 +193,7 @@ show create table ndb_ddl_test2.shadow_in_db;
 
 # Drop the database on the second mysqld, the database should then be dropped
 # on all mysqlds except the first
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 drop database ndb_ddl_test2;
 
 # Check that the database does not exist on second mysqld
@@ -163,6 +220,32 @@ drop database ndb_ddl_test2;
 # Create the ndb_ddl_test2 database again, thus checking it can be created
 # and also allowing cleanup to drop it
 create database ndb_ddl_test2;
+
+# ##########################################################
+# Test distribution involving a shadow table with a name
+# that stretches the NDB identifier limit. The main purpose
+# of this test is to check if valid warnings are returned
+# ##########################################################
+
+--connection mysqld1
+USE ndb_ddl_test;
+# Create InnoDB table in mysqld1
+CREATE TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12 (
+  id INT PRIMARY KEY
+) ENGINE InnoDB;
+--connection mysqld2
+USE ndb_ddl_test;
+# Create and drop NDB table with the same name. Distribution to mysqld1 shall
+# fail
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+CREATE TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12 (
+ id INT PRIMARY KEY
+ ) ENGINE NDB;
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
+--connection mysqld1
+# Clean up
+DROP TABLE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
 
 # Check that all mysqlds have identical DD
 --source verify_mysql_dd.inc

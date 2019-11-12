@@ -1370,8 +1370,8 @@ NULL	NULL	2.711535802469135
 4	0.0	2.711535802469135
 5	0.0	2.711535802469135
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 SELECT j,CAST(STD(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(VARIANCE(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
@@ -1388,8 +1388,8 @@ NULL	NULL	NULL
 4	0.0	0.0
 5	0.0	0.0
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 5
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 5
 DROP TABLE tj,tj2;

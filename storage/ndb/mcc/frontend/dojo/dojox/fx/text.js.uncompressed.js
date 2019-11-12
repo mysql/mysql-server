@@ -1,27 +1,26 @@
-//>>built
 define("dojox/fx/text", ["dojo/_base/lang", "./_base", "dojo/_base/fx", "dojo/fx","dojo/fx/easing", "dojo/dom", "dojo/dom-style", "dojo/_base/html", "dojo/_base/connect"],
 function(lang, dojoxFx, baseFx, coreFx, easingLib, dom, domStyle, htmlLib, connectUtil ){
 var textFx = lang.getObject("dojox.fx.text", true);
 textFx._split = function(/*Object*/ args){
-	// summary: Split a block of text into words or letters
-	//
+	// summary:
+	//		Split a block of text into words or letters
 	// description:
 	//		Returns an animation that will split the node into a grid
 	//		of pieces that move independently.
 	//
-	// NOTE:
+	//		NOTE:
 	//		In some rendering engines, the text will appear to "jump" from its initial position
-	//		when the animation begins.	To work around this bug, enclose the node's text in a <p> or <div>.
-	//
-	//	args:
-	//		args.crop: Boolean - If true, pieces will be positioned relatively rather than absolutely
-	//		args.text: String - Text to place inside the node (otherwise node.innerHTML is used)
-	//		args.words: Boolean - If true, the text will be split into words rather than characters
-	//		args.pieceAnimation: Function(piece, pieceCoords, nodeCoords, number, numPieces)
-	//			- Returns either the dojo.Animation or an array of dojo.Animation objects for the piece;
-	//			pieceCoords is the result of dojo.coords(piece, true);
-	//			nodeCoords is the result of dojo.coords(args.node, true);
-	//			number is the piece's position in the array of pieces, and numPieces is the array.length
+	//		when the animation begins.	To work around this bug, enclose the node's text in a `<p>` or `<div>`.
+	// args:
+	//		- args.crop: Boolean - If true, pieces will be positioned relatively rather than absolutely
+	//		- args.text: String - Text to place inside the node (otherwise node.innerHTML is used)
+	//		- args.words: Boolean - If true, the text will be split into words rather than characters
+	//		- args.pieceAnimation: Function(piece, pieceCoords, nodeCoords, number, numPieces)
+	//			Returns either the dojo.Animation or an array of dojo.Animation objects for the piece.
+	//			The arguments:
+	//			- pieceCoords is the result of dojo.coords(piece, true);
+	//			- nodeCoords is the result of dojo.coords(args.node, true);
+	//			- number is the piece's position in the array of pieces, and numPieces is the array.length
 
 	var node = args.node = dom.byId(args.node),
 		s = node.style,
@@ -116,24 +115,23 @@ textFx._split = function(/*Object*/ args){
 };
 
 textFx.explode = function(/*Object*/ args){
-	// summary: Explode a block of text into words or letters
-	//
+	// summary:
+	//		Explode a block of text into words or letters
 	// description:
 	//		Returns an animation that will split the text into a spans
 	//		of words or characters that fly away from the center.
-	//
-	//	args:
-	//		args.crop: Boolean - If true, pieces will be positioned relatively rather than absolutely
-	//		args.words: Boolean - If true, text will be split into words rather than characters
-	//		args.random: Float - If set, pieces fly to random distances, for random durations,
+	// args:
+	//		- args.crop: Boolean - If true, pieces will be positioned relatively rather than absolutely
+	//		- args.words: Boolean - If true, text will be split into words rather than characters
+	//		- args.random: Float - If set, pieces fly to random distances, for random durations,
 	//							   and in slightly random directions. The value defines how much
 	//							   randomness is introduced.
-	//		args.distance: Float - Multiplier for the distance the pieces fly (even when random)
-	//		args.fade: Boolean - If true, pieces fade out while in motion (default is true)
-	//		args.fadeEasing: Function - If args.fade is true, the fade animations use this easing function
-	//		args.unhide: Boolean - If true, the animation is reversed
-	//		args.sync: Boolean - If args.unhide is true, all the pieces converge at the same time
-	//							 (default is true)
+	//		- args.distance: Float - Multiplier for the distance the pieces fly (even when random)
+	//		- args.fade: Boolean - If true, pieces fade out while in motion (default is true)
+	//		- args.fadeEasing: Function - If args.fade is true, the fade animations use this easing function
+	//		- args.unhide: Boolean - If true, the animation is reversed
+	//		- args.sync: Boolean - If args.unhide is true, all the pieces converge at the same time
+	//							   (default is true)
 
 	var node = args.node = dom.byId(args.node);
 	var s = node.style;
@@ -228,22 +226,21 @@ textFx.converge = function(/*Object*/ args){
 };
 
 textFx.disintegrate = function(/*Object*/ args){
-	// summary: Split a block of text into words or letters and let them fall
-	//
+	// summary:
+	//		Split a block of text into words or letters and let them fall
 	// description:
 	//		Returns an animation that will split the text into spans of words
 	//		or characters that drop.
-	//
-	//	args:
-	//		args.crop: Boolean - If true, pieces will be positioned relatively rather than absolutely
-	//		args.words: Boolean - If true, text will be split into words rather than characters
-	//		args.interval: Float - The number of milliseconds between each piece's animation
-	//		args.distance: Float - The number of the node's heights to drop (default is 1.5)
-	//		args.fade: Boolean - If true, pieces fade out while in motion (default is true)
-	//		args.random: Float - If set, pieces fall in random order. The value defines how much
+	// args:
+	//		- args.crop: Boolean - If true, pieces will be positioned relatively rather than absolutely
+	//		- args.words: Boolean - If true, text will be split into words rather than characters
+	//		- args.interval: Float - The number of milliseconds between each piece's animation
+	//		- args.distance: Float - The number of the node's heights to drop (default is 1.5)
+	//		- args.fade: Boolean - If true, pieces fade out while in motion (default is true)
+	//		- args.random: Float - If set, pieces fall in random order. The value defines how much
 	//							   randomness is introduced
-	//		args.reverseOrder: Boolean - If true, pieces animate in reversed order
-	//		args.unhide: Boolean - If true, the peices fall from above and land in place
+	//		- args.reverseOrder: Boolean - If true, pieces animate in reversed order
+	//		- args.unhide: Boolean - If true, the peices fall from above and land in place
 
 	var node = args.node = dom.byId(args.node);
 	var s = node.style;
@@ -315,19 +312,18 @@ textFx.build = function(/*Object*/ args){
 };
 
 textFx.blockFadeOut = function(/*Object*/ args){
-	// summary: Split a block of text into words or letters and fade them
-	//
+	// summary:
+	//		Split a block of text into words or letters and fade them
 	// description:
 	//		Returns an animation that will split the text into spans of words
 	//		or characters that fade in or out.
-	//
-	//	args:
-	//		args.words: Boolean - If true, text will be split into words rather than characters
-	//		args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
-	//		args.random: Float - If true, pieces have a random delay. The value defines how much
+	// args:
+	//		- args.words: Boolean - If true, text will be split into words rather than characters
+	//		- args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
+	//		- args.random: Float - If true, pieces have a random delay. The value defines how much
 	//							   randomness is introduced
-	//		args.reverseOrder: Boolean - If true, pieces animate in reversed order
-	//		args.unhide: Boolean - If true, the animation is reversed
+	//		- args.reverseOrder: Boolean - If true, pieces animate in reversed order
+	//		- args.unhide: Boolean - If true, the animation is reversed
 
 	var node = args.node = dom.byId(args.node);;
 	var s = node.style;
@@ -372,22 +368,21 @@ textFx.blockFadeIn = function(/*Object*/ args){
 };
 
 textFx.backspace = function(/*Object*/ args){
-	// summary: Split a block of text into words or letters and backspace them in sequence
-	//
+	// summary:
+	//		Split a block of text into words or letters and backspace them in sequence
 	// description:
 	//		Returns an animation that will split the text into spans of words
 	//		or characters that appear as if they were being backspaced (or typed) in real-time.
-	//
-	//	args:
-	//		args.interval: Float - The number of milliseconds between each piece's animation
-	//							   (default is determined by text length and args.duration);
-	//		args.wordDelay: Integer - The number of milliseconds between each word
-	//								  (only effective when args.unhide = true)
-	//		args.fixed: Boolean - If true, only style.opacity changes; otherwise, style.display
-	//							  changes between none and inline, adding realism (default = false)
-	//		args.random: Float - If true, pieces have a random delay. The value defines how much
-	//							   randomness is introduced (only effective when args.unhide = true)
-	//		args.unhide: Boolean - If true, the animation is reversed
+	// args:
+	//		- args.interval: Float - The number of milliseconds between each piece's animation
+	//		  (default is determined by text length and args.duration);
+	//		- args.wordDelay: Integer - The number of milliseconds between each word
+	//		  (only effective when args.unhide = true)
+	//		- args.fixed: Boolean - If true, only style.opacity changes; otherwise, style.display
+	//		  changes between none and inline, adding realism (default = false)
+	//		- args.random: Float - If true, pieces have a random delay. The value defines how much
+	//		  randomness is introduced (only effective when args.unhide = true)
+	//		- args.unhide: Boolean - If true, the animation is reversed
 
 	var node = args.node = dom.byId(args.node);
 	var s = node.style;

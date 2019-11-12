@@ -4,8 +4,6 @@
 
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
---source include/have_openssl.inc
---source include/have_ssl.inc
 --source include/not_have_fips.inc
 
 # Save the initial number of concurrent sessions
@@ -36,6 +34,7 @@ EOF
 --echo ##Test: Start the MySQL clients with SSL FIPS mode ON, MySQL clients will abort.
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-fips-mode=ON -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+
 --error 2
 --exec $MYSQL_DUMP --databases test --ssl-fips-mode=ON
 
@@ -43,6 +42,10 @@ EOF
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SET @@global.ssl_fips_mode = 'ON';"
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+
+--echo MD5 digest
+--echo If FIPS ON set fails, FIPS mode will be set to OFF. All the openssl cryptography should work fine.
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "select md5(8);"
 
 --echo ##Test: Start the server with SSL FIPS mode ON, server will throw error and abort.
 let $error_log = $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -55,7 +58,7 @@ let $restart_file = $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/wait_until_disconnected.inc
 --error 1
 --exec $MYSQLD_CMD --loose-console --ssl-fips-mode=ON > $error_log 2>&1
-let SEARCH_PATTERN = FIPS_mode_set:fips mode not supported;
+let SEARCH_PATTERN = (FIPS_mode_set:fips mode not supported|FIPS_module_mode_set:fingerprint does not match);
 --source include/search_pattern.inc
 --remove_file $error_log
 

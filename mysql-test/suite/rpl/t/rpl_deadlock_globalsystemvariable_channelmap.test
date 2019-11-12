@@ -1,0 +1,86 @@
+# ==== Purpose ====
+#
+# Test verifies that there is no deadlock when below threads are executed parallely
+# on a keyring installed slave.
+#
+# 1. Server thread executing start slave.
+# 2. Server thread executing handle_slave_io (child thread of start slave thread).
+# 3. Server thread executing "SET GLOBAL binlog_encryption=ON".
+#
+# ==== Implementation ====
+#
+# 1. start master slave servers with keyring installed.
+# 2. verify that slave has binlog_encryption = ON.
+# 3. on slave connection server_2_1:
+#   a. set debug sync point after_locking_global_sys_var_set_binlog_enc.
+#   b. send 'set binlog_encryption=OFF'.
+# 4. wait for 'set binlog_encryption=OFF' executing thread to reach the debug point.
+# 5. on slave connection server_2_2:
+#   a. set debug sync point after_locking_channel_map_in_start_slave.
+#   b. send 'start slave'.
+# 6. wait for start slave executing thread to reach the debug point, set in 5.(a).
+# 7. signal debug points, one on each threads, set in 3.(a), and 5.(a).
+# 8. reap the commands on connections slave1, and slave2.
+#
+# ==== References ====
+#
+# BUG#29515210  SLAVE SERVER HANGS WHEN WE CHANGE BINLOG_ENCRYPTION + EXECUTE START SLAVE
+#
+
+# 1. start master slave servers with keyring installed.
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--let $rpl_extra_connections_per_server= 2
+--source include/master-slave.inc
+
+# 2. verify that slave has binlog_encryption = ON.
+--source include/rpl_connection_slave.inc
+--let $assert_text=binlog_encryption option shall be ON
+--let $option_value = `SELECT variable_value FROM performance_schema.global_variables WHERE variable_name = "binlog_encryption"`
+--let $assert_cond= "$option_value" = "ON"
+--source include/assert.inc
+
+# 3. on slave connection server_2_1:
+#   a. set debug sync point after_locking_global_sys_var_set_binlog_enc.
+#   b. send 'set binlog_encryption=OFF'.
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='after_locking_global_sys_var_set_binlog_enc SIGNAL sysvar_before_unlock WAIT_FOR cont_set_binlog_enc';
+--send SET GLOBAL binlog_encryption=OFF
+
+# 4. wait for 'set binlog_encryption=OFF' executing thread to reach the debug point, set in 3.(a).
+#    this ensures that thread has locked Lock_global_system_variables.
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC='now WAIT_FOR sysvar_before_unlock';
+
+# 5. on slave connection server_2_2:
+#   a. set debug sync point after_locking_channel_map_in_start_slave.
+#   b. send 'start slave'.
+--let $rpl_connection_name= server_2_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='after_locking_channel_map_in_start_slave SIGNAL after_channelmap_lock WAIT_FOR cont_start_slave';
+--send START SLAVE
+
+# 6. wait for start slave executing thread to reach the debug point, set in 5.(a).
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC='now WAIT_FOR after_channelmap_lock';
+
+# 7. signal debug points, one on each threads, set in 3.(a), and 5.(a).
+SET DEBUG_SYNC='now SIGNAL cont_set_binlog_enc';
+SET DEBUG_SYNC='now SIGNAL cont_start_slave';
+
+# 8. reap the commands on connections server_2_1, and server_2_2.
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+--reap
+--let $rpl_connection_name= server_2_2
+--source include/rpl_connection.inc
+--reap
+
+# restore binlog_encryption.
+--source include/rpl_connection_slave.inc
+SET GLOBAL binlog_encryption=ON;
+
+source include/rpl_end.inc;

@@ -110,6 +110,8 @@ CALL p1();
 c
 DROP PROCEDURE p1;
 CREATE FUNCTION `func`(a INT, b INT) RETURNS int(11) RETURN a+b //
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select func(3,4);
 func(3,4)
 7
@@ -142,30 +144,30 @@ WITH cte (x,y,z)AS (SELECT a,2,2 FROM t1) SELECT 2, cte.* FROM cte;
 WITH cte (x,y,z)AS (SELECT a,1,1 FROM t1) SELECT 1, cte.*, cte2.* FROM cte, cte AS cte2;
 1	x	y	z	x	y	z
 1	1	1	1	1	1	1
-1	2	1	1	1	1	1
 1	1	1	1	2	1	1
+1	2	1	1	1	1	1
 1	2	1	1	2	1	1
 WITH cte (x,y,z)AS (SELECT a,2,2 FROM t1) SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;
 2	x	y	z	x	y	z
 2	1	2	2	1	2	2
-2	2	2	2	1	2	2
 2	1	2	2	2	2	2
+2	2	2	2	1	2	2
 2	2	2	2	2	2	2
 WITH RECURSIVE cte (x,y,z) AS
 (SELECT a,1,1 FROM t1 UNION ALL SELECT a+1,a*1,11 FROM t1 WHERE 0)
 SELECT 1, cte.*, cte2.* FROM cte, cte AS cte2;
 1	x	y	z	x	y	z
 1	1	1	1	1	1	1
-1	2	1	1	1	1	1
 1	1	1	1	2	1	1
+1	2	1	1	1	1	1
 1	2	1	1	2	1	1
 WITH RECURSIVE cte (x,y,z) AS
 (SELECT a,2,2 FROM t1 UNION ALL SELECT a+2,a*2,22 FROM t1 WHERE 0)
 SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;
 2	x	y	z	x	y	z
 2	1	2	2	1	2	2
-2	2	2	2	1	2	2
 2	1	2	2	2	2	2
+2	2	2	2	1	2	2
 2	2	2	2	2	2	2
 ####################################
 # QUERYING PS STATEMENT DIGEST
@@ -196,14 +198,14 @@ statements_digest	bfe83f596734eb72a658cd3847c76f2b6ea78ead58635b904229af9141675c
 statements_digest	166e59a64bcabf837a372db82ad05e170088a34510d5f29424bf203a1f8351cf	CREATE TABLE `dup_table` ( `c` CHARACTER (?) )	2	0	0	1
 statements_digest	84722ddfe551d900effd94247897a0a505de0b6518d68cb3620abb11284e3f86	DROP TABLE `dup_table`	1	0	0	0
 statements_digest	29fcb1f90bb1bf86ffcd07c630176dcb1e63714190a35e86c36f1eab4008dd8b	INSERT IGNORE INTO `t11` VALUES (?)	1	1	1	0
-statements_digest	118d653c380580e38366e6c2f770958c117ff4937f4a30ea3b324cc43674dc3e	SHOW WARNINGS	1	0	0	0
+statements_digest	118d653c380580e38366e6c2f770958c117ff4937f4a30ea3b324cc43674dc3e	SHOW WARNINGS	2	0	0	0
 statements_digest	0fc3831925a98cfd206b3e9af177d971ce92b8bf0de882c27e822ee367d60e82	PREPARE `stmt` FROM ?	1	0	0	0
 statements_digest	295b5d2afaac2df4dc74d5f30c540a81f2964e0884d139fdd36ea403f3da0a27	EXECUTE `stmt`	2	0	0	0
 statements_digest	04bb606f5dcfc5a96683c5f930d785fd49efd0d51ea2ade4eed5dfaf18af9ae9	DEALLOCATE PREPARE `stmt`	1	0	0	0
 statements_digest	bde8727a37457c198c908837eab6a98f36c6a2ab50c7a798ce3478a8d0700696	CREATE PROCEDURE `p1` ( ) BEGIN SELECT * FROM `t12` ; END	1	0	0	0
 statements_digest	c03fdf94b9e31e778006a5042f68e3fb029a331a0013d182b536a9b5e50424ce	CALL `p1` ( )	2	0	0	0
 statements_digest	1ad7991c7ae3f8636a600eaafdae2fbce754a60bb5faa4a0086f5adf9dbd48c1	DROP PROCEDURE `p1`	1	0	0	0
-statements_digest	274dc42d8d4de884e52e3a6a423f0b663e974c8c54f4d7e2cb6eb9e073bbee27	CREATE FUNCTION `func` ( `a` INTEGER , `b` INTEGER ) RETURNS INTEGER (?) RETURN `a` + `b`	1	0	0	0
+statements_digest	274dc42d8d4de884e52e3a6a423f0b663e974c8c54f4d7e2cb6eb9e073bbee27	CREATE FUNCTION `func` ( `a` INTEGER , `b` INTEGER ) RETURNS INTEGER (?) RETURN `a` + `b`	1	0	1	0
 statements_digest	f4514aabd6e6206595008f5bfe10dcbd61b9e7e8c103935ef0a50aa484b01e9b	SELECT `func` (...)	2	0	0	0
 statements_digest	02960b80d42b54bb47554ffba92a3148d1b99bee51d150fb15f25115c123b543	DROP FUNCTION `func`	1	0	0	0
 statements_digest	49df6079a4cc940671f9329b2ceadd245696c1d2a48e7f264bcd6967885dc71f	CREATE TRIGGER `trg` BEFORE INSERT ON `t12` FOR EACH ROW SET @? := ?	1	0	0	0

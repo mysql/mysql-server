@@ -30,8 +30,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
-#include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/interface/waiting_for_io.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace xpl {
@@ -56,8 +56,9 @@ class Notice_output_queue : public ngs::Notice_output_queue_interface {
 
   void emplace(const ngs::Notice_type type,
                const Buffer_shared &binary_notice) override;
-  Waiting_for_io_interface &get_callbacks_waiting_for_io() override;
+  xpl::iface::Waiting_for_io *get_callbacks_waiting_for_io() override;
   void encode_queued_items(const bool last_notice_does_force_fulsh) override;
+  void set_encoder(ngs::Protocol_encoder_interface *encoder) override;
 
  private:
   class Idle_reporting;
@@ -65,7 +66,7 @@ class Notice_output_queue : public ngs::Notice_output_queue_interface {
   ngs::Protocol_encoder_interface *m_encoder;
   ngs::Notice_configuration_interface *m_notice_configuration;
   std::queue<Buffer_shared> m_queue;
-  std::unique_ptr<Waiting_for_io_interface> m_decoder_io_callbacks;
+  std::unique_ptr<xpl::iface::Waiting_for_io> m_decoder_io_callbacks;
   Mutex m_queue_mutex{KEY_mutex_x_notice_output_queue};
 };
 

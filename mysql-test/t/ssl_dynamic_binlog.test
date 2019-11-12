@@ -1,4 +1,3 @@
--- source include/have_ssl.inc
 
 --echo ################## FR1.6 ALTER INSTANCE RELOAD TLS not binlogged
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -680,14 +680,13 @@ void pfs_rw_lock_free_func(rw_lock_t *lock) /*!< in: pointer to rw-lock */
  NOTE! Please use the corresponding macro rw_lock_s_lock(), not
  directly this function! */
 ALWAYS_INLINE
-void pfs_rw_lock_s_lock_func(
-    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
-    ulint pass,            /*!< in: pass value; != 0, if the
-                           lock will be passed to another
-                           thread to unlock */
-    const char *file_name, /*!< in: file name where lock
-                         requested */
-    ulint line)            /*!< in: line where requested */
+void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
+                             ulint pass,      /*!< in: pass value; != 0, if the
+                                              lock will be passed to another
+                                              thread to unlock */
+                             const char *file_name, /*!< in: file name where
+                                                  lock requested */
+                             ulint line) /*!< in: line where requested */
 {
   if (lock->pfs_psi != NULL) {
     PSI_rwlock_locker *locker;
@@ -711,14 +710,13 @@ void pfs_rw_lock_s_lock_func(
  NOTE! Please use the corresponding macro rw_lock_sx_lock(), not
  directly this function! */
 UNIV_INLINE
-void pfs_rw_lock_sx_lock_func(
-    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
-    ulint pass,            /*!< in: pass value; != 0, if the
-                           lock will be passed to another
-                           thread to unlock */
-    const char *file_name, /*!< in: file name where lock
-                         requested */
-    ulint line)            /*!< in: line where requested */
+void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
+                              ulint pass,      /*!< in: pass value; != 0, if the
+                                               lock will be passed to another
+                                               thread to unlock */
+                              const char *file_name, /*!< in: file name where
+                                                   lock requested */
+                              ulint line) /*!< in: line where requested */
 {
   if (lock->pfs_psi != NULL) {
     PSI_rwlock_locker *locker;
@@ -823,7 +821,7 @@ void pfs_rw_lock_x_unlock_func(
 {
   /* Inform performance schema we are unlocking the lock */
   if (lock->pfs_psi != NULL) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
+    PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
   }
 
   rw_lock_x_unlock_func(
@@ -847,7 +845,8 @@ void pfs_rw_lock_sx_unlock_func(
 {
   /* Inform performance schema we are unlocking the lock */
   if (lock->pfs_psi != NULL) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
+    PSI_RWLOCK_CALL(unlock_rwlock)
+    (lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK);
   }
 
   rw_lock_sx_unlock_func(
@@ -871,7 +870,7 @@ void pfs_rw_lock_s_unlock_func(
 {
   /* Inform performance schema we are unlocking the lock */
   if (lock->pfs_psi != NULL) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
+    PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
   }
 
   rw_lock_s_unlock_func(

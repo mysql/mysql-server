@@ -1,16 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	displayOptions: "[көрсету параметрлері]",
-	title: "Тақырып",
-	authors: "Авторлар",
-	contributors: "Таратушылар",
-	id: "ID коды",
-	close: "[жабу]",
-	updated: "Жаңартылған",
-	summary: "Жиынтық",
-	content: "Мазмұн"
-})
-//end v1.x content
-);
+define("dojox/atom/widget/nls/kk/FeedEntryViewer",({displayOptions:"[көрсету параметрлері]",title:"Тақырып",authors:"Авторлар",contributors:"Салымшылар",id:"Жалпылауыш",close:"[жабу]",updated:"Жаңартылған",summary:"Жиынтық",content:"Мазмұн"}));

@@ -1,17 +1,17 @@
 //>>built
-define("dojox/mdnd/Moveable",["dojo/_base/kernel","dojo/_base/array","dojo/_base/connect","dojo/_base/declare","dojo/_base/event","dojo/_base/html","dojo/_base/sniff","dojo/_base/window"],function(_1){
-return _1.declare("dojox.mdnd.Moveable",null,{handle:null,skip:true,dragDistance:3,constructor:function(_2,_3){
-this.node=_1.byId(_3);
+define("dojox/mdnd/Moveable",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/array","dojo/_base/connect","dojo/_base/event","dojo/_base/sniff","dojo/dom","dojo/dom-geometry","dojo/dom-style","dojo/_base/window"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+return _2("dojox.mdnd.Moveable",null,{handle:null,skip:true,dragDistance:3,constructor:function(_a,_b){
+this.node=_7.byId(_b);
 this.d=this.node.ownerDocument;
-if(!_2){
-_2={};
+if(!_a){
+_a={};
 }
-this.handle=_2.handle?_1.byId(_2.handle):null;
+this.handle=_a.handle?_7.byId(_a.handle):null;
 if(!this.handle){
 this.handle=this.node;
 }
-this.skip=_2.skip;
-this.events=[_1.connect(this.handle,"onmousedown",this,"onMouseDown")];
+this.skip=_a.skip;
+this.events=[_4.connect(this.handle,"onmousedown",this,"onMouseDown")];
 if(dojox.mdnd.autoScroll){
 this.autoScroll=dojox.mdnd.autoScroll;
 }
@@ -25,8 +25,8 @@ return " a button textarea input select option ".indexOf(" "+t.tagName.toLowerCa
 if(this._isDragging){
 return;
 }
-var _4=(e.which||e.button)==1;
-if(!_4){
+var _c=(e.which||e.button)==1;
+if(!_c){
 return;
 }
 if(this.skip&&this.isFormElement(e)){
@@ -36,50 +36,50 @@ if(this.autoScroll){
 this.autoScroll.setAutoScrollNode(this.node);
 this.autoScroll.setAutoScrollMaxPage();
 }
-this.events.push(_1.connect(this.d,"onmouseup",this,"onMouseUp"));
-this.events.push(_1.connect(this.d,"onmousemove",this,"onFirstMove"));
-this._selectStart=_1.connect(_1.body(),"onselectstart",_1.stopEvent);
+this.events.push(_4.connect(this.d,"onmouseup",this,"onMouseUp"));
+this.events.push(_4.connect(this.d,"onmousemove",this,"onFirstMove"));
+this._selectStart=_4.connect(_1.body(),"onselectstart",_5.stop);
 this._firstX=e.clientX;
 this._firstY=e.clientY;
-_1.stopEvent(e);
+_5.stop(e);
 },onFirstMove:function(e){
-_1.stopEvent(e);
+_5.stop(e);
 var d=(this._firstX-e.clientX)*(this._firstX-e.clientX)+(this._firstY-e.clientY)*(this._firstY-e.clientY);
 if(d>this.dragDistance*this.dragDistance){
 this._isDragging=true;
-_1.disconnect(this.events.pop());
-_1.style(this.node,"width",_1.contentBox(this.node).w+"px");
+_4.disconnect(this.events.pop());
+_9.set(this.node,"width",_8.getContentBox(this.node).w+"px");
 this.initOffsetDrag(e);
-this.events.push(_1.connect(this.d,"onmousemove",this,"onMove"));
+this.events.push(_4.connect(this.d,"onmousemove",this,"onMove"));
 }
 },initOffsetDrag:function(e){
 this.offsetDrag={"l":e.pageX,"t":e.pageY};
 var s=this.node.style;
-var _5=_1.position(this.node,true);
-this.offsetDrag.l=_5.x-this.offsetDrag.l;
-this.offsetDrag.t=_5.y-this.offsetDrag.t;
-var _6={"x":_5.x,"y":_5.y};
-this.size={"w":_5.w,"h":_5.h};
-this.onDragStart(this.node,_6,this.size);
+var _d=_8.position(this.node,true);
+this.offsetDrag.l=_d.x-this.offsetDrag.l;
+this.offsetDrag.t=_d.y-this.offsetDrag.t;
+var _e={"x":_d.x,"y":_d.y};
+this.size={"w":_d.w,"h":_d.h};
+this.onDragStart(this.node,_e,this.size);
 },onMove:function(e){
-_1.stopEvent(e);
-if(_1.isIE==8&&new Date()-this.date<20){
+_5.stop(e);
+if(_6("ie")==8&&new Date()-this.date<20){
 return;
 }
 if(this.autoScroll){
 this.autoScroll.checkAutoScroll(e);
 }
-var _7={"x":this.offsetDrag.l+e.pageX,"y":this.offsetDrag.t+e.pageY};
+var _f={"x":this.offsetDrag.l+e.pageX,"y":this.offsetDrag.t+e.pageY};
 var s=this.node.style;
-s.left=_7.x+"px";
-s.top=_7.y+"px";
-this.onDrag(this.node,_7,this.size,{"x":e.pageX,"y":e.pageY});
-if(_1.isIE==8){
+s.left=_f.x+"px";
+s.top=_f.y+"px";
+this.onDrag(this.node,_f,this.size,{"x":e.pageX,"y":e.pageY});
+if(_6("ie")==8){
 this.date=new Date();
 }
 },onMouseUp:function(e){
 if(this._isDragging){
-_1.stopEvent(e);
+_5.stop(e);
 this._isDragging=false;
 if(this.autoScroll){
 this.autoScroll.stopAutoScroll();
@@ -88,13 +88,13 @@ delete this.onMove;
 this.onDragEnd(this.node);
 this.node.focus();
 }
-_1.disconnect(this.events.pop());
-_1.disconnect(this.events.pop());
-},onDragStart:function(_8,_9,_a){
-},onDragEnd:function(_b){
-},onDrag:function(_c,_d,_e,_f){
+_4.disconnect(this.events.pop());
+_4.disconnect(this.events.pop());
+},onDragStart:function(_10,_11,_12){
+},onDragEnd:function(_13){
+},onDrag:function(_14,_15,_16,_17){
 },destroy:function(){
-_1.forEach(this.events,_1.disconnect);
+_3.forEach(this.events,_4.disconnect);
 this.events=this.node=null;
 }});
 });

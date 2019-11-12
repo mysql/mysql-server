@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,11 @@
 #include "storage/heap/heapdef.h"
 
 int hp_rectest(HP_INFO *info, const uchar *old) {
-  DBUG_ENTER("hp_rectest");
+  DBUG_TRACE;
 
   if (memcmp(info->current_ptr, old, (size_t)info->s->reclength)) {
     set_my_errno(HA_ERR_RECORD_CHANGED);
-    DBUG_RETURN(HA_ERR_RECORD_CHANGED); /* Record have changed */
+    return HA_ERR_RECORD_CHANGED; /* Record have changed */
   }
-  DBUG_RETURN(0);
+  return 0;
 } /* _heap_rectest */

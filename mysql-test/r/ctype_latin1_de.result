@@ -205,22 +205,6 @@ strcmp('u','öa')	strcmp('u','ö')
 select strcmp('sä', 'ßa'), strcmp('aä', 'äx');
 strcmp('sä', 'ßa')	strcmp('aä', 'äx')
 -1	-1
-create table t1 (a varchar(10), key(a), fulltext (a)) engine=myisam;
-insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
-select * from t1 where a like "abc%";
-a
-abc
-abcd
-select * from t1 where a like "test%";
-a
-test
-select * from t1 where a like "te_t";
-a
-test
-select * from t1 where match a against ("te*" in boolean mode)+0;
-a
-test
-drop table t1;
 create table t1 (word varchar(255) not null, word2 varchar(255) not null default '', index(word));
 show create table t1;
 Table	Create Table
@@ -420,18 +404,6 @@ ae	6165
 ä	E4
 drop table t1;
 "END ctype_german.inc"
-SET NAMES latin1;
-CREATE TABLE t1 (
-col1 varchar(255) NOT NULL default ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 collate latin1_german2_ci;
-INSERT INTO t1 VALUES ('ß'),('ss'),('ss');
-ALTER TABLE t1 ADD KEY ifword(col1);
-SELECT * FROM t1 WHERE col1='ß' ORDER BY col1, BINARY col1;
-col1
-ss
-ss
-ß
-DROP TABLE t1;
 create table t1 (s1 char(5) character set latin1 collate latin1_german2_ci);
 insert into t1 values (0xf6) /* this is o-umlaut */;
 select * from t1 where length(s1)=1 and s1='oe';

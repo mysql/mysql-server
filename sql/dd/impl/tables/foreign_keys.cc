@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,11 +139,11 @@ Object_key *Foreign_keys::create_key_by_referenced_name(
 bool Foreign_keys::check_foreign_key_exists(THD *thd, Object_id schema_id,
                                             const String_type &foreign_key_name,
                                             bool *exists) {
-  DBUG_ENTER("Foreign_keys::check_foreign_key_exists");
+  DBUG_TRACE;
 
   Transaction_ro trx(thd, ISO_READ_COMMITTED);
   trx.otx.register_tables<dd::Foreign_key>();
-  if (trx.otx.open_tables()) DBUG_RETURN(true);
+  if (trx.otx.open_tables()) return true;
 
   const std::unique_ptr<Object_key> key(
       create_key_by_foreign_key_name(schema_id, foreign_key_name.c_str()));
@@ -153,14 +153,14 @@ bool Foreign_keys::check_foreign_key_exists(THD *thd, Object_id schema_id,
 
   // Find record by the object-key.
   std::unique_ptr<Raw_record> record;
-  if (table->find_record(*key, record)) DBUG_RETURN(true);
+  if (table->find_record(*key, record)) return true;
 
   if (record.get())
     *exists = true;
   else
     *exists = false;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

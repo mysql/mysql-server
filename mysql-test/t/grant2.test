@@ -1,3 +1,7 @@
+#Test needs MyISAM for MERGE table tests
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 # Store the time of password_last_changed column from mysql.user table
 # to restore it back later for the different users.
 --disable_query_log
@@ -6,8 +10,6 @@ create temporary table user_copy as select * from mysql.user;
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-#Test needs MyISAM for MERGE table tests
---source include/have_myisam.inc
 
 SET NAMES binary;
 

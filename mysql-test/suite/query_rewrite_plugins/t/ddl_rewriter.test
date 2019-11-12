@@ -244,5 +244,7 @@ DROP PREPARE stmt;
 --echo #
 
 UNINSTALL PLUGIN ddl_rewriter;
+--source include/disconnect_connections.inc
+
 CREATE TABLE t(i int) /* data directory = 'x' */ ;
 DROP TABLE t;

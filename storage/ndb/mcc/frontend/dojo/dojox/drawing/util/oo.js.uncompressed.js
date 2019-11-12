@@ -1,12 +1,8 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/util/oo", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.util.oo");
-
+define("dojox/drawing/util/oo", [], function(){
 // TODO:
 // allow a declare without a mixin
 
-dojox.drawing.util.oo = {
+return {
 	// summary:
 	//		Inheritance utilities used in DojoX Drawing
 	// description:
@@ -14,33 +10,33 @@ dojox.drawing.util.oo = {
 	//		There were designed in a effort to make Drawing as
 	//		fast as possible - especially in a case where thousands
 	//		of objects are being loaded. Drawing declare performs
-	//		about 3 times faster than Dojo declare and 2 times
+	//		about 3 times faster than declare and 2 times
 	//		faster than Dojox declare. This is not to say Drawing
-	//		declare is wthout limitations. It doesn't have the same
-	//		syntatic sugar and extensibility of the other two. You
-	//		can't inhert methods. It won't work with Dijit. But it
+	//		declare is without limitations. It doesn't have the same
+	//		syntactic sugar and extensibility of the other two. You
+	//		can't inherit methods. It won't work with Dijit. But it
 	//		is simple and effective.
-	//
+
 	declare: function(){
 		// summary:
 		//		Creates a constructor Function from a
 		//		Function, and collection of methods, and
 		//		more Functions that are extended.
 		// description:
-		//		Similar in look and feel to Dojo declare as
+		//		Similar in look and feel to declare as
 		//		far as order and number of arguments, although
 		//		constructed a little closer to prototypical
 		//		inheritance. All arguments passed into the
 		//		constructor are passed into all sub constructors.
-		// arguments:
-		//		Function, [Object|Function....]
-		//			The first argument is always the base
-		//			constructor. The last argument is always
-		//			an object of methods (or empty object) to
-		//			be mixed in (in the future would like to
-		//			make that object optional). Remaining
-		//			arguments are other constructors mixed in
-		//			using extend() (See below).
+		//
+		//		Arguments are: Function, [Object|Function....]
+		//		The first argument is always the base
+		//		constructor. The last argument is always
+		//		an object of methods (or empty object) to
+		//		be mixed in (in the future would like to
+		//		make that object optional). Remaining
+		//		arguments are other constructors mixed in
+		//		using extend() (See below).
 		// example:
 		//		|	MyFunction = dojox.drawing.util.oo.declare(
 		//		|		MyOtherFunction,
@@ -58,7 +54,7 @@ dojox.drawing.util.oo = {
 		//		|	);
 		//		|
 		//		|	var f = new MyFunction();
-		//
+
 		var f, o, ext=0, a = arguments;
 				
 		if(a.length<2){ console.error("drawing.util.oo.declare; not enough arguments")}
@@ -88,19 +84,18 @@ dojox.drawing.util.oo = {
 		//		part of declare(). Could be used by itself
 		//		however, to mix together two or more
 		//		constructors.
-		// arguments:
-		//		Function, [ Function...]
-		//			Any number of arguments, all must be
-		//			function constructors. The first is
-		//			considered the base object and its
-		//			constructor will fire first.
+		//
+		//		Any number of arguments, all must be
+		//		function constructors. The first is
+		//		considered the base object and its
+		//		constructor will fire first.
 		// example:
 		//		|	var A = function(){};
 		//		|	var B = function(){};
 		//		|	var C = function(){};
-		// 		|	var D = dojox.drawing.util.oo.extend(A, B, C);
+		//		|	var D = dojox.drawing.util.oo.extend(A, B, C);
 		//		|	var e = new D();
-		//
+
 		var a = arguments, sub = a[0];
 		if(a.length<2){ console.error("drawing.util.oo.extend; not enough arguments")}
 		var f = function (){
@@ -110,7 +105,7 @@ dojox.drawing.util.oo = {
 			// sub should fire last
 			sub.prototype.constructor.apply(this, arguments);
 			
-		}
+		};
 		for(var i=1;i<a.length;i++){
 			for(var n in a[i].prototype){
 				f.prototype[n] = a[i].prototype[n];

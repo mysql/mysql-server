@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"pageBreak": "Sivunvaihto"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/fi/PageBreak",({"pageBreak":"Sivunvaihto"}));

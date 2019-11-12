@@ -174,7 +174,7 @@ static void register_callback(ENGINE_HANDLE *eh,
 enum try_read_result {
     READ_DATA_RECEIVED,
     READ_NO_DATA_RECEIVED,
-    READ_ERROR,            /** an error occured (on the socket) (or client closed connection) */
+    READ_ERROR,            /** an error occurred (on the socket) (or client closed connection) */
     READ_MEMORY_ERROR      /** failed to allocate more memory */
 };
 
@@ -7859,7 +7859,12 @@ int main (int argc, char **argv) {
     ENGINE_HANDLE *engine_handle = NULL;
     if (!load_engine(engine,get_server_api,settings.extensions.logger,&engine_handle)) {
         /* Error already reported */
+#ifdef INNODB_MEMCACHED
+        shutdown_server();
+        goto func_exit;
+#else
         exit(EXIT_FAILURE);
+#endif
     }
 
 #ifdef INNODB_MEMCACHED

@@ -17,6 +17,8 @@
 #
 # BUG#27442477: ASSERT `THD->GET_HA_DATA...HAS_STATE(XID_STATE::XA_ACTIVE))' AT HANDLER.CC:1396
 
+# The test cannot run in Valgrind since it generates an assert on the slave
+--source include/not_valgrind.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 

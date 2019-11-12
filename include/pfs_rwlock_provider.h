@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,38 +35,40 @@
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
+#ifndef WITH_LOCK_ORDER
 
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "mysql/psi/psi_rwlock.h"
 
-#define PSI_RWLOCK_CALL(M) pfs_##M##_v1
+#define PSI_RWLOCK_CALL(M) pfs_##M##_v2
 
-void pfs_register_rwlock_v1(const char *category, PSI_rwlock_info_v1 *info,
+void pfs_register_rwlock_v2(const char *category, PSI_rwlock_info_v1 *info,
                             int count);
 
-PSI_rwlock *pfs_init_rwlock_v1(PSI_rwlock_key key, const void *identity);
+PSI_rwlock *pfs_init_rwlock_v2(PSI_rwlock_key key, const void *identity);
 
-void pfs_destroy_rwlock_v1(PSI_rwlock *rwlock);
+void pfs_destroy_rwlock_v2(PSI_rwlock *rwlock);
 
-PSI_rwlock_locker *pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
+PSI_rwlock_locker *pfs_start_rwlock_rdwait_v2(PSI_rwlock_locker_state *state,
                                               PSI_rwlock *rwlock,
                                               PSI_rwlock_operation op,
                                               const char *src_file,
                                               uint src_line);
 
-PSI_rwlock_locker *pfs_start_rwlock_wrwait_v1(PSI_rwlock_locker_state *state,
+PSI_rwlock_locker *pfs_start_rwlock_wrwait_v2(PSI_rwlock_locker_state *state,
                                               PSI_rwlock *rwlock,
                                               PSI_rwlock_operation op,
                                               const char *src_file,
                                               uint src_line);
 
-void pfs_unlock_rwlock_v1(PSI_rwlock *rwlock);
+void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock, PSI_rwlock_operation op);
 
-void pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker *locker, int rc);
+void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc);
 
-void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker *locker, int rc);
+void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc);
 
+#endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */

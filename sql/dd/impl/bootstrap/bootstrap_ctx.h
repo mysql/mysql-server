@@ -25,6 +25,7 @@
 
 #include <set>
 
+#include "my_dbug.h"            // DBUG_ASSERT
 #include "my_inttypes.h"        // uint
 #include "mysql_version.h"      // MYSQL_VERSION_ID
 #include "sql/dd/dd_version.h"  // DD_VERSION
@@ -57,6 +58,7 @@ static constexpr uint DD_VERSION_80013 = 80013;
 static constexpr uint DD_VERSION_80014 = 80014;
 static constexpr uint DD_VERSION_80015 = 80015;
 static constexpr uint DD_VERSION_80016 = 80016;
+static constexpr uint DD_VERSION_80017 = 80017;
 
 /*
   Set of supported DD version labels. A supported DD version is a version
@@ -67,13 +69,16 @@ static constexpr uint DD_VERSION_80016 = 80016;
   stored in the 'dd_properties' table by the server from which we downgrade.
 */
 static std::set<uint> supported_dd_versions = {
-    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013,
-    DD_VERSION_80014, DD_VERSION_80015, DD_VERSION_80016};
+    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013, DD_VERSION_80014,
+    DD_VERSION_80015, DD_VERSION_80016, DD_VERSION_80017};
 
 // Individual server version labels that we can refer to.
 static constexpr uint SERVER_VERSION_50700 = 50700;
 static constexpr uint SERVER_VERSION_80011 = 80011;
 static constexpr uint SERVER_VERSION_80013 = 80013;
+static constexpr uint SERVER_VERSION_80014 = 80014;
+static constexpr uint SERVER_VERSION_80015 = 80015;
+static constexpr uint SERVER_VERSION_80016 = 80016;
 
 /*
   Set of unsupported server version labels. An unsupported server version is a
@@ -83,6 +88,7 @@ static std::set<uint> unsupported_server_versions = {};
 
 class DD_bootstrap_ctx {
  private:
+  uint m_did_dd_upgrade_from = 0;
   uint m_actual_dd_version = 0;
   uint m_upgraded_server_version = 0;
   Stage m_stage = Stage::NOT_STARTED;
@@ -106,6 +112,14 @@ class DD_bootstrap_ctx {
   }
 
   uint get_actual_dd_version() const { return m_actual_dd_version; }
+
+  void set_dd_upgrade_done() {
+    DBUG_ASSERT(m_did_dd_upgrade_from == 0);
+    DBUG_ASSERT(is_dd_upgrade());
+    m_did_dd_upgrade_from = m_actual_dd_version;
+  }
+
+  bool dd_upgrade_done() const { return m_did_dd_upgrade_from != 0; }
 
   bool actual_dd_version_is(uint compare_actual_dd_version) const {
     return (m_actual_dd_version == compare_actual_dd_version);

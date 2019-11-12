@@ -191,7 +191,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5010
+  code: 5019
   msg: "Duplicated capability: \'client.interactive\'"
   sql_state: "HY000"
 }
@@ -1481,7 +1481,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Got expected error:
 Mysqlx.Error {
   severity: ERROR
-  code: 5010
+  code: 5019
   msg: "Duplicated capability: \'client.interactive\'"
   sql_state: "HY000"
 }

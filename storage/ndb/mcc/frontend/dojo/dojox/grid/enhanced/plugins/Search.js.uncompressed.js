@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/Search", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",

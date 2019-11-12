@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -87,8 +87,15 @@ static double geometry_collection_apply_min(const Functor<double> *f,
 }
 
 Distance::Distance(double major, double minor) {
-  m_geographic_strategy.reset(new bgsd::andoyer<bgs::spheroid<double>>(
-      bgs::spheroid<double>(major, minor)));
+  m_geographic_strategy_pp =
+      std::make_unique<boost::geometry::strategy::distance::andoyer<
+          boost::geometry::srs::spheroid<double>>>(
+          bgs::spheroid<double>(major, minor));
+  m_geographic_strategy_non_pp = std::make_unique<
+      boost::geometry::strategy::distance::geographic_cross_track<
+          boost::geometry::strategy::andoyer,
+          boost::geometry::srs::spheroid<double>, double>>(
+      bgs::spheroid<double>(major, minor));
 }
 
 double Distance::operator()(const Geometry *g1, const Geometry *g2) const {
@@ -357,12 +364,118 @@ double Distance::eval(const Cartesian_multipolygon *g1,
 
 double Distance::eval(const Geographic_point *g1,
                       const Geographic_point *g2) const {
-  return bg::distance(*g1, *g2, *m_geographic_strategy);
+  return bg::distance(*g1, *g2, *m_geographic_strategy_pp);
+}
+
+double Distance::eval(const Geographic_point *g1,
+                      const Geographic_linestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_point *g1,
+                      const Geographic_polygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
 }
 
 double Distance::eval(const Geographic_point *g1,
                       const Geographic_multipoint *g2) const {
-  return bg::distance(*g1, *g2, *m_geographic_strategy);
+  return bg::distance(*g1, *g2, *m_geographic_strategy_pp);
+}
+
+double Distance::eval(const Geographic_point *g1,
+                      const Geographic_multilinestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_point *g1,
+                      const Geographic_multipolygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_point *g1,
+                      const Geographic_geometrycollection *g2) const {
+  return geometry_collection_apply_min<Geographic_geometrycollection>(this, g1,
+                                                                      g2);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+// distance(Geographic_linestring, *)
+
+double Distance::eval(const Geographic_linestring *g1,
+                      const Geographic_point *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_linestring *g1,
+                      const Geographic_linestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_linestring *g1,
+                      const Geographic_polygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_linestring *g1,
+                      const Geographic_multipoint *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_linestring *g1,
+                      const Geographic_multilinestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_linestring *g1,
+                      const Geographic_multipolygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_linestring *g1,
+                      const Geographic_geometrycollection *g2) const {
+  return geometry_collection_apply_min<Geographic_geometrycollection>(this, g1,
+                                                                      g2);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+// distance(Geographic_polygon, *)
+
+double Distance::eval(const Geographic_polygon *g1,
+                      const Geographic_point *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_polygon *g1,
+                      const Geographic_linestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_polygon *g1,
+                      const Geographic_polygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_polygon *g1,
+                      const Geographic_multipoint *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_polygon *g1,
+                      const Geographic_multilinestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_polygon *g1,
+                      const Geographic_multipolygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_polygon *g1,
+                      const Geographic_geometrycollection *g2) const {
+  return geometry_collection_apply_min<Geographic_geometrycollection>(this, g1,
+                                                                      g2);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -371,9 +484,128 @@ double Distance::eval(const Geographic_point *g1,
 
 double Distance::eval(const Geographic_multipoint *g1,
                       const Geographic_point *g2) const {
-  return bg::distance(*g1, *g2, *m_geographic_strategy);
+  return bg::distance(*g1, *g2, *m_geographic_strategy_pp);
+}
+
+double Distance::eval(const Geographic_multipoint *g1,
+                      const Geographic_linestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipoint *g1,
+                      const Geographic_polygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipoint *g1,
+                      const Geographic_multipoint *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_pp);
+}
+
+double Distance::eval(const Geographic_multipoint *g1,
+                      const Geographic_multilinestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipoint *g1,
+                      const Geographic_multipolygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipoint *g1,
+                      const Geographic_geometrycollection *g2) const {
+  return geometry_collection_apply_min<Geographic_geometrycollection>(this, g1,
+                                                                      g2);
 }
 
 //////////////////////////////////////////////////////////////////////////////
+
+// distance(Geographic_multilinestring, *)
+
+double Distance::eval(const Geographic_multilinestring *g1,
+                      const Geographic_point *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multilinestring *g1,
+                      const Geographic_linestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multilinestring *g1,
+                      const Geographic_polygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multilinestring *g1,
+                      const Geographic_multipoint *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multilinestring *g1,
+                      const Geographic_multilinestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multilinestring *g1,
+                      const Geographic_multipolygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multilinestring *g1,
+                      const Geographic_geometrycollection *g2) const {
+  return geometry_collection_apply_min<Geographic_geometrycollection>(this, g1,
+                                                                      g2);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+// distance(Geographic_multipolygon, *)
+
+double Distance::eval(const Geographic_multipolygon *g1,
+                      const Geographic_point *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipolygon *g1,
+                      const Geographic_linestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipolygon *g1,
+                      const Geographic_polygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipolygon *g1,
+                      const Geographic_multipoint *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipolygon *g1,
+                      const Geographic_multilinestring *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipolygon *g1,
+                      const Geographic_multipolygon *g2) const {
+  return bg::distance(*g1, *g2, *m_geographic_strategy_non_pp);
+}
+
+double Distance::eval(const Geographic_multipolygon *g1,
+                      const Geographic_geometrycollection *g2) const {
+  return geometry_collection_apply_min<Geographic_geometrycollection>(this, g1,
+                                                                      g2);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+// distance(Geographic_geometrycollection, *)
+
+double Distance::eval(const Geographic_geometrycollection *g1,
+                      const Geometry *g2) const {
+  return geometry_collection_apply_min<Geographic_geometrycollection>(this, g1,
+                                                                      g2);
+}
 
 }  // namespace gis

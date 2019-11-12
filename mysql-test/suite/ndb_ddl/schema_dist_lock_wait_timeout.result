@@ -1,0 +1,21 @@
+# Current value of ndb-schema-dist-lock-wait-timeout
+select @@ndb_schema_dist_lock_wait_timeout;
+@@ndb_schema_dist_lock_wait_timeout
+30
+set @@global.ndb_schema_dist_lock_wait_timeout = 1;
+select @@ndb_schema_dist_lock_wait_timeout;
+@@ndb_schema_dist_lock_wait_timeout
+1
+set @@session.ndb_schema_dist_lock_wait_timeout = 1;
+ERROR HY000: Variable 'ndb_schema_dist_lock_wait_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+set @@ndb_schema_dist_lock_wait_timeout = 1;
+ERROR HY000: Variable 'ndb_schema_dist_lock_wait_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+set @@global.ndb_schema_dist_lock_wait_timeout = 0;
+select @@ndb_schema_dist_lock_wait_timeout;
+@@ndb_schema_dist_lock_wait_timeout
+0
+set @@global.ndb_schema_dist_lock_wait_timeout = 1200;
+select @@ndb_schema_dist_lock_wait_timeout;
+@@ndb_schema_dist_lock_wait_timeout
+1200
+set @@global.ndb_schema_dist_lock_wait_timeout = 30;

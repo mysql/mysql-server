@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -183,14 +183,6 @@ RoutingStrategy get_routing_strategy(const std::string &value);
  */
 std::string get_routing_strategy_name(
     RoutingStrategy routing_strategy) noexcept;
-
-/**
- * Sets blocking flag for given socket
- *
- * @param sock a socket file descriptor
- * @param blocking whether to set blocking off (false) or on (true)
- */
-void set_socket_blocking(int sock, bool blocking);
 
 /** @class RoutingSockOpsInterface
  * @brief Interface class to allow multiple RoutingSockOps implementations

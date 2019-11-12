@@ -1,0 +1,46 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start the servers, server 2 is configured with
+#    group_replication_exit_state_action = OFFLINE_MODE
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Error while executing a group configuration operation: This operation ended in error as it was not possible to wait for the execution of the plugin queued transactions");
+set session sql_log_bin=1;
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+# 2. Stop the applier sql thread in server2
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# 3. Change to multi primary mode
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+# 4. Server2 must leave the group.
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 5. Server2 must change to ERROR state and enable offline_mode
+[connection server2]
+include/gr_wait_for_member_state.inc
+include/assert_and_disable_read_only.inc
+include/assert_and_disable_offline_mode.inc
+
+# 6. Cleanup
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
+include/group_replication_end.inc

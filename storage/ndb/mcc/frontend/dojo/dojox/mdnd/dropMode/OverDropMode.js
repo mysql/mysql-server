@@ -1,142 +1,142 @@
 //>>built
-define("dojox/mdnd/dropMode/OverDropMode",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/connect","dojo/_base/html","dojo/_base/array","dojox/mdnd/AreaManager"],function(_1){
-var _2=_1.declare("dojox.mdnd.dropMode.OverDropMode",null,{_oldXPoint:null,_oldYPoint:null,_oldBehaviour:"up",constructor:function(){
-this._dragHandler=[_1.connect(dojox.mdnd.areaManager(),"onDragEnter",function(_3,_4){
+define("dojox/mdnd/dropMode/OverDropMode",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/connect","dojo/_base/array","dojo/dom-geometry","dojox/mdnd/AreaManager"],function(_1,_2,_3,_4,_5){
+var _6=_2("dojox.mdnd.dropMode.OverDropMode",null,{_oldXPoint:null,_oldYPoint:null,_oldBehaviour:"up",constructor:function(){
+this._dragHandler=[_3.connect(dojox.mdnd.areaManager(),"onDragEnter",function(_7,_8){
 var m=dojox.mdnd.areaManager();
 if(m._oldIndexArea==-1){
 m._oldIndexArea=m._lastValidIndexArea;
 }
 })];
-},addArea:function(_5,_6){
-var _7=_5.length,_8=_1.position(_6.node,true);
-_6.coords={"x":_8.x,"y":_8.y};
-if(_7==0){
-_5.push(_6);
+},addArea:function(_9,_a){
+var _b=_9.length,_c=_5.position(_a.node,true);
+_a.coords={"x":_c.x,"y":_c.y};
+if(_b==0){
+_9.push(_a);
 }else{
-var x=_6.coords.x;
-for(var i=0;i<_7;i++){
-if(x<_5[i].coords.x){
-for(var j=_7-1;j>=i;j--){
-_5[j+1]=_5[j];
+var x=_a.coords.x;
+for(var i=0;i<_b;i++){
+if(x<_9[i].coords.x){
+for(var j=_b-1;j>=i;j--){
+_9[j+1]=_9[j];
 }
-_5[i]=_6;
+_9[i]=_a;
 break;
 }
 }
-if(i==_7){
-_5.push(_6);
+if(i==_b){
+_9.push(_a);
 }
 }
-return _5;
-},updateAreas:function(_9){
-var _a=_9.length;
-for(var i=0;i<_a;i++){
-this._updateArea(_9[i]);
+return _9;
+},updateAreas:function(_d){
+var _e=_d.length;
+for(var i=0;i<_e;i++){
+this._updateArea(_d[i]);
 }
-},_updateArea:function(_b){
-var _c=_1.position(_b.node,true);
-_b.coords.x=_c.x;
-_b.coords.x2=_c.x+_c.w;
-_b.coords.y=_c.y;
-},initItems:function(_d){
-_1.forEach(_d.items,function(_e){
-var _f=_e.item.node;
-var _10=_1.position(_f,true);
-var y=_10.y+_10.h/2;
-_e.y=y;
+},_updateArea:function(_f){
+var _10=_5.position(_f.node,true);
+_f.coords.x=_10.x;
+_f.coords.x2=_10.x+_10.w;
+_f.coords.y=_10.y;
+},initItems:function(_11){
+_4.forEach(_11.items,function(obj){
+var _12=obj.item.node;
+var _13=_5.position(_12,true);
+var y=_13.y+_13.h/2;
+obj.y=y;
 });
-_d.initItems=true;
-},refreshItems:function(_11,_12,_13,_14){
-if(_12==-1){
+_11.initItems=true;
+},refreshItems:function(_14,_15,_16,_17){
+if(_15==-1){
 return;
 }else{
-if(_11&&_13&&_13.h){
-var _15=_13.h;
-if(_11.margin){
-_15+=_11.margin.t;
+if(_14&&_16&&_16.h){
+var _18=_16.h;
+if(_14.margin){
+_18+=_14.margin.t;
 }
-var _16=_11.items.length;
-for(var i=_12;i<_16;i++){
-var _17=_11.items[i];
-if(_14){
-_17.y+=_15;
+var _19=_14.items.length;
+for(var i=_15;i<_19;i++){
+var _1a=_14.items[i];
+if(_17){
+_1a.y+=_18;
 }else{
-_17.y-=_15;
+_1a.y-=_18;
 }
 }
 }
 }
-},getDragPoint:function(_18,_19,_1a){
-return {"x":_1a.x,"y":_1a.y};
-},getTargetArea:function(_1b,_1c,_1d){
-var _1e=0;
-var x=_1c.x;
-var y=_1c.y;
-var end=_1b.length;
-var _1f=0,_20="right",_21=false;
-if(_1d==-1||arguments.length<3){
-_21=true;
+},getDragPoint:function(_1b,_1c,_1d){
+return {"x":_1d.x,"y":_1d.y};
+},getTargetArea:function(_1e,_1f,_20){
+var _21=0;
+var x=_1f.x;
+var y=_1f.y;
+var end=_1e.length;
+var _22=0,_23="right",_24=false;
+if(_20==-1||arguments.length<3){
+_24=true;
 }else{
-if(this._checkInterval(_1b,_1d,x,y)){
-_1e=_1d;
+if(this._checkInterval(_1e,_20,x,y)){
+_21=_20;
 }else{
 if(this._oldXPoint<x){
-_1f=_1d+1;
+_22=_20+1;
 }else{
-_1f=_1d-1;
+_22=_20-1;
 end=0;
-_20="left";
+_23="left";
 }
-_21=true;
+_24=true;
 }
 }
-if(_21){
-if(_20==="right"){
-for(var i=_1f;i<end;i++){
-if(this._checkInterval(_1b,i,x,y)){
-_1e=i;
+if(_24){
+if(_23==="right"){
+for(var i=_22;i<end;i++){
+if(this._checkInterval(_1e,i,x,y)){
+_21=i;
 break;
 }
 }
 if(i==end){
-_1e=-1;
+_21=-1;
 }
 }else{
-for(var i=_1f;i>=end;i--){
-if(this._checkInterval(_1b,i,x,y)){
-_1e=i;
+for(var i=_22;i>=end;i--){
+if(this._checkInterval(_1e,i,x,y)){
+_21=i;
 break;
 }
 }
 if(i==end-1){
-_1e=-1;
+_21=-1;
 }
 }
 }
 this._oldXPoint=x;
-return _1e;
-},_checkInterval:function(_22,_23,x,y){
-var _24=_22[_23];
-var _25=_24.node;
-var _26=_24.coords;
-var _27=_26.x;
-var _28=_26.x2;
-var _29=_26.y;
-var _2a=_29+_25.offsetHeight;
-if(_27<=x&&x<=_28&&_29<=y&&y<=_2a){
+return _21;
+},_checkInterval:function(_25,_26,x,y){
+var _27=_25[_26];
+var _28=_27.node;
+var _29=_27.coords;
+var _2a=_29.x;
+var _2b=_29.x2;
+var _2c=_29.y;
+var _2d=_2c+_28.offsetHeight;
+if(_2a<=x&&x<=_2b&&_2c<=y&&y<=_2d){
 return true;
 }
 return false;
-},getDropIndex:function(_2b,_2c){
-var _2d=_2b.items.length;
-var _2e=_2b.coords;
-var y=_2c.y;
-if(_2d>0){
-for(var i=0;i<_2d;i++){
-if(y<_2b.items[i].y){
+},getDropIndex:function(_2e,_2f){
+var _30=_2e.items.length;
+var _31=_2e.coords;
+var y=_2f.y;
+if(_30>0){
+for(var i=0;i<_30;i++){
+if(y<_2e.items[i].y){
 return i;
 }else{
-if(i==_2d-1){
+if(i==_30-1){
 return -1;
 }
 }
@@ -144,8 +144,8 @@ return -1;
 }
 return -1;
 },destroy:function(){
-_1.forEach(this._dragHandler,_1.disconnect);
+_4.forEach(this._dragHandler,_3.disconnect);
 }});
 dojox.mdnd.areaManager()._dropMode=new dojox.mdnd.dropMode.OverDropMode();
-return _2;
+return _6;
 });

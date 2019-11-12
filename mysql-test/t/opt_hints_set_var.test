@@ -107,10 +107,10 @@ CALL test_hint("SET_VAR(bulk_insert_buffer_size=0)", "bulk_insert_buffer_size");
 # Testing default_tmp_storage_engine variable.
 CREATE TEMPORARY TABLE t1 SELECT 1;
 SHOW CREATE TABLE t1;
-CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=MyISAM)*/ 1;
+CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=InnoDB)*/ 1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
-CALL test_hint("SET_VAR(default_tmp_storage_engine=MyISAM)", "default_tmp_storage_engine");
+CALL test_hint("SET_VAR(default_tmp_storage_engine=InnoDB)", "default_tmp_storage_engine");
 
 # Testing div_precision_increment
 SELECT /*+ SET_VAR(div_precision_increment=12) */ 1/2;
@@ -158,7 +158,7 @@ CALL test_hint("SET_VAR(insert_id=10)", "insert_id");
 CALL test_hint("SET_VAR(join_buffer_size=128)", "join_buffer_size");
 
 # Testing lock_wait_timeout variable, ER_LOCK_WAIT_TIMEOUT error should be issued.
-CREATE TABLE t1(i INT) ENGINE MYISAM;
+CREATE TABLE t1(i INT) ENGINE InnoDB;
 LOCK TABLES t1 WRITE;
 connect (con1,localhost,root,,);
 --error ER_LOCK_WAIT_TIMEOUT
@@ -450,3 +450,28 @@ DROP PROCEDURE test_hint;
 
 SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551616) */ 1;
 SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551615) */ 1;
+
+--echo #
+--echo # Bug#29776464 MAKE 'TIME_ZONE' VARIABLE OPTIMIZER HINT SETTABLE.
+--echo #
+
+SET time_zone = '-01:00';
+
+SELECT TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT /*+ SET_VAR(time_zone = '+04:00') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT @@time_zone;
+SELECT /*+ SET_VAR(time_zone = 'UTC') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT @@time_zone;
+CREATE TABLE t1(f1 VARCHAR(10));
+INSERT INTO t1 VALUES (@@time_zone);
+SELECT * FROM t1;
+UPDATE /*+ SET_VAR(time_zone = 'UTC') */ t1 SET f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+INSERT /*+ SET_VAR(time_zone = 'UTC') */ t1 VALUES (TIMEDIFF(NOW(), UTC_TIMESTAMP));
+SELECT * FROM t1;
+DELETE /*+ SET_VAR(time_zone = 'UTC') */ FROM t1 WHERE f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+SELECT @@time_zone;
+DROP TABLE t1;
+
+SET time_zone = default;

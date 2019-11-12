@@ -1,0 +1,49 @@
+#
+# Prepare the server for redo log archiving.
+#
+SET @@global.innodb_redo_log_archive_dirs = '1:IRLA_DIRECTORY_1;2:IRLA_DIRECTORY_2';
+
+#
+# Start redo log archiving
+#
+DO innodb_redo_log_archive_start('1');
+
+#
+# Create a lot of InnoDB redo log.
+#
+DROP DATABASE IF EXISTS db1;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id int, b longblob) ENGINE=InnoDB;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+INSERT INTO db1.t1 VALUES(1, repeat(1, 22*1024*1024));
+DELETE FROM db1.t1;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+
+#
+# Start redo log archiving after failure fails
+#
+DO innodb_redo_log_archive_start('2');
+ERROR HY000: Redo log archiving has been started on 'IRLA_PATHNAME_1' - Call innodb_redo_log_archive_stop() first
+
+#
+# Stop redo log archiving
+#
+DO innodb_redo_log_archive_stop();
+ERROR HY000: Redo log archiving failed: Cannot write to file 'IRLA_PATHNAME_1' at offset ### (OS errno: 28 - No space left on device) - stopped redo log archiving and deleted the file.
+
+#
+# Redo log archive file does not exist any more.
+#
+
+#
+# Cleanup
+#
+SET @@global.innodb_redo_log_archive_dirs = '';

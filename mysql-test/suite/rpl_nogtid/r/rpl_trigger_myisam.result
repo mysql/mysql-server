@@ -1,0 +1,23 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP TABLE IF EXISTS t1;
+include/rpl_reset.inc
+create table t1 ( f int ) engine = innodb;
+create table log ( r int ) engine = myisam;
+create trigger tr
+after insert on t1
+for each row insert into log values ( new.f );
+set autocommit = 0;
+insert into t1 values ( 1 );
+rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:log, slave:log]
+drop table t1, log;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

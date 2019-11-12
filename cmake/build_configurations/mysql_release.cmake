@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,8 @@ INCLUDE(CheckLibraryExists)
 
 OPTION(DEBUG_EXTNAME "" ON)
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux" AND CMAKE_BUILD_TYPE)
-  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
-  IF(CMAKEBT MATCHES "REL")
+IF(LINUX AND CMAKE_BUILD_TYPE)
+  IF(CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
     OPTION(REPRODUCIBLE_BUILD "" ON)
   ENDIF()
 ENDIF()
@@ -42,14 +41,13 @@ IF(NOT COMPILATION_COMMENT_SERVER)
   SET(COMPILATION_COMMENT_SERVER "MySQL Community Server (GPL)")
 ENDIF()
 
-IF(UNIX)
-  IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    IF(NOT IGNORE_AIO_CHECK)
-      # Ensure aio is available on Linux (required by InnoDB)
-      CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
-      CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
-      IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
-        MESSAGE(FATAL_ERROR "
+IF(LINUX)
+  IF(NOT IGNORE_AIO_CHECK)
+    # Ensure aio is available on Linux (required by InnoDB)
+    CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
+    CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
+    IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
+      MESSAGE(FATAL_ERROR "
         aio is required on Linux, you need to install the required library:
 
           Debian/Ubuntu:              apt-get install libaio-dev
@@ -58,8 +56,6 @@ IF(UNIX)
 
         If you really do not want it, pass -DIGNORE_AIO_CHECK to cmake.
         ")
-      ENDIF()
     ENDIF()
   ENDIF()
-
 ENDIF()

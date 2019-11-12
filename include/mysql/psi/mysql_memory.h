@@ -61,6 +61,6 @@ static inline void inline_mysql_memory_register(
 #endif
 }
 
-  /** @} (end of group psi_api_memory) */
+/** @} (end of group psi_api_memory) */
 
 #endif

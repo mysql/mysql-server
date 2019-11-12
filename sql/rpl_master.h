@@ -1,7 +1,7 @@
 #ifndef RPL_MASTER_H_INCLUDED
 #define RPL_MASTER_H_INCLUDED
 
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,9 @@
 
 #include <stddef.h>
 
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
-#include "mysql_com.h"      // HOSTNAME_LENGTH
+#include "mysql_com.h"      // USERNAME_LENGTH
 #include "sql/sql_const.h"  // MAX_PASSWORD_LENGTH
 
 class Gtid_set;

@@ -129,6 +129,9 @@ SELECT * FROM t1;
 SET @@session.TIMESTAMP=200;
 SELECT * FROM t2;
 END |
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CALL t1_inout(@a,@b,@c,@d,@e,@f,@g,@h,@i,@j);
 a
 1

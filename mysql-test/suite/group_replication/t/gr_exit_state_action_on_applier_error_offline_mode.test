@@ -1,0 +1,137 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken
+# by a server once it has involuntarily left the group. Validate its
+# behaviour when set to OFFLINE_MODE.
+#
+# This test shall test that the specified exit action is executed correctly
+# when an applier error occurs.
+#
+# Test:
+# 0) Setup group of 2 members (M1 and M2).
+# 1) Create a non-admin user and connect to member 1.
+# 2) Force applier error on member 1.
+# 3) Verify that member 1 went to offline_mode and changed to ERROR state.
+# 4) Validate that non-admin users are disconnected.
+# 5) Validate that non-admin users cannot connect.
+# 6) Cleanup.
+#
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 2 members (M1 and M2).
+--echo #########################################################################
+--echo
+--source include/group_replication.inc
+# Supress log errors since they are expected.
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1; Duplicate entry.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin = 1;
+
+--echo
+--echo #########################################################################
+--echo # 1) Create a non-admin user and connect to member 1.
+--echo #########################################################################
+--echo
+CREATE USER 'user'@'localhost' IDENTIFIED BY 'pass';
+--connect(server1_user, localhost,user,pass,,$MASTER_MYPORT)
+SELECT USER(), CURRENT_USER();
+
+--echo
+--echo #########################################################################
+--echo # 2) Force applier error on member 1.
+--echo #########################################################################
+--echo
+# Create a table for our tests
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1(a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+# Write to it without replicating the trx
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES (1);
+SET SESSION sql_log_bin= 1;
+
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
+
+# Write to the same row on member 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+
+--echo
+--echo #########################################################################
+--echo # 3) Verify that member 1 went to offline_mode and changed to ERROR state.
+--echo #########################################################################
+--echo
+# Firstly verify that the member entered an error state
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--let $skip_reset_read_mode= 1
+--source include/assert_and_disable_read_only.inc
+
+--let $skip_reset_offline_mode= 1
+--source include/assert_and_disable_offline_mode.inc
+
+--echo
+--echo #########################################################################
+--echo # 4) Validate that non-admin users are disconnected.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1_user
+--source include/rpl_connection.inc
+--error CR_SERVER_GONE_ERROR, CR_SERVER_LOST
+SELECT USER(), CURRENT_USER();
+
+--echo
+--echo #########################################################################
+--echo # 5) Validate that non-admin users cannot connect.
+--echo #########################################################################
+--echo
+--replace_result $MASTER_MYPORT MASTER_PORT $MASTER_MYSOCK MASTER_MYSOCK
+--error ER_SERVER_OFFLINE_MODE
+--connect(server1_user2, localhost,user,pass,,$MASTER_MYPORT,$MASTER_MYSOCK)
+
+--echo
+--echo #########################################################################
+--echo # 6) Cleanup.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/assert_and_disable_read_only.inc
+--source include/assert_and_disable_offline_mode.inc
+
+# Stop GR
+--source include/stop_group_replication.inc
+
+# Delete the transaction that clashed, so the server doesn't error out right
+# when starting the applier channel.
+SET SESSION sql_log_bin= 0;
+DELETE FROM t1 WHERE a = 1;
+SET SESSION sql_log_bin= 1;
+
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
+
+--source include/start_group_replication.inc
+
+DROP TABLE t1;
+
+--disconnect server1_user
+DROP USER 'user'@'localhost';
+
+--source include/group_replication_end.inc

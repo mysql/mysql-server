@@ -1,7 +1,7 @@
 html.mobile, .mobile body {
   width: 100%;
-  margin: 0px;
-  padding: 0px;
+  margin: 0;
+  padding: 0;
 }
 .mobile body {
   overflow-x: hidden;
@@ -12,14 +12,36 @@ html.mobile, .mobile body {
   color: white;
 }
 .mblColorBlue {
-  background-color: #366EDF;
+  color: white;
+  background-color: #366edf;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#7a9de9), to(#2362dd), color-stop(0.5, #366edf), color-stop(0.5, #215fdc));
 }
+.mblColorBlue45 {
+  background-image: -webkit-gradient(linear, left top, right bottom, from(#7a9de9), to(#2362dd), color-stop(0.5, #366edf), color-stop(0.5, #215fdc));
+}
 .mblColorDefault {
-  background-color: #ADADAD;
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#e5e5e5), to(#7f7f7f), color-stop(0.5, #adadad), color-stop(0.5, #909090));
+  color: black;
+  background-color: #c6c6c6;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#dfdfdf), to(#a6a6a6));
+}
+.mblColorDefault45 {
+  background-image: -webkit-gradient(linear, left top, right bottom, from(#dfdfdf), to(#a6a6a6));
 }
 .mblColorDefaultSel {
-  background-color: #FFC700;
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#ad7500), to(#ffaa00), color-stop(0.06, #ffb200), color-stop(0.5, #ffc700));
+  color: white;
+  background-color: #3578b1;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#306ea1), to(#266093), color-stop(0.06, #4090d3), color-stop(0.5, #306ea1));
+}
+.mblColorDefaultSel45 {
+  background-image: -webkit-gradient(linear, left top, right bottom, from(#306ea1), to(#266093), color-stop(0.06, #4090d3), color-stop(0.5, #306ea1));
+}
+.mblSpriteIcon {
+  position: absolute;
+}
+.mblSpriteIconParent {
+  position: relative;
+  font-size: 1px;
+}
+.mblImageIcon {
+  vertical-align: top;
 }

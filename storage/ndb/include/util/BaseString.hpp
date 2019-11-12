@@ -162,6 +162,15 @@ public:
    */
   ssize_t lastIndexOf(char c) const;
   
+  /*
+   * Check if given string is prefix.
+   *
+   * @param str string to check for
+   * @return true if str is prefix
+   */
+  bool starts_with(const BaseString& str) const;
+  bool starts_with(const char* str) const;
+
   /**
    * Returns a subset of a string
    *

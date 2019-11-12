@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1310,7 +1310,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
     buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
-    buf_pool->last_printout_time = ut_time();
+    buf_pool->last_printout_time = ut_time_monotonic();
   }
   /* 2. Initialize flushing fields
   -------------------------------- */
@@ -1983,6 +1983,43 @@ static void buf_pool_resize_chunk_make_null(buf_chunk_t **new_chunks) {
 }
 #endif /* UNIV_DEBUG */
 
+ulonglong buf_pool_adjust_chunk_unit(ulonglong size) {
+  /* Size unit of buffer pool is larger than srv_buf_pool_size.
+  adjust srv_buf_pool_chunk_unit for srv_buf_pool_size. */
+  if (size * srv_buf_pool_instances > srv_buf_pool_size) {
+    size = (srv_buf_pool_size + srv_buf_pool_instances - 1) /
+           srv_buf_pool_instances;
+  }
+
+  /* Make sure that srv_buf_pool_chunk_unit is divisible by blk_sz */
+  if (size % srv_buf_pool_chunk_unit_blk_sz != 0) {
+    size += srv_buf_pool_chunk_unit_blk_sz -
+            (size % srv_buf_pool_chunk_unit_blk_sz);
+  }
+
+  /* Make sure that srv_buf_pool_chunk_unit is not larger than max, and don't
+  forget that it also has to be divisible by blk_sz */
+  const auto CHUNK_UNIT_ALIGNED_MAX =
+      srv_buf_pool_chunk_unit_max -
+      (srv_buf_pool_chunk_unit_max % srv_buf_pool_chunk_unit_blk_sz);
+  if (size > CHUNK_UNIT_ALIGNED_MAX) {
+    size = CHUNK_UNIT_ALIGNED_MAX;
+  }
+
+  /* Make sure that srv_buf_pool_chunk_unit is not smaller than min */
+  ut_ad(srv_buf_pool_chunk_unit_min % srv_buf_pool_chunk_unit_blk_sz == 0);
+  if (size < srv_buf_pool_chunk_unit_min) {
+    size = srv_buf_pool_chunk_unit_min;
+  }
+
+  ut_ad(size >= srv_buf_pool_chunk_unit_min);
+  ut_ad(size <= srv_buf_pool_chunk_unit_max);
+  ut_ad(size % srv_buf_pool_chunk_unit_blk_sz == 0);
+  ut_ad(size % UNIV_PAGE_SIZE == 0);
+
+  return size;
+}
+
 /** Resize the buffer pool based on srv_buf_pool_size from
 srv_buf_pool_old_size. */
 static void buf_pool_resize() {
@@ -2024,6 +2061,7 @@ static void buf_pool_resize() {
 
     buf_pool->curr_size = new_instance_size;
 
+    ut_ad(srv_buf_pool_chunk_unit % UNIV_PAGE_SIZE == 0);
     buf_pool->n_chunks_new =
         new_instance_size * UNIV_PAGE_SIZE / srv_buf_pool_chunk_unit;
 
@@ -2086,7 +2124,7 @@ withdraw_retry:
     }
   }
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     /* abort to resize for shutdown. */
     buf_pool_withdrawing = false;
     return;
@@ -2160,7 +2198,7 @@ withdraw_retry:
   }
 #endif /* UNIV_DEBUG */
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2459,13 +2497,11 @@ withdraw_retry:
 /** This is the thread for resizing buffer pool. It waits for an event and
 when waked up either performs a resizing and sleeps again. */
 void buf_resize_thread() {
-  my_thread_init();
-
-  while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     os_event_wait(srv_buf_resize_event);
     os_event_reset(srv_buf_resize_event);
 
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       break;
     }
 
@@ -2482,11 +2518,6 @@ void buf_resize_thread() {
 
     buf_pool_resize();
   }
-
-  my_thread_end();
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_buf_resize_thread_active = false;
 }
 
 /** Clears the adaptive hash index on all pages in the buffer pool. */
@@ -3781,11 +3812,33 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
 
 template <typename T>
 void Buf_fetch<T>::read_page() {
-  if (buf_read_page(m_page_id, m_page_size)) {
-    buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr));
+  bool success{};
+  auto sync = m_mode != Page_fetch::SCAN;
 
+  if (sync) {
+    success = buf_read_page(m_page_id, m_page_size);
+  } else {
+    dberr_t err;
+
+    auto ret = buf_read_page_low(&err, false, 0, BUF_READ_ANY_PAGE, m_page_id,
+                                 m_page_size, false);
+    success = ret > 0;
+
+    if (success) {
+      srv_stats.buf_pool_reads.add(1);
+    }
+
+    ut_a(err != DB_TABLESPACE_DELETED);
+
+    /* Increment number of I/O operations used for LRU policy. */
+    buf_LRU_stat_inc_io();
+  }
+
+  if (success) {
+    if (sync) {
+      buf_read_ahead_random(m_page_id, m_page_size, ibuf_inside(m_mtr));
+    }
     m_retries = 0;
-
   } else if (m_retries < BUF_PAGE_READ_MAX_RETRIES) {
     ++m_retries;
 
@@ -4132,8 +4185,6 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
   bool found;
   const page_size_t &space_page_size =
       fil_space_get_page_size(page_id.space(), &found);
-
-  ut_ad(found);
 
   ut_ad(page_size.equals_to(space_page_size));
 #endif /* UNIV_DEBUG */
@@ -4852,9 +4903,16 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
   mutex_exit(&buf_pool->LRU_list_mutex);
 
-  /* Delete possible entries for the page from the insert buffer:
-  such can exist if the page belonged to an index which was dropped */
-  ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, TRUE);
+  /* Change buffer will not contain entries for undo tablespaces or temporary
+   * tablespaces. */
+  bool skip_ibuf = fsp_is_system_temporary(page_id.space()) ||
+                   fsp_is_undo_tablespace(page_id.space());
+
+  if (!skip_ibuf) {
+    /* Delete possible entries for the page from the insert buffer:
+    such can exist if the page belonged to an index which was dropped */
+    ibuf_merge_or_delete_for_page(NULL, page_id, &page_size, TRUE);
+  }
 
   frame = block->frame;
 
@@ -5323,7 +5381,7 @@ static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
 /** Refreshes the statistics used to print per-second averages.
 @param[in,out]	buf_pool	buffer pool instance */
 static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
-  buf_pool->last_printout_time = ut_time();
+  buf_pool->last_printout_time = ut_time_monotonic();
   buf_pool->old_stat = buf_pool->stat;
 }
 

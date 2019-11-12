@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,14 @@ class CmRegReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 6 + NdbNodeBitmask::Size );
+  /**
+   * The additional two words in signal length are for backward compatibility.
+   * Older versions(< 7.6.9) also send the node bitmask(of size 2 words) while
+   * sending GSN_CM_REGREQ. Now, we can do away with sending the node bitmask
+   * since it's not used at the receiving end (execCM_REGREQ).
+   * The additional two words are cleared before sending GSN_CM_REGREQ.
+   */
+  STATIC_CONST( SignalLength = 6 + NdbNodeBitmask48::Size );
 private:
   
   Uint32 blockRef;
@@ -51,8 +58,7 @@ private:
 
   Uint32 start_type; // As specified by cmd-line or mgm, NodeState::StartType
   Uint32 latest_gci; // 0 means no fs
-  Uint32 skip_nodes[NdbNodeBitmask::Size]; // Nodes that does not _need_ 
-                                           // to be part of restart
+  Uint32 unused_words[NdbNodeBitmask48::Size];
 };
 
 /**
@@ -65,7 +71,16 @@ class CmRegConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 5 + NdbNodeBitmask::Size );
+  /**
+   * For NDB version < 7.6.9 where the node bitmask is sent
+   * in a simple signal, NdbNodeBitmask::Size is 2.
+   */
+  STATIC_CONST( SignalLength_v1 = 5 + NdbNodeBitmask48::Size );
+  /**
+   * For NDB version >= 7.6.9 where the node bitmask is sent
+   * in a long signal.
+   */
+  STATIC_CONST( SignalLength = 5);
 private:
   
   Uint32 presidentBlockRef;
@@ -77,7 +92,7 @@ private:
    * The dynamic id that the node reciving this signal has
    */
   Uint32 dynamicId;
-  Uint32 allNdbNodes[NdbNodeBitmask::Size];  
+  Uint32 allNdbNodes_v1[NdbNodeBitmask48::Size];
 };
 
 /**
@@ -90,7 +105,16 @@ class CmRegRef {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 7 + NdbNodeBitmask::Size );
+  /**
+   * For NDB version < 7.6.9 where the node bitmask is sent
+   * in a simple signal, NdbNodeBitmask::Size is 2.
+   */
+  STATIC_CONST( SignalLength_v1 = 7 + NdbNodeBitmask48::Size );
+  /**
+   * For NDB version >= 7.6.9 where the node bitmask is sent
+   * in a long signal.
+   */
+  STATIC_CONST( SignalLength = 7);
   
   enum ErrorCode {
     ZBUSY = 0,          /* Only the president can send this */
@@ -125,8 +149,8 @@ private:
    */
   Uint32 latest_gci; 
   Uint32 start_type; 
-  Uint32 skip_nodes[NdbNodeBitmask::Size]; // Nodes that does not _need_ 
-                                           // to be part of restart
+  Uint32 skip_nodes_v1[NdbNodeBitmask48::Size]; // Nodes that do not _need_
+                        // to be part of restart
 };
 
 class CmAdd {

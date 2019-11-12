@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -342,7 +342,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
 
   read_request.disable_compression();
 
-  err = os_file_read(read_request, file, read_buf,
+  err = os_file_read(read_request, path, file, read_buf,
                      TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
@@ -386,7 +386,7 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
   }
 
   /* Read the pages from the doublewrite buffer to memory */
-  err = os_file_read(read_request, file, buf, block1 * UNIV_PAGE_SIZE,
+  err = os_file_read(read_request, path, file, buf, block1 * UNIV_PAGE_SIZE,
                      TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
@@ -398,9 +398,10 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
     return (err);
   }
 
-  err = os_file_read(
-      read_request, file, buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
-      block2 * UNIV_PAGE_SIZE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
+  err = os_file_read(read_request, path, file,
+                     buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
+                     block2 * UNIV_PAGE_SIZE,
+                     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_102) << "Failed to read the second double write buffer "

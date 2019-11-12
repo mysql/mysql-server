@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ void *my_multi_malloc(PSI_memory_key key, myf myFlags, ...) {
   va_list args;
   char **ptr, *start, *res;
   size_t tot_length, length;
-  DBUG_ENTER("my_multi_malloc");
+  DBUG_TRACE;
 
   va_start(args, myFlags);
   tot_length = 0;
@@ -70,7 +70,7 @@ void *my_multi_malloc(PSI_memory_key key, myf myFlags, ...) {
   va_end(args);
 
   if (!(start = (char *)my_malloc(key, tot_length, myFlags)))
-    DBUG_RETURN(0); /* purecov: inspected */
+    return 0; /* purecov: inspected */
 
   va_start(args, myFlags);
   res = start;
@@ -80,5 +80,5 @@ void *my_multi_malloc(PSI_memory_key key, myf myFlags, ...) {
     res += ALIGN_SIZE(length);
   }
   va_end(args);
-  DBUG_RETURN((void *)start);
+  return (void *)start;
 }

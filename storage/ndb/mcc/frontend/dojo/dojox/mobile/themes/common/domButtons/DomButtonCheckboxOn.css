@@ -5,11 +5,11 @@
 	height: 30px;
 	border-width: 1px;
 	border-style: outset;
-	border-color: #A5A2A5;
+	border-color: #a5a2a5;
 	color: white;
-	-webkit-border-radius: 3px;
-	background-color: #D6D3D6;
-	background: -webkit-gradient(linear, left top, left bottom, from(#EFF3EF), to(#BDBEBD));
+	border-radius: 3px;
+	background-color: #d6d3d6;
+	background: -webkit-gradient(linear, left top, left bottom, from(#eff3ef), to(#bdbebd));
 }
 .mblDomButtonCheckboxOn > div {
 	position: absolute;
@@ -19,9 +19,9 @@
 	height: 4px;
 	margin: 0px;
 	font-size: 1px;
-	background-color: #00CF00;
-	border-top: 1px solid #4A5A71;
-	-webkit-border-radius: 2px;
+	background-color: #00cf00;
+	border-top: 1px solid #4a5a71;
+	border-radius: 2px;
 	-webkit-transform: rotate(50deg);
 }
 .mblDomButtonCheckboxOn > div > div {
@@ -32,9 +32,9 @@
 	height: 4px;
 	margin: 0px;
 	font-size: 1px;
-	background-color: #00CF00;
+	background-color: #00cf00;
 	border-top: none;
-	border-bottom: 1px solid #4A5A71;
-	-webkit-border-radius: 2px;
+	border-bottom: 1px solid #4a5a71;
+	border-radius: 2px;
 	-webkit-transform: rotate(-100deg);
 }

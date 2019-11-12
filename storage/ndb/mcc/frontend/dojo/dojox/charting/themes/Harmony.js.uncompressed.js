@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/Harmony", ["../Theme", "./common"], function(Theme, themes){
-	
-	themes.Harmony=new Theme({
+define("dojox/charting/themes/Harmony", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.Harmony = new SimpleTheme({
 		colors: [
 			"#497c91",
 			"#59a0bd",
@@ -37,6 +35,5 @@ define("dojox/charting/themes/Harmony", ["../Theme", "./common"], function(Theme
 			"#d8d8d8"
 		]
 	});
-	
 	return themes.Harmony;
 });

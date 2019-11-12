@@ -1,4 +1,3 @@
-//>>built
 define("dojox/xml/widgetParser", [
 	"dojo/_base/lang",	// dojo.getObject
 	"dojo/_base/window",	// dojo.doc
@@ -133,7 +132,7 @@ xXml.widgetParser = new function(){
 			newNode.setAttribute("dojoType", dojoType);
 		}
 		
-		//	TODO:
+		// TODO:
 		//		we should probably set this up different, mixin a function
 		//		depending on if it is IE rather than checking every time here
 		//		the xmlns problem and the style problem are both IE specific

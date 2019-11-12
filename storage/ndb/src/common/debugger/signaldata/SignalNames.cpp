@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,8 +173,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_DIVERIFYCONF,           "DIVERIFYCONF" }
   ,{ GSN_DIVERIFYREF,            "DIVERIFYREF" }
   ,{ GSN_DIVERIFYREQ,            "DIVERIFYREQ" }
-  ,{ GSN_EMPTY_LCP_REQ,          "EMPTY_LCP_REQ" }
-  ,{ GSN_EMPTY_LCP_CONF,         "EMPTY_LCP_CONF" }
   ,{ GSN_ENABLE_COMREQ,          "ENABLE_COMREQ" }
   ,{ GSN_ENABLE_COMCONF,         "ENABLE_COMCONF" }
   ,{ GSN_END_LCPCONF,            "END_LCPCONF" }
@@ -876,5 +874,12 @@ const GsnName SignalNames [] = {
   ,{ GSN_CHECK_LCP_IDLE_ORD, "CHECK_LCP_IDLE_ORD" }
   ,{ GSN_SET_LATEST_LCP_ID, "SET_LATEST_LCP_ID" }
   ,{ GSN_SYNC_PAGE_WAIT_REP, "SYNC_PAGE_WAIT_REP" }
+  ,{ GSN_REDO_STATE_REP, "REDO_STATE_REP" }
+  ,{ GSN_WAIT_LCP_IDLE_REQ, "WAIT_LCP_IDLE_REQ" }
+  ,{ GSN_WAIT_LCP_IDLE_CONF, "WAIT_LCP_IDLE_CONF" }
+  ,{ GSN_LOCAL_LATEST_LCP_ID_REP, "LOCAL_LATEST_LCP_ID_REP" }
+  ,{ GSN_SYNC_THREAD_VIA_REQ, "SYNC_THREAD_VIA_REQ" }
+  ,{ GSN_SYNC_THREAD_VIA_CONF, "SYNC_THREAD_VIA_CONF" }
+
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

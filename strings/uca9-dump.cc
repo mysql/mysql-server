@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -411,7 +411,8 @@ int dump_ja_hans(MY_UCA *uca, FILE *infile, FILE *outfile) {
   if (read_in_lang_data((char *)ja_u8_bytes, sizeof(ja_u8_bytes), infile))
     return 1;
   int ja_length = strlen((char *)ja_u8_bytes);
-  if (ja_u8_bytes[ja_length - 1] == '\n') {
+  while (ja_length > 0 && (ja_u8_bytes[ja_length - 1] == '\n' ||
+                           ja_u8_bytes[ja_length - 1] == '\r')) {
     ja_u8_bytes[ja_length - 1] = '\0';
     ja_length--;
   }

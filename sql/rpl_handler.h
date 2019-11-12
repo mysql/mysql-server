@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,6 +187,7 @@ class Server_state_delegate : public Delegate {
   int after_recovery(THD *thd);
   int before_server_shutdown(THD *thd);
   int after_server_shutdown(THD *thd);
+  int after_dd_upgrade_from_57(THD *thd);
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE

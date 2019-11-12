@@ -1,4 +1,3 @@
-//>>built
 define("dojox/mobile/CheckBox", [
 	"dojo/_base/declare",
 	"dojo/dom-construct",
@@ -7,16 +6,17 @@ define("dojox/mobile/CheckBox", [
 ],
 	function(declare, domConstruct, CheckBoxMixin, ToggleButton){
 
-	/*=====
-		ToggleButton = dojox.mobile.ToggleButton;
-		CheckBoxMixin = dijit.form._CheckBoxMixin;
-	=====*/
 	return declare("dojox.mobile.CheckBox", [ToggleButton, CheckBoxMixin], {
 		// summary:
-		//		A non-templated checkbox widget that can be in two states (checked or not).
+		//		A non-templated checkbox widget that can be in two states 
+		//		(checked or not checked).
 
+		// baseClass: String
+		//		The name of the CSS class of this widget.
 		baseClass: "mblCheckBox",
 
+		// _setTypeAttr: [private] Function 
+		//		Overrides the automatic assignement of type to nodes.
 		_setTypeAttr: function(){}, // cannot be changed: IE complains w/o this
 
 		buildRendering: function(){
@@ -30,6 +30,8 @@ define("dojox/mobile/CheckBox", [
 		},
 		
 		_getValueAttr: function(){
+			// tags:
+			//		private
 			return (this.checked ? this.value : false);
 		}
 	});

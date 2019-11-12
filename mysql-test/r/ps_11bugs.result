@@ -21,6 +21,11 @@ c_01 char(6), c_02 integer, c_03 real, c_04 int(3), c_05 varchar(20),
 c_06 date,    c_07 char(1), c_08 real, c_09 int(11), c_10 time,
 c_11 char(6), c_12 integer, c_13 real, c_14 int(3), c_15 varchar(20),
 c_16 date,    c_17 char(1), c_18 real, c_19 int(11), c_20 text);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 prepare st_1644 from 'insert into t1 values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 set @arg01= 'row_1';
 set @arg02= 1;
@@ -125,7 +130,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
 select * from t1 where 3 in (select (1+1) union select 1);
 a
 prepare st_18492 from 'select * from t1 where 3 in (select (1+1) union select 1)';

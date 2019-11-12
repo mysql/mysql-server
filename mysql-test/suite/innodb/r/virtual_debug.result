@@ -260,6 +260,9 @@ CREATE TABLE t1 (
 col1 int(11) NOT NULL,
 col2 int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET DEBUG_SYNC='purge_wait_for_btr_search_latch WAIT_FOR go';
 ALTER TABLE t1 ADD COLUMN col3 INT GENERATED ALWAYS AS (col1 % col2) VIRTUAL, algorithm=inplace;;
 SET DEBUG_SYNC = 'now signal go';
@@ -367,6 +370,131 @@ a	b	c
 1	1	2
 2	2	3
 3	3	4
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+#
+# Bug#28834208 ROW_LOG_TABLE_APPLY_UPDATE*INPLACE_ALTER_TABLE
+#
+CREATE TABLE t1 (
+pkey INT(11) PRIMARY KEY,
+a VARCHAR(100),
+v VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(a,2,2)) VIRTUAL,
+c varchar(100),
+UNIQUE KEY k (v)
+);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 ( pkey,a,c) VALUES (149,'bata','test');
+SELECT pkey,a,v FROM t1;
+pkey	a	v
+149	bata	at
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+OPTIMIZE TABLE t1;
+# Connect to con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET a='tata' WHERE pkey=149;
+SET DEBUG_SYNC ='now signal S2';
+SELECT pkey,a,v FROM t1;
+pkey	a	v
+149	tata	at
+# Connect to Default
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT * FROM t1;
+pkey	a	v	c
+149	tata	at	test
+DROP TABLE t1;
+CREATE TABLE t1 (
+pkey INT(11) PRIMARY KEY,
+a VARCHAR(100),
+v VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(a,2,2)) VIRTUAL,
+c varchar(100),
+v1 VARCHAR(100) GENERATED ALWAYS AS (SUBSTRING(c,2,2)) VIRTUAL,
+KEY k (v),
+KEY v (v1)
+);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 (pkey, a, c) VALUES (149, 'bata', 'test');
+INSERT INTO t1 (pkey, a, c) VALUES (150, 'bata', 'test');
+INSERT INTO t1 (pkey, a, c) VALUES (160, 'bata', 'test');
+SELECT pkey, a, v, c, v1 FROM t1;
+pkey	a	v	c	v1
+149	bata	at	test	es
+150	bata	at	test	es
+160	bata	at	test	es
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+OPTIMIZE TABLE t1;
+# Connect to con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET c = 'best' WHERE pkey = 149;
+UPDATE t1 SET a = 'tata' WHERE pkey = 150;
+UPDATE t1 SET a = 'tata', c = 'best' WHERE pkey = 160;
+SET DEBUG_SYNC ='now signal S2';
+SELECT pkey, a, v, c, v1 FROM t1;
+pkey	a	v	c	v1
+149	bata	at	best	es
+150	tata	at	test	es
+160	tata	at	best	es
+# Connect to Default
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT * FROM t1;
+pkey	a	v	c	v1
+149	bata	at	best	es
+150	tata	at	test	es
+160	tata	at	best	es
+DROP TABLE t1;
+CREATE TABLE t1(
+j SERIAL PRIMARY KEY,
+a VARCHAR(36),
+isa BOOLEAN,
+ab VARCHAR(36) AS (IF(`isa`,`a`,NULL )),
+KEY k(ab)
+);
+INSERT INTO t1 (a, isa) VALUES ('test', 1);
+SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL index_built WAIT_FOR S2';
+OPTIMIZE TABLE t1;
+# Connect to con1
+SET DEBUG_SYNC = 'now WAIT_FOR index_built';
+UPDATE t1 SET isa=0 ;
+SET DEBUG_SYNC ='now signal S2';
+SELECT j,a,isa,ab FROM t1;
+j	a	isa	ab
+1	test	0	NULL
+# Connect to Default
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SELECT j,a,isa,ab FROM t1;
+j	a	isa	ab
+1	test	0	NULL
+UPDATE t1 SET isa = 1 WHERE a = 'test' AND isa = 0;
+SELECT j,a,isa,ab FROM t1;
+j	a	isa	ab
+1	test	1	test
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1), (1);
+set session debug = '+d, force_virtual_col_build_fail';
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL rolling_back WAIT_FOR drop_created';
+ALTER TABLE t1 ADD COLUMN (h INT GENERATED ALWAYS AS(a+1) VIRTUAL), ADD INDEX idx(h), ALGORITHM=INPLACE;;
+SET DEBUG_SYNC='now WAIT_FOR rolling_back';
+SET DEBUG_SYNC='row_search_for_mysql_before_return SIGNAL scanning WAIT_FOR continue_scan';
+SELECT * FROM t1;;
+SET DEBUG_SYNC='now WAIT_FOR scanning';
+SET DEBUG_SYNC='now SIGNAL drop_created';
+ERROR HY000: Got error 111 - 'InnoDB error' from storage engine
+SET DEBUG_SYNC='now SIGNAL continue_scan';
+a
+1
+1
+set session debug = '-d, row_merge_drop_indexes_force_table_count';
+INSERT INTO t1 VALUES(1);
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

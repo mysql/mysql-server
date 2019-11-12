@@ -1,0 +1,7 @@
+drop table if exists t1;
+CREATE TABLE t1 ( `ID` int(6) ) data directory 'c:/tmp/' index directory 'c:/tmp/' engine=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1618	<DATA DIRECTORY> option ignored
+Warning	1618	<INDEX DIRECTORY> option ignored
+drop table t1;

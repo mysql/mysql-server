@@ -79,5 +79,5 @@ _9._get=function(_20,id,_21){
 _21=_21||{};
 return _a(_1.xhrGet(_20._getRequest(id,_21)),_20,(_21.start>=0||_21.count>=0),id);
 };
-return _2.rpc.Rest;
+return _9;
 });

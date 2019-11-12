@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ class ha_myisam : public handler {
     return 0;
   }
   FT_INFO *ft_init_ext(uint flags, uint inx, String *key) {
-    return ft_init_search(flags, file, inx, (uchar *)key->ptr(),
+    return ft_init_search(flags, file, inx, pointer_cast<uchar *>(key->ptr()),
                           (uint)key->length(), key->charset(),
                           table->record[0]);
   }

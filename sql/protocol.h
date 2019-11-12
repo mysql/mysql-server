@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,32 +24,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_dbug.h"
+#include "mysql/com_data.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "mysql_com.h"               // mysql_enum_shutdown_level
 #include "mysql_time.h"              // MYSQL_TIME
 #include "sql_string.h"              // String
 #include "violite.h"                 /* SSL && enum_vio_type */
-#ifdef HAVE_OPENSSL
-#define SSL_handle SSL *
-#else
-#define SSL_handle void *
-#endif
-
-#ifdef __cplusplus
-class THD;
-#define MYSQL_THD THD *
-#else
-#define MYSQL_THD void *
-#endif
-
-#include "mysql/com_data.h"
 
 class my_decimal;
 class Send_field;
-class Proto_field;
 class Item_param;
 template <class T>
 class List;
+class Field;
 
 class Protocol {
  private:
@@ -128,25 +115,32 @@ class Protocol {
 
   /* Data sending functions */
   virtual bool store_null() = 0;
-  virtual bool store_tiny(longlong from) = 0;
-  virtual bool store_short(longlong from) = 0;
-  virtual bool store_long(longlong from) = 0;
-  virtual bool store_longlong(longlong from, bool unsigned_flag) = 0;
+  virtual bool store_tiny(longlong from, uint32 zerofill) = 0;
+  virtual bool store_short(longlong from, uint32 zerofill) = 0;
+  virtual bool store_long(longlong from, uint32 zerofill) = 0;
+  virtual bool store_longlong(longlong from, bool unsigned_flag,
+                              uint32 zerofill) = 0;
   virtual bool store_decimal(const my_decimal *, uint, uint) = 0;
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs) = 0;
-  virtual bool store(float from, uint32 decimals, String *buffer) = 0;
-  virtual bool store(double from, uint32 decimals, String *buffer) = 0;
-  virtual bool store(MYSQL_TIME *time, uint precision) = 0;
-  virtual bool store_date(MYSQL_TIME *time) = 0;
-  virtual bool store_time(MYSQL_TIME *time, uint precision) = 0;
-  virtual bool store(Proto_field *field) = 0;
+  virtual bool store_string(const char *from, size_t length,
+                            const CHARSET_INFO *fromcs) = 0;
+  virtual bool store_float(float from, uint32 decimals, uint32 zerofill) = 0;
+  virtual bool store_double(double from, uint32 decimals, uint32 zerofill) = 0;
+  virtual bool store_datetime(const MYSQL_TIME &time, uint precision) = 0;
+  virtual bool store_date(const MYSQL_TIME &time) = 0;
+  virtual bool store_time(const MYSQL_TIME &time, uint precision) = 0;
+  virtual bool store_field(const Field *field) = 0;
   // Convenience wrappers
-  inline bool store(int from) { return store_long((longlong)from); }
-  inline bool store(uint32 from) { return store_long((longlong)from); }
-  inline bool store(longlong from) { return store_longlong(from, 0); }
-  inline bool store(ulonglong from) {
-    return store_longlong((longlong)from, 1);
+  bool store(int from) { return store_long(longlong{from}, 0); }
+  bool store(uint32 from) { return store_long(longlong{from}, 0); }
+  bool store(longlong from) { return store_longlong(from, false, 0); }
+  bool store(ulonglong from) {
+    return store_longlong(static_cast<longlong>(from), true, 0);
+  }
+  bool store_tiny(longlong from) { return store_tiny(from, 0); }
+  bool store_short(longlong from) { return store_short(from, 0); }
+  bool store_long(longlong from) { return store_long(from, 0); }
+  bool store_longlong(longlong from, bool unsigned_flag) {
+    return store_longlong(from, unsigned_flag, 0);
   }
   /**
     Send \\0 end terminated string.
@@ -162,13 +156,13 @@ class Protocol {
       true    error
   */
   inline bool store(const char *from, const CHARSET_INFO *fromcs) {
-    return from ? store(from, strlen(from), fromcs) : store_null();
+    return from ? store_string(from, strlen(from), fromcs) : store_null();
   }
   inline bool store(String *str) {
-    return store((char *)str->ptr(), str->length(), str->charset());
+    return store_string(str->ptr(), str->length(), str->charset());
   }
   inline bool store(const LEX_STRING &s, const CHARSET_INFO *cs) {
-    return store(s.str, s.length, cs);
+    return store_string(s.str, s.length, cs);
   }
 
   /**
@@ -249,6 +243,21 @@ class Protocol {
       @retval true    Compressed
   */
   virtual bool get_compression() = 0;
+  /**
+    Returns compression algorithm name.
+
+    @return
+     @retval string    compression method name
+     @retval NULL      if no compression is enabled
+  */
+  virtual char *get_compression_algorithm() = 0;
+  /**
+    Returns compression level.
+
+    @return
+     @retval uint compression level
+  */
+  virtual uint get_compression_level() = 0;
   /**
     Prepares the server for metadata sending.
     Notifies the client that the metadata sending will start.

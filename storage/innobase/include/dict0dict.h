@@ -98,9 +98,8 @@ ulint dict_table_get_highest_foreign_id(
 #endif                    /* !UNIV_HOTBACKUP */
 /** Return the end of table name where we have removed dbname and '/'.
  @return table name */
-const char *dict_remove_db_name(
-    const char *name) /*!< in: table name in the form
-                      dbname '/' tablename */
+const char *dict_remove_db_name(const char *name) /*!< in: table name in the
+                                                  form dbname '/' tablename */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Operation to perform when opening a table */
@@ -130,6 +129,9 @@ void dict_table_close_and_drop(
     dict_table_t *table); /*!< in/out: table */
 /** Inits the data dictionary module. */
 void dict_init(void);
+
+/** Closes the data dictionary module. */
+void dict_close(void);
 
 /** Inits the structure for persisting dynamic metadata */
 void dict_persist_init(void);
@@ -869,16 +871,15 @@ inline bool dict_table_is_compressed_temporary(const dict_table_t *table);
 #endif /* UNIV_DEBUG */
 /** Builds a node pointer out of a physical record and a page number.
  @return own: node pointer */
-dtuple_t *dict_index_build_node_ptr(
-    const dict_index_t *index, /*!< in: index */
-    const rec_t *rec,          /*!< in: record for which to build node
-                               pointer */
-    page_no_t page_no,         /*!< in: page number to put in node
-                               pointer */
-    mem_heap_t *heap,          /*!< in: memory heap where pointer
-                               created */
-    ulint level)               /*!< in: level of rec in tree:
-                               0 means leaf level */
+dtuple_t *dict_index_build_node_ptr(const dict_index_t *index, /*!< in: index */
+                                    const rec_t *rec,  /*!< in: record for which
+                                                       to build node  pointer */
+                                    page_no_t page_no, /*!< in: page number to
+                                                       put in node pointer */
+                                    mem_heap_t *heap, /*!< in: memory heap where
+                                                      pointer created */
+                                    ulint level) /*!< in: level of rec in tree:
+                                                 0 means leaf level */
     MY_ATTRIBUTE((warn_unused_result));
 /** Copies an initial segment of a physical record, long enough to specify an
  index entry uniquely.
@@ -989,11 +990,10 @@ void dict_table_stats_unlock(dict_table_t *table, ulint latch_mode);
 
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
-ibool dict_tables_have_same_db(
-    const char *name1, /*!< in: table name in the form
-                       dbname '/' tablename */
-    const char *name2) /*!< in: table name in the form
-                       dbname '/' tablename */
+ibool dict_tables_have_same_db(const char *name1, /*!< in: table name in the
+                                                  form dbname '/' tablename */
+                               const char *name2) /*!< in: table name in the
+                                                  form dbname '/' tablename */
     MY_ATTRIBUTE((warn_unused_result));
 /** Get an index by name.
 @param[in]	table		the table where to look for the index
@@ -1301,9 +1301,6 @@ void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
 
 /** Resize the hash tables besed on the current buffer pool size. */
 void dict_resize();
-
-/** Closes the data dictionary module. */
-void dict_close(void);
 
 /** Wrapper for the mysql.innodb_dynamic_metadata used to buffer the persistent
 dynamic metadata.

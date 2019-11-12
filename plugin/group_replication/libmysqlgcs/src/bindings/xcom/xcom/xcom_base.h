@@ -222,7 +222,7 @@ app_data_ptr init_terminate_command(app_data *a);
 typedef xcom_input_request_ptr (*xcom_input_try_pop_cb)(void);
 void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop);
 /* Create a connection to the input channel's signalling socket. */
-bool xcom_input_new_signal_connection(void);
+bool xcom_input_new_signal_connection(char const *address, xcom_port port);
 /* Signal that the input channel has commands. */
 bool xcom_input_signal(void);
 /* Destroy the connection to the input channel's signalling socket. */
@@ -269,11 +269,25 @@ int xcom_client_get_synode_app_data(connection_descriptor *const fd,
                                     uint32_t group_id,
                                     synode_no_array *const synodes,
                                     synode_app_data_array *const reply);
+int xcom_client_convert_into_local_server(connection_descriptor *const fd);
 int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
                                   int force);
 
 struct pax_machine;
 typedef struct pax_machine pax_machine;
+
+/**
+  Copies app data @c source into @c target and checks if the copy
+  succeeded. Sets *target to NULL if the copy fails.
+
+  @param[in, out] target The pax_msg to which the app_data will be copied.
+  @param source The app data that will be copied.
+  @retval TRUE if the copy was successful.
+  @retval FALSE if the copy failed, in which case *target is set to NULL;
+          a failed copy means that there was an error allocating memory for
+          the copy.
+*/
+bool_t safe_app_data_copy(pax_msg **target, app_data_ptr source);
 
 /**
  * Initializes the message @c msg to go through a 3-phase, regular Paxos.
@@ -301,7 +315,7 @@ void init_prepare_msg(pax_msg *p);
  * Executed by Proposers.
  *
  * @param p The no-op message to send
- * @retval @c p
+ * @retval created paxos message of type no_op
  */
 pax_msg *create_noop(pax_msg *p);
 /**
@@ -311,6 +325,7 @@ pax_msg *create_noop(pax_msg *p);
  *
  * @param p Paxos instance
  * @param pm Incoming Prepare message
+ * @param synode Synode of the Paxos instance/Accept message
  * @retval pax_msg* the reply to send to the Proposer (as in the Phase 1 (b)
  * message of the Paxos protocol) if the Acceptor accepts the Prepare
  * @retval NULL otherwise
@@ -396,7 +411,8 @@ void handle_learn(site_def const *site, pax_machine *p, pax_msg *m);
  * @retval 0 otherwise
  */
 int pm_finished(pax_machine *p);
-/** @returns true if we should process the incomding need_boot_op message @p. */
+/** @return true if we should process the incoming need_boot_op message passed
+ * in parameter p. */
 bool should_handle_boot(site_def const *site, pax_msg *p);
 /**
  * Initializes the message @c p as a need_boot_op message.

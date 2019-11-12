@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 int mi_delete_table(const char *name) {
   char from[FN_REFLEN];
-  DBUG_ENTER("mi_delete_table");
+  DBUG_TRACE;
 
 #ifdef EXTRA_DEBUG
   check_table_is_closed(name, "delete");
@@ -46,10 +46,10 @@ int mi_delete_table(const char *name) {
       Remove symlink, keep file.
     */
     if (mysql_file_delete(mi_key_file_kfile, from, MYF(MY_WME)))
-      DBUG_RETURN(my_errno());
+      return my_errno();
   } else {
     if (mysql_file_delete_with_symlink(mi_key_file_kfile, from, MYF(MY_WME)))
-      DBUG_RETURN(my_errno());
+      return my_errno();
   }
   fn_format(from, name, "", MI_NAME_DEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
   if (my_is_symlink(from, NULL) && (*myisam_test_invalid_symlink)(from)) {
@@ -58,10 +58,10 @@ int mi_delete_table(const char *name) {
       Remove symlink, keep file.
     */
     if (mysql_file_delete(mi_key_file_dfile, from, MYF(MY_WME)))
-      DBUG_RETURN(my_errno());
+      return my_errno();
   } else {
     if (mysql_file_delete_with_symlink(mi_key_file_dfile, from, MYF(MY_WME)))
-      DBUG_RETURN(my_errno());
+      return my_errno();
   }
-  DBUG_RETURN(0);
+  return 0;
 }

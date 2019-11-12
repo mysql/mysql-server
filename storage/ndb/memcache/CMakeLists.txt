@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -69,22 +69,19 @@ endif()
 
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning
-          "unused-but-set-variable"
-          "strict-aliasing"
-          "missing-field-initializers"
-          "unused-parameter")
-    STRING(REPLACE "-" "_" warning_ ${warning})
-    STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
-    IF(HAVE_${WARNING})
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
+FOREACH(warning
+    "unused-but-set-variable"
+    "strict-aliasing"
+    "missing-field-initializers"
+    "unused-parameter"
+    "cast-qual"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
 
 # Don't disable assert
 REMOVE_DEFINITIONS(-DNDEBUG)
@@ -176,13 +173,13 @@ set(NDB_MEMCACHE_SOURCE_FILES
 
 # The sourced C files from storage/ndb/memcache/extra/memcached can't be built
 # with -Werror
-IF(CMAKE_C_FLAGS)
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
 ENDIF()
 
 # Set extra flags for the C compiler
 IF(${CMAKE_COMPILER_IS_GNUCC})
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --std=gnu99 -Wall -Wredundant-decls")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --std=gnu99")
 ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xc99=all")
 ENDIF()
@@ -269,8 +266,7 @@ FILE(APPEND ${MEMCLIENT} "${CONTENTS}")
                
 ######### TARGETS ############
 
-### Build the convenience library
-ADD_CONVENIENCE_LIBRARY(ndbmemcache ${NDB_MEMCACHE_SOURCE_FILES})
+ADD_LIBRARY(ndbmemcache STATIC ${NDB_MEMCACHE_SOURCE_FILES})
 
 target_link_libraries(ndbmemcache
                       ndbclient_static
@@ -335,7 +331,7 @@ if(APPLE)
   set(FINAL_LINK_FLAGS "-flat_namespace -undefined suppress -bind_at_load")
 elseif(${CMAKE_COMPILER_IS_GNUCC}) 
   set(FINAL_LINK_FLAGS "-shared")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS") 
+elseif(SOLARIS)
   set(FINAL_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
 else()
   set(FINAL_LINK_FLAGS "")

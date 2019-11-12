@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/init.h"
+#include "sql/dd/performance_schema/init.h"
 
 #include <sys/types.h>
 #include <list>
@@ -77,21 +77,11 @@ namespace {
   @return       Upon failure, return true, otherwise false.
 */
 
-bool create_pfs_schema(THD *thd) {
-  bool exists = false;
-  if (dd::schema_exists(thd, PERFORMANCE_SCHEMA_DB_NAME.str, &exists))
-    return true;
-
-  bool ret = false;
-  if (!exists)
-    ret = dd::execute_query(
-        thd, dd::String_type("CREATE SCHEMA ") +
-                 dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
-                 dd::String_type(" CHARACTER SET utf8mb4"));
-
-  return ret || dd::execute_query(
-                    thd, dd::String_type("USE ") +
-                             dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str));
+bool create_and_use_pfs_schema(THD *thd) {
+  return dd::performance_schema::create_pfs_schema(thd) ||
+         dd::execute_query(thd,
+                           dd::String_type("USE ") +
+                               dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str));
 }
 
 /**
@@ -307,7 +297,7 @@ bool initialize_pfs(THD *thd) {
     add_pfs_definition(table);
   }
 
-  return create_pfs_schema(thd) || drop_old_pfs_tables(thd) ||
+  return create_and_use_pfs_schema(thd) || drop_old_pfs_tables(thd) ||
          create_pfs_tables(thd);
 }
 
@@ -316,12 +306,25 @@ bool initialize_pfs(THD *thd) {
 namespace dd {
 namespace performance_schema {
 
+bool create_pfs_schema(THD *thd) {
+  bool exists = false;
+  if (dd::schema_exists(thd, PERFORMANCE_SCHEMA_DB_NAME.str, &exists))
+    return true;
+
+  if (exists) return false;
+
+  return dd::execute_query(thd,
+                           dd::String_type("CREATE SCHEMA ") +
+                               dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
+                               dd::String_type(" CHARACTER SET utf8mb4"));
+}
+
 bool init_pfs_tables(enum_dd_init_type init_type) {
   if (init_type == dd::enum_dd_init_type::DD_INITIALIZE)
-    return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
+    return ::bootstrap::run_bootstrap_thread(nullptr, nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_INITIALIZE);
   else if (init_type == dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)
-    return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
+    return ::bootstrap::run_bootstrap_thread(nullptr, nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_RESTART);
   else {
     DBUG_ASSERT(false);

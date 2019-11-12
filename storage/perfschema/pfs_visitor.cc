@@ -36,6 +36,10 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_user.h"
 
+#ifdef WITH_LOCK_ORDER
+#include "sql/debug_lock_order.h"
+#endif /* WITH_LOCK_ORDER */
+
 /**
   @file storage/perfschema/pfs_visitor.cc
   Visitors (implementation).
@@ -45,6 +49,40 @@
   @addtogroup performance_schema_buffers
   @{
 */
+
+static PFS_thread *get_pfs_from_THD(THD *thd) {
+  /*
+    Get the instrumentation associated with a session.
+    This can be 'any' instrumentation,
+    not necessarily the performance schema,
+    hence the opaque PSI_thread (not PFS_thread) type.
+  */
+  PSI_thread *psi = thd->get_psi();
+
+  /*
+    Now, we definitively break the encapsulation here,
+    and assume we know exactly what psi actually points to.
+  */
+#ifdef WITH_LOCK_ORDER
+  /*
+    With LOCK_ORDER, this is a chain of responsibility,
+    with:
+    THD::m_psi -> LO_thread
+    LO_thread::m_chain -> PFS_thread.
+    Follow the first link on the chain,
+    to find the underlying PFS_thread.
+
+    Without LOCK_ORDER, psi is a direct pointer
+    to the PFS_thread, so there is nothing to resolve.
+  */
+  psi = LO_get_chain_thread(psi);
+#endif
+  /*
+    And now, finally dive into the performance schema itself.
+  */
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+  return pfs;
+}
 
 class All_THD_visitor_adapter : public Do_THD_Impl {
  public:
@@ -119,8 +157,7 @@ class All_host_THD_visitor_adapter : public Do_THD_Impl {
       : m_visitor(visitor), m_host(host) {}
 
   virtual void operator()(THD *thd) {
-    PSI_thread *psi = thd->get_psi();
-    PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+    PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != NULL) {
       PFS_account *account = sanitize_account(pfs->m_account);
@@ -192,8 +229,7 @@ class All_user_THD_visitor_adapter : public Do_THD_Impl {
       : m_visitor(visitor), m_user(user) {}
 
   virtual void operator()(THD *thd) {
-    PSI_thread *psi = thd->get_psi();
-    PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+    PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != NULL) {
       PFS_account *account = sanitize_account(pfs->m_account);
@@ -266,8 +302,7 @@ class All_account_THD_visitor_adapter : public Do_THD_Impl {
       : m_visitor(visitor), m_account(account) {}
 
   virtual void operator()(THD *thd) {
-    PSI_thread *psi = thd->get_psi();
-    PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
+    PFS_thread *pfs = get_pfs_from_THD(thd);
     pfs = sanitize_thread(pfs);
     if (pfs != NULL) {
       if (pfs->m_account == m_account) {
