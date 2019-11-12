@@ -1850,3 +1850,20 @@ LIMIT 50;
 col1	col1
 1	1
 DROP TABLE t1, t2;
+#
+# Bug#30306279 ASAN: MEMCPY-PARAM-OVERLAP NEAR
+#              EXTRACT_VALUE_FOR_HASH_JOIN
+#
+# Set up a test where geometry data is written to chunk files on disk.
+# Note that the test only fails with ASAN.
+CREATE TABLE t1 (col1 GEOMETRY);
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+REPEAT(',POINT(1 1)', 100), ')'));
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+REPEAT(',POINT(1 1)', 100), ')')) FROM t1;
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+REPEAT(',POINT(1 1)', 100), ')')) FROM t1;
+SET join_buffer_size = 128;
+SELECT * FROM t1 a JOIN t1 b ON a.col1 = b.col1;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1;
