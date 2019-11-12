@@ -127,74 +127,85 @@ select max(a) from test.ticker;
 
 while($backup_count)
 {
---echo Restore backup on the slave
---connection slave
-stop slave;
-truncate table test.ticker;
-delete from mysql.ndb_apply_status;
+  --echo Restore backup on the slave
+  --connection slave
+  stop slave;
+  truncate table test.ticker;
+  delete from mysql.ndb_apply_status;
 
---let $outfile = $MYSQLTEST_VARDIR/tmp/ndb_backup_log.txt
---exec $NDB_RESTORE -c$NDB_CONNECTSTRING_SLAVE -b $backup_id -n 1 -r --restore-epoch $NDB_BACKUPS-$backup_id > $outfile 2>&1
---exec $NDB_RESTORE -c$NDB_CONNECTSTRING_SLAVE -b $backup_id -n 2 -r $NDB_BACKUPS-$backup_id >> $outfile 2>&1
+  --let $outfile = $MYSQLTEST_VARDIR/tmp/ndb_backup_log.txt
+  --exec $NDB_RESTORE -c$NDB_CONNECTSTRING_SLAVE -b $backup_id -n 1 -r --restore-epoch $NDB_BACKUPS-$backup_id > $outfile 2>&1
+  --exec $NDB_RESTORE -c$NDB_CONNECTSTRING_SLAVE -b $backup_id -n 2 -r $NDB_BACKUPS-$backup_id >> $outfile 2>&1
 
---disable_result_log
-select @backup_rows:=count(1) from test.ticker;
-select @backup_max_val:=max(a) from test.ticker;
---enable_result_log
+  --disable_result_log
+  select @backup_rows:=count(1) from test.ticker;
+  select @backup_max_val:=max(a) from test.ticker;
+  --enable_result_log
 
-# Expect both to be the same here
-select @backup_rows - @backup_max_val;
+  # Expect both to be the same here
+  select @backup_rows - @backup_max_val;
 
---let $first_backup_epoch=query_get_value(select epoch from mysql.ndb_apply_status where server_id=0, epoch, 1)
+  --let $backup_epoch=query_get_value(select epoch from mysql.ndb_apply_status where server_id=0, epoch, 1)
 
-#--echo First backup epoch is $first_backup_epoch
+  #--echo Backup epoch of backup $backup_id is $backup_epoch
 
---let $the_epoch = $first_backup_epoch
---source suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc
+  --let $the_epoch = $backup_epoch
+  --source suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc
 
---connection slave
+  --connection slave
 
-start slave;
+  start slave;
 
---connection master
---sync_slave_with_master
---connection slave
+  --connection master
+  --sync_slave_with_master
+  --connection slave
 
---echo Expect 200 rows when backup and binlog subset combined on slave
-select count(1) from test.ticker;
-select max(a) from test.ticker;
+  --echo Expect 200 rows when backup and binlog subset combined on slave
+  select count(1) from test.ticker;
+  select max(a) from test.ticker;
 
-# REMOVE
-#select * from test.ticker order by a;
+  # REMOVE
+  #select * from test.ticker order by a;
 
---echo Now check Binlog apply alone
-stop slave;
-truncate table test.ticker;
-delete from mysql.ndb_apply_status;
+  --echo Now check Binlog apply alone
+  stop slave;
+  truncate table test.ticker;
+  delete from mysql.ndb_apply_status;
 
---let $the_epoch = $first_backup_epoch
---source suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc
+  --let $the_epoch = $backup_epoch
+  --source suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc
 
---connection slave
+  --connection slave
 
-start slave;
+  start slave;
 
---connection master
---sync_slave_with_master
---connection slave
+  --connection master
+  --sync_slave_with_master
+  --connection slave
 
---disable_result_log
-select @log_rows:=count(1) from test.ticker;
-select @log_max_val:=max(a) from test.ticker;
---enable_result_log
+  --disable_result_log
+  select @log_rows:=count(1) from test.ticker;
+  select @log_max_val:=max(a) from test.ticker;
+  --enable_result_log
 
---echo Expect 200 when adding backup and log rows
-select @backup_rows + @log_rows;
-select @log_max_val;
+  --echo Expect 200 when adding backup and log rows
+  #select @backup_rows, @log_rows;
+  select @backup_rows + @log_rows;
+  select @log_max_val;
 
---dec $backup_count
---let $backup_id = $second_backup_id
+  --let $total_rows = query_get_value(select @backup_rows + @log_rows - 200 as r, r, 1)
+  if ($total_rows)
+  {
+    --echo Total rows not as expected when restoring backup $backup_id
+    --echo $backup_id epoch is $backup_epoch
+    select @backup_rows, @log_rows;
+    --connection master
+    select * from mysql.ndb_binlog_index;
+    --die Test fail check logs
+  }
 
+  --dec $backup_count
+  --let $backup_id = $second_backup_id
 }
 
 
