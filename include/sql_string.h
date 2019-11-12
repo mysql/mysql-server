@@ -128,6 +128,8 @@ class String;
 struct CHARSET_INFO;
 struct IO_CACHE;
 
+bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
+                     size_t *valid_length, bool *length_error);
 int sortcmp(const String *a, const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *to, String *from, size_t from_length);
 inline size_t copy_and_convert(char *to, size_t to_length,
@@ -475,6 +477,12 @@ class String {
     size_t offset;
     return needs_conversion(length(), charset(), cs_to, &offset);
   }
+  bool is_valid_string(const CHARSET_INFO *cs_to) const {
+    size_t valid_length;
+    bool length_error;
+    return !validate_string(cs_to, ptr(), length(), &valid_length,
+                            &length_error);
+  }
   static bool needs_conversion_on_storage(size_t arg_length,
                                           const CHARSET_INFO *cs_from,
                                           const CHARSET_INFO *cs_to);
@@ -645,9 +653,6 @@ inline LEX_CSTRING to_lex_cstring(const char *s) {
   LEX_CSTRING cstr = {s, s != NULL ? strlen(s) : 0};
   return cstr;
 }
-
-bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
-                     size_t *valid_length, bool *length_error);
 
 bool append_escaped(String *to_str, const String *from_str);
 

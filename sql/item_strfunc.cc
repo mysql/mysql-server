@@ -120,6 +120,47 @@ static void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
            to_name);
 }
 
+/**
+  Convert and/or validate input_string according to charset 'to_cs'.
+
+  If input_string needs conversion to 'to_cs' then do the conversion,
+  and verify the result.
+  Otherwise, if input_string has charset my_charset_bin, then verify
+  that it contains a valid string according to 'to_cs'.
+
+  Will call my_error() in case conversion/validation fails.
+
+  @param input_string        string to be converted/validated.
+  @param to_cs               result character set
+  @param output_string [out] output result variable
+
+  @return nullptr in case of error, otherwise pointer to result.
+ */
+static String *convert_or_validate_string(String *input_string,
+                                          const CHARSET_INFO *to_cs,
+                                          String *output_string) {
+  String *retval = input_string;
+  if (input_string->needs_conversion(to_cs)) {
+    uint errors = 0;
+    output_string->copy(input_string->ptr(), input_string->length(),
+                        input_string->charset(), to_cs, &errors);
+    if (errors) {
+      report_conversion_error(to_cs, input_string->ptr(),
+                              input_string->length(), input_string->charset());
+      return nullptr;
+    }
+    retval = output_string;
+  } else if (to_cs != &my_charset_bin &&
+             input_string->charset() == &my_charset_bin) {
+    if (!input_string->is_valid_string(to_cs)) {
+      report_conversion_error(to_cs, input_string->ptr(),
+                              input_string->length(), input_string->charset());
+      return nullptr;
+    }
+  }
+  return retval;
+}
+
 /*
   For the Items which have only val_str_ascii() method
   and don't have their own "native" val_str(),
@@ -1127,33 +1168,14 @@ String *Item_func_replace::val_str(String *str) {
   tmp_value_res.set_charset(collation.collation);
   String *result = &tmp_value_res;
 
-  char res2_buff[STRING_BUFFER_USUAL_SIZE];
-  String res2_converted(res2_buff, sizeof(res2_buff), nullptr);
-  char res3_buff[STRING_BUFFER_USUAL_SIZE];
-  String res3_converted(res3_buff, sizeof(res3_buff), nullptr);
-  uint errors = 0;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res3_converted(nullptr);
 
-  if (res2->needs_conversion(collation.collation)) {
-    res2_converted.copy(res2->ptr(), res2->length(), res2->charset(),
-                        collation.collation, &errors);
-    if (errors) {
-      report_conversion_error(collation.collation, res2->ptr(), res2->length(),
-                              res2->charset());
-      return error_str();
-    }
-    res2 = &res2_converted;
-  }
+  res2 = convert_or_validate_string(res2, collation.collation, &res2_converted);
+  if (res2 == nullptr) return error_str();
 
-  if (res3->needs_conversion(collation.collation)) {
-    res3_converted.copy(res3->ptr(), res3->length(), res3->charset(),
-                        collation.collation, &errors);
-    if (errors) {
-      report_conversion_error(collation.collation, res3->ptr(), res3->length(),
-                              res3->charset());
-      return error_str();
-    }
-    res3 = &res3_converted;
-  }
+  res3 = convert_or_validate_string(res3, collation.collation, &res3_converted);
+  if (res3 == nullptr) return error_str();
 
   THD *thd = current_thd;
   const unsigned long max_size = thd->variables.max_allowed_packet;
@@ -1520,21 +1542,11 @@ String *Item_func_substr_index::val_str(String *str) {
 
   res->set_charset(collation.collation);
 
-  char delimiter_buff[STRING_BUFFER_USUAL_SIZE];
-  String delimiter_converted(delimiter_buff, sizeof(delimiter_buff), nullptr);
-  uint errors = 0;
-  if (delimiter->needs_conversion(collation.collation)) {
-    delimiter_converted.copy(delimiter->ptr(), delimiter->length(),
-                             delimiter->charset(), collation.collation,
-                             &errors);
-    if (errors) {
-      report_conversion_error(collation.collation, delimiter->ptr(),
-                              delimiter->length(), delimiter->charset());
-      return error_str();
-    }
-    delimiter = &delimiter_converted;
-    delimiter_length = delimiter->length();
-  }
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> delimiter_converted(nullptr);
+  delimiter = convert_or_validate_string(delimiter, collation.collation,
+                                         &delimiter_converted);
+  if (delimiter == nullptr) return error_str();
+  delimiter_length = delimiter->length();
 
   Integer_value count_val(count, args[2]->unsigned_flag);
 
@@ -1636,26 +1648,16 @@ String *Item_func_trim::val_str(String *str) {
 
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), system_charset_info);
-  const String *remove_str = &remove;  // Default value.
+  String *remove_str = &remove;  // Default value.
 
-  char remove_buff[STRING_BUFFER_USUAL_SIZE];
-  String remove_converted(remove_buff, sizeof(remove_buff), nullptr);
-  uint errors = 0;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> remove_converted(nullptr);
 
   if (arg_count == 2) {
     remove_str = args[1]->val_str(&tmp);
     if ((null_value = args[1]->null_value)) return NULL;
-    if (remove_str->needs_conversion(collation.collation)) {
-      remove_converted.copy(remove_str->ptr(), remove_str->length(),
-                            remove_str->charset(), collation.collation,
-                            &errors);
-      if (errors) {
-        report_conversion_error(collation.collation, remove_str->ptr(),
-                                remove_str->length(), remove_str->charset());
-        return error_str();
-      }
-      remove_str = &remove_converted;
-    }
+    remove_str = convert_or_validate_string(remove_str, collation.collation,
+                                            &remove_converted);
+    if (remove_str == nullptr) return error_str();
   }
 
   const size_t remove_length = remove_str->length();
