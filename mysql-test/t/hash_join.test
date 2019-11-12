@@ -1318,3 +1318,24 @@ LIMIT 50;
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30306279 ASAN: MEMCPY-PARAM-OVERLAP NEAR
+--echo #              EXTRACT_VALUE_FOR_HASH_JOIN
+--echo #
+--echo # Set up a test where geometry data is written to chunk files on disk.
+--echo # Note that the test only fails with ASAN.
+CREATE TABLE t1 (col1 GEOMETRY);
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+                                      REPEAT(',POINT(1 1)', 100), ')'));
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+                                      REPEAT(',POINT(1 1)', 100), ')')) FROM t1;
+INSERT INTO t1 SELECT ST_GeomFromText(CONCAT('GEOMETRYCOLLECTION(POINT(1 1)',
+                                      REPEAT(',POINT(1 1)', 100), ')')) FROM t1;
+
+SET join_buffer_size = 128;
+--disable_result_log
+SELECT * FROM t1 a JOIN t1 b ON a.col1 = b.col1;
+--enable_result_log
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1;
