@@ -7,13 +7,7 @@
 ## Tests start here
 
 --write_file $MYSQL_TMP_DIR/admin_create_collection_default_validation.xpl
-
--->macro Admin_stmt  %CMD%  %ARGS%  %ERROR%
--->stmtadmin %CMD%	%ARGS%
--->expecterror %ERROR%
--->recvresult
--->endmacro
-
+-->import admin_stmt.macro
 
 callmacro Admin_stmt
 	create_collection	{"schema":"xtest","name":"coll","options":{"validation":{}}}
