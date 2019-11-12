@@ -1,17 +1,42 @@
 # WL 13352: Import  partitioned tables from older version zip file
 # Works for version 8.0.13, 8.0.15, 8.0.17, 8.0.19
 
+# To Enable fixed path for external files
+# --let $IS_FIXED_PATH = 1
+
 --echo # Test to create schema for Upgrade in old version
 
 --source include/have_innodb_16k.inc
+--source include/no_valgrind_without_big.inc
 
-# Check migration across platforms for 8.0.19
+# Check import across platforms for 8.0.19
 if ($OLD_VERSION != 8019) {
   --source include/have_case_sensitive_file_system.inc
+  --let $OLD_LCTN = 0
 }
 
-# To Enable fixed path for external files
-# --let $IS_FIXED_PATH = 1
+if ($OLD_LCTN == 0)
+{
+  --source include/have_lowercase0.inc
+}
+
+if ($OLD_LCTN == 1)
+{
+  --source include/have_lowercase1.inc
+}
+
+if ($OLD_LCTN == 2)
+{
+  --source include/have_lowercase2.inc
+}
+
+--let $OLD_EXTN = $OLD_VERSION
+
+# Check migration across platforms for 8.0.19
+if ($OLD_VERSION == 8019)
+{
+  --let $OLD_EXTN = `select concat("$OLD_VERSION", "_", "$OLD_PLATFORM", "_lctn_", "$OLD_LCTN")`
+}
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $EXTERNAL_DIR_NAME= mysql_wl13352_data
@@ -37,7 +62,7 @@ if (!$IS_FIXED_PATH)
 --force-rmdir $EXTERNAL_DIRECTORY
 
 --echo # Extract data files to be imported
---copy_file $MYSQLTEST_VARDIR/std_data/upgrade/export_wl13352_$OLD_VERSION.zip $MYSQL_TMP_DIR/data_export.zip
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/export_wl13352_$OLD_EXTN.zip $MYSQL_TMP_DIR/data_export.zip
 --file_exists $MYSQL_TMP_DIR/data_export.zip
 --exec unzip -qo $MYSQL_TMP_DIR/data_export.zip -d $UNZIP_DIR
 --remove_file $MYSQL_TMP_DIR/data_export.zip

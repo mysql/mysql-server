@@ -11,16 +11,17 @@
 #      - Search and comment out all #--force-rmdir
 # 2. mysql-test/suite/innodb/include/partition_upgrade_check.inc
 #      - Search and comment out all #--copy_files_wildcard
+#      - Comment out SET NAMES utf8mb4 COLLATE utf8mb4_0900_as_cs
 #      - Change information_schema.innodb_tables, innodb_tablespaces to
 #        innodb_sys_tables, innodb_sys_tablespaces
-# 3. mysql-test/suite/innodb/t/partition_upgrade_create-master.opt
-#      - Remove --initialize=--lower_case_table_names=1
-# 4. mysql-test/suite/innodb/r/partition_upgrade_create.result
+# 3. mysql-test/suite/innodb/r/partition_upgrade_create.result
 #      - Note the difference in result
 # To run it in other versions (8.0.*) copy the same files. Only
 # result file would need to change.
 
 --echo # Test to create schema for Upgrade in old version
+
+# Disable for creating zip files in other platforms
 --source include/linux.inc
 --source include/have_case_sensitive_file_system.inc
 
@@ -36,6 +37,12 @@
 
 # To Enable fixed path for external files
 # --let $IS_FIXED_PATH = 1
+
+# To enable platform and lctn extension [8019, 5727]
+--let HAVE_PLATFORM_LCTN_EXTN = 1
+
+# To enable upper case table, tablespace name [8019, 5727]
+--let EXTRA_TABLES = 1
 
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $EXTERNAL_DIR_NAME= mysql_wl13352_data
@@ -62,17 +69,37 @@ select case when @@version like "5.7.27%" then '5727'
 --let $OLD_VERSION= `select @current_server_version`
 --let $VERSION_STR= `select @@version`
 --let $IS_57= `select case when @@version like "5.7%" then 1 else 0 end`
-
-if ($OLD_VERSION == 'none')
-{
-  --skip Test doesn't support version $VERSION_STR
-}
+--let $IS_8019= `select case when @@version like "8.0.19%" then 1 else 0 end`
 
 # By default skip external directory for 5.7
 if ($IS_57)
 {
   --let $NO_EXPORT = 1
   --let $NO_EXT_PATH = 1
+}
+
+--let $OLD_EXTN = $OLD_VERSION
+
+if ($HAVE_PLATFORM_LCTN_EXTN) {
+
+  --let $OLD_LCTN = `select @@lower_case_table_names`
+
+  if (`select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows") = 1`)
+  {
+    --let $OLD_PLATFORM = _win_lctn_
+  }
+
+  if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 1`)
+  {
+    --let $OLD_PLATFORM = _lin_lctn_
+  }
+
+  if (`select convert(@@version_compile_os using latin1) RLIKE '^(osx|macos)' = 1`)
+  {
+    --let $OLD_PLATFORM = _mac_lctn_
+  }
+
+  --let $OLD_EXTN = $OLD_VERSION$OLD_PLATFORM$OLD_LCTN
 }
 
 --echo # Starting server with keyring plugin
@@ -138,7 +165,7 @@ if ($IS_57)
 --exec ln -s $MYSQLD_DATADIR data_upgrade
 --exec zip -qr $MYSQL_TMP_DIR/data_upgrade.zip data_upgrade
 --file_exists $MYSQL_TMP_DIR/data_upgrade.zip
---move_file $MYSQL_TMP_DIR/data_upgrade.zip  $MYSQLTEST_VARDIR/std_data/upgrade/data_wl13352_$OLD_VERSION.zip.new
+--move_file $MYSQL_TMP_DIR/data_upgrade.zip  $MYSQLTEST_VARDIR/std_data/upgrade/data_wl13352_$OLD_EXTN.zip.new
 --remove_file data_upgrade
 
 if (!$NO_EXPORT)
@@ -147,7 +174,7 @@ if (!$NO_EXPORT)
   --exec ln -s $EXPORT_DIRECTORY data_export
   --exec zip -qr $MYSQL_TMP_DIR/data_export.zip data_export
   --file_exists $MYSQL_TMP_DIR/data_export.zip
-  --move_file $MYSQL_TMP_DIR/data_export.zip  $MYSQLTEST_VARDIR/std_data/upgrade/export_wl13352_$OLD_VERSION.zip.new
+  --move_file $MYSQL_TMP_DIR/data_export.zip  $MYSQLTEST_VARDIR/std_data/upgrade/export_wl13352_$OLD_EXTN.zip.new
   --remove_file data_export
 }
 
@@ -158,7 +185,7 @@ if (!$NO_EXT_PATH) {
   {
     --exec zip -qr $MYSQL_TMP_DIR/data_external.zip $EXTERNAL_DIRECTORY
     --file_exists $MYSQL_TMP_DIR/data_external.zip
-    --move_file $MYSQL_TMP_DIR/data_external.zip  $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_VERSION.zip.new
+    --move_file $MYSQL_TMP_DIR/data_external.zip  $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_EXTN.zip.new
   }
 
   if (!$IS_FIXED_PATH)
@@ -166,7 +193,7 @@ if (!$NO_EXT_PATH) {
     --exec ln -s $MYSQL_TMP_DIR/tmp tmp
     --exec zip -qr $MYSQL_TMP_DIR/data_external.zip tmp/$EXTERNAL_DIR_NAME
     --file_exists $MYSQL_TMP_DIR/data_external.zip
-    --move_file $MYSQL_TMP_DIR/data_external.zip  $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_VERSION.zip.new
+    --move_file $MYSQL_TMP_DIR/data_external.zip  $MYSQLTEST_VARDIR/std_data/upgrade/extn_wl13352_$OLD_EXTN.zip.new
     --remove_file tmp
   }
 }

@@ -688,6 +688,12 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
 
     dict_table_t *part_table = dict_table_open_on_name(
         table_name.c_str(), FALSE, TRUE, DICT_ERR_IGNORE_NONE);
+
+    if (part_table == nullptr) {
+      ib::error(ER_IB_MSG_DICT_PARTITION_NOT_FOUND, table_name.c_str());
+      return (true);
+    }
+
     dict_table_close(part_table, false, false);
 
     DBUG_EXECUTE_IF("dd_upgrade",
@@ -1233,15 +1239,11 @@ int dd_upgrade_tablespace(THD *thd) {
     dd_space->set_engine(innobase_hton_name);
 
     new_tablespace_name.assign(tablespace_name);
-    dict_name::convert_to_space(new_tablespace_name);
     upgrade_space.name = new_tablespace_name.c_str();
 
-    Datafile df;
-
-    df.init(space->name, space->flags);
-    df.make_filepath(nullptr, space->name, IBD);
-
-    upgrade_space.path = df.filepath();
+    fil_node_t *node = &space->files.front();
+    std::string file_path(node->name);
+    upgrade_space.path = file_path.c_str();
 
     if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
                                        &upgrade_space)) {

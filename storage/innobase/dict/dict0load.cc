@@ -1458,7 +1458,9 @@ space_id_t dict_check_sys_tables(bool validate) {
     Note that flags2 is not available for REDUNDANT tables and
     tables which are upgraded from 5.5 & earlier,
     so don't check those. */
-    ut_ad(DICT_TF_HAS_SHARED_SPACE(flags) || !DICT_TF_GET_COMPACT(flags) ||
+    bool is_shared_space = DICT_TF_HAS_SHARED_SPACE(flags);
+
+    ut_ad(is_shared_space || !DICT_TF_GET_COMPACT(flags) ||
           (flags2 == 0 || flags2 & DICT_TF2_USE_FILE_PER_TABLE));
 
     /* Look up the tablespace name in the data dictionary if this
@@ -1480,14 +1482,19 @@ space_id_t dict_check_sys_tables(bool validate) {
       tbl_name = (space_name_from_dict != nullptr) ? space_name_from_dict
                                                    : table_name.m_name;
 
-      /* Convert 5.7 name to 8.0 for partitioned table. */
+      /* Convert 5.7 name to 8.0 for partitioned table. Skip for shared
+      tablespace. */
       dict_table_name.assign(tbl_name);
-      dict_name::rebuild(dict_table_name);
+      if (!is_shared_space) {
+        dict_name::rebuild(dict_table_name);
+      }
       tbl_name = dict_table_name.c_str();
 
-      /* Convert tablespace name to system cs. */
+      /* Convert tablespace name to system cs. Skip for shared tablespace. */
       tablespace_name.assign(tbl_name);
-      dict_name::convert_to_space(tablespace_name);
+      if (!is_shared_space) {
+        dict_name::convert_to_space(tablespace_name);
+      }
       space_name = tablespace_name.c_str();
     }
 

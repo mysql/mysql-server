@@ -6485,7 +6485,14 @@ void build_57_partition(const dd::Partition *dd_part, std::string &partition) {
 
   /* Extract partition and sub-partition name from DD. In 5.7, partition and
   sub-partition names are kept in same letter case as given by user. */
-  get_part_from_dd(dd_part, false, part_name, sub_name);
+  bool lower_case = false;
+
+  /* On windows, 5.7 partition sub-partition names are in lower case always. */
+#ifdef _WIN32
+  lower_case = true;
+#endif /* _WIN32 */
+
+  get_part_from_dd(dd_part, lower_case, part_name, sub_name);
 
   /* Build partition string after converting names. */
   build_partition_low(part_name, sub_name, table_to_file, true, partition);
@@ -6576,7 +6583,10 @@ void convert_to_space(std::string &dict_name) {
   /* Get all table parts converted to system cs. */
   get_table_parts(dict_name, schema, table, partition, is_tmp);
 
-  if (lower_case_file_system) {
+  /* For lower case file systems, schema and table name are converted
+  to lower case before generating tablespace name. Skip for general
+  table space i.e. schema is empty. */
+  if (lower_case_file_system && !schema.empty()) {
     ut_ad(lower_case_table_names != 0);
     to_lower(schema);
     to_lower(table);

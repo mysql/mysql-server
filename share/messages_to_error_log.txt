@@ -10644,6 +10644,9 @@ ER_SCHEMA_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
 ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED_FOR_FK
   eng "Table name '%s.%s' containing upper case characters, used by foreign key '%s' in table '%s.%s', is not allowed with lower_case_table_names = 1."
 
+ER_IB_MSG_DICT_PARTITION_NOT_FOUND
+  eng "Table Partition: %s is not found in InnoDB dictionary"
+
 ER_INNODB_OUT_OF_RESOURCES
   eng "%s"
 

@@ -53,6 +53,13 @@ subpartition `SUB_?\_4`),
 partition `PART_/_3` values less than MAXVALUE(
 subpartition `SUB_?/_5`,
 subpartition `sub_\/?_6`));
+CREATE TABLESPACE SPACE_part add datafile 'SPACE_part_1.ibd';
+CREATE TABLE table_part_CAP_6(
+id int primary key, value int, name varchar(32), data BLOB,
+key k1(value)) partition by hash (id) partitions 5;
+CREATE TABLE table_part_NOPART_CAP_7(
+id int primary key, value int, name varchar(32), data BLOB,
+key k1(value)) TABLESPACE SPACE_part;
 
 Inserting 10 rows to table_part_1
 ---------------------------------------
@@ -118,6 +125,32 @@ insert into table_part_2 VALUES(6, 655, "Row - 6", REPEAT('Large Column Data - 6
 insert into table_part_2 VALUES(7, 755, "Row - 7", REPEAT('Large Column Data - 7' , 256));
 insert into table_part_2 VALUES(8, 855, "Row - 8", REPEAT('Large Column Data - 8' , 256));
 insert into table_part_2 VALUES(9, 955, "Row - 9", REPEAT('Large Column Data - 9' , 256));
+
+Inserting 10 rows to table_part_CAP_6
+---------------------------------------
+insert into table_part_CAP_6 VALUES(0, 55, "Row - 0", REPEAT('Large Column Data - 0' , 256));
+insert into table_part_CAP_6 VALUES(1, 155, "Row - 1", REPEAT('Large Column Data - 1' , 256));
+insert into table_part_CAP_6 VALUES(2, 255, "Row - 2", REPEAT('Large Column Data - 2' , 256));
+insert into table_part_CAP_6 VALUES(3, 355, "Row - 3", REPEAT('Large Column Data - 3' , 256));
+insert into table_part_CAP_6 VALUES(4, 455, "Row - 4", REPEAT('Large Column Data - 4' , 256));
+insert into table_part_CAP_6 VALUES(5, 555, "Row - 5", REPEAT('Large Column Data - 5' , 256));
+insert into table_part_CAP_6 VALUES(6, 655, "Row - 6", REPEAT('Large Column Data - 6' , 256));
+insert into table_part_CAP_6 VALUES(7, 755, "Row - 7", REPEAT('Large Column Data - 7' , 256));
+insert into table_part_CAP_6 VALUES(8, 855, "Row - 8", REPEAT('Large Column Data - 8' , 256));
+insert into table_part_CAP_6 VALUES(9, 955, "Row - 9", REPEAT('Large Column Data - 9' , 256));
+
+Inserting 10 rows to table_part_NOPART_CAP_7
+---------------------------------------
+insert into table_part_NOPART_CAP_7 VALUES(0, 55, "Row - 0", REPEAT('Large Column Data - 0' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(1, 155, "Row - 1", REPEAT('Large Column Data - 1' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(2, 255, "Row - 2", REPEAT('Large Column Data - 2' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(3, 355, "Row - 3", REPEAT('Large Column Data - 3' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(4, 455, "Row - 4", REPEAT('Large Column Data - 4' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(5, 555, "Row - 5", REPEAT('Large Column Data - 5' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(6, 655, "Row - 6", REPEAT('Large Column Data - 6' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(7, 755, "Row - 7", REPEAT('Large Column Data - 7' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(8, 855, "Row - 8", REPEAT('Large Column Data - 8' , 256));
+insert into table_part_NOPART_CAP_7 VALUES(9, 955, "Row - 9", REPEAT('Large Column Data - 9' , 256));
 select id, value, name from table_part_sub_2 partition (sub_1) order by id;
 id	value	name
 0	55	Row - 0
@@ -338,6 +371,64 @@ id	value	name	SUBSTRING(data, 1024, 32)
 8	855	Row - 8	ta - 8Large Column Data - 8Large
 9	955	Row - 9	ta - 9Large Column Data - 9Large
 
+CHECK TABLE table_part_CAP_6;
+Table	Op	Msg_type	Msg_text
+test.table_part_CAP_6	check	status	OK
+
+SHOW CREATE TABLE table_part_CAP_6;
+Table	Create Table
+table_part_CAP_6	CREATE TABLE `table_part_CAP_6` (
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL,
+  `data` blob,
+  PRIMARY KEY (`id`),
+  KEY `k1` (`value`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 5 */
+
+SELECT id, value, name, SUBSTRING(data, 1024, 32) FROM table_part_CAP_6 order by id;
+id	value	name	SUBSTRING(data, 1024, 32)
+0	55	Row - 0	ta - 0Large Column Data - 0Large
+1	155	Row - 1	ta - 1Large Column Data - 1Large
+2	255	Row - 2	ta - 2Large Column Data - 2Large
+3	355	Row - 3	ta - 3Large Column Data - 3Large
+4	455	Row - 4	ta - 4Large Column Data - 4Large
+5	555	Row - 5	ta - 5Large Column Data - 5Large
+6	655	Row - 6	ta - 6Large Column Data - 6Large
+7	755	Row - 7	ta - 7Large Column Data - 7Large
+8	855	Row - 8	ta - 8Large Column Data - 8Large
+9	955	Row - 9	ta - 9Large Column Data - 9Large
+
+CHECK TABLE table_part_NOPART_CAP_7;
+Table	Op	Msg_type	Msg_text
+test.table_part_NOPART_CAP_7	check	status	OK
+
+SHOW CREATE TABLE table_part_NOPART_CAP_7;
+Table	Create Table
+table_part_NOPART_CAP_7	CREATE TABLE `table_part_NOPART_CAP_7` (
+  `id` int NOT NULL,
+  `value` int DEFAULT NULL,
+  `name` varchar(32) DEFAULT NULL,
+  `data` blob,
+  PRIMARY KEY (`id`),
+  KEY `k1` (`value`)
+) /*!50100 TABLESPACE `SPACE_part` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+SELECT id, value, name, SUBSTRING(data, 1024, 32) FROM table_part_NOPART_CAP_7 order by id;
+id	value	name	SUBSTRING(data, 1024, 32)
+0	55	Row - 0	ta - 0Large Column Data - 0Large
+1	155	Row - 1	ta - 1Large Column Data - 1Large
+2	255	Row - 2	ta - 2Large Column Data - 2Large
+3	355	Row - 3	ta - 3Large Column Data - 3Large
+4	455	Row - 4	ta - 4Large Column Data - 4Large
+5	555	Row - 5	ta - 5Large Column Data - 5Large
+6	655	Row - 6	ta - 6Large Column Data - 6Large
+7	755	Row - 7	ta - 7Large Column Data - 7Large
+8	855	Row - 8	ta - 8Large Column Data - 8Large
+9	955	Row - 9	ta - 9Large Column Data - 9Large
+
 Checking IFS views
 ------------------
 select table_schema, table_name from information_schema.tables
@@ -345,6 +436,8 @@ where table_name LIKE '%table_part%' order by table_schema, table_name;
 TABLE_SCHEMA	TABLE_NAME
 test	table_part_1
 test	table_part_2
+test	table_part_CAP_6
+test	table_part_NOPART_CAP_7
 test	table_part_\_special_/_sub_?_3
 test	table_part_sub_1
 test	table_part_sub_2
@@ -368,6 +461,12 @@ test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@003f_1#sp#sub_@002f_2	Si
 test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@003f_1#sp#sub_@003f_1	Single
 test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@005c_2#sp#sub_@003f@005c_4	Single
 test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@005c_2#sp#sub_@005c_3	Single
+test/table_part_CAP_6#p#p0	Single
+test/table_part_CAP_6#p#p1	Single
+test/table_part_CAP_6#p#p2	Single
+test/table_part_CAP_6#p#p3	Single
+test/table_part_CAP_6#p#p4	Single
+test/table_part_NOPART_CAP_7	General
 test/table_part_sub_1#p#part_1#sp#part_1sp0	Single
 test/table_part_sub_1#p#part_1#sp#part_1sp1	Single
 test/table_part_sub_1#p#part_2#sp#part_2sp0	Single
@@ -398,6 +497,12 @@ test	table_part_2	p1	NULL
 test	table_part_2	p2	NULL
 test	table_part_2	p3	NULL
 test	table_part_2	p4	NULL
+test	table_part_CAP_6	p0	NULL
+test	table_part_CAP_6	p1	NULL
+test	table_part_CAP_6	p2	NULL
+test	table_part_CAP_6	p3	NULL
+test	table_part_CAP_6	p4	NULL
+test	table_part_NOPART_CAP_7	NULL	NULL
 test	table_part_\_special_/_sub_?_3	PART_/_3	SUB_?/_5
 test	table_part_\_special_/_sub_?_3	PART_/_3	sub_\/?_6
 test	table_part_\_special_/_sub_?_3	Part_?_1	sUb_/_2
@@ -432,6 +537,11 @@ test/table_part_2#p#p1
 test/table_part_2#p#p2
 test/table_part_2#p#p3
 test/table_part_2#p#p4
+test/table_part_CAP_6#p#p0
+test/table_part_CAP_6#p#p1
+test/table_part_CAP_6#p#p2
+test/table_part_CAP_6#p#p3
+test/table_part_CAP_6#p#p4
 test/table_part_sub_1#p#part_1#sp#part_1sp0
 test/table_part_sub_1#p#part_1#sp#part_1sp1
 test/table_part_sub_1#p#part_2#sp#part_2sp0
@@ -468,6 +578,11 @@ TABLESPACE	NORMAL	./test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@003f
 TABLESPACE	NORMAL	./test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@003f_1#sp#sub_@003f_1.ibd	test/table_part_\_special_/_sub_?_3#p#part_?_1#sp#sub_?_1
 TABLESPACE	NORMAL	./test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@005c_2#sp#sub_@003f@005c_4.ibd	test/table_part_\_special_/_sub_?_3#p#part_\_2#sp#sub_?\_4
 TABLESPACE	NORMAL	./test/table_part_@005c_special_@002f_sub_@003f_3#p#part_@005c_2#sp#sub_@005c_3.ibd	test/table_part_\_special_/_sub_?_3#p#part_\_2#sp#sub_\_3
+TABLESPACE	NORMAL	./test/table_part_CAP_6#p#p0.ibd	test/table_part_CAP_6#p#p0
+TABLESPACE	NORMAL	./test/table_part_CAP_6#p#p1.ibd	test/table_part_CAP_6#p#p1
+TABLESPACE	NORMAL	./test/table_part_CAP_6#p#p2.ibd	test/table_part_CAP_6#p#p2
+TABLESPACE	NORMAL	./test/table_part_CAP_6#p#p3.ibd	test/table_part_CAP_6#p#p3
+TABLESPACE	NORMAL	./test/table_part_CAP_6#p#p4.ibd	test/table_part_CAP_6#p#p4
 TABLESPACE	NORMAL	./test/table_part_sub_1#p#part_1#sp#part_1sp0.ibd	test/table_part_sub_1#p#part_1#sp#part_1sp0
 TABLESPACE	NORMAL	./test/table_part_sub_1#p#part_1#sp#part_1sp1.ibd	test/table_part_sub_1#p#part_1#sp#part_1sp1
 TABLESPACE	NORMAL	./test/table_part_sub_1#p#part_2#sp#part_2sp0.ibd	test/table_part_sub_1#p#part_2#sp#part_2sp0
@@ -503,6 +618,12 @@ test	table_part_2#p#p1
 test	table_part_2#p#p2
 test	table_part_2#p#p3
 test	table_part_2#p#p4
+test	table_part_CAP_6#p#p0
+test	table_part_CAP_6#p#p1
+test	table_part_CAP_6#p#p2
+test	table_part_CAP_6#p#p3
+test	table_part_CAP_6#p#p4
+test	table_part_NOPART_CAP_7
 test	table_part_\_special_/_sub_?_3#p#part_/_3#sp#sub_?/_5
 test	table_part_\_special_/_sub_?_3#p#part_/_3#sp#sub_\/?_6
 test	table_part_\_special_/_sub_?_3#p#part_?_1#sp#sub_/_2
@@ -598,6 +719,48 @@ test	table_part_2#p#p4	k1	n_diff_pfx01
 test	table_part_2#p#p4	k1	n_diff_pfx02
 test	table_part_2#p#p4	k1	n_leaf_pages
 test	table_part_2#p#p4	k1	size
+test	table_part_CAP_6#p#p0	PRIMARY	n_diff_pfx01
+test	table_part_CAP_6#p#p0	PRIMARY	n_leaf_pages
+test	table_part_CAP_6#p#p0	PRIMARY	size
+test	table_part_CAP_6#p#p0	k1	n_diff_pfx01
+test	table_part_CAP_6#p#p0	k1	n_diff_pfx02
+test	table_part_CAP_6#p#p0	k1	n_leaf_pages
+test	table_part_CAP_6#p#p0	k1	size
+test	table_part_CAP_6#p#p1	PRIMARY	n_diff_pfx01
+test	table_part_CAP_6#p#p1	PRIMARY	n_leaf_pages
+test	table_part_CAP_6#p#p1	PRIMARY	size
+test	table_part_CAP_6#p#p1	k1	n_diff_pfx01
+test	table_part_CAP_6#p#p1	k1	n_diff_pfx02
+test	table_part_CAP_6#p#p1	k1	n_leaf_pages
+test	table_part_CAP_6#p#p1	k1	size
+test	table_part_CAP_6#p#p2	PRIMARY	n_diff_pfx01
+test	table_part_CAP_6#p#p2	PRIMARY	n_leaf_pages
+test	table_part_CAP_6#p#p2	PRIMARY	size
+test	table_part_CAP_6#p#p2	k1	n_diff_pfx01
+test	table_part_CAP_6#p#p2	k1	n_diff_pfx02
+test	table_part_CAP_6#p#p2	k1	n_leaf_pages
+test	table_part_CAP_6#p#p2	k1	size
+test	table_part_CAP_6#p#p3	PRIMARY	n_diff_pfx01
+test	table_part_CAP_6#p#p3	PRIMARY	n_leaf_pages
+test	table_part_CAP_6#p#p3	PRIMARY	size
+test	table_part_CAP_6#p#p3	k1	n_diff_pfx01
+test	table_part_CAP_6#p#p3	k1	n_diff_pfx02
+test	table_part_CAP_6#p#p3	k1	n_leaf_pages
+test	table_part_CAP_6#p#p3	k1	size
+test	table_part_CAP_6#p#p4	PRIMARY	n_diff_pfx01
+test	table_part_CAP_6#p#p4	PRIMARY	n_leaf_pages
+test	table_part_CAP_6#p#p4	PRIMARY	size
+test	table_part_CAP_6#p#p4	k1	n_diff_pfx01
+test	table_part_CAP_6#p#p4	k1	n_diff_pfx02
+test	table_part_CAP_6#p#p4	k1	n_leaf_pages
+test	table_part_CAP_6#p#p4	k1	size
+test	table_part_NOPART_CAP_7	PRIMARY	n_diff_pfx01
+test	table_part_NOPART_CAP_7	PRIMARY	n_leaf_pages
+test	table_part_NOPART_CAP_7	PRIMARY	size
+test	table_part_NOPART_CAP_7	k1	n_diff_pfx01
+test	table_part_NOPART_CAP_7	k1	n_diff_pfx02
+test	table_part_NOPART_CAP_7	k1	n_leaf_pages
+test	table_part_NOPART_CAP_7	k1	size
 test	table_part_\_special_/_sub_?_3#p#part_/_3#sp#sub_?/_5	PRIMARY	n_diff_pfx01
 test	table_part_\_special_/_sub_?_3#p#part_/_3#sp#sub_?/_5	PRIMARY	n_diff_pfx02
 test	table_part_\_special_/_sub_?_3#p#part_/_3#sp#sub_?/_5	PRIMARY	n_leaf_pages
@@ -775,3 +938,6 @@ DROP TABLE table_part_sub_1;
 DROP TABLE table_part_sub_2;
 DROP TABLE `table_part_\_special_/_sub_?_3`;
 DROP TABLE table_part_2;
+DROP TABLE table_part_CAP_6;
+DROP TABLE table_part_NOPART_CAP_7;
+DROP TABLESPACE SPACE_part;

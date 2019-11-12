@@ -5915,9 +5915,8 @@ uint ha_innobase::max_supported_key_length() const {
 
 bool ha_innobase::primary_key_is_clustered() const { return (true); }
 
-bool create_table_info_t::normalize_table_name_low(char *norm_name,
-                                                   const char *name,
-                                                   bool set_lower_case) {
+bool create_table_info_t::normalize_table_name(char *norm_name,
+                                               const char *name) {
   const char *name_ptr;
   ulint name_len;
   const char *db_ptr;
@@ -5970,7 +5969,8 @@ bool create_table_info_t::normalize_table_name_low(char *norm_name,
   /* Copy the name and null-byte. */
   memcpy(norm_name + db_len + 1, name_ptr, name_len + 1);
 
-  if (set_lower_case) {
+  if (lower_case_file_system) {
+    ut_ad(lower_case_table_names != 0);
     innobase_casedn_str(norm_name);
   }
   return (true);
@@ -5978,8 +5978,8 @@ bool create_table_info_t::normalize_table_name_low(char *norm_name,
 
 #ifdef UNIV_DEBUG
 /*********************************************************************
-Test normalize_table_name_low(). */
-static void test_normalize_table_name_low() {
+Test normalize_table_name(). */
+static void test_normalize_table_name() {
   char norm_name[FN_REFLEN];
   const char *test_data[][2] = {
       /* input, expected result */
@@ -6023,12 +6023,11 @@ static void test_normalize_table_name_low() {
 
   for (size_t i = 0; i < UT_ARR_SIZE(test_data); i++) {
     printf(
-        "test_normalize_table_name_low():"
+        "test_normalize_table_name():"
         " testing \"%s\", expected \"%s\"... ",
         test_data[i][0], test_data[i][1]);
 
-    create_table_info_t::normalize_table_name_low(norm_name, test_data[i][0],
-                                                  FALSE);
+    create_table_info_t::normalize_table_name(norm_name, test_data[i][0]);
 
     if (strcmp(norm_name, test_data[i][1]) == 0) {
       printf("ok\n");
@@ -13409,8 +13408,7 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
   dberr_t error = DB_SUCCESS;
   char norm_name[FN_REFLEN];
 
-  DBUG_EXECUTE_IF("test_normalize_table_name_low",
-                  test_normalize_table_name_low(););
+  DBUG_EXECUTE_IF("test_normalize_table_name", test_normalize_table_name(););
   DBUG_EXECUTE_IF("test_ut_format_name", test_ut_format_name(););
 
   /* Strangely, MySQL passes the table name without the '.frm'
