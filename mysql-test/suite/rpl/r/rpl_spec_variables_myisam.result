@@ -159,7 +159,7 @@ COUNT(*)
 70
 include/sync_slave_sql_with_master.inc
 LOAD DATA LOCAL INFILE 'FILE2' INTO TABLE t1 (b);
-ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server side
+ERROR 42000: Loading local data is disabled; this must be enabled on both the client and server sides
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 70
