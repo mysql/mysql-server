@@ -1730,6 +1730,7 @@ ACL_USER *decoy_user(const LEX_CSTRING &username, const LEX_CSTRING &hostname,
   user->use_default_password_history = true;
   user->password_history_length = 0;
   user->password_require_current = Lex_acl_attrib_udyn::DEFAULT;
+  user->password_locked_state.set_parameters(0, 0);
 
   if (is_initialized) {
     Auth_id key(user);
@@ -3210,6 +3211,55 @@ static inline bool check_restrictions_for_com_connect_command(THD *thd) {
   return false;
 }
 
+static void check_and_update_password_lock_state(MPVIO_EXT &mpvio, THD *thd,
+                                                 int &res) {
+  if (mpvio.acl_user && initialized &&
+      mpvio.acl_user->password_locked_state.is_active()) {
+    /* update user lock status and check if the account is locked */
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+
+    acl_cache_lock.lock();
+    const ACL_USER *acl_user = mpvio.acl_user;
+
+    ACL_USER *acl_user_ptr = find_acl_user(
+        acl_user->host.get_host(), acl_user->user ? acl_user->user : "", true);
+    long days_remaining = 0;
+    DBUG_ASSERT(acl_user_ptr != nullptr);
+    if (acl_user_ptr && acl_user_ptr->password_locked_state.update(
+                            thd, res == CR_OK, &days_remaining)) {
+      uint failed_logins =
+          acl_user_ptr->password_locked_state.get_failed_login_attempts();
+      int blocked_for_days =
+          acl_user_ptr->password_locked_state.get_password_lock_time_days();
+      acl_cache_lock.unlock();
+      char str_blocked_for_days[30], str_days_remaining[30];
+      if (blocked_for_days > 0)
+        snprintf(str_blocked_for_days, sizeof(str_blocked_for_days), "%d",
+                 blocked_for_days);
+      else
+        strncpy(str_blocked_for_days, "unlimited",
+                sizeof(str_blocked_for_days));
+      if (days_remaining > 0)
+        snprintf(str_days_remaining, sizeof(str_days_remaining), "%ld",
+                 days_remaining);
+      else
+        strncpy(str_days_remaining, "unlimited", sizeof(str_days_remaining));
+
+      my_error(ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK,
+               MYF(0), mpvio.acl_user->user ? mpvio.acl_user->user : "",
+               mpvio.auth_info.host_or_ip ? mpvio.auth_info.host_or_ip : "",
+               str_blocked_for_days, str_days_remaining, failed_logins);
+      LogErr(INFORMATION_LEVEL,
+             ER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK,
+             mpvio.acl_user->user ? mpvio.acl_user->user : "",
+             mpvio.auth_info.host_or_ip ? mpvio.auth_info.host_or_ip : "",
+             str_blocked_for_days, str_days_remaining, failed_logins);
+      res = CR_ERROR;
+    } else
+      acl_cache_lock.unlock();
+  }
+}
+
 /**
   Perform the handshake, authorize the client and update thd sctx variables.
 
@@ -3291,6 +3341,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
   }
 
   server_mpvio_update_thd(thd, &mpvio);
+
+  check_and_update_password_lock_state(mpvio, thd, res);
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_THREAD_CALL(set_connection_type)(thd->get_vio_type());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -3330,10 +3382,10 @@ int acl_authenticate(THD *thd, enum_server_command command) {
     }
 
     /*
-      Assign account user/host data to the current THD. This information is used
-      when the authentication fails after this point and we call audit api
-      notification event. Client user/host connects to the existing account is
-      easily distinguished from other connects.
+      Assign account user/host data to the current THD. This information is
+      used when the authentication fails after this point and we call audit
+      api notification event. Client user/host connects to the existing
+      account is easily distinguished from other connects.
     */
     if (mpvio.can_authenticate())
       assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
@@ -3469,9 +3521,9 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       }
 
       /*
-        OK. Let's check the SSL. Historically it was checked after the password,
-        as an additional layer, not instead of the password
-        (in which case it would've been a plugin too).
+        OK. Let's check the SSL. Historically it was checked after the
+        password, as an additional layer, not instead of the password (in
+        which case it would've been a plugin too).
       */
       if (acl_check_ssl(thd, acl_user)) {
         Host_errors errors;
@@ -4222,8 +4274,8 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 
     /*
       Client sent a "public key request"-packet ?
-      If the first packet is 1 then the client will require a public key before
-      encrypting the password.
+      If the first packet is 1 then the client will require a public key
+      before encrypting the password.
     */
     if (pkt_len == 1 && *pkt == 1) {
       uint pem_length =

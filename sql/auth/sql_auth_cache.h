@@ -199,6 +199,43 @@ class ACL_USER : public ACL_ACCESS {
 
   ACL_USER *copy(MEM_ROOT *root);
   ACL_USER();
+
+  class Password_locked_state {
+   public:
+    bool is_active() const {
+      return m_password_lock_time_days != 0 && m_failed_login_attempts != 0;
+    }
+    int get_password_lock_time_days() const {
+      return m_password_lock_time_days;
+    }
+    uint get_failed_login_attempts() const { return m_failed_login_attempts; }
+    void set_parameters(uint password_lock_time_days,
+                        uint failed_login_attempts);
+    bool update(THD *thd, bool successful_login, long *ret_days_remaining);
+    Password_locked_state()
+        : m_password_lock_time_days(0),
+          m_failed_login_attempts(0),
+          m_remaining_login_attempts(0),
+          m_daynr_locked(0) {}
+
+   protected:
+    /**
+      read from the user config. The number of days to keep the accont locked
+    */
+    int m_password_lock_time_days;
+    /**
+      read from the user config. The number of failed login attemps before the
+      account is locked
+    */
+    uint m_failed_login_attempts;
+    /**
+      The remaining login tries, valid ony if @ref m_failed_login_attempts and
+      @ref m_password_lock_time_days are non-zero
+    */
+    uint m_remaining_login_attempts;
+    /** The day the account is locked, 0 if not locked */
+    long m_daynr_locked;
+  } password_locked_state;
 };
 
 class ACL_DB : public ACL_ACCESS {
@@ -472,7 +509,8 @@ typedef boost::graph_traits<Granted_roles_graph>::edge_descriptor
 /** The datatype of the map between authids and graph vertex descriptors */
 typedef std::unordered_map<std::string, Role_vertex_descriptor> Role_index_map;
 
-/** The type used for the number of edges incident to a vertex in the graph. */
+/** The type used for the number of edges incident to a vertex in the graph.
+ */
 using degree_s_t = boost::graph_traits<Granted_roles_graph>::degree_size_type;
 
 /** The type for the iterator returned by out_edges(). */
@@ -638,9 +676,9 @@ class Acl_cache_lock_guard {
   Callers must acquire acl_cache_write_lock before to amend the cache.
   Callers should acquire acl_cache_read_lock to probe the cache.
 
-  Acl_restrictions is not part of ACL_USER because as of now latter is POD type
-  class. We use copy-POD for ACL_USER that makes the explicit memory management
-  of its members hard.
+  Acl_restrictions is not part of ACL_USER because as of now latter is POD
+  type class. We use copy-POD for ACL_USER that makes the explicit memory
+  management of its members hard.
 */
 class Acl_restrictions {
  public:

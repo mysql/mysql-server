@@ -1239,6 +1239,8 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> PRIVILEGE_CHECKS_USER_SYM     /* MYSQL */
 %token<lexer.keyword> MASTER_TLS_CIPHERSUITES_SYM   /* MYSQL */
 %token<lexer.keyword> REQUIRE_ROW_FORMAT_SYM        /* MYSQL */
+%token<lexer.keyword> PASSWORD_LOCK_TIME_SYM        /* MYSQL */
+%token<lexer.keyword> FAILED_LOGIN_ATTEMPTS_SYM     /* MYSQL */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -7873,6 +7875,36 @@ opt_account_lock_password_expire_option:
             lex->alter_password.update_password_require_current=
                 Lex_acl_attrib_udyn::NO;
           }
+        | FAILED_LOGIN_ATTEMPTS_SYM real_ulong_num
+          {
+            LEX *lex= Lex;
+            if ($2 > INT_MAX16) {
+              char buf[MAX_BIGINT_WIDTH + 1];
+              snprintf(buf, sizeof(buf), "%lu", $2);
+              my_error(ER_WRONG_VALUE, MYF(0), "FAILED_LOGIN_ATTEMPTS", buf);
+              MYSQL_YYABORT;
+            }
+            lex->alter_password.update_failed_login_attempts= true;
+            lex->alter_password.failed_login_attempts= $2;
+          }
+        | PASSWORD_LOCK_TIME_SYM real_ulong_num
+          {
+            LEX *lex= Lex;
+            if ($2 > INT_MAX16) {
+              char buf[MAX_BIGINT_WIDTH + 1];
+              snprintf(buf, sizeof(buf), "%lu", $2);
+              my_error(ER_WRONG_VALUE, MYF(0), "PASSWORD_LOCK_TIME", buf);
+              MYSQL_YYABORT;
+            }
+            lex->alter_password.update_password_lock_time= true;
+            lex->alter_password.password_lock_time= $2;
+          }
+        | PASSWORD_LOCK_TIME_SYM UNBOUNDED_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.update_password_lock_time= true;
+            lex->alter_password.password_lock_time= -1;
+          }
         ;
 
 connect_options:
@@ -14363,6 +14395,7 @@ ident_keywords_unambiguous:
         | EXPORT_SYM
         | EXTENDED_SYM
         | EXTENT_SIZE_SYM
+        | FAILED_LOGIN_ATTEMPTS_SYM
         | FAST_SYM
         | FAULTS_SYM
         | FILE_BLOCK_SIZE_SYM
@@ -14495,6 +14528,7 @@ ident_keywords_unambiguous:
         | PARTITIONING_SYM
         | PARTITIONS_SYM
         | PASSWORD %prec KEYWORD_USED_AS_IDENT
+        | PASSWORD_LOCK_TIME_SYM
         | PATH_SYM
         | PHASE_SYM
         | PLUGINS_SYM

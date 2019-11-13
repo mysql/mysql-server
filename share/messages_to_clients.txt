@@ -9274,6 +9274,9 @@ ER_MULTIPLE_INTO_CLAUSES
 ER_MISPLACED_INTO
   eng "Misplaced INTO clause, INTO is not allowed inside subqueries, and must be placed at end of UNION clauses."
 
+ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
+  eng "Access denied for user '%-.48s'@'%-.64s'. Account is blocked for %s day(s) (%s day(s) remaining) due to %u consecutive failed logins."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

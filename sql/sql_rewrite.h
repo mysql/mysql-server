@@ -181,6 +181,8 @@ class Rewriter_user : public I_rewriter {
   void rewrite_password_expired(const LEX *lex, String *str) const;
   /* Append the PASSWORD REQUIRE CURRENT clause for users */
   void rewrite_password_require_current(LEX *lex, String *str) const;
+  /* Append FAILED_LOGIN_ATTEMPTS/PASSWORD_LOCK_TIME */
+  void rewrite_account_lock_state(LEX *lex, String *str) const;
   /* Append the DEFAULT ROLE OPTIONS clause */
   void rewrite_default_roles(const LEX *lex, String *str) const;
 };

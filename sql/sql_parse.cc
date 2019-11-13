@@ -4533,6 +4533,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
              Lex_acl_attrib_udyn::UNCHANGED) &&
             !user->alter_status.update_password_history &&
             !user->alter_status.update_password_reuse_interval &&
+            !user->alter_status.update_failed_login_attempts &&
+            !user->alter_status.update_password_lock_time &&
             (thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED))
           update_password_only = true;
 
@@ -6775,6 +6777,10 @@ void get_default_definer(THD *thd, LEX_USER *definer) {
   definer->alter_status.update_password_require_current =
       Lex_acl_attrib_udyn::DEFAULT;
   definer->has_password_generator = false;
+  definer->alter_status.failed_login_attempts = 0;
+  definer->alter_status.password_lock_time = 0;
+  definer->alter_status.update_failed_login_attempts = false;
+  definer->alter_status.update_password_lock_time = false;
 }
 
 /**

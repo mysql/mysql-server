@@ -1966,6 +1966,8 @@ bool Sql_cmd_create_role::execute(THD *thd) {
   thd->lex->alter_password.update_password_expired_fields = true;
   thd->lex->alter_password.update_password_require_current =
       Lex_acl_attrib_udyn::UNCHANGED;
+  thd->lex->alter_password.failed_login_attempts = 0;
+  thd->lex->alter_password.password_lock_time = 0;
 
   List_iterator<LEX_USER> it(*const_cast<List<LEX_USER> *>(roles));
   LEX_USER *role;
