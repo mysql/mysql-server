@@ -5730,39 +5730,6 @@ int ha_table_exists_in_engine(THD *thd, const char *db, const char *name) {
   return args.err;
 }
 
-/**
-  Prepare (sub-) sequences of joins in this statement
-  which may be pushed to each storage engine for execution.
-*/
-struct st_make_pushed_join_args {
-  const AQP::Join_plan *plan;  // Query plan provided by optimizer
-  int err;                     // Error code to return.
-};
-
-static bool make_pushed_join_handlerton(THD *thd, plugin_ref plugin,
-                                        void *arg) {
-  st_make_pushed_join_args *vargs = (st_make_pushed_join_args *)arg;
-  handlerton *hton = plugin_data<handlerton *>(plugin);
-
-  if (hton && hton->make_pushed_join) {
-    const int error = hton->make_pushed_join(hton, thd, vargs->plan);
-    if (unlikely(error)) {
-      vargs->err = error;
-      return true;
-    }
-  }
-  return false;
-}
-
-int ha_make_pushed_joins(THD *thd, const AQP::Join_plan *plan) {
-  DBUG_TRACE;
-  st_make_pushed_join_args args = {plan, 0};
-  plugin_foreach(thd, make_pushed_join_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
-                 &args);
-  DBUG_PRINT("exit", ("error: %d", args.err));
-  return args.err;
-}
-
 /*
   TODO: change this into a dynamic struct
   List<handlerton> does not work as

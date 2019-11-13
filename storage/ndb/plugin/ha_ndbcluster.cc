@@ -362,8 +362,6 @@ bool ndb_show_foreign_key_mock_tables(THD *thd) {
 static int ndbcluster_end(handlerton *, ha_panic_function);
 static bool ndbcluster_show_status(handlerton *, THD *, stat_print_fn *,
                                    enum ha_stat_type);
-static int ndbcluster_make_pushed_join(handlerton *, THD *,
-                                       const AQP::Join_plan *);
 
 static int ndbcluster_get_tablespace(THD *thd, LEX_CSTRING db_name,
                                      LEX_CSTRING table_name,
@@ -12305,7 +12303,6 @@ static int ndbcluster_init(void *handlerton_ptr) {
                 HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL;
   hton->discover = ndbcluster_discover;
   hton->table_exists_in_engine = ndbcluster_table_exists_in_engine;
-  hton->make_pushed_join = ndbcluster_make_pushed_join;
   hton->is_supported_system_table = is_supported_system_table;
 
   // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files
@@ -14076,81 +14073,6 @@ int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
     if (m_cond.use_cond_push(pushed_cond, remainder) == 0)
       table_aqp->set_condition(const_cast<Item *>(remainder));
   }
-  return 0;
-}
-
-/**
- * Try to find pushable subsets of a join plan.
- * @param hton unused (maybe useful for other engines).
- * @param thd Thread.
- * @param plan The join plan to examine.
- * @return Possible error code.
- */
-
-static int ndbcluster_make_pushed_join(handlerton *, THD *thd,
-                                       const AQP::Join_plan *plan) {
-  DBUG_TRACE;
-
-  // ndbcluster_make_pushed_join() is deprecated, to be removed in later patches
-  /**
-  if (THDVAR(thd, join_pushdown)) {
-    ndb_pushed_builder_ctx pushed_builder(*plan);
-
-    for (uint i = 0; i < plan->get_access_count() - 1; i++) {
-      const AQP::Table_access *const join_root = plan->get_table_access(i);
-      const ndb_pushed_join *pushed_join = NULL;
-
-      // Try to build a ndb_pushed_join starting from 'join_root'
-      int error = pushed_builder.make_pushed_join(join_root, pushed_join);
-      if (unlikely(error)) {
-        if (error < 0)  // getNdbError() gives us the error code
-        {
-          ERR_SET(pushed_builder.getNdbError(), error);
-        }
-        join_root->get_table()->file->print_error(error, MYF(0));
-        return error;
-      }
-
-      // Assign any produced pushed_join definitions to
-      // the ha_ndbcluster instance representing its root.
-      if (pushed_join != NULL) {
-        ha_ndbcluster *const handler =
-            static_cast<ha_ndbcluster *>(join_root->get_table()->file);
-
-        error = handler->assign_pushed_join(pushed_join);
-        if (unlikely(error)) {
-          delete pushed_join;
-          handler->print_error(error, MYF(0));
-          return error;
-        }
-      }
-    }
-  }
-  **/
-  return 0;
-}
-
-/**
- * In case a pushed join having the table for this handler as its root
- * has been produced. ::assign_pushed_join() is responsible for setting
- * up this ha_ndbcluster instance such that the prepared NdbQuery
- * might be instantiated at execution time.
- */
-int ha_ndbcluster::assign_pushed_join(const ndb_pushed_join *pushed_join) {
-  DBUG_TRACE;
-  m_thd_ndb->m_pushed_queries_defined++;
-
-  for (uint i = 0; i < pushed_join->get_operation_count(); i++) {
-    const TABLE *const tab = pushed_join->get_table(i);
-    DBUG_ASSERT(tab->file->ht == ht);
-    ha_ndbcluster *child = static_cast<ha_ndbcluster *>(tab->file);
-    child->m_pushed_join_member = pushed_join;
-    child->m_pushed_join_operation = i;
-  }
-
-  DBUG_PRINT("info", ("Assigned pushed join with %d child operations",
-                      pushed_join->get_operation_count() - 1));
-
   return 0;
 }
 

@@ -1499,9 +1499,6 @@ typedef int (*find_files_t)(handlerton *hton, THD *thd, const char *db,
 typedef int (*table_exists_in_engine_t)(handlerton *hton, THD *thd,
                                         const char *db, const char *name);
 
-typedef int (*make_pushed_join_t)(handlerton *hton, THD *thd,
-                                  const AQP::Join_plan *plan);
-
 /**
   Check if the given db.tablename is a system table for this SE.
 
@@ -2360,7 +2357,6 @@ struct handlerton {
   discover_t discover;
   find_files_t find_files;
   table_exists_in_engine_t table_exists_in_engine;
-  make_pushed_join_t make_pushed_join;
   is_supported_system_table_t is_supported_system_table;
 
   /*
@@ -6798,9 +6794,6 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 bool ha_rollback_to_savepoint_can_release_mdl(THD *thd);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
-
-/* Build pushed joins in handlers implementing this feature */
-int ha_make_pushed_joins(THD *thd, const AQP::Join_plan *plan);
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht,

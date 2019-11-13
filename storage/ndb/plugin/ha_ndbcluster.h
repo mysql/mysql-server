@@ -363,7 +363,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool maybe_pushable_join(const char *&reason) const;
 
  public:
-  int assign_pushed_join(const ndb_pushed_join *pushed_join);
   uint number_of_pushed_joins() const override;
   const TABLE *member_of_pushed_join() const override;
   const TABLE *parent_of_pushed_join() const override;
