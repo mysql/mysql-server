@@ -141,7 +141,8 @@ class ha_tablespace_statistics;
 
 namespace AQP {
 class Join_plan;
-}
+class Table_access;
+}  // namespace AQP
 class Unique_on_insert;
 
 extern ulong savepoint_alloc_size;
@@ -5122,6 +5123,24 @@ class handler {
                         ulong cache_size MY_ATTRIBUTE((unused))) {
     return extra(operation);
   }
+
+  /**
+    Let storage engine inspect the optimized 'plan' and pick whatever
+    it like for being pushed down to the engine. (Join, conditions, ..)
+
+    The handler implementation should keep track of what it 'pushed',
+    such that later calls to the handlers access methods should
+    activate the pushed (part of) the execution plan on the storage
+    engines.
+
+    @param  Abstract Query Plan 'table' object for the table
+            being pushed to
+
+    @returns
+      0     on success
+      error otherwise
+  */
+  virtual int engine_push(AQP::Table_access *) { return 0; }
 
   /**
     Start read (before write) removal on the current table.

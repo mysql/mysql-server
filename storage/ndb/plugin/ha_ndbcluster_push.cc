@@ -181,6 +181,10 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
    * There may be referrences to Field values from tables outside the scope of
    * our pushed join which are supplied as paramValues().
    * If any of these are NULL values, join can't be pushed.
+   *
+   * Note that the 'Late NULL filtering' in the Iterator::Read() methods will
+   * eliminate such NULL-key Read's anyway, so not pushing these joins
+   * should be a non-issue.
    */
   for (uint i = 0; i < get_field_referrences_count(); i++) {
     Field *field = m_referred_fields[i];
@@ -302,102 +306,14 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 
 /////////////////////////////////////////
 
-ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan &plan)
-    : m_plan(plan),
-      m_join_root(),
+ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(AQP::Table_access *root)
+    : m_plan(*root->get_join_plan()),
+      m_join_root(root),
       m_join_scope(),
       m_const_scope(),
       m_internal_op_count(0),
       m_fld_refs(0),
-      m_builder(NULL) {
-  const uint count = m_plan.get_access_count();
-
-  DBUG_ASSERT(count <= MAX_TABLES);
-  if (count > 1) {
-    for (uint i = 0; i < count; i++) {
-      m_tables[i].m_maybe_pushable = 0;
-
-      const AQP::Table_access *const table = m_plan.get_table_access(i);
-      if (table->get_table() == NULL) {
-        // There could be unused tables allocated in the 'plan', skip these
-        continue;
-      }
-
-      if (table->get_table()->s->db_type()->db_type != DB_TYPE_NDBCLUSTER) {
-        DBUG_PRINT("info", ("Table '%s' not in ndb engine, not pushable",
-                            table->get_table()->alias));
-        continue;
-      }
-
-      switch (table->get_access_type()) {
-        case AQP::AT_VOID:
-          DBUG_ASSERT(false);
-          break;
-
-        case AQP::AT_FIXED:
-          EXPLAIN_NO_PUSH(
-              "Table '%s' was optimized away, or const'ified by optimizer",
-              table->get_table()->alias);
-          break;
-
-        case AQP::AT_OTHER:
-          EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s",
-                          table->get_table()->alias,
-                          table->get_other_access_reason());
-          break;
-
-        case AQP::AT_UNDECIDED:
-          EXPLAIN_NO_PUSH(
-              "Table '%s' is not pushable: "
-              "Access type was not chosen at 'prepare' time",
-              table->get_table()->alias);
-          break;
-
-        default:
-          const char *reason = NULL;
-          const ha_ndbcluster *handler =
-              static_cast<ha_ndbcluster *>(table->get_table()->file);
-
-          if (handler->maybe_pushable_join(reason)) {
-            m_tables[i].m_maybe_pushable =
-                PUSHABLE_AS_CHILD | PUSHABLE_AS_PARENT;
-          } else if (reason != NULL) {
-            EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s",
-                            table->get_table()->alias, reason);
-          }
-          break;
-      }  // switch
-    }    // for 'all tables'
-
-    m_tables[0].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
-    m_tables[count - 1].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
-
-#if !defined(NDEBUG)
-    // Fill in garbage table enums.
-    for (uint i = 0; i < MAX_TABLES; i++) {
-      m_remap[i].to_external = 0x1111;
-      m_remap[i].to_internal = 0x2222;
-    }
-#endif
-
-    for (uint i = 0; i < count; i++) {
-      m_remap[i].to_external = MAX_TABLES;
-      m_remap[i].to_internal = MAX_TABLES;
-    }
-
-    // Fill in table for maping internal <-> external table enumeration
-    for (uint i = 0; i < count; i++) {
-      const AQP::Table_access *const table = m_plan.get_table_access(i);
-      if (table->get_table() && table->get_table()->pos_in_table_list) {
-        const uint external = table->get_table()->pos_in_table_list->tableno();
-        DBUG_ASSERT(external < MAX_TABLES);
-
-        m_remap[i].to_external = external;
-        m_remap[external].to_internal = i;
-      }
-    }
-  }
-}  // ndb_pushed_builder_ctx::ndb_pushed_builder_ctx()
+      m_builder(nullptr) {}
 
 ndb_pushed_builder_ctx::~ndb_pushed_builder_ctx() {
   if (m_builder) {
@@ -410,18 +326,89 @@ const NdbError &ndb_pushed_builder_ctx::getNdbError() const {
   return m_builder->getNdbError();
 }
 
+bool ndb_pushed_builder_ctx::maybe_pushable(AQP::Table_access *table,
+                                            join_pushability check) {
+  DBUG_TRACE;
+  TABLE *tab = table->get_table();
+
+  if (tab == nullptr) {
+    // There could be unused tables allocated in the 'plan', skip these
+    return false;
+  }
+
+  if (tab->s->db_type()->db_type != DB_TYPE_NDBCLUSTER) {
+    // Ignore non-NDBCLUSTER tables.
+    DBUG_PRINT("info",
+               ("Table '%s' not in ndb engine, not pushable", tab->alias));
+    return false;
+  }
+
+  if (table->get_table()->file->member_of_pushed_join()) {
+    return false;  // Already pushed
+  }
+
+  uint pushable = table->get_table_properties();
+  if (pushable & PUSHABILITY_KNOWN) {
+    return ((pushable & check) == check);
+  }
+
+  bool allowed = false;
+  const char *reason = nullptr;
+  pushable = 0;  // Assume not pushable
+
+  switch (table->get_access_type()) {
+    case AQP::AT_VOID:
+      DBUG_ASSERT(false);
+      reason = "UNKNOWN";
+      break;
+
+    case AQP::AT_FIXED:
+      reason = "optimized away, or const'ified by optimizer";
+      break;
+
+    case AQP::AT_UNDECIDED:
+      reason = "Access type was not chosen at 'prepare' time";
+      break;
+
+    case AQP::AT_OTHER:
+      reason = table->get_other_access_reason();
+      break;
+
+    default:
+      const ha_ndbcluster *handler =
+          down_cast<ha_ndbcluster *>(table->get_table()->file);
+
+      if (handler->maybe_pushable_join(reason)) {
+        allowed = true;
+        pushable = PUSHABLE_AS_CHILD | PUSHABLE_AS_PARENT;
+      }
+      break;
+  }  // switch
+
+  if (reason != nullptr) {
+    DBUG_ASSERT(!allowed);
+    EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s", tab->alias, reason);
+  }
+  table->set_table_properties(pushable | PUSHABILITY_KNOWN);
+  return allowed;
+}  // ndb_pushed_builder_ctx::maybe_pushable
+
 /**
  * Get *internal* table_no of table referred by 'key_item'
  */
 uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
   DBUG_ASSERT(key_item->type() == Item::FIELD_ITEM);
   const uint count = m_plan.get_access_count();
-  table_map bitmap = key_item->used_tables();
+  const table_map bitmap = key_item->used_tables();
 
-  for (uint i = 0; i < count && bitmap != 0; i++, bitmap >>= 1) {
-    if (bitmap & 1) {
-      DBUG_ASSERT(bitmap == 0x01);  // Only a single table in 'bitmap'
-      return m_remap[i].to_internal;
+  for (uint i = 0; i < count; i++) {
+    TABLE *table = m_plan.get_table_access(i)->get_table();
+    if (table != nullptr && table->pos_in_table_list != nullptr) {
+      const table_map map = table->pos_in_table_list->map();
+      if (bitmap & map) {
+        DBUG_ASSERT((bitmap & ~map) == 0);  // No other tables in 'bitmap'
+        return i;
+      }
     }
   }
   return MAX_TABLES;
@@ -449,11 +436,11 @@ uint ndb_pushed_builder_ctx::get_table_no(const Item *key_item) const {
  *
  */
 int ndb_pushed_builder_ctx::make_pushed_join(
-    const AQP::Table_access *join_root, const ndb_pushed_join *&pushed_join) {
+    const ndb_pushed_join *&pushed_join) {
   DBUG_TRACE;
   pushed_join = NULL;
 
-  if (is_pushable_with_root(join_root)) {
+  if (is_pushable_with_root()) {
     int error;
     error = optimize_query_plan();
     if (unlikely(error)) return error;
@@ -505,35 +492,30 @@ uint internal_operation_count(AQP::enum_access_type accessType) {
  * child operations as possible to this 'ndb_pushed_builder_ctx' starting
  * with that join_root.
  */
-bool ndb_pushed_builder_ctx::is_pushable_with_root(
-    const AQP::Table_access *root) {
+bool ndb_pushed_builder_ctx::is_pushable_with_root() {
   DBUG_TRACE;
 
-  const uint root_no = root->get_access_no();
-  if ((m_tables[root_no].m_maybe_pushable & PUSHABLE_AS_PARENT) !=
-      PUSHABLE_AS_PARENT) {
-    DBUG_PRINT("info",
-               ("Table %d already reported 'not pushable_as_parent'", root_no));
+  if (!maybe_pushable(m_join_root, PUSHABLE_AS_PARENT)) {
     return false;
   }
 
-  const AQP::enum_access_type access_type = root->get_access_type();
+  const uint root_no = m_join_root->get_access_no();
+  const AQP::enum_access_type access_type = m_join_root->get_access_type();
   DBUG_ASSERT(access_type != AQP::AT_VOID);
 
   if (access_type == AQP::AT_MULTI_UNIQUE_KEY) {
     EXPLAIN_NO_PUSH(
         "Table '%s' is not pushable, "
         "access type 'MULTI_UNIQUE_KEY' not implemented",
-        root->get_table()->alias);
-    m_tables[root_no].m_maybe_pushable &= ~PUSHABLE_AS_PARENT;
+        m_join_root->get_table()->alias);
     return false;
   }
 
-  if (root->filesort_before_join()) {
+  if (m_join_root->filesort_before_join()) {
     EXPLAIN_NO_PUSH(
         "Table '%s' is not pushable, "
         "need filesort before joining child tables",
-        root->get_table()->alias);
+        m_join_root->get_table()->alias);
     return false;
   }
 
@@ -541,18 +523,18 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root(
    * Past this point we know at least root to be pushable as parent
    * operation. Search remaining tables appendable if '::is_pushable_as_child()'
    */
-  DBUG_PRINT("info", ("Table %d is pushable as root", root->get_access_no()));
-  DBUG_EXECUTE("info", root->dbug_print(););
+  DBUG_PRINT("info",
+             ("Table %d is pushable as root", m_join_root->get_access_no()));
+  DBUG_EXECUTE("info", m_join_root->dbug_print(););
   m_fld_refs = 0;
-  m_join_root = root;
   m_const_scope.set_prefix(root_no);
-  m_join_scope = ndb_table_access_map(root_no);
+  m_join_scope.add(root_no);
   m_internal_op_count = internal_operation_count(access_type);
 
   uint push_cnt = 0;
-  for (uint tab_no = root->get_access_no() + 1;
-       tab_no < m_plan.get_access_count(); tab_no++) {
-    const AQP::Table_access *const table = m_plan.get_table_access(tab_no);
+  for (uint tab_no = root_no + 1; tab_no < m_plan.get_access_count();
+       tab_no++) {
+    AQP::Table_access *const table = m_plan.get_table_access(tab_no);
     if (is_pushable_as_child(table)) {
       push_cnt++;
     }
@@ -579,21 +561,13 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root(
  * references with another from the COND_EQUAL sets which make
  * it pushable .
  ****************************************************************/
-bool ndb_pushed_builder_ctx::is_pushable_as_child(
-    const AQP::Table_access *table) {
+bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   DBUG_TRACE;
   const uint root_no = m_join_root->get_access_no();
   const uint tab_no = table->get_access_no();
-
   DBUG_ASSERT(tab_no > root_no);
 
-  if ((m_tables[tab_no].m_maybe_pushable & PUSHABLE_AS_CHILD) !=
-      PUSHABLE_AS_CHILD) {
-    if (table->get_table())  // Possible not a real table at all
-    {
-      DBUG_PRINT("info", ("Table %s already known 'not is_pushable_as_child'",
-                          table->get_table()->alias));
-    }
+  if (!maybe_pushable(table, PUSHABLE_AS_CHILD)) {
     return false;
   }
 
@@ -605,7 +579,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child, 'type' must be a 'ref' access",
         table->get_table()->alias);
-    m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD;
+    table->set_table_properties(table->get_table_properties() &
+                                ~PUSHABLE_AS_CHILD);
     return false;
   }
 
@@ -626,8 +601,9 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
         "Can't push table '%s' as child, "
         "too many ref'ed parent fields",
         table->get_table()->alias);
-    m_tables[tab_no].m_maybe_pushable &=
-        ~PUSHABLE_AS_CHILD;  // Permanently dissable
+    table->set_table_properties(
+        table->get_table_properties() &
+        ~PUSHABLE_AS_CHILD);  // Permanently dissable as child
     return false;
   }
 
@@ -732,8 +708,10 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
           "Can't push table '%s' as child, "
           "column '%s' does neither 'ref' a column nor a constant",
           table->get_table()->alias, key_part->field->field_name);
-      m_tables[tab_no].m_maybe_pushable &=
-          ~PUSHABLE_AS_CHILD;  // Permanently disable as child
+      table->set_table_properties(
+          table->get_table_properties() &
+          ~PUSHABLE_AS_CHILD);  // Permanently dissable as child
+
       return false;
     }
   }  // for (uint key_part_no= 0 ...
@@ -753,6 +731,24 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
         "no parents found within scope",
         table->get_table()->alias, m_join_root->get_table()->alias);
     return false;
+  }
+
+  /**
+   * Try to push condition to 'table'. Whatever we could not push of the
+   * condition is a 'server side condition' which the server has to
+   * evaluate later. The existence of such conditions may effect the join
+   * pushability of tables, so we need to try to push conditions first.
+   */
+  const Item *pending_cond = table->get_condition();
+  if (current_thd->optimizer_switch_flag(
+          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
+      pending_cond != nullptr) {
+    ha_ndbcluster *handler =
+        down_cast<ha_ndbcluster *>(table->get_table()->file);
+
+    const bool other_tbls_ok = false;
+    handler->m_cond.try_cond_push(pending_cond, other_tbls_ok);
+    pending_cond = handler->m_cond.m_remainder_cond;
   }
 
   if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
@@ -971,7 +967,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
   m_tables[tab_no].m_depend_parents = depend_parents;
   m_tables[tab_no].m_parent = MAX_TABLES;
 
-  m_tables[tab_no].m_maybe_pushable = 0;  // Exclude from further pushing
+  table->set_table_properties(
+      0 | PUSHABILITY_KNOWN);  // Exclude from further pushing
   m_join_scope.add(tab_no);
 
   return true;
@@ -992,7 +989,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(
  * operation cannot be pushed).
  */
 bool ndb_pushed_builder_ctx::is_field_item_pushable(
-    const AQP::Table_access *table, const Item *key_item,
+    AQP::Table_access *table, const Item *key_item,
     const KEY_PART_INFO *key_part, ndb_table_access_map &field_parents) {
   DBUG_TRACE;
   const uint tab_no = table->get_access_no();
@@ -1013,8 +1010,9 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
         "column '%s.%s'",
         table->get_table()->alias, key_part->field->field_name,
         key_item_field->field->table->alias, key_item_field->field->field_name);
-    m_tables[tab_no].m_maybe_pushable &=
-        ~PUSHABLE_AS_CHILD;  // Permanently disable as child
+    table->set_table_properties(
+        table->get_table_properties() &
+        ~PUSHABLE_AS_CHILD);  // Permanently disable as child
     return false;
   }
 
@@ -1368,7 +1366,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
 
     if (ndbcluster_is_lookup_operation(table->get_access_type())) {
       const ha_ndbcluster *handler =
-          static_cast<ha_ndbcluster *>(table->get_table()->file);
+          down_cast<ha_ndbcluster *>(table->get_table()->file);
       ndbcluster_build_key_map(
           handler->m_table, handler->m_index[table->get_index_no()], key, map);
     } else {

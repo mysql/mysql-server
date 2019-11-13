@@ -178,7 +178,7 @@ class ndb_pushed_builder_ctx {
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
 
  public:
-  ndb_pushed_builder_ctx(const AQP::Join_plan &plan);
+  ndb_pushed_builder_ctx(AQP::Table_access *table);
   ~ndb_pushed_builder_ctx();
 
   /**
@@ -188,25 +188,33 @@ class ndb_pushed_builder_ctx {
    *   > 0: Returned value is the error code.
    *   < 0: There is a pending NdbError to be retrieved with getNdbError()
    */
-  int make_pushed_join(const AQP::Table_access *join_root,
-                       const ndb_pushed_join *&pushed_join);
+  int make_pushed_join(const ndb_pushed_join *&pushed_join);
 
   const NdbError &getNdbError() const;
 
  private:
+  // 'pushability' is stored in AQP::Table_access::set_table_properties()
+  enum join_pushability {
+    PUSHABILITY_UNKNOWN = 0x00,  // Initial 'unknown' value, calculate it
+    PUSHABILITY_KNOWN = 0x10,
+    PUSHABLE_AS_PARENT = 0x01,
+    PUSHABLE_AS_CHILD = 0x02
+  };
+
+  bool maybe_pushable(AQP::Table_access *table, join_pushability check);
+
   /**
    * Collect all tables which may be pushed together with 'root'.
    * Returns 'true' if anything is pushable.
    */
-  bool is_pushable_with_root(const AQP::Table_access *root);
+  bool is_pushable_with_root();
 
-  bool is_pushable_as_child(const AQP::Table_access *table);
+  bool is_pushable_as_child(AQP::Table_access *table);
 
   bool is_const_item_pushable(const Item *key_item,
                               const KEY_PART_INFO *key_part);
 
-  bool is_field_item_pushable(const AQP::Table_access *table,
-                              const Item *key_item,
+  bool is_field_item_pushable(AQP::Table_access *table, const Item *key_item,
                               const KEY_PART_INFO *key_part,
                               ndb_table_access_map &parents);
 
@@ -224,7 +232,7 @@ class ndb_pushed_builder_ctx {
 
  private:
   const AQP::Join_plan &m_plan;
-  const AQP::Table_access *m_join_root;
+  AQP::Table_access *m_join_root;
 
   // Scope of tables covered by this pushed join
   ndb_table_access_map m_join_scope;
@@ -243,22 +251,14 @@ class ndb_pushed_builder_ctx {
   // Possibly reused if multiple NdbQuery's are pushed.
   NdbQueryBuilder *m_builder;
 
-  enum pushability {
-    PUSHABLE_AS_PARENT = 0x01,
-    PUSHABLE_AS_CHILD = 0x02
-  } enum_pushability;
-
   struct pushed_tables {
     pushed_tables()
-        : m_maybe_pushable(0),
-          m_common_parents(),
+        : m_common_parents(),
           m_extend_parents(),
           m_depend_parents(),
           m_parent(MAX_TABLES),
           m_ancestors(),
-          m_op(NULL) {}
-
-    int m_maybe_pushable;  // OR'ed bits from 'enum_pushability'
+          m_op(nullptr) {}
 
     /**
      * We maintain two sets of parent candidates for each table:
@@ -307,13 +307,5 @@ class ndb_pushed_builder_ctx {
 
     const NdbQueryOperationDef *m_op;
   } m_tables[MAX_TABLES];
-
-  /**
-   * There are two different table enumerations used:
-   */
-  struct table_remap {
-    Uint16 to_external;  // m_remap[] is indexed with internal table_no
-    Uint16 to_internal;  // m_remap[] is indexed with external tablenr
-  } m_remap[MAX_TABLES];
 
 };  // class ndb_pushed_builder_ctx

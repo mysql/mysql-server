@@ -123,6 +123,7 @@ struct st_ndb_status {
 int ndbcluster_commit(handlerton *, THD *thd, bool all);
 
 class ha_ndbcluster : public handler, public Partition_handler {
+  friend class ha_ndbcluster_cond;
   friend class ndb_pushed_builder_ctx;
 
  public:
@@ -355,6 +356,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                     const KEY *key_info,
                                     const key_range *start_key,
                                     const key_range *end_key);
+
+  int engine_push(AQP::Table_access *table) override;
 
  private:
   bool maybe_pushable_join(const char *&reason) const;

@@ -81,7 +81,7 @@ namespace AQP
 
     ~Join_plan();
 
-    const Table_access* get_table_access(uint access_no) const;
+    Table_access* get_table_access(uint access_no) const;
 
     uint get_access_count() const;
 
@@ -269,7 +269,7 @@ namespace AQP
     @param access_no The index of the table access operation to fetch.
     @return The access_no'th table access operation.
   */
-  inline const Table_access* Join_plan::get_table_access(uint access_no) const
+  inline Table_access* Join_plan::get_table_access(uint access_no) const
   {
     DBUG_ASSERT(access_no < m_access_count);
     return m_table_accesses + access_no;

@@ -902,72 +902,33 @@ void JOIN::create_iterators_for_zero_rows() {
   Push (parts of) the query execution down to the storage engines if they
   can provide faster execution of the query, or part of it.
 
-  @return 1 in case of error, 0 otherwise.
+  The handler will inspect the QEP through the
+  AQP (Abstract Query Plan) and extract from it whatever
+  it might implement of pushed execution.
+
+  It is the responsibility of the handler to store
+  any information it need for the later execution of
+  pushed queries and conditions.
+
+  @retval false Success.
+  @retval true Error, error code saved in member JOIN::error.
 */
-int JOIN::push_to_engines() {
+bool JOIN::push_to_engines() {
   DBUG_TRACE;
 
-  /*
-    Push joins to handlerton(s)
-
-    The handlerton(s) will inspect the QEP through the
-    AQP (Abstract Query Plan) and extract from it whatever
-    it might implement of pushed execution.
-
-    It is the responsibility of the handler:
-     - to store any information it need for later
-       execution of pushed queries.
-     - to call appropriate AQP functions which modifies the
-       QEP to use the special 'linked' read functions
-       for those parts of the join which have been pushed.
-
-    Currently pushed joins are only implemented by NDB.
-
-    It only make sense to try pushing if > 1 non-const tables.
-  */
-  if (!plan_is_single_table() && !plan_is_const()) {
+  if (!plan_is_const()) {
     const AQP::Join_plan plan(this);
-    if (ha_make_pushed_joins(thd, &plan)) return 1;
-  }
 
-  /*
-    If enabled by optimizer settings, and implemented by handler,
-    (parts of) the table condition may be pushed down to the
-    SE-engine for evaluation.
-  */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    for (uint i = const_tables; i < tables; i++) {
-      const join_type jt = qep_tab[i].type();
-      if ((jt == JT_EQ_REF || jt == JT_CONST || jt == JT_SYSTEM) &&
-          !qep_tab[i].table()->file->member_of_pushed_join()) {
-        /*
-          It is of limited value to push a condition to a single row
-          access method, so we skip cond_push() for these.
-          The exception is if we are member of a pushed join, where
-          execution of entire join branches may be eliminated.
-        */
-        continue;
-      }
-      const Item *cond = qep_tab[i].condition();
-      if (cond != nullptr) {
-        const bool using_join_cache = qep_tab[i].op_type == QEP_TAB::OT_BNL ||
-                                      qep_tab[i].op_type == QEP_TAB::OT_BKA;
-
-        /*
-          If a join cache is referred by this table, there is not a single
-          specific row from the 'other tables' to compare rows from this table
-          against. Thus, other tables can not be referred in this case.
-        */
-        const bool other_tbls_ok =
-            !using_join_cache && thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
-            thd->lex->sql_command != SQLCOM_DELETE_MULTI;
-        const Item *remainder =
-            qep_tab[i].table()->file->cond_push(cond, other_tbls_ok);
-        qep_tab[i].set_condition(const_cast<Item *>(remainder));
+    for (uint i = const_tables; i < plan.get_access_count(); i++) {
+      TABLE *const table = qep_tab[i].table();
+      if (table) {
+        if (table->file->engine_push(plan.get_table_access(i))) {
+          return true;
+        }
       }
     }
   }
-  return 0;
+  return false;
 }
 
 /**

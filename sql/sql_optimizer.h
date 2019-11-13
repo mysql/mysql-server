@@ -784,9 +784,9 @@ class JOIN {
     Handle offloading of query parts to the underlying engines, when
     such is supported by their implementation.
 
-    @returns 0 if success, 1 if error
+    @returns false if success, true if error
   */
-  int push_to_engines();
+  bool push_to_engines();
 
   RowIterator *root_iterator() const { return m_root_iterator.get(); }
   unique_ptr_destroy_only<RowIterator> release_root_iterator() {

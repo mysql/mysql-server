@@ -408,6 +408,11 @@ Join_plan::Join_plan(const JOIN *join)
       }
       break;
 
+    case JT_REF_OR_NULL:
+      DBUG_PRINT("info", ("Operation %d is REF_OR_NULL. (REF + SCAN)", m_tab_no));
+      m_access_type= AT_UNDECIDED; //Is both a REF *and* a SCAN
+      break;
+
     case JT_CONST:
     case JT_SYSTEM:
     default:
