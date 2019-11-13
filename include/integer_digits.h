@@ -112,7 +112,7 @@ struct DigitCounter {
 */
 template <typename T, int MinDigits, int MaxDigits>
 struct DigitCounter<T, MinDigits, MaxDigits,
-                    std::enable_if_t<MinDigits == MaxDigits>> {
+                    typename std::enable_if<MinDigits == MaxDigits>::type> {
   constexpr int operator()(T) const { return MinDigits; }
 };
 
