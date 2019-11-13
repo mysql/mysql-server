@@ -397,9 +397,9 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) NOT NULL,
-  `c3` year(4) NOT NULL
+  `c1` year NOT NULL,
+  `c2` year NOT NULL,
+  `c3` year NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
 SHOW TABLES;
@@ -408,9 +408,9 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) NOT NULL,
-  `c3` year(4) NOT NULL,
+  `c1` year NOT NULL,
+  `c2` year NOT NULL,
+  `c3` year NOT NULL,
   PRIMARY KEY (`c1`,`c2`,`c3`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

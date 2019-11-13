@@ -14,7 +14,7 @@ eval SET session default_storage_engine=$engine_type;
 
 --echo # Test for warnings on column creation
 
-CREATE TABLE t1 (y YEAR(4) NOT NULL);
+CREATE TABLE t1 (y YEAR NOT NULL);
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

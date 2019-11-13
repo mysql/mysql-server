@@ -104,7 +104,7 @@ t1	CREATE TABLE `t1` (
   `type_date` date NOT NULL DEFAULT '0000-00-00',
   `type_time` time NOT NULL DEFAULT '00:00:00',
   `type_datetime` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `type_year` year(4) DEFAULT NULL,
+  `type_year` year DEFAULT NULL,
   `type_enum` enum('red','green','blue') DEFAULT NULL,
   `type_set` enum('red','green','blue') DEFAULT NULL,
   `type_tinyblob` tinyblob,

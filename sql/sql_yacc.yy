@@ -6469,6 +6469,13 @@ type:
                 my_error(ER_INVALID_YEAR_COLUMN_LENGTH, MYF(0), "YEAR");
                 MYSQL_YYABORT;
               }
+              push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
+            }
+            if ($3 == UNSIGNED_FLAG)
+            {
+              push_warning(YYTHD, Sql_condition::SL_WARNING,
+                           ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                           ER_THD(YYTHD, ER_WARN_DEPRECATED_YEAR_UNSIGNED));
             }
             // We can ignore field length and UNSIGNED/ZEROFILL attributes here.
             $$= NEW_PTN PT_year_type;

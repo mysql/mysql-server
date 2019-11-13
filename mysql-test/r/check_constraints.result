@@ -1927,7 +1927,7 @@ t1	CREATE TABLE `t1` (
   `c8` int DEFAULT NULL,
   `c9` int DEFAULT NULL,
   `c10` int DEFAULT NULL,
-  `c11` year(4) DEFAULT NULL,
+  `c11` year DEFAULT NULL,
   `c12` int DEFAULT NULL,
   `c13` int DEFAULT NULL,
   `c14` char(10) DEFAULT NULL,

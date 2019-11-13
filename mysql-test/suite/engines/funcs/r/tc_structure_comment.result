@@ -198,7 +198,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) DEFAULT NULL
+  `c1` year DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This table has a YEAR column'
 DROP TABLE t1;
 SHOW TABLES;

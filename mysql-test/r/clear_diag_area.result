@@ -338,8 +338,11 @@ DROP PROCEDURE p10_ps_with_warning;
 DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;
 # show prepared statements still throw warnings OK
-PREPARE stmt1 FROM 'create table if not exists t1 (f1 year(4))';
+PREPARE stmt1 FROM 'create table if not exists t1 (f1 year)';
 EXECUTE stmt1;
+EXECUTE stmt1;
+Warnings:
+Note	1050	Table 't1' already exists
 DEALLOCATE PREPARE stmt1;
 DROP TABLE t1;
 

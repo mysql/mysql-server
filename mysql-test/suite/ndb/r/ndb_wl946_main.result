@@ -32,7 +32,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(3) NOT NULL DEFAULT '10:11:12.123',
   `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
@@ -123,7 +123,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(3) NOT NULL DEFAULT '10:11:12.123',
   `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
@@ -177,7 +177,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
   `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
@@ -268,7 +268,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
   `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
@@ -323,7 +323,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(3) NOT NULL DEFAULT '10:11:12.123',
   `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
@@ -359,7 +359,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(3) NOT NULL DEFAULT '10:11:12.123',
   `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
@@ -410,7 +410,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
   `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
@@ -446,7 +446,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
   `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
@@ -508,7 +508,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
   `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
@@ -559,7 +559,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time(3) NOT NULL DEFAULT '10:11:12.123',
   `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',

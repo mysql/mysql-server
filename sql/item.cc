@@ -5792,8 +5792,8 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
           Field_datetimef(maybe_null, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_YEAR:
-      field =
-          new (*THR_MALLOC) Field_year(max_length, maybe_null, item_name.ptr());
+      DBUG_ASSERT(max_length == 4);  // Field_year is only for length 4.
+      field = new (*THR_MALLOC) Field_year(maybe_null, item_name.ptr());
       break;
     case MYSQL_TYPE_BIT:
       field = new (*THR_MALLOC)

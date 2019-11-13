@@ -22,7 +22,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -37,7 +37,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -95,7 +95,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -111,7 +111,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -182,7 +182,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -204,7 +204,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -269,7 +269,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -292,7 +292,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -368,7 +368,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -387,7 +387,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -448,7 +448,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -468,7 +468,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -538,7 +538,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -554,7 +554,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -614,7 +614,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -632,7 +632,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -700,7 +700,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -717,7 +717,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -776,7 +776,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -794,7 +794,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'
@@ -853,7 +853,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -871,7 +871,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1'

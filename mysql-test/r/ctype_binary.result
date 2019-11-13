@@ -2058,18 +2058,6 @@ hex(concat(a))	a
 30303030303030303030303030303030313030302E31	00000000000000001000.1
 30303030303030303030303030303031303030302E31	00000000000000010000.1
 drop table t1;
-create table t1 (a year(4));
-insert into t1 values (1);
-select hex(concat(a)) from t1;
-hex(concat(a))
-32303031
-create table t2 as select concat(a) from t1;
-show create table t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `concat(a)` varbinary(4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-drop table t1, t2;
 create table t1 (a year);
 insert into t1 values (1);
 select hex(concat(a)) from t1;
@@ -2388,17 +2376,6 @@ hex(a)
 30303030303030303030303030303030303130302E31
 30303030303030303030303030303030313030302E31
 30303030303030303030303030303031303030302E31
-drop table t1;
-drop view v1;
-create table t1 (a year(4));
-insert into t1 values (1);
-create view v1(a) as select concat(a) from t1;
-show columns from v1;
-Field	Type	Null	Key	Default	Extra
-a	varbinary(4)	YES		NULL	
-select hex(a) from v1;
-hex(a)
-32303031
 drop table t1;
 drop view v1;
 create table t1 (a year);

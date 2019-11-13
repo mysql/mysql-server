@@ -349,11 +349,11 @@ m1
 SHOW CREATE TABLE m1;
 Table	Create Table
 m1	CREATE TABLE `m1` (
-  `c1` year(4) DEFAULT NULL,
-  `c2` year(4) NOT NULL,
-  `c3` year(4) DEFAULT NULL,
-  `c4` year(4) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c1` year DEFAULT NULL,
+  `c2` year NOT NULL,
+  `c3` year DEFAULT NULL,
+  `c4` year NOT NULL,
+  `c5` year NOT NULL,
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
