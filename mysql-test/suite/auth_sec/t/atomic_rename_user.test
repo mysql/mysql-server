@@ -88,6 +88,21 @@ DROP USER userA, userB, userX, userZ;
 
 --source include/save_binlog_position.inc
 
+--echo ## Malformed table should be handled gracefully
+--disable_query_log
+call mtr.add_suppression('.*does not support system tables.*');
+call mtr.add_suppression('.*Column count of mysql.user is wrong.*');
+--enable_query_log
+
+RENAME TABLE mysql.user TO mysql.user_bak;
+CREATE TABLE mysql.user(dummy INT) ENGINE=MyISAM;
+FLUSH PRIVILEGES;
+SHOW WARNINGS;
+DROP TABLE mysql.user;
+RENAME TABLE mysql.user_bak TO mysql.user;
+FLUSH PRIVILEGES;
+
+
 --echo # End : Tests for RENAME USER
 
 --echo # -----------------------------------------------------------------------
