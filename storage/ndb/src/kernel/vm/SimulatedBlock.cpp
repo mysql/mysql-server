@@ -5036,29 +5036,90 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
   /**
    * Make sure that a signal being part of node-failure handling
    *   from a remote node, does not get to us before we got the NODE_FAILREP
-   *   (this to avoid tricky state handling)
+   *   (this to avoid tricky state handling to some extent when receving
+   *    signals from old nodes)
    *
-   * To ensure this, we send the signal via QMGR (GSN_COMMIT_FAILREQ)
-   *   and NDBCNTR (which sends NODE_FAILREP)
+   * To ensure this, we send the signal via the transporter for the remote
+   * sender node via QMGR and NDBCNTR to DBDIH.  Although approximating
+   * synchronization between all threads and transporters with a single hop to
+   * DBLQH_REF to at least send via another thread for multi threaded data
+   * node.
    *
    * The extra time should be negilable
    *
    * Note, make an exception for signals sent by our self
    *       as they are only sent as a consequence of NODE_FAILREP
+   *
+   * Also note that this function no longer guarantee that signal arrives to
+   * its destination after corresponding NODE_FAILREP, as a complement caller
+   * need some further logic delaying the processing of the signal until
+   * NODE_FAILREP have been seen.
    */
   if (ref == reference() ||
       (refToNode(ref) == getOwnNodeId() &&
-       refToMain(ref) == NDBCNTR))
+       refToMain(ref) == DBDIH))
   {
     jam();
     return true;
   }
 
-  RoutePath path[2];
-  path[0].ref = QMGR_REF;
-  path[0].prio = JBB;
-  path[1].ref = NDBCNTR_REF;
-  path[1].prio = JBB;
+  Uint32 trpman_ref;
+  if (globalData.ndbMtReceiveThreads == 0)
+  {
+    jam();
+    ndbrequire(!isNdbMt());
+    trpman_ref = TRPMAN_REF;
+  }
+  else
+  {
+    jam();
+    ndbrequire(isNdbMt());
+    Uint32 sender_node = refToNode(ref);
+    Uint32 inst = (get_recv_thread_idx(sender_node) + /* proxy */ 1);
+    if (inst > NDBMT_MAX_BLOCK_INSTANCES)
+    {
+      jam();
+      trpman_ref = TRPMAN_REF;
+    }
+    else
+    {
+      jam();
+      trpman_ref = numberToRef(TRPMAN, inst, getOwnNodeId());
+    }
+  }
+
+  RoutePath path[5];
+  Uint32 path_idx = 0;
+
+  /* Start at TRPMAN for sending node */
+  path[path_idx].ref = trpman_ref;
+  path[path_idx].prio = JBA;
+  path_idx++;
+
+  /* Follow COMMIT_FAILREQ to QMGR */
+  path[path_idx].ref = QMGR_REF;
+  path[path_idx].prio = JBB;
+  path_idx++;
+
+  /*
+   * Should be sync_threads, but sends only to DBLQH_REF to at least send
+   * to another thread than main thread (if using a multi threaded data node)
+   */
+  path[path_idx].ref = DBLQH_REF;
+  path[path_idx].prio = JBB;
+  path_idx++;
+
+  /* Follow NODE_FAILREP to NDBCNT */
+  path[path_idx].ref = NDBCNTR_REF;
+  path[path_idx].prio = JBB;
+  path_idx++;
+
+  /* Follow NODE_FAILREP to DBDIH */
+  path[path_idx].ref = DBDIH_REF;
+  path[path_idx].prio = JBB;
+  path_idx++;
+
+  ndbrequire(path_idx <= NDB_ARRAY_SIZE(path));
 
   Uint32 dst[1];
   dst[0] = reference();
@@ -5067,7 +5128,7 @@ SimulatedBlock::checkNodeFailSequence(Signal* signal)
   Uint32 gsn = signal->header.theVerId_signalNumber;
   Uint32 len = signal->getLength();
 
-  sendRoutedSignal(path, 2, dst, 1, gsn, signal, len, JBB, &handle);
+  sendRoutedSignal(path, path_idx, dst, 1, gsn, signal, len, JBB, &handle);
   return false;
 }
 

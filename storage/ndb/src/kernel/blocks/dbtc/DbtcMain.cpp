@@ -10730,15 +10730,6 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
 
   const Uint32 sig_len = signal->getLength();
 
-  if (sig_len <= TakeOverTcConf::SignalLength_v8_0_17)
-  {
-    if (!checkNodeFailSequence(signal))
-    {
-      jam();
-      return;
-    }
-  }
-
   const TakeOverTcConf* const conf = (const TakeOverTcConf*) &signal->theData;
 
   const Uint32 failedNodeId = conf->failedNode;
@@ -10775,29 +10766,39 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
       }
     }
 
-    if (sig_len > TakeOverTcConf::SignalLength_v8_0_17)
+    if (i == end)
     {
-      if (i == end)
+      if (sig_len <= TakeOverTcConf::SignalLength_v8_0_17)
       {
+        jam();
+        if (!checkNodeFailSequence(signal))
+        {
+          jam();
+          return;
+        }
+        /*
+         * Fallthrough to resend signal for later retry.
+         */
+      }
+      else
+      {
+        jam();
         const Uint32 senderTcFailNo = conf->tcFailNo;
         const Uint32 tcFailNo = cfailure_nr;
-
-        /* If we have not yet seen all failures that sender has, delay this
-         * signal for retry later.
-         *
+        /*
          * If we have seen the failure number that sender have seen, we really
          * should have queued the node failed for handling.
          */
-        if (tcFailNo < senderTcFailNo)
-        {
-          jam();
-          sendSignalWithDelay(reference(), GSN_TAKE_OVERTCCONF, signal,
-                              100, signal->getLength());
-          return;
-        }
+        ndbrequire(tcFailNo < senderTcFailNo);
       }
+      /*
+       * If we have not yet seen all failures that sender has, delay this
+       * signal for retry later.
+       */
+      sendSignalWithDelay(reference(), GSN_TAKE_OVERTCCONF, signal,
+                          10, signal->getLength());
+      return;
     }
-    ndbrequire(i != end);
     tcNodeFailptr.p->queueList[i] = tcNodeFailptr.p->queueList[end-1];
     tcNodeFailptr.p->queueIndex = end - 1;
   }

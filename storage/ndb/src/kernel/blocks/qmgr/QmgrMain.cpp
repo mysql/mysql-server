@@ -5448,6 +5448,8 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
   cfailedNodes = cprepFailedNodes;
 
   cfailureNr = cfailureNr + 1;
+  // Failure number may not wrap
+  ndbrequire(cfailureNr != 0);
   for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRec);
     if (nodePtr.p->phase == ZRUNNING) {
