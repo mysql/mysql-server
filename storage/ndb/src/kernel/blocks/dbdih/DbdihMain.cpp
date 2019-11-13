@@ -18871,11 +18871,6 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
      * to worry about this. If any node fails in the state of me being
      * started, I will fail as well.
      */
-    if (!isMaster() && c_lcpState.m_participatingLQH.get(nodeId))
-    {
-      jamLine(Uint16(nodeId));
-      ndbrequire(c_lcpState.m_participatingLQH.get(nodeId) == 0);
-    }
     NodeRecordPtr nodePtr;
     if (req->participatingDIH.get(nodeId) ||
         req->participatingLQH.get(nodeId))
