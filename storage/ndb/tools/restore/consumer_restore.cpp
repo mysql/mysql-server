@@ -3667,6 +3667,7 @@ bool BackupRestore::isMissingTable(const TableS& table)
   db_name = split[0];
   schema_name = split[1];
   table_name = split[2];
+  check_rewrite_database(db_name);
   m_ndb->setDatabaseName(db_name.c_str());
   m_ndb->setSchemaName(schema_name.c_str());
 
