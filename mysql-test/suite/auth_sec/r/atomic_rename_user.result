@@ -79,5 +79,17 @@ include/assert_binlog_events.inc
 include/save_binlog_position.inc
 DROP USER userA, userB, userX, userZ;
 include/save_binlog_position.inc
+## Malformed table should be handled gracefully
+RENAME TABLE mysql.user TO mysql.user_bak;
+CREATE TABLE mysql.user(dummy INT) ENGINE=MyISAM;
+FLUSH PRIVILEGES;
+Warnings:
+Warning	1805	Column count of mysql.user is wrong. Expected 51, found 1. The table is probably corrupted
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1805	Column count of mysql.user is wrong. Expected 51, found 1. The table is probably corrupted
+DROP TABLE mysql.user;
+RENAME TABLE mysql.user_bak TO mysql.user;
+FLUSH PRIVILEGES;
 # End : Tests for RENAME USER
 # -----------------------------------------------------------------------

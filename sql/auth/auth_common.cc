@@ -76,6 +76,9 @@ Mem_root_base::~Mem_root_base() {
 }
 
 bool User_table_schema_factory::is_old_user_table_schema(TABLE *table) {
+  if (table->visible_field_count() <
+      User_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56)
+    return false;
   Field *password_field =
       table->field[User_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
   return strncmp(password_field->field_name, "Password", 8) == 0;
