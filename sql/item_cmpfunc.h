@@ -832,7 +832,7 @@ class Item_func_trig_cond final : public Item_bool_func {
      JOIN_TAB/QEP_TAB array. NO_PLAN_IDX otherwise.
      @param trig_type_arg type of 'f'
   */
-  Item_func_trig_cond(Item *a, bool *f, JOIN *join, plan_idx idx,
+  Item_func_trig_cond(Item *a, bool *f, const JOIN *join, plan_idx idx,
                       enum_trig_type trig_type_arg)
       : Item_bool_func(a),
         trig_var(f),
@@ -865,6 +865,7 @@ class Item_func_trig_cond final : public Item_bool_func {
     Item_bool_func::update_used_tables();
     add_trig_func_tables();
   }
+  const JOIN *get_join() const { return m_join; }
   enum enum_trig_type get_trig_type() const { return trig_type; }
   bool *get_trig_var() { return trig_var; }
   enum_trig_type get_trig_type() { return trig_type; }

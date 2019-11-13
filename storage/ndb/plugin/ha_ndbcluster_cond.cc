@@ -1493,9 +1493,17 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
         Item *remainder = nullptr;
         List<const Ndb_item> code = cond_push_boolean_term(
             cond_arg, table, ndb_table, other_tbls_ok, pushed_cond, remainder);
-        if (remainder != nullptr) {
-          item_func->arguments()[0] = remainder;
-          remainder_cond = term;
+
+        if (remainder == nullptr)
+          remainder_cond = nullptr;  // Pushed all
+        else if (remainder == cond_arg)
+          remainder_cond = term;  // Nothing pushed
+        else {
+          // There is a partial remainder
+          // Create a new, modified trigger, with the remainder condition
+          remainder_cond = new (*THR_MALLOC) Item_func_trig_cond(
+              remainder, nullptr, func_trig->get_join(), func_trig->idx(),
+              Item_func_trig_cond::IS_NOT_NULL_COMPL);
         }
         return code;
       }
