@@ -64,7 +64,7 @@ TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
     : TlsContext(server_method) {
   version_range(min_ver, max_ver);
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
-  SSL_CTX_set_ecdh_auto(ssl_ctx_.get(), 1);
+  (void)SSL_CTX_set_ecdh_auto(ssl_ctx_.get(), 1);
 #elif OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 1)
   // openssl 1.0.1 has no ecdh_auto(), and needs an explicit EC curve set
   // to make ECDHE ciphers work out of the box.
