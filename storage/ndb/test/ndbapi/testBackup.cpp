@@ -2325,6 +2325,11 @@ TESTCASE("FailMaster",
 	 "Test that backup behaves during node failiure\n"){
   INITIALIZER(clearOldBackups);
   INITIALIZER(setMaster);
+  /*
+   * runLoadTable needed to have enough data in some fragments to trigger
+   * SCAN_NEXTREQ which is needed for error insert 10033.
+   */
+  INITIALIZER(runLoadTable);
   STEP(runFail);
 
 }
@@ -2332,6 +2337,7 @@ TESTCASE("FailMasterAsSlave",
 	 "Test that backup behaves during node failiure\n"){
   INITIALIZER(clearOldBackups);
   INITIALIZER(setMasterAsSlave);
+  INITIALIZER(runLoadTable); // See comment above for "FailMaster"
   STEP(runFail);
 
 }
@@ -2339,6 +2345,7 @@ TESTCASE("FailSlave",
 	 "Test that backup behaves during node failiure\n"){
   INITIALIZER(clearOldBackups);
   INITIALIZER(setSlave);
+  INITIALIZER(runLoadTable); // See comment above for "FailMaster"
   STEP(runFail);
 
 }
