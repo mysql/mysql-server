@@ -559,9 +559,13 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
 Acl_change_notification::Acl_change_notification(
     THD *thd, enum_sql_command op, const List<LEX_USER> *users,
     const List<LEX_CSTRING> *dynamic_privs)
-    : operation(op),
-      db(thd->db().str, thd->db().length),
-      query(thd->query().str, thd->query().length) {
+    : operation(op), db(thd->db().str, thd->db().length) {
+  if (thd->rewritten_query.length()) {
+    query.assign(thd->rewritten_query.c_ptr_safe(),
+                 thd->rewritten_query.length());
+  } else {
+    query.assign(thd->query().str, thd->query().length);
+  }
   if (users) {
     /* Copy data out of List<LEX_USER> */
     user_list.reserve(users->size());

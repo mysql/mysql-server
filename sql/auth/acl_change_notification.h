@@ -51,7 +51,7 @@ class Acl_change_notification {
  public:
   enum_sql_command get_operation() const { return operation; }
   const std::string &get_db() const { return db; }
-  const std::string &get_query() const { return query; }
+  const std::string &get_query_for_logging() const { return query; }
   const std::vector<User> &get_user_list() const { return user_list; }
   const std::vector<std::string> &get_dynamic_privilege_list() const {
     return dynamic_privilege_list;
