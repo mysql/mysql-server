@@ -140,7 +140,6 @@ class ha_statistics;
 class ha_tablespace_statistics;
 
 namespace AQP {
-class Join_plan;
 class Table_access;
 }  // namespace AQP
 class Unique_on_insert;
