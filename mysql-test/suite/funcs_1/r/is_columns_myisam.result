@@ -166,8 +166,6 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(4) not null default 2000,
-f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set",
 f110 VARBINARY(64) null,
@@ -377,8 +375,6 @@ f219 time,
 f220 datetime,
 f221 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f222 year,
-f223 year(4),
-f224 year(4),
 f225 enum("1enum","2enum"),
 f226 set("1set","2set"),
 f227 VARBINARY(64),
@@ -497,8 +493,6 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(4) not null default 2000,
-f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set",
 f110 VARBINARY(64) null,
@@ -782,19 +776,17 @@ def	test	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date	
 def	test	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
 def	test	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
 def	test	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
-def	test	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
-def	test	tb2	f110	52	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test	tb2	f111	53	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
-def	test	tb2	f112	54	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test	tb2	f113	55	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
-def	test	tb2	f114	56	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
-def	test	tb2	f115	57	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
-def	test	tb2	f116	58	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test	tb2	f117	59	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year			select,insert,update,references			NULL
+def	test	tb2	f108	48	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test	tb2	f109	49	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test	tb2	f110	50	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test	tb2	f111	51	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
+def	test	tb2	f112	52	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test	tb2	f113	53	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test	tb2	f114	54	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test	tb2	f115	55	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
+def	test	tb2	f116	56	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test	tb2	f117	57	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
 def	test	tb3	f118	1	a	NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references			NULL
 def	test	tb3	f119	2		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_bin	char(1)			select,insert,update,references			NULL
 def	test	tb3	f120	3		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references			NULL
@@ -899,27 +891,25 @@ def	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			sel
 def	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
 def	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
 def	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
-def	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb4	f225	50	NULL	YES	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
-def	test	tb4	f226	51	NULL	YES	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
-def	test	tb4	f227	52	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test	tb4	f228	53	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
-def	test	tb4	f229	54	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test	tb4	f230	55	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
-def	test	tb4	f231	56	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
-def	test	tb4	f232	57	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
-def	test	tb4	f233	58	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test	tb4	f234	59	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
-def	test	tb4	f235	60	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references			NULL
-def	test	tb4	f236	61	NULL	YES	char	60	60	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(60)			select,insert,update,references			NULL
-def	test	tb4	f237	62	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_bin	char(255)			select,insert,update,references			NULL
-def	test	tb4	f238	63	NULL	YES	varchar	0	0	NULL	NULL	NULL	latin1	latin1_bin	varchar(0)			select,insert,update,references			NULL
-def	test	tb4	f239	64	NULL	YES	varbinary	1000	1000	NULL	NULL	NULL	NULL	NULL	varbinary(1000)			select,insert,update,references			NULL
-def	test	tb4	f240	65	NULL	YES	varchar	120	120	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(120)			select,insert,update,references			NULL
-def	test	tb4	f241	66	NULL	YES	char	100	100	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references			NULL
-def	test	tb4	f242	67	NULL	YES	bit	NULL	NULL	30	NULL	NULL	NULL	NULL	bit(30)			select,insert,update,references			NULL
+def	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year			select,insert,update,references			NULL
+def	test	tb4	f225	48	NULL	YES	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test	tb4	f226	49	NULL	YES	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test	tb4	f227	50	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test	tb4	f228	51	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
+def	test	tb4	f229	52	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test	tb4	f230	53	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test	tb4	f231	54	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test	tb4	f232	55	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
+def	test	tb4	f233	56	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test	tb4	f234	57	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test	tb4	f235	58	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references			NULL
+def	test	tb4	f236	59	NULL	YES	char	60	60	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(60)			select,insert,update,references			NULL
+def	test	tb4	f237	60	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_bin	char(255)			select,insert,update,references			NULL
+def	test	tb4	f238	61	NULL	YES	varchar	0	0	NULL	NULL	NULL	latin1	latin1_bin	varchar(0)			select,insert,update,references			NULL
+def	test	tb4	f239	62	NULL	YES	varbinary	1000	1000	NULL	NULL	NULL	NULL	NULL	varbinary(1000)			select,insert,update,references			NULL
+def	test	tb4	f240	63	NULL	YES	varchar	120	120	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(120)			select,insert,update,references			NULL
+def	test	tb4	f241	64	NULL	YES	char	100	100	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references			NULL
+def	test	tb4	f242	65	NULL	YES	bit	NULL	NULL	30	NULL	NULL	NULL	NULL	bit(30)			select,insert,update,references			NULL
 def	test1	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
 def	test1	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references			NULL
 def	test1	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
@@ -966,19 +956,17 @@ def	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date
 def	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
 def	test1	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
 def	test1	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test1	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test1	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test1	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
-def	test1	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
-def	test1	tb2	f110	52	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test1	tb2	f111	53	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
-def	test1	tb2	f112	54	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test1	tb2	f113	55	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
-def	test1	tb2	f114	56	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
-def	test1	tb2	f115	57	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
-def	test1	tb2	f116	58	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
-def	test1	tb2	f117	59	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year			select,insert,update,references			NULL
+def	test1	tb2	f108	48	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test1	tb2	f109	49	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test1	tb2	f110	50	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test1	tb2	f111	51	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
+def	test1	tb2	f112	52	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test1	tb2	f113	53	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test1	tb2	f114	54	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
+def	test1	tb2	f115	55	NULL	YES	varbinary	27	27	NULL	NULL	NULL	NULL	NULL	varbinary(27)			select,insert,update,references			NULL
+def	test1	tb2	f116	56	NULL	YES	varbinary	64	64	NULL	NULL	NULL	NULL	NULL	varbinary(64)			select,insert,update,references			NULL
+def	test1	tb2	f117	57	NULL	YES	varbinary	192	192	NULL	NULL	NULL	NULL	NULL	varbinary(192)			select,insert,update,references			NULL
 def	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
@@ -1212,9 +1200,7 @@ NULL	test	tb2	f101	date	NULL	NULL	NULL	NULL	date
 NULL	test	tb2	f102	time	NULL	NULL	NULL	NULL	time
 NULL	test	tb2	f103	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	test	tb2	f104	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	test	tb2	f105	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb2	f106	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
+NULL	test	tb2	f105	year	NULL	NULL	NULL	NULL	year
 1.0000	test	tb2	f108	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test	tb2	f109	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
 1.0000	test	tb2	f110	varbinary	64	64	NULL	NULL	varbinary(64)
@@ -1329,9 +1315,7 @@ NULL	test	tb4	f218	date	NULL	NULL	NULL	NULL	date
 NULL	test	tb4	f219	time	NULL	NULL	NULL	NULL	time
 NULL	test	tb4	f220	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	test	tb4	f221	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	test	tb4	f222	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb4	f223	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb4	f224	year	NULL	NULL	NULL	NULL	year(4)
+NULL	test	tb4	f222	year	NULL	NULL	NULL	NULL	year
 1.0000	test	tb4	f225	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test	tb4	f226	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
 1.0000	test	tb4	f227	varbinary	64	64	NULL	NULL	varbinary(64)
@@ -1396,9 +1380,7 @@ NULL	test1	tb2	f101	date	NULL	NULL	NULL	NULL	date
 NULL	test1	tb2	f102	time	NULL	NULL	NULL	NULL	time
 NULL	test1	tb2	f103	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	test1	tb2	f104	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	test1	tb2	f105	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test1	tb2	f106	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test1	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
+NULL	test1	tb2	f105	year	NULL	NULL	NULL	NULL	year
 1.0000	test1	tb2	f108	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test1	tb2	f109	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
 1.0000	test1	tb2	f110	varbinary	64	64	NULL	NULL	varbinary(64)

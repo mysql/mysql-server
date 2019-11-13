@@ -3380,7 +3380,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) DEFAULT NULL,
+  `c4` year DEFAULT NULL,
   `c3` char(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3408,7 +3408,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) DEFAULT NULL,
+  `c4` year DEFAULT NULL,
   `c3` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3436,7 +3436,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) DEFAULT NULL,
+  `c4` year DEFAULT NULL,
   `c3` binary(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3464,7 +3464,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) DEFAULT NULL,
+  `c4` year DEFAULT NULL,
   `c3` varbinary(20) DEFAULT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3492,7 +3492,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) NOT NULL,
+  `c4` year NOT NULL,
   `c3` char(20) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3520,7 +3520,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) NOT NULL,
+  `c4` year NOT NULL,
   `c3` varchar(20) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3548,7 +3548,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` binary(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) NOT NULL,
+  `c4` year NOT NULL,
   `c3` binary(20) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -3576,7 +3576,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varbinary(15) NOT NULL,
   `c2` int NOT NULL,
-  `c4` year(4) NOT NULL,
+  `c4` year NOT NULL,
   `c3` varbinary(20) NOT NULL,
   PRIMARY KEY (`c1`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

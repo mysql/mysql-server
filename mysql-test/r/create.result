@@ -513,7 +513,7 @@ t2	CREATE TABLE `t2` (
   `ifnull(f,f)` float(3,2) DEFAULT NULL,
   `ifnull(g,g)` double(4,3) DEFAULT NULL,
   `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
-  `ifnull(i,i)` year(4) DEFAULT NULL,
+  `ifnull(i,i)` year DEFAULT NULL,
   `ifnull(j,j)` date DEFAULT NULL,
   `ifnull(k,k)` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `ifnull(l,l)` datetime DEFAULT NULL,
@@ -1278,8 +1278,8 @@ CREATE TABLE t1(c1 YEAR DEFAULT 2008, c2 YEAR DEFAULT 0);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) DEFAULT '2008',
-  `c2` year(4) DEFAULT '0000'
+  `c1` year DEFAULT '2008',
+  `c2` year DEFAULT '0000'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 INSERT INTO t1 VALUES();
@@ -1293,8 +1293,8 @@ ALTER TABLE t1 MODIFY c1 YEAR DEFAULT 0;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) DEFAULT '0000',
-  `c2` year(4) DEFAULT '0000'
+  `c1` year DEFAULT '0000',
+  `c2` year DEFAULT '0000'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 INSERT INTO t1 VALUES();

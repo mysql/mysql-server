@@ -427,7 +427,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` bit(1) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -439,7 +439,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` bit(1) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -875,7 +875,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` tinyint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -887,7 +887,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` tinyint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -1323,7 +1323,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` smallint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -1335,7 +1335,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` smallint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -1771,7 +1771,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` mediumint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -1783,7 +1783,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` mediumint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -2219,7 +2219,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -2231,7 +2231,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -2667,7 +2667,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -2679,7 +2679,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -3115,7 +3115,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` bigint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -3127,7 +3127,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` bigint NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -3563,7 +3563,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` double NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -3575,7 +3575,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` double NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -4011,7 +4011,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` double NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -4023,7 +4023,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` double NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -4459,7 +4459,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` float NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -4471,7 +4471,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` float NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -4907,7 +4907,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` decimal(10,0) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -4919,7 +4919,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` decimal(10,0) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -5355,7 +5355,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` decimal(10,0) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -5367,7 +5367,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` decimal(10,0) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -5803,7 +5803,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` date NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -5815,7 +5815,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` date NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -6251,7 +6251,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` time NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -6263,7 +6263,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` time NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -6699,7 +6699,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` timestamp NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
@@ -6711,7 +6711,7 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` timestamp NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
@@ -6728,7 +6728,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(1) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6740,7 +6740,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(1) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6756,7 +6756,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` tinyint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6768,7 +6768,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` tinyint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6784,7 +6784,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` smallint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6796,7 +6796,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` smallint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6812,7 +6812,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` mediumint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6824,7 +6824,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` mediumint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6840,7 +6840,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6852,7 +6852,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6868,7 +6868,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6880,7 +6880,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6896,7 +6896,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bigint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6908,7 +6908,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bigint NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6924,7 +6924,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` double NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6936,7 +6936,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` double NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6952,7 +6952,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` double NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6964,7 +6964,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` double NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -6980,7 +6980,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` float NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -6992,7 +6992,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` float NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -7008,7 +7008,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -7020,7 +7020,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -7036,7 +7036,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -7048,7 +7048,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` decimal(10,0) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -7064,7 +7064,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` date NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -7076,7 +7076,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` date NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -7092,7 +7092,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` time NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -7104,7 +7104,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` time NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -7120,7 +7120,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` timestamp NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -7132,7 +7132,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` timestamp NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)
@@ -7147,8 +7147,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c1` year NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -7159,8 +7159,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) NOT NULL,
+  `c1` year NOT NULL,
+  `c2` year NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`,`c2`)

@@ -382,8 +382,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) DEFAULT NULL
+  `c1` year NOT NULL,
+  `c2` year DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME t2;
 SHOW TABLES;
@@ -394,8 +394,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) DEFAULT NULL
+  `c1` year NOT NULL,
+  `c2` year DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;
@@ -782,8 +782,8 @@ t1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) DEFAULT NULL
+  `c1` year NOT NULL,
+  `c2` year DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME TO t2;
 SHOW TABLES;
@@ -794,8 +794,8 @@ ERROR 42S02: Unknown table 'test.t1'
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `c1` year(4) NOT NULL,
-  `c2` year(4) DEFAULT NULL
+  `c1` year NOT NULL,
+  `c2` year DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 SHOW TABLES;

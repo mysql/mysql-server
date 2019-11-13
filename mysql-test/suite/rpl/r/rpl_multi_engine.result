@@ -20,7 +20,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -36,7 +36,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -70,7 +70,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -104,7 +104,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -138,7 +138,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -154,7 +154,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -188,7 +188,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -222,7 +222,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -256,7 +256,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -272,7 +272,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -306,7 +306,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -340,7 +340,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

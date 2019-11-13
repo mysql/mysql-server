@@ -1085,7 +1085,7 @@ DROP TABLE t1;
 --echo # Bug#43668: Wrong comparison and MIN/MAX for YEAR(2)
 --echo # WL#6263: Remove year(2)
 --echo #
-create table t1 (f1 year(4), f2 year(4), f3 date, f4 datetime);
+create table t1 (f1 year, f2 year, f3 date, f4 datetime);
 insert into t1 values
   (98,1998,19980101,"1998-01-01 00:00:00"),
   ('00',2000,20000101,"2000-01-01 00:00:01"),
@@ -1166,7 +1166,7 @@ DROP TABLE t1;
 --echo # Bug #11766270  59343: YEAR(4): INCORRECT RESULT AND VALGRIND WARNINGS WITH MIN/MAX, UNION
 --echo #
 
-CREATE TABLE t1(f1 YEAR(4));
+CREATE TABLE t1(f1 YEAR);
 INSERT INTO t1 VALUES (0000),(2001);
 --enable_metadata
 (SELECT MAX(f1) FROM t1) UNION (SELECT MAX(f1) FROM t1);

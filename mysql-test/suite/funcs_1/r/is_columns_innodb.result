@@ -162,8 +162,6 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(4) not null default 2000,
-f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) charset latin1 engine = innodb;
@@ -365,8 +363,6 @@ f219 time,
 f220 datetime,
 f221 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f222 year,
-f223 year(4),
-f224 year(4),
 f225 enum("1enum","2enum"),
 f226 set("1set","2set"),
 f235 char(0),
@@ -475,8 +471,6 @@ f102 time not null default 20,
 f103 datetime not null default '2/2/2',
 f104 timestamp not null default 20001231235959,
 f105 year not null default 2000,
-f106 year(4) not null default 2000,
-f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) charset latin1 engine = innodb;
@@ -752,11 +746,9 @@ def	test	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date	
 def	test	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
 def	test	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
 def	test	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
-def	test	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year			select,insert,update,references			NULL
+def	test	tb2	f108	48	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test	tb2	f109	49	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
 def	test	tb3	f118	1	a	NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references			NULL
 def	test	tb3	f119	2		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_bin	char(1)			select,insert,update,references			NULL
 def	test	tb3	f120	3		NO	char	1	1	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(1)			select,insert,update,references			NULL
@@ -861,18 +853,16 @@ def	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			sel
 def	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
 def	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
 def	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
-def	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test	tb4	f225	50	NULL	YES	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
-def	test	tb4	f226	51	NULL	YES	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
-def	test	tb4	f235	52	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references			NULL
-def	test	tb4	f236	53	NULL	YES	char	90	90	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(90)			select,insert,update,references			NULL
-def	test	tb4	f237	54	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references			NULL
-def	test	tb4	f238	55	NULL	YES	varchar	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(0)			select,insert,update,references			NULL
-def	test	tb4	f239	56	NULL	YES	varchar	20000	20000	NULL	NULL	NULL	latin1	latin1_bin	varchar(20000)			select,insert,update,references			NULL
-def	test	tb4	f240	57	NULL	YES	varchar	2000	2000	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(2000)			select,insert,update,references			NULL
-def	test	tb4	f241	58	NULL	YES	char	100	100	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references			NULL
+def	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year			select,insert,update,references			NULL
+def	test	tb4	f225	48	NULL	YES	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test	tb4	f226	49	NULL	YES	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test	tb4	f235	50	NULL	YES	char	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(0)			select,insert,update,references			NULL
+def	test	tb4	f236	51	NULL	YES	char	90	90	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(90)			select,insert,update,references			NULL
+def	test	tb4	f237	52	NULL	YES	char	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(255)			select,insert,update,references			NULL
+def	test	tb4	f238	53	NULL	YES	varchar	0	0	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(0)			select,insert,update,references			NULL
+def	test	tb4	f239	54	NULL	YES	varchar	20000	20000	NULL	NULL	NULL	latin1	latin1_bin	varchar(20000)			select,insert,update,references			NULL
+def	test	tb4	f240	55	NULL	YES	varchar	2000	2000	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(2000)			select,insert,update,references			NULL
+def	test	tb4	f241	56	NULL	YES	char	100	100	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(100)			select,insert,update,references			NULL
 def	test1	tb2	f59	1	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned			select,insert,update,references			NULL
 def	test1	tb2	f60	2	NULL	YES	decimal	NULL	NULL	64	0	NULL	NULL	NULL	decimal(64,0) unsigned			select,insert,update,references			NULL
 def	test1	tb2	f61	3	NULL	YES	decimal	NULL	NULL	10	0	NULL	NULL	NULL	decimal(10,0) unsigned zerofill			select,insert,update,references			NULL
@@ -919,11 +909,9 @@ def	test1	tb2	f101	43	2000-01-01	NO	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date
 def	test1	tb2	f102	44	00:00:20	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
 def	test1	tb2	f103	45	0002-02-02 00:00:00	NO	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
 def	test1	tb2	f104	46	2000-12-31 23:59:59	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
-def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test1	tb2	f106	48	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test1	tb2	f107	49	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
-def	test1	tb2	f108	50	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
-def	test1	tb2	f109	51	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
+def	test1	tb2	f105	47	2000	NO	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year			select,insert,update,references			NULL
+def	test1	tb2	f108	48	1enum	NO	enum	5	5	NULL	NULL	NULL	latin1	latin1_swedish_ci	enum('1enum','2enum')			select,insert,update,references			NULL
+def	test1	tb2	f109	49	1set	NO	set	9	9	NULL	NULL	NULL	latin1	latin1_swedish_ci	set('1set','2set')			select,insert,update,references			NULL
 def	test4	t6	f1	1	NULL	YES	char	20	20	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(20)			select,insert,update,references			NULL
 def	test4	t6	f2	2	NULL	YES	char	25	25	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(25)			select,insert,update,references			NULL
 def	test4	t6	f3	3	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
@@ -1158,9 +1146,7 @@ NULL	test	tb2	f101	date	NULL	NULL	NULL	NULL	date
 NULL	test	tb2	f102	time	NULL	NULL	NULL	NULL	time
 NULL	test	tb2	f103	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	test	tb2	f104	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	test	tb2	f105	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb2	f106	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
+NULL	test	tb2	f105	year	NULL	NULL	NULL	NULL	year
 1.0000	test	tb2	f108	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test	tb2	f109	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
 1.0000	test	tb3	f118	char	1	1	latin1	latin1_swedish_ci	char(1)
@@ -1267,9 +1253,7 @@ NULL	test	tb4	f218	date	NULL	NULL	NULL	NULL	date
 NULL	test	tb4	f219	time	NULL	NULL	NULL	NULL	time
 NULL	test	tb4	f220	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	test	tb4	f221	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	test	tb4	f222	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb4	f223	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test	tb4	f224	year	NULL	NULL	NULL	NULL	year(4)
+NULL	test	tb4	f222	year	NULL	NULL	NULL	NULL	year
 1.0000	test	tb4	f225	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test	tb4	f226	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
 NULL	test	tb4	f235	char	0	0	latin1	latin1_swedish_ci	char(0)
@@ -1325,9 +1309,7 @@ NULL	test1	tb2	f101	date	NULL	NULL	NULL	NULL	date
 NULL	test1	tb2	f102	time	NULL	NULL	NULL	NULL	time
 NULL	test1	tb2	f103	datetime	NULL	NULL	NULL	NULL	datetime
 NULL	test1	tb2	f104	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	test1	tb2	f105	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test1	tb2	f106	year	NULL	NULL	NULL	NULL	year(4)
-NULL	test1	tb2	f107	year	NULL	NULL	NULL	NULL	year(4)
+NULL	test1	tb2	f105	year	NULL	NULL	NULL	NULL	year
 1.0000	test1	tb2	f108	enum	5	5	latin1	latin1_swedish_ci	enum('1enum','2enum')
 1.0000	test1	tb2	f109	set	9	9	latin1	latin1_swedish_ci	set('1set','2set')
 1.0000	test4	t6	f1	char	20	20	latin1	latin1_swedish_ci	char(20)

@@ -30,7 +30,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`t`))
@@ -52,7 +52,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`t`))
@@ -112,7 +112,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`t`))
@@ -134,7 +134,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`t`))
@@ -203,7 +203,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`id`)
@@ -222,7 +222,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`id`)
@@ -279,7 +279,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`id`)
@@ -298,7 +298,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`id`)
@@ -362,7 +362,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`t`))
@@ -379,7 +379,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`t`))
@@ -434,7 +434,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`t`))
@@ -451,7 +451,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`t`))
@@ -513,7 +513,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -531,7 +531,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned DEFAULT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -587,7 +587,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -605,7 +605,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -661,7 +661,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -679,7 +679,7 @@ t1	CREATE TABLE `t1` (
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
   `total` bigint unsigned NOT NULL,
-  `y` year(4) DEFAULT NULL,
+  `y` year DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

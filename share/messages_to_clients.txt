@@ -6895,8 +6895,7 @@ ER_INNODB_INDEX_CORRUPT
   eng "Index corrupt: %s"
 
 ER_INVALID_YEAR_COLUMN_LENGTH
-  eng "Supports only YEAR or YEAR(4) column."
-  rus "Поддерживаются только типы колонок YEAR или YEAR(4)."
+  eng "Invalid display width. Use YEAR instead."
 
 ER_NOT_VALID_PASSWORD
   eng "Your password does not satisfy the current policy requirements"
@@ -9276,6 +9275,11 @@ ER_MISPLACED_INTO
 
 ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
   eng "Access denied for user '%-.48s'@'%-.64s'. Account is blocked for %s day(s) (%s day(s) remaining) due to %u consecutive failed logins."
+
+# When using this error message, use the
+# ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_YEAR_UNSIGNED
+  eng "UNSIGNED for the YEAR data type is deprecated and support for it will be removed in a future release."
 
 #
 #  End of 8.0 error messages (server-to-client).

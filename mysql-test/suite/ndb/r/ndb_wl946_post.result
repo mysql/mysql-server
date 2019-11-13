@@ -24,7 +24,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time NOT NULL DEFAULT '10:11:12',
   `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
@@ -68,7 +68,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
-  `b` year(4) NOT NULL DEFAULT '2000',
+  `b` year NOT NULL DEFAULT '2000',
   `c` date NOT NULL DEFAULT '2000-01-02',
   `d` time NOT NULL DEFAULT '10:11:12',
   `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',

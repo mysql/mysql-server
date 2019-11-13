@@ -3163,15 +3163,13 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
 class Field_year final : public Field_tiny {
  public:
   enum Limits { MIN_YEAR = 1901, MAX_YEAR = 2155 };
-  Field_year(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
-             uchar null_bit_arg, uchar auto_flags_arg,
-             const char *field_name_arg)
-      : Field_tiny(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
+  Field_year(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
+             uchar auto_flags_arg, const char *field_name_arg)
+      : Field_tiny(ptr_arg, 4, null_ptr_arg, null_bit_arg, auto_flags_arg,
                    field_name_arg, true, true) {}
-  Field_year(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg)
-      : Field_tiny(nullptr, len_arg,
-                   maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
-                   field_name_arg, true, true) {}
+  Field_year(bool maybe_null_arg, const char *field_name_arg)
+      : Field_tiny(nullptr, 4, maybe_null_arg ? &dummy_null_buffer : nullptr, 0,
+                   NONE, field_name_arg, true, true) {}
   enum_field_types type() const final override { return MYSQL_TYPE_YEAR; }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;

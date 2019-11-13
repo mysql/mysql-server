@@ -7935,7 +7935,7 @@ DROP PROCEDURE IF EXISTS sp1;
 delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare x, y, z year(4) default 2005;
+    declare x, y, z year default 2005;
     SELECT x, y, z;
 END//
 delimiter ;//
@@ -20505,7 +20505,7 @@ SELECT fn101(51);
 DROP FUNCTION IF EXISTS fn102;
 
 delimiter //;
-CREATE FUNCTION fn102( f1 year(4)) returns year(4)
+CREATE FUNCTION fn102( f1 year) returns year
 BEGIN
   set f1 = f1 + 51;
   return f1;
@@ -21951,7 +21951,7 @@ CALL sp101(51);
 DROP PROCEDURE IF EXISTS sp102;
 
 delimiter //;
-CREATE PROCEDURE sp102( f1 year(4))
+CREATE PROCEDURE sp102( f1 year)
 BEGIN
   set f1 = f1 + 51;
   SELECT f1;

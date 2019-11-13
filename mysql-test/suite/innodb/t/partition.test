@@ -402,7 +402,7 @@ DROP TABLE t1;
 --echo # Bug#21620577: ASSERTION H->ACTIVE_INDEX == 64
 --echo #
 
-CREATE TABLE t1(col1 YEAR(4) not null, col2 int, KEY(col1), KEY(col1, col2))
+CREATE TABLE t1(col1 YEAR not null, col2 int, KEY(col1), KEY(col1, col2))
 ENGINE=INNODB
 PARTITION BY KEY(col1) PARTITIONS 2;
 

@@ -1,5 +1,7 @@
 drop table if exists t1;
 create table t1 (y year,y4 year(4));
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
 select * from t1;
 y	y4
@@ -47,20 +49,9 @@ End of 5.0 tests
 #
 # Bug #49480: WHERE using YEAR columns returns unexpected results
 #
-CREATE TABLE t2(yy YEAR(4), c2 CHAR(4));
-CREATE TABLE t4(yyyy YEAR(4), c4 CHAR(4));
-INSERT INTO t2 (c2) VALUES (NULL),(1970),(1999),(2000),(2001),(2069);
-INSERT INTO t4 (c4) SELECT c2 FROM t2;
-UPDATE t2 SET yy = c2;
+CREATE TABLE t4(yyyy YEAR, c4 CHAR(4));
+INSERT INTO t4 (c4) VALUES (NULL),(1970),(1999),(2000),(2001),(2069);
 UPDATE t4 SET yyyy = c4;
-SELECT * FROM t2;
-yy	c2
-NULL	NULL
-1970	1970
-1999	1999
-2000	2000
-2001	2001
-2069	2069
 SELECT * FROM t4;
 yyyy	c4
 NULL	NULL
@@ -69,7 +60,7 @@ NULL	NULL
 2000	2000
 2001	2001
 2069	2069
-# Comparison of YEAR(4) with YEAR(4)
+# Comparison of YEAR with YEAR
 SELECT * FROM t4 a, t4 b WHERE a.yyyy = b.yyyy;
 yyyy	c4	yyyy	c4
 1970	1970	1970	1970
@@ -98,79 +89,33 @@ yyyy	c4	yyyy	c4
 2000	2000	2069	2069
 2001	2001	2069	2069
 # Comparison with constants:
-SELECT * FROM t2 WHERE yy = NULL;
-yy	c2
 SELECT * FROM t4 WHERE yyyy = NULL;
 yyyy	c4
-SELECT * FROM t2 WHERE yy <=> NULL;
-yy	c2
-NULL	NULL
 SELECT * FROM t4 WHERE yyyy <=> NULL;
 yyyy	c4
 NULL	NULL
-SELECT * FROM t2 WHERE yy < NULL;
-yy	c2
-SELECT * FROM t2 WHERE yy > NULL;
-yy	c2
-SELECT * FROM t2 WHERE yy = NOW();
-yy	c2
 SELECT * FROM t4 WHERE yyyy = NOW();
 yyyy	c4
-SELECT * FROM t2 WHERE yy = 99;
-yy	c2
-1999	1999
-SELECT * FROM t2 WHERE 99 = yy;
-yy	c2
-1999	1999
 SELECT * FROM t4 WHERE yyyy = 99;
 yyyy	c4
 1999	1999
-SELECT * FROM t2 WHERE yy = 'test';
-yy	c2
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'test'
 SELECT * FROM t4 WHERE yyyy = 'test';
 yyyy	c4
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'test'
-SELECT * FROM t2 WHERE yy = '1999';
-yy	c2
-1999	1999
 SELECT * FROM t4 WHERE yyyy = '1999';
 yyyy	c4
-1999	1999
-SELECT * FROM t2 WHERE yy = 1999;
-yy	c2
 1999	1999
 SELECT * FROM t4 WHERE yyyy = 1999;
 yyyy	c4
 1999	1999
-SELECT * FROM t2 WHERE yy = 1999.1;
-yy	c2
-1999	1999
 SELECT * FROM t4 WHERE yyyy = 1999.1;
 yyyy	c4
-1999	1999
-SELECT * FROM t2 WHERE yy = 1998.9;
-yy	c2
 1999	1999
 SELECT * FROM t4 WHERE yyyy = 1998.9;
 yyyy	c4
 1999	1999
 # Coverage tests for YEAR with zero/2000 constants:
-SELECT * FROM t2 WHERE yy = 0;
-yy	c2
-SELECT * FROM t2 WHERE yy = '0';
-yy	c2
-2000	2000
-SELECT * FROM t2 WHERE yy = '0000';
-yy	c2
-SELECT * FROM t2 WHERE yy = '2000';
-yy	c2
-2000	2000
-SELECT * FROM t2 WHERE yy = 2000;
-yy	c2
-2000	2000
 SELECT * FROM t4 WHERE yyyy = 0;
 yyyy	c4
 SELECT * FROM t4 WHERE yyyy = '0';
@@ -186,45 +131,21 @@ yyyy	c4
 2000	2000
 # Comparison with constants those are out of YEAR range
 # (coverage test for backward compatibility)
-SELECT COUNT(yy) FROM t2;
-COUNT(yy)
-5
 SELECT COUNT(yyyy) FROM t4;
 COUNT(yyyy)
 5
-SELECT COUNT(*) FROM t2 WHERE yy = -1;
-COUNT(*)
-0
 SELECT COUNT(*) FROM t4 WHERE yyyy > -1;
-COUNT(*)
-5
-SELECT COUNT(*) FROM t2 WHERE yy > -1000000000000000000;
 COUNT(*)
 5
 SELECT COUNT(*) FROM t4 WHERE yyyy > -1000000000000000000;
 COUNT(*)
 5
-SELECT COUNT(*) FROM t2 WHERE yy < 2156;
-COUNT(*)
-5
 SELECT COUNT(*) FROM t4 WHERE yyyy < 2156;
-COUNT(*)
-5
-SELECT COUNT(*) FROM t2 WHERE yy < 1000000000000000000;
 COUNT(*)
 5
 SELECT COUNT(*) FROM t4 WHERE yyyy < 1000000000000000000;
 COUNT(*)
 5
-SELECT * FROM t2 WHERE yy < 123;
-yy	c2
-SELECT * FROM t2 WHERE yy > 123;
-yy	c2
-1970	1970
-1999	1999
-2000	2000
-2001	2001
-2069	2069
 SELECT * FROM t4 WHERE yyyy < 123;
 yyyy	c4
 SELECT * FROM t4 WHERE yyyy > 123;
@@ -234,7 +155,7 @@ yyyy	c4
 2000	2000
 2001	2001
 2069	2069
-DROP TABLE t2, t4;
+DROP TABLE t4;
 #
 # Bug #49910: Behavioural change in SELECT/WHERE on YEAR(4) data type
 #
@@ -270,7 +191,7 @@ DROP TABLE t1;
 #
 # Bug #59211: Select Returns Different Value for min(year) Function
 #
-CREATE TABLE t1(c1 YEAR(4));
+CREATE TABLE t1(c1 YEAR);
 INSERT INTO t1 VALUES (1901),(2155),(0000);
 SELECT * FROM t1;
 c1
@@ -282,28 +203,23 @@ total_rows	min_value	MAX(c1)
 3	0	2155
 DROP TABLE t1;
 #
-# WL#6219: Deprecate and remove YEAR(2) type
-#
-CREATE TABLE t1 (c1 YEAR(4), c2 YEAR(4));
-ALTER TABLE t1 MODIFY COLUMN c2 YEAR(4);
-DROP TABLE t1;
-#
-#
 # WL#6263: Remove YEAR(2) type
 #
 CREATE TABLE t1 (c1 YEAR(2));
-ERROR HY000: Supports only YEAR or YEAR(4) column.
+ERROR HY000: Invalid display width. Use YEAR instead.
 CREATE TABLE t1 (c1 YEAR(0));
-ERROR HY000: Supports only YEAR or YEAR(4) column.
+ERROR HY000: Invalid display width. Use YEAR instead.
 CREATE TABLE t1 (c1 YEAR(4294967295));
-ERROR HY000: Supports only YEAR or YEAR(4) column.
+ERROR HY000: Invalid display width. Use YEAR instead.
 CREATE TABLE t1 (c1 YEAR(4294967296));
-ERROR HY000: Supports only YEAR or YEAR(4) column.
+ERROR HY000: Invalid display width. Use YEAR instead.
 CREATE TABLE t1 (c1 YEAR(4));
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` year(4) DEFAULT NULL
+  `c1` year DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (55);
 UPDATE t1 SET c1=2016;
@@ -315,7 +231,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	note	The storage engine for the table doesn't support repair
 DELETE FROM t1;
 ALTER TABLE t1 MODIFY COLUMN c1 YEAR(2);
-ERROR HY000: Supports only YEAR or YEAR(4) column.
+ERROR HY000: Invalid display width. Use YEAR instead.
 DROP TABLE t1;
 #
 End of 5.1 tests
@@ -383,3 +299,84 @@ WHERE QC_DATE_KEY = 2;
 ((year(QC_DATE) - year(QC_TIMESTAMP)))
 -1
 DROP TABLE t;
+#
+# WL#13537: Deprecate display width for the YEAR datatype
+#
+CREATE TABLE t1(a YEAR(4), b YEAR);
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` year DEFAULT NULL,
+  `b` year DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+COLUMN_TYPE
+year
+year
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+a	year	YES		NULL	
+b	year	YES		NULL	
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+COLUMN_TYPE
+year
+year
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+a	year	YES		NULL	
+b	year	YES		NULL	
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE FUNCTION f1(a YEAR(4)) RETURNS YEAR(4) RETURN 1974;
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
+CREATE FUNCTION f2(a YEAR) RETURNS YEAR RETURN 1974;
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(a YEAR(4)) RETURNS year
+RETURN 1974	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f2;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`(a YEAR) RETURNS year
+RETURN 1974	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+DTD_IDENTIFIER
+year
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f2';
+DTD_IDENTIFIER
+year
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+DTD_IDENTIFIER
+year
+year
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f2';
+DTD_IDENTIFIER
+year
+year
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+CREATE PROCEDURE p1(a YEAR(4), b YEAR) BEGIN END;
+Warnings:
+Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a YEAR(4), b YEAR)
+BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+DTD_IDENTIFIER
+year
+year
+DROP PROCEDURE p1;
+CREATE TABLE t1(a YEAR UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for the YEAR data type is deprecated and support for it will be removed in a future release.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` year DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;

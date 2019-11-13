@@ -426,7 +426,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -438,7 +438,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` char(5) DEFAULT NULL,
   `c3` char(10) DEFAULT NULL,
@@ -874,7 +874,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -886,7 +886,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` char(5) NOT NULL,
   `c3` char(10) NOT NULL,
@@ -1322,7 +1322,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -1334,7 +1334,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` varchar(5) DEFAULT NULL,
   `c3` varchar(10) DEFAULT NULL,
@@ -1770,7 +1770,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -1782,7 +1782,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` varchar(5) NOT NULL,
   `c3` varchar(10) NOT NULL,
@@ -2218,7 +2218,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` binary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -2230,7 +2230,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` binary(5) DEFAULT NULL,
   `c3` binary(10) DEFAULT NULL,
@@ -2666,7 +2666,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -2678,7 +2678,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` binary(5) NOT NULL,
   `c3` binary(10) NOT NULL,
@@ -3114,7 +3114,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` varbinary(10) DEFAULT NULL,
   PRIMARY KEY (`c1`)
@@ -3126,7 +3126,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` varbinary(5) DEFAULT NULL,
   `c3` varbinary(10) DEFAULT NULL,
@@ -3562,7 +3562,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c3` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
@@ -3574,7 +3574,7 @@ t5
 SHOW CREATE TABLE t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `c1` year(4) NOT NULL,
+  `c1` year NOT NULL,
   `c2` int NOT NULL,
   `c4` varbinary(5) NOT NULL,
   `c3` varbinary(10) NOT NULL,

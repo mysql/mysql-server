@@ -5503,7 +5503,6 @@ bool Field_timef::get_time(MYSQL_TIME *ltime) const {
 /****************************************************************************
 ** year type
 ** Save in a byte the year 0, 1901->2155
-** Can handle 2 byte or 4 byte years!
 ****************************************************************************/
 
 type_conversion_status Field_year::store(const char *from, size_t len,
@@ -5573,7 +5572,7 @@ type_conversion_status Field_year::store(longlong nr, bool) {
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return TYPE_WARN_OUT_OF_RANGE;
   }
-  if (nr != 0 || field_length != 4)  // 0000 -> 0; 00 -> 2000
+  if (nr != 0)  // 0000 -> 0
   {
     if (nr < YY_PART_YEAR)
       nr += 100;  // 2000 - 2069
@@ -5587,7 +5586,7 @@ type_conversion_status Field_year::store(longlong nr, bool) {
 bool Field_year::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
-  // YEAR is always ZEROFILL. Always zero-pad values up to 2 or 4 digits.
+  // YEAR is always ZEROFILL. Always zero-pad values up to 4 digits.
   DBUG_ASSERT(zerofill);
   ulonglong tmp = Field_year::val_int();
   return protocol->store_short(tmp, field_length);
@@ -5597,32 +5596,29 @@ double Field_year::val_real() const { return (double)Field_year::val_int(); }
 
 longlong Field_year::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  DBUG_ASSERT(field_length == 2 || field_length == 4);
+  DBUG_ASSERT(field_length == 4);
   int tmp = (int)ptr[0];
-  if (field_length != 4)
-    tmp %= 100;  // Return last 2 char
-  else if (tmp)
-    tmp += 1900;
+  if (tmp != 0) tmp += 1900;
   return (longlong)tmp;
 }
 
-String *Field_year::val_str(String *val_buffer,
-                            String *val_ptr MY_ATTRIBUTE((unused))) const {
-  DBUG_ASSERT(field_length < 5);
-  val_buffer->alloc(5);
-  val_buffer->length(field_length);
-  // YEAR is always ZEROFILL. Always zero-pad values up to 2 or 4 digits.
+String *Field_year::val_str(String *val_buffer, String *) const {
+  DBUG_ASSERT(field_length == 4);
+  val_buffer->length(0);
+  const longlong year = val_int();
+  // YEAR is always ZEROFILL. Always zero-pad values up to 4 digits.
   DBUG_ASSERT(zerofill);
-  char *to = val_buffer->ptr();
-  sprintf(to, field_length == 2 ? "%02d" : "%04d", (int)Field_year::val_int());
+  if (year == 0)
+    val_buffer->fill(field_length, '0');
+  else  // If year != 0, year is always 4 digits
+    val_buffer->append_longlong(year);
   val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
 void Field_year::sql_type(String &res) const {
-  const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "year(%d)",
-                                (int)field_length));
+  res.length(0);
+  res.append(STRING_WITH_LEN("year"));
 }
 
 /****************************************************************************
@@ -9435,8 +9431,9 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
                                ? field_length - 1 - MAX_DATETIME_WIDTH
                                : 0);
     case MYSQL_TYPE_YEAR:
-      return new (mem_root) Field_year(ptr, field_length, null_pos, null_bit,
-                                       auto_flags, field_name);
+      DBUG_ASSERT(field_length == 4);  // Field_year is only for length 4.
+      return new (mem_root)
+          Field_year(ptr, null_pos, null_bit, auto_flags, field_name);
     case MYSQL_TYPE_NEWDATE:
       return new (mem_root)
           Field_newdate(ptr, null_pos, null_bit, auto_flags, field_name);

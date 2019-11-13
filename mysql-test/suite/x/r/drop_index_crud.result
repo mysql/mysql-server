@@ -1253,7 +1253,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"type":"object"}') VIRTUAL,
-  `$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` year(4) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
+  `$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` year GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`),
   CONSTRAINT `$val_strict_F722D77E7114627C511CE41D56D327CB09C4F9E5` CHECK (json_schema_valid(`_json_schema`,`doc`)) /*!80016 NOT ENFORCED */

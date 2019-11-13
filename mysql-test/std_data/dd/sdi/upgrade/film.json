@@ -156,7 +156,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "year(4)",
+                "column_type_utf8": "year",
                 "elements": [],
                 "collation_id": 8,
                 "is_explicit_collation": false

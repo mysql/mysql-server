@@ -408,11 +408,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -828,11 +828,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -1248,11 +1248,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -1668,11 +1668,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -2088,11 +2088,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -2508,11 +2508,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -2928,11 +2928,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -3348,11 +3348,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -3768,11 +3768,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -4188,11 +4188,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -4608,11 +4608,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -5028,11 +5028,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -5448,11 +5448,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -5868,11 +5868,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -6288,11 +6288,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -6708,11 +6708,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -7128,11 +7128,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -7548,11 +7548,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -7968,11 +7968,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -8388,11 +8388,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -8808,11 +8808,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -9228,11 +9228,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -9648,11 +9648,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -10068,11 +10068,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -10488,11 +10488,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -10908,11 +10908,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -11328,11 +11328,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -11748,11 +11748,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -12168,11 +12168,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -12588,11 +12588,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -13008,11 +13008,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -13428,11 +13428,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -13848,11 +13848,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -14268,11 +14268,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -14688,11 +14688,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -15108,11 +15108,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -15528,11 +15528,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -15948,11 +15948,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -16368,11 +16368,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -16788,11 +16788,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -17208,11 +17208,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -17628,11 +17628,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -18048,11 +18048,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -18468,11 +18468,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -18888,11 +18888,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -19308,11 +19308,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -19728,11 +19728,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -20148,11 +20148,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -20568,11 +20568,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -20988,11 +20988,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -21408,11 +21408,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -21828,11 +21828,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -22248,11 +22248,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -22668,11 +22668,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -23088,11 +23088,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -23508,11 +23508,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -23928,11 +23928,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -24348,11 +24348,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -24768,11 +24768,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -25188,11 +25188,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -25608,11 +25608,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -26028,11 +26028,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -26448,11 +26448,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -26868,11 +26868,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -27288,11 +27288,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -27708,11 +27708,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -28128,11 +28128,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -28548,11 +28548,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -28968,11 +28968,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -29388,11 +29388,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -29808,11 +29808,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -30228,11 +30228,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -30648,11 +30648,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -31068,11 +31068,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -31488,11 +31488,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -31908,11 +31908,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -32328,11 +32328,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -32748,11 +32748,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` char(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` char(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -33168,11 +33168,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -33588,11 +33588,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -34008,11 +34008,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -34428,11 +34428,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -34848,11 +34848,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -35268,11 +35268,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varchar(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varchar(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -35688,11 +35688,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -36108,11 +36108,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -36528,11 +36528,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -36948,11 +36948,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -37368,11 +37368,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -37788,11 +37788,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` binary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` binary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -38208,11 +38208,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -38628,11 +38628,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` smallint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -39048,11 +39048,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` mediumint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -39468,11 +39468,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -39888,11 +39888,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` int DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)
@@ -40308,11 +40308,11 @@ m3
 SHOW CREATE TABLE m3;
 Table	Create Table
 m3	CREATE TABLE `m3` (
-  `c1` year(4) DEFAULT NULL,
+  `c1` year DEFAULT NULL,
   `c2` varbinary(25) NOT NULL,
   `c3` bigint DEFAULT NULL,
   `c4` varbinary(15) NOT NULL,
-  `c5` year(4) NOT NULL,
+  `c5` year NOT NULL,
   `c6` decimal(10,8) NOT NULL DEFAULT '3.14159200',
   PRIMARY KEY (`c4`),
   UNIQUE KEY `c5` (`c5`)

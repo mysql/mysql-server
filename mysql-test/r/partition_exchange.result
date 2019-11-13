@@ -7,7 +7,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET GLOBAL innodb_default_row_format=compact;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT
@@ -21,7 +21,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -31,7 +31,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -53,7 +53,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -63,7 +63,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -84,7 +84,7 @@ DROP TABLE t2;
 # Only the partitioned table have ROW_FORMAT set.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
@@ -97,7 +97,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -107,7 +107,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -128,7 +128,7 @@ CREATE_OPTIONS
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB
@@ -140,7 +140,7 @@ Code	1681
 Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT;
@@ -153,7 +153,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -163,7 +163,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -184,7 +184,7 @@ CREATE_OPTIONS	row_format=COMPACT
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB
@@ -196,7 +196,7 @@ Code	1681
 Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB;
@@ -209,7 +209,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -219,7 +219,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -240,7 +240,7 @@ CREATE_OPTIONS
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT
@@ -252,7 +252,7 @@ Code	1681
 Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
@@ -265,7 +265,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -275,7 +275,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -296,7 +296,7 @@ CREATE_OPTIONS	row_format=REDUNDANT
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB
@@ -308,7 +308,7 @@ Code	1681
 Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
@@ -322,7 +322,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -332,7 +332,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
@@ -353,7 +353,7 @@ CREATE_OPTIONS	row_format=REDUNDANT
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = COMPACT
@@ -365,7 +365,7 @@ Code	1681
 Message	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
-year year(4) DEFAULT NULL,
+year year DEFAULT NULL,
 modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
 PRIMARY KEY (id)
 ) ENGINE=InnoDB ROW_FORMAT = REDUNDANT;
@@ -379,7 +379,7 @@ SHOW CREATE TABLE t1;
 Table	t1
 Create Table	CREATE TABLE `t1` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
@@ -389,7 +389,7 @@ SHOW CREATE TABLE t2;
 Table	t2
 Create Table	CREATE TABLE `t2` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `year` year(4) DEFAULT NULL,
+  `year` year DEFAULT NULL,
   `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
