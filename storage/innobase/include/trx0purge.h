@@ -597,9 +597,7 @@ struct Tablespace {
   all the undo logs, truncate it, and then mark it empty. */
   void set_inactive_explicit() {
     m_rsegs->x_lock();
-    if (m_rsegs->is_active() || m_rsegs->is_inactive_implicit()) {
-      m_rsegs->set_inactive_explicit();
-    }
+    m_rsegs->set_inactive_explicit();
     m_rsegs->x_unlock();
   }
 

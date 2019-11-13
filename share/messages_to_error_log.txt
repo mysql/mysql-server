@@ -10650,6 +10650,9 @@ ER_IB_MSG_DICT_PARTITION_NOT_FOUND
 ER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
   eng "Access denied for user '%-.48s'@'%-.64s'. Account is blocked for %s day(s) (%s day(s) remaining) due to %u consecutive failed logins. Use FLUSH PRIVILEGES or ALTER USER to reset."
 
+ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION
+  eng "Upgrade cannot proceed due to an existing prepared XA transaction."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

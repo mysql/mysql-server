@@ -4970,6 +4970,12 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     if (!dict_sys_table_id_build()) {
       return innodb_init_abort();
     }
+
+    if (trx_sys->found_prepared_trx > 0) {
+      ib::error(ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION);
+      return innodb_init_abort();
+    }
+
     /* Disable AHI when we start loading tables for purge.
     These tables are evicted anyway after purge. */
 
