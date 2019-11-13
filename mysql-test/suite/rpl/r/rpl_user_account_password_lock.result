@@ -1,0 +1,104 @@
+# test binlog versions of WL#13515 FR4
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# CREATE USER
+[connection master]
+CREATE USER password_lock_both@localhost FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 3;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_both';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 2, "password_lock_time_days": 3}}
+[connection master]
+CREATE USER failed_login_attempts@localhost FAILED_LOGIN_ATTEMPTS 2;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='failed_login_attempts';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 2, "password_lock_time_days": 0}}
+[connection master]
+CREATE USER password_lock_time@localhost PASSWORD_LOCK_TIME 3;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_time';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 0, "password_lock_time_days": 3}}
+[connection master]
+CREATE USER password_lock_time_unbounded@localhost PASSWORD_LOCK_TIME UNBOUNDED;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_time_unbounded';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 0, "password_lock_time_days": -1}}
+[connection master]
+CREATE USER password_lock_none@localhost;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_none';
+user_attributes
+NULL
+# Show binary log events
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'password_lock_both'@'localhost' IDENTIFIED WITH 'caching_sha2_password' FAILED_LOGIN_ATTEMPTS 2 PASSWORD_LOCK_TIME 3
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'failed_login_attempts'@'localhost' IDENTIFIED WITH 'caching_sha2_password' FAILED_LOGIN_ATTEMPTS 2
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'password_lock_time'@'localhost' IDENTIFIED WITH 'caching_sha2_password' PASSWORD_LOCK_TIME 3
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'password_lock_time_unbounded'@'localhost' IDENTIFIED WITH 'caching_sha2_password' PASSWORD_LOCK_TIME UNBOUNDED
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'password_lock_none'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+# ALTER USER
+[connection master]
+ALTER USER password_lock_both@localhost FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 4;
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_both';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 3, "password_lock_time_days": 4}}
+[connection master]
+ALTER USER password_lock_both@localhost FAILED_LOGIN_ATTEMPTS 0 PASSWORD_LOCK_TIME 0;
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_both';
+user_attributes
+NULL
+[connection master]
+ALTER USER failed_login_attempts@localhost FAILED_LOGIN_ATTEMPTS 3;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='failed_login_attempts';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 3, "password_lock_time_days": 0}}
+[connection master]
+ALTER USER password_lock_time@localhost PASSWORD_LOCK_TIME UNBOUNDED;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_time';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 0, "password_lock_time_days": -1}}
+[connection master]
+ALTER USER password_lock_time_unbounded@localhost PASSWORD_LOCK_TIME 1;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_time_unbounded';
+user_attributes
+{"Password_locking": {"failed_login_attempts": 0, "password_lock_time_days": 1}}
+[connection master]
+ALTER USER password_lock_none@localhost;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user_attributes FROM mysql.user WHERE user='password_lock_none';
+user_attributes
+NULL
+# Show binary log events
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'password_lock_both'@'localhost' FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 4
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'password_lock_both'@'localhost' FAILED_LOGIN_ATTEMPTS 0 PASSWORD_LOCK_TIME 0
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'failed_login_attempts'@'localhost' FAILED_LOGIN_ATTEMPTS 3
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'password_lock_time'@'localhost' PASSWORD_LOCK_TIME UNBOUNDED
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'password_lock_time_unbounded'@'localhost' PASSWORD_LOCK_TIME 1
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'password_lock_none'@'localhost'
+[connection master]
+DROP USER password_lock_both@localhost, failed_login_attempts@localhost, password_lock_time@localhost, password_lock_time_unbounded@localhost, password_lock_none@localhost;
+include/rpl_end.inc
+# End of 8.0 tests

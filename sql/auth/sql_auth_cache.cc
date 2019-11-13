@@ -77,6 +77,7 @@
 #include "sql/table.h"  // TABLE
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
+#include "sql/tztime.h"  // Time_zone
 #include "sql/xa.h"
 #include "sql_string.h"
 #include "thr_lock.h"
@@ -310,6 +311,82 @@ ACL_USER::ACL_USER() {
   /* Acl_credentials is initialized by its constructor */
 }
 
+void ACL_USER::Password_locked_state::set_parameters(
+    uint password_lock_time_days, uint failed_login_attempts) {
+  m_password_lock_time_days = password_lock_time_days;
+  m_remaining_login_attempts = m_failed_login_attempts = failed_login_attempts;
+  m_daynr_locked = 0;
+}
+
+/**
+  Updates the password locked state based on the time of day fetched from the
+  THD
+
+  @param thd the session to use to calculate time
+  @param successful_login true if the login succeeded
+  @param[out] ret_days_remaining remaining number of days. Filled only if
+  update returns locked account
+  @retval false account not locked
+  @retval true account locked
+*/
+bool ACL_USER::Password_locked_state::update(THD *thd, bool successful_login,
+                                             long *ret_days_remaining) {
+  /* stop if the user is not tracking failed logins */
+  if (!is_active()) return false;
+
+  /* reset on a successful login if the account is not locked */
+  if (successful_login && m_daynr_locked == 0) {
+    m_remaining_login_attempts = m_failed_login_attempts;
+    return false;
+  }
+
+  /* decreases the remaining login attempts if any */
+  if (!successful_login && m_remaining_login_attempts > 0) {
+    m_remaining_login_attempts--;
+    DBUG_ASSERT(m_daynr_locked == 0);
+  }
+
+  if (m_remaining_login_attempts) return false;
+
+  long now_day;
+  /* fetch the current day */
+  MYSQL_TIME tm_now;
+  thd->time_zone()->gmt_sec_to_TIME(&tm_now, thd->query_start_timeval_trunc(6));
+  now_day = calc_daynr(tm_now.year, tm_now.month, tm_now.day);
+
+  DBUG_EXECUTE_IF("account_lock_daynr_add_one", { now_day += 1; });
+
+  DBUG_EXECUTE_IF("account_lock_daynr_add_ten", { now_day += 10; });
+
+  /* last unsuccessful login. lock the account */
+  if (m_daynr_locked == 0) {
+    DBUG_ASSERT(!successful_login);
+    m_daynr_locked = now_day;
+    *ret_days_remaining = m_password_lock_time_days;
+    return true;
+  };
+
+  /* if the lock should never expire we stop here */
+  if (m_daynr_locked > 0 && m_password_lock_time_days < 0) return true;
+
+  /* check if the account is still to be locked */
+  if (now_day - m_daynr_locked < (long)m_password_lock_time_days) {
+    *ret_days_remaining =
+        ((long)m_password_lock_time_days) - (now_day - m_daynr_locked);
+    return true;
+  }
+  /* reset the account lock if the time has expired */
+  if (now_day - m_daynr_locked >= (long)m_password_lock_time_days) {
+    m_daynr_locked = 0;
+    m_remaining_login_attempts = m_failed_login_attempts;
+    return false;
+  }
+
+  /* it should never get to here */
+  DBUG_ASSERT(false);
+  return false;
+}
+
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   ACL_USER *dst = (ACL_USER *)root->Alloc(sizeof(ACL_USER));
   if (!dst) return 0;
@@ -339,6 +416,7 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   }
   dst->host.update_hostname(safe_strdup_root(root, host.get_host()));
   dst->password_require_current = password_require_current;
+  dst->password_locked_state = password_locked_state;
   return dst;
 }
 
@@ -2396,7 +2474,8 @@ static bool grant_reload_procs_priv(TABLE_LIST *table) {
 }
 
 /**
-  @brief Reload information about table and column level privileges if possible
+  @brief Reload information about table and column level privileges if
+  possible
 
   @param thd        Current thread
   @param mdl_locked MDL lock status - affects open/close table operations
@@ -2458,8 +2537,8 @@ bool grant_reload(THD *thd, bool mdl_locked) {
         old_column_priv_hash(move(column_priv_hash));
 
     /*
-      Create a new memory pool but save the current memory pool to make an undo
-      opertion possible in case of failure.
+      Create a new memory pool but save the current memory pool to make an
+      undo opertion possible in case of failure.
     */
     old_mem = move(memex);
     init_sql_alloc(key_memory_acl_memex, &memex, ACL_ALLOC_BLOCK_SIZE, 0);
@@ -2497,7 +2576,8 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const LEX_CSTRING &auth, const std::string &second_auth,
                      const MYSQL_TIME &password_change_time,
                      const LEX_ALTER &password_life, Restrictions &restrictions,
-                     acl_table::Pod_user_what_to_update &what_to_update) {
+                     acl_table::Pod_user_what_to_update &what_to_update,
+                     uint failed_login_attempts, int password_lock_time) {
   DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
   for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
@@ -2542,6 +2622,12 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                 acl_table::USER_ATTRIBUTE_DISCARD_PASSWORD) {
               acl_user->credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
             }
+            if (what_to_update.m_user_attributes &
+                (acl_table::USER_ATTRIBUTE_FAILED_LOGIN_ATTEMPTS |
+                 acl_table::USER_ATTRIBUTE_PASSWORD_LOCK_TIME)) {
+              acl_user->password_locked_state.set_parameters(
+                  password_lock_time, failed_login_attempts);
+            }
             set_user_salt(acl_user);
           }
         }
@@ -2583,6 +2669,13 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
 
         if (password_life.update_account_locked_column) {
           acl_user->account_locked = password_life.account_locked;
+
+          /* reset the runtime locked state if there is account locking */
+          if (!acl_user->account_locked &&
+              acl_user->password_locked_state.is_active())
+            acl_user->password_locked_state.set_parameters(
+                acl_user->password_locked_state.get_password_lock_time_days(),
+                acl_user->password_locked_state.get_failed_login_attempts());
         }
 
         /* Update role graph  */
@@ -2629,15 +2722,17 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
   }
 }
 
-void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
-                       const char *host, enum SSL_type ssl_type,
-                       const char *ssl_cipher, const char *x509_issuer,
-                       const char *x509_subject, USER_RESOURCES *mqh,
-                       ulong privileges, const LEX_CSTRING &plugin,
-                       const LEX_CSTRING &auth, const LEX_CSTRING &second_auth,
+void acl_users_add_one(const char *user, const char *host,
+                       enum SSL_type ssl_type, const char *ssl_cipher,
+                       const char *x509_issuer, const char *x509_subject,
+                       USER_RESOURCES *mqh, ulong privileges,
+                       const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
+                       const LEX_CSTRING &second_auth,
                        const MYSQL_TIME &password_change_time,
                        const LEX_ALTER &password_life, bool add_role_vertex,
-                       Restrictions &restrictions) {
+                       Restrictions &restrictions, uint failed_login_attempts,
+                       int password_lock_time,
+                       THD *thd MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   ACL_USER acl_user;
 
@@ -2723,6 +2818,9 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
   set_user_salt(&acl_user);
   /* New user is not a role by default. */
   acl_user.is_role = false;
+
+  acl_user.password_locked_state.set_parameters(password_lock_time,
+                                                failed_login_attempts);
   acl_users->push_back(acl_user);
   if (acl_user.host.check_allow_all_hosts())
     allow_all_hosts = true;  // Anyone can connect /* purecov: tested */
@@ -2742,12 +2840,13 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                      ulong privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
                      const MYSQL_TIME &password_change_time,
-                     const LEX_ALTER &password_life,
-                     Restrictions &restrictions) {
+                     const LEX_ALTER &password_life, Restrictions &restrictions,
+                     uint failed_login_attempts, int password_lock_time) {
   DBUG_TRACE;
-  acl_users_add_one(thd, user, host, ssl_type, ssl_cipher, x509_issuer,
-                    x509_subject, mqh, privileges, plugin, auth, EMPTY_CSTR,
-                    password_change_time, password_life, true, restrictions);
+  acl_users_add_one(user, host, ssl_type, ssl_cipher, x509_issuer, x509_subject,
+                    mqh, privileges, plugin, auth, EMPTY_CSTR,
+                    password_change_time, password_life, true, restrictions,
+                    failed_login_attempts, password_lock_time, thd);
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   rebuild_cached_acl_users_for_name();
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -3128,8 +3227,8 @@ uint64 l_cache_flusher_global_version;
 /**
   Utility function for removing all items from the hash.
   @param ptr A pointer to a Acl_hash_entry
-  @return Always 0 with the intention that this causes the hash_search function
-   to iterate every single element in the hash.
+  @return Always 0 with the intention that this causes the hash_search
+  function to iterate every single element in the hash.
 */
 static int cache_flusher(const uchar *ptr) {
   DBUG_TRACE;
@@ -3451,7 +3550,8 @@ void Acl_restrictions::remove_restrictions(const ACL_USER *acl_user) {
   Update, insert or remove the Restrictions for the ACL_USER.
 
   If ACL_USER has a Restrictions
-   - If specified Restrictions is not empty then update ACL_USER's Restrictions
+   - If specified Restrictions is not empty then update ACL_USER's
+  Restrictions
    - Otherwise clear the ACL_USER's restriction
   Else if there no Restrictions for the ACL_USER then insert the specified
     Restrictions.
@@ -3525,8 +3625,8 @@ bool is_partial_revoke_exists(THD *thd) {
   } else {
     /*
       We need to determine the number of partial revokes at the time of server
-      start. In that case thd(s) is not be available so it is safe to determine
-      the number of partial revokes without lock.
+      start. In that case thd(s) is not be available so it is safe to
+      determine the number of partial revokes without lock.
     */
     if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
   }

@@ -395,6 +395,7 @@ bool Rewriter_user::rewrite() const {
   rewrite_password_history(lex, rlb);
   rewrite_password_reuse(lex, rlb);
   rewrite_password_require_current(lex, rlb);
+  rewrite_account_lock_state(lex, rlb);
   return false;
 }
 /**
@@ -546,6 +547,30 @@ void Rewriter_user::rewrite_password_require_current(LEX *lex,
       DBUG_ASSERT(false);
   }
 }
+
+/**
+  Append the account lock state
+
+  Append FAILED_LOGIN_ATTEMPTS/PASSWORD_LOCK_TIME if account auto-lock
+  is active.
+
+  @param [in]       lex     LEX to retrieve data from
+  @param [in, out]  str     The string in which plugin info is suffixed
+*/
+void Rewriter_user::rewrite_account_lock_state(LEX *lex, String *str) const {
+  if (lex->alter_password.update_failed_login_attempts) {
+    append_int(str, false, STRING_WITH_LEN(" FAILED_LOGIN_ATTEMPTS"),
+               lex->alter_password.failed_login_attempts, true);
+  }
+  if (lex->alter_password.update_password_lock_time) {
+    if (lex->alter_password.password_lock_time >= 0)
+      append_int(str, false, STRING_WITH_LEN(" PASSWORD_LOCK_TIME"),
+                 lex->alter_password.password_lock_time, true);
+    else
+      str->append(STRING_WITH_LEN(" PASSWORD_LOCK_TIME UNBOUNDED"));
+  }
+}
+
 /**
   Append the authentication plugin name for the user
 

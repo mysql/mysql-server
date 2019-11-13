@@ -37,6 +37,8 @@ const ulong USER_ATTRIBUTE_NONE = 0L;
 const ulong USER_ATTRIBUTE_RETAIN_PASSWORD = (1L << 0);
 const ulong USER_ATTRIBUTE_DISCARD_PASSWORD = (1L << 1);
 const ulong USER_ATTRIBUTE_RESTRICTIONS = (1L << 3);
+const ulong USER_ATTRIBUTE_FAILED_LOGIN_ATTEMPTS = (1L << 4);
+const ulong USER_ATTRIBUTE_PASSWORD_LOCK_TIME = (1L << 5);
 
 class Pod_user_what_to_update {
  public:

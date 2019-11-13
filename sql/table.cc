@@ -7287,6 +7287,10 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
       Lex_acl_attrib_udyn::UNCHANGED;
   ret->alter_status.password_history_length = 0;
   ret->alter_status.password_reuse_interval = 0;
+  ret->alter_status.failed_login_attempts = 0;
+  ret->alter_status.password_lock_time = 0;
+  ret->alter_status.update_failed_login_attempts = false;
+  ret->alter_status.update_password_lock_time = false;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),
                                USERNAME_CHAR_LENGTH, system_charset_info,
                                false) ||

@@ -284,6 +284,16 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   lex->alter_password.update_password_require_current =
       acl_user->password_require_current;
 
+  lex->alter_password.failed_login_attempts =
+      acl_user->password_locked_state.get_failed_login_attempts();
+  lex->alter_password.password_lock_time =
+      acl_user->password_locked_state.get_password_lock_time_days();
+
+  lex->alter_password.update_failed_login_attempts =
+      lex->alter_password.failed_login_attempts != 0;
+  lex->alter_password.update_password_lock_time =
+      lex->alter_password.password_lock_time != 0;
+
   /* send the metadata to client */
   field = new Item_string("", 0, &my_charset_latin1);
   field->max_length = 256;
@@ -1374,6 +1384,17 @@ bool set_and_validate_user_attributes(
       what_to_set.m_user_attributes |=
           acl_table::USER_ATTRIBUTE_DISCARD_PASSWORD;
     }
+  }
+
+  if (Str->alter_status.update_failed_login_attempts) {
+    what_to_set.m_what |= USER_ATTRIBUTES;
+    what_to_set.m_user_attributes |=
+        acl_table::USER_ATTRIBUTE_FAILED_LOGIN_ATTEMPTS;
+  }
+  if (Str->alter_status.update_password_lock_time) {
+    what_to_set.m_what |= USER_ATTRIBUTES;
+    what_to_set.m_user_attributes |=
+        acl_table::USER_ATTRIBUTE_PASSWORD_LOCK_TIME;
   }
   plugin_unlock(0, plugin);
   return (false);

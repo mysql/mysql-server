@@ -2332,6 +2332,10 @@ struct LEX_ALTER {
   uint32 password_reuse_interval;
   bool use_default_password_reuse_interval;
   bool update_password_reuse_interval;
+  uint failed_login_attempts;
+  bool update_failed_login_attempts;
+  int password_lock_time;
+  bool update_password_lock_time;
   /* Holds the specification of 'PASSWORD REQUIRE CURRENT' clause. */
   Lex_acl_attrib_udyn update_password_require_current;
   void cleanup() {
@@ -2348,6 +2352,10 @@ struct LEX_ALTER {
     update_password_require_current = Lex_acl_attrib_udyn::UNCHANGED;
     password_history_length = 0;
     password_reuse_interval = 0;
+    update_password_lock_time = false;
+    update_failed_login_attempts = false;
+    failed_login_attempts = 0;
+    password_lock_time = 0;
   }
 };
 
