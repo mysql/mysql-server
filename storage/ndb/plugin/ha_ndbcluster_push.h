@@ -53,15 +53,12 @@ typedef Bitmap<(MAX_TABLES > 64 ? MAX_TABLES : 64)> table_bitmap;
 
 class ndb_table_access_map : public table_bitmap {
  public:
-  explicit ndb_table_access_map() : table_bitmap(0) {}
-  explicit ndb_table_access_map(uint table_no) : table_bitmap(0) {
-    set_bit(table_no);
-  }
+  explicit ndb_table_access_map() : table_bitmap() {}
 
   void add(const ndb_table_access_map
                &table_map) {  // Require const_cast as signature of class
                               // Bitmap::merge is not const correct
-    merge(const_cast<ndb_table_access_map &>(table_map));
+    merge(table_map);
   }
   void add(uint table_no) { set_bit(table_no); }
 

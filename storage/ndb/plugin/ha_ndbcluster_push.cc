@@ -701,8 +701,10 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
        */
       extend_parents.add(field_parents);
 
-      const uint first = field_parents.first_table(root_no);
-      depend_parents.add(first);
+      if (!field_parents.is_clear_all()) {
+        const uint first = field_parents.first_table(root_no);
+        depend_parents.add(first);
+      }
     } else {
       EXPLAIN_NO_PUSH(
           "Can't push table '%s' as child, "
@@ -1042,7 +1044,7 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
   ////////////////////////////////////////////////////////////////////
   // 1) Add our existing parent reference to the set of parent candidates
   //
-  uint referred_table_no = get_table_no(key_item_field);
+  const uint referred_table_no = get_table_no(key_item_field);
   if (m_join_scope.contain(referred_table_no)) {
     field_parents.add(referred_table_no);
   }
@@ -1128,7 +1130,6 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
       } while (m_plan.get_table_access(access_no)->get_table() != referred_tab);
 
     }  // if (!ndbcluster_is_lookup_operation(root_type)
-    field_parents = ndb_table_access_map(m_join_root->get_access_no());
     return true;
   } else {
     EXPLAIN_NO_PUSH(
