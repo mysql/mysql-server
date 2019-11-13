@@ -635,8 +635,6 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
 
   /*****
    * Calculate the set of possible parents for table, where:
-   *  - 'current' are those currently being referred by the
-   *     FIELD_ITEMs as set up by the MySQL optimizer.
    *  - 'common' are those we may refer (possibly through the EQ-sets)
    *     such that all FIELD_ITEMs are from the same parent.
    *  - 'extended' are those parents refered from some of the
@@ -651,7 +649,6 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
    * the most 'grandparent' of the extended parents.
    *
    ****/
-  ndb_table_access_map current_parents;
   ndb_table_access_map common_parents(m_join_scope);
   ndb_table_access_map extend_parents;
   ndb_table_access_map depend_parents;
@@ -676,14 +673,6 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
       if (!is_field_item_pushable(table, key_item, key_part, field_parents)) {
         return false;
       }
-
-      /**
-       * Calculate 'current_parents' as the set of tables
-       * currently being referred by some 'key_item'.
-       */
-      DBUG_ASSERT(key_item == table->get_key_field(key_part_no));
-      DBUG_ASSERT(key_item->type() == Item::FIELD_ITEM);
-      current_parents.add(get_table_no(key_item));
 
       /**
        * Calculate 'common_parents' as the set of possible 'field_parents'
@@ -718,19 +707,11 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     }
   }  // for (uint key_part_no= 0 ...
 
-  if (m_const_scope.contain(current_parents)) {
-    // NOTE: This is a constant table wrt. this instance of the pushed join.
-    //       It should be relatively simple to extend the SPJ block to
-    //       allow such tables to be included in the pushed join.
+  // If no parent candidates within current m_join_scope, table is unpushable.
+  if (extend_parents.is_clear_all()) {
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child of '%s', "
-        "their dependency is 'const'",
-        table->get_table()->alias, m_join_root->get_table()->alias);
-    return false;
-  } else if (extend_parents.is_clear_all()) {
-    EXPLAIN_NO_PUSH(
-        "Can't push table '%s' as child of '%s', "
-        "no parents found within scope",
+        "no parent-child dependency exists between these tables",
         table->get_table()->alias, m_join_root->get_table()->alias);
     return false;
   }
