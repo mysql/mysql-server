@@ -465,7 +465,7 @@ int vio_shutdown(Vio *vio) {
 #ifdef USE_PPOLL_IN_VIO
     if (vio->thread_id != 0 && vio->poll_shutdown_flag.test_and_set()) {
       // Send signal to wake up from poll.
-      if (pthread_kill(vio->thread_id, SIGUSR1) == 0)
+      if (pthread_kill(vio->thread_id, SIGALRM) == 0)
         vio_wait_until_woken(vio);
       else
         perror("Error in pthread_kill");

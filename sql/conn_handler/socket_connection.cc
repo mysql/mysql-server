@@ -1462,7 +1462,7 @@ void Mysqld_socket_listener::close_listener() {
     my_thread_join(&admin_socket_thread_id, nullptr);
 #else
     // First, finish listening thread.
-    pthread_kill(admin_socket_thread_id.thread, SIGUSR1);
+    pthread_kill(admin_socket_thread_id.thread, SIGALRM);
     my_thread_join(&admin_socket_thread_id, nullptr);
     /*
       After a thread listening on admin interface finished, it is safe
