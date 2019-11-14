@@ -135,11 +135,27 @@ int validate_local_params(THD *thd) {
   }
 
   const std::string &val_str = local_configs[0].second;
-  auto val =
-      static_cast<uint>(my_strntoll(&my_charset_utf8mb4_bin, val_str.c_str(),
-                                    val_str.length(), 10, nullptr, &err));
 
-  if (err == 0 && val < CLONE_MIN_NET_BLOCK) {
+  long long val = 0;
+  bool is_exception = false;
+
+  try {
+    val = std::stoll(val_str);
+  } catch (...) {
+    is_exception = true; /* purecov: inspected */
+  }
+
+  if (is_exception || val <= 0) {
+    /* purecov: begin deadcode */
+    DBUG_ASSERT(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Error extracting integer value for"
+             "'max_allowed_packet' configuration");
+    return (ER_INTERNAL_ERROR);
+    /* purecov: end */
+  }
+
+  if (val < longlong{CLONE_MIN_NET_BLOCK}) {
     err = ER_CLONE_NETWORK_PACKET;
     my_error(err, MYF(0), CLONE_MIN_NET_BLOCK, val);
   }
