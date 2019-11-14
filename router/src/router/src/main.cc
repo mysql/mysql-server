@@ -195,6 +195,8 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
       result = 1;
     } catch (const silent_exception &) {
     }
+    // cleanup on shutdown
+    router.stop();
   } catch (const std::invalid_argument &exc) {
     log_error("Configuration error: %s", exc.what());
     result = 1;

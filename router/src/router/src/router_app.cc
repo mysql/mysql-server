@@ -655,6 +655,17 @@ void MySQLRouter::start() {
   loader_->start();
 }
 
+void MySQLRouter::stop() {
+  // Remove the pidfile if present
+  if (!pid_file_path_.empty()) {
+    mysql_harness::Path pid_file_path(pid_file_path_);
+    if (pid_file_path.is_regular()) {
+      log_debug("Removing pidfile %s", pid_file_path.c_str());
+      std::remove(pid_file_path.c_str());
+    }
+  }
+}
+
 void MySQLRouter::set_default_config_files(const char *locations) noexcept {
   std::stringstream ss_line{locations};
 

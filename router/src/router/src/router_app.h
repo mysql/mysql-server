@@ -229,6 +229,25 @@ class MySQLRouter {
    */
   void start();
 
+  /** @brief Stop and cleanup the MySQL Router application
+   *
+   * Cleanup to perform when the MySQL Router application shuts down.
+   *
+   * Example:
+   *
+   *     MySQLRouter router;
+   *     router.start();
+   *     ...
+   *     router.stop();
+   *
+   * Throws std::runtime_error on errors during cleanup.
+   *
+   * @internal
+   * We ensure that the Harness pidfile is removed if present.
+   * @endinternal
+   */
+  void stop();
+
   /** @brief Gets list of default configuration files
    *
    * Returns a list of configuration files which will be read (if available)
