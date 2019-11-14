@@ -2978,39 +2978,6 @@ class Ndb_schema_event_handler {
     ulong m_save_lock_wait_timeout;
   };
 
-  /**
-     @brief Clear conditions accumulated in THD
-
-     @note This function should be used after calling functions that report
-     detailed failure information by both writing to log as well as push as
-     warnings when they fail.
-  */
-  void clear_THD_conditions() const {
-    // Remove the THD conditions
-    m_thd->get_stmt_da()->reset_diagnostics_area();
-    m_thd->get_stmt_da()->reset_condition_info(m_thd);
-  }
-
-  /**
-     @brief Log conditions accumulated in THD and then clear conditions.
-
-     @note This function should be used after calling functions
-     that report detailed failure information as warnings when
-     they fail.
-  */
-  void log_and_clear_THD_conditions() const {
-    // Print THD's list of warnings to error log
-    Diagnostics_area::Sql_condition_iterator it(
-        m_thd->get_stmt_da()->sql_conditions());
-
-    const Sql_condition *err;
-    while ((err = it++)) {
-      ndb_log_warning("Got error '%d: %s'", err->mysql_errno(),
-                      err->message_text());
-    }
-    clear_THD_conditions();
-  }
-
   // Log error code and message returned from NDB
   void log_NDB_error(const NdbError &ndb_error) const {
     ndb_log_info("Got error '%d: %s' from NDB", ndb_error.code,
@@ -3613,7 +3580,7 @@ class Ndb_schema_event_handler {
 
     // First acquire exclusive MDL lock on schema and table
     if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to acquire exclusive metadata lock for table '%s.%s'",
           schema_name, table_name);
@@ -3627,7 +3594,7 @@ class Ndb_schema_event_handler {
     if (!tablespace_name.empty()) {
       // Acquire IX MDL on tablespace
       if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("Failed to acquire lock on tablespace '%s' for '%s.%s'",
                       tablespace_name.c_str(), schema_name, table_name);
         return false;
@@ -3639,14 +3606,14 @@ class Ndb_schema_event_handler {
             schema_name, table_name, sdi, table_id, table_version,
             num_partitions, tablespace_name, force_overwrite,
             (invalidate_referenced_tables ? &invalidator : nullptr))) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to install table '%s.%s' in DD", schema_name,
                     table_name);
       return false;
     }
 
     if (invalidate_referenced_tables && !invalidator.invalidate()) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
                     schema_name, table_name);
       return false;
@@ -3691,7 +3658,7 @@ class Ndb_schema_event_handler {
     Ndb_dd_table dd_table(m_thd);
     const dd::sdi_t sdi = serialized_metadata.c_str();
     if (!dd_client.deserialize_table(sdi, dd_table.get_table_def())) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to deserialize metadata for table '%s.%s'",
                     schema_name, table_name);
       return false;
@@ -3703,7 +3670,7 @@ class Ndb_schema_event_handler {
     if (ndbcluster_binlog_setup_table(m_thd, ndb, schema_name, table_name,
                                       dd_table.get_table_def())) {
       // Error information has been logged AND pushed -> clear warnings
-      clear_THD_conditions();
+      clear_thd_conditions(m_thd);
       ndb_log_error("Failed to setup binlogging for table '%s.%s'", schema_name,
                     table_name);
       return false;
@@ -3963,7 +3930,7 @@ class Ndb_schema_event_handler {
     Ndb_dd_table dd_table(m_thd);
     const dd::sdi_t sdi = serialized_metadata.c_str();
     if (!dd_client.deserialize_table(sdi, dd_table.get_table_def())) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to deserialize metadata for table '%s.%s'",
                     schema_name, table_name);
       return nullptr;
@@ -4101,7 +4068,7 @@ class Ndb_schema_event_handler {
     Ndb_referenced_tables_invalidator invalidator(m_thd, dd_client);
 
     if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::WARNING);
       ndb_log_warning("Failed to acquire exclusive metadata lock on '%s.%s'",
                       schema_name, table_name);
       return false;
@@ -4112,14 +4079,14 @@ class Ndb_schema_event_handler {
     if (has_shadow_table(dd_client, schema_name, table_name)) return false;
 
     if (!dd_client.remove_table(schema_name, table_name, &invalidator)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
                     table_name);
       return false;
     }
 
     if (!invalidator.invalidate()) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
                     schema_name, table_name);
       return false;
@@ -4213,7 +4180,7 @@ class Ndb_schema_event_handler {
 
     // Acquire exclusive MDL lock on the table
     if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to acquire exclusive metadata lock on '%s.%s'",
                     schema_name, table_name);
       return false;
@@ -4222,7 +4189,7 @@ class Ndb_schema_event_handler {
     // Acquire exclusive MDL lock also on the new table name
     if (!dd_client.mdl_locks_acquire_exclusive(new_schema_name,
                                                new_table_name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error(
           "Failed to acquire exclusive metadata lock on new table name '%s.%s'",
           new_schema_name, new_table_name);
@@ -4249,7 +4216,7 @@ class Ndb_schema_event_handler {
       Ndb_dd_table dd_table(m_thd);
       const dd::sdi_t sdi = serialized_metadata.c_str();
       if (!dd_client.deserialize_table(sdi, dd_table.get_table_def())) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("Failed to deserialized metadata for table '%s.%s'",
                       new_schema_name, new_table_name);
         return false;
@@ -4259,7 +4226,7 @@ class Ndb_schema_event_handler {
               new_schema_name, new_table_name, sdi, ndbtab->getObjectId(),
               ndbtab->getObjectVersion(), ndbtab->getPartitionCount(),
               tablespace_name, true, nullptr)) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("Failed to install renamed table '%s.%s' in DD",
                       new_schema_name, new_table_name);
         return false;
@@ -4277,7 +4244,7 @@ class Ndb_schema_event_handler {
           "Removing the renamed table '%s.%s' from DD, there is a local table",
           schema_name, table_name);
       if (!dd_client.remove_table(schema_name, table_name, &invalidator)) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("Failed to remove the renamed table '%s.%s' from DD",
                       schema_name, table_name);
         return false;
@@ -4287,7 +4254,7 @@ class Ndb_schema_event_handler {
       if (!dd_client.rename_table(schema_name, table_name, new_schema_name,
                                   new_table_name, ndbtab->getObjectId(),
                                   ndbtab->getObjectVersion(), &invalidator)) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("Failed to rename table '%s.%s' to '%s.%s", schema_name,
                       table_name, new_schema_name, new_table_name);
         return false;
@@ -4295,7 +4262,7 @@ class Ndb_schema_event_handler {
     }
 
     if (!invalidator.invalidate()) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to invalidate referenced tables for '%s.%s'",
                     schema_name, table_name);
       return false;
@@ -4407,7 +4374,7 @@ class Ndb_schema_event_handler {
     // Lock the schema in DD
     if (!dd_client.mdl_lock_schema(schema->db)) {
       // Failed to acquire lock, skip dropping
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to acquire MDL for db '%s'", schema->db);
       m_schema_op_result.set_result(
           Ndb_schema_dist::SCHEMA_OP_FAILURE,
@@ -4419,7 +4386,7 @@ class Ndb_schema_event_handler {
     bool schema_exists;
     if (!dd_client.schema_exists(schema->db, &schema_exists)) {
       // Failed to check if database exists, skip dropping
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to determine if database '%s' exists", schema->db);
       m_schema_op_result.set_result(
           Ndb_schema_dist::SCHEMA_OP_FAILURE,
@@ -4444,7 +4411,7 @@ class Ndb_schema_event_handler {
     std::unordered_set<std::string> ndb_tables_in_DD;
     if (!dd_client.get_ndb_table_names_in_schema(schema->db,
                                                  &ndb_tables_in_DD)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to get list of NDB tables in database '%s'",
                     schema->db);
       m_schema_op_result.set_result(
@@ -4459,7 +4426,7 @@ class Ndb_schema_event_handler {
     for (const auto &ndb_table_name : ndb_tables_in_DD) {
       if (!dd_client.mdl_locks_acquire_exclusive(schema->db,
                                                  ndb_table_name.c_str())) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::WARNING);
         ndb_log_warning("Failed to acquire exclusive MDL on '%s.%s'",
                         schema->db, ndb_table_name.c_str());
         continue;
@@ -4469,7 +4436,7 @@ class Ndb_schema_event_handler {
                                   &invalidator)) {
         // Failed to remove the table from DD, not much else to do
         // than try with the next
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("Failed to remove table '%s.%s' from DD", schema->db,
                       ndb_table_name.c_str());
         continue;
@@ -4495,7 +4462,7 @@ class Ndb_schema_event_handler {
     }
 
     if (!invalidator.invalidate()) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to invalidate referenced tables for database '%s'",
                     schema->db);
       m_schema_op_result.set_result(
@@ -4512,7 +4479,7 @@ class Ndb_schema_event_handler {
                                                &found_local_tables)) {
       // Failed to access the DD to check if non NDB tables existed, assume
       // the worst and skip dropping this database
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to check if database '%s' contained local tables.",
                     schema->db);
       ndb_log_error("Skipping drop of non NDB database artifacts.");
@@ -4546,7 +4513,7 @@ class Ndb_schema_event_handler {
     // already been removed from the DD
     Ndb_local_connection mysqld(m_thd);
     if (mysqld.drop_database(schema->db)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to execute 'DROP DATABASE' for database '%s'",
                     schema->db);
       m_schema_op_result.set_result(
@@ -4625,7 +4592,7 @@ class Ndb_schema_event_handler {
 
     Ndb_local_connection mysqld(m_thd);
     if (mysqld.execute_database_ddl(schema->query)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to execute 'CREATE DATABASE' for database '%s'",
                     schema->db);
       m_schema_op_result.set_result(
@@ -4638,7 +4605,7 @@ class Ndb_schema_event_handler {
     // Update the Schema in DD with the id and version details
     if (!ndb_dd_update_schema_version(m_thd, schema->db, schema->id,
                                       schema->version)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to update schema version for database '%s'",
                     schema->db);
     }
@@ -4658,7 +4625,7 @@ class Ndb_schema_event_handler {
 
     Ndb_local_connection mysqld(m_thd);
     if (mysqld.execute_database_ddl(schema->query)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to execute 'ALTER DATABASE' for database '%s'",
                     schema->db);
       m_schema_op_result.set_result(
@@ -4671,7 +4638,7 @@ class Ndb_schema_event_handler {
     // Update the Schema in DD with the id and version details
     if (!ndb_dd_update_schema_version(m_thd, schema->db, schema->id,
                                       schema->version)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to update schema version for database '%s'",
                     schema->db);
     }
@@ -4760,7 +4727,7 @@ class Ndb_schema_event_handler {
     }
 
     if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
                     tablespace_name);
       return false;
@@ -4768,7 +4735,7 @@ class Ndb_schema_event_handler {
 
     if (!dd_client.install_tablespace(tablespace_name, datafile_names, id,
                                       version, true /* force_overwrite */)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to install tablespace '%s' in DD", tablespace_name);
       return false;
     }
@@ -4806,14 +4773,14 @@ class Ndb_schema_event_handler {
       std::vector<dd::Tablespace_table_ref> &table_refs) const {
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_tablespace(name, true /* intention_exclusive */)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("MDL lock could not be acquired on tablespace '%s'", name);
       return false;
     }
 
     const dd::Tablespace *existing = nullptr;
     if (!dd_client.get_tablespace(name, &existing)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::WARNING);
       return false;
     }
 
@@ -4823,7 +4790,7 @@ class Ndb_schema_event_handler {
     }
 
     if (!ndb_dd_disk_data_get_table_refs(m_thd, *existing, table_refs)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to get table refs in tablespace '%s'", name);
       return false;
     }
@@ -4835,7 +4802,7 @@ class Ndb_schema_event_handler {
       const std::vector<dd::Tablespace_table_ref> &table_refs) const {
     if (!dd_client.mdl_lock_tablespace(tablespace_name,
                                        true /* intention_exclusive */)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("MDL lock could not be acquired on tablespace '%s'",
                     tablespace_name);
       return false;
@@ -4843,7 +4810,7 @@ class Ndb_schema_event_handler {
 
     dd::Object_id tablespace_id;
     if (!dd_client.lookup_tablespace_id(tablespace_name, &tablespace_id)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to retrieve object id of tablespace '%s'",
                     tablespace_name);
       return false;
@@ -4857,7 +4824,7 @@ class Ndb_schema_event_handler {
           ndb_dd_fs_name_case(table_ref.m_name.c_str());
       if (!dd_client.mdl_locks_acquire_exclusive(schema_name.c_str(),
                                                  table_name.c_str())) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("MDL lock could not be acquired on table '%s.%s'",
                       schema_name.c_str(), table_name.c_str());
         return false;
@@ -4865,7 +4832,7 @@ class Ndb_schema_event_handler {
 
       if (!dd_client.set_tablespace_id_in_table(
               schema_name.c_str(), table_name.c_str(), tablespace_id)) {
-        log_and_clear_THD_conditions();
+        log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
         ndb_log_error("Could not set tablespace id in table '%s.%s'",
                       schema_name.c_str(), table_name.c_str());
         return false;
@@ -4944,7 +4911,7 @@ class Ndb_schema_event_handler {
 
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_tablespace_exclusive(schema->name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
                     schema->name);
       ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
@@ -4958,7 +4925,7 @@ class Ndb_schema_event_handler {
 
     if (!dd_client.drop_tablespace(schema->name,
                                    false /* fail_if_not_exists */)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop tablespace '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
                     schema->name);
@@ -4990,7 +4957,7 @@ class Ndb_schema_event_handler {
 
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_logfile_group_exclusive(logfile_group_name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     logfile_group_name);
       return false;
@@ -4998,7 +4965,7 @@ class Ndb_schema_event_handler {
 
     if (!dd_client.install_logfile_group(logfile_group_name, undofile_names, id,
                                          version, true /* force_overwrite */)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to install logfile group '%s' in DD",
                     logfile_group_name);
       return false;
@@ -5065,7 +5032,7 @@ class Ndb_schema_event_handler {
 
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_logfile_group_exclusive(schema->name)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     schema->name);
       ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
@@ -5079,7 +5046,7 @@ class Ndb_schema_event_handler {
 
     if (!dd_client.drop_logfile_group(schema->name,
                                       false /* fail_if_not_exists */)) {
-      log_and_clear_THD_conditions();
+      log_and_clear_thd_conditions(m_thd, condition_logging_level::ERROR);
       ndb_log_error("Failed to drop logfile group '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
                     schema->name);
@@ -7976,6 +7943,7 @@ restart_cluster_failure:
             "waiting for ndbcluster to start...");
         goto err;
       }
+      log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
       ndb_milli_sleep(1000);
     }  // while (!ndb_binlog_setup())
 
