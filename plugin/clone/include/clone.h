@@ -108,6 +108,12 @@ const uint CLONE_MAX_CONN_RETRY = 60;  // 60 x 5 sec = 5 minutes
 /** Maximum number of restart attempts */
 const uint CLONE_MAX_RESTART = 100;
 
+/** Minimum block size of clone data. */
+const uint CLONE_MIN_BLOCK = 1024 * 1024;
+
+/** Minimum network packet. Safe margin for meta information */
+const uint CLONE_MIN_NET_BLOCK = 2 * CLONE_MIN_BLOCK;
+
 /* Namespace for all clone data types */
 namespace myclone {
 
@@ -308,6 +314,10 @@ struct Data_Link {
   };
 };
 
+/** Validate all local configuration parameters.
+@param[in]	thd	current session THD
+@return error code */
+int validate_local_params(THD *thd);
 }  // namespace myclone
 
 #endif /* CLONE_H */

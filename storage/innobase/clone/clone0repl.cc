@@ -475,7 +475,7 @@ void Clone_persist_gtid::flush_gtids(THD *thd) {
   }
   if (err != 0) {
     ib::error(ER_IB_CLONE_GTID_PERSIST) << "Error persisting GTIDs to table";
-    ut_ad(debug_skip);
+    ut_ad(debug_skip || srv_force_recovery > 0);
   }
 
   /* Reset the explicit compression request, if our previous check

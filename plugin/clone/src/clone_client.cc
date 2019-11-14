@@ -1038,6 +1038,11 @@ int Client::remote_command(Command_RPC com, bool use_aux) {
   /* Check and match remote server parameters. */
   if (com == COM_INIT && err == 0) {
     err = validate_remote_params();
+
+    /* Validate local configurations. */
+    if (err == 0) {
+      err = validate_local_params(get_thd());
+    }
   }
 
   return (err);
