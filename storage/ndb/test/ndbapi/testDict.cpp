@@ -3109,7 +3109,7 @@ runRestarts(NDBT_Context* ctx, NDBT_Step* step)
       nodeIdList[nodeIdCnt++] = nodeId;
     }
 
-    if (numnodes >= 4 && myRandom48(2) == 0) {
+    if (numnodes >= 4 && (myRandom48(2) == 0) && (restarter.getNumNodeGroups() > 1)) {
       int rand = myRandom48(numnodes);
       int nodeId = restarter.getRandomNodeOtherNodeGroup(nodeIdList[0], rand);
       CHECK(nodeId != -1);
