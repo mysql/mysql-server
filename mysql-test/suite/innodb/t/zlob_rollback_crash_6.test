@@ -1,6 +1,9 @@
 --source include/have_debug.inc
 --source include/have_innodb_max_16k.inc
 
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+
 --echo #
 --echo # Bug #30197056 INNODB: ASSERTION FAILURE: PAGE_TYPE ==
 --echo # FIL_PAGE_TYPE_ZLOB_FIRST AT ZLOB0READ.CC
