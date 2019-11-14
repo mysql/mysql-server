@@ -383,11 +383,13 @@ bool Ndb_metadata::check_partition_info(const dd::Table *table_def) {
   return ctx.equal();
 }
 
-bool Ndb_metadata::compare_indexes(const dd::Table *table_def,
-                                   NdbDictionary::Dictionary *dict) {
+bool Ndb_metadata::compare_indexes(const NdbDictionary::Dictionary *dict,
+                                   const NdbDictionary::Table *ndbtab,
+                                   const dd::Table *table_def) {
   DBUG_TRACE;
+  DBUG_ASSERT(dict != nullptr);
   unsigned int ndb_index_count;
-  if (!ndb_table_index_count(dict, m_ndbtab, ndb_index_count)) {
+  if (!ndb_table_index_count(dict, ndbtab, ndb_index_count)) {
     return false;
   }
   size_t dd_index_count = table_def->indexes().size();
@@ -415,8 +417,7 @@ bool Ndb_metadata::compare_indexes(const dd::Table *table_def,
 }
 
 bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *m_ndbtab,
-                           const dd::Table *table_def, bool compare_indexes,
-                           NdbDictionary::Dictionary *dict) {
+                           const dd::Table *table_def) {
   Ndb_metadata ndb_metadata(m_ndbtab);
 
   // Transform NDB table to DD table def
@@ -443,14 +444,6 @@ bool Ndb_metadata::compare(THD *thd, const NdbDictionary::Table *m_ndbtab,
   if (!ndb_metadata.check_partition_info(table_def)) {
     DBUG_ASSERT(false);
     return false;
-  }
-
-  if (compare_indexes) {
-    // Check if the number of indexes match
-    DBUG_ASSERT(dict != nullptr);
-    if (!ndb_metadata.compare_indexes(table_def, dict)) {
-      return false;
-    }
   }
 
   return true;

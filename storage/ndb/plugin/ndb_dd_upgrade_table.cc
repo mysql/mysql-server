@@ -931,8 +931,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
       trans_rollback(thd);
       return false;
     }
-    if (!Ndb_metadata::compare(thd, ndbtab, table_def.get(), true,
-                               ndb->getDictionary())) {
+    if (!Ndb_metadata::compare(thd, ndbtab, table_def.get()) ||
+        !Ndb_metadata::compare_indexes(ndb->getDictionary(), ndbtab,
+                                       table_def.get())) {
       thd_ndb->push_warning(
           "Definition of table %s.%s in NDB Dictionary has changed",
           schema_name.c_str(), table_name.c_str());

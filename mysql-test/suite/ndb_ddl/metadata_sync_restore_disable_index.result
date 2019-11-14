@@ -28,28 +28,17 @@ DROP TABLE t1,t2,child,parent;
 SHOW TABLES;
 Tables_in_test
 t2
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int DEFAULT NULL,
+  `b` varchar(10) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 SELECT * FROM t2;
 a	b
 1	Number 4
 2	Privet
 3	Drive
-SELECT * FROM t1;
-a	b	c
-1	2	3
-2	3	5
-3	4	6
-4	5	8
-5	6	2
-6	7	2
-SELECT * FROM parent;
-c1
-1
-2
-SELECT * FROM child;
-c1	c2
-1	1
-2	2
-DROP TABLE t1,t2,child,parent;
 SHOW TABLES;
 Tables_in_test
 child
@@ -74,17 +63,6 @@ a	b	c
 4	5	8
 5	6	2
 6	7	2
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `a` int DEFAULT NULL,
-  `b` varchar(10) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
-SELECT * FROM t2;
-a	b
-1	Number 4
-2	Privet
-3	Drive
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
