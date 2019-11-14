@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,7 +300,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
   if (status == ConfigInfo::CI_DEPRECATED) {
     const char * desc = m_info->getDescription(ctx.m_currentInfo, fname);
     if(desc && desc[0]){
-      ctx.reportWarning("[%s] %s is deprecated, use %s instead",
+      ctx.reportWarning("[%s] %s is deprecated, will use %s instead",
 			ctx.fname, fname, desc);
     } else if (desc == 0){
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
