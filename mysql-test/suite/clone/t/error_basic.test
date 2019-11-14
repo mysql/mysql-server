@@ -21,11 +21,36 @@ UNINSTALL PLUGIN clone;
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 
 if($remote_clone) {
+--echo # 1B-a. Incorrect PORT number for remote clone
 --let $PORT =`select @@port + 1`
 --let $clone_err = ER_CLONE_DONOR
 --source ../include/clone_command.inc
 --let $PORT =`select @@port`
 --let $clone_err = 0
+
+--echo # 1B-b. MAX_ALLOWED_PACKET size too low for remote clone
+SET GLOBAL MAX_ALLOWED_PACKET = 512 * 1024;
+--connect (con1,localhost,root,,)
+
+--let $clone_err = ER_CLONE_DONOR
+--source ../include/clone_command.inc
+--let $clone_err = 0
+
+--connection default
+--disconnect con1
+--force-rmdir $CLONE_DATADIR
+
+--echo # 1B-c. MAX_ALLOWED_PACKET 2M should pass
+SET GLOBAL MAX_ALLOWED_PACKET = 2 * 1024 * 1024;
+--connect (con1,localhost,root,,)
+
+--source ../include/clone_command.inc
+
+--connection default
+--disconnect con1
+--force-rmdir $CLONE_DATADIR
+
+SET GLOBAL MAX_ALLOWED_PACKET = DEFAULT;
 }
 
 --echo #1C. Clone data without error

@@ -120,6 +120,34 @@ SERVICE_TYPE(registry) * reg_srv;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
+/* Namespace for all clone data types */
+namespace myclone {
+
+int validate_local_params(THD *thd) {
+  /* Check if network packet size is enough. */
+  Key_Values local_configs = {{"max_allowed_packet", ""}};
+
+  int err =
+      mysql_service_clone_protocol->mysql_clone_get_configs(thd, local_configs);
+
+  if (err != 0) {
+    return (err);
+  }
+
+  const std::string &val_str = local_configs[0].second;
+  auto val =
+      static_cast<uint>(my_strntoll(&my_charset_utf8mb4_bin, val_str.c_str(),
+                                    val_str.length(), 10, nullptr, &err));
+
+  if (err == 0 && val < CLONE_MIN_NET_BLOCK) {
+    err = ER_CLONE_NETWORK_PACKET;
+    my_error(err, MYF(0), CLONE_MIN_NET_BLOCK, val);
+  }
+  return (err);
+}
+
+}  // namespace myclone
+
 using Donor_Callback = std::function<bool(std::string &, uint32_t)>;
 
 /** Scan through donor list and call back after extracting host and port.
@@ -453,10 +481,10 @@ data transfer to/from file system. Especially for direct i/o where
 disk driver can do parallel IO for transfer. */
 static MYSQL_SYSVAR_UINT(buffer_size, clone_buffer_size, PLUGIN_VAR_RQCMDARG,
                          "buffer size used by clone for data transfer", nullptr,
-                         nullptr, 1024 * 1024 * 4, /* Default =   4M */
-                         1024 * 1024,              /* Minimum =   1M */
-                         1024 * 1024 * 256,        /* Maximum = 256M */
-                         1024 * 1024);             /* Block   =   1M */
+                         nullptr, CLONE_MIN_BLOCK * 4, /* Default =   4M */
+                         CLONE_MIN_BLOCK,              /* Minimum =   1M */
+                         CLONE_MIN_BLOCK * 256,        /* Maximum = 256M */
+                         CLONE_MIN_BLOCK);             /* Block   =   1M */
 
 /** Time in seconds to wait for DDL lock */
 static MYSQL_SYSVAR_UINT(ddl_timeout, clone_ddl_timeout, PLUGIN_VAR_RQCMDARG,

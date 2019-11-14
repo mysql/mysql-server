@@ -9281,6 +9281,9 @@ ER_USER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
 ER_WARN_DEPRECATED_YEAR_UNSIGNED
   eng "UNSIGNED for the YEAR data type is deprecated and support for it will be removed in a future release."
 
+ER_CLONE_NETWORK_PACKET
+  eng "Clone needs max_allowed_packet value to be %u or more. Current value is %u"
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
