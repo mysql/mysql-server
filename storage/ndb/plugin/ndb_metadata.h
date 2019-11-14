@@ -90,18 +90,6 @@ class Ndb_metadata {
   */
   bool check_partition_info(const dd::Table *t1);
 
-  /*
-    @brief Compare the indexes of the NdbApi table definition with that of the
-           DD table
-
-    @param table_def  DD Table definition
-    @param dict       NDB Dictionary object
-
-    @return true if the indexes match
-  */
-  bool compare_indexes(const dd::Table *table_def,
-                       NdbDictionary::Dictionary *dict);
-
  public:
   /*
     @brief Compare the NdbApi table with the DD table definition
@@ -109,15 +97,25 @@ class Ndb_metadata {
     @param thd              Thread context
     @param ndbtab           NdbApi table
     @param table_def        DD table definition
-    @param compare_indexes  Controls whether indexes of the table are compared
-    @param dict             NDB Dictionary object, only required when indexes
-                            are compared
 
     @return true if the NdbApi table is identical to the DD table def.
   */
   static bool compare(class THD *thd, const NdbDictionary::Table *ndbtab,
-                      const dd::Table *table_def, bool compare_indexes = false,
-                      NdbDictionary::Dictionary *dict = nullptr);
+                      const dd::Table *table_def);
+
+  /*
+    @brief Compare the NdbApi table with the DD table definition to see if the
+           number of indexes match
+
+    @param dict      NDB Dictionary object
+    @param ndbtab    NdbApi table
+    @param table_def DD table definition
+
+    @return true if the number of indexes in both definitions match
+  */
+  static bool compare_indexes(const NdbDictionary::Dictionary *dict,
+                              const NdbDictionary::Table *ndbtab,
+                              const dd::Table *table_def);
 };
 
 #endif
