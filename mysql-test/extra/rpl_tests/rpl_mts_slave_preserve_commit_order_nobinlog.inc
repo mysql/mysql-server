@@ -8,6 +8,7 @@
 #   [--let $mts_spco_skip_init_statement= 0]
 #   [--let $mts_slave_parallel_workers= 0]
 #   [--let $mts_spco_start_statement= CREATE TABLE t1 (c1 INT);]
+#   [--let $mts_spco_start_statement_delim= CREATE PROCEDURE proc_t1 (OUT param1 INT) BEGIN SELECT 'test'; END]
 #   [--let $mts_spco_block_statement= BEGIN; INSERT INTO t1 VALUES (1);]
 #   [--let $mts_add_debug_point= debug_sync_point_name
 #   [--let $mts_spco_parallel_statement1= BEGIN; INSERT INTO t1 VALUES (1); INSERT INTO t2 VALUES (2); COMMIT;]
@@ -29,6 +30,12 @@
 #
 #   $mts_spco_start_statement
 #     If set will execute $mts_spco_start_statement on master server.
+#
+#   $mts_spco_start_statement_delim
+#     If set it sets 'DELIMITER \\' before executing
+#     $mts_spco_start_statement_delim statement and resets delimeter back to ;
+#     ('DELIMITER ;') after execution. Its useful to test create procedure
+#     statement.
 #
 #   $mts_slave_parallel_workers
 #     If set other then 0 its value its used to set slave_parallel_workers
@@ -142,6 +149,12 @@ if (!$mts_spco_skip_init_statement)
   --let $mts_spco_skip_init_statement = 1
 }
 
+--let $_tmp_mts_spco_start_statement_delim = 1
+if ($mts_spco_start_statement_delim == '')
+{
+  --let $_tmp_mts_spco_start_statement_delim = 0
+}
+
 if ($mts_spco_start_statement)
 {
   --source include/rpl_connection_master.inc
@@ -153,6 +166,14 @@ if ($mts_spco_start_statement)
   }
 
   --eval $mts_spco_start_statement
+
+  if ($_tmp_mts_spco_start_statement_delim == 1)
+  {
+    --DELIMITER //
+    --eval $mts_spco_start_statement_delim
+    --DELIMITER ;
+  }
+
   --source include/sync_slave_sql_with_master.inc
 
   if ($gtid_mode_on)
@@ -376,3 +397,15 @@ if ($mts_spco_cleanup_statement)
 
   --let $mts_spco_end_statement =
 }
+
+--let $mts_spco_start_statement_delim =
+--let $mts_ignore_wait_for_preceding_transaction = 0
+
+--let $mts_spco_assert_text1 =
+--let $mts_spco_assert_cond1 =
+
+--let $mts_spco_assert_text2 =
+--let $mts_spco_assert_cond2 =
+
+--let $mts_spco_assert_text3 =
+--let $mts_spco_assert_cond3 =

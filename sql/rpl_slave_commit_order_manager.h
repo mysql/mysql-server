@@ -293,8 +293,9 @@ class Commit_order_manager {
   to check whether it waits for its turn (and when its turn comes
   unregister from the commit order queue).
 
-  The sql commands ALTER TABLE, DROP TABLE, DROP DB, OPTIMIZE TABLE,
-  ANALYZE TABLE and REPAIR TABLE shall run this procedure here, as
+  The sql commands ALTER TABLE, ANALYZE TABLE, DROP DB, DROP EVENT,
+  DROP FUNCTION, DROP PROCEDURE, DROP TRIGGER, DROP TABLE, DROP VIEW,
+  OPTIMIZE TABLE and REPAIR TABLE shall run this procedure here, as
   an exception, because these transactions have multiple intermediate
   commits. Therefore cannot predetermine when the last commit is
   done.
