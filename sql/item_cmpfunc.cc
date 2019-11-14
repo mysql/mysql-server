@@ -6979,17 +6979,25 @@ static bool append_string_value(Item *comparand,
     return true;
   }
 
-  // If the data type is CHAR, the collation is a PAD SPACE collation AND the
-  // SQL mode PAD_CHAR_TO_FULL_LENGTH is enabled, use the pre-calculated max
+  // If the collation is a PAD SPACE collation, use the pre-calculated max
   // length so that the shortest string is padded to the same length as the
-  // longest string.
-  if (comparand->data_type() != MYSQL_TYPE_STRING ||
-      character_set->pad_attribute != PAD_SPACE || !pad_char_to_full_length) {
-    max_char_length = str->numchars();
+  // longest string. We also do the same for the special case where the
+  // (deprecated) SQL mode PAD_CHAR_TO_FULL_LENGTH is enabled, where CHAR
+  // columns are padded to full length regardless of the collation used.
+  size_t char_length;
+  if (character_set->pad_attribute == PAD_SPACE ||
+      (comparand->data_type() == MYSQL_TYPE_STRING &&
+       pad_char_to_full_length)) {
+    // Keep the pre-calculated max length, so that the string is padded up to
+    // the longest possible string. The longest possible string is given by the
+    // data type length specification (CHAR(N), VARCHAR(N)).
+    char_length = max_char_length;
+  } else {
+    char_length = str->numchars();
   }
 
   const size_t buffer_size = character_set->coll->strnxfrmlen(
-      character_set, max_char_length * character_set->mbmaxlen);
+      character_set, char_length * character_set->mbmaxlen);
 
   if (buffer_size > 0) {
     // Reserve space in the buffer so we can insert the transformed string
