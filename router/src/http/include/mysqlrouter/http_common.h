@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ class HttpServer;
 // https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
 namespace HttpStatusCode {
 using name_type = const char *;
-using key_type = unsigned int;
+using key_type = int;
 
 constexpr key_type Continue = 100;            // RFC 7231
 constexpr key_type SwitchingProtocols = 101;  // RFC 7231
