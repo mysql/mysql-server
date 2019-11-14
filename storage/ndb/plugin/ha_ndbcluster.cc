@@ -10438,6 +10438,16 @@ int rename_table_impl(THD *thd, Ndb *ndb,
       // other MySQL Servers, just log error and continue
       ndb_log_error("Failed to distribute rename for '%s'", real_rename_name);
     }
+
+    DBUG_EXECUTE_IF("ndb_simulate_failure_after_table_rename", {
+      // Simulate failure after the table has been renamed.
+      // This can either be an ALTER RENAME (with COPY or INPLACE algorithm)
+      // or a simple RENAME.
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "Simulated : Failed after renaming the table.");
+      DBUG_SET("-d,ndb_simulate_failure_after_table_rename");
+      return ER_INTERNAL_ERROR;
+    });
   }
 
   if (commit_alter) {

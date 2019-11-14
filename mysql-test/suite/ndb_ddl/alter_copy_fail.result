@@ -76,10 +76,18 @@ Number of tables with temp name in NDB
 ALTER TABLE t1
 ADD COLUMN c INT,
 ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  `c` int DEFAULT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 #
 # Failure during the second rename
 #
-USE ndb_ddl_test;
 set debug='+d,ndb_simulate_alter_failure_rename2';
 ALTER TABLE t1
 DROP COLUMN c,
@@ -103,3 +111,44 @@ Number of tables with temp name in NDB
 ALTER TABLE t1
 DROP COLUMN c,
 ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+#
+# Failure after the table has been renamed to new name
+#
+set debug='+d,ndb_simulate_failure_after_table_rename';
+ALTER TABLE t1
+RENAME TO t1_new,
+ALGORITHM = COPY;
+ERROR HY000: Internal error: Simulated : Failed after renaming the table.
+# Verify that the table is intact locally and across all servers.
+# Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+== verify_mysql_dd.inc ==
+Number of tables with temp name in NDB
+0
+# ALTER should run now
+ALTER TABLE t1
+RENAME TO t1_new,
+ALGORITHM = COPY;
+SHOW CREATE TABLE t1_new;
+Table	Create Table
+t1_new	CREATE TABLE `t1_new` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`,`b`),
+  KEY `b` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'

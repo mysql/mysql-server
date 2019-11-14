@@ -48,11 +48,11 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1
   ADD COLUMN c INT,
   ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
 
 --echo #
 --echo # Failure during the second rename
 --echo #
-USE ndb_ddl_test;
 set debug='+d,ndb_simulate_alter_failure_rename2';
 --error ER_INTERNAL_ERROR
 ALTER TABLE t1
@@ -69,6 +69,27 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1
   DROP COLUMN c,
   ALGORITHM = COPY;
+SHOW CREATE TABLE t1;
 
+--echo #
+--echo # Failure after the table has been renamed to new name
+--echo #
+set debug='+d,ndb_simulate_failure_after_table_rename';
+--error ER_INTERNAL_ERROR
+ALTER TABLE t1
+  RENAME TO t1_new,
+  ALGORITHM = COPY;
+
+--echo # Verify that the table is intact locally and across all servers.
+--echo # Also verify that there are no tables with temp names left behind.
+SHOW CREATE TABLE t1;
+--source verify_mysql_dd.inc
+--source count_temp_tables.inc
+
+--echo # ALTER should run now
+ALTER TABLE t1
+  RENAME TO t1_new,
+  ALGORITHM = COPY;
+SHOW CREATE TABLE t1_new;
 
 --source cleanup.inc
