@@ -216,6 +216,10 @@ class ndb_pushed_builder_ctx {
                               const KEY_PART_INFO *key_part,
                               ndb_table_access_map &parents);
 
+  void validate_join_nest(uint first_inner, ndb_table_access_map inner_nest);
+
+  void remove_pushable(const AQP::Table_access *table);
+
   int optimize_query_plan();
 
   int build_query();
@@ -228,6 +232,8 @@ class ndb_pushed_builder_ctx {
 
   uint get_table_no(const Item *key_item) const;
 
+  ndb_table_access_map get_table_map(table_map external_map) const;
+
  private:
   const AQP::Join_plan &m_plan;
   AQP::Table_access *m_join_root;
@@ -238,6 +244,12 @@ class ndb_pushed_builder_ctx {
   // Scope of tables evaluated prior to 'm_join_root'
   // These are effectively const or params wrt. the pushed join
   ndb_table_access_map m_const_scope;
+
+  // Set of tables in join scope requiring (index-)scan access
+  ndb_table_access_map m_scan_operations;
+
+  // Tables in this join-scope having remaining conditions not being pushed
+  ndb_table_access_map m_has_pending_cond;
 
   // Number of internal operations used so far (unique lookups count as two).
   uint m_internal_op_count;
