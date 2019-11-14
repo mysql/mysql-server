@@ -1608,7 +1608,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t3.c,test.t2.c	1	100.00	NULL
 Warnings:
-Note	1003	Can't push table 't4' as child of 't1', as it would introduce a dependency on outer joined grandparent 't2'
+Note	1003	Can't push table 't4' as child of 't1', as it would make the parent table 't3' depended on table(s) outside of its join-nest
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) join `test`.`t1` `t3` left join `test`.`t1` `t4` on(((`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t4`.`a` = `test`.`t3`.`c`))) where ((`test`.`t3`.`b` = `test`.`t1`.`d`) and (`test`.`t3`.`a` = `test`.`t1`.`c`))
 explain
 select straight_join *
@@ -1635,7 +1635,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t3.c,test.t2.c	1	100.00	NULL
 Warnings:
-Note	1003	Can't push table 't4' as child of 't1', as it would introduce a dependency on outer joined grandparent 't2'
+Note	1003	Can't push table 't4' as child of 't1', as it would make the parent table 't3' depended on table(s) outside of its join-nest
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) join `test`.`t1` `t3` left join `test`.`t1` `t4` on(((`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t4`.`a` = `test`.`t3`.`c`))) where (`test`.`t3`.`a` = `test`.`t1`.`a`)
 explain
 select straight_join *
@@ -6832,7 +6832,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t3s.c	2	100.00	Child of 't3s' in pushed join@1; End temporary
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
 Warnings:
-Note	1003	Can't push table 't2' as child of 't3s', not members of same join 'nest'
+Note	1003	Can't push table 't2' as child of 't3s', not members of same semi join 'nest'
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t1`.`c` = `test`.`t3s`.`c`))
 select count(*)
 from t1
@@ -6884,7 +6884,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Parent of 2 pushed join@2
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@2
 Warnings:
-Note	1003	Can't push table 't2' as child of 't4s', not members of same join 'nest'
+Note	1003	Can't push table 't2' as child of 't4s', not members of same semi join 'nest'
 Note	1003	Can't push table 't3' as child of 't4s', column 't2.b' is outside scope of pushable join
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` semi join (`test`.`t1` `t4s` join `test`.`t1` `t5s` join `test`.`t1` `t6s`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t5s`.`a` = `test`.`t4s`.`b`) and (`test`.`t6s`.`a` = `test`.`t5s`.`b`) and (`test`.`t1`.`c` = `test`.`t4s`.`c`))
 select count(*)

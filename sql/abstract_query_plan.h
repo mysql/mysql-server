@@ -165,15 +165,6 @@ namespace AQP
     AT_OTHER
   };
 
-  /** The type of join operation require */
-  enum enum_join_type
-  {
-    JT_OUTER_JOIN,
-    JT_INNER_JOIN,
-    JT_SEMI_JOIN,
-    JT_NEST_JOIN
-  };
-
   /**
     This class represents an access operation on a table, such as a table
     scan, or a scan or lookup via an index. A Table_access object is always
@@ -191,8 +182,6 @@ namespace AQP
     enum_access_type get_access_type() const;
 
     const char* get_other_access_reason() const;
-
-    enum_join_type get_join_type(const Table_access* parent) const;
 
     uint get_no_of_key_fields() const;
 
