@@ -344,7 +344,6 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   jam();
 
-  Uint32 szLogBuf = BACKUP_DEFAULT_BUFFER_SIZE;
   Uint32 szWrite = BACKUP_DEFAULT_WRITE_SIZE;
   Uint32 szDataBuf = BACKUP_DEFAULT_BUFFER_SIZE;
   Uint32 maxWriteSize = szDataBuf;
@@ -385,6 +384,9 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
    */
+
+  Uint32 szLogBuf = BACKUP_DEFAULT_LOGBUFFER_SIZE;
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   if (maxWriteSize < szWrite)
   {
     /**
