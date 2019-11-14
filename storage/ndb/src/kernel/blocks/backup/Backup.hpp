@@ -925,6 +925,7 @@ public:
 #define MAX_BUFFER_USED_WITHOUT_REDO_ALERT (512 * 1024)
 #define BACKUP_DEFAULT_WRITE_SIZE (256 * 1024)
 #define BACKUP_DEFAULT_BUFFER_SIZE (2 * 1024 * 1024)
+#define BACKUP_DEFAULT_LOGBUFFER_SIZE (16 * 1024 * 1024)
 
   struct Config {
     Uint32 m_dataBufferSize;
