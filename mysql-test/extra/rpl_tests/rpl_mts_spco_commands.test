@@ -481,9 +481,159 @@ SET @@global.binlog_transaction_dependency_tracking = COMMIT_ORDER;
 
 --let $mts_spco_wait_cond1 =
 --let $mts_spco_rollback_statement = ROLLBACK
---let $mts_spco_end_statement = TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t1, t2, t3
+--let $mts_spco_end_statement = TRUNCATE TABLE t1; DROP TABLE t2, t3
 
 --source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP FUNCTION and DROP FUNCTION IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+--let $mts_spco_start_statement = CREATE FUNCTION func1 (param1 INT) returns CHAR(50) return 'test'; CREATE FUNCTION func2 (param1 INT) returns CHAR(50) return 'test'
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1)
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP FUNCTION func1; DROP FUNCTION IF EXISTS func2; DROP FUNCTION IF EXISTS func3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify function func1 and func2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.ROUTINES where SPECIFIC_NAME like "func%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = DROP TABLE t1
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP PROCEDURE and DROP PROCEDURE IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement_delim = CREATE PROCEDURE proc_t1 (OUT param1 INT) BEGIN SELECT 'test'; END; CREATE PROCEDURE proc_t2 (OUT param1 INT) BEGIN SELECT 'test'; END
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP PROCEDURE proc_t1; DROP PROCEDURE IF EXISTS proc_t2; DROP PROCEDURE IF EXISTS proc_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify procedure proc_t1 and proc_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.ROUTINES where SPECIFIC_NAME like "proc_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP VIEW and DROP VIEW IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement = CREATE VIEW view_t1 AS SELECT * FROM t1; CREATE VIEW view_t2 AS SELECT * FROM t1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP VIEW view_t1; DROP VIEW IF EXISTS view_t2; DROP VIEW IF EXISTS view_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify views view_t1 and view_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME like "view_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = DROP TABLE t1
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP EVENT and DROP EVENT IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement_delim = CREATE EVENT event_t1 ON SCHEDULE EVERY 1 DAY DO BEGIN select 'test'; END; CREATE EVENT event_t2 ON SCHEDULE EVERY 1 DAY DO BEGIN select 'test'; END
+--let $mts_spco_start_statement = CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP EVENT event_t1; DROP EVENT IF EXISTS event_t2; DROP EVENT IF EXISTS event_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify events event_t1 and event_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.EVENTS where EVENT_NAME like "event_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = TRUNCATE TABLE t1
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+--inc $tc_count
+
+
+--echo
+--echo ####################################################################
+--echo # $tc_count. DROP TRIGGER and DROP TRIGGER IF EXISTS
+--echo ####################################################################
+
+--let $mts_num_preceding_trans= 7
+
+--let $mts_spco_skip_init_statement= 1
+
+--let $mts_spco_start_statement = CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TRIGGER trig_t1 BEFORE INSERT ON t2 FOR EACH ROW SET @sum = @sum + NEW.c1; CREATE TRIGGER trig_t2 BEFORE INSERT ON t3 FOR EACH ROW SET @sum = @sum + NEW.c1
+
+--let $mts_spco_block_statement = BEGIN; INSERT INTO t1 VALUES (1);
+
+--let $mts_spco_parallel_statement1 = BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TRIGGER trig_t1; DROP TRIGGER IF EXISTS trig_t2; DROP TRIGGER IF EXISTS trig_t3
+--let $mts_spco_parallel_statement2 = BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT
+
+--let $mts_spco_assert_text1 = Verify table t1 is empty
+--let $mts_spco_assert_cond1 = "[SELECT count(*) COUNT FROM t1, COUNT, 1]" = "0"
+
+--let $mts_spco_assert_text2 = Verify trigger trig_t1 and trig_t2 exists
+--let $mts_spco_assert_cond2 = [SELECT count(*) COUNT FROM INFORMATION_SCHEMA.TRIGGERS where TRIGGER_NAME like "trig_t%", COUNT, 1] = 2
+
+--let $mts_spco_wait_cond1 =
+--let $mts_spco_rollback_statement = ROLLBACK
+--let $mts_spco_end_statement = DROP TABLE t1; DROP TABLE t2; DROP TABLE t3
+
+--source extra/rpl_tests/rpl_mts_slave_preserve_commit_order_nobinlog.inc
+
 
 --echo
 --echo #################################################################

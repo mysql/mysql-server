@@ -777,35 +777,6 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     }
   }
 
-  /*
-    Make DROP DATABASE IF EXISTS command for non exisitng database explicitly
-    wait for its turn to commit.
-
-    This exception is required because we skip saving GTID information into the
-    table mysql.gitd_executed and @@GLOBAL.GTID_EXECUTED in commit_owned_gtids()
-    when slave-preserve-commit-order is set.
-
-    If GTID is saved in commit_owned_gtids(), it would make thread executing
-    DROP DATABASE IF EXISTS wait for its turn to commit, but GTID is not
-    externalized in order.
-
-    But if we skip saving GTID in commit_owned_gtids() and add GTID to
-    mysql.gitd_executed table and @@GLOBAL.GTID_EXECUTED on its turn
-    i.e. externalized GTID in order, we will not save GTID in
-    commit_owned_gtids() and as nothing to commit (ha_info=(nil))
-    didn't called Commit_order_manager::wait() in ha_commit_low().
-
-    Therefore for DROP DATABASE IF EXISTS, when
-    - commit order is enabled, and,
-    - it is issued with a schema set (i.e., schema == nullptr)
-    we wait for its turn here explicitly and then finish by saving its GTID.
-  */
-  if (has_commit_order_manager(thd) && schema == nullptr && if_exists) {
-    error = false;
-    if (Commit_order_manager::wait(thd)) error = true;
-    Commit_order_manager::wait_and_finish(thd, error);
-  }
-
   thd->server_status |= SERVER_STATUS_DB_DROPPED;
   my_ok(thd, deleted_tables);
   return false;

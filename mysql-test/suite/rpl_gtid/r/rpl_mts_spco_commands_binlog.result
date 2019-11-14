@@ -626,7 +626,229 @@ include/assert.inc [Exactly 0 GTIDs should have been committed since last invoca
 
 [connection slave]
 ROLLBACK;
-TRUNCATE TABLE t1; TRUNCATE TABLE t2; DROP TABLE t1, t2, t3;
+TRUNCATE TABLE t1; DROP TABLE t2, t3;
+include/sync_slave_sql_with_master.inc
+
+####################################################################
+# 13. DROP FUNCTION and DROP FUNCTION IF EXISTS
+####################################################################
+
+# Setup
+
+[connection master]
+CREATE FUNCTION func1 (param1 INT) returns CHAR(50) return 'test'; CREATE FUNCTION func2 (param1 INT) returns CHAR(50) return 'test';
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP FUNCTION func1; DROP FUNCTION IF EXISTS func2; DROP FUNCTION IF EXISTS func3;
+Warnings:
+Note	1305	FUNCTION test.func3 does not exist
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify function func1 and func2 exists]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+
+####################################################################
+# 14. DROP PROCEDURE and DROP PROCEDURE IF EXISTS
+####################################################################
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+CREATE PROCEDURE proc_t1 (OUT param1 INT) BEGIN SELECT 'test'; END; CREATE PROCEDURE proc_t2 (OUT param1 INT) BEGIN SELECT 'test'; END//
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP PROCEDURE proc_t1; DROP PROCEDURE IF EXISTS proc_t2; DROP PROCEDURE IF EXISTS proc_t3;
+Warnings:
+Note	1305	PROCEDURE test.proc_t3 does not exist
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify procedure proc_t1 and proc_t2 exists]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+TRUNCATE TABLE t1;
+include/sync_slave_sql_with_master.inc
+
+####################################################################
+# 15. DROP VIEW and DROP VIEW IF EXISTS
+####################################################################
+
+# Setup
+
+[connection master]
+CREATE VIEW view_t1 AS SELECT * FROM t1; CREATE VIEW view_t2 AS SELECT * FROM t1;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP VIEW view_t1; DROP VIEW IF EXISTS view_t2; DROP VIEW IF EXISTS view_t3;
+Warnings:
+Note	1051	Unknown table 'test.view_t3'
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify views view_t1 and view_t2 exists]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+
+####################################################################
+# 16. DROP EVENT and DROP EVENT IF EXISTS
+####################################################################
+
+# Setup
+
+[connection master]
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE = InnoDB;;
+CREATE EVENT event_t1 ON SCHEDULE EVERY 1 DAY DO BEGIN select 'test'; END; CREATE EVENT event_t2 ON SCHEDULE EVERY 1 DAY DO BEGIN select 'test'; END//
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP EVENT event_t1; DROP EVENT IF EXISTS event_t2; DROP EVENT IF EXISTS event_t3;
+Warnings:
+Note	1305	Event event_t3 does not exist
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify events event_t1 and event_t2 exists]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+TRUNCATE TABLE t1;
+include/sync_slave_sql_with_master.inc
+
+####################################################################
+# 17. DROP TRIGGER and DROP TRIGGER IF EXISTS
+####################################################################
+
+# Setup
+
+[connection master]
+CREATE TABLE t2 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TABLE t3 (c1 INT PRIMARY KEY) ENGINE = InnoDB; CREATE TRIGGER trig_t1 BEFORE INSERT ON t2 FOR EACH ROW SET @sum = @sum + NEW.c1; CREATE TRIGGER trig_t2 BEFORE INSERT ON t3 FOR EACH ROW SET @sum = @sum + NEW.c1;
+include/sync_slave_sql_with_master.inc
+
+# Block slave sql applier threads
+
+[connection slave]
+BEGIN; INSERT INTO t1 VALUES (1);;
+[connection slave]
+[connection slave]
+
+# Generate the transactions which can be applied in parallel on slave
+
+[connection master]
+# Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
+BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; DROP TRIGGER trig_t1; DROP TRIGGER IF EXISTS trig_t2; DROP TRIGGER IF EXISTS trig_t3;
+Warnings:
+Note	1360	Trigger does not exist
+[connection server_1]
+BEGIN; INSERT INTO t1 VALUES (5); COMMIT; BEGIN; INSERT INTO t1 VALUES (6); COMMIT; BEGIN; INSERT INTO t1 VALUES (7); COMMIT;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
+
+# Verify the transactions are ordered correctly on slave
+
+[connection server_2]
+include/assert.inc [Verify table t1 is empty]
+include/assert.inc [Verify trigger trig_t1 and trig_t2 exists]
+[connection slave]
+include/assert.inc [Exactly 0 GTIDs should have been committed since last invocation]
+
+# Rollback the first insert so that slave applier threads can
+# unblock and proceed. Verify the transactions are applied.
+
+[connection slave]
+ROLLBACK;
+DROP TABLE t1; DROP TABLE t2; DROP TABLE t3;
 include/sync_slave_sql_with_master.inc
 
 #################################################################

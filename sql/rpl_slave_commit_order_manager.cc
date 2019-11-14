@@ -388,9 +388,14 @@ bool has_commit_order_manager(THD *thd) {
 bool Commit_order_manager::wait_for_its_turn_before_flush_stage(THD *thd) {
   switch (thd->lex->sql_command) {
     case SQLCOM_ALTER_TABLE:
-    case SQLCOM_DROP_TABLE:
-    case SQLCOM_DROP_DB:
     case SQLCOM_ANALYZE:
+    case SQLCOM_DROP_DB:
+    case SQLCOM_DROP_EVENT:
+    case SQLCOM_DROP_FUNCTION:
+    case SQLCOM_DROP_PROCEDURE:
+    case SQLCOM_DROP_TRIGGER:
+    case SQLCOM_DROP_TABLE:
+    case SQLCOM_DROP_VIEW:
     case SQLCOM_OPTIMIZE:
     case SQLCOM_REPAIR:
       return has_commit_order_manager(thd);
