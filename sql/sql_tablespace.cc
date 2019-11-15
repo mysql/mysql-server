@@ -172,12 +172,12 @@ bool complete_stmt(THD *thd, handlerton *hton, DISABLE_ROLLBACK &&dr,
       return true;
     }
 
-  dr();
-
   /* Commit the statement and call storage engine's post-DDL hook. */
   if (trans_commit_stmt(thd) || trans_commit(thd)) {
     return true;
   }
+
+  dr();
 
   if (hton && ddl_is_atomic(hton) && hton->post_ddl) {
     hton->post_ddl(thd);
