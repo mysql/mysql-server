@@ -11,14 +11,8 @@ create database xtest_1 default charset 'utf8mb4';
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_create_collection_mysqlx.tmp
 --write_file $xtest_file
+-->import admin_stmt.macro
 -->quiet
-
--->macro Admin_stmt  %CMD%  %ARGS%  %ERROR%
--->stmtadmin %CMD%	%ARGS%
--->expecterror %ERROR%
--->recvresult
--->endmacro
-
 
 callmacro Admin_stmt	create_collection	{"schema":"xtest","name":"books0"}
 	ER_SUCCESS;

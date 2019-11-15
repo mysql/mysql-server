@@ -1,0 +1,68 @@
+## Test create_collection command in context use of reuse_existing option
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Tests start here
+
+--write_file $MYSQL_TMP_DIR/admin_create_collection_reuse_existing.xpl
+-->import admin_stmt.macro
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"coll"}
+	ER_SUCCESS;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"coll"}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"coll","options":{"reuse_existing":false}}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"coll","options":{"reuseExisting":false}}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"coll","options":{"reuse_existing":true}}
+	ER_SUCCESS;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"coll","options":{"reuseExisting":true}}
+	ER_SUCCESS;
+
+
+CREATE TABLE xtest.fake_coll (field INT);
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"fake_coll"}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"fake_coll","options":{"reuse_existing":false}}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"fake_coll","options":{"reuseExisting":false}}
+	ER_TABLE_EXISTS_ERROR;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"fake_coll","options":{"reuse_existing":true}}
+	ER_X_INVALID_COLLECTION;
+
+callmacro Admin_stmt
+	create_collection	{"schema":"xtest","name":"fake_coll","options":{"reuseExisting":true}}
+	ER_X_INVALID_COLLECTION;
+EOF
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'UTF8MB4';
+
+exec $MYSQLXTEST -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/admin_create_collection_reuse_existing.xpl 2>&1;
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

@@ -307,6 +307,11 @@ ngs::Error_code Admin_command_handler::kill_client(Command_arguments *args) {
  * - name: string - name of created collection
  * - schema: string - name of collection's schema
  * - options: object, optional - additional collection options
+ *   - reuse_existing: bool, optional - semantically the same as create table
+ *                     if not exists
+ *   - validation: object, optional - validation schema options
+ *     - schema: object|string, optional - json validation document
+ *     - level: string - level of validation {"STRICT"|"OFF"}
  */
 ngs::Error_code Admin_command_handler::create_collection(
     Command_arguments *args) {

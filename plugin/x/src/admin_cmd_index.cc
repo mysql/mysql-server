@@ -158,7 +158,8 @@ ngs::Error_code Admin_command_index::create(Command_arguments *args) {
           .string_arg({"name"}, &index_name, Argument_appearance::k_obligatory)
           .bool_arg({"unique"}, &is_unique, Argument_appearance::k_obligatory)
           .string_arg({"type"}, &index_type, Argument_appearance::k_optional)
-          .string_arg({"with_parser"}, &parser, Argument_appearance::k_optional)
+          .string_arg({"with_parser", "withParser"}, &parser,
+                      Argument_appearance::k_optional)
           .object_list({"fields", "constraint"}, &constraints,
                        Argument_appearance::k_obligatory)
           .error();

@@ -107,7 +107,7 @@ ngs::Error_code Admin_command_collection_handler::create_collection_impl(
       .put(constraint_name)
       .put("` CHECK (JSON_SCHEMA_VALID(_json_schema, doc)) ")
       .put(is_enforced ? "ENFORCED" : "NOT ENFORCED")
-      .put(") CHARSET utf8mb4 ENGINE=InnoDB;");
+      .put(") CHARSET utf8mb4 ENGINE=InnoDB");
 
   const ngs::PFS_string &tmp(qb.get());
   log_debug("CreateCollection: %s", tmp.c_str());
@@ -132,9 +132,12 @@ ngs::Error_code Admin_command_collection_handler::create_collection(
 
   auto options_arg = Admin_command_arguments_object(options);
   auto validation = create_default_validation_obj();
+  bool reuse_existing = false;
   error = options_arg
               .object_arg({"validation"}, &validation,
                           Argument_appearance::k_optional)
+              .bool_arg({"reuse_existing", "reuseExisting"}, &reuse_existing,
+                        Argument_appearance::k_optional)
               .end();
   if (error) return error;
 
@@ -146,7 +149,14 @@ ngs::Error_code Admin_command_collection_handler::create_collection(
 
   error = create_collection_impl(&m_session->data_context(), schema, collection,
                                  validation);
-  if (error) return error;
+  if (error) {
+    if (!reuse_existing) return error;
+    if (error.error != ER_TABLE_EXISTS_ERROR) return error;
+    if (!is_collection(schema, collection))
+      return ngs::Error(
+          ER_X_INVALID_COLLECTION, "Table '%s' exists but is not a collection",
+          (schema.empty() ? collection : schema + '.' + collection).c_str());
+  }
   m_session->proto().send_exec_ok();
   return ngs::Success();
 }
