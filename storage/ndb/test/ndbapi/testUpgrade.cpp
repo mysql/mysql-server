@@ -1467,7 +1467,7 @@ static int checkForUpgrade(NDBT_Context* ctx, NDBT_Step* step)
  * This function skips the test case if it is configured to do a non-initial restart
  * but actually requires an initial restart.
  */
-static int checkUpgradeCompatibleConfigFileformatVersion(
+static int checkDowngradeCompatibleConfigFileformatVersion(
     NDBT_Context* ctx, NDBT_Step* step) {
   const Uint32 problemBoundary = NDB_USE_CONFIG_VERSION_V2_80;
 
@@ -1489,7 +1489,7 @@ static int checkUpgradeCompatibleConfigFileformatVersion(
      * Test case is configured for non initial mgmd restart but
      * upgrade/downgrade needs initial restart
      */
-    ndbout << "Skipping test due to incompatible config versions"
+    ndbout << "Skipping test due to incompatible config versions "
            << "with non-initial mgmd restart" << endl;
     return NDBT_SKIPPED;
   }
@@ -2073,7 +2073,6 @@ TESTCASE("Upgrade_NR1",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runBug48416);
   STEP(runUpgrade_NR1);
   VERIFIER(startPostUpgradeChecks);
@@ -2089,7 +2088,6 @@ TESTCASE("Upgrade_NR2",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR2);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -2103,7 +2101,6 @@ TESTCASE("Upgrade_NR3",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR3);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -2120,7 +2117,6 @@ TESTCASE("Upgrade_FS",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   INITIALIZER(runLoadAll);
   STEP(runUpgrade_Traffic);
@@ -2138,7 +2134,6 @@ TESTCASE("Upgrade_Traffic",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2158,7 +2153,6 @@ TESTCASE("Upgrade_Traffic_FS",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2175,7 +2169,6 @@ TESTCASE("Upgrade_Traffic_one",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2194,7 +2187,6 @@ TESTCASE("Upgrade_Traffic_FS_one",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2211,7 +2203,6 @@ TESTCASE("Upgrade_Api_Only",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2234,7 +2225,6 @@ TESTCASE("Upgrade_Api_Before_NR1",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2255,7 +2245,6 @@ TESTCASE("Upgrade_Api_NDBD_MGMD",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2275,7 +2264,6 @@ TESTCASE("Upgrade_Mixed_MGMD_API_NDBD",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_NotAllMGMD); /* Upgrade an MGMD */
   STEP(runBasic);
@@ -2298,7 +2286,6 @@ TESTCASE("Bug14702377",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Half);
   STEP(runBug14702377);
@@ -2317,7 +2304,6 @@ TESTCASE("Upgrade_SR_ManyTablesMaxFrag",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   INITIALIZER(createManyTables);
   STEP(runUpgrade_SR);
   VERIFIER(startPostUpgradeChecks);
@@ -2337,7 +2323,6 @@ TESTCASE("Upgrade_Newer_LCP_FS_Fail",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
   INITIALIZER(runSkipIfPostCanKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
   STEP(runUpgradeAndFail);
   // No postupgradecheck required as the upgrade is expected to fail
 }
@@ -2351,7 +2336,7 @@ TESTCASE("Downgrade_NR1",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runBug48416);
   STEP(runUpgrade_NR1);
   VERIFIER(startPostUpgradeChecks);
@@ -2369,7 +2354,7 @@ TESTCASE("Downgrade_NR1_WithMGMDStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runBug48416);
   STEP(runUpgrade_NR1);
   VERIFIER(startPostUpgradeChecks);
@@ -2385,7 +2370,7 @@ TESTCASE("Downgrade_NR2",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR2);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -2401,7 +2386,7 @@ TESTCASE("Downgrade_NR2_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR2);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -2417,7 +2402,7 @@ TESTCASE("Downgrade_NR3",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR3);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -2433,7 +2418,7 @@ TESTCASE("Downgrade_NR3_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   STEP(runUpgrade_NR3);
   VERIFIER(startPostUpgradeChecks);
 }
@@ -2452,7 +2437,7 @@ TESTCASE("Downgrade_FS",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   INITIALIZER(runLoadAll);
   STEP(runUpgrade_Traffic);
@@ -2473,7 +2458,7 @@ TESTCASE("Downgrade_FS_WithMGMDInitialStart",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   INITIALIZER(runLoadAll);
   STEP(runUpgrade_Traffic);
@@ -2493,7 +2478,7 @@ TESTCASE("Downgrade_Traffic",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2513,7 +2498,7 @@ TESTCASE("Downgrade_Traffic_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2535,7 +2520,7 @@ TESTCASE("Downgrade_Traffic_FS",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2557,7 +2542,7 @@ TESTCASE("Downgrade_Traffic_FS_WithMGMDInitialStart",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2576,7 +2561,7 @@ TESTCASE("Downgrade_Traffic_one",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2595,7 +2580,7 @@ TESTCASE("Downgrade_Traffic_one_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2616,7 +2601,7 @@ TESTCASE("Downgrade_Traffic_FS_one",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2637,7 +2622,7 @@ TESTCASE("Downgrade_Traffic_FS_one_WithMGMDInitialStart",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -2656,7 +2641,7 @@ TESTCASE("Downgrade_Api_Only",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2679,7 +2664,7 @@ TESTCASE("Downgrade_Api_Only_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2704,7 +2689,7 @@ TESTCASE("Downgrade_Api_Before_NR1",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2728,7 +2713,7 @@ TESTCASE("Downgrade_Api_Before_NR1_WithMGMDStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2750,7 +2735,7 @@ TESTCASE("Downgrade_Api_NDBD_MGMD",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2772,7 +2757,7 @@ TESTCASE("Downgrade_Api_NDBD_MGMD_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   VERIFIER(startPostUpgradeChecksApiFirst);
 }
@@ -2794,7 +2779,7 @@ TESTCASE("Downgrade_Mixed_MGMD_API_NDBD",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_NotAllMGMD); /* Upgrade an MGMD */
   STEP(runBasic);
@@ -2819,7 +2804,7 @@ TESTCASE("Downgrade_Mixed_MGMD_API_NDBD_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_NotAllMGMD); /* Upgrade an MGMD */
   STEP(runBasic);
@@ -2844,7 +2829,7 @@ TESTCASE("Downgrade_Bug14702377",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Half);
   STEP(runBug14702377);
@@ -2862,7 +2847,7 @@ TESTCASE("Downgrade_Bug14702377_WithMGMDInitialStart",
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Half);
   STEP(runBug14702377);
@@ -2883,7 +2868,7 @@ TESTCASE("Downgrade_SR_ManyTablesMaxFrag",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(createManyTables);
   STEP(runUpgrade_SR);
   VERIFIER(startPostUpgradeChecks);
@@ -2905,7 +2890,7 @@ TESTCASE("Downgrade_SR_ManyTablesMaxFrag_WithMGMDInitialStart",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfCannotKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   INITIALIZER(createManyTables);
   STEP(runUpgrade_SR);
   VERIFIER(startPostUpgradeChecks);
@@ -2927,7 +2912,7 @@ TESTCASE("Downgrade_Newer_LCP_FS_Fail",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfPostCanKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   STEP(runUpgradeAndFail);
   // No postupgradecheck required as the downgrade is expected to fail
 }
@@ -2942,7 +2927,7 @@ TESTCASE("Downgrade_Newer_LCP_FS_Fail_WithMGMDInitialStart",
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForDowngrade);
   INITIALIZER(runSkipIfPostCanKeepFS);
-  INITIALIZER(checkUpgradeCompatibleConfigFileformatVersion);
+  INITIALIZER(checkDowngradeCompatibleConfigFileformatVersion);
   STEP(runUpgradeAndFail);
   // No postupgradecheck required as the downgrade is expected to fail
 }
