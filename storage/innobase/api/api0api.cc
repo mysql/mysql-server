@@ -3161,24 +3161,27 @@ ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
     err = ib_cursor_delete_row(ib_crsr);
   }
 
-#ifdef UNIV_DEBUG
   if (err != DB_SUCCESS && !trx_is_interrupted(trx)) {
     if (err == DB_RECORD_NOT_FOUND) {
       ib::warn(ER_IB_MSG_11) << "sdi_delete failed: Record Doesn't exist:"
                              << " tablespace_id: " << tablespace_id
                              << " Key: " << ib_sdi_key->sdi_key->type << " "
                              << ib_sdi_key->sdi_key->id;
-      bool sdi_delete_record_not_found = true;
-      ut_ad(!sdi_delete_record_not_found);
-
-    } else {
+      // Emit warning, and report missing record error, but do not
+      // assert since this situation can occur when upgrading from a
+      // version where sdis were not stored for subpartitioned tables,
+      // and then attempting an instant alter, e.g. ALTER ... ADD
+      // COLUMN, bug#30360695.
+    }
+#ifdef UNIV_DEBUG
+    else {
       ib::warn(ER_IB_MSG_12)
           << "sdi_delete failed: tablespace_id: " << tablespace_id
           << " Key: " << ib_sdi_key->sdi_key->type << " "
           << ib_sdi_key->sdi_key->id << " Error returned: " << err;
     }
-  }
 #endif /* UNIV_DEBUG */
+  }
 
   ib_tuple_delete(key_tpl);
   ib_cursor_close(ib_crsr);

@@ -22,15 +22,16 @@
 
 #include <algorithm>
 
-#include "my_dbug.h"                             // DBUG_PRINT
-#include "my_inttypes.h"                         // uint32
-#include "sql/dd/cache/dictionary_client.h"      // dd::Dictionary_client
-#include "sql/dd/collection.h"                   // dd::Collection
-#include "sql/dd/dd_tablespace.h"                // dd::get_tablespace_name
-#include "sql/dd/impl/sdi.h"                     // dd::serialize
-#include "sql/dd/impl/sdi_utils.h"               // sdi_utils::checked_return
-#include "sql/dd/properties.h"                   // dd::Properties
-#include "sql/dd/string_type.h"                  // dd::String_type
+#include "my_dbug.h"                         // DBUG_PRINT
+#include "my_inttypes.h"                     // uint32
+#include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
+#include "sql/dd/collection.h"               // dd::Collection
+#include "sql/dd/dd_tablespace.h"            // dd::get_tablespace_name
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::SERVER_VERSION_80016
+#include "sql/dd/impl/sdi.h"                      // dd::serialize
+#include "sql/dd/impl/sdi_utils.h"                // sdi_utils::checked_return
+#include "sql/dd/properties.h"                    // dd::Properties
+#include "sql/dd/string_type.h"                   // dd::String_type
 #include "sql/dd/tablespace_id_owner_visitor.h"  // dd::visit_tablespace_id_owner
 #include "sql/dd/types/index.h"                  // dd::Index
 #include "sql/dd/types/partition.h"              // dd::Partition
@@ -178,8 +179,30 @@ bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
   }
 
   sdi_key_t key = {SDI_TYPE_TABLE, table.id()};
-  if (hton.sdi_delete(*res.value, &table, &key)) {
-    return checked_return(true);
+
+  if (table.subpartition_type() == Table::ST_NONE ||
+      table.last_checked_for_upgrade_version_id() >
+          dd::bootstrap::SERVER_VERSION_80016) {
+    return checked_return(hton.sdi_delete(*res.value, &table, &key));
+  }
+
+  // Sub-partitioned tables from older versions which have not yet
+  // been checked for upgrade may not have an SDI record in the SDI
+  // index in the tablespace, so we need to install an error handler which
+  // catches the resulting error.
+  bool error_suppressed = false;
+  if (sdi_utils::handle_errors(
+          thd,
+          [&](uint errnum, const char *,
+              Sql_condition::enum_severity_level *level, const char *) {
+            if (errnum == ER_SDI_OPERATION_FAILED_MISSING_RECORD) {
+              (*level) = Sql_condition::SL_WARNING;
+              error_suppressed = true;
+            }
+            return false;
+          },
+          [&]() { return hton.sdi_delete(*res.value, &table, &key); })) {
+    return checked_return(!error_suppressed);
   }
   return false;
 }

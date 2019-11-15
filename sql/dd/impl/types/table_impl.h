@@ -175,9 +175,8 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   /////////////////////////////////////////////////////////////////////////
   // last_checked_for_upgrade_version_id
   /////////////////////////////////////////////////////////////////////////
-
-  virtual bool is_checked_for_upgrade() const {
-    return m_last_checked_for_upgrade_version_id == MYSQL_VERSION_ID;
+  virtual uint last_checked_for_upgrade_version_id() const {
+    return m_last_checked_for_upgrade_version_id;
   }
 
   virtual void mark_as_checked_for_upgrade() {

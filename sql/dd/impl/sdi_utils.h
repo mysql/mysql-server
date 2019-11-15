@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,15 +100,18 @@ const T &ptr_as_cref(const T *p) {
  */
 template <typename CONDITION_HANDLER_CLOS>
 class Closure_error_handler : public Internal_error_handler {
-  CONDITION_HANDLER_CLOS *m_ch;
+  CONDITION_HANDLER_CLOS m_ch;
   bool handle_condition(THD *, uint sql_errno, const char *sqlstate,
                         Sql_condition::enum_severity_level *level,
                         const char *msg) {
-    return (*m_ch)(sql_errno, sqlstate, level, msg);
+    return m_ch(sql_errno, sqlstate, level, msg);
   }
 
  public:
-  Closure_error_handler(CONDITION_HANDLER_CLOS *ch) : m_ch(ch) {}
+  // CONDITION_HANDLER_CLOS is *class* template argument, so there is no type
+  // deduction, and ch must refer to an R-value. So it is safe to move.
+  explicit Closure_error_handler(CONDITION_HANDLER_CLOS &&ch)
+      : m_ch(std::move(ch)) {}
 };
 
 /**
@@ -124,7 +127,7 @@ class Closure_error_handler : public Internal_error_handler {
  */
 template <typename CH_CLOS, typename ACTION_CLOS>
 bool handle_errors(THD *thd, CH_CLOS &&chc, ACTION_CLOS &&ac) {
-  Closure_error_handler<CH_CLOS> eh(&chc);
+  Closure_error_handler<CH_CLOS> eh{std::forward<CH_CLOS>(chc)};
   thd->push_internal_handler(&eh);
   bool r = ac();
   thd->pop_internal_handler();

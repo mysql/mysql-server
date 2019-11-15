@@ -68,10 +68,14 @@ static dberr_t dict_sdi_exists(const dd::Tablespace &tablespace,
 }
 
 /** Report error on failure
+@param[in]	errornum	MySQL error number (for my_error()) (Must take
+                                4 string arguments, in the same way as
+                                ER_SDI_OPERATION_FAILED)
 @param[in]	operation	SDI set or delete
 @param[in]	table		table object for which SDI is serialized
 @param[in]	tablespace	tablespace where SDI is stored */
-static void dict_sdi_report_error(const char *operation, const dd::Table *table,
+static void dict_sdi_report_error(int errornum, const char *operation,
+                                  const dd::Table *table,
                                   const dd::Tablespace &tablespace) {
   THD *thd = current_thd;
   const char *schema_name = nullptr;
@@ -95,8 +99,21 @@ static void dict_sdi_report_error(const char *operation, const dd::Table *table,
     table_name = "<no table>";
   }
 
-  my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation, schema_name, table_name,
+  my_error(errornum, MYF(0), operation, schema_name, table_name,
            tablespace.name().c_str());
+}
+
+/** Report error on failure. Calls dict_sdi_report_error(int errornum,
+const char *operation, const dd::Table *table, const
+dd::Tablespace &tablespace) with errornum=SDI_OPERATION_FAILED
+(for compatibility with existing code).
+
+@param[in]	operation	SDI set or delete
+@param[in]	table		table object for which SDI is serialized
+@param[in]	tablespace	tablespace where SDI is stored */
+static void dict_sdi_report_error(const char *operation, const dd::Table *table,
+                                  const dd::Tablespace &tablespace) {
+  dict_sdi_report_error(ER_SDI_OPERATION_FAILED, operation, table, tablespace);
 }
 
 /** Create SDI in a tablespace. This API should be used when
@@ -482,7 +499,11 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
                         << " is interrupted";);
     return (true);
   } else if (err != DB_SUCCESS) {
-    dict_sdi_report_error(operation, table, tablespace);
+    if (err == DB_RECORD_NOT_FOUND)
+      dict_sdi_report_error(ER_SDI_OPERATION_FAILED_MISSING_RECORD, operation,
+                            table, tablespace);
+    else
+      dict_sdi_report_error(operation, table, tablespace);
     return (true);
   } else {
     return (false);

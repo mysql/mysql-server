@@ -16273,7 +16273,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   if (old_table_def) {
-    if (old_table_def->is_checked_for_upgrade()) {
+    if (is_checked_for_upgrade(*old_table_def)) {
       DBUG_PRINT("admin", ("Transfering upgrade mark "
                            "from Table %s (%llu) to Table %s (%llu)",
                            old_table_def->name().c_str(), old_table_def->id(),
@@ -17059,8 +17059,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       backup_table->drop_all_triggers();
       update = true;
     }
-    if (!new_dd_table->is_checked_for_upgrade() &&
-        backup_table->is_checked_for_upgrade()) {
+    if (!is_checked_for_upgrade(*new_dd_table) &&
+        is_checked_for_upgrade(*backup_table)) {
       new_dd_table->mark_as_checked_for_upgrade();
       update = true;
     }
