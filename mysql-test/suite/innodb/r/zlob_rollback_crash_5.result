@@ -18,7 +18,7 @@ UPDATE t1 SET j1 = JSON_REPLACE(j1, '$[1]', @medium_str_2);
 SELECT JSON_EXTRACT(j1, '$[1]') FROM t1;
 JSON_EXTRACT(j1, '$[1]')
 "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-SET DEBUG = '+d,crash_middle_lob_rollback';
+SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
 ROLLBACK;
 ERROR HY000: Lost connection to MySQL server during query
 # Verify that before the crash, we HAVE NOT reached 7-th iteration

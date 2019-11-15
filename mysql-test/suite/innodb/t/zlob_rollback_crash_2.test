@@ -17,7 +17,7 @@ show create table t1;
 
 start transaction;
 insert into t1 values (1, repeat('x', 50000));
-set debug = '+d,crash_middle_zlob_rollback';
+SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
 --source include/expect_crash.inc
 
 --error 0,2013

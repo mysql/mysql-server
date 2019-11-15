@@ -20,7 +20,7 @@ START TRANSACTION;
 # after decompression (~118), than is required to build a cached prefix
 # (REC_VERSION_56_MAX_INDEX_COL_LEN = 3072 bytes)
 INSERT INTO t1 VALUES (1, REPEAT('abcdefghijklmnopqrstuvwxyz1234', 4373));
-SET DEBUG = '+d,crash_almost_endof_zlob_rollback';
+SET DEBUG = '+d,crash_almost_end_of_lob_rollback_0';
 --source include/expect_crash.inc
 
 --error CR_SERVER_LOST
