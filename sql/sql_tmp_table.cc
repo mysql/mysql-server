@@ -859,8 +859,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   /* Treat sum functions as normal ones when loose index scan is used. */
   save_sum_fields |= param->precomputed_group_by;
 
-  MEM_ROOT own_root;
-  init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
+  // 4096 since (sizeof(TABLE) + sizeof(TABLE_SHARE) ~= 3KB)
+  MEM_ROOT own_root(key_memory_TABLE, 4096);
 
   param->keyinfo = static_cast<KEY *>(own_root.Alloc(sizeof(*param->keyinfo)));
 
@@ -1174,9 +1174,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   if (group) {
     DBUG_PRINT("info", ("Creating group key in temporary table"));
     table->group = group; /* Table is grouped by key */
-    param->group_buff =
-        static_cast<uchar *>(share->mem_root.Alloc(param->group_length));
-    if (param->group_buff == nullptr) return nullptr;
     share->keys = 1;
     // Let each group expression know the column which materializes its value
     for (ORDER *cur_group = group; cur_group; cur_group = cur_group->next) {
@@ -1461,6 +1458,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       position.
     */
     KEY_PART_INFO *key_part_info = param->keyinfo->key_part;
+    param->group_buff = share->mem_root.ArrayAlloc<uchar>(param->group_length);
+    if (param->group_buff == nullptr) return nullptr;
     uchar *group_buff = param->group_buff;
     for (ORDER *cur_group = group; cur_group;
          cur_group = cur_group->next, key_part_info++) {
