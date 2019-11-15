@@ -2883,7 +2883,7 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
             move(qep_tab->iterator), /*cte=*/nullptr, select_lex->select_number,
             unit, this,
             /*ref_slice=*/-1, /*copy_fields_and_items_in_materialize=*/false,
-            qep_tab->rematerialize, tmp_table_param.end_write_records);
+            /*rematerialize=*/true, tmp_table_param.end_write_records);
       }
     } else if (materialize_op.type ==
                MaterializeOperation::AGGREGATE_INTO_TMP_TABLE) {
@@ -2929,9 +2929,6 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
             /*rematerialize=*/true,
             qep_tab->tmp_table_param->end_write_records);
       }
-
-      // NOTE: There's no need to call join->add_materialize_iterator(),
-      // as this iterator always rematerializes anyway.
     }
 
     if (qep_tab->condition() != nullptr) {
