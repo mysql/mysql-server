@@ -5429,7 +5429,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
   Bucket_mask dropped_buckets;
   if(!m_switchover_buckets.isclear())
   {
-    bool unlock = false;
+    bool starting_unlock = false;
     Uint32 i = m_switchover_buckets.find(0);
     for(; i != Bucket_mask::NotFound; i = m_switchover_buckets.find(i + 1))
     {
@@ -5454,7 +5454,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
 	  c_buckets[i].m_state &= ~(Uint32)Bucket::BUCKET_STARTING;
 	  ndbout_c("starting");
 	  m_gcp_complete_rep_count++;
-          unlock = true;
+          starting_unlock = true;
 	}
 	else if(state & Bucket::BUCKET_TAKEOVER)
 	{
@@ -5555,7 +5555,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
           ndbout_c("shutdown handover takeover");
         }
       }
-    }
+    } // for (m_switchover_buckets...)
 
     if (m_switchover_buckets.isclear())
     {
@@ -5589,10 +5589,36 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
       }
     }
 
-    if (unlock)
+    /**
+     * Check whether we have now completed handover of all starting
+     * buckets, and should send a DICT_UNLOCK_ORD
+     */
+    if (starting_unlock)
     {
       jam();
-      send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+      /* All pending SUMA_HANDOVER_CONF received ?*/
+      if (c_startup.m_handover_nodes.isclear())
+      {
+        jam();
+        /* All bucket handovers completed? */
+        Uint32 i = m_switchover_buckets.find(0);
+        for(; i != Bucket_mask::NotFound; i = m_switchover_buckets.find(i + 1))
+        {
+          if (c_buckets[i].m_state & Bucket::BUCKET_STARTING)
+          {
+            jam();
+            /* Some other bucket still to handover, don't unlock yet */
+            starting_unlock = false;
+            break;
+          }
+        }
+      }
+
+      if (starting_unlock)
+      {
+        jam();
+        send_dict_unlock_ord(signal, DictLockReq::SumaHandOver);
+      }
     }
   }
 
@@ -6665,6 +6691,17 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   const SumaHandoverReq * req = CAST_CONSTPTR(SumaHandoverReq,
                                               signal->getDataPtr());
 
+  if (ERROR_INSERTED(13054))
+  {
+    SET_ERROR_INSERT_VALUE(13055);
+    sendSignalWithDelay(reference(), GSN_SUMA_HANDOVER_REQ, signal,
+                        5000, signal->length());
+    return;
+  }
+  if (ERROR_INSERTED(13055))
+  {
+    SET_ERROR_INSERT_VALUE(13054);
+  }
   Uint32 gci = req->gci;
   Uint32 nodeId = req->nodeId;
   Uint32 new_gci = Uint32(m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;

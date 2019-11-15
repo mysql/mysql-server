@@ -22177,7 +22177,10 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
 
     c_sub_startstop_lock.set(refToNode(req.userRef));
 
-    g_eventLogger->info("granting SumaStartMe dict lock to %u", refToNode(req.userRef));
+    g_eventLogger->info("granting %s dict lock to %u",
+                        req.lockType == DictLockReq::SumaStartMe ?
+                          "SumaStartMe" : "SumaHandover",
+                        refToNode(req.userRef));
     DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
     conf->userPtr = req.userPtr;
     conf->lockType = req.lockType;
@@ -22296,9 +22299,12 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   {
     Uint32 nodeId = refToNode(ord->senderRef);
     jam();
-    g_eventLogger->info("clearing SumaStartMe dict lock for %u", nodeId);
+    g_eventLogger->info("clearing %s dict lock for %u",
+                        ord->lockType == DictLockReq::SumaStartMe ?
+                          "SumaStartMe" : "SumaHandover",
+                        nodeId);
+    ndbrequire(c_sub_startstop_lock.get(nodeId));
     c_sub_startstop_lock.clear(nodeId);
-
     if (ord->lockType == DictLockReq::SumaHandOver)
     {
       /**
