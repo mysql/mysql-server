@@ -14,7 +14,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 start transaction;
 insert into t1 values (1, repeat('x', 50000));
-set debug = '+d,crash_middle_zlob_rollback';
+SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
 rollback;
 # restart
 select * from t1;

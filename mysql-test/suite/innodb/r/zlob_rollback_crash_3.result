@@ -11,7 +11,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 START TRANSACTION;
 INSERT INTO t1 VALUES (1, REPEAT('abcdefghijklmnopqrstuvwxyz1234', 4373));
-SET DEBUG = '+d,crash_almost_endof_zlob_rollback';
+SET DEBUG = '+d,crash_almost_end_of_lob_rollback_0';
 ROLLBACK;
 ERROR HY000: Lost connection to MySQL server during query
 # restart

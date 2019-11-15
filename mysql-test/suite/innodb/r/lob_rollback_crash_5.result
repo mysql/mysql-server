@@ -15,7 +15,7 @@ UPDATE t1 SET c1 = @long_str_2;
 SELECT SUBSTRING(c1, 1, 10) FROM t1;
 SUBSTRING(c1, 1, 10)
 1234abcdef
-SET DEBUG = '+d,crash_middle_lob_rollback';
+SET DEBUG = '+d,crash_middle_of_lob_rollback_6';
 ROLLBACK;
 ERROR HY000: Lost connection to MySQL server during query
 # Verify that before the crash, we HAVE NOT reached the index length=0 yet

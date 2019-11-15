@@ -6,7 +6,7 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 start transaction;
 # Insert data
-set session debug='+d,crash_endof_lob_rollback';
+SET SESSION DEBUG='+d,crash_end_of_lob_rollback_0';
 rollback;
 ERROR HY000: Lost connection to MySQL server during query
 # restart

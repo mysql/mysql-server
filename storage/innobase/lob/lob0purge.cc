@@ -53,18 +53,6 @@ static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
   ut_a(err == DB_SUCCESS);
 }
 
-#ifdef UNIV_DEBUG
-/** Waits for a given committed lsn to be flushed to disc.
-It's a helper debug function used to make tests involving DBUG_SUICIDE more
-deterministic w.r.t. to the content of redo log
-@param[in]      lsn             A committed lsn
-*/
-static void wait_for_lsn_flush(const lsn_t lsn) {
-  ut_a(0 < lsn);
-  log_write_up_to(*log_sys, lsn, true);
-}
-#endif /* UNIV_DEBUG */
-
 /** Rollback modification of a uncompressed LOB.
 @param[in]	ctx		the delete operation context information.
 @param[in]	index		clustered index in which LOB is present
@@ -121,8 +109,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
 #ifdef UNIV_DEBUG
-  ulint iteration = 0;
-  lsn_t last_change_lsn = 0;
+  size_t iteration = 0;
 #endif /* UNIV_DEBUG */
 
   while (!fil_addr_is_null(node_loc)) {
@@ -145,19 +132,8 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
     mtr_commit(&local_mtr);
 
-#ifdef UNIV_DEBUG
-    if (local_mtr.get_log_mode() == MTR_LOG_ALL && 0 < local_mtr.commit_lsn()) {
-      last_change_lsn = local_mtr.commit_lsn();
-    }
-    DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
-      if (iteration == 6) {
-        wait_for_lsn_flush(last_change_lsn);
-        DBUG_SUICIDE();
-      }
-    });
-    DBUG_EXECUTE_IF("crash_almost_end_lob_rollback",
-                    { wait_for_lsn_flush(last_change_lsn); });
-#endif /* UNIV_DEBUG */
+    DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_middle_of_lob_rollback",
+                                     static_cast<unsigned>(iteration));
 
     mtr_start(&local_mtr);
     local_mtr.set_log_mode(parent_mtr_log_mode);
@@ -188,7 +164,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 #endif /* UNIV_DEBUG */
   }
 
-  DBUG_EXECUTE_IF("crash_almost_end_lob_rollback", { DBUG_SUICIDE(); });
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_almost_end_of_lob_rollback", 0);
   /* We are done with cleaning up index entries for the given version, so now we
   can modify the reference, so that it is no longer reachable. */
   ctx->x_latch_rec_page(&local_mtr);
@@ -196,10 +172,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   ut_ad(ref.length() == 0);
   mtr_commit(&local_mtr);
 
-  DBUG_EXECUTE_IF("crash_endof_lob_rollback", {
-    wait_for_lsn_flush(local_mtr.commit_lsn());
-    DBUG_SUICIDE();
-  });
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_end_of_lob_rollback", 0);
 }
 
 /** Rollback modification of a compressed LOB.
@@ -237,8 +210,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   fil_addr_t node_loc = flst_get_first(flst, &local_mtr);
 
 #ifdef UNIV_DEBUG
-  ulint iteration = 0;
-  lsn_t last_change_lsn = 0;
+  size_t iteration = 0;
 #endif /* UNIV_DEBUG */
 
   while (!fil_addr_is_null(node_loc)) {
@@ -262,19 +234,8 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
     mtr_commit(&local_mtr);
 
-#ifdef UNIV_DEBUG
-    if (local_mtr.get_log_mode() == MTR_LOG_ALL && 0 < local_mtr.commit_lsn()) {
-      last_change_lsn = local_mtr.commit_lsn();
-    }
-    DBUG_EXECUTE_IF("crash_middle_lob_rollback", {
-      if (iteration == 6) {
-        wait_for_lsn_flush(last_change_lsn);
-        DBUG_SUICIDE();
-      }
-    });
-    DBUG_EXECUTE_IF("crash_almost_endof_zlob_rollback",
-                    { wait_for_lsn_flush(last_change_lsn); });
-#endif /* UNIV_DEBUG */
+    DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_middle_of_lob_rollback",
+                                     static_cast<unsigned>(iteration));
 
     mtr_start(&local_mtr);
     first.load_x(page_id, page_size);
@@ -291,7 +252,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     ut_ad(first.validate());
   }
 
-  DBUG_EXECUTE_IF("crash_almost_endof_zlob_rollback", DBUG_SUICIDE(););
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_almost_end_of_lob_rollback", 0);
   ut_ad(ctx->get_page_zip() != nullptr);
   /* We are done with cleaning up index entries for the given version, so now we
   can modify the reference, so that it is no longer reachable. */
@@ -302,10 +263,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   mtr_commit(&local_mtr);
 
-  DBUG_EXECUTE_IF("crash_endof_zlob_rollback", {
-    wait_for_lsn_flush(local_mtr.commit_lsn());
-    DBUG_SUICIDE();
-  });
+  DBUG_INJECT_CRASH_WITH_LOG_FLUSH("crash_end_of_lob_rollback", 0);
 }
 
 /** Purge a compressed LOB.
