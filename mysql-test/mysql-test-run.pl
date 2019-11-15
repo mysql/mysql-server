@@ -2773,6 +2773,15 @@ sub environment_setup {
     $ENV{'NDB_MGM'} =
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_mgm");
 
+    # We need to extend PATH to ensure we find libcrypto/libssl at runtime
+    # (ndbclient.dll depends on them)
+    # These .dlls are stored in runtime_output_directory/<config>/
+    # or in bin/ after MySQL package installation.
+    if (IS_WINDOWS) {
+      my $bin_dir = dirname($ENV{NDB_MGM});
+      $ENV{'PATH'} = "$ENV{'PATH'}" . ";" . $bin_dir;
+    }
+
     $ENV{'NDB_WAITER'} = $exe_ndb_waiter;
 
     $ENV{'NDB_CONFIG'} =
