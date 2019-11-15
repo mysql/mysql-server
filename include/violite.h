@@ -45,6 +45,8 @@
 #include "mysql/components/services/my_thread_bits.h"
 #include "mysql/components/services/mysql_socket_bits.h"
 
+#include "mysql/psi/mysql_socket.h"
+
 struct Vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
@@ -404,7 +406,11 @@ struct Vio {
 #endif
 #ifdef HAVE_OPENSSL
   void *ssl_arg = {nullptr};
-#endif
+  struct PSI_socket_locker *m_psi_read_locker = {nullptr};
+  PSI_socket_locker_state m_psi_read_state;
+  struct PSI_socket_locker *m_psi_write_locker = {nullptr};
+  PSI_socket_locker_state m_psi_write_state;
+#endif /* HAVE_OPENSSL */
 #if defined(_WIN32)
   HANDLE handle_file_map = {nullptr};
   char *handle_map = {nullptr};

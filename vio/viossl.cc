@@ -41,6 +41,14 @@
 #include "mysql/psi/mysql_socket.h"
 #include "vio/vio_priv.h"
 
+/*
+  BIO_set_callback_ex was added in openSSL 1.1.1
+  For older openSSL, use the deprecated BIO_set_callback.
+*/
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+#define HAVE_BIO_SET_CALLBACK_EX
+#endif
+
 /* clang-format off */
 /**
   @page page_protocol_basic_tls TLS
@@ -452,6 +460,145 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
   return ret;
 }
 
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
+                             size_t len, int /* argi */, long /* argl */,
+                             int ret, size_t *processed) {
+  Vio *vio;
+  static const char *method_name = "open_ssl::bio::socket";
+
+  /*
+    Note:
+    Normally, typical instrumentation for the performance schema would
+    - define a local PSI_socket_locker_state variable
+    - define a local PSI_socket_locker pointer
+    - call PSI_SOCKET_CALL(start_socket_wait)
+    - perform the operation
+    - call PSI_SOCKET_CALL(end_socket_wait)
+
+    Now, because this is done in a function callback attached to SSL itself,
+    invocation of the start and end event are done in different invocations,
+    so some state needs to be preserved between:
+    - BIO_CB_READ and BIO_CB_READ|BIO_CB_RETURN,
+    - BIO_CB_WRITE and BIO_CB_WRITE|BIO_CB_RETURN
+
+    This state is preserved in attributes of vio:
+    - m_psi_read_state and m_psi_read_locker for BIO_CB_READ
+    - m_psi_write_state and m_psi_write_locker for BIO_CB_WRITE
+
+    Raw socket operations are not supposed to be re-entrant,
+    so we assert here that:
+    - there is not a current read operation when performing a read
+    - there is not a current write operation when performing a write.
+    for extra safety.
+  */
+  switch (oper) {
+    case BIO_CB_READ:
+      vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
+      DBUG_ASSERT(vio->m_psi_read_locker == nullptr);
+      if (vio->mysql_socket.m_psi != nullptr) {
+        vio->m_psi_read_locker = PSI_SOCKET_CALL(start_socket_wait)(
+            &vio->m_psi_read_state, vio->mysql_socket.m_psi, PSI_SOCKET_RECV,
+            len, method_name, oper);
+      }
+      break;
+    case BIO_CB_READ | BIO_CB_RETURN:
+      vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
+      if (vio->m_psi_read_locker != nullptr) {
+        PSI_SOCKET_CALL(end_socket_wait)(vio->m_psi_read_locker, *processed);
+        vio->m_psi_read_locker = nullptr;
+      }
+      break;
+    case BIO_CB_WRITE:
+      vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
+      DBUG_ASSERT(vio->m_psi_write_locker == nullptr);
+      if (vio->mysql_socket.m_psi != nullptr) {
+        vio->m_psi_write_locker = PSI_SOCKET_CALL(start_socket_wait)(
+            &vio->m_psi_write_state, vio->mysql_socket.m_psi, PSI_SOCKET_SEND,
+            len, method_name, oper);
+      }
+      break;
+    case BIO_CB_WRITE | BIO_CB_RETURN:
+      vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
+      if (vio->m_psi_write_locker != nullptr) {
+        PSI_SOCKET_CALL(end_socket_wait)(vio->m_psi_write_locker, *processed);
+        vio->m_psi_write_locker = nullptr;
+      }
+      break;
+    case BIO_CB_CTRL:
+    case BIO_CB_CTRL | BIO_CB_RETURN:
+    case BIO_CB_FREE:
+    case BIO_CB_FREE | BIO_CB_RETURN:
+      break;
+    case BIO_CB_PUTS:
+    case BIO_CB_PUTS | BIO_CB_RETURN:
+    case BIO_CB_GETS:
+    case BIO_CB_GETS | BIO_CB_RETURN:
+    default:
+      DBUG_ASSERT(false);
+  }
+
+  return ret;
+}
+#endif /* HAVE_PSI_SOCKET_INTERFACE */
+
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+#ifndef HAVE_BIO_SET_CALLBACK_EX
+/**
+  Forward openSSL old style callback to openSSL 1.1.1 style callback.
+*/
+long pfs_ssl_bio_callback(BIO *b, int oper, const char *argp, int argi,
+                          long argl, long ret) {
+  size_t len = argi;
+  /*
+    For pre events:
+    - irrelevant (not used in pfs_ssl_bio_callback_ex)
+    For post (BIO_CB_RETURN) events,
+    the number of bytes:
+    - actually read, per the return value of recv()
+    - actually written, per the return value of send()
+  */
+  size_t processed = (ret >= 0) ? ret : 0;
+
+  return pfs_ssl_bio_callback_ex(b, oper, argp, len, argi, argl, ret,
+                                 &processed);
+}
+#endif /* HAVE_BIO_SET_CALLBACK_EX */
+#endif /* HAVE_PSI_SOCKET_INTERFACE */
+
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+static void pfs_ssl_setup_instrumentation(Vio *vio, const SSL *ssl) {
+  BIO *rbio = SSL_get_rbio(ssl);
+  DBUG_ASSERT(rbio != nullptr);
+  DBUG_ASSERT(BIO_method_type(rbio) == BIO_TYPE_SOCKET);
+
+  BIO *wbio = SSL_get_wbio(ssl);
+  DBUG_ASSERT(wbio != nullptr);
+  DBUG_ASSERT(BIO_method_type(wbio) == BIO_TYPE_SOCKET);
+
+  char *cb_arg = reinterpret_cast<char *>(vio);
+  DBUG_ASSERT(cb_arg != nullptr);
+
+  BIO_set_callback_arg(rbio, cb_arg);
+
+#ifdef HAVE_BIO_SET_CALLBACK_EX
+  BIO_set_callback_ex(rbio, pfs_ssl_bio_callback_ex);
+#else
+  BIO_set_callback(rbio, pfs_ssl_bio_callback);
+#endif
+
+  if (rbio != wbio) {
+    BIO_set_callback_arg(wbio, cb_arg);
+
+#ifdef HAVE_BIO_SET_CALLBACK_EX
+    BIO_set_callback_ex(wbio, pfs_ssl_bio_callback_ex);
+#else
+    BIO_set_callback(wbio, pfs_ssl_bio_callback);
+#endif
+  }
+}
+#endif /* HAVE_PSI_SOCKET_INTERFACE */
+
 static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
                   ssl_handshake_func_t func, unsigned long *ssl_errno_holder,
                   SSL **sslptr) {
@@ -509,6 +656,11 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 #endif
 
     *sslptr = ssl;
+
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+    pfs_ssl_setup_instrumentation(vio, ssl);
+#endif /* HAVE_PSI_SOCKET_INTERFACE */
+
   } else {
     ssl = *sslptr;
   }

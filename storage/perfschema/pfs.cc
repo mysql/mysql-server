@@ -4395,7 +4395,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
   DBUG_ASSERT(pfs_socket != nullptr);
   DBUG_ASSERT(pfs_socket->m_class != nullptr);
 
-  if (!pfs_socket->m_enabled || pfs_socket->m_idle) {
+  if (!pfs_socket->m_enabled) {
     return nullptr;
   }
 
@@ -4421,7 +4421,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
     state->m_thread = reinterpret_cast<PSI_thread *>(pfs_thread);
     flags = STATE_FLAG_THREAD;
 
-    if (pfs_socket->m_timed) {
+    if (pfs_socket->m_timed && !pfs_socket->m_idle) {
       timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags |= STATE_FLAG_TIMED;
@@ -4459,7 +4459,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
       pfs_thread->m_events_waits_current++;
     }
   } else {
-    if (pfs_socket->m_timed) {
+    if (pfs_socket->m_timed && !pfs_socket->m_idle) {
       timer_start = get_wait_timer();
       state->m_timer_start = timer_start;
       flags = STATE_FLAG_TIMED;
@@ -4753,6 +4753,7 @@ void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
+
       if (thread->m_flag_events_waits_history) {
         insert_events_waits_history(thread, wait);
       }

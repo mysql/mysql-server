@@ -35,7 +35,6 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('idle',
                  'wait/io/table/sql/handler',
                  'wait/lock/table/sql/handler',
-                 'wait/io/socket/sql/client_connection',
                  'wait/synch/rwlock/sql/LOCK_grant',
                  'wait/synch/mutex/sql/THD::LOCK_thd_data',
                  'wait/synch/mutex/sql/THD::LOCK_thd_query',
