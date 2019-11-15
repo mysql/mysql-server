@@ -2772,6 +2772,67 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
 }
 
 /**
+  Create a copy of the key_info from TABLE_SHARE object to TABLE object.
+
+  Wherever prefix key is present, allocate a new Field object, having its
+  field_length set to the prefix key length, and point the table's matching
+  key_part->field to this new Field object.
+
+  This ensures that unpack_partition_info() reads the correct prefix length of
+  partitioned fields
+*/
+
+bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
+  DBUG_TRACE;
+  TABLE_SHARE *share = table->s;
+  KEY *key_info = nullptr;
+  KEY_PART_INFO *key_part = nullptr;
+  uint n_length;
+
+  DBUG_ASSERT(share->key_parts);
+
+  n_length =
+      share->keys * sizeof(KEY) + share->key_parts * sizeof(KEY_PART_INFO);
+
+  // Allocate new memory for table.key_info
+  if (!(key_info = static_cast<KEY *>(root->Alloc(n_length)))) return true;
+
+  table->key_info = key_info;
+  key_part = (reinterpret_cast<KEY_PART_INFO *>(key_info + share->keys));
+
+  // Copy over the key_info from share to table.
+  memcpy(key_info, share->key_info, sizeof(*key_info) * share->keys);
+  memcpy(key_part, share->key_info[0].key_part,
+         (sizeof(*key_part) * share->key_parts));
+
+  for (KEY *key_info_end = key_info + share->keys; key_info < key_info_end;
+       key_info++) {
+    key_info->table = table;
+    key_info->key_part = key_part;
+
+    for (KEY_PART_INFO *key_part_end = key_part + key_info->actual_key_parts;
+         key_part < key_part_end; key_part++) {
+      Field *field = key_part->field = table->field[key_part->fieldnr - 1];
+
+      if (field->key_length() != key_part->length &&
+          !(field->flags & BLOB_FLAG)) {
+        /*
+          We are using only a prefix of the column as a key:
+          Create a new field for the key part that matches the index
+        */
+        field = key_part->field = field->new_field(root, table, false);
+        field->set_field_length(key_part->length);
+      }
+    }
+
+    // Skip unused key parts if they exist
+    key_part += key_info->unused_key_parts;
+  }
+
+  return false;
+}
+
+/**
   Open a table based on a TABLE_SHARE
 
   @param thd              Thread handler
@@ -2930,44 +2991,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   /* Fix key->name and key_part->field */
   if (share->key_parts) {
-    KEY *key_info, *key_info_end;
-    KEY_PART_INFO *key_part;
-    uint n_length;
-    n_length =
-        share->keys * sizeof(KEY) + share->key_parts * sizeof(KEY_PART_INFO);
-
-    if (!(key_info = (KEY *)root->Alloc(n_length))) goto err;
-    outparam->key_info = key_info;
-    key_part = (reinterpret_cast<KEY_PART_INFO *>(key_info + share->keys));
-
-    memcpy(key_info, share->key_info, sizeof(*key_info) * share->keys);
-    memcpy(key_part, share->key_info[0].key_part,
-           (sizeof(*key_part) * share->key_parts));
-
-    for (key_info_end = key_info + share->keys; key_info < key_info_end;
+    if (create_key_part_field_with_prefix_length(outparam, root)) goto err;
+    KEY *key_info = outparam->key_info;
+    for (KEY *key_info_end = key_info + share->keys; key_info < key_info_end;
          key_info++) {
-      KEY_PART_INFO *key_part_end;
-
-      key_info->table = outparam;
-      key_info->key_part = key_part;
-
-      for (key_part_end = key_part + key_info->actual_key_parts;
-           key_part < key_part_end; key_part++) {
-        Field *field = key_part->field = outparam->field[key_part->fieldnr - 1];
-
-        if (field->key_length() != key_part->length &&
-            !(field->flags & BLOB_FLAG)) {
-          /*
-            We are using only a prefix of the column as a key:
-            Create a new field for the key part that matches the index
-          */
-          field = key_part->field = field->new_field(root, outparam, false);
-          field->set_field_length(key_part->length);
-        }
-      }
-      /* Skip unused key parts if they exist */
-      key_part += key_info->unused_key_parts;
-
       /* Set TABLE::fts_doc_id_field for tables with FT KEY */
       if ((key_info->flags & HA_FULLTEXT))
         outparam->fts_doc_id_field = fts_doc_id_field;
