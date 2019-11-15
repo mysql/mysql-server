@@ -1397,6 +1397,32 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
   return NDBT_OK;
 }
 
+int run_suma_handover_test(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbRestarter restarter;
+  int numDbNodes = restarter.getNumDbNodes();
+  getNodeGroups(restarter);
+  int num_replicas = (numDbNodes - numNoNodeGroups) / numNodeGroups;
+  if (num_replicas < 3)
+  {
+    return NDBT_OK;
+  }
+  int restart_node_id = getFirstNodeInNodeGroup(restarter, 0);
+  int delay_node_id = getNextNodeInNodeGroup(restarter, restart_node_id, 0);
+  if (restarter.insertErrorInNode(delay_node_id, 13054))
+    return NDBT_FAILED;
+  if (restarter.restartOneDbNode(restart_node_id,
+				 /** initial */ false,
+				 /** nostart */ false,
+				 /** abort   */ false))
+    return NDBT_FAILED;
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+  if (restarter.insertErrorInNode(delay_node_id, 0))
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
 int runBug15632(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
@@ -10293,6 +10319,11 @@ TESTCASE("PostponeRecalculateGCPCommitLag",
   STEP(runPkUpdateUntilStopped);
   STEP(runPauseGcpCommitUntilNodeFailure);
   FINALIZER(runChangeDataNodeConfig);
+}
+TESTCASE("SumaHandover3rpl",
+         "Test Suma handover with multiple GCIs and more than 2 replicas")
+{
+  INITIALIZER(run_suma_handover_test);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart)
