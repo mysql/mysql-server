@@ -1629,6 +1629,11 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
   */
   DBUG_ASSERT(!trn_ctx->is_active(Transaction_ctx::STMT) || !all);
 
+  DBUG_EXECUTE_IF("pre_commit_error", {
+    error = true;
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+  });
+
   /*
     When atomic DDL is executed on the slave, we would like to
     to update slave applier state as part of DDL's transaction.
