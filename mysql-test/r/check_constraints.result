@@ -1543,7 +1543,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` smallint DEFAULT NULL,
   `c5` mediumint DEFAULT NULL,
@@ -2317,7 +2317,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` smallint DEFAULT NULL,
   `c5` mediumint DEFAULT NULL,
@@ -2345,7 +2345,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` smallint DEFAULT NULL,
   `c5` mediumint DEFAULT NULL,
@@ -2400,7 +2400,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` smallint DEFAULT NULL,
   `c5` mediumint DEFAULT NULL,
@@ -2426,7 +2426,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `c1` bit(7) DEFAULT NULL,
-  `c2` tinyint DEFAULT NULL,
+  `c2` tinyint(1) DEFAULT NULL,
   `c3` tinyint DEFAULT NULL,
   `c4` smallint DEFAULT NULL,
   `c5` mediumint DEFAULT NULL,
