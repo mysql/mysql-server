@@ -359,6 +359,52 @@ ALTER TABLE test.t ENGINE = InnoDB;
 --force-rmdir $MYSQLD_DATADIR
 
 
+--echo #
+--echo # Bug#30360695: TABLE WITH SUBPARTITIONS CAN NOT ADD COLUMN AFTER UPGRADE
+--echo #
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_5.log
+--let $name_base= 80016_subpart
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/$name_base.zip
+--exec unzip -qo $MYSQL_TMP_DIR/$name_base.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQLD_DATADIR
+
+--echo # Start DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+
+--echo # Verify that we can add a column (instant) to upgraded table with
+--echo # subpartitions
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15);
+
+--echo # Search log file for warning.
+
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= sdi_delete failed
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/$name_base.zip
+--force-rmdir $MYSQLD_DATADIR
+
+
 --echo # Restart the server with default options.
 --let $restart_parameters= restart:
 --source include/start_mysqld.inc

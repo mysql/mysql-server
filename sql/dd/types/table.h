@@ -23,6 +23,8 @@
 #ifndef DD__TABLE_INCLUDED
 #define DD__TABLE_INCLUDED
 
+#include "mysql_version.h"  // MYSQL_VERSION_ID
+
 #include "sql/dd/sdi_fwd.h"               // Sdi_wcontext
 #include "sql/dd/types/abstract_table.h"  // dd::Abstract_table
 #include "sql/dd/types/foreign_key.h"     // IWYU pragma: keep
@@ -159,7 +161,7 @@ class Table : virtual public Abstract_table {
   // last_checked_for_upgrade_version_id api
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_checked_for_upgrade() const = 0;
+  virtual uint last_checked_for_upgrade_version_id() const = 0;
   virtual void mark_as_checked_for_upgrade() = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -439,6 +441,9 @@ class Table : virtual public Abstract_table {
 
 ///////////////////////////////////////////////////////////////////////////
 
+inline bool is_checked_for_upgrade(const Table &t) {
+  return t.last_checked_for_upgrade_version_id() == MYSQL_VERSION_ID;
+}
 }  // namespace dd
 
 #endif  // DD__TABLE_INCLUDED

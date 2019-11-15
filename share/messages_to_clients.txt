@@ -9284,6 +9284,9 @@ ER_WARN_DEPRECATED_YEAR_UNSIGNED
 ER_CLONE_NETWORK_PACKET
   eng "Clone needs max_allowed_packet value to be %u or more. Current value is %u"
 
+ER_SDI_OPERATION_FAILED_MISSING_RECORD
+  eng "Failed to %s sdi for %s.%s in %s due to missing record."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

@@ -478,7 +478,7 @@ static Check_result check_for_upgrade(THD *thd, dd::String_type &sname,
   }
   DBUG_ASSERT(t != nullptr);
 
-  if (t->is_checked_for_upgrade()) {
+  if (is_checked_for_upgrade(*t)) {
     DBUG_PRINT("admin", ("Table %s (%llu) already checked for upgrade, "
                          "skipping",
                          t->name().c_str(), t->id()));
