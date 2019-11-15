@@ -516,5 +516,42 @@ ndb_config_version_v2(Uint32 x)
  */
 #define NDB_SHORT_OPAQUE_METADATA_MAX_BYTES 6000
 
+// New limitations from WL#12757
 
+#define NDBD_80_PROTOCOL_ACCEPT_74 NDB_MAKE_VERSION(7,4,6)
+#define NDBD_80_PROTOCOL_ACCEPT_75 NDB_MAKE_VERSION(7,5,6)
+#define NDBD_80_PROTOCOL_ACCEPT_76 NDB_MAKE_VERSION(7,6,4)
+
+static
+inline
+int
+ndbd_protocol_accepted_by_8_0(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  if (major < 7)
+  {
+    return 0;
+  }
+  else if (major == 7)
+  {
+    if (minor < 4)
+    {
+      return 0;
+    }
+    else if (minor == 4)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_74;
+    }
+    else if (minor == 5)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_75;
+    }
+    else if (minor == 6)
+    {
+      return x >= NDBD_80_PROTOCOL_ACCEPT_76;
+    }
+  }
+  return 1;
+}
 #endif
