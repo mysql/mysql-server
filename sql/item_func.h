@@ -219,8 +219,7 @@ class Item_func : public Item_result_field {
     LEAST_FUNC,
     JSON_CONTAINS,
     JSON_OVERLAPS,
-    MEMBER_OF_FUNC,
-    STRCMP_FUNC
+    MEMBER_OF_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -1670,9 +1669,6 @@ class Item_func_find_in_set final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "find_in_set"; }
   bool resolve_type(THD *) override;
-  const CHARSET_INFO *compare_collation() const override {
-    return cmp_collation.collation;
-  }
 };
 
 /* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
