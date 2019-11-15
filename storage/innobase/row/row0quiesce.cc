@@ -537,15 +537,15 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     row_quiesce_write_transfer_key(const dict_table_t *table, FILE *file,
                                    THD *thd) {
   byte key_size[sizeof(ib_uint32_t)];
-  byte row[ENCRYPTION_KEY_LEN * 3];
+  byte row[Encryption::KEY_LEN * 3];
   byte *ptr = row;
   byte *transfer_key = ptr;
   lint elen;
 
-  ut_ad(table->encryption_key != NULL && table->encryption_iv != NULL);
+  ut_ad(table->encryption_key != nullptr && table->encryption_iv != nullptr);
 
   /* Write the encryption key size. */
-  mach_write_to_4(key_size, ENCRYPTION_KEY_LEN);
+  mach_write_to_4(key_size, Encryption::KEY_LEN);
 
   if (fwrite(&key_size, 1, sizeof(key_size), file) != sizeof(key_size)) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -556,20 +556,21 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   /* Generate and write the transfer key. */
   Encryption::random_value(transfer_key);
-  if (fwrite(transfer_key, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fwrite(transfer_key, 1, Encryption::KEY_LEN, file) !=
+      Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing transfer key.");
 
     return (DB_IO_ERROR);
   }
 
-  ptr += ENCRYPTION_KEY_LEN;
+  ptr += Encryption::KEY_LEN;
 
   /* Encrypt tablespace key. */
   elen = my_aes_encrypt(
       reinterpret_cast<unsigned char *>(table->encryption_key),
-      ENCRYPTION_KEY_LEN, ptr, reinterpret_cast<unsigned char *>(transfer_key),
-      ENCRYPTION_KEY_LEN, my_aes_256_ecb, NULL, false);
+      Encryption::KEY_LEN, ptr, reinterpret_cast<unsigned char *>(transfer_key),
+      Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -578,19 +579,19 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   }
 
   /* Write encrypted tablespace key */
-  if (fwrite(ptr, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fwrite(ptr, 1, Encryption::KEY_LEN, file) != Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing encrypted tablespace key.");
 
     return (DB_IO_ERROR);
   }
-  ptr += ENCRYPTION_KEY_LEN;
+  ptr += Encryption::KEY_LEN;
 
   /* Encrypt tablespace iv. */
   elen = my_aes_encrypt(reinterpret_cast<unsigned char *>(table->encryption_iv),
-                        ENCRYPTION_KEY_LEN, ptr,
+                        Encryption::KEY_LEN, ptr,
                         reinterpret_cast<unsigned char *>(transfer_key),
-                        ENCRYPTION_KEY_LEN, my_aes_256_ecb, NULL, false);
+                        Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
@@ -599,7 +600,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   }
 
   /* Write encrypted tablespace iv */
-  if (fwrite(ptr, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fwrite(ptr, 1, Encryption::KEY_LEN, file) != Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while writing encrypted tablespace iv.");
 
@@ -632,19 +633,19 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     lint old_size = mem_heap_get_size(table->heap);
 
     table->encryption_key =
-        static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
+        static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
 
     table->encryption_iv =
-        static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
+        static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
 
     lint new_size = mem_heap_get_size(table->heap);
     dict_sys->size += new_size - old_size;
 
     fil_space_t *space = fil_space_get(table->space);
-    ut_ad(space != NULL && FSP_FLAGS_GET_ENCRYPTION(space->flags));
+    ut_ad(space != nullptr && FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-    memcpy(table->encryption_key, space->encryption_key, ENCRYPTION_KEY_LEN);
-    memcpy(table->encryption_iv, space->encryption_iv, ENCRYPTION_KEY_LEN);
+    memcpy(table->encryption_key, space->encryption_key, Encryption::KEY_LEN);
+    memcpy(table->encryption_iv, space->encryption_iv, Encryption::KEY_LEN);
   }
 
   srv_get_encryption_data_filename(table, name, sizeof(name));

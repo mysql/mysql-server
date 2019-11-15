@@ -1831,11 +1831,11 @@ static byte *recv_parse_or_apply_log_rec_body(
           ptr = mlog_parse_nbytes(MLOG_1BYTE, ptr, end_ptr, page, page_zip);
           byte op = mach_read_from_1(page + offset);
           switch (op) {
-            case ENCRYPTION_IN_PROGRESS:
+            case Encryption::ENCRYPT_IN_PROGRESS:
               space->encryption_op_in_progress = ENCRYPTION;
               break;
-            case UNENCRYPTION_IN_PROGRESS:
-              space->encryption_op_in_progress = UNENCRYPTION;
+            case Encryption::DECRYPT_IN_PROGRESS:
+              space->encryption_op_in_progress = DECRYPTION;
               break;
             default:
               /* Don't reset operation in progress yet. It'll be done in
@@ -3447,8 +3447,8 @@ bool meb_read_log_encryption(IORequest &encryption_request,
   const page_id_t page_id(log_space_id, 0);
   byte *log_block_buf_ptr;
   byte *log_block_buf;
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
   fil_space_t *space = fil_space_get(log_space_id);
   dberr_t err;
 
@@ -3461,7 +3461,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
   if (encryption_info != nullptr) {
     /* encryption info was given as a parameter */
     memcpy(log_block_buf + LOG_HEADER_CREATOR_END, encryption_info,
-           ENCRYPTION_INFO_MAX_SIZE);
+           Encryption::INFO_MAX_SIZE);
   } else {
     /* encryption info was not given as a parameter, read it from the
        header of "ib_logfile0" */
@@ -3472,8 +3472,8 @@ bool meb_read_log_encryption(IORequest &encryption_request,
     ut_a(err == DB_SUCCESS);
   }
 
-  if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, ENCRYPTION_KEY_MAGIC_V3,
-             ENCRYPTION_MAGIC_SIZE) == 0) {
+  if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, Encryption::KEY_MAGIC_V3,
+             Encryption::MAGIC_SIZE) == 0) {
     encryption_request = IORequestLogRead;
 
     if (Encryption::decode_encryption_info(

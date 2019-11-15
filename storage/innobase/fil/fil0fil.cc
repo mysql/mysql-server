@@ -7209,8 +7209,7 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
   if (space->encryption_type == Encryption::NONE ||
-      (space->encryption_op_in_progress == UNENCRYPTION &&
-       req_type.is_write()) ||
+      (space->encryption_op_in_progress == DECRYPTION && req_type.is_write()) ||
       (page_id.page_no() == 0 && !req_type.is_log())) {
     req_type.clear_encrypted();
     return;
@@ -8289,7 +8288,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
 
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
-      read_request.encryption_key(iter.m_encryption_key, ENCRYPTION_KEY_LEN,
+      read_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
                                   iter.m_encryption_iv);
 
       read_request.encryption_algorithm(Encryption::AES);
@@ -8334,7 +8333,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
 
     /* For encrypted table, set encryption information. */
     if (iter.m_encryption_key != nullptr && offset != 0) {
-      write_request.encryption_key(iter.m_encryption_key, ENCRYPTION_KEY_LEN,
+      write_request.encryption_key(iter.m_encryption_key, Encryption::KEY_LEN,
                                    iter.m_encryption_iv);
 
       write_request.encryption_algorithm(Encryption::AES);
@@ -8850,15 +8849,15 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
   if (key == nullptr) {
     Encryption::random_value(space->encryption_key);
   } else {
-    memcpy(space->encryption_key, key, ENCRYPTION_KEY_LEN);
+    memcpy(space->encryption_key, key, Encryption::KEY_LEN);
   }
 
-  space->encryption_klen = ENCRYPTION_KEY_LEN;
+  space->encryption_klen = Encryption::KEY_LEN;
 
   if (iv == nullptr) {
     Encryption::random_value(space->encryption_iv);
   } else {
-    memcpy(space->encryption_iv, iv, ENCRYPTION_KEY_LEN);
+    memcpy(space->encryption_iv, iv, Encryption::KEY_LEN);
   }
 
   ut_ad(algorithm != Encryption::NONE);
@@ -8890,10 +8889,10 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
     return (DB_NOT_FOUND);
   }
 
-  memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
+  memset(space->encryption_key, 0, Encryption::KEY_LEN);
   space->encryption_klen = 0;
 
-  memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
+  memset(space->encryption_iv, 0, Encryption::KEY_LEN);
 
   space->encryption_type = Encryption::NONE;
 
@@ -8907,7 +8906,7 @@ dberr_t fil_reset_encryption(space_id_t space_id) {
 @param[in,out]	shard		Rotate the keys in this shard
 @return true if the re-encrypt succeeds */
 bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
-  byte encrypt_info[ENCRYPTION_INFO_SIZE];
+  byte encrypt_info[Encryption::INFO_SIZE];
 
   for (auto &elem : shard->m_spaces) {
     auto space = elem.second;
@@ -8925,13 +8924,13 @@ bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
     server uuid is not ready yet. */
 
     if (fsp_is_undo_tablespace(space->id) &&
-        Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
+        Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID) {
       continue;
     }
 
     /* Rotate the encrypted tablespaces. */
     if (space->encryption_type != Encryption::NONE) {
-      memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+      memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
       /* Take MDL on UNDO tablespace to make it mutually exclusive with
       UNDO tablespace truncation. For other tablespaces MDL is not required
@@ -10320,15 +10319,15 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     if (key != nullptr) {
       DBUG_EXECUTE_IF(
           "dont_update_key_found_during_REDO_scan", is_allocated = true;
-          key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
-          iv = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN)););
+          key = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
+          iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN)););
     }
 #endif
 
     if (key == nullptr) {
-      key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+      key = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
 
-      iv = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+      iv = static_cast<byte *>(ut_malloc_nokey(Encryption::KEY_LEN));
 
       is_new = true;
     }
@@ -10353,7 +10352,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   }
 
   if (offset >= UNIV_PAGE_SIZE || len + offset > UNIV_PAGE_SIZE ||
-      len != ENCRYPTION_INFO_SIZE) {
+      len != Encryption::INFO_SIZE) {
     recv_sys->found_corrupt_log = true;
     return (nullptr);
   }
@@ -10368,7 +10367,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     return (nullptr);
   }
 
-  ut_ad(len == ENCRYPTION_INFO_SIZE);
+  ut_ad(len == Encryption::INFO_SIZE);
 
   ptr += len;
 
@@ -10386,7 +10385,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
     if (FSP_FLAGS_GET_ENCRYPTION(space->flags) ||
         space->encryption_op_in_progress == ENCRYPTION) {
       space->encryption_type = Encryption::AES;
-      space->encryption_klen = ENCRYPTION_KEY_LEN;
+      space->encryption_klen = Encryption::KEY_LEN;
     }
   }
 

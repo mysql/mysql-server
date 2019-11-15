@@ -2403,7 +2403,7 @@ void undo_rotate_default_master_key() {
   /* If the undo log space is using default key, rotate
   it. We need the server_uuid initialized, otherwise,
   the keyname will not contains server uuid. */
-  if (Encryption::s_master_key_id != 0 || srv_read_only_mode ||
+  if (Encryption::get_master_key_id() != 0 || srv_read_only_mode ||
       strlen(server_uuid) == 0) {
     return;
   }
@@ -2418,7 +2418,7 @@ void undo_rotate_default_master_key() {
       continue;
     }
 
-    byte encrypt_info[ENCRYPTION_INFO_SIZE];
+    byte encrypt_info[Encryption::INFO_SIZE];
     mtr_t mtr;
 
     ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -2431,7 +2431,7 @@ void undo_rotate_default_master_key() {
 
     mtr_x_lock_space(space, &mtr);
 
-    memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
     if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
       ib::error(ER_IB_MSG_1056, undo_space->space_name());
@@ -2455,8 +2455,8 @@ bool srv_enable_redo_encryption(bool is_boot) {
   }
 
   dberr_t err;
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
 
   Encryption::random_value(key);
   Encryption::random_value(iv);
@@ -2485,15 +2485,15 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
   fil_space_t *space = fil_space_get(space_id);
 
   dberr_t err;
-  byte encrypt_info[ENCRYPTION_INFO_SIZE];
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte encrypt_info[Encryption::INFO_SIZE];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
 
   Encryption::random_value(key);
   Encryption::random_value(iv);
 
   /* 0 fill encryption info */
-  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+  memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
   /* Fill up encryption info to be set */
   if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot, true)) {

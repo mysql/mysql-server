@@ -2634,8 +2634,8 @@ bool log_read_encryption() {
   const page_id_t page_id(log_space_id, 0);
   byte *log_block_buf_ptr;
   byte *log_block_buf;
-  byte key[ENCRYPTION_KEY_LEN];
-  byte iv[ENCRYPTION_KEY_LEN];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
   fil_space_t *space = fil_space_get(log_space_id);
   dberr_t err;
 
@@ -2650,8 +2650,8 @@ bool log_read_encryption() {
 
   ut_a(err == DB_SUCCESS);
 
-  if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, ENCRYPTION_KEY_MAGIC_V3,
-             ENCRYPTION_MAGIC_SIZE) == 0) {
+  if (memcmp(log_block_buf + LOG_HEADER_CREATOR_END, Encryption::KEY_MAGIC_V3,
+             Encryption::MAGIC_SIZE) == 0) {
     /* Make sure the keyring is loaded. */
     if (!Encryption::check_keyring()) {
       ut_free(log_block_buf_ptr);
@@ -2696,16 +2696,16 @@ bool log_read_encryption() {
 
 bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
                                      bool is_boot, bool encrypt_key) {
-  byte encryption_info[ENCRYPTION_INFO_SIZE];
+  byte encryption_info[Encryption::INFO_SIZE];
 
   if (!Encryption::fill_encryption_info(key, iv, encryption_info, is_boot,
                                         encrypt_key)) {
     return (false);
   }
 
-  ut_a(LOG_HEADER_CREATOR_END + ENCRYPTION_INFO_SIZE < OS_FILE_LOG_BLOCK_SIZE);
+  ut_a(LOG_HEADER_CREATOR_END + Encryption::INFO_SIZE < OS_FILE_LOG_BLOCK_SIZE);
 
-  memcpy(buf + LOG_HEADER_CREATOR_END, encryption_info, ENCRYPTION_INFO_SIZE);
+  memcpy(buf + LOG_HEADER_CREATOR_END, encryption_info, Encryption::INFO_SIZE);
 
   return (true);
 }
@@ -2763,7 +2763,7 @@ void redo_rotate_default_master_key() {
   /* If the redo log space is using default key, rotate it.
   We also need the server_uuid initialized. */
   if (space->encryption_type != Encryption::NONE &&
-      Encryption::s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID &&
+      Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID &&
       !srv_read_only_mode && strlen(server_uuid) > 0) {
     ut_a(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 

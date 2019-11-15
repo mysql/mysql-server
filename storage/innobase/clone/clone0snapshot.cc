@@ -734,11 +734,11 @@ int Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
 
 bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
                                                uint32_t header_len) {
-  byte encryption_key[ENCRYPTION_KEY_LEN];
-  byte encryption_iv[ENCRYPTION_KEY_LEN];
+  byte encryption_key[Encryption::KEY_LEN];
+  byte encryption_iv[Encryption::KEY_LEN];
 
   size_t offset = LOG_ENCRYPTION + LOG_HEADER_CREATOR_END;
-  ut_a(offset + ENCRYPTION_INFO_SIZE <= header_len);
+  ut_a(offset + Encryption::INFO_SIZE <= header_len);
 
   auto encryption_info = log_header + offset;
 
@@ -756,11 +756,11 @@ bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
 
 bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
                                            byte *page_data) {
-  byte encryption_key[ENCRYPTION_KEY_LEN];
-  byte encryption_iv[ENCRYPTION_KEY_LEN];
+  byte encryption_key[Encryption::KEY_LEN];
+  byte encryption_iv[Encryption::KEY_LEN];
 
   auto offset = fsp_header_get_encryption_offset(page_size);
-  ut_ad(offset != 0 && offset + ENCRYPTION_INFO_SIZE <= UNIV_PAGE_SIZE);
+  ut_ad(offset != 0 && offset + Encryption::INFO_SIZE <= UNIV_PAGE_SIZE);
 
   auto encryption_info = page_data + offset;
 
@@ -790,7 +790,7 @@ bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
 void Clone_Snapshot::decrypt_key_in_header(fil_space_t *space,
                                            const page_size_t &page_size,
                                            byte *&page_data) {
-  byte encryption_info[ENCRYPTION_INFO_SIZE];
+  byte encryption_info[Encryption::INFO_SIZE];
 
   /* Get tablespace encryption information. */
   Encryption::fill_encryption_info(space->encryption_key, space->encryption_iv,
