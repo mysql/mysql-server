@@ -1222,7 +1222,6 @@ class Item_func_strcmp final : public Item_bool_func2 {
   longlong val_int() override;
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "strcmp"; }
-  enum Functype functype() const override { return STRCMP_FUNC; }
 
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override {
