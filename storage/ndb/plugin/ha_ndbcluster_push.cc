@@ -2025,7 +2025,47 @@ int ndb_pushed_builder_ctx::build_query() {
         // 'tab_no' is inner joined with its parent
         options.setMatchType(NdbQueryOptions::MatchNonNull);
       }
-    }
+
+      /**
+       * Inform SPJ API about the join nest dependencies. Needed in those
+       * cases where the are no linkedValues determining which inner_
+       * and upper_nest a table is a member of. SPJ API need this info
+       * in order to correctly generate NULL extended outer join results.
+       *
+       * Example: t1 outer join (t2 inner join t3), where t3s join condition
+       * does not refer t2. Thus, t3 will likely become an outer joined
+       * child of t1 in the QueryTree. From the parent-child POW, t2,t3
+       * will look like two seperate outer joined tables, like:
+       * 't1, outer join (t2), outer join (t3)'.
+       *
+       * Such queries need to set the join nest dependencies, such that
+       * the NdbQuery interface is able to correcly generate NULL extended
+       * rows for.
+       *
+       * Below we add these nest dependencies even when not strictly required.
+       * The API will just ignore such redundant nest dependencies.
+       */
+      ndb_table_access_map inner_nest(m_tables[tab_no].m_inner_nest);
+      inner_nest.intersect(m_join_scope);
+      if (!inner_nest.is_clear_all()) {
+        // Table not first in its join_nest, set firstInner which it depends on
+        const uint real_first_inner =
+            inner_nest.first_table(m_tables[tab_no].m_first_inner);
+        options.setFirstInnerJoin(m_tables[real_first_inner].m_op);
+
+      } else if (m_tables[tab_no].m_first_upper > (int)root_no) {
+        ndb_table_access_map upper_nest(m_tables[tab_no].m_upper_nests);
+        upper_nest.subtract(
+            m_tables[m_tables[tab_no].m_first_upper].m_upper_nests);
+        upper_nest.intersect(m_join_scope);
+        if (!upper_nest.is_clear_all()) {
+          // There is an upper nest which we outer join with
+          const uint real_first_upper =
+              upper_nest.first_table(m_tables[tab_no].m_first_upper);
+          options.setUpperJoin(m_tables[real_first_upper].m_op);
+        }
+      }
+    }  // if '!m_join_root'
 
     const NdbQueryOperationDef *query_op = NULL;
     if (ndbcluster_is_lookup_operation(access_type)) {

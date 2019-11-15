@@ -492,6 +492,36 @@ NdbQueryOptions::setParent(const NdbQueryOperationDef* parent)
 }
 
 int
+NdbQueryOptions::setFirstInnerJoin(const NdbQueryOperationDef* firstInner)
+{
+  if (m_pimpl==&defaultOptions)
+  {
+    m_pimpl = new NdbQueryOptionsImpl;
+    if (unlikely(m_pimpl==nullptr))
+    {
+      return Err_MemoryAlloc;
+    }
+  }
+  m_pimpl->m_firstInner = &firstInner->getImpl();
+  return 0;
+}
+
+int
+NdbQueryOptions::setUpperJoin(const NdbQueryOperationDef* firstUpper)
+{
+  if (m_pimpl==&defaultOptions)
+  {
+    m_pimpl = new NdbQueryOptionsImpl;
+    if (unlikely(m_pimpl==nullptr))
+    {
+      return Err_MemoryAlloc;
+    }
+  }
+  m_pimpl->m_firstUpper = &firstUpper->getImpl();
+  return 0;
+}
+
+int
 NdbQueryOptions::setInterpretedCode(const NdbInterpretedCode& code)
 {
   if (m_pimpl==&defaultOptions)
@@ -515,9 +545,11 @@ NdbQueryOptionsImpl::NdbQueryOptionsImpl(const NdbQueryOptionsImpl& src)
  : m_matchType(src.m_matchType),
    m_scanOrder(src.m_scanOrder),
    m_parent(src.m_parent),
-   m_interpretedCode(NULL)
+   m_firstUpper(src.m_firstUpper),
+   m_firstInner(src.m_firstInner),
+   m_interpretedCode(nullptr)
 {
-  if (src.m_interpretedCode)
+  if (src.m_interpretedCode != nullptr)
   {
     copyInterpretedCode(*src.m_interpretedCode);
   }
@@ -1888,8 +1920,10 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
    m_ident(ident), 
    m_opNo(opNo), m_internalOpNo(internalOpNo),
    m_options(options),
-   m_parent(NULL), 
+   m_parent(nullptr),
    m_children(0), 
+   m_firstUpper(m_options.m_firstUpper),
+   m_firstInner(m_options.m_firstInner),
    m_params(0),
    m_spjProjection(0) 
 {
@@ -1898,7 +1932,7 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
     error = QRY_DEFINITION_TOO_LARGE;
     return;
   }
-  if (m_options.m_parent != NULL)
+  if (m_options.m_parent != nullptr)
   {
     m_parent = m_options.m_parent;
     const int res = m_parent->addChild(this);
@@ -1958,10 +1992,7 @@ NdbQueryOperationDefImpl::isChildOf(const NdbQueryOperationDefImpl* parentOp) co
 #endif
       return true;
     }
-    else if (m_parent->isChildOf(parentOp))
-    {
-      return true;
-    }
+    return m_parent->isChildOf(parentOp);
   }
   return false;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -275,8 +275,10 @@ public:
   explicit NdbQueryOptionsImpl()
   : m_matchType(NdbQueryOptions::MatchAll),
     m_scanOrder(NdbQueryOptions::ScanOrdering_void),
-    m_parent(NULL),
-    m_interpretedCode(NULL)
+    m_parent(nullptr),
+    m_firstUpper(nullptr),
+    m_firstInner(nullptr),
+    m_interpretedCode(nullptr)
   {}
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
@@ -288,6 +290,8 @@ private:
   NdbQueryOptions::MatchType     m_matchType;
   NdbQueryOptions::ScanOrdering  m_scanOrder;
   NdbQueryOperationDefImpl*      m_parent;
+  NdbQueryOperationDefImpl*      m_firstUpper;   //First in upper nest
+  NdbQueryOperationDefImpl*      m_firstInner;   //First in this (inner-)nest
   const NdbInterpretedCode*      m_interpretedCode;
 
   /**
@@ -323,20 +327,26 @@ public:
   Uint32 getNoOfParentOperations() const
   { return (m_parent) ? 1 : 0; }
 
-  NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
+  const NdbQueryOperationDefImpl& getParentOperation(Uint32 i) const
   { assert(i==0 && m_parent!=NULL);
     return *m_parent;
   }
 
-  NdbQueryOperationDefImpl* getParentOperation() const
+  const NdbQueryOperationDefImpl* getParentOperation() const
   { return m_parent;
   }
 
   Uint32 getNoOfChildOperations() const
   { return m_children.size(); }
 
-  NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
+  const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
   { return *m_children[i]; }
+
+  const NdbQueryOperationDefImpl* getFirstUpper() const
+  { return m_firstUpper; }
+
+  const NdbQueryOperationDefImpl* getFirstInner() const
+  { return m_firstInner; }
 
   const NdbTableImpl& getTable() const
   { return m_table; }
@@ -508,6 +518,13 @@ private:
   // as defined with linkedValues
   NdbQueryOperationDefImpl* m_parent;
   Vector<NdbQueryOperationDefImpl*> m_children;
+
+  // The (optional) first table in the upper- or the inner nest of
+  // this table. Only set if the entire inner-nest is not contained
+  // within the tree branch starting with the first inner, or
+  // the first upper op-node.
+  const NdbQueryOperationDefImpl* const m_firstUpper;
+  const NdbQueryOperationDefImpl* const m_firstInner;
 
   // Params required by this operation
   Vector<const NdbParamOperandImpl*> m_params;

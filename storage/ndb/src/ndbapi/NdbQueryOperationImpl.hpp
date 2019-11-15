@@ -622,6 +622,9 @@ public:
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
 
+  SpjNodeMask getDescendants() const;
+  SpjNodeMask getDependants() const;
+
   /** A shorthand for getting the root operation. */
   NdbQueryOperationImpl& getRoot() const
   { return m_queryImpl.getRoot(); }
@@ -676,12 +679,14 @@ public:
    * @param tcPtrI
    * @param rowCount Number of rows for this fragment, including all rows from
    * descendant lookup operations.
-   * @param nodeMask Nodes that will return more rows in following NEXTREQ
-   * @param activeMask Nodes still active, will return more rows in some later
-   * NEXTREQ.
+   * @param resultsMask
+   * @param completedMask
    * @param receiver The receiver object that shall process the results.*/
-  bool execSCAN_TABCONF(Uint32 tcPtrI, Uint32 rowCount, Uint32 nodeMask,
-                        Uint32 activeMask, const NdbReceiver* receiver);
+  bool execSCAN_TABCONF(Uint32 tcPtrI,
+                        Uint32 rowCount,
+                        Uint32 resultsMask,
+                        Uint32 completedMask,
+                        const NdbReceiver* receiver);
 
   const NdbQueryOperation& getInterface() const
   { return m_interface; }
@@ -788,6 +793,9 @@ private:
   NdbQueryOperationImpl* m_parent;
   /** Children of this operation.*/
   Vector<NdbQueryOperationImpl*> m_children;
+
+  /** Other node/branches depending on this node, without being a child */
+  Vector<NdbQueryOperationImpl*> m_dependants;
 
   /** Buffer for parameters in serialized format */
   Uint32Buffer m_params;
