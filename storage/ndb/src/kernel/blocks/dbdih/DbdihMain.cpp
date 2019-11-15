@@ -106,7 +106,7 @@ extern EventLogger * g_eventLogger;
 #ifdef VM_TRACE
 //#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_LCP 1
-//#define DEBUG_LCP_COMP 1
+#define DEBUG_LCP_COMP 1
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -12746,8 +12746,22 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
          * handling LCP_COMPLETE_REP we need to get back to the state
          * LCP_TAB_SAVED and ensure that we send LCP_COMPLETE_REP with
          * block 0 for all nodes that haven't heard of the completed LCP yet.
+         *
+         * We accomplish this by transferring the bitmap for the wait for
+         * LCP_COMPLETE_REP to m_participatingDIH bitmask that is used to
+         * send the LCP_COMPLETE_REP for block 0.
          */
+        DEB_LCP_COMP(("LCP_IDLE => LCP_TAB_SAVED"));
         c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
+        m_local_lcp_state.init_master_take_over_idle_to_tab_saved();
+        for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
+        {
+          if (c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(node))
+          {
+            jam();
+            c_lcpState.m_participatingDIH.set(node);
+          }
+        }
       }
 
       c_lcp_runs_with_pause_support = true;
@@ -18938,6 +18952,20 @@ Dbdih::LocalLCPState::init(const StartLcpReq * req)
 }
 
 void
+Dbdih::LocalLCPState::init_master_take_over_idle_to_tab_saved()
+{
+  if (m_state == LS_COMPLETE)
+  {
+    m_state = LS_RUNNING;
+  }
+  else
+  {
+    assert(m_state == LS_INITIAL);
+    m_state = LS_RUNNING_MTO_TAB_SAVED;
+  }
+}
+
+void
 Dbdih::LocalLCPState::lcp_frag_rep(const LcpFragRep * rep)
 {
   assert(m_state == LS_RUNNING);
@@ -18955,10 +18983,20 @@ Dbdih::LocalLCPState::lcp_frag_rep(const LcpFragRep * rep)
 void
 Dbdih::LocalLCPState::lcp_complete_rep(Uint32 gci)
 {
-  assert(m_state == LS_RUNNING);
-  m_state = LS_COMPLETE;
-  if (gci > m_stop_gci)
-    m_stop_gci = gci;
+  if (m_state == LS_RUNNING)
+  {
+    m_state = LS_COMPLETE;
+    if (gci > m_stop_gci)
+      m_stop_gci = gci;
+  }
+  else if (m_state == LS_RUNNING_MTO_TAB_SAVED)
+  {
+    reset();
+  }
+  else
+  {
+    require(false);
+  }
 }
 
 bool
@@ -22533,6 +22571,7 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
   printLCP_COMPLETE_REP(stdout, 
 			signal->getDataPtr(),
 			signal->length(), number());
+  fflush(stdout);
 #endif
 
   LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtr();
@@ -22848,8 +22887,8 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   if (!isMaster() && 
       c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false){
     jam();
-    /**
     DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, Master not done"));
+    /**
      * Wait until master DIH has signalled lcp is complete
      */
     return;
@@ -22881,6 +22920,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
   c_increase_lcp_speed_after_nf = false;
 
+  DEB_LCP_COMP(("LCP all completed"));
   /**
    * Update m_local_lcp_state
    */

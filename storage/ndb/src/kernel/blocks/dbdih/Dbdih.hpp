@@ -2721,7 +2721,8 @@ private:
     enum State {
       LS_INITIAL = 0,
       LS_RUNNING = 1,
-      LS_COMPLETE = 2
+      LS_COMPLETE = 2,
+      LS_RUNNING_MTO_TAB_SAVED = 3
     } m_state;
     
     StartLcpReq m_start_lcp_req;
@@ -2732,6 +2733,7 @@ private:
     
     void reset();
     void init(const StartLcpReq*);
+    void init_master_take_over_idle_to_tab_saved();
     void lcp_frag_rep(const LcpFragRep*);
     void lcp_complete_rep(Uint32 gci);
     
