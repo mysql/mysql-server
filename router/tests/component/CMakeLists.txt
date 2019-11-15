@@ -40,6 +40,7 @@ FOREACH(test_file
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
     test_mock_server.cc
+    test_pidfile.cc
     test_rest_api.cc
     test_rest_metadata_cache.cc
     test_rest_mock_server.cc
