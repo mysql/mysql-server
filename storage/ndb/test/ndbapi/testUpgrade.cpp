@@ -1468,24 +1468,64 @@ bool versionsSpanBoundary(int verA, int verB, int incBoundaryVer)
            (maxPeerVer >= incBoundaryVer) );
 }
 
+bool versionsProtocolCompatible(int verA, int verB)
+{
+  /**
+   * Version 8.0 introduced some incompatibilities, check
+   * whether they make a test unusable
+   */
+  if (versionsSpanBoundary(verA, verB, NDB_MAKE_VERSION(8,0,0)))
+  {
+    /* Versions span 8.0 boundary, check compatibility */
+    if (!ndbd_protocol_accepted_by_8_0(verA) ||
+        !ndbd_protocol_accepted_by_8_0(verB))
+    {
+      ndbout_c("Versions spanning 8.0 boundary not protocol compatible : "
+               "%x -> %x",
+               verA, verB);
+      return false;
+    }
+  }
+
+  return true;
+}
+
 static int checkForDowngrade(NDBT_Context* ctx, NDBT_Step* step)
 {
-  if (preVersion >= postVersion)
+  if (preVersion < postVersion)
   {
-    return NDBT_OK;
+    ndbout_c("Error: Not doing downgrade as expected : "
+             "%x -> %x",
+             preVersion, postVersion);
+    return NDBT_FAILED;
   }
-  ndbout << "Error: Not doing downgrade as expected" << endl;
-  return NDBT_FAILED;
+
+  if (!versionsProtocolCompatible(preVersion, postVersion))
+  {
+    ndbout_c("Skipping test due to protocol incompatibility");
+    return NDBT_SKIPPED;
+  }
+
+  return NDBT_OK;
 }
 
 static int checkForUpgrade(NDBT_Context* ctx, NDBT_Step* step)
 {
-  if (preVersion <= postVersion)
+  if (preVersion > postVersion)
   {
-    return NDBT_OK;
+    ndbout_c("Error: Not doing upgrade as expected : "
+             "%x -> %x",
+             preVersion, postVersion);
+    return NDBT_FAILED;
   }
-  ndbout << "Error: Not doing upgrade as expected" << endl;
-  return NDBT_FAILED;
+
+  if (!versionsProtocolCompatible(preVersion, postVersion))
+  {
+    ndbout_c("Skipping test due to protocol incompatibility");
+    return NDBT_SKIPPED;
+  }
+
+  return NDBT_OK;
 }
 
 /**
@@ -2135,6 +2175,12 @@ NDBT_TESTSUITE(testUpgrade);
 TESTCASE("ShowVersions",
          "Upgrade API, showing actual versions run")
 {
+  /**
+   * This test is used to check the versions involved, and
+   * should do a minimal amount of other things, so that it
+   * does not depend on anything that can break between
+   * releases.
+   */
   INITIALIZER(runCheckStarted);
   STEP(runShowVersion);
   STEP(runRecordVersion);
@@ -2142,6 +2188,12 @@ TESTCASE("ShowVersions",
 }
 POSTUPGRADE("ShowVersions")
 {
+  /**
+   * This test postupgrade is used to check the versions involved, and
+   * should do a minimal amount of other things, so that it
+   * does not depend on anything that can break between
+   * releases.
+   */
   TC_PROPERTY("PostUpgrade", Uint32(1));
   INITIALIZER(runCheckStarted);
   STEP(runShowVersion);
