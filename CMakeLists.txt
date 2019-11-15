@@ -783,13 +783,11 @@ IF(USE_LD_LLD)
   CMAKE_POP_CHECK_STATE()
 ENDIF()
 
-# Use gold if available and not explicitly disabled.
-IF(WIN32)
-  # Feature tests are expensive on Windows, and we only support MSVC,
-  # which does not use gold. Thus, default to off to save the test.
-  OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
-ELSE()
+# Use gold on x86 if available and not explicitly disabled.
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND NOT WIN32)
   OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
+ELSE()
+  OPTION(USE_LD_GOLD "Use GNU gold linker" OFF)
 ENDIF()
 
 IF(LINUX)
