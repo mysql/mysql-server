@@ -8,7 +8,6 @@
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 let MYSQLD_DATADIR=`select @@datadir`;
 let PAGE_SIZE=`select @@innodb_page_size`;
-let ORIG_ROLLBACK_SEGMENTS=`select @@innodb_rollback_segments`;
 SET GLOBAL innodb_monitor_enable='module_buffer_page';
 SET GLOBAL innodb_monitor_enable='trx_rseg_current_size';
 
@@ -438,12 +437,19 @@ DROP UNDO TABLESPACE undo_004;
 DROP UNDO TABLESPACE undo_005;
 DROP UNDO TABLESPACE undo_006;
 
-SET PERSIST innodb_rollback_segments=default;
+SET PERSIST innodb_rollback_segments=20;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+RESET PERSIST innodb_rollback_segments;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+
+SET GLOBAL innodb_rollback_segments=default;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+
 SET GLOBAL innodb_fast_shutdown=0;
 --source include/shutdown_mysqld.inc
 --remove_files_wildcard $MYSQLD_DATADIR undo_0*
-let $restart_parameters = restart: --innodb_rollback_segments=$ORIG_ROLLBACK_SEGMENTS;
 --source include/start_mysqld.inc
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
 
 --disable_query_log
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");

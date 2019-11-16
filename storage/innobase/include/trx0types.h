@@ -363,10 +363,7 @@ class Rsegs {
   /** Make the undo tablespace inactive so that it will not be
   used for new transactions.  The purge thread will clear out
   all the undo logs, truncate it, and then mark it empty. */
-  void set_inactive_explicit() {
-    ut_ad(m_state == ACTIVE || m_state == INACTIVE_IMPLICIT);
-    m_state = INACTIVE_EXPLICIT;
-  }
+  void set_inactive_explicit() { m_state = INACTIVE_EXPLICIT; }
 
   /** Set the state of the undo tablespace to empty so that it
   can be dropped. */

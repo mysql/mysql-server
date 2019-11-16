@@ -637,10 +637,8 @@ ulint trx_sys_any_active_transactions(void) {
         if (!trx_state_eq(trx, TRX_STATE_ACTIVE) || !trx->is_recovered) {
           continue;
         }
-        /* This was a recovered transaction
-        whose rollback was disabled by
-        the innodb_force_recovery setting.
-        Pretend that it is in XA PREPARE
+        /* This was a recovered transaction whose rollback was disabled by
+        the innodb_force_recovery setting. Pretend that it is in XA PREPARE
         state so that shutdown will work. */
         trx_undo_fake_prepared(trx, trx->rsegs.m_redo.insert_undo);
         trx_undo_fake_prepared(trx, trx->rsegs.m_redo.update_undo);

@@ -10653,6 +10653,9 @@ ER_ACCESS_DENIED_FOR_USER_ACCOUNT_BLOCKED_BY_PASSWORD_LOCK
 ER_INNODB_OUT_OF_RESOURCES
   eng "%s"
 
+ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION
+  eng "Upgrade cannot proceed due to an existing prepared XA transaction."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

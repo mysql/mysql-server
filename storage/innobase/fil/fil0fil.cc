@@ -9853,11 +9853,7 @@ bool Fil_system::check_missing_tablespaces() {
 
     /* Skip messages for undo tablespaces that are being truncated since
     they can be deleted during undo truncation without an MLOG_FILE_DELETE. */
-    if (!fsp_is_undo_tablespace(space_id)
-#ifndef UNIV_HOTBACKUP
-        || !(undo::is_active_truncate_log_present(undo::id2num(space_id)))
-#endif /* !UNIV_HOTBACKUP */
-    ) {
+    if (!fsp_is_undo_tablespace(space_id)) {
       /* If the tablespace was in the missing IDs then we
       know that the problem is elsewhere. If a file deleted
       record was not found in the redo log and the tablespace
