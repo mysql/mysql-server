@@ -4416,6 +4416,10 @@ void SELECT_LEX::update_semijoin_strategies(THD *thd) {
 
   uint opt_switches = thd->variables.optimizer_switch & sj_strategy_mask;
 
+  bool is_secondary_engine_optimization =
+      parent_lex->m_sql_cmd != nullptr &&
+      parent_lex->m_sql_cmd->using_secondary_storage_engine();
+
   for (TABLE_LIST *sj_nest : sj_nests) {
     /*
       After semi-join transformation, original SELECT_LEX with hints is lost.
@@ -4423,8 +4427,15 @@ void SELECT_LEX::update_semijoin_strategies(THD *thd) {
       convention to list join operators' arguments in reverse order.
     */
     TABLE_LIST *table = sj_nest->nested_join->join_list.back();
+    /*
+      Do not respect opt_hints_qb for secondary engine optimization.
+      Secondary storage engines may not support all strategies that are
+      supported by the MySQL executor. Secondary engines should set their
+      supported semi-join strategies in thd->variables.optimizer_switch and not
+      respect optimizer hints or optimizer switches specified by the user.
+    */
     sj_nest->nested_join->sj_enabled_strategies =
-        table->opt_hints_qb
+        (table->opt_hints_qb && !is_secondary_engine_optimization)
             ? table->opt_hints_qb->sj_enabled_strategies(opt_switches)
             : opt_switches;
     if (sj_nest->is_aj_nest()) {
