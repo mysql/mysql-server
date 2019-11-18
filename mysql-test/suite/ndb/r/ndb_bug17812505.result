@@ -1,0 +1,20 @@
+CREATE TABLE t1 (
+counter1 integer,
+counter2 integer,
+counter3 integer,
+counter4 integer
+
+) ENGINE=engine;
+call query_select_repeat(5);
+INSERT INTO t1 (counter1, counter2, counter3, counter4)
+VALUES (1,1,1,1);
+INSERT INTO t1 (counter1, counter2, counter3, counter4)
+VALUES (2,2,2,2);
+ALTER TABLE t1 DROP COLUMN counter4;
+INSERT INTO t1 (counter1, counter2, counter3)
+VALUES (3,3,3);
+ALTER TABLE t1 ADD COLUMN counter4 integer;
+INSERT INTO t1 (counter1, counter2, counter3, counter4)
+VALUES (4,4,4,4);
+drop procedure query_select_repeat;
+DROP TABLE t1;
