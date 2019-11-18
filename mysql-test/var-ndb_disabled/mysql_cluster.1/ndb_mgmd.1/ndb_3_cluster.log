@@ -1,8 +1,0 @@
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- Got initial configuration from 'my.cnf', will try to set it when all ndb_mgmd(s) started
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- Node 3: Node 3 Connected
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- Id: 3, Command port: *:13000
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- MySQL Cluster Management Server mysql-8.0.19 ndb-8.0.19 started
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- Node 3 connected
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- Starting initial configuration change
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- Configuration 1 commited
-2019-09-09 16:10:03 [MgmtSrvr] INFO     -- Config change completed! New generation: 1
