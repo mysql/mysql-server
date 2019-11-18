@@ -120,6 +120,12 @@ IF(LINUX_INSTALL_RPATH_ORIGIN)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
+MYSQL_ADD_EXECUTABLE(static_thread_local_test
+  static_thread_local_test.cc
+  SKIP_INSTALL
+  EXCLUDE_FROM_ALL
+  )
+
 MYSQL_ADD_EXECUTABLE(my_print_defaults
   my_print_defaults.cc
   COMPONENT Server

@@ -25,7 +25,7 @@ ADD_WSHADOW_WARNING()
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
-IF(SOLARIS_INTEL)
+IF(SOLARIS_INTEL AND MY_COMPILER_IS_SUNPRO)
   # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
   TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO1>)
 ENDIF()
@@ -187,8 +187,14 @@ IF(WIN32)
 ENDIF()
 
 # Bug in std::call_once in optimized mode
-IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU)
+IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
+    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
   ADD_COMPILE_FLAGS(charset.cc COMPILE_FLAGS "-O0")
+ENDIF()
+
+# MD5_Init() and others are deprecated.
+IF(SOLARIS AND MY_COMPILER_IS_GNU_OR_CLANG)
+  ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(thr_lock

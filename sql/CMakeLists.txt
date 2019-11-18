@@ -32,6 +32,11 @@ IF(MYSQL_MAINTAINER_MODE)
   ENDIF()
 ENDIF()
 
+# Array indexing with pland_idx == int8 gives warnings.
+IF(SOLARIS AND MY_COMPILER_IS_GNU)
+  ADD_COMPILE_OPTIONS("-Wno-char-subscripts")
+ENDIF()
+
 SET(CONF_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
 )
@@ -802,7 +807,7 @@ SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 # A class with a reference member lacks a user-defined constructor,
 # which can lead to errors.
 # Constexpr function return type is not a literal type.
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+IF(MY_COMPILER_IS_SUNPRO)
   SET_TARGET_PROPERTIES(sql_gis PROPERTIES
     COMPILE_FLAGS "-erroff=refmemnoconstr,w_constexprnonlitret")
   ADD_COMPILE_FLAGS(
@@ -814,11 +819,20 @@ ENDIF()
 # With Studio 12.6 we may get linking errors for large binaries,
 # so we add -g0 here to enable inlining of boost/geometry.
 # This also cuts link time by almost one hour for large binaries ....
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+IF(MY_COMPILER_IS_SUNPRO)
   ADD_COMPILE_FLAGS(
     ${SQL_GIS_SOURCES}
     sql_exception_handler.cc
     COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
+ENDIF()
+
+# segfault in boost geometry ....
+IF(SOLARIS AND MY_COMPILER_IS_GNU AND
+    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
+  ADD_COMPILE_FLAGS(
+    ${SQL_GIS_SOURCES}
+    COMPILE_FLAGS "-O0"
+    )
 ENDIF()
 
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
