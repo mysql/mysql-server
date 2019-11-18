@@ -340,10 +340,10 @@ public:
 
 private:
   enum { ZONE_19 = 0, ZONE_27 = 1, ZONE_30 = 2, ZONE_32 = 3, ZONE_COUNT = 4 };
-  enum {
-    ZONE_19_BOUND = (1 << 19),
-    ZONE_27_BOUND = (1 << 27),
-    ZONE_30_BOUND = (1 << 30),
+  enum : Uint32 {
+    ZONE_19_BOUND = (1U << 19U),
+    ZONE_27_BOUND = (1U << 27U),
+    ZONE_30_BOUND = (1U << 30U),
     ZONE_32_BOUND = (RNIL)
   };
 
