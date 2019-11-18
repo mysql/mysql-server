@@ -39,8 +39,10 @@ struct mysql_cond_t;
 struct SHOW_VAR;
 
 class Ndb_metadata_change_monitor : public Ndb_component {
-  mysql_mutex_t m_wait_mutex;
+  mysql_mutex_t m_wait_mutex;  // protects m_wait_cond
   mysql_cond_t m_wait_cond;
+  static mysql_mutex_t m_sync_done_mutex;  // protects m_sync_done_cond
+  static mysql_cond_t m_sync_done_cond;
 
  public:
   Ndb_metadata_change_monitor();
@@ -55,6 +57,22 @@ class Ndb_metadata_change_monitor : public Ndb_component {
     @return void
   */
   void set_check_interval(unsigned long new_check_interval);
+
+  /*
+    @brief Signal that the ndb_metadata_sync option has been set
+
+    @return void
+  */
+  void signal_metadata_sync_enabled();
+
+  /*
+    @brief Inform the thread that the all metadata changes detected have been
+           synchronized by the binlog thread. Signal is sent only when the
+           ndb_metadata_sync option has been set
+
+    @return void
+  */
+  static void sync_done();
 
  private:
   virtual int do_init() override;

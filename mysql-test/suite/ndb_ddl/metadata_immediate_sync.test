@@ -1,0 +1,175 @@
+--source setup.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+#
+# Basic schema detection + synchronization test using
+# the ndb_metadata_sync option. This is a duplicate of
+# case 1 in the metadata_sync test.
+# - Cause mismatch between NDB Dictionary and DD
+# - Check if these mismatches are detected properly by
+#   Ndb_metadata_change_monitor thread
+# - Check if these mismatches detected are synchronized
+#
+
+# Create logfile group, tablespace, and tables in addition to
+# those created in setup.inc
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+USE ndb_ddl_test;
+
+CREATE TABLE t10 (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB
+  TABLESPACE ts1
+  STORAGE DISK;
+
+INSERT INTO t10 VALUES(1, 'Beggars can\'t be choosers');
+
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+CREATE TABLE t2(
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+# backup
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+# Create a few more databases and tests
+CREATE DATABASE ndb_ddl_test4;
+USE ndb_ddl_test4;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+CREATE TABLE t2(
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+CREATE DATABASE ndb_ddl_test5;
+USE ndb_ddl_test5;
+
+CREATE TABLE t1 (
+  a INT,
+  b INT,
+  PRIMARY KEY(a,b)
+) ENGINE NDB;
+
+USE ndb_ddl_test;
+
+# Drop half the tables from ndb_ddl_test database
+--let $counter = 6
+while ($counter <= 10)
+{
+  let $tx=t$counter;
+  --eval DROP TABLE $tx
+  --inc $counter
+}
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+# Drop all tables in ndb_ddl_test3
+USE ndb_ddl_test3;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Restore into NDB, skip tables in ndb_ddl_test database that already exist
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --exclude-tables=ndb_ddl_test.t1,ndb_ddl_test.t2,ndb_ddl_test.t3,ndb_ddl_test.t4,ndb_ddl_test.t5 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --exclude-tables=ndb_ddl_test.t1,ndb_ddl_test.t2,ndb_ddl_test.t3,ndb_ddl_test.t4,ndb_ddl_test.t5 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Drop tables from NDB only to cause mismatch
+--exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test4 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test5 t1 >> $NDB_TOOLS_OUTPUT
+
+# Wait until the changes have been synced
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
+
+# Check if the metadata is as expected after synchronization
+SHOW DATABASES;
+USE ndb_ddl_test;
+SHOW TABLES;
+USE ndb_ddl_test3;
+SHOW TABLES;
+USE ndb_ddl_test4;
+SHOW TABLES;
+USE ndb_ddl_test5;
+SHOW TABLES;
+
+# Run some DDL statements and queries on the tables synced
+--sorted_result
+SELECT * FROM ndb_ddl_test.t6;
+--sorted_result
+SELECT * FROM ndb_ddl_test.t8;
+--sorted_result
+SELECT * FROM ndb_ddl_test.t10;
+ALTER TABLE ndb_ddl_test3.t1
+  ADD COLUMN c VARCHAR(255);
+INSERT INTO ndb_ddl_test3.t1 VALUES(1, 1, 'Donkey\'s praise');
+SELECT * FROM ndb_ddl_test3.t1;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE ndb_ddl_test4.t1;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE ndb_ddl_test5.t1;
+
+# Check if tablespace and logfile group work fine after sync
+CREATE TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat';
+CREATE TABLE ndb_ddl_test4.t1 (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+INSERT INTO ndb_ddl_test4.t1 VALUES(1,1);
+SELECT * FROM ndb_ddl_test4.t1;
+
+# Cleanup
+DROP DATABASE ndb_ddl_test3;
+DROP DATABASE ndb_ddl_test4;
+DROP DATABASE ndb_ddl_test5;
+--source cleanup.inc
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile.dat';
+DROP TABLESPACE ts2;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

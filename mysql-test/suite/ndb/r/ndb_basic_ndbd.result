@@ -150,6 +150,7 @@ ndb_log_update_minimal	#
 ndb_log_updated_only	#
 ndb_metadata_check	#
 ndb_metadata_check_interval	#
+ndb_metadata_sync	#
 ndb_mgmd_host	#
 ndb_nodeid	#
 ndb_optimization_delay	#

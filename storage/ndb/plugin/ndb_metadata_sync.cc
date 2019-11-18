@@ -84,7 +84,8 @@ bool Ndb_metadata_sync::object_sync_pending(
     if (detected_object.m_type == object.m_type &&
         detected_object.m_schema_name == object.m_schema_name &&
         detected_object.m_name == object.m_name) {
-      ndb_log_info(
+      ndb_log_verbose(
+          10,
           "%s is already in the queue of objects waiting to be synchronized",
           object_type_and_name_str(detected_object).c_str());
       return true;

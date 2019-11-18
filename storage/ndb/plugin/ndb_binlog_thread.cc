@@ -34,6 +34,7 @@
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"  // Ndb_global_schema_lock_guard
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_metadata_change_monitor.h"
 
 int Ndb_binlog_thread::do_init() {
   if (!binlog_hooks.register_hooks(do_after_reset_master)) {
@@ -112,6 +113,7 @@ int show_ndb_metadata_synced(THD *, SHOW_VAR *var, char *) {
 void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
   if (metadata_sync.object_queue_empty()) {
     // No objects pending sync
+    Ndb_metadata_change_monitor::sync_done();
     return;
   }
 
