@@ -358,7 +358,8 @@ int runSetDropTableConcurrentLCP2(NDBT_Context *ctx, NDBT_Step *step)
  *
  * Test:
  *    Creation of the (empty) table 'TRANSACTION'
- *    should succeed even if 'DbIsFull'. However, 
+ *    should succeed even if 'DbIsFull'. Or it could fail
+ *    due to memory for hash index.  If succeed however,
  *    insertion of the first row should fail.
  *
  * Postcond:
@@ -393,9 +394,24 @@ int runCreateTableWhenDbIsFull(NDBT_Context* ctx, NDBT_Step* step){
       break;
     }
 
-    // Create (empty) table in db, should succeed even if 'DbIsFull'
-    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
-      ndbout << tabName << " was not created when DB is full"<< endl;
+    /*
+     * Create (empty) table in db, should succeed even if 'DbIsFull' or fail
+     * with 625:
+     * Out of memory in Ndb Kernel, hash index part (increase DataMemory).
+     */
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0)
+    {
+      if (pNdb->getDictionary()->getNdbError().code == 625)
+      {
+        /*
+         * Fail due to really out of data memory, not even a hash index page
+         * available.
+         */
+        result = NDBT_OK;
+        break;
+      }
+
+      ndbout << tabName << " was not created when DB is full" << endl;
       result = NDBT_FAILED;
       break;
     }
