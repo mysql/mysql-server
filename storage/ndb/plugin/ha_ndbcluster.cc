@@ -3113,6 +3113,16 @@ int ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
   return 0;
 }
 
+/*
+  Some MySQL table locks are mapped to Ndb internal exclusive
+  row locks to achieve part of the table locking semantics. If rows are
+  not exclusively locked a new batch of rows need to be fetched.
+ */
+static bool table_lock_not_mapped_to_row_lock(enum thr_lock_type lock_type) {
+  return (lock_type < TL_READ_NO_INSERT &&
+          lock_type != TL_READ_WITH_SHARED_LOCKS);
+}
+
 inline int ha_ndbcluster::fetch_next(NdbScanOperation *cursor) {
   DBUG_TRACE;
   int local_check;
@@ -3122,8 +3132,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation *cursor) {
   DBUG_ASSERT(trans);
   if ((error = scan_handle_lock_tuple(cursor, trans)) != 0) return error;
 
-  bool contact_ndb = m_lock.type < TL_WRITE_ALLOW_WRITE &&
-                     m_lock.type != TL_READ_WITH_SHARED_LOCKS;
+  bool contact_ndb = table_lock_not_mapped_to_row_lock(m_lock.type);
   do {
     DBUG_PRINT("info", ("Call nextResult, contact_ndb: %d", contact_ndb));
     /*
@@ -3776,6 +3785,7 @@ static int guess_scan_flags(NdbOperation::LockMode lm, Ndb_table_map *table_map,
 int ha_ndbcluster::full_table_scan(const KEY *key_info,
                                    const key_range *start_key,
                                    const key_range *end_key, uchar *buf) {
+  THD *thd = table->in_use;
   int error;
   NdbTransaction *trans = m_thd_ndb->trans;
   part_id_range part_spec;
@@ -3823,7 +3833,13 @@ int ha_ndbcluster::full_table_scan(const KEY *key_info,
   if (!trans)
     if (unlikely(!(trans = start_transaction(error)))) return error;
 
-  const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
+  /*
+    If the scan is part of an ALTER TABLE we need exclusive locks on rows
+    to block parallel updates from other connections to Ndb.
+   */
+  const NdbOperation::LockMode lm = (thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
+                                        ? NdbOperation::LM_Exclusive
+                                        : get_ndb_lock_mode(m_lock.type);
   NdbScanOperation::ScanOptions options;
   options.optionsPresent = (NdbScanOperation::ScanOptions::SO_SCANFLAGS |
                             NdbScanOperation::ScanOptions::SO_PARALLEL);
@@ -7002,6 +7018,9 @@ double ha_ndbcluster::scan_time() {
 THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd, THR_LOCK_DATA **to,
                                           enum thr_lock_type lock_type) {
   DBUG_TRACE;
+
+  DBUG_PRINT("info", ("table %s, request lock_type: %d", m_tabname, lock_type));
+
   if (lock_type != TL_IGNORE && m_lock.type == TL_UNLOCK) {
     /* If we are not doing a LOCK TABLE, then allow multiple
        writers */
@@ -7018,20 +7037,13 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd, THR_LOCK_DATA **to,
     /* In queries of type INSERT INTO t1 SELECT ... FROM t2 ...
        MySQL would use the lock TL_READ_NO_INSERT on t2, and that
        would conflict with TL_WRITE_ALLOW_WRITE, blocking all inserts
-       to t2. Convert the lock to a normal read lock to allow
+       to t2. If table is not explicitly locked or part of an ALTER TABLE
+       then convert the lock to a normal read lock to allow
        concurrent inserts to t2. */
 
-    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables)
+    if (lock_type == TL_READ_NO_INSERT && !thd->in_lock_tables &&
+        sql_command != SQLCOM_ALTER_TABLE)
       lock_type = TL_READ;
-
-    /**
-     * We need locks on source table when
-     *   doing offline alter...
-     * In 5.1 this worked due to TL_WRITE_ALLOW_READ...
-     * but that has been removed in 5.5
-     * I simply add this to get it...
-     */
-    if (sql_command == SQLCOM_ALTER_TABLE) lock_type = TL_WRITE;
 
     m_lock.type = lock_type;
   }
