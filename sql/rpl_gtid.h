@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2284,7 +2284,7 @@ public:
   enum_return_status add_lost_gtids(const char *text);
   /// Return a pointer to the Gtid_set that contains the logged groups.
   const Gtid_set *get_logged_gtids() const { return &logged_gtids; }
-  /// Return a pointer to the Gtid_set that contains the logged groups.
+  /// Return a pointer to the Gtid_set that contains the lost groups.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /// Return a pointer to the Owned_gtids that contains the owned groups.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
