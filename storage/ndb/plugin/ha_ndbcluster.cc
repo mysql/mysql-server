@@ -17355,6 +17355,25 @@ static MYSQL_SYSVAR_ULONG(metadata_check_interval,         /* name */
                           0                               /* block */
 );
 
+bool opt_ndb_metadata_sync;
+static void metadata_sync_update(THD *, SYS_VAR *, void *var_ptr,
+                                 const void *save) {
+  *static_cast<bool *>(var_ptr) = *static_cast<const ulong *>(save);
+  ndb_metadata_change_monitor_thread.signal_metadata_sync_enabled();
+}
+static MYSQL_SYSVAR_BOOL(
+    metadata_sync,         /* name */
+    opt_ndb_metadata_sync, /* var  */
+    PLUGIN_VAR_OPCMDARG,
+    "Triggers immediate synchronization of all changes between NDB Dictionary "
+    "and MySQL server. Setting this option results in the values of "
+    "ndb_metadata_check and ndb_metadata_check_interval being ignored. "
+    "Automatically resets to false when the synchronization has completed",
+    nullptr,              /* check func. */
+    metadata_sync_update, /* update func. */
+    false                 /* default */
+);
+
 static MYSQL_SYSVAR_BOOL(
     read_backup,         /* name */
     opt_ndb_read_backup, /* var  */
@@ -17768,6 +17787,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(default_column_format),
     MYSQL_SYSVAR(metadata_check),
     MYSQL_SYSVAR(metadata_check_interval),
+    MYSQL_SYSVAR(metadata_sync),
     NULL};
 
 struct st_mysql_storage_engine ndbcluster_storage_engine = {
