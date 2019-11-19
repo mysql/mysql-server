@@ -7,6 +7,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #####################################################################
 # 1. Create a table on server1 and generate workload to be recovered
 include/start_and_bootstrap_group_replication.inc
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
+SET SESSION sql_log_bin= 1;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
