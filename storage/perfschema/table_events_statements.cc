@@ -458,7 +458,8 @@ int table_events_statements_common::read_row_values(TABLE *table,
           }
           break;
         case 7: /* TIMER_WAIT */
-          if (m_row.m_timer_wait != 0) {
+          /* TIMER_START != 0 when TIMED=YES. */
+          if (m_row.m_timer_start != 0) {
             set_field_ulonglong(f, m_row.m_timer_wait);
           } else {
             f->set_null();
