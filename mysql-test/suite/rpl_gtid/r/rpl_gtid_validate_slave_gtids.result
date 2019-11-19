@@ -11,7 +11,7 @@ DROP TABLE t1;
 SET GLOBAL GTID_PURGED = "master_uuid:1";
 START SLAVE IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13114]
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate because the master purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new slave from backup. Consider increasing the master's binary log expiration period. To find the missing transactions, see the master's error log or the manual for GTID_SUBTRACT.''
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Cannot replicate because the master purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new slave from backup. Consider increasing the master's binary log expiration period. The GTID set sent by the slave is 'MASTER_UUID:1', and the missing transactions are 'MASTER_UUID:2'''
 SET GLOBAL GTID_PURGED= "master_uuid:1-2";
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
@@ -28,7 +28,7 @@ Warning	3129	Please do not modify the gtid_executed table. This is a mysql inter
 include/rpl_restart_server.inc [server_number=1]
 START SLAVE IO_THREAD;
 include/wait_for_slave_io_error.inc [errno=13114]
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replica''
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been''
 call mtr.add_suppression(".*Slave has more GTIDs than the master has.*");
 SET GLOBAL GTID_PURGED= "master_uuid:1-2";
 include/start_slave.inc

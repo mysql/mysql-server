@@ -111,7 +111,7 @@ while ($_show_slave_status_items)
   {
       --let $escape_string= $_show_slave_status_value
       --let $enclosing_char= "
-      --source escape_sql.inc
+      --source include/escape_sql.inc
       --let $_show_slave_status_value= $escape_string
   }
 
