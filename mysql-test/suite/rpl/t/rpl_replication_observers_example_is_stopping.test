@@ -61,6 +61,11 @@
 --echo ############################################################
 --echo # 1. Install the plug-in and add error suppressions on slave
 
+--source include/rpl_connection_master.inc
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression(".*Cannot replicate.*purged required binary logs.*");
+SET SESSION sql_log_bin= 1;
+
 --source include/rpl_connection_slave.inc
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Table 't1' already exists");
