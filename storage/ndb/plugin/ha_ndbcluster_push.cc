@@ -746,7 +746,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
         table->get_table()->alias);
     table->set_table_properties(
         table->get_table_properties() &
-        ~PUSHABLE_AS_CHILD);  // Permanently dissable as child
+        ~PUSHABLE_AS_CHILD);  // Permanently disable as child
     return false;
   }
 
@@ -830,7 +830,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
           table->get_table()->alias, key_part->field->field_name);
       table->set_table_properties(
           table->get_table_properties() &
-          ~PUSHABLE_AS_CHILD);  // Permanently dissable as child
+          ~PUSHABLE_AS_CHILD);  // Permanently disable as child
 
       return false;
     }
@@ -859,7 +859,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
         down_cast<ha_ndbcluster *>(table->get_table()->file);
 
     const bool other_tbls_ok = false;
-    handler->m_cond.try_cond_push(pending_cond, other_tbls_ok);
+    handler->m_cond.prep_cond_push(pending_cond, other_tbls_ok);
     pending_cond = handler->m_cond.m_remainder_cond;
   }
 

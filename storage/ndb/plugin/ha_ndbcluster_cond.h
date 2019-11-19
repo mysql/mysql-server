@@ -46,7 +46,7 @@ class ha_ndbcluster_cond {
 
   // Prepare condition for being pushed. Need to call
   // use_cond_push() later to make it available for the handler
-  void try_cond_push(const Item *cond, bool other_tbls_ok);
+  void prep_cond_push(const Item *cond, bool other_tbls_ok);
 
   // Apply the 'cond_push', pre generate code if possible.
   // Return the pushed condition and the unpushable remainder
@@ -91,7 +91,7 @@ class ha_ndbcluster_cond {
 
  public:
   /**
-   * Conditions prepared for pushing by try_cond_push(), with a possible
+   * Conditions prepared for pushing by prep_cond_push(), with a possible
    * m_remainder_cond, which is the part of the condition which still has
    * to be evaluated by the mysql server.
    */
@@ -101,9 +101,11 @@ class ha_ndbcluster_cond {
  private:
   /**
    * Stores condition which we assumed could be pushed, but too late
-   * turned out to be unpushable. (Failed to generate code, or other
-   * access methode selected). We need to be evaluated condition by
-   * ha_ndbcluster before returning rows.
+   * turned out to be unpushable. (Failed to generate code, or another
+   * access methode not allowing push condition selected). In these cases
+   * we need to emulate the effect of the (non-)pushed condition by
+   * requiring ha_ndbclustet to evaluate 'm_unpushed_cond' before returning
+   * only qualifying rows.
    */
   const Item *m_unpushed_cond;
 };

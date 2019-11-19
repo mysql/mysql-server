@@ -1550,7 +1550,7 @@ static List<const Ndb_item> cond_push_boolean_term(Item *term, TABLE *table,
   we need to call use_cond_push() to make it available for the handler
   to be used.
  */
-void ha_ndbcluster_cond::try_cond_push(const Item *cond, bool other_tbls_ok) {
+void ha_ndbcluster_cond::prep_cond_push(const Item *cond, bool other_tbls_ok) {
   DBUG_TRACE;
 
   // Build lists of the boolean terms either 'pushed', or being a 'remainder'
@@ -1566,7 +1566,7 @@ void ha_ndbcluster_cond::try_cond_push(const Item *cond, bool other_tbls_ok) {
 }
 
 /*
-  Make a pushed condition prepared with try_cond_push() available for
+  Make a pushed condition prepared with prep_cond_push() available for
   the handler to really be used against the storage engine.
 */
 int ha_ndbcluster_cond::use_cond_push(const Item *&pushed_cond,

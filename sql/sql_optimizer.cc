@@ -921,8 +921,8 @@ bool JOIN::push_to_engines() {
 
     for (uint i = const_tables; i < plan.get_access_count(); i++) {
       TABLE *const table = qep_tab[i].table();
-      if (table) {
-        if (table->file->engine_push(plan.get_table_access(i))) {
+      if (likely(table != nullptr)) {
+        if (unlikely(table->file->engine_push(plan.get_table_access(i)))) {
           return true;
         }
       }

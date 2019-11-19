@@ -14064,7 +14064,7 @@ int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
                                  !table_aqp->uses_join_cache();
 
       /* Push condition to handler, possibly leaving a remainder */
-      m_cond.try_cond_push(cond, other_tbls_ok);
+      m_cond.prep_cond_push(cond, other_tbls_ok);
     }
 
     // Use whatever conditions got pushed, either as part of a pushed join
@@ -14306,7 +14306,7 @@ const Item *ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok) {
   DBUG_ASSERT(pushed_cond == nullptr);
   DBUG_ASSERT(cond != nullptr);
   DBUG_EXECUTE("where", print_where(ha_thd(), cond, m_tabname, QT_ORDINARY););
-  m_cond.try_cond_push(cond, other_tbls_ok);
+  m_cond.prep_cond_push(cond, other_tbls_ok);
 
   const Item *remainder;
   if (unlikely(m_cond.use_cond_push(pushed_cond, remainder) != 0))
