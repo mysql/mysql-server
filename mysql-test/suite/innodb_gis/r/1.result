@@ -1033,7 +1033,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 create view v1 as select * from t1;
 desc v1;
 Field	Type	Null	Key	Default	Extra
-f1	tinyint	YES		NULL	
+f1	tinyint(1)	YES		NULL	
 f2	char(1)	YES		NULL	
 f3	varchar(1)	YES		NULL	
 f4	geometry	YES		NULL	

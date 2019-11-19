@@ -3324,7 +3324,13 @@ size_t Field_tiny::make_sort_key(uchar *to,
 }
 
 void Field_tiny::sql_type(String &res) const {
-  integer_sql_type(this, "tinyint", &res);
+  if (field_length == 1 && !unsigned_flag && !zerofill) {
+    // Print TINYINT(1) since connectors use this to indicate BOOLEAN
+    res.length(0);
+    res.append("tinyint(1)");
+  } else {
+    integer_sql_type(this, "tinyint", &res);
+  }
 }
 
 /****************************************************************************

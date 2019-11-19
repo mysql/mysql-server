@@ -90,7 +90,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `type_bool` tinyint NOT NULL DEFAULT '0',
+  `type_bool` tinyint(1) NOT NULL DEFAULT '0',
   `type_tiny` tinyint NOT NULL AUTO_INCREMENT,
   `type_short` smallint DEFAULT NULL,
   `type_mediumint` mediumint DEFAULT NULL,
