@@ -59,8 +59,6 @@ RESET MASTER;
 RESET SLAVE;
 [connection master]
 RESET MASTER;
-Warnings:
-Warning	1612	Being purged log ./master-bin.000001 was not found
 [connection slave]
 include/start_slave.inc
 [connection master]
