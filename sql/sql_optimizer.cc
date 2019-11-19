@@ -10072,7 +10072,8 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     }
     Item *left_item = down_cast<Item_func *>(cond)->arguments()[0];
     Item *right_item = down_cast<Item_func *>(cond)->arguments()[1];
-    if (left_item->eq(right_item, true)) {
+    if (left_item->eq(right_item, true) &&
+        (cond->used_tables() & RAND_TABLE_BIT) == 0) {
       /*
        Two identical items are being compared:
        1) If the items are not nullable, return result from eq_cmp_result(),
