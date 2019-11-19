@@ -7795,7 +7795,7 @@ void MYSQL_BIN_LOG::report_missing_purged_gtids(const Gtid_set* slave_executed_g
 
   /* Buffer for formatting the message about the missing GTIDs. */
   static char buff[MYSQL_ERRMSG_SIZE];
-  snprintf(buff, MYSQL_ERRMSG_SIZE, *errmsg, gtid_info.str().c_str());
+  my_snprintf(buff, MYSQL_ERRMSG_SIZE, *errmsg, gtid_info.str().c_str());
   *errmsg= const_cast<const char*>(buff);
 
   my_free(missing_gtids);
@@ -7869,7 +7869,7 @@ void MYSQL_BIN_LOG::report_missing_gtids(const Gtid_set* previous_gtid_set,
                   " GTID_SUBTRACT");
   /* Buffer for formatting the message about the missing GTIDs. */
   static char buff[MYSQL_ERRMSG_SIZE];
-  snprintf(buff, MYSQL_ERRMSG_SIZE, *errmsg, gtid_info.str().c_str());
+  my_snprintf(buff, MYSQL_ERRMSG_SIZE, *errmsg, gtid_info.str().c_str());
   *errmsg= const_cast<const char*>(buff);
 
   my_free(missing_gtids);
