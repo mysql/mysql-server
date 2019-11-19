@@ -4089,4 +4089,23 @@ bool create_table_share_for_upgrade(THD *thd, const char *path,
                                     bool is_fix_view_cols_and_deps);
 //////////////////////////////////////////////////////////////////////////
 
+/**
+  Create a copy of the key_info from TABLE_SHARE object to TABLE object.
+
+  Wherever prefix key is present, allocate a new Field object, having its
+  field_length set to the prefix key length, and point the table's matching
+  key_part->field to this new Field object.
+
+  This ensures that unpack_partition_info() reads the correct prefix length of
+  partitioned fields
+
+  @param  table   Table for which key_info is to be allocated
+  @param  root    MEM_ROOT in which to allocate key_info
+
+  @retval false   Success
+  @retval true    Failed to allocate memory for table.key_info in root
+*/
+
+bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root);
+
 #endif /* TABLE_INCLUDED */

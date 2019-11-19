@@ -10656,6 +10656,9 @@ ER_INNODB_OUT_OF_RESOURCES
 ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION
   eng "Upgrade cannot proceed due to an existing prepared XA transaction."
 
+ER_MIGRATE_TABLE_TO_DD_OOM
+  eng "Could not allocate memory for key_info when migrating table %s.%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

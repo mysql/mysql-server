@@ -1610,6 +1610,13 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
       key_info->is_algorithm_explicit = true;
   }
 
+  if (share.key_parts &&
+      create_key_part_field_with_prefix_length(&table, &share.mem_root)) {
+    LogErr(ERROR_LEVEL, ER_MIGRATE_TABLE_TO_DD_OOM, schema_name.c_str(),
+           table_name.c_str());
+    return true;
+  }
+
   // Fill create_info to be passed to the DD framework.
   HA_CREATE_INFO create_info;
   Alter_info alter_info(thd->mem_root);
