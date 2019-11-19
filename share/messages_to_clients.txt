@@ -4731,15 +4731,15 @@ ER_NOT_SUPPORTED_YET 42000
         spa "Esta versión de MySQL no soporta todavia '%s'"
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG
-        nla "Kreeg fatale fout %d: '%-.320s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d from master when reading data from binary log: '%-.320s'"
-        ger "Schwerer Fehler %d: '%-.320s vom Master beim Lesen des binären Logs"
-        ita "Errore fatale %d: '%-.320s' dal master leggendo i dati dal log binario"
-        jpn "致命的なエラー %d: '%-.320s' がマスターでバイナリログ読み込み中に発生しました。"
-        por "Obteve fatal erro %d: '%-.320s' do master quando lendo dados do binary log"
-        rus "Получена неисправимая ошибка %d: '%-.320s' от головного сервера в процессе выборки данных из двоичного журнала"
-        spa "Recibió fatal error %d: '%-.320s' del master cuando leyendo datos del binary log"
-        swe "Fick fatalt fel %d: '%-.320s' från master vid läsning av binärloggen"
+        nla "Kreeg fatale fout %d: '%-.512s' van master tijdens lezen van data uit binaire log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.512s'"
+        ger "Schwerer Fehler %d: '%-.512s vom Master beim Lesen des binären Logs"
+        ita "Errore fatale %d: '%-.512s' dal master leggendo i dati dal log binario"
+        jpn "致命的なエラー %d: '%-.512s' がマスターでバイナリログ読み込み中に発生しました。"
+        por "Obteve fatal erro %d: '%-.512s' do master quando lendo dados do binary log"
+        rus "Получена неисправимая ошибка %d: '%-.512s' от головного сервера в процессе выборки данных из двоичного журнала"
+        spa "Recibió fatal error %d: '%-.512s' del master cuando leyendo datos del binary log"
+        swe "Fick fatalt fel %d: '%-.512s' från master vid läsning av binärloggen"
 
 ER_SLAVE_IGNORED_TABLE
         eng "Slave SQL thread ignored the query because of replicate-*-table rules"
@@ -6806,7 +6806,7 @@ ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
   eng "The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions."
 
 ER_MASTER_HAS_PURGED_REQUIRED_GTIDS
-  eng "Cannot replicate because the master purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new slave from backup. Consider increasing the master's binary log expiration period. To find the missing transactions, see the master's error log or the manual for GTID_SUBTRACT."
+  eng "Cannot replicate because the master purged required binary logs. Replicate the missing transactions from elsewhere, or provision a new slave from backup. Consider increasing the master's binary log expiration period. %s"
 
 ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID
   eng "@@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."

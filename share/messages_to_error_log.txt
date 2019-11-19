@@ -5484,7 +5484,7 @@ ER_SYSTEMD_NOTIFY_WRITE_FAILED
   eng "Failed to write '%s' to systemd notification. Error: '%s'"
 
 ER_FOUND_MISSING_GTIDS
-  eng "Cannot replicate to server with server_uuid='%.36s' because the present server has purged required binary logs. The connecting server needs to replicate the missing transactions from elsewhere, or be replaced by a new server created from a more recent backup. To prevent this error in the future, consider increasing the binary log expiration period on the present server. The missing transactions are '%s'."
+  eng "Cannot replicate to server with server_uuid='%.36s' because the present server has purged required binary logs. The connecting server needs to replicate the missing transactions from elsewhere, or be replaced by a new server created from a more recent backup. To prevent this error in the future, consider increasing the binary log expiration period on the present server. %s."
 
 ER_PID_FILE_PRIV_DIRECTORY_INSECURE
   eng "Insecure configuration for --pid-file: Location '%s' in the path is accessible to all OS users. Consider choosing a different directory."
@@ -9399,7 +9399,7 @@ ER_INCONSISTENT_ERROR
   eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
 
 ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
-  eng "Got fatal error %d from master when reading data from binary log: '%-.320s'"
+  eng "Got fatal error %d from master when reading data from binary log: '%-.512s'"
 
 ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
   eng "Replication event checksum verification failed while reading from network."
