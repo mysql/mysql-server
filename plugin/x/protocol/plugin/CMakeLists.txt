@@ -49,6 +49,25 @@ TARGET_LINK_LIBRARIES(
   ${PROTOBUF_LIBRARY}
 )
 
+# Workaround for an issue present on Debian 5.3.7-1
+# and gcc9.
+#
+# The problem is that the linker eliminates the dependency
+# to libpthread.so, even presents of -pthread and -lpthread
+# flags.
+# This leaves some unresolved symbols which trigger
+# exception while starting the ELF file.
+#
+# The issue is not visible while using gcc standard linker.
+# It can be observed with gcc+gold and gcc+lld.
+#
+IF(MY_COMPILER_IS_GNU)
+  SET_TARGET_PROPERTIES(
+    xprotocol_plugin
+    PROPERTIES LINK_FLAGS
+    "-Wl,--no-as-needed -lpthread")
+ENDIF()
+
 SET(PROTOC_PLUGIN_GENERATED_HDR
   "xprotocol_tags.h"
 )
