@@ -316,8 +316,8 @@ public:
    */
   void setRemainingSubScans(Uint32 moreMask, Uint32 activeMask)
   {
-    m_nextScans.assign(SpjNodeMask::Size, &moreMask);
-    m_activeScans.assign(SpjNodeMask::Size, &activeMask);
+    m_nextScans.assign(SpjTreeNodeMask::Size, &moreMask);
+    m_activeScans.assign(SpjTreeNodeMask::Size, &activeMask);
   }
 
   /** Release resources after last row has been returned */
@@ -376,7 +376,7 @@ private:
    * A bitmask of operation id's which has been set up to receive more
    * ResultSets by prepareNextReceiveSet().
    */
-  SpjNodeMask m_preparedReceiveSet;
+  SpjTreeNodeMask m_preparedReceiveSet;
 
   /**
    * A bitmask of operation id's for which we will receive more
@@ -386,14 +386,14 @@ private:
    *       getting new rows are set - However, all descendants will also get
    *       new ResultSets.
    */
-  SpjNodeMask m_nextScans;
+  SpjTreeNodeMask m_nextScans;
 
   /**
    * A bitmask of operation id's still being 'active' on the SPJ side.
    * These will sooner or later return 'm_nextScans', but not necessarily
    * in the next round. It follows from this that 'active' contains 'remaining'.
    */
-  SpjNodeMask m_activeScans;
+  SpjTreeNodeMask m_activeScans;
 
   /** 
    * Used for implementing a hash map from root receiver ids to a 
@@ -479,7 +479,7 @@ public:
   void prepare();
 
   /** Prepare for receiving next batch of scan results, return nodes prepared */
-  SpjNodeMask prepareNextReceiveSet();
+  SpjTreeNodeMask prepareNextReceiveSet();
     
   NdbReceiver& getReceiver()
   { return m_receiver; }
@@ -504,7 +504,8 @@ public:
    * A complete batch has been received from the 'worker' delivering to NdbResultStream.
    * Update whatever required before the appl. are allowed to navigate the result.
    */ 
-  void prepareResultSet(SpjNodeMask expectingResults, SpjNodeMask stillActiveScans);
+  void prepareResultSet(SpjTreeNodeMask expectingResults,
+                        SpjTreeNodeMask stillActiveScans);
 
   /**
    * Navigate within the current ResultSet to resp. first and next row.
@@ -531,7 +532,7 @@ public:
    * This means that it is the last batch of the scan that was instantiated 
    * from the current batch of its parent operation.
    */
-  bool isSubScanComplete(SpjNodeMask remainingScans) const
+  bool isSubScanComplete(SpjTreeNodeMask remainingScans) const
   { 
     /**
      * Find the node number seen by the SPJ block. Since a unique index
@@ -601,7 +602,7 @@ public:
      * Bit 0 has a special usage as a 'skip bit' for the row. If set the row
      * should be ignored.
      */
-    SpjNodeMask m_hasMatchingChild;
+    SpjTreeNodeMask m_hasMatchingChild;
 
     /**
      * The aggregated set of (outer joined) nests which matched this tuple.
@@ -610,7 +611,7 @@ public:
      * decide when/if a NULL extension of the rows on this outer joined
      * nest should be emitted or not.
      */
-    SpjNodeMask m_hadMatchingNests;
+    SpjTreeNodeMask m_hadMatchingNests;
 
     explicit TupleSet() : m_hash_head(tupleNotFound)
     {}
@@ -644,7 +645,7 @@ private:
    *
    * By convention this node itself is also contained in the dependants map
    */
-  const SpjNodeMask m_dependants;
+  const SpjTreeNodeMask m_dependants;
 
   const enum properties
   {
@@ -1003,10 +1004,10 @@ NdbResultStream::execTRANSID_AI(const Uint32 *ptr, Uint32 len,
  * This NdbResultStream, and all its sibling will receive a batch
  * of results from the datanodes.
  */
-SpjNodeMask
+SpjTreeNodeMask
 NdbResultStream::prepareNextReceiveSet()
 {
-  SpjNodeMask prepared;
+  SpjTreeNodeMask prepared;
 
   if (isScanQuery())          // Doublebuffered ResultSet[] if isScanQuery()
   {
@@ -1039,8 +1040,8 @@ NdbResultStream::prepareNextReceiveSet()
  *    rows.
  */
 void
-NdbResultStream::prepareResultSet(const SpjNodeMask expectingResults,
-                                  const SpjNodeMask stillActive)
+NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
+                                  const SpjTreeNodeMask stillActive)
 {
   /**
    * Prepare NdbResultSet for reading - either the next
@@ -1066,7 +1067,7 @@ NdbResultStream::prepareResultSet(const SpjNodeMask expectingResults,
   // Prepare rows from the NdbQueryOperation's accessible now
   if (m_tupleSet != nullptr)
   {
-    const SpjNodeMask descendants = m_operation.getDescendants();
+    const SpjTreeNodeMask descendants = m_operation.getDescendants();
     const Uint32 rowCount = readResult.getRowCount();
     for (Uint32 tupleNo=0; tupleNo < rowCount; tupleNo++)
     {
@@ -4212,10 +4213,10 @@ Int32 NdbQueryOperationImpl::getNoOfDescendantOperations() const
   return children;
 }
 
-SpjNodeMask
+SpjTreeNodeMask
 NdbQueryOperationImpl::getDescendants() const
 {
-  SpjNodeMask descendants;
+  SpjTreeNodeMask descendants;
   for (unsigned i = 0; i < getNoOfChildOperations(); i++)
   {
     descendants.bitOR(getChildOperation(i).getDescendants());
@@ -4224,10 +4225,10 @@ NdbQueryOperationImpl::getDescendants() const
   return descendants;
 }
 
-SpjNodeMask
+SpjTreeNodeMask
 NdbQueryOperationImpl::getDependants() const
 {
-  SpjNodeMask dependants;
+  SpjTreeNodeMask dependants;
   dependants.set(getInternalOpNo());
 
   for (unsigned i = 0; i < m_children.size(); i++)

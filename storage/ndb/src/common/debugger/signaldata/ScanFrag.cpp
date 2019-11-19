@@ -102,6 +102,8 @@ printSCAN_FRAGCONF(FILE * output, const Uint32 * theData,
   fprintf(output, " total_len: %u\n", sig->total_len);
   if (len >= ScanFragConf::SignalLength_ext)
     fprintf(output, " activeMask: 0x%x\n", sig->activeMask);
+  else
+    fprintf(output, " activeMask: 0(not an ext-signal)");
 
   return true;
 }

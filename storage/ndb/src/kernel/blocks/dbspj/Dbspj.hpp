@@ -563,7 +563,7 @@ public:
 
     /**
      * This function is called when a waited for signal arrives.
-     * Sets Request::m_completed_nodes if this completed the
+     * Sets Request::m_completed_tree_nodes if this completed the
      * wait for this treeNode
      */
     void (Dbspj::*m_countSignal)(const Signal*, Ptr<Request>, Ptr<TreeNode>, Uint32 cnt);
@@ -1202,9 +1202,9 @@ public:
     TreeNodeCursor_list::Head m_cursor_nodes;
     Uint32 m_cnt_active;       // No of "running" nodes
     TreeNodeBitMask
-           m_active_nodes;     // Nodes which will return more data in NEXTREQ
+      m_active_tree_nodes;     // Nodes which will return more data in NEXTREQ
     TreeNodeBitMask
-           m_completed_nodes;  // Nodes wo/ any 'outstanding' signals
+      m_completed_tree_nodes;  // Nodes wo/ any 'outstanding' signals
     Uint32 m_rows;             // Rows accumulated in current batch
     Uint32 m_outstanding;      // Outstanding signals, when 0, batch is done
     Uint16 m_lookup_node_data[MAX_NDB_NODES];

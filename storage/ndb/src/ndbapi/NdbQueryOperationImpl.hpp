@@ -96,7 +96,7 @@ private:
 };
 
 /** Bitmask of the possible node participants in a SPJ query */
-typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> SpjNodeMask;
+typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> SpjTreeNodeMask;
 
 /** This class is the internal implementation of the interface defined by
  * NdbQuery. This class should thus not be visible to the application 
@@ -622,8 +622,8 @@ public:
   Uint32 getNoOfChildOperations() const;
   NdbQueryOperationImpl& getChildOperation(Uint32 i) const;
 
-  SpjNodeMask getDescendants() const;
-  SpjNodeMask getDependants() const;
+  SpjTreeNodeMask getDescendants() const;
+  SpjTreeNodeMask getDependants() const;
 
   /** A shorthand for getting the root operation. */
   NdbQueryOperationImpl& getRoot() const

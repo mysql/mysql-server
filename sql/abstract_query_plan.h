@@ -214,7 +214,9 @@ namespace AQP
     int get_last_sj_inner() const;
 
     /**
-      Getter and setters for an opaque object for each table
+      Getter and setters for an opaque object for each table.
+      Used by the handler's to persist 'pushability-flags' to avoid
+      overhead by recalculating it for each ::engine_push()
     */
     uint get_table_properties() const;
     void set_table_properties(uint);
