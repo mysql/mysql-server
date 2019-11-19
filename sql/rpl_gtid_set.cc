@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -713,14 +713,6 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
   }
   else
   {
-    /*
-      This code is not being used but we will keep it as it may be
-      useful to optimize gtids by avoiding sharing mappings from
-      sid to sidno. For instance, the IO Thread and the SQL Thread
-      may have different mappings in the future.
-    */
-    DBUG_ASSERT(0); /*NOTREACHED*/
-#ifdef NON_DISABLED_GTID
     Sid_map *other_sid_map= other->sid_map;
     for (rpl_sidno other_sidno= 1; other_sidno <= max_other_sidno;
          other_sidno++)
@@ -735,7 +727,6 @@ enum_return_status Gtid_set::remove_gtid_set(const Gtid_set *other)
             remove_gno_intervals(this_sidno, other_ivit, &lock));
       }
     }
-#endif
   }
   RETURN_OK;
 }
