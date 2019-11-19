@@ -780,19 +780,7 @@ int Binlog_sender::check_start_file() {
       is thrown from there.
     */
     if (!gtid_state->get_lost_gtids()->is_subset(m_exclude_gtid)) {
-      Gtid_set gtid_missing(gtid_state->get_lost_gtids()->get_sid_map());
-      gtid_missing.add_gtid_set(gtid_state->get_lost_gtids());
-      gtid_missing.remove_gtid_set(m_exclude_gtid);
-
-      String tmp_uuid;
-      get_slave_uuid(m_thd, &tmp_uuid);
-      char *missing_gtids = nullptr;
-      gtid_missing.to_string(&missing_gtids, false, nullptr);
-      LogErr(WARNING_LEVEL, ER_FOUND_MISSING_GTIDS, tmp_uuid.ptr(),
-             missing_gtids);
-      my_free(missing_gtids);
-
-      errmsg = ER_THD(m_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+      mysql_bin_log.report_missing_purged_gtids(m_exclude_gtid, &errmsg);
       global_sid_lock->unlock();
       set_fatal_error(errmsg);
       return 1;

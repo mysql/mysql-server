@@ -817,6 +817,55 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline void lock_index() { mysql_mutex_lock(&LOCK_index); }
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index); }
   inline IO_CACHE *get_index_file() { return &index_file; }
+
+  /**
+    Function to report the missing GTIDs.
+
+    This function logs the missing transactions on master to its error log
+    as a warning. If the missing GTIDs are too long to print in a message,
+    it suggests the steps to extract the missing transactions.
+
+    This function also informs slave about the GTID set sent by the slave,
+    transactions missing on the master and few suggestions to recover from
+    the error. This message shall be wrapped by
+    ER_MASTER_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
+    error.
+
+    This function will be called from mysql_binlog_send() function.
+
+    @param slave_executed_gtid_set     GTID set executed by slave
+    @param errmsg                      Pointer to the error message
+
+    @return void
+  */
+  void report_missing_purged_gtids(const Gtid_set *slave_executed_gtid_set,
+                                   const char **errmsg);
+
+  /**
+    Function to report the missing GTIDs.
+
+    This function logs the missing transactions on master to its error log
+    as a warning. If the missing GTIDs are too long to print in a message,
+    it suggests the steps to extract the missing transactions.
+
+    This function also informs slave about the GTID set sent by the slave,
+    transactions missing on the master and few suggestions to recover from
+    the error. This message shall be wrapped by
+    ER_MASTER_FATAL_ERROR_READING_BINLOG on slave and will be logged as an
+    error.
+
+    This function will be called from find_first_log_not_in_gtid_set()
+    function.
+
+    @param previous_gtid_set           Previous GTID set found
+    @param slave_executed_gtid_set     GTID set executed by slave
+    @param errmsg                      Pointer to the error message
+
+    @return void
+  */
+  void report_missing_gtids(const Gtid_set *previous_gtid_set,
+                            const Gtid_set *slave_executed_gtid_set,
+                            const char **errmsg);
   static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want
