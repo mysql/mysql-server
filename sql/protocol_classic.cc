@@ -3181,9 +3181,8 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
 
 bool Protocol_classic::end_row() {
   DBUG_TRACE;
-  if (m_thd->get_protocol()->connection_alive())
-    return my_net_write(&m_thd->net, (uchar *)packet->ptr(), packet->length());
-  return false;
+  return my_net_write(&m_thd->net, pointer_cast<uchar *>(packet->ptr()),
+                      packet->length());
 }
 
 /**
@@ -3309,7 +3308,7 @@ bool Protocol_text::store_long(longlong from, uint32 zerofill) {
               field_types[field_pos] == MYSQL_TYPE_INT24 ||
               field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
-  return store_integer(from, from >= 0, zerofill, packet);
+  return store_integer(from, false, zerofill, packet);
 }
 
 bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
