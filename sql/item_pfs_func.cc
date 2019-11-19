@@ -104,11 +104,7 @@ bool Item_func_pfs_thread_id::resolve_type(THD *) {
 
 longlong Item_func_pfs_thread_id::val_int() {
   DBUG_ASSERT(fixed);
-  /* If input is null, return null. */
-  null_value = args[0]->null_value;
-  if (null_value) {
-    return error_int();
-  }
+
   /* Verify Performance Schema available. */
   if (!pfs_enabled) {
     my_printf_error(ER_WRONG_PERFSCHEMA_USAGE,
@@ -116,18 +112,34 @@ longlong Item_func_pfs_thread_id::val_int() {
                     func_name());
     return error_int();
   }
-  /* Verify non-negative integer input. */
-  if (!is_integer_type(args[0]->data_type()) || args[0]->val_int() < 0) {
+
+  /* Evaluate the function argument. */
+  longlong processlist_id = args[0]->val_int();
+
+  /* Verify argument type. */
+  if (!is_integer_type(args[0]->data_type())) {
     return error_int();
   }
+
+  /* If argument is null, return null. */
+  null_value = args[0]->null_value;
+  if (null_value) {
+    return error_int();
+  }
+
+  /* Verify argument sign. */
+  if (processlist_id < 0) {
+    return error_int();
+  }
+
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Get the thread id assigned to the processlist id. */
-  m_processlist_id = args[0]->val_int();
-  PSI_thread *psi = PSI_THREAD_CALL(get_thread_by_id)(m_processlist_id);
+  PSI_thread *psi = PSI_THREAD_CALL(get_thread_by_id)(processlist_id);
   if (psi) {
     m_thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
   }
 #endif
+
   /* Valid thread id is > 0. */
   if (m_thread_id == 0) {
     return error_int();
@@ -146,6 +158,9 @@ bool Item_func_pfs_format_bytes::resolve_type(THD *) {
 }
 
 String *Item_func_pfs_format_bytes::val_str(String *) {
+  /* Evaluate argument value. */
+  volatile double bytes = args[0]->val_real();
+
   /* If input is null, return null. */
   null_value = args[0]->null_value;
   if (null_value) {
@@ -153,7 +168,6 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
   }
 
   /* Declaring 'volatile' as workaround for 32-bit optimization bug. */
-  volatile double bytes = args[0]->val_real();
   volatile double bytes_abs = std::abs(bytes);
 
   volatile const double kib = 1024ULL;
@@ -216,7 +230,10 @@ bool Item_func_pfs_format_pico_time::resolve_type(THD *) {
 }
 
 String *Item_func_pfs_format_pico_time::val_str(String *) {
-  /* If input is null, return null. */
+  /* Evaluate the argument */
+  volatile double time_val = args[0]->val_real();
+
+  /* If argument is null, return null. */
   null_value = args[0]->null_value;
   if (null_value) {
     return error_str();
@@ -231,7 +248,6 @@ String *Item_func_pfs_format_pico_time::val_str(String *) {
   volatile const double hour = static_cast<double>(60ull * min);
   volatile const double day = static_cast<double>(24ull * hour);
 
-  volatile double time_val = args[0]->val_real();
   volatile double time_abs = std::abs(time_val);
 
   volatile double divisor;

@@ -126,3 +126,21 @@ SELECT max(bytes), format_bytes(max(bytes)) FROM memory_counts;
 SELECT min(bytes), format_bytes(min(bytes)) FROM memory_counts;
 --echo
 DROP TABLE memory_counts;
+
+--echo
+--echo ## Handling of NULL (bug#30525561)
+
+SELECT mybytes,
+       FORMAT_BYTES(mybytes) AS PS_BYTES,
+       sys.format_bytes(mybytes) AS SYS_BYTES
+  FROM (SELECT 1234 AS mybytes
+        UNION ALL
+        SELECT 1234567890
+        UNION ALL
+        SELECT NULL
+        UNION ALL
+        SELECT 1234
+        UNION ALL
+        SELECT 1234567890
+       ) t;
+
