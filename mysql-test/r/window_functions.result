@@ -7458,7 +7458,7 @@ FROM  a LEFT JOIN b
 ON a.c = b.c
 WHERE (b.pk IS NULL AND a.pk IN (6));
 EXPLAIN
--> Window aggregate
+-> Window aggregate: row_number() OVER (ORDER BY 's' ) 
     -> Filter: (b.pk is null)
         -> Nested loop left join
             -> Rows fetched before execution

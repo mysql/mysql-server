@@ -1792,7 +1792,18 @@ int WindowingIterator::Read() {
 }
 
 vector<string> WindowingIterator::DebugString() const {
-  return {"Window aggregate"};
+  string buf = "Window aggregate: ";
+  bool first = true;
+  for (const Func_ptr &func : *(m_temp_table_param->items_to_copy)) {
+    if (func.func()->m_is_window_function) {
+      if (!first) {
+        buf += ", ";
+      }
+      buf += ItemToString(func.func());
+      first = false;
+    }
+  }
+  return {buf};
 }
 
 BufferingWindowingIterator::BufferingWindowingIterator(
@@ -1957,7 +1968,18 @@ int BufferingWindowingIterator::ReadBufferedRow(bool new_partition_or_eof) {
 }
 
 vector<string> BufferingWindowingIterator::DebugString() const {
-  return {"Window aggregate with buffering"};
+  string buf = "Window aggregate with buffering: ";
+  bool first = true;
+  for (const Func_ptr &func : *(m_temp_table_param->items_to_copy)) {
+    if (func.func()->m_is_window_function) {
+      if (!first) {
+        buf += ", ";
+      }
+      buf += ItemToString(func.func());
+      first = false;
+    }
+  }
+  return {buf};
 }
 
 MaterializeInformationSchemaTableIterator::
