@@ -67,6 +67,8 @@ NULL
 SELECT ps_thread_id("foo") AS "Expect NULL";
 Expect NULL
 NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'foo'
 
 # Return NULL if negative number
 SELECT ps_thread_id(-1) AS "Expect NULL";
@@ -122,3 +124,27 @@ Expect 0
 # Cleanup
 DROP FUNCTION test.ps_current_thread_id;
 DROP FUNCTION test.ps_thread_id;
+
+## Handling of NULL (bug#30525561)
+SELECT PS_CURRENT_THREAD_ID() into @this_tid;
+SELECT CONNECTION_ID() into @this_cid;
+SELECT PS_THREAD_ID(my_cid) = @this_tid AS PS_TID_CHECK,
+sys.ps_thread_id(my_cid) = @this_tid AS SYS_TID_CHECK
+FROM (SELECT @this_cid AS my_cid
+UNION ALL
+SELECT 1234567890
+UNION ALL
+SELECT NULL
+UNION ALL
+SELECT @this_cid
+UNION ALL
+SELECT 1234567890
+) t;
+PS_TID_CHECK	SYS_TID_CHECK
+1	1
+1	1
+NULL	1
+1	1
+1	1
+Warnings:
+Note	1585	This function 'ps_thread_id' has the same name as a native function

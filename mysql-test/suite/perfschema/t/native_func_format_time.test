@@ -106,3 +106,21 @@ SELECT min(wait), format_pico_time(min(wait)) FROM timer_waits;
 SELECT max(wait), format_pico_time(max(wait)) FROM timer_waits;
 --echo
 DROP TABLE timer_waits;
+
+--echo
+--echo ## Handling of NULL (bug#30525561)
+
+SELECT mytime,
+       FORMAT_PICO_TIME(mytime) AS PS_TIME,
+       sys.format_time(mytime) AS SYS_TIME
+  FROM (SELECT 1234 AS mytime
+        UNION ALL
+        SELECT 1234567890
+        UNION ALL
+        SELECT NULL
+        UNION ALL
+        SELECT 1234
+        UNION ALL
+        SELECT 1234567890
+       ) t;
+

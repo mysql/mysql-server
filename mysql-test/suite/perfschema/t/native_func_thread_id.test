@@ -120,3 +120,23 @@ SELECT ps_current_thread_id() - @tid AS "Expect 0";
 DROP FUNCTION test.ps_current_thread_id;
 DROP FUNCTION test.ps_thread_id;
 --disconnect con1
+
+--echo
+--echo ## Handling of NULL (bug#30525561)
+
+SELECT PS_CURRENT_THREAD_ID() into @this_tid;
+SELECT CONNECTION_ID() into @this_cid;
+
+SELECT PS_THREAD_ID(my_cid) = @this_tid AS PS_TID_CHECK,
+       sys.ps_thread_id(my_cid) = @this_tid AS SYS_TID_CHECK
+  FROM (SELECT @this_cid AS my_cid
+        UNION ALL
+        SELECT 1234567890
+        UNION ALL
+        SELECT NULL
+        UNION ALL
+        SELECT @this_cid
+        UNION ALL
+        SELECT 1234567890
+       ) t;
+

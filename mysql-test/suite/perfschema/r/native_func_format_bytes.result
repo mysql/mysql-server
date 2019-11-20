@@ -213,3 +213,26 @@ min(bytes)	format_bytes(min(bytes))
 512	 512 bytes
 
 DROP TABLE memory_counts;
+
+## Handling of NULL (bug#30525561)
+SELECT mybytes,
+FORMAT_BYTES(mybytes) AS PS_BYTES,
+sys.format_bytes(mybytes) AS SYS_BYTES
+FROM (SELECT 1234 AS mybytes
+UNION ALL
+SELECT 1234567890
+UNION ALL
+SELECT NULL
+UNION ALL
+SELECT 1234
+UNION ALL
+SELECT 1234567890
+) t;
+mybytes	PS_BYTES	SYS_BYTES
+1234	1.21 KiB	1.21 KiB
+1234567890	1.15 GiB	1.15 GiB
+NULL	NULL	NULL
+1234	1.21 KiB	1.21 KiB
+1234567890	1.15 GiB	1.15 GiB
+Warnings:
+Note	1585	This function 'format_bytes' has the same name as a native function
