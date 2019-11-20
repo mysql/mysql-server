@@ -136,7 +136,7 @@ ngs::Error_code Admin_command_collection_handler::create_collection(
   error = options_arg
               .object_arg({"validation"}, &validation,
                           Argument_appearance::k_optional)
-              .bool_arg({"reuse_existing", "reuseExisting"}, &reuse_existing,
+              .bool_arg({"reuse_existing"}, &reuse_existing,
                         Argument_appearance::k_optional)
               .end();
   if (error) return error;

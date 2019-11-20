@@ -22,16 +22,9 @@ callmacro Admin_stmt
 	ER_TABLE_EXISTS_ERROR;
 
 callmacro Admin_stmt
-	create_collection	{"schema":"xtest","name":"coll","options":{"reuseExisting":false}}
-	ER_TABLE_EXISTS_ERROR;
-
-callmacro Admin_stmt
 	create_collection	{"schema":"xtest","name":"coll","options":{"reuse_existing":true}}
 	ER_SUCCESS;
 
-callmacro Admin_stmt
-	create_collection	{"schema":"xtest","name":"coll","options":{"reuseExisting":true}}
-	ER_SUCCESS;
 
 
 CREATE TABLE xtest.fake_coll (field INT);
@@ -45,16 +38,9 @@ callmacro Admin_stmt
 	ER_TABLE_EXISTS_ERROR;
 
 callmacro Admin_stmt
-	create_collection	{"schema":"xtest","name":"fake_coll","options":{"reuseExisting":false}}
-	ER_TABLE_EXISTS_ERROR;
-
-callmacro Admin_stmt
 	create_collection	{"schema":"xtest","name":"fake_coll","options":{"reuse_existing":true}}
 	ER_X_INVALID_COLLECTION;
 
-callmacro Admin_stmt
-	create_collection	{"schema":"xtest","name":"fake_coll","options":{"reuseExisting":true}}
-	ER_X_INVALID_COLLECTION;
 EOF
 
 CREATE SCHEMA xtest DEFAULT CHARSET 'UTF8MB4';
