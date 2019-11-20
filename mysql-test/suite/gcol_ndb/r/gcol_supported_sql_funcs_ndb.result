@@ -967,7 +967,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS ((`a` like _latin1'H%o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` like _latin1'H%o')) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);
@@ -1082,7 +1082,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS ((not((`a` like _latin1'H%o')))) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((not((`a` like _latin1'H%o')))) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);
@@ -1099,7 +1099,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS ((not(regexp_like(`a`,_latin1'H.+o')))) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((not(regexp_like(`a`,_latin1'H.+o')))) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1176,7 +1176,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1253,7 +1253,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);
@@ -1316,7 +1316,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((soundex(`a`) = soundex(`b`))) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((soundex(`a`) = soundex(`b`))) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('Hello','Hello',default);
 insert into t1 values ('Hello','MySQL',default);
@@ -1353,7 +1353,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(9) DEFAULT NULL,
   `b` varchar(9) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS (strcmp(`a`,`b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS (strcmp(`a`,`b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('Hello','Hello', default);
 insert into t1 values ('Hello','Hello1', default);
@@ -1570,7 +1570,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS (((`a` > 0) and (`a` < 2))) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS (((`a` > 0) and (`a` < 2))) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values (-1,default);
 insert into t1 values (1,default);
@@ -1587,7 +1587,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS ((`a` between 0 and 2)) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` between 0 and 2)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values (-1,default);
 insert into t1 values (1,default);
@@ -1708,7 +1708,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
   `b` int DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` <=> `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` <=> `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values (1,1,default);
 insert into t1 values (NULL,NULL,default);
@@ -1728,7 +1728,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` = `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` = `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('a','b',default);
 insert into t1 values ('a','a',default);
@@ -1746,7 +1746,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` >= `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` >= `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('a','b',default);
 insert into t1 values ('a','a',default);
@@ -1764,7 +1764,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` > `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` > `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('a','b',default);
 insert into t1 values ('a','a',default);
@@ -1781,7 +1781,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS ((`a` is not null)) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` is not null)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values (1,default);
 insert into t1 values (NULL,default);
@@ -1798,7 +1798,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS ((`a` is null)) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` is null)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values (1,default);
 insert into t1 values (NULL,default);
@@ -1833,7 +1833,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` <= `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` <= `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('b','a',default);
 insert into t1 values ('b','b',default);
@@ -1853,7 +1853,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` < `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` < `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('b','a',default);
 insert into t1 values ('b','b',default);
@@ -1872,7 +1872,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int DEFAULT NULL,
-  `b` tinyint GENERATED ALWAYS AS ((`a` not between 0 and 2)) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` not between 0 and 2)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values (-1,default);
 insert into t1 values (1,default);
@@ -1890,7 +1890,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` <> `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` <> `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('b','a',default);
 insert into t1 values ('b','b',default);
@@ -1910,7 +1910,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` tinyint GENERATED ALWAYS AS ((`a` <> `b`)) VIRTUAL
+  `c` tinyint(1) GENERATED ALWAYS AS ((`a` <> `b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 COMMENT='NDB_TABLE=READ_BACKUP=1'
 insert into t1 values ('b','a',default);
 insert into t1 values ('b','b',default);
