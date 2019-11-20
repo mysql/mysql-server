@@ -131,6 +131,7 @@ CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missin
 --echo #
 --echo # 7) Cleanup.
 --echo #
+--disable_warnings
 RESET MASTER;
 RESET SLAVE;
 --source include/rpl_connection_master.inc
@@ -140,4 +141,5 @@ RESET MASTER;
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
+--enable_warnings
 --source include/rpl_end.inc
