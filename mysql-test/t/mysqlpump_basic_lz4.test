@@ -1,7 +1,7 @@
 if (!$LZ4_DECOMPRESS) {
   let LZ4_EXEC_LOG= $MYSQLTEST_VARDIR/log/lz4_exec_log.txt;
   --error 0, 1, 127
-  --exec lz4 -V 2> $LZ4_EXEC_LOG
+  --exec lz4 -V > $LZ4_EXEC_LOG 2>&1
   let LZ4_STATUS= $__error;
   --error 0,1
   --remove_file $LZ4_EXEC_LOG
