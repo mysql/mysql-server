@@ -168,8 +168,8 @@ Uint64 Dbtc::getTransactionMemoryNeed(
   byte_count_to += ApiConnectRecord_pool::getMemoryNeed(numTakeOverApiConnectRecord); // FAIL
   byte_count += ApiConTimers_pool::getMemoryNeed((2 * numApiConnectRecord + 5) / 6);
   byte_count_to += ApiConTimers_pool::getMemoryNeed((numTakeOverApiConnectRecord + 5) / 6);
-  byte_count += AttributeBuffer_pool::getMemoryNeed(numAttributeBuffer / (11 * sizeof(Uint32)));
-  // sizeof(AttributeBuffer_pool::T::getSegmentSize()));
+  byte_count += AttributeBuffer_pool::getMemoryNeed(
+                numAttributeBuffer / AttributeBuffer::getSegmentSizeInBytes());
   byte_count += CacheRecord_pool::getMemoryNeed(numCacheRecord);
   byte_count += CommitAckMarker_pool::getMemoryNeed(2 * numCommitAckMarker);
   byte_count_to += CommitAckMarker_pool::getMemoryNeed(numTakeOverCommitAckMarker);
@@ -417,7 +417,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_theAttributeBufferPool.init(
     RT_DBTC_ATTRIBUTE_BUFFER,
     pc,
-    reserveAttributeBuffer / AttributeBuffer::getSegmentSize(),
+    reserveAttributeBuffer / AttributeBuffer::getSegmentSizeInBytes(),
     UINT32_MAX);
   while(c_theAttributeBufferPool.startup())
   {
