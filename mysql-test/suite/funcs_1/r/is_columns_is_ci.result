@@ -163,7 +163,7 @@ def	information_schema	KEY_COLUMN_USAGE	REFERENCED_COLUMN_NAME	12	NULL	YES	varch
 def	information_schema	OPTIMIZER_TRACE	QUERY	1		NO	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	TRACE	2		NO	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	3		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int			select			NULL
-def	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	4		NO	tinyint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	tinyint			select			NULL
+def	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	4		NO	tinyint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	tinyint(1)			select			NULL
 def	information_schema	PARAMETERS	SPECIFIC_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	SPECIFIC_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	SPECIFIC_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -237,7 +237,7 @@ def	information_schema	REFERENTIAL_CONSTRAINTS	TABLE_NAME	10	NULL	NO	varchar	64	
 def	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	11	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_TYPE	2	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bin	enum('SYSTEM','USER')			select			NULL
-def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	3	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint			select			NULL
+def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	3	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select			NULL
 def	information_schema	RESOURCE_GROUPS	VCPU_IDS	4	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select			NULL
 def	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int			select			NULL
 def	information_schema	ROLE_COLUMN_GRANTS	GRANTOR	1	NULL	YES	varchar	97	291	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(97)			select			NULL
@@ -681,7 +681,7 @@ NULL	information_schema	KEY_COLUMN_USAGE	POSITION_IN_UNIQUE_CONSTRAINT	int	NULL	
 3.0000	information_schema	OPTIMIZER_TRACE	QUERY	varchar	21845	65535	utf8	utf8_general_ci	varchar(65535)
 3.0000	information_schema	OPTIMIZER_TRACE	TRACE	varchar	21845	65535	utf8	utf8_general_ci	varchar(65535)
 NULL	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	int	NULL	NULL	NULL	NULL	int
-NULL	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	tinyint	NULL	NULL	NULL	NULL	tinyint
+NULL	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	information_schema	PARAMETERS	SPECIFIC_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	PARAMETERS	SPECIFIC_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	PARAMETERS	SPECIFIC_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -755,7 +755,7 @@ NULL	information_schema	PROCESSLIST	TIME	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	REFERENCED_TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_TYPE	enum	6	18	utf8	utf8_bin	enum('SYSTEM','USER')
-NULL	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	tinyint	NULL	NULL	NULL	NULL	tinyint
+NULL	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 1.0000	information_schema	RESOURCE_GROUPS	VCPU_IDS	blob	65535	65535	NULL	NULL	blob
 NULL	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	int	NULL	NULL	NULL	NULL	int
 3.0000	information_schema	ROLE_COLUMN_GRANTS	GRANTOR	varchar	97	291	utf8	utf8_general_ci	varchar(97)
