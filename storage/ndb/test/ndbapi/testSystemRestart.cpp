@@ -3250,7 +3250,6 @@ runBug46412(NDBT_Context* ctx, NDBT_Step* step)
 
   for (Uint32 l = 0; l<loops; l++)
   {
-loop:
     printf("checking nodegroups of getNextMasterNodeId(): ");
     int nodes[256];
     bzero(nodes, sizeof(nodes));
@@ -3309,7 +3308,7 @@ loop:
         return NDBT_FAILED;
 
       if (partialSR == 0)
-        goto loop;
+        continue;
     }
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };

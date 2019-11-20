@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ args: -n DbUtilRace T1
 max-time: 360
 
 cmd: testSystemRestart
-args: -n Bug46412 T1
+args: -n Bug46412 -l 10 T1
 max-time: 900
 
 cmd: testDict
