@@ -3138,30 +3138,31 @@ void my_init_signals() {
     (void)sigaction(SIGFPE, &sa, nullptr);
   }
 
-  // Ignore SIGPIPE and SIGALRM
+  // Ignore SIGPIPE
   sa.sa_flags = 0;
   sa.sa_handler = SIG_IGN;
   (void)sigaction(SIGPIPE, &sa, nullptr);
-  (void)sigaction(SIGALRM, &sa, nullptr);
 
-  // SIGUSR1 is used to interrupt the socket listener.
+  // SIGALRM is used to interrupt the socket listener.
   sa.sa_handler = empty_signal_handler;
-  (void)sigaction(SIGUSR1, &sa, nullptr);
+  (void)sigaction(SIGALRM, &sa, nullptr);
 
   // Fix signals if ignored by parents (can happen on Mac OS X).
   sa.sa_handler = SIG_DFL;
   (void)sigaction(SIGTERM, &sa, nullptr);
   (void)sigaction(SIGHUP, &sa, nullptr);
+  (void)sigaction(SIGUSR1, &sa, nullptr);
 
   (void)sigemptyset(&mysqld_signal_mask);
   /*
-    Block SIGQUIT, SIGHUP, SIGTERM and SIGUSR2.
+    Block SIGQUIT, SIGHUP, SIGTERM, SIGUSR1 and SIGUSR2.
     The signal handler thread does sigwait() on these.
   */
   (void)sigaddset(&mysqld_signal_mask, SIGQUIT);
   (void)sigaddset(&mysqld_signal_mask, SIGHUP);
   (void)sigaddset(&mysqld_signal_mask, SIGTERM);
   (void)sigaddset(&mysqld_signal_mask, SIGTSTP);
+  (void)sigaddset(&mysqld_signal_mask, SIGUSR1);
   (void)sigaddset(&mysqld_signal_mask, SIGUSR2);
   /*
     Block SIGINT unless debugging to prevent Ctrl+C from causing
@@ -3213,7 +3214,8 @@ static void start_signal_handler() {
   (void)my_thread_attr_destroy(&thr_attr);
 }
 
-/** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
+/** This thread handles SIGTERM, SIGQUIT, SIGHUP, SIGUSR1 and SIGUSR2 signals.
+ */
 /* ARGSUSED */
 extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
   my_thread_init();
@@ -3223,6 +3225,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
   (void)sigaddset(&set, SIGTERM);
   (void)sigaddset(&set, SIGQUIT);
   (void)sigaddset(&set, SIGHUP);
+  (void)sigaddset(&set, SIGUSR1);
   (void)sigaddset(&set, SIGUSR2);
 
   /*
@@ -3303,7 +3306,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
           mysql_mutex_lock(&LOCK_socket_listener_active);
           while (socket_listener_active) {
             DBUG_PRINT("info", ("Killing socket listener"));
-            if (pthread_kill(main_thread_id, SIGUSR1)) {
+            if (pthread_kill(main_thread_id, SIGALRM)) {
               DBUG_ASSERT(false);
               break;
             }
@@ -3327,6 +3330,19 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
               (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST | REFRESH_GRANT |
                REFRESH_THREADS | REFRESH_HOSTS),
               nullptr, &not_used);  // Flush logs
+          // Reenable query logs after the options were reloaded.
+          query_logger.set_handlers(log_output_options);
+        }
+        break;
+      case SIGUSR1:
+        if (!connection_events_loop_aborted()) {
+          int not_used;
+          handle_reload_request(
+              nullptr,
+              (REFRESH_ERROR_LOG |   /**< Rotate only the error log */
+               REFRESH_GENERAL_LOG | /**< Flush the general log */
+               REFRESH_SLOW_LOG),    /**< Flush the slow query log */
+              nullptr, &not_used);   // Flush logs
           // Reenable query logs after the options were reloaded.
           query_logger.set_handlers(log_output_options);
         }

@@ -1773,7 +1773,7 @@ static int terminate_slave_thread(THD *thd, mysql_mutex_t *term_lock,
       ESRCH: thread already killed (can happen, should be ignored)
     */
 #ifndef _WIN32
-    int err MY_ATTRIBUTE((unused)) = pthread_kill(thd->real_id, SIGUSR1);
+    int err MY_ATTRIBUTE((unused)) = pthread_kill(thd->real_id, SIGALRM);
     DBUG_ASSERT(err != EINVAL);
 #endif
     if (force)
