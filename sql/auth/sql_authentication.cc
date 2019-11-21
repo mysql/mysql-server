@@ -1641,6 +1641,12 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
 
   DBUG_ASSERT(client_auth_plugin);
 
+  DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
+    std::string invalid_client_auth_plugin =
+        std::string("..") + std::string(FN_DIRSEP) + std::string("..") +
+        std::string(FN_DIRSEP) + std::string("mysql_native_password");
+    client_auth_plugin = invalid_client_auth_plugin.c_str();
+  });
   /*
     If we're dealing with an older client we can't just send a change plugin
     packet to re-initiate the authentication handshake, because the client
