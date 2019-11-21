@@ -58,8 +58,8 @@ struct recv_addr_t;
 mysqlbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 extern bool meb_replay_file_ops;
-/** true if the redo log is copied during an online backup */
-extern volatile bool is_online_redo_copy;
+/** list of tablespaces, that experienced an inplace DDL during a backup op */
+extern std::list<std::pair<space_id_t, lsn_t>> index_load_list;
 /** the last redo log flush len as seen by MEB */
 extern volatile lsn_t backup_redo_log_flushed_lsn;
 /** TRUE when the redo log is being backed up */
