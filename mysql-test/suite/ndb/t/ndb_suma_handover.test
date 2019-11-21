@@ -4,6 +4,7 @@
 --disable_query_log
 call mtr.add_suppression(".*Node failure caused abort of transaction.*");
 call mtr.add_suppression("cluster disconnect An incident event has been written");
+call mtr.add_suppression("NDB: Failed to setup events for 'mysql.ndb_schema' table");
 --enable_query_log
 
 # Restart half cluster, but without starting nodes
