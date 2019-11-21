@@ -1940,9 +1940,10 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
   const bool is_sum_func = type() == SUM_FUNC_ITEM && !m_is_window_function;
   if ((!is_sum_func && has_aggregation() && !m_is_window_function) ||
       (!m_is_window_function && has_wf()) ||
-      (type() == FUNC_ITEM &&
-       (((Item_func *)this)->functype() == Item_func::ISNOTNULLTEST_FUNC ||
-        ((Item_func *)this)->functype() == Item_func::TRIG_COND_FUNC)) ||
+      (type() == FUNC_ITEM && ((down_cast<Item_func *>(this))->functype() ==
+                                   Item_func::ISNOTNULLTEST_FUNC ||
+                               (down_cast<Item_func *>(this))->functype() ==
+                                   Item_func::TRIG_COND_FUNC)) ||
       type() == ROW_ITEM) {
     // Do not add item to hidden list; possibly split it
     split_sum_func(thd, ref_item_array, fields);
@@ -1954,7 +1955,8 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                        ->unit->first_select()
                        ->fields_list.elements == 1)) &&
              (type() != REF_ITEM ||  // (3)
-              ((Item_ref *)this)->ref_type() == Item_ref::VIEW_REF)) {
+              (down_cast<Item_ref *>(this))->ref_type() ==
+                  Item_ref::VIEW_REF)) {
     /*
       (1) Replace item with a reference so that we can easily calculate
       it (in case of sum functions) or copy it (in case of fields)
