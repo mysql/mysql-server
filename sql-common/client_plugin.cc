@@ -47,6 +47,7 @@
 #include <sys/types.h>
 
 #include "errmsg.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -404,6 +405,9 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
   const char *plugindir;
+  size_t len = (name ? strlen(name) : 0);
+  int well_formed_error;
+  size_t res = 0;
 #ifdef _WIN32
   char win_errormsg[2048];
 #endif
@@ -430,6 +434,28 @@ struct st_mysql_client_plugin *mysql_load_plugin_v(MYSQL *mysql,
     if (!plugindir) {
       plugindir = PLUGINDIR;
     }
+  }
+  /* check if plugin name does not have any directory separator character */
+  if ((my_strcspn(mysql->charset, name, name + len, FN_DIRSEP,
+                  strlen(FN_DIRSEP))) < len) {
+    errmsg = "No paths allowed for shared library";
+    goto err;
+  }
+  /* check if plugin name does not exceed its maximum length */
+  res = mysql->charset->cset->well_formed_len(
+      mysql->charset, name, name + len, NAME_CHAR_LEN, &well_formed_error);
+
+  if (well_formed_error || len != res) {
+    errmsg = "Invalid plugin name";
+    goto err;
+  }
+  /*
+    check if length of(plugin_dir + plugin name) does not exceed its maximum
+    length
+  */
+  if (strlen(plugindir) + len + 1 >= FN_REFLEN) {
+    errmsg = "Invalid path";
+    goto err;
   }
 
   /* Compile dll path */
