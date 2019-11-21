@@ -682,4 +682,15 @@ void make_file_private(const std::string &file_name,
 #endif
 }
 
+#ifdef _WIN32
+void make_file_readable_for_everyone(const std::string &file_name) {
+  try {
+    set_everyone_group_access_rights(file_name, FILE_GENERIC_READ);
+  } catch (const std::system_error &e) {
+    throw std::system_error(e.code(), "Could not set permissions for file '" +
+                                          file_name + "': " + e.what());
+  }
+}
+#endif
+
 }  // namespace mysql_harness
