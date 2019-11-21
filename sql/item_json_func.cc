@@ -159,22 +159,6 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
 }
 
 /**
-  Get correct blob type of given Field.
-  A helper function for get_normalized_field_type().
-
-  @param arg  the field to get blob type of
-
-  @returns
-    correct blob type
-*/
-
-static enum_field_types get_real_blob_type(const Field *arg) {
-  DBUG_ASSERT(arg);
-  return blob_type_from_pack_length(arg->pack_length() -
-                                    portable_sizeof_char_ptr);
-}
-
-/**
   Get correct blob type of given Item.
   A helper function for get_normalized_field_type().
 
@@ -193,23 +177,12 @@ static enum_field_types get_real_blob_type(const Item *arg) {
   */
   if (arg->collation.collation != &my_charset_bin) return MYSQL_TYPE_STRING;
 
-  if (arg->type() == Item::FIELD_ITEM)
-    return get_real_blob_type((down_cast<const Item_field *>(arg))->field);
+  if (arg->type() == Item::FIELD_ITEM) {
+    Field *field = (down_cast<const Item_field *>(arg))->field;
+    return blob_type_from_pack_length(field->pack_length() -
+                                      portable_sizeof_char_ptr);
+  }
 
-  return arg->data_type();
-}
-
-/**
-  Get correct data type of given Field.
-  A helper function for get_normalized_field_type().
-
-  @param arg  the field to get data type of
-
-  @returns
-    correct blob type
-*/
-
-static enum_field_types get_real_data_type(const Field *arg) {
   return arg->data_type();
 }
 
@@ -245,8 +218,7 @@ static enum_field_types get_real_data_type(const Item *arg) {
   another field type in order to ensure that the item gets handled the
   same way as items of a different type.
 */
-template <typename T>
-static enum_field_types get_normalized_field_type(const T *arg) {
+static enum_field_types get_normalized_field_type(const Item *arg) {
   enum_field_types ft = arg->data_type();
   switch (ft) {
     case MYSQL_TYPE_TINY_BLOB:
@@ -1397,12 +1369,9 @@ static bool create_scalar(Json_scalar_holder *scalar, Json_dom_ptr *dom,
                               JSON parsable string)
   @return false if we could get a value or NULL, otherwise true
 */
-template <typename T>
-static bool val_json_func_field_subselect(T *arg, const char *calling_function,
-                                          String *value, String *tmp,
-                                          Json_wrapper *wr,
-                                          Json_scalar_holder *scalar,
-                                          bool accept_string) {
+static bool val_json_func_field_subselect(
+    Item *arg, const char *calling_function, String *value, String *tmp,
+    Json_wrapper *wr, Json_scalar_holder *scalar, bool accept_string) {
   enum_field_types field_type = get_normalized_field_type(arg);
   Json_dom_ptr dom;
 
@@ -1415,7 +1384,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
     case MYSQL_TYPE_YEAR: {
       longlong i = arg->val_int();
 
-      if (arg->is_null_value()) return false;
+      if (arg->null_value) return false;
 
       if (arg->unsigned_flag) {
         if (create_scalar<Json_uint>(scalar, &dom, i))
@@ -1433,7 +1402,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
     case MYSQL_TYPE_TIME: {
       longlong dt = arg->val_temporal_by_field_type();
 
-      if (arg->is_null_value()) return false;
+      if (arg->null_value) return false;
 
       MYSQL_TIME t;
       TIME_from_longlong_datetime_packed(&t, dt);
@@ -1447,7 +1416,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
       my_decimal m;
       my_decimal *r = arg->val_decimal(&m);
 
-      if (arg->is_null_value()) return false;
+      if (arg->null_value) return false;
 
       if (!r) {
         my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
@@ -1463,7 +1432,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
     case MYSQL_TYPE_FLOAT: {
       double d = arg->val_real();
 
-      if (arg->is_null_value()) return false;
+      if (arg->null_value) return false;
 
       if (create_scalar<Json_double>(scalar, &dom, d))
         return true; /* purecov: inspected */
@@ -1473,7 +1442,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
     case MYSQL_TYPE_GEOMETRY: {
       uint32 geometry_srid;
       String *swkb = arg->val_str(tmp);
-      if (arg->is_null_value()) return false;
+      if (arg->null_value) return false;
       bool retval = geometry_to_json(wr, swkb, calling_function, INT_MAX32,
                                      false, false, false, &geometry_srid);
 
@@ -1490,7 +1459,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
     case MYSQL_TYPE_TINY_BLOB: {
       String *oo = arg->val_str(value);
 
-      if (arg->is_null_value()) return false;
+      if (arg->null_value) return false;
 
       if (create_scalar<Json_opaque>(scalar, &dom, field_type, oo->ptr(),
                                      oo->length()))
@@ -1509,7 +1478,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
       */
       String *res = arg->val_str(value);
 
-      if (arg->is_null_value()) return false;
+      if (arg->null_value) return false;
       const CHARSET_INFO *cs = res->charset();
 
       if (cs == &my_charset_bin || cs->mbminlen > 1) {
@@ -1558,7 +1527,7 @@ static bool val_json_func_field_subselect(T *arg, const char *calling_function,
       */
       /* purecov: begin inspected */
       if (arg->update_null_value()) return true;
-      DBUG_ASSERT(arg->is_null_value());
+      DBUG_ASSERT(arg->null_value);
       return false;
       /* purecov: end */
 
@@ -3805,10 +3774,10 @@ bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
     on_error = enum_jtc_on::JTO_IMPLICIT;
     warn = CHECK_FIELD_IGNORE;
   }
-  if (save_json_to_field(thd, m_conv_field, on_error, wr, warn, true) ||
+  if (save_json_to_field(thd, m_conv_item->field, on_error, wr, warn, true) ||
       // The calling_function arg below isn't needed as it's used only for
       // geometry and geometry arrays aren't supported
-      val_json_func_field_subselect(m_conv_field, "<typed array>", &value, &tmp,
+      val_json_func_field_subselect(m_conv_item, "<typed array>", &value, &tmp,
                                     &saved, nullptr, true))
     return true;
   if (!coerced) return false;

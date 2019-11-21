@@ -1206,8 +1206,6 @@ class Field {
   virtual enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   virtual uint32 key_length() const { return pack_length(); }
   virtual enum_field_types type() const = 0;
-  /// For template-compatibility with Item
-  enum_field_types data_type() const { return type(); }
   virtual enum_field_types real_type() const { return type(); }
   virtual enum_field_types binlog_type() const {
     /*
@@ -1293,11 +1291,6 @@ class Field {
 
     return table->has_null_row();
   }
-
-  /// For template-compatibility with Item
-  bool is_null_value() const { return is_null(); }
-  /// Same as above. Not actually used
-  bool update_null_value() { return false; /* purecov: inspected */ }
 
   /**
     Check whether the Field has value NULL (temporary or actual).
@@ -4236,8 +4229,8 @@ class Field_json : public Field_blob {
 */
 
 class Field_typed_array final : public Field_json {
-  /// Conversion field
-  Field *m_conv_field{nullptr};
+  /// Conversion item_field
+  Item_field *m_conv_item{nullptr};
   /// The array element's real type.
   enum_field_types m_elt_type;
   /// Element's decimals
@@ -4282,15 +4275,9 @@ class Field_typed_array final : public Field_json {
   }
   const CHARSET_INFO *charset() const override { return m_elt_charset; }
   type_conversion_status store(const char *to, size_t length,
-                               const CHARSET_INFO *charset) override {
-    return m_conv_field->store(to, length, charset);
-  }
-  type_conversion_status store(double nr) override {
-    return m_conv_field->store(nr);
-  }
-  type_conversion_status store(longlong nr, bool unsigned_val) override {
-    return m_conv_field->store(nr, unsigned_val);
-  }
+                               const CHARSET_INFO *charset) override;
+  type_conversion_status store(double nr) override;
+  type_conversion_status store(longlong nr, bool unsigned_val) override;
   /**
     Store a value as an array.
     @param data   the value to store as an array
@@ -4300,20 +4287,9 @@ class Field_typed_array final : public Field_json {
   type_conversion_status store_array(const Json_wrapper *data,
                                      Json_array *array);
   size_t get_key_image(uchar *buff, size_t length,
-                       imagetype type) const override {
-    return m_conv_field->get_key_image(buff, length, type);
-  }
+                       imagetype type) const override;
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
-                       uchar *, uint) const override {
-    Field *res = m_conv_field->new_key_field(root, new_table, new_ptr);
-    if (res != nullptr) {
-      // Keep the field hidden to allow error handler to catch functional
-      // index's errors
-      res->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
-      res->part_of_key = part_of_key;
-    }
-    return res;
-  }
+                       uchar *, uint) const override;
   /**
     These methods are used by handler to prevent returning a row past the
     end_range during range access. Since there's no order defined for sorting

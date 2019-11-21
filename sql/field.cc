@@ -9750,6 +9750,20 @@ Item_result Field_typed_array::result_type() const {
   return field_types_result_type[field_type2index(m_elt_type)];
 }
 
+type_conversion_status Field_typed_array::store(const char *to, size_t length,
+                                                const CHARSET_INFO *charset) {
+  return m_conv_item->field->store(to, length, charset);
+}
+
+type_conversion_status Field_typed_array::store(double nr) {
+  return m_conv_item->field->store(nr);
+}
+
+type_conversion_status Field_typed_array::store(longlong nr,
+                                                bool unsigned_val) {
+  return m_conv_item->field->store(nr, unsigned_val);
+}
+
 type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
                                                       Json_array *array) {
   array->clear();
@@ -9829,7 +9843,7 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
           if (type() == MYSQL_TYPE_VARCHAR)
             keys_length += coerced.get_data_length();
           else
-            keys_length += m_conv_field->pack_length();
+            keys_length += m_conv_item->field->pack_length();
         }
         /*
           Non-strict mode issue:
@@ -9884,6 +9898,23 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
   /* purecov: end */
 }
 
+size_t Field_typed_array::get_key_image(uchar *buff, size_t length,
+                                        imagetype type) const {
+  return m_conv_item->field->get_key_image(buff, length, type);
+}
+
+Field *Field_typed_array::new_key_field(MEM_ROOT *root, TABLE *new_table,
+                                        uchar *new_ptr, uchar *, uint) const {
+  Field *res = m_conv_item->field->new_key_field(root, new_table, new_ptr);
+  if (res != nullptr) {
+    // Keep the field hidden to allow error handler to catch functional
+    // index's errors
+    res->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
+    res->part_of_key = part_of_key;
+  }
+  return res;
+}
+
 void Field_typed_array::init(TABLE *table_arg) {
   Field::init(table_arg);
 
@@ -9904,7 +9935,7 @@ void Field_typed_array::init(TABLE *table_arg) {
   }
 
   // Create field for data conversion
-  m_conv_field = ::make_field(
+  Field *conv_field = ::make_field(
       // Allocate conversion field in table's mem_root
       &table_arg->mem_root,
       nullptr,       // TABLE_SHARE, not needed
@@ -9924,17 +9955,27 @@ void Field_typed_array::init(TABLE *table_arg) {
       {},     // srid
       false   // is_array
   );
-  if (m_conv_field == nullptr) return;
+  if (conv_field == nullptr) return;
   uchar *buf =
-      table_arg->mem_root.ArrayAlloc<uchar>(m_conv_field->pack_length() + 1);
+      table_arg->mem_root.ArrayAlloc<uchar>(conv_field->pack_length() + 1);
   if (buf == nullptr) return;
   if (type() == MYSQL_TYPE_NEWDECIMAL)
-    (down_cast<Field_new_decimal *>(m_conv_field))->set_keep_precision(true);
-  m_conv_field->move_field(buf + 1, buf, 0);
+    (down_cast<Field_new_decimal *>(conv_field))->set_keep_precision(true);
+  conv_field->move_field(buf + 1, buf, 0);
   // Allow conv_field to use table->in_use
-  m_conv_field->table = table;
-  m_conv_field->field_index = field_index;
-  m_conv_field->table_name = table_name;
+  conv_field->table = table;
+  conv_field->field_index = field_index;
+  conv_field->table_name = table_name;
+
+  // Swap arena so that the Item_field is allocated on TABLE::mem_root
+  // and so it does not end up in THD's item list which will have a different
+  // lifetime than TABLE::mem_root
+  Query_arena tmp_arena(&table_arg->mem_root,
+                        Query_arena::STMT_REGULAR_EXECUTION);
+  Query_arena backup_arena;
+  current_thd->swap_query_arena(tmp_arena, &backup_arena);
+  m_conv_item = new Item_field(conv_field);
+  current_thd->swap_query_arena(backup_arena, &tmp_arena);
 }
 
 const char *Field_typed_array::get_index_name() const {
@@ -9964,11 +10005,11 @@ size_t Field_typed_array::make_sort_key(Json_wrapper *wr, uchar *to,
 #ifndef DBUG_OFF
   bool res =
 #endif
-      save_json_to_field(thd, m_conv_field, on_error, wr, warn, true);
+      save_json_to_field(thd, m_conv_item->field, on_error, wr, warn, true);
   // Data should be already properly converted so no error is expected here
   DBUG_ASSERT(!res && !thd->is_error());
 
-  return m_conv_field->make_sort_key(to, length);
+  return m_conv_item->field->make_sort_key(to, length);
 }
 
 int Field_typed_array::do_save_field_metadata(uchar *metadata_ptr) const {

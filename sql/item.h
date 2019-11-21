@@ -1299,8 +1299,6 @@ class Item : public Parse_tree_node {
     return NON_MONOTONIC;
   }
 
-  /// For template-compatibility with Field
-  inline bool is_null_value() { return null_value; }
   /*
     Convert "func_arg $CMP$ const" half-interval into "FUNC(func_arg) $CMP2$
     const2"
