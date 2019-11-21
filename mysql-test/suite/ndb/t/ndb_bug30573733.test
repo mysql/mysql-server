@@ -1,0 +1,103 @@
+##################################################################
+##
+## Test case for bug#30573733
+##        INCORRECT RESULT IF HASH-JOIN USE 'SPILL_TO_DISK' FOR A PUSHED JOIN
+##
+## The 'spill_to_disk' strategy must be avoided when hash join is used
+## to join any tables being a member of a pushed join.
+##
+
+-- source include/have_ndb.inc
+
+
+CREATE TABLE S (
+  pk int NOT NULL,
+  col_int int NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=ndbcluster;
+
+INSERT INTO S VALUES
+ (19, 4),                             
+ (12, 36),                            
+ (5, 47),                             
+ (7, 23),                            
+ (3, 7),                              
+ (9, 16),                             
+ (21, 48),                            
+ (22, 10),                            
+ (10, 27),                            
+ (14, 17),                            
+ (11, 4),                             
+ (18, 6),                             
+ (20, 39),                            
+ (1, 32),                             
+ (15, 49),                            
+ (13, 18),                            
+ (25, 21),                            
+ (6, 6),                              
+ (23, 3),                             
+ (2, 16),                             
+ (17, 13),                            
+ (16, 0),                             
+ (4, 2),                              
+ (24, 23),                            
+ (8, 7);
+
+
+#############################################################
+## Query do a cross product of first 4 tables in order to create
+## an intermediate join result not fitting in the join buffer.
+## The 'Inner hash join' algorithm will be used to join t1..t4
+##
+## The join of t4 and t5 should be executed as a 'pushed join', requiring
+## t5 rows to be read while we have the t4 rows it depends on as 'current'.
+## Thus, we must avoid that t4 rows are 'spilled_to_disk' during the
+## hash join with t3.
+
+let $query=
+SELECT
+STRAIGHT_JOIN count(*)
+FROM 
+  S AS t1, S AS t2, S as t3, S as t4
+  JOIN S as t5 ON t5.pk = t4.col_int
+;
+
+eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
+
+set join_buffer_size = 128;
+--sorted_result
+eval $query;
+
+set join_buffer_size = 1024;
+--sorted_result
+eval $query;
+
+set join_buffer_size = 2048;
+--sorted_result
+eval $query;
+
+set join_buffer_size = 4096;
+--sorted_result
+eval $query;
+
+set join_buffer_size = 16000;
+--sorted_result
+eval $query;
+
+set join_buffer_size = 64000;
+--sorted_result
+eval $query;
+
+set join_buffer_size = 256000;
+--sorted_result
+eval $query;
+
+set join_buffer_size = 1024000;
+--sorted_result
+eval $query;
+
+
+set join_buffer_size = default;
+
+DROP TABLE S;
