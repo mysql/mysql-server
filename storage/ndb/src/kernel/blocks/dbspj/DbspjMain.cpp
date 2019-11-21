@@ -8389,10 +8389,10 @@ Dbspj::scanFrag_abort(Signal* signal,
   case TreeNode::TN_INACTIVE:
   case TreeNode::TN_COMPLETING:
   case TreeNode::TN_END:
-    ndbout_c("H'%.8x H'%.8x scanFrag_abort state: %u",
-             requestPtr.p->m_transId[0],
-             requestPtr.p->m_transId[1],
-             treeNodePtr.p->m_state);
+    DEBUG("scanFrag_abort"
+	  << ", transId: " << hex << requestPtr.p->m_transId[0]
+	  << ","           << hex << requestPtr.p->m_transId[1]
+	  << ", state: " << treeNodePtr.p->m_state);
     return;
 
   case TreeNode::TN_ACTIVE:
