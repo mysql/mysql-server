@@ -9,7 +9,7 @@ with old --datadir (Ex: mysql-8.0). Hence intentionally upgrade step is not adde
 Note 3: The folder names and tablspace names and my.cnf config file should same as follows, do not change anything, as testcase
 might fail.
 
-1) Logon on to any windows machine (vitro08.no.oracle.com)
+1) Logon on to any windows machine
 
 2) Download the mysql binaries from PB2 (latest version of trunk)
 
