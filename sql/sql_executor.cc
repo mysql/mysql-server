@@ -2506,8 +2506,15 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         // and that is if we either have grouping or sorting in the query. In
         // those cases, the iterator above us will most likely consume the
         // entire result set anyways.
-        const bool allow_spill_to_disk =
-            !has_limit || has_grouping || has_order_by;
+        bool allow_spill_to_disk = !has_limit || has_grouping || has_order_by;
+
+        // If this table is part of a pushed join query, rows from the
+        // dependant child table(s) has to be read while we are positioned on
+        // the rows from the pushed ancestors which the child depends on.
+        // Thus, we can not allow rows from a 'pushed join' to 'spill_to_disk'.
+        if (qep_tab->table()->file->member_of_pushed_join()) {
+          allow_spill_to_disk = false;
+        }
 
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.
