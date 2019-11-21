@@ -4,22 +4,42 @@
 
 #
 # The table structures are as follows:
-# CREATE TABLE parent (
-#   c1 int PRIMARY KEY
+# # CREATE TABLE parent (
+#   c1 int PRIMARY KEY,
+#   c2 int,
+#   UNIQUE p_ukc2(c2)
 # ) ENGINE NDB;
 #
-# INSERT INTO parent VALUES(1),(2);
+# INSERT INTO parent VALUES(1, 10),(2, 20);
 #
 # CREATE TABLE child (
-#   c1 int PRIMARY KEY,
-#   c2 INT,
-#   INDEX xc2 (c2),
-#   FOREIGN KEY (c2)
-#       REFERENCES parent(c1)
-#       ON DELETE CASCADE
+#   c1 int,
+#   c2 int,
+#   INDEX c_xc1 (c1),
+#   INDEX c_xc2 (c2),
+#   CONSTRAINT c_fk1
+#     FOREIGN KEY (c1)
+#     REFERENCES parent(c1),
+#   CONSTRAINT c_fk2
+#     FOREIGN KEY (c2)
+#     REFERENCES parent(c2)
 # ) ENGINE NDB;
 #
-# INSERT INTO child VALUES(1,1),(2,2);
+# INSERT INTO child
+#   VALUES (1, 10), (2, 20), (1, 20), (2, 10);
+#
+# CREATE TABLE self_ref (
+#   c1 int NOT NULL,
+#   c2 int,
+#   UNIQUE sr_ukc1(c1),
+#   CONSTRAINT sr_fk1
+#     FOREIGN KEY (c2)
+#     REFERENCES self_ref(c1)
+#     ON DELETE CASCADE
+#     ON UPDATE SET DEFAULT
+# ) ENGINE NDB;
+#
+# INSERT INTO self_ref VALUES(1,1), (2,1);
 #
 
 --exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
@@ -37,26 +57,59 @@ connection server2;
 let $mysqld_name=mysqld.2.1;
 --source include/restart_mysqld.inc
 
+--echo # Check schema and then perform DML and DDL on the tables
 connection server1;
-# Check schema and then perform DML and DDL on the tables
+--echo # Verify that parent has been installed in DD
 SHOW CREATE TABLE parent;
 --sorted_result
 SELECT * FROM parent;
 
-INSERT INTO parent VALUES (3);
+--echo # Check foreign key constraints
+INSERT INTO parent VALUES (3, 30);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE c1 = 1;
 --sorted_result
 SELECT * FROM parent;
 
+--echo # Verify that child has been installed in DD
+query_vertical
+SELECT * FROM information_schema.referential_constraints
+  WHERE constraint_schema='test'
+    AND table_name='child'
+  ORDER BY constraint_name ASC;
 SHOW CREATE TABLE child;
-# Check foreign key constraints
-INSERT INTO child VALUES (3,3);
---error ER_NO_REFERENCED_ROW_2
-INSERT INTO child VALUES (4,4);
 --sorted_result
 SELECT * FROM child;
 
+--echo # Check foreign key constraints
+INSERT INTO child VALUES (3, 30);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES (4, 40);
+--sorted_result
+SELECT * FROM child;
+
+--echo # Verify that self_ref has been installed in DD
+query_vertical
+SELECT * FROM information_schema.referential_constraints
+  WHERE constraint_schema='test'
+    AND table_name='self_ref'
+  ORDER BY constraint_name ASC;
+SHOW CREATE TABLE self_ref;
+--sorted_result
+SELECT * FROM self_ref;
+
+--echo # Check foreign key constraints
+INSERT INTO self_ref VALUES (3, 2);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO self_ref VALUES (4, 5);
+DELETE FROM self_ref WHERE c1 = 1;
+--sorted_result
+SELECT * FROM self_ref;
+
+--echo # Cleanup
 DROP TABLE child;
 DROP TABLE parent;
+DROP TABLE self_ref;
 
 --exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
@@ -64,25 +117,99 @@ DROP TABLE parent;
 
 --echo Backup from 7.5 restored
 
-# Test upgrade of the metadata during discovery from NDB
+--echo # Test upgrade of the metadata during discovery from NDB
+--echo # Discover and verify table parent
 SHOW CREATE TABLE parent;
 --sorted_result
 SELECT * FROM parent;
 
-INSERT INTO parent VALUES (3);
+--echo # Check foreign key constraints
+INSERT INTO parent VALUES (3, 30);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE c1 = 1;
 --sorted_result
 SELECT * FROM parent;
 
+--echo # Discover and verify table child
 SHOW CREATE TABLE child;
-# Check foreign key constraints
-INSERT INTO child VALUES (3,3);
---error ER_NO_REFERENCED_ROW_2
-INSERT INTO child VALUES (4,4);
+query_vertical
+SELECT * FROM information_schema.referential_constraints
+  WHERE constraint_schema='test'
+    AND table_name='child'
+  ORDER BY constraint_name ASC;
 --sorted_result
 SELECT * FROM child;
 
+--echo # Check foreign key constraints
+INSERT INTO child VALUES (3, 30);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES (4, 40);
+--sorted_result
+SELECT * FROM child;
+
+--echo # Discover and verify table self_ref
+SHOW CREATE TABLE self_ref;
+query_vertical
+SELECT * FROM information_schema.referential_constraints
+  WHERE constraint_schema='test'
+    AND table_name='self_ref'
+  ORDER BY constraint_name ASC;
+--sorted_result
+SELECT * FROM self_ref;
+
+--echo # Check foreign key constraints
+INSERT INTO self_ref VALUES (3, 2);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO self_ref VALUES (4, 5);
+DELETE FROM self_ref WHERE c1 = 1;
+--sorted_result
+SELECT * FROM self_ref;
+
 DROP TABLE child;
 DROP TABLE parent;
+DROP TABLE self_ref;
+
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
+
+--echo Backup from 7.5 restored
+
+--echo # During upgrades, the tables might get upgraded in
+--echo # any order. Test this by discovering parent and
+--echo # child in the reverse order and verifying the FKs.
+
+SHOW CREATE TABLE child;
+SHOW CREATE TABLE parent;
+
+--sorted_result
+SELECT * FROM parent;
+--sorted_result
+SELECT * FROM child;
+
+--echo # Check foreign key constraints
+query_vertical
+SELECT * FROM information_schema.referential_constraints
+  WHERE constraint_schema='test'
+    AND table_name='child'
+  ORDER BY constraint_name ASC;
+
+INSERT INTO parent VALUES (3, 30);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE c1 = 1;
+INSERT INTO child VALUES (3, 30);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES (4, 40);
+
+--sorted_result
+SELECT * FROM parent;
+--sorted_result
+SELECT * FROM child;
+
+--echo # Cleanup
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE self_ref;
 
 let NDB_RESTORE=;
 --remove_file $NDB_TOOLS_OUTPUT

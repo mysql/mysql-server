@@ -173,11 +173,11 @@ ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1-0.1.
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1-0.2.Data
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.1.ctl
-40505 bytes in output
+52920 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.1.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.2.ctl
-40505 bytes in output
+52920 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1.2.log
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_large_backup/BACKUP-1-0.1.Data

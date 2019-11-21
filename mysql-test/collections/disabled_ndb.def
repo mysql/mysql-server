@@ -40,8 +40,6 @@ ndb.ndb_addnode_restart @darwin: BUG#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_N
 
 ndb.ndb_addnode_restart2: Bug#29192097 IMPROVE ABORT HANDLING OF ALTER TABLE
 
-ndb.ndb_metadata_upgrade_fk: Bug#30071043 FOREIGN KEYS ARE NOT CREATED IN DD DURING METADATA UPGRADE OF NDB TABLES
-
 # The below two tests runs extra/rpl_tests/rpl_mixed_implicit_commit_binlog
 # which is maintained upstream and easily breaks due to the inherent
 # difference in binlog ouput depending on who's creating the binlog.
