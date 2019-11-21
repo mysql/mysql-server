@@ -2979,69 +2979,32 @@ static double *mysql_sys_var_double(THD *thd, int offset) {
 void plugin_thdvar_init(THD *thd, bool enable_plugins) {
   plugin_ref old_table_plugin = thd->variables.table_plugin;
   plugin_ref old_temp_table_plugin = thd->variables.temp_table_plugin;
-  std::string default_plugin_name, default_temp_plugin_name;
-  LEX_CSTRING new_default_plugin_name, new_default_temp_plugin_name;
   DBUG_TRACE;
 
-  thd->variables.table_plugin = NULL;
-  thd->variables.temp_table_plugin = NULL;
+  thd->variables.table_plugin = nullptr;
+  thd->variables.temp_table_plugin = nullptr;
   cleanup_variables(thd, &thd->variables);
 
   mysql_mutex_lock(&LOCK_global_system_variables);
   thd->variables = global_system_variables;
-  thd->variables.table_plugin = NULL;
-  thd->variables.temp_table_plugin = NULL;
+  thd->variables.table_plugin = nullptr;
+  thd->variables.temp_table_plugin = nullptr;
 
   thd->variables.dynamic_variables_version = 0;
   thd->variables.dynamic_variables_size = 0;
-  thd->variables.dynamic_variables_ptr = NULL;
-  /*
-    We must acquire LOCK_plugin independently of LOCK_global_system_variables
-    to avoid contention and deadlocks, so we'll copy the names of the global
-    defaults here and use them to assign the plugin references to the session
-    below, inside of LOCK_plugin.
-    The global plugin references have a ref count >= 1 and are guaranteed to
-    remain valid.
-  */
-  if (enable_plugins) {
-    default_plugin_name = to_string(
-        plugin_ref_to_int(global_system_variables.table_plugin)->name);
-    default_temp_plugin_name = to_string(
-        plugin_ref_to_int(global_system_variables.temp_table_plugin)->name);
-    lex_cstring_set(&new_default_plugin_name, default_plugin_name.c_str());
-    lex_cstring_set(&new_default_temp_plugin_name,
-                    default_temp_plugin_name.c_str());
-  }
-  mysql_mutex_unlock(&LOCK_global_system_variables);
+  thd->variables.dynamic_variables_ptr = nullptr;
 
   if (enable_plugins) {
     mysql_mutex_lock(&LOCK_plugin);
-    /*
-      Resolve the plugin references from the names collected above. If either
-      plugin was unloaded before LOCK_plugin was acquired, then its reference
-      will be null, however, a null session value will resolve to the global
-      value. If either of the global plugin references was changed, then the
-      new session is like any other existing session and we don't care.
-    */
-    st_plugin_int *plugin1 = plugin_find_internal(new_default_plugin_name,
-                                                  MYSQL_STORAGE_ENGINE_PLUGIN);
-    plugin_ref new_table_plugin = plugin_int_to_ref(plugin1);
-    st_plugin_int *plugin2 = plugin_find_internal(new_default_temp_plugin_name,
-                                                  MYSQL_STORAGE_ENGINE_PLUGIN);
-    plugin_ref new_temp_table_plugin = plugin_int_to_ref(plugin2);
-
-    if (likely(plugin1 != nullptr)) {
-      thd->variables.table_plugin =
-          my_intern_plugin_lock(nullptr, new_table_plugin);
-      intern_plugin_unlock(nullptr, old_table_plugin);
-    }
-    if (likely(plugin2 != nullptr)) {
-      thd->variables.temp_table_plugin =
-          my_intern_plugin_lock(nullptr, new_temp_table_plugin);
-      intern_plugin_unlock(nullptr, old_temp_table_plugin);
-    }
+    thd->variables.table_plugin =
+        my_intern_plugin_lock(nullptr, global_system_variables.table_plugin);
+    intern_plugin_unlock(nullptr, old_table_plugin);
+    thd->variables.temp_table_plugin = my_intern_plugin_lock(
+        nullptr, global_system_variables.temp_table_plugin);
+    intern_plugin_unlock(nullptr, old_temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* Initialize all Sys_var_charptr variables here. */
 
