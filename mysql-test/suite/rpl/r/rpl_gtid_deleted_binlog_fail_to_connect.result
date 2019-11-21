@@ -45,13 +45,13 @@ include/assert_grep.inc [Found warning containing lost GTIDs in the slave error 
 CHANGE MASTER TO MASTER_LOG_FILE = 'MASTER_FILE', MASTER_LOG_POS = MASTER_POS, MASTER_AUTO_POSITION = 0;
 include/start_slave.inc
 include/assert.inc [t1 should contain only one row with the value 2]
+include/stop_slave.inc
 [connection master]
 CALL mtr.add_suppression("Cannot replicate to server.*server has purged required binary logs.*");
 CALL mtr.add_suppression("Failed to open log");
 CALL mtr.add_suppression("Could not open log");
 [connection slave]
 CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missing transactions from elsewhere");
-include/stop_slave.inc
 #
 # 7) Cleanup.
 #

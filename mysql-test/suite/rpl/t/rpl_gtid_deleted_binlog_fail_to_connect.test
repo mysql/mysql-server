@@ -117,6 +117,7 @@ START SLAVE;
 --let $assert_text= t1 should contain only one row with the value 2
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "1" AND "[SELECT * FROM t1]" = "2"
 --source include/assert.inc
+--source include/stop_slave.inc
 
 # Suppress the error on master.
 --source include/rpl_connection_master.inc
@@ -127,7 +128,6 @@ CALL mtr.add_suppression("Could not open log");
 # Suppress the error on slave.
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missing transactions from elsewhere");
---source include/stop_slave.inc
 
 --echo #
 --echo # 7) Cleanup.
