@@ -8478,8 +8478,7 @@ longlong Item_func_can_access_view::val_int() {
   std::string definer_user(user_name.str, user_name.length);
   std::string definer_host(host_name.str, host_name.length);
 
-  if (!my_strcasecmp(system_charset_info, definer_user.c_str(),
-                     sctx->priv_user().str) &&
+  if (!strcmp(definer_user.c_str(), sctx->priv_user().str) &&
       !my_strcasecmp(system_charset_info, definer_host.c_str(),
                      sctx->priv_host().str))
     return 1;

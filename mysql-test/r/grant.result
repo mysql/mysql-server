@@ -2797,3 +2797,32 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP USER 'untrusted8063'@localhost;
 DROP DATABASE db8063;
+#
+# Bug#30542333 CASE INSENSITIVE COMPARISON OF
+# VIEW DEFINER USERNAME IN INFORMATION_SCHEMA
+#
+# Create testing database
+CREATE DATABASE mysqltest_1;
+# Create users with same username with different character case
+CREATE USER mysqluser1@localhost, MySQLuser1@localhost;
+# Grant create view on testing database to both users
+GRANT CREATE VIEW ON mysqltest_1.* TO mysqluser1@localhost;
+GRANT SELECT ON mysqltest_1.* TO MySQLuser1@localhost;
+# Connect to first user
+# Define a view
+CREATE VIEW mysqltest_1.v1 AS SELECT 1;
+SELECT view_definition
+FROM information_schema.views
+WHERE table_schema='mysqltest_1' AND table_name='v1';
+VIEW_DEFINITION
+select 1 AS `1`
+# Connect to second user
+# Try to access the view definition, view definition
+# should not be visible with the fix.
+SELECT view_definition FROM information_schema.views
+WHERE table_schema='mysqltest_1' AND table_name='v1';
+VIEW_DEFINITION
+
+# Cleanup
+DROP USER mysqluser1@localhost, MySQLuser1@localhost;
+DROP DATABASE mysqltest_1;

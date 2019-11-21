@@ -2766,5 +2766,46 @@ SHOW CREATE TABLE db8063.t1;
 DROP USER 'untrusted8063'@localhost;
 DROP DATABASE db8063;
 
+--echo #
+--echo # Bug#30542333 CASE INSENSITIVE COMPARISON OF
+--echo # VIEW DEFINER USERNAME IN INFORMATION_SCHEMA
+--echo #
+
+--echo # Create testing database
+CREATE DATABASE mysqltest_1;
+
+--echo # Create users with same username with different character case
+CREATE USER mysqluser1@localhost, MySQLuser1@localhost;
+
+--echo # Grant create view on testing database to both users
+GRANT CREATE VIEW ON mysqltest_1.* TO mysqluser1@localhost;
+GRANT SELECT ON mysqltest_1.* TO MySQLuser1@localhost;
+
+--echo # Connect to first user
+connect (conn1,localhost,mysqluser1,,);
+
+--echo # Define a view
+CREATE VIEW mysqltest_1.v1 AS SELECT 1;
+SELECT view_definition
+  FROM information_schema.views
+  WHERE table_schema='mysqltest_1' AND table_name='v1';
+
+disconnect conn1;
+
+--echo # Connect to second user
+connect (conn1,localhost,MySQLuser1,,);
+
+--echo # Try to access the view definition, view definition
+--echo # should not be visible with the fix.
+SELECT view_definition FROM information_schema.views
+  WHERE table_schema='mysqltest_1' AND table_name='v1';
+
+disconnect conn1;
+
+--echo # Cleanup
+connection default;
+DROP USER mysqluser1@localhost, MySQLuser1@localhost;
+DROP DATABASE mysqltest_1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
