@@ -101,7 +101,7 @@ rolling back incomplete transactions. */
 volatile bool recv_recovery_on;
 
 #ifdef UNIV_HOTBACKUP
-volatile bool is_online_redo_copy = true;
+std::list<std::pair<space_id_t, lsn_t>> index_load_list;
 volatile lsn_t backup_redo_log_flushed_lsn;
 
 extern bool meb_is_space_loaded(const space_id_t space_id);
@@ -408,11 +408,20 @@ void recv_sys_create() {
 static bool recv_sys_resize_buf() {
   ut_ad(recv_sys->buf_len <= srv_log_buffer_size);
 
+#ifndef UNIV_HOTBACKUP
   /* If the buffer cannot be extended further, return false. */
   if (recv_sys->buf_len == srv_log_buffer_size) {
     ib::error(ER_IB_MSG_723, srv_log_buffer_size);
     return false;
   }
+#else  /* !UNIV_HOTBACKUP */
+  if ((recv_sys->buf_len >= srv_log_buffer_size) ||
+      (recv_sys->len >= srv_log_buffer_size)) {
+    ib::fatal() << "Log parsing buffer overflow. Log parse failed. "
+                << "Please increase --limit-memory above "
+                << srv_log_buffer_size / 1024 / 1024 << " (MB)";
+  }
+#endif /* !UNIV_HOTBACKUP */
 
   /* Extend the buffer by double the current size with the resulting
   size not more than srv_log_buffer_size. */
@@ -554,6 +563,9 @@ static bool recv_report_corrupt_log(const byte *ptr, int type, space_id_t space,
       ulonglong{recv_previous_parsed_rec_is_multi},
       ssize_t{ptr - recv_sys->buf}, ulonglong{recv_previous_parsed_rec_offset});
 
+#ifdef UNIV_HOTBACKUP
+  ut_ad(ptr >= recv_sys->buf);
+#endif /* UNIV_HOTBACKUP */
   ut_ad(ptr <= recv_sys->buf + recv_sys->len);
 
   const ulint limit = 100;
@@ -573,9 +585,9 @@ static bool recv_report_corrupt_log(const byte *ptr, int type, space_id_t space,
 
     return (false);
   }
-#endif /* !UNIV_HOTBACKUP */
 
   ib::warn(ER_IB_MSG_698, FORCE_RECOVERY_MSG);
+#endif /* !UNIV_HOTBACKUP */
 
   return (true);
 }
@@ -1649,6 +1661,7 @@ static byte *recv_parse_or_apply_log_rec_body(
   ut_ad(!block == !mtr);
 
   switch (type) {
+#ifndef UNIV_HOTBACKUP
     case MLOG_FILE_DELETE:
 
       return (fil_tablespace_redo_delete(
@@ -1666,59 +1679,40 @@ static byte *recv_parse_or_apply_log_rec_body(
       return (fil_tablespace_redo_rename(
           ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
           recv_sys->bytes_to_ignore_before_checkpoint != 0));
+#else  /* !UNIV_HOTBACKUP */
+      // bytes_to_ignore_before_checkpoint does not work for MEB,
+      // because it depends on the casual position of the start
+      // checkpoint. If it matches the first record in a block, a parse
+      // turns into an apply.
+    case MLOG_FILE_DELETE:
+
+      return (fil_tablespace_redo_delete(ptr, end_ptr,
+                                         page_id_t(space_id, page_no),
+                                         parsed_bytes, !recv_recovery_on));
+
+    case MLOG_FILE_CREATE:
+
+      return (fil_tablespace_redo_create(ptr, end_ptr,
+                                         page_id_t(space_id, page_no),
+                                         parsed_bytes, !recv_recovery_on));
+
+    case MLOG_FILE_RENAME:
+
+      return (fil_tablespace_redo_rename(ptr, end_ptr,
+                                         page_id_t(space_id, page_no),
+                                         parsed_bytes, !recv_recovery_on));
+#endif /* !UNIV_HOTBACKUP */
 
     case MLOG_INDEX_LOAD:
 #ifdef UNIV_HOTBACKUP
-      /* While scaning redo logs during  backup phase a
-      MLOG_INDEX_LOAD type redo log record indicates a DDL
-      (create index, alter table...)is performed with
-      'algorithm=inplace'. This redo log indicates that
-
-      1. The DDL was started after MEB started backing up, in which
-      case MEB will not be able to take a consistent backup and should
-      fail. or
-      2. There is a possibility of this record existing in the REDO
-      even after the completion of the index create operation. This is
-      because of InnoDB does  not checkpointing after the flushing the
-      index pages.
-
-      If MEB gets the last_redo_flush_lsn and that is less than the
-      lsn of the current record MEB fails the backup process.
-      Error out in case of online backup and emit a warning in case
-      of offline backup and continue. */
+      // While scaning redo logs during a backup operation a
+      // MLOG_INDEX_LOAD type redo log record indicates, that a DDL
+      // (create index, alter table...) is performed with
+      // 'algorithm=inplace'. The affected tablespace must be re-copied
+      // in the backup lock phase. Record it in the index_load_list.
       if (!recv_recovery_on) {
-        if (is_online_redo_copy) {
-          if (backup_redo_log_flushed_lsn < recv_sys->recovered_lsn) {
-            ib::trace_1() << "Last flushed lsn: " << backup_redo_log_flushed_lsn
-                          << " load_index lsn " << recv_sys->recovered_lsn;
-
-            if (backup_redo_log_flushed_lsn == 0) {
-              ib::error(ER_IB_MSG_715) << "MEB was not able"
-                                       << " to determine the"
-                                       << " InnoDB Engine"
-                                       << " Status";
-            }
-
-            ib::fatal(ER_IB_MSG_716) << "An optimized(without"
-                                     << " redo logging) DDL"
-                                     << " operation has been"
-                                     << " performed. All modified"
-                                     << " pages may not have been"
-                                     << " flushed to the disk yet.\n"
-                                     << "    MEB will not be able to"
-                                     << " take a consistent backup."
-                                     << " Retry the backup"
-                                     << " operation";
-          }
-          /** else the index is flushed to disk before
-          backup started hence no error */
-        } else {
-          /* offline backup */
-          ib::trace_1() << "Last flushed lsn: " << backup_redo_log_flushed_lsn
-                        << " load_index lsn " << recv_sys->recovered_lsn;
-
-          ib::warn(ER_IB_MSG_717);
-        }
+        index_load_list.emplace_back(
+            std::pair<space_id_t, lsn_t>(space_id, recv_sys->recovered_lsn));
       }
 #endif /* UNIV_HOTBACKUP */
       if (end_ptr < ptr + 8) {
@@ -3398,6 +3392,9 @@ bool meb_scan_log_recs(
             ib::error(ER_IB_MSG_724);
             return (true);
           }
+#else  /* !UNIV_HOTBACKUP */
+          ib::fatal() << "Insufficient memory for InnoDB parse buffer; want "
+                      << recv_sys->buf_len;
 #endif /* !UNIV_HOTBACKUP */
         }
       }
