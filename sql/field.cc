@@ -167,9 +167,19 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
 }
 
 /**
-   Predicate to determine if charset change prevents alter from being
-   done inplace. Inplace can only be done when changing to binary, or
-   from UTF8MB3 to UTF8MB4.
+   Predicate to determine if a charset change prevents alter from being
+   done inplace.
+
+   For changes other than the following, we can immediately reject using
+   the inplace algorithm:
+
+      - Changing collation while keeping the charset.
+      - Changing any charset to the binary charset.
+      - Changing utf8mb3 to utf8mb4.
+
+   @note The changes listed above are potentially acceptable if the field
+   is not indexed in the target table. This information is not available
+   here, and is checked later in fill_alter_inplace_info().
 
    @note ASCII cannot be converted to UTF-8 inplace because inserting
    non-ascii values into an ASCII column only trigger a warning not an
@@ -191,23 +201,6 @@ bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
 }
 
 /**
-   Predicate to determine if a collation change prevents alter from
-   being done inplace. A collation change will only prevent inplace if
-   the column is indexed.
-
-   @note Pointer equality is assumed for collations.
-
-   @param from - existing Field object.
-   @param to   - Create_field object describing new version of field.
-
-   @return true if alter cannot be done inplace due to specified
-   condition, false otherwise.
-*/
-bool collation_prevents_inplace(const Field_str &from, const Create_field &to) {
-  return (from.m_indexed && to.charset->coll != from.charset()->coll);
-}
-
-/**
    Predicate to determine if the difference between a Field and the
    new Create_field prevents alter from being done
    inplace. Convenience wrapper for the preceeding predicates.
@@ -221,8 +214,7 @@ bool collation_prevents_inplace(const Field_str &from, const Create_field &to) {
 bool change_prevents_inplace(const Field_str &from, const Create_field &to) {
   return sql_type_prevents_inplace(from, to) ||
          length_prevents_inplace(from, to) ||
-         charset_prevents_inplace(from, to) ||
-         collation_prevents_inplace(from, to);
+         charset_prevents_inplace(from, to);
 }
 }  // namespace
 
@@ -7420,8 +7412,7 @@ uint Field_blob::is_equal(const Create_field *new_field) const {
   // equality so would be redundant here.
   if (new_field->sql_type != get_blob_type_from_length(max_data_length()) ||
       new_field->pack_length() != pack_length() ||
-      charset_prevents_inplace(*this, *new_field) ||
-      collation_prevents_inplace(*this, *new_field)) {
+      charset_prevents_inplace(*this, *new_field)) {
     return IS_EQUAL_NO;
   }
 
