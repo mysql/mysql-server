@@ -1,5 +1,6 @@
 --source include/have_ndb.inc
 CALL mtr.add_suppression("Incorrect information in file");
+CALL mtr.add_suppression("NDB: Failed to setup events for 'mysql.ndb_schema' table");
 
 if (`select @@log_bin`)
 {
