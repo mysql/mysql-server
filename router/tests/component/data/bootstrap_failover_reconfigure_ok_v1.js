@@ -16,6 +16,7 @@ var options = {
 
 var common_responses = common_stmts.prepare_statement_responses([
   "router_start_transaction",
+  "router_select_replication_group_name",
   "router_commit",
 ], options);
 

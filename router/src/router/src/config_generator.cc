@@ -1030,7 +1030,7 @@ enum class MySQLErrorc {
 class ClusterAwareDecorator {
  public:
   ClusterAwareDecorator(
-      MySQLSession &sess, const std::string &cluster_initial_username,
+      ClusterMetadata &metadata, const std::string &cluster_initial_username,
       const std::string &cluster_initial_password,
       const std::string &cluster_initial_hostname,
       unsigned long cluster_initial_port,
@@ -1038,7 +1038,7 @@ class ClusterAwareDecorator {
       unsigned long connection_timeout,
       std::set<MySQLErrorc> failure_codes = {MySQLErrorc::kSuperReadOnly,
                                              MySQLErrorc::kLostConnection})
-      : mysql_(sess),
+      : metadata_(metadata),
         cluster_initial_username_(cluster_initial_username),
         cluster_initial_password_(cluster_initial_password),
         cluster_initial_hostname_(cluster_initial_hostname),
@@ -1053,10 +1053,7 @@ class ClusterAwareDecorator {
   virtual ~ClusterAwareDecorator() = default;
 
  protected:
-  virtual std::vector<std::tuple<std::string, unsigned long>>
-  fetch_cluster_hosts() = 0;
-
-  MySQLSession &mysql_;
+  ClusterMetadata &metadata_;
   const std::string &cluster_initial_username_;
   const std::string &cluster_initial_password_;
   const std::string &cluster_initial_hostname_;
@@ -1082,184 +1079,106 @@ R ClusterAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
   bool fetched_cluster_servers = false;
   std::vector<std::tuple<std::string, unsigned long>> cluster_servers;
 
-  // init it once, even though we'll never use it
   auto cluster_servers_it = cluster_servers.begin();
+  const auto cluster_specific_initial_id =
+      metadata_.get_cluster_type_specific_id();
 
+  bool initial_node = true;
   do {
-    try {
-      return wrapped_func();
-    } catch (const MySQLSession::Error &e) {
-      MySQLErrorc ec = static_cast<MySQLErrorc>(e.code());
+    bool skip_node = false;
+    if (!initial_node) {
+      // let's check if the node we failed over to belongs to the same cluster
+      // the user is bootstaping against
+      const auto cluster_specific_id = metadata_.get_cluster_type_specific_id();
 
-      log_info(
-          "Executing statements failed with: '%s' (%d), trying to connect to "
-          "another node",
-          e.what(), e.code());
-
-      // code not in failure-set
-      if (failure_codes_.find(ec) == failure_codes_.end()) {
-        throw;
+      if (cluster_specific_id != cluster_specific_initial_id) {
+        log_warning(
+            "Node on '%s' that the bootstrap failed over to, seems to belong "
+            "to different cluster(%s != %s), skipping...",
+            metadata_.get_session().get_address().c_str(),
+            cluster_specific_initial_id.c_str(), cluster_specific_id.c_str());
+        skip_node = true;
       }
+    } else {
+      initial_node = false;
+    }
 
-      do {
-        if (!fetched_cluster_servers) {
-          // lazy fetch the GR members
-          //
-          fetched_cluster_servers = true;
+    if (!skip_node) {
+      try {
+        return wrapped_func();
+      } catch (const MySQLSession::Error &e) {
+        MySQLErrorc ec = static_cast<MySQLErrorc>(e.code());
 
-          log_info("Fetching Cluster Members");
+        log_info(
+            "Executing statements failed with: '%s' (%d), trying to connect to "
+            "another node",
+            e.what(), e.code());
 
-          for (auto &gr_node : fetch_cluster_hosts()) {
-            auto const &gr_host = std::get<0>(gr_node);
-            auto gr_port = std::get<1>(gr_node);
+        // code not in failure-set
+        if (failure_codes_.find(ec) == failure_codes_.end()) {
+          throw;
+        }
+      }
+    }
 
-            // if we connected through TCP/IP, ignore the initial host
-            if (cluster_initial_socket_.size() == 0 &&
-                (gr_host == cluster_initial_hostname_ &&
-                 gr_port == cluster_initial_port_)) {
-              continue;
-            }
+    // bootstrap not successfull, checking next node to fail over to
+    do {
+      if (!fetched_cluster_servers) {
+        // lazy fetch the GR members
+        //
+        fetched_cluster_servers = true;
 
-            log_debug("added cluster node: %s:%ld", gr_host.c_str(), gr_port);
-            cluster_servers.emplace_back(gr_host, gr_port);
+        log_info("Fetching Cluster Members");
+
+        for (auto &cluster_node : metadata_.fetch_cluster_hosts()) {
+          auto const &node_host = std::get<0>(cluster_node);
+          auto node_port = std::get<1>(cluster_node);
+
+          // if we connected through TCP/IP, ignore the initial host
+          if (cluster_initial_socket_.size() == 0 &&
+              (node_host == cluster_initial_hostname_ &&
+               node_port == cluster_initial_port_)) {
+            continue;
           }
 
-          // get a new iterator as the old one is now invalid
-          cluster_servers_it = cluster_servers.begin();
-        } else {
-          std::advance(cluster_servers_it, 1);
+          log_debug("added cluster node: %s:%ld", node_host.c_str(), node_port);
+          cluster_servers.emplace_back(node_host, node_port);
         }
 
-        if (cluster_servers_it == cluster_servers.end()) {
-          throw std::runtime_error(
-              "no more nodes to fail-over too, giving up.");
-        }
+        // get a new iterator as the old one is now invalid
+        cluster_servers_it = cluster_servers.begin();
+      } else {
+        std::advance(cluster_servers_it, 1);
+      }
 
-        if (mysql_.is_connected()) {
-          log_info("%s", "disconnecting from mysql-server");
-          mysql_.disconnect();
-        }
+      if (cluster_servers_it == cluster_servers.end()) {
+        throw std::runtime_error("no more nodes to fail-over too, giving up.");
+      }
 
-        auto const &tp = *cluster_servers_it;
+      if (metadata_.get_session().is_connected()) {
+        log_info("%s", "disconnecting from mysql-server");
+        metadata_.get_session().disconnect();
+      }
 
-        auto const &host = std::get<0>(tp);
-        auto port = std::get<1>(tp);
+      auto const &tp = *cluster_servers_it;
 
-        log_info("trying to connecting to mysql-server at %s:%ld", host.c_str(),
-                 port);
+      auto const &host = std::get<0>(tp);
+      auto port = std::get<1>(tp);
 
-        try {
-          mysql_.connect(host, port, cluster_initial_username_,
-                         cluster_initial_password_, "", "",
-                         connection_timeout_);
-        } catch (const std::exception &inner_e) {
-          log_info("Failed connecting to %s:%ld: %s, trying next", host.c_str(),
-                   port, inner_e.what());
-        }
-        // if this fails, we should just skip it and go to the next
-      } while (!mysql_.is_connected());
-    }
+      log_info("trying to connect to mysql-server at %s:%ld", host.c_str(),
+               port);
+
+      try {
+        metadata_.get_session().connect(host, port, cluster_initial_username_,
+                                        cluster_initial_password_, "", "",
+                                        connection_timeout_);
+      } catch (const std::exception &inner_e) {
+        log_info("Failed connecting to %s:%ld: %s, trying next", host.c_str(),
+                 port, inner_e.what());
+      }
+      // if this fails, we should just skip it and go to the next
+    } while (!metadata_.get_session().is_connected());
   } while (true);
-}
-
-/**
- * GR-aware decorator for MySQL Sessions.
- */
-class GRAwareDecorator : public ClusterAwareDecorator {
- public:
-  using ClusterAwareDecorator::ClusterAwareDecorator;
-
- protected:
-  virtual std::vector<std::tuple<std::string, unsigned long>>
-  fetch_cluster_hosts() override;
-};
-
-std::vector<std::tuple<std::string, unsigned long>>
-GRAwareDecorator::fetch_cluster_hosts() {
-  // Query the name of the replicaset, the servers in the replicaset and the
-  // router credentials using the URL of a server in the replicaset.
-  //
-  // order by member_role (in 8.0 and later) to sort PRIMARY over SECONDARY
-  const std::string query =
-      "SELECT member_host, member_port "
-      "  FROM performance_schema.replication_group_members "
-      " /*!80002 ORDER BY member_role */";
-
-  try {
-    std::vector<std::tuple<std::string, unsigned long>> gr_servers;
-
-    mysql_.query(
-        query, [&gr_servers](const std::vector<const char *> &row) -> bool {
-          gr_servers.push_back(
-              std::make_tuple(std::string(row[0]), std::stoul(row[1])));
-          return true;  // don't stop
-        });
-
-    return gr_servers;
-  } catch (const MySQLSession::Error &e) {
-    // log_error("MySQL error: %s (%u)", e.what(), e.code());
-    // log_error("    Failed query: %s", query.str().c_str());
-    throw std::runtime_error("Error querying metadata: "s + e.what());
-  }
-}
-
-/**
- * ReplicaSet-aware decorator for MySQL Sessions
- */
-class AsyncReplAwareDecorator : public ClusterAwareDecorator {
- public:
-  using ClusterAwareDecorator::ClusterAwareDecorator;
-
- protected:
-  virtual std::vector<std::tuple<std::string, unsigned long>>
-  fetch_cluster_hosts() override;
-};
-
-std::vector<std::tuple<std::string, unsigned long>>
-AsyncReplAwareDecorator::fetch_cluster_hosts() {
-  // Query the name of the cluster, and the instance addresses
-  const std::string query =
-      "select i.address from "
-      "mysql_innodb_cluster_metadata.v2_instances i join "
-      "mysql_innodb_cluster_metadata.v2_clusters c on c.cluster_id = "
-      "i.cluster_id";
-
-  try {
-    std::vector<std::tuple<std::string, unsigned long>> ar_servers;
-
-    mysql_.query(query,
-                 [&ar_servers](const std::vector<const char *> &row) -> bool {
-                   mysqlrouter::URI u("mysql://"s + row[0]);
-                   ar_servers.push_back(std::make_tuple(u.host, u.port));
-                   return true;  // don't stop
-                 });
-
-    return ar_servers;
-  } catch (const MySQLSession::Error &e) {
-    throw std::runtime_error("Error querying metadata: "s + e.what());
-  }
-}
-
-std::unique_ptr<ClusterAwareDecorator> create_cluster_aware_decorator(
-    const ClusterType cluster_type, MySQLSession &sess,
-    const std::string &cluster_initial_username,
-    const std::string &cluster_initial_password,
-    const std::string &cluster_initial_hostname,
-    unsigned long cluster_initial_port,
-    const std::string &cluster_initial_socket, unsigned long connection_timeout,
-    std::set<MySQLErrorc> failure_codes = {MySQLErrorc::kSuperReadOnly,
-                                           MySQLErrorc::kLostConnection}) {
-  if (cluster_type == ClusterType::RS_V2) {
-    return std::make_unique<AsyncReplAwareDecorator>(
-        sess, cluster_initial_username, cluster_initial_password,
-        cluster_initial_hostname, cluster_initial_port, cluster_initial_socket,
-        connection_timeout, failure_codes);
-  } else {
-    return std::make_unique<GRAwareDecorator>(
-        sess, cluster_initial_username, cluster_initial_password,
-        cluster_initial_hostname, cluster_initial_port, cluster_initial_socket,
-        connection_timeout, failure_codes);
-  }
 }
 
 void ConfigGenerator::set_log_file_permissions(
@@ -1347,17 +1266,17 @@ std::string ConfigGenerator::bootstrap_deployment(
   // bootstrap
   // All SQL writes happen inside here
   {
-    auto cluster_aware = create_cluster_aware_decorator(
-        metadata_->get_type(), *mysql_, cluster_initial_username_,
-        cluster_initial_password_, cluster_initial_hostname_,
-        cluster_initial_port_, cluster_initial_socket_, connect_timeout_);
+    ClusterAwareDecorator cluster_aware(
+        *metadata_, cluster_initial_username_, cluster_initial_password_,
+        cluster_initial_hostname_, cluster_initial_port_,
+        cluster_initial_socket_, connect_timeout_);
 
     // note: try_bootstrap_deployment() can update router_id, username and
     // password note: failover is performed only on specific errors (subset of
     // what
     //       appears in enum class MySQLErrorc)
     std::tie(password) =
-        cluster_aware->failover_on_failure<std::tuple<std::string>>([&]() {
+        cluster_aware.failover_on_failure<std::tuple<std::string>>([&]() {
           return try_bootstrap_deployment(
               router_id, username, password, router_name,
               cluster_info.metadata_cluster_id, user_options,

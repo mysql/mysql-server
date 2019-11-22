@@ -11,8 +11,9 @@ var defaults = {
   // - state
   // - xport (if available and needed)
   group_replication_membership: [],
+  group_replication_name: "cluster-specific-id",
   port: mysqld.session.port,
-  cluster_id: "cluter-id",
+  cluster_id: "cluster-specific-id",
   innodb_cluster_name: "test",
   innodb_cluster_replicaset_name: "default",
   use_bootstrap_big_data: false,
@@ -401,7 +402,7 @@ exports.get = function get(stmt_key, options) {
         ],
         "rows": [
           [
-            "replication-1"
+            options.group_replication_name
           ]
         ]
       },
@@ -885,7 +886,7 @@ exports.get = function get(stmt_key, options) {
             "name": "cluster_id"
           }
          ],
-         "rows": [["cluster-id-ar"]]
+         "rows": [[options.cluster_id]]
       }
     },
 

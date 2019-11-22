@@ -43,6 +43,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "mysqlrouter/rest_client.h"
 #include "router_component_system_layout.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "tcp_port_pool.h"
 
 #include <chrono>
@@ -699,9 +700,8 @@ TEST_P(StateFileSplitBrainScenarioTest, SplitBrainScenario) {
 
   std::vector<std::string> expected_gr_nodes;
   for (unsigned i = 0; i < 2; ++i) {
-    const auto port_connect = cluster_node_ports[i].first;
     expected_gr_nodes.push_back("mysql://127.0.0.1:" +
-                                std::to_string(port_connect));
+                                std::to_string(cluster_node_ports[i].first));
   }
 
   EXPECT_TRUE(wait_state_file_contains(state_file, kClusterGroupId,
@@ -1187,7 +1187,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
   EXPECT_TRUE(
-      check_state_file(state_file, "replication-1",
+      check_state_file(state_file, "cluster-specific-id",
                        {"mysql://localhost:5500", "mysql://localhost:5510",
                         "mysql://localhost:5520"}))
       << get_file_output(state_file);
@@ -1254,8 +1254,9 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   // what the bootstrap server has reported
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
+
   EXPECT_TRUE(
-      check_state_file(state_file, "replication-1",
+      check_state_file(state_file, "cluster-specific-id",
                        {"mysql://localhost:5500", "mysql://localhost:5510",
                         "mysql://localhost:5520"}))
       << get_file_output(state_file);

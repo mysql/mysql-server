@@ -90,6 +90,7 @@ class CommonBootstrapTest : public RouterComponentTest {
     uint16_t http_port;
     std::string js_filename;
     bool unaccessible{false};
+    std::string cluster_specific_id{"cluster-specific-id"};
   };
 
   void bootstrap_failover(
@@ -166,7 +167,8 @@ void CommonBootstrapTest::bootstrap_failover(
 
     EXPECT_TRUE(MockServerRestClient(http_port).wait_for_rest_endpoint_ready());
     set_mock_bootstrap_data(http_port, cluster_name, gr_members,
-                            metadata_version);
+                            metadata_version,
+                            mock_server_config.cluster_specific_id);
   }
 
   std::vector<std::string> router_cmdline;
@@ -402,6 +404,7 @@ INSTANTIATE_TEST_CASE_P(
 class RouterBootstrapUserIsCurrentUser
     : public CommonBootstrapTest,
       public ::testing::WithParamInterface<BootstrapTestParam> {};
+
 TEST_P(RouterBootstrapUserIsCurrentUser, BootstrapUserIsCurrentUser) {
   const auto param = GetParam();
 
@@ -439,6 +442,52 @@ INSTANTIATE_TEST_CASE_P(
                            "", ""}),
     get_test_description);
 #endif
+
+class RouterBootstrapailoverClusterIdDiffers
+    : public CommonBootstrapTest,
+      public ::testing::WithParamInterface<BootstrapTestParam> {};
+
+/**
+ * @test
+ *       verify that the router's \c --bootstrap fails when it fails over to the
+ * node with a different cluster-id/replication-group-id
+ */
+TEST_P(RouterBootstrapailoverClusterIdDiffers,
+       BootstrapFailoverClusterIdDiffers) {
+  {
+    std::vector<Config> mock_servers{
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join(GetParam().trace_file).str(), false,
+         "cluster-id-1"},
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join(GetParam().trace_file2).str(), false,
+         "cluster-id-2"},
+    };
+
+    // check that it failed as expected
+    bootstrap_failover(
+        mock_servers, ClusterType::RS_V2, {}, EXIT_FAILURE,
+        {"Node on '.*' that the bootstrap failed over to, seems to belong to "
+         "different cluster\\(cluster-id-1 != cluster-id-2\\), skipping"});
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(
+    BootstrapFailoverClusterIdDiffers, RouterBootstrapailoverClusterIdDiffers,
+    ::testing::Values(
+        BootstrapTestParam{ClusterType::GR_V2, "gr",
+                           "bootstrap_failover_super_read_only_1_gr.js",
+                           "bootstrap_failover_super_read_only_1_gr.js", ""},
+        BootstrapTestParam{ClusterType::RS_V2, "ar",
+                           "bootstrap_failover_super_read_only_1_ar.js",
+                           "bootstrap_failover_super_read_only_1_ar.js", ""},
+        BootstrapTestParam{ClusterType::GR_V1, "gr_v1",
+                           "bootstrap_failover_super_read_only_1_gr_v1.js",
+                           "bootstrap_failover_super_read_only_1_gr_v1.js",
+                           ""}),
+    get_test_description);
 
 /**
  * @test

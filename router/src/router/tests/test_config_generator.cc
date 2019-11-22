@@ -2119,6 +2119,7 @@ struct query_entry_t {
 };
 
 std::vector<query_entry_t> expected_bootstrap_queries = {
+    {"select @@group_replication_group_name", ACTION_QUERY_ONE, 1, {{"gr-id"}}},
     {"START TRANSACTION", ACTION_EXECUTE},
     {"INSERT INTO mysql_innodb_cluster_metadata.v2_routers", ACTION_EXECUTE, 4},
     {"CREATE USER IF NOT EXISTS 'mysql_router4_012345678901'@'%'",
@@ -2268,6 +2269,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("select c.cluster_id")
         .then_return(3, {{"id", "mycluter", "somehost:3306"}});
+    common_pass_group_name(mock_mysql.get());
     mock_mysql->expect_execute("START TRANSACTION").then_error("boo!", 1234);
 
     KeyringInfo keyring_info("delme", "delme.key");
@@ -2308,6 +2310,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_cleanup_on_failure) {
     config_gen.init(kServerUrl, {});
     mock_mysql->expect_query("").then_return(
         3, {{"id", "mycluster", "somehost:3306"}});
+    common_pass_group_name(mock_mysql.get());
     // force a failure during account creationg
     mock_mysql->expect_execute("").then_error("boo!", 1234);
 
@@ -3349,7 +3352,7 @@ static void bootstrap_password_test(
   config_gen.bootstrap_directory_deployment(dir, options, {}, default_paths);
 }
 
-static constexpr unsigned kCreateUserQuery = 2;   // measured from front
+static constexpr unsigned kCreateUserQuery = 3;   // measured from front
 static constexpr unsigned kCreateUserQuery2 = 9;  // measured backwards from end
 
 TEST_F(ConfigGeneratorTest,

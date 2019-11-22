@@ -26,6 +26,8 @@
 
 #include "common.h"  // rename_thread()
 #include "mysql/harness/logging/logging.h"
+#include "mysqld_error.h"
+#include "mysqlx_error.h"
 #include "mysqlxclient/xsession.h"
 #include "socket_operations.h"
 
@@ -81,6 +83,7 @@ struct GRNotificationListener::Impl {
   std::map<NodeId, NodeSession> sessions_;
   bool sessions_changed_{false};
   std::mutex configuration_data_mtx_;
+  bool mysqlx_wait_timeout_set_{false};
 
   std::unique_ptr<std::thread> listener_thread;
   std::atomic<bool> terminate{false};
@@ -95,14 +98,14 @@ struct GRNotificationListener::Impl {
 
   ~Impl();
 
-  NodeSession connect(NodeId &node_id, xcl::XError &out_xerror);
+  xcl::XError connect(NodeSession &session, NodeId &node_id);
   void listener_thread_func();
   bool read_from_session(const NodeId &node_id, NodeSession &session);
 
   xcl::XError enable_notices(xcl::XSession &session,
                              const NodeId &node_id) noexcept;
-  xcl::XError set_mysqlx_wait_timeout(xcl::XSession &session,
-                                      const NodeId &node_id) noexcept;
+  void set_mysqlx_wait_timeout(xcl::XSession &session,
+                               const NodeId &node_id) noexcept;
   void check_mysqlx_wait_timeout();
   xcl::XError ping(xcl::XSession &session) noexcept;
   void remove_node_session(const NodeId &node) noexcept;
@@ -150,55 +153,50 @@ xcl::Handler_result GRNotificationListener::Impl::notice_handler(
   return xcl::Handler_result::Continue;
 }
 
-NodeSession GRNotificationListener::Impl::connect(NodeId &node_id,
-                                                  xcl::XError &out_xerror) {
-  NodeSession session{xcl::create_session()};
+xcl::XError GRNotificationListener::Impl::connect(NodeSession &session,
+                                                  NodeId &node_id) {
+  session = xcl::create_session();
+  xcl::XError err;
 
-  out_xerror = session->set_mysql_option(
+  err = session->set_mysql_option(
       xcl::XSession::Mysqlx_option::Authentication_method, "FROM_CAPABILITIES");
-  if (out_xerror) return nullptr;
+  if (err) return err;
 
-  out_xerror = session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
-                                         "PREFERRED");
-  if (out_xerror) return nullptr;
+  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
+                                  "PREFERRED");
+  if (err) return err;
 
-  out_xerror = session->set_mysql_option(
+  err = session->set_mysql_option(
       xcl::XSession::Mysqlx_option::Consume_all_notices, false);
-  if (out_xerror) return nullptr;
+  if (err) return err;
 
-  out_xerror = session->set_mysql_option(
+  err = session->set_mysql_option(
       xcl::XSession::Mysqlx_option::Session_connect_timeout,
       kXSessionConnectTimeout);
-  if (out_xerror) return nullptr;
+  if (err) return err;
 
-  out_xerror = session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Connect_timeout, kXSessionConnectTimeout);
-  if (out_xerror) return nullptr;
+  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Connect_timeout,
+                                  kXSessionConnectTimeout);
+  if (err) return err;
 
   log_debug("Connecting GR Notices listener on %s:%d", node_id.host.c_str(),
             node_id.port);
-  out_xerror = session->connect(node_id.host.c_str(), node_id.port,
-                                user_name.c_str(), password.c_str(), "");
-  if (out_xerror) {
+  err = session->connect(node_id.host.c_str(), node_id.port, user_name.c_str(),
+                         password.c_str(), "");
+  if (err) {
     log_warning(
         "Failed connecting GR Notices listener on %s:%d; (err_code=%d; "
         "err_msg='%s')",
-        node_id.host.c_str(), node_id.port, out_xerror.error(),
-        out_xerror.what());
-    return nullptr;
+        node_id.host.c_str(), node_id.port, err.error(), err.what());
+    return err;
   }
+
+  node_id.fd = session->get_protocol().get_connection().get_socket_fd();
 
   log_debug("Connected GR Notices listener on %s:%d", node_id.host.c_str(),
             node_id.port);
 
-  out_xerror = set_mysqlx_wait_timeout(*session, node_id);
-  if (out_xerror) return nullptr;
-
-  out_xerror = enable_notices(*session, node_id);
-  if (out_xerror) return nullptr;
-
-  node_id.fd = session->get_protocol().get_connection().get_socket_fd();
-  return session;
+  return err;
 }
 
 void GRNotificationListener::Impl::listener_thread_func() {
@@ -234,9 +232,11 @@ void GRNotificationListener::Impl::listener_thread_func() {
       continue;
     }
 
-    // check if we're not due for a ping to the server to avoid inactivity timer
-    // disconnect
-    check_mysqlx_wait_timeout();
+    if (mysqlx_wait_timeout_set_) {
+      // check if we're not due for a ping to the server to avoid inactivity
+      // timer disconnect
+      check_mysqlx_wait_timeout();
+    }
 
     const int poll_res = mysql_harness::SocketOperations::instance()->poll(
         fds.get(), sessions_qty, kPollTimeout);
@@ -394,7 +394,7 @@ GRNotificationListener::Impl::~Impl() {
 xcl::XError GRNotificationListener::Impl::enable_notices(
     xcl::XSession &session, const NodeId &node_id) noexcept {
   log_info("Enabling notices for cluster changes");
-  xcl::XError out_error;
+  xcl::XError err;
 
   xcl::Argument_value::Object arg_obj;
   xcl::Argument_value arg_value;
@@ -410,40 +410,48 @@ xcl::XError GRNotificationListener::Impl::enable_notices(
       xcl::Argument_value("group_replication/status/state_change",
                           xcl::Argument_value::String_type::k_string)};
 
-  auto stmt_result = session.execute_stmt(
-      "mysqlx", "enable_notices", {xcl::Argument_value(arg_obj)}, &out_error);
+  auto stmt_result = session.execute_stmt("mysqlx", "enable_notices",
+                                          {xcl::Argument_value(arg_obj)}, &err);
 
-  if (!out_error) {
+  if (!err) {
     log_debug("Enabled notices for cluster changes on connection to node %s:%d",
               node_id.host.c_str(), node_id.port);
+  } else if (err.error() == ER_X_BAD_NOTICE) {
+    log_warning(
+        "Failed enabling notices on the node %s:%d. This MySQL server "
+        "version does not support GR notifications (err_code=%d; err_msg='%s')",
+        node_id.host.c_str(), node_id.port, err.error(), err.what());
   } else {
     log_warning(
-        "Failed sending ping to node %s:%d; (err_code=%d; err_msg='%s')",
-        node_id.host.c_str(), node_id.port, out_error.error(),
-        out_error.what());
+        "Failed enabling notices on the node %s:%d; (err_code=%d; "
+        "err_msg='%s')",
+        node_id.host.c_str(), node_id.port, err.error(), err.what());
   }
-  return out_error;
+
+  return err;
 }
 
-xcl::XError GRNotificationListener::Impl::set_mysqlx_wait_timeout(
+void GRNotificationListener::Impl::set_mysqlx_wait_timeout(
     xcl::XSession &session, const NodeId &node_id) noexcept {
-  xcl::XError out_error;
+  xcl::XError err;
   const std::string sql_stmt = "set @@mysqlx_wait_timeout = " +
                                std::to_string(kXSesssionWaitTimeout.count());
-  session.execute_sql(sql_stmt, &out_error);
+  session.execute_sql(sql_stmt, &err);
 
-  if (!out_error) {
+  if (!err) {
     log_debug(
         "Successfully set mysqlx_wait_timeout on connection to node %s:%d",
         node_id.host.c_str(), node_id.port);
+    mysqlx_wait_timeout_set_ = true;
+  } else if (err.error() == ER_UNKNOWN_SYSTEM_VARIABLE) {
+    // This version of mysqlxplugin does not support mysqlx_wait_timeout,
+    // that's ok, we do not need to worry about it then
   } else {
     log_warning(
         "Failed setting mysqlx_wait_timeout on connection to node %s:%d; "
         "(err_code=%d; err_msg='%s')",
-        node_id.host.c_str(), node_id.port, out_error.error(),
-        out_error.what());
+        node_id.host.c_str(), node_id.port, err.error(), err.what());
   }
-  return out_error;
 }
 
 xcl::XError GRNotificationListener::Impl::ping(
@@ -486,18 +494,14 @@ void GRNotificationListener::Impl::reconfigure(
                      node.first.port == node_id.port;
             }) == sessions_.end()) {
       NodeId node_id{instance.host, instance.xport, -1};
-      xcl::XError xerror;
-      auto session = connect(node_id, xerror);
-
+      NodeSession session;
       // If we could not connect it's not fatal, we only log it and live with
       // the node not being monitored for GR notifications.
-      if (!session) {
-        log_warning(
-            "Could not create notification connection to the node %s:%d. "
-            "(err_code=%d; err_msg='%s')",
-            node_id.host.c_str(), node_id.port, xerror.error(), xerror.what());
-        continue;
-      }
+      if (connect(session, node_id)) continue;
+
+      set_mysqlx_wait_timeout(*session, node_id);
+
+      if (enable_notices(*session, node_id)) continue;
 
       session->get_protocol().add_notice_handler(
           [this](const xcl::XProtocol *protocol, const bool is_global,
