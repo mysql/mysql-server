@@ -3,6 +3,7 @@
 # Test that these names are properly rolled back on a failure.
 #
 --source connect.inc
+--source include/have_debug.inc
 
 --echo # Setup
 create table parent (
