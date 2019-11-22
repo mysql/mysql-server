@@ -1,0 +1,103 @@
+# ==== Purpose ====
+#
+# This test script checks if the required data for Relay_log_info gets persisted
+# after a `RESET SLAVE` and a server restart.
+#
+# ==== Requirements ====
+#
+# R1. If instantiated, `PRIVILEGE_CHECKS_USER` and `REQUIRE_ROW_FORMAT` must be
+#     persisted in the relay-log info repository, event after a `RESET SLAVE`.
+#
+# R2. After a server restart, the values for a given channel
+#     `PRIVILEGE_CHECKS_USER` and `REQUIRE_ROW_FORMAT` options should be
+#     restored if instantiated.
+#
+# ==== Implementation ====
+#
+# 1. Instantiate `PRIVILEGE_CHECKS_USER` and `REQUIRE_ROW_FORMAT`
+# 2. Check that the options values are instantiated.
+# 3. Stop and reset the slave.
+# 4. Check that the options values are instantiated.
+# 5. Restart the server.
+# 6. Check that the options values are instantiated.
+# 7. Start the slave.
+# 8. Check that the options values are instantiated.
+#
+# ==== References ====
+#
+# WL#12966 Replication with privilege checks
+# WL#12968 Configure replication applier to require row-based replication
+# BUG#30311908 RESTARTING SERVER POST 'RESET SLAVE', CLEANS UP
+#              SLAVE_RELAY_LOG_INFO SETTINGS
+#
+
+--source include/have_binlog_format_row.inc
+--source include/have_slave_repository_type_table.inc
+
+# Procedure that checks if the PFS data regarding `PRIVILEGE_CHECKS_USER` is
+# updated.
+--write_file $MYSQLTEST_VARDIR/tmp/check_pfs.inc PROCEDURE
+  --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User = "$applier_user" AND Require_Row_Format = 1`
+  --let $assert_text = The performance_schema.replication_applier_configuration holds saved data: PCU=$applier_user & RRF=1
+  --let $assert_cond = 0 != $count
+  --source include/assert.inc
+#END OF
+PROCEDURE
+
+--echo #
+--echo # 1. Instantiate `PRIVILEGE_CHECKS_USER` and `REQUIRE_ROW_FORMAT`
+--echo #
+--let $applier_user = 'u'@'localhost'
+--let $rpl_privilege_checks_user = *:$applier_user
+--let $rpl_require_row_format = *:1
+--let $rpl_privilege_checks_user_additional_grants = CREATE,INSERT,DROP
+--source include/master-slave.inc
+
+CREATE TABLE t (a INT PRIMARY KEY);
+INSERT INTO t VALUES (1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 2. Check that the options values are instantiated.
+--echo #
+--source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+
+--echo #
+--echo # 3. Stop and reset the slave.
+--echo #
+STOP SLAVE;
+RESET SLAVE;
+
+--echo #
+--echo # 4. Check that the options values are instantiated.
+--echo #
+--source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+
+--echo #
+--echo # 5. Restart the server.
+--echo #
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--echo #
+--echo # 6. Check that the options values are instantiated.
+--echo #
+--source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+
+--echo #
+--echo # 7. Start the slave.
+--echo #
+--source include/rpl_connection_slave.inc
+START SLAVE;
+
+--echo #
+--echo # 8. Check that the options values are instantiated.
+--echo #
+--source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+
+# Clean up
+--remove_file $MYSQLTEST_VARDIR/tmp/check_pfs.inc
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/rpl_end.inc

@@ -49,8 +49,9 @@ enum enum_info_repository {
 */
 enum enum_return_check {
   REPOSITORY_DOES_NOT_EXIST = 1,
-  REPOSITORY_EXISTS,
-  ERROR_CHECKING_REPOSITORY
+  REPOSITORY_EXISTS = 2,
+  ERROR_CHECKING_REPOSITORY = 4,
+  REPOSITORY_CLEARED = 10
 };
 
 class Rpl_info_handler {

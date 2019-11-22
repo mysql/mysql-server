@@ -1302,15 +1302,10 @@ void end_info(Master_info *mi) {
   mi->rli->end_info();
 }
 
-int remove_info(Master_info *mi) {
-  int error = 1;
+void clear_info(Master_info *mi) {
   DBUG_TRACE;
   DBUG_ASSERT(mi != nullptr && mi->rli != nullptr);
 
-  /*
-    The previous implementation was not acquiring locks.
-    We do the same here. However, this is quite strange.
-  */
   /*
     Reset errors (the idea is that we forget about the
     old master).
@@ -1324,8 +1319,19 @@ int remove_info(Master_info *mi) {
   }
   mi->rli->clear_sql_delay();
 
-  mi->end_info();
-  mi->rli->end_info();
+  end_info(mi);
+}
+
+int remove_info(Master_info *mi) {
+  int error = 1;
+  DBUG_TRACE;
+  DBUG_ASSERT(mi != nullptr && mi->rli != nullptr);
+
+  /*
+    The previous implementation was not acquiring locks.
+    We do the same here. However, this is quite strange.
+  */
+  clear_info(mi);
 
   if (mi->remove_info() || Rpl_info_factory::reset_workers(mi->rli) ||
       mi->rli->remove_info())
@@ -1335,6 +1341,42 @@ int remove_info(Master_info *mi) {
 
 err:
   return error;
+}
+
+bool reset_info(Master_info *mi) {
+  DBUG_TRACE;
+  DBUG_ASSERT(mi != nullptr && mi->rli != nullptr);
+
+  clear_info(mi);
+
+  if (mi->remove_info() || Rpl_info_factory::reset_workers(mi->rli))
+    return true;
+
+  MUTEX_LOCK(mi_lock, &mi->data_lock);
+  MUTEX_LOCK(rli_lock, &mi->rli->data_lock);
+
+  mi->init_master_log_pos();
+  mi->master_uuid[0] = 0;
+
+  if (mi->reset && opt_mi_repository_id == INFO_REPOSITORY_TABLE &&
+      opt_rli_repository_id == INFO_REPOSITORY_TABLE && mi->flush_info(true)) {
+    my_error(ER_MASTER_INFO, MYF(0));
+    return true;
+  }
+
+  bool have_relay_log_data_to_persist =                  // Only want to keep
+      (!mi->rli->is_privilege_checks_user_null() ||      // if PCU is not null
+       mi->rli->is_row_format_required()) &&             // or RRF is 1
+      opt_rli_repository_id == INFO_REPOSITORY_TABLE &&  // in TABLE repository.
+      opt_mi_repository_id == INFO_REPOSITORY_TABLE;
+
+  if ((have_relay_log_data_to_persist && mi->rli->clear_info()) ||
+      (!have_relay_log_data_to_persist && mi->rli->remove_info())) {
+    my_error(ER_MASTER_INFO, MYF(0));
+    return true;
+  }
+
+  return false;
 }
 
 int flush_master_info(Master_info *mi, bool force, bool need_lock,
@@ -8834,36 +8876,17 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
     goto err;
   }
 
-  /* Clear master's log coordinates and associated information */
   DBUG_ASSERT(!mi->rli || !mi->rli->slave_running);  // none writes in rli table
-  if (remove_info(mi)) {
+  if ((reset_all && remove_info(mi)) ||  // Removes all repository information.
+      (!reset_all && reset_info(mi))) {  // Resets log names, positions, etc,
+                                         // but keeps configuration information
+                                         // needed for a re-connection.
     error = ER_UNKNOWN_ERROR;
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     unlock_slave_threads(mi);
     mi->channel_unlock();
     goto err;
   }
-  if (!reset_all) {
-    mi->init_master_log_pos();
-    mi->master_uuid[0] = 0;
-    /*
-      This shall prevent the channel to vanish if server is restarted
-      after this RESET SLAVE and before the channel be started.
-    */
-    mysql_mutex_lock(&mi->data_lock);
-    if (mi->reset && opt_mi_repository_id == INFO_REPOSITORY_TABLE &&
-        opt_rli_repository_id == INFO_REPOSITORY_TABLE &&
-        (mi->flush_info(true))) {
-      error = ER_MASTER_INFO;
-      my_error(ER_MASTER_INFO, MYF(0));
-      mysql_mutex_unlock(&mi->data_lock);
-      unlock_slave_threads(mi);
-      mi->channel_unlock();
-      goto err;
-    }
-    mysql_mutex_unlock(&mi->data_lock);
-  }
-
   unlock_slave_threads(mi);
 
   (void)RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));

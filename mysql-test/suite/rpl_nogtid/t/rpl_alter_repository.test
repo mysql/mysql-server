@@ -81,7 +81,7 @@ INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
 --error ER_SLAVE_CONFIGURATION
 START SLAVE SQL_THREAD;
-ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED NOT NULL AFTER Sql_delay;
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 
 #
@@ -124,7 +124,7 @@ RESET SLAVE ALL;
 --replace_column 2 ####
 --error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
-ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED NOT NULL AFTER Sql_delay;
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET SLAVE ALL;
 --replace_result $_slave_master_host MASTER_HOST $_slave_master_user MASTER_USER $_slave_master_port MASTER_PORT $_slave_master_log_file MASTER_LOG_FILE $_slave_master_log_pos MASTER_LOG_POS

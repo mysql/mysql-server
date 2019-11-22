@@ -853,6 +853,14 @@ ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE 
 # Columns added to keep information about REQUIRE_ROW_FORMAT replication field
 ALTER TABLE slave_relay_log_info ADD Require_row_format BOOLEAN DEFAULT 0 COMMENT 'Indicates whether the channel shall only accept row based events.' AFTER Privilege_checks_hostname;
 
+ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
+                                 MODIFY Relay_log_pos BIGINT UNSIGNED COMMENT 'The relay log position of the last executed event.',
+                                 MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+                                 MODIFY Master_log_pos BIGINT UNSIGNED COMMENT 'The master log position of the last executed event.',
+                                 MODIFY Sql_delay INTEGER COMMENT 'The number of seconds that the slave must lag behind the master.',
+                                 MODIFY Number_of_workers INTEGER UNSIGNED,
+                                 MODIFY Id INTEGER UNSIGNED COMMENT 'Internal Id that uniquely identifies this record.';
+
 #
 # Drop legacy NDB distributed privileges function & procedures
 #
