@@ -1637,16 +1637,17 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   if (initialized)
     mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
 
-  const char *client_auth_plugin =
-      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+  std::string client_auth_plugin(
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+          ->client_auth_plugin);
 
-  DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(client_auth_plugin.c_str());
 
   DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
-    std::string invalid_client_auth_plugin =
-        std::string("..") + std::string(FN_DIRSEP) + std::string("..") +
-        std::string(FN_DIRSEP) + std::string("mysql_native_password");
-    client_auth_plugin = invalid_client_auth_plugin.c_str();
+    client_auth_plugin.clear();
+    client_auth_plugin = std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("mysql_native_password");
   });
   /*
     If we're dealing with an older client we can't just send a change plugin
@@ -1665,13 +1666,13 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
     return false;
   }
 
-  DBUG_PRINT("info",
-             ("requesting client to use the %s plugin", client_auth_plugin));
-  return net_write_command(mpvio->protocol->get_net(),
-                           switch_plugin_request_buf[0],
-                           pointer_cast<const uchar *>(client_auth_plugin),
-                           strlen(client_auth_plugin) + 1,
-                           pointer_cast<const uchar *>(data), data_len);
+  DBUG_PRINT("info", ("requesting client to use the %s plugin",
+                      client_auth_plugin.c_str()));
+  return net_write_command(
+      mpvio->protocol->get_net(), switch_plugin_request_buf[0],
+      pointer_cast<const uchar *>(client_auth_plugin.c_str()),
+      client_auth_plugin.size() + 1, pointer_cast<const uchar *>(data),
+      data_len);
 }
 
 /* Return true if there is no users that can match the given host */
