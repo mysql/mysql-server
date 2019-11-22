@@ -608,6 +608,7 @@ void recv_sys_init(ulint max_mem) {
   }
 #else  /* !UNIV_HOTBACKUP */
   recv_is_from_backup = true;
+  recv_sys->apply_file_operations = false;
 #endif /* !UNIV_HOTBACKUP */
 
   /* Set appropriate value of recv_n_pool_free_frames. If capacity
@@ -1667,27 +1668,27 @@ static byte *recv_parse_or_apply_log_rec_body(
           ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
           recv_sys->bytes_to_ignore_before_checkpoint != 0));
 #else  /* !UNIV_HOTBACKUP */
-      // bytes_to_ignore_before_checkpoint does not work for MEB,
-      // because it depends on the casual position of the start
-      // checkpoint. If it matches the first record in a block, a parse
-      // turns into an apply.
+      // Mysqlbackup does not execute file operations. It cares for all
+      // files to be at their final places when it applies the redo log.
+      // The exception is the restore of an incremental_with_redo_log_only
+      // backup.
     case MLOG_FILE_DELETE:
 
-      return (fil_tablespace_redo_delete(ptr, end_ptr,
-                                         page_id_t(space_id, page_no),
-                                         parsed_bytes, !recv_recovery_on));
+      return (fil_tablespace_redo_delete(
+          ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
+          !recv_sys->apply_file_operations));
 
     case MLOG_FILE_CREATE:
 
-      return (fil_tablespace_redo_create(ptr, end_ptr,
-                                         page_id_t(space_id, page_no),
-                                         parsed_bytes, !recv_recovery_on));
+      return (fil_tablespace_redo_create(
+          ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
+          !recv_sys->apply_file_operations));
 
     case MLOG_FILE_RENAME:
 
-      return (fil_tablespace_redo_rename(ptr, end_ptr,
-                                         page_id_t(space_id, page_no),
-                                         parsed_bytes, !recv_recovery_on));
+      return (fil_tablespace_redo_rename(
+          ptr, end_ptr, page_id_t(space_id, page_no), parsed_bytes,
+          !recv_sys->apply_file_operations));
 #endif /* !UNIV_HOTBACKUP */
 
     case MLOG_INDEX_LOAD:
