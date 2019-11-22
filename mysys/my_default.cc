@@ -1381,6 +1381,9 @@ void update_variable_source(const char *opt_name, const char *value) {
   /* strip the value part if present */
   if (pos != string::npos) var_name = var_name.substr(0, pos);
 
+  /* opt_name must be of form --XXXXX which means it must start with -- */
+  if (var_name.length() < 3 || var_name[0] != '-' || var_name[1] != '-') return;
+
   /* remove -- */
   var_name = var_name.substr(2);
 
