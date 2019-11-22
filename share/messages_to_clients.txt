@@ -9240,12 +9240,6 @@ ER_CLIENT_QUERY_FAILURE_INVALID_NON_ROW_FORMAT
 ER_REQUIRE_ROW_FORMAT_INVALID_VALUE
   eng "The requested value %s is invalid for REQUIRE_ROW_FORMAT, must be either 0 or 1."
 
-ER_CLIENT_REQ_ROW_PRIV_CHECKS_USER_NOT_NULL
-  eng "REQUIRE_ROW_FORMAT for replication channel '%.192s' can't be set to %d unless PRIVILEGE_CHECKS_USER is also set to %s."
-
-ER_CLIENT_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET
-  eng "PRIVILEGE_CHECKS_USER for replication channel '%.192s' can't be set to `%.64s`@`%.255s` unless REQUIRE_ROW_FORMAT is also set to %d."
-
 ER_FAILED_TO_DETERMINE_IF_ROLE_IS_MANDATORY
   eng "Failed to acquire lock on user management service, unable to determine if role `%s`@`%s` is mandatory"
 

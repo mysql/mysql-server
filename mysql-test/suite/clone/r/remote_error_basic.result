@@ -32,7 +32,7 @@ SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;
 SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
-ERROR HY000: Clone Donor Error: 3959 : Clone needs max_allowed_packet value to be 2097152 or more. Current value is 524288.
+ERROR HY000: Clone Donor Error: 3957 : Clone needs max_allowed_packet value to be 2097152 or more. Current value is 524288.
 select ID, STATE, ERROR_NO from performance_schema.clone_status;
 ID	STATE	ERROR_NO
 1	Failed	3862

@@ -19,10 +19,10 @@
 #
 # 1. Set `REQUIRE_ROW_FORMAT` to 2 in the `CHANGE MASTER TO ...` and check that
 #    an error is thrown.
-# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...`, after setting
-#    `PRIVILEGE_CHECKS_USER` to a valid value and check an error is thrown.
-# 3. Set `REQUIRE_ROW_FORMAT` to 0 and `PRIVILEGE_CHECKS_USER` to NULL in the
-#    `CHANGE MASTER TO ...` and verify that succceeds.
+# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
+# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
 # 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE MASTER
 #    TO ...` and check that PFS table has the updated value.
 # 5. Use `CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0` to set the value to
@@ -132,20 +132,16 @@ PROCEDURE
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 2;
 
 #
-# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...`, after setting
-#    `PRIVILEGE_CHECKS_USER` to a valid value and check an error is thrown.
+# 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
 #
-CREATE USER 'u1'@'localhost';
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
---error ER_CLIENT_REQ_ROW_PRIV_CHECKS_USER_NOT_NULL
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
 
 #
-# 3. Set `REQUIRE_ROW_FORMAT` to 0 and `PRIVILEGE_CHECKS_USER` to NULL in the
-#    `CHANGE MASTER TO ...` and verify that succceeds.
+# 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE MASTER TO ...` and verify that
+#    succceeds.
 #
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, PRIVILEGE_CHECKS_USER = NULL;
-DROP USER 'u1'@'localhost';
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 
 #
 # 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE MASTER

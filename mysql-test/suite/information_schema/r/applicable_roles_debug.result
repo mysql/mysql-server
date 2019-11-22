@@ -11,12 +11,12 @@ SELECT * FROM INFORMATION_SCHEMA.ENABLED_ROLES;
 ROLE_NAME	ROLE_HOST	IS_DEFAULT	IS_MANDATORY
 r1	%	NO	NO
 Warnings:
-Warning	3948	Failed to acquire lock on user management service, unable to determine if role `r1`@`%` is mandatory
+Warning	3946	Failed to acquire lock on user management service, unable to determine if role `r1`@`%` is mandatory
 SET GLOBAL mandatory_roles = 'r1';
 SELECT * FROM INFORMATION_SCHEMA.APPLICABLE_ROLES ORDER BY GRANTEE, ROLE_NAME;
 USER	HOST	GRANTEE	GRANTEE_HOST	ROLE_NAME	ROLE_HOST	IS_GRANTABLE	IS_DEFAULT	IS_MANDATORY
 Warnings:
-Warning	3949	Failed to acquire lock on user management service, unable to fetch mandatory role list
+Warning	3947	Failed to acquire lock on user management service, unable to fetch mandatory role list
 SET GLOBAL mandatory_roles=default;
 SET GLOBAL DEBUG=default;
 DROP USER u1;

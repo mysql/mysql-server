@@ -201,12 +201,7 @@ class Relay_log_info : public Rpl_info {
       Provided user doesn't have `FILE` privileges during the execution of a
       `LOAD DATA`event.
      */
-    LOAD_DATA_EVENT_NOT_ALLOWED,
-    /**
-      Trying to set `privilege_checks_user` when `require_row_format` is not set
-      to 1
-     */
-    REQUIRE_ROW_FORMAT_NOT_SET
+    LOAD_DATA_EVENT_NOT_ALLOWED
   };
 
   enum class enum_require_row_status : int {
@@ -466,8 +461,7 @@ class Relay_log_info : public Rpl_info {
    */
   enum_priv_checks_status set_privilege_checks_user(
       char const *param_privilege_checks_username,
-      char const *param_privilege_checks_hostname,
-      LEX_MASTER_INFO const *lex_mi = nullptr);
+      char const *param_privilege_checks_hostname);
 
   /**
     Checks the validity and integrity of the data related to
@@ -495,8 +489,7 @@ class Relay_log_info : public Rpl_info {
    */
   enum_priv_checks_status check_privilege_checks_user(
       char const *param_privilege_checks_username,
-      char const *param_privilege_checks_hostname,
-      LEX_MASTER_INFO const *lex_mi = nullptr);
+      char const *param_privilege_checks_hostname);
   /**
     Checks the existence of user provided as part of the `PRIVILEGE_CHECKS_USER`
     option.
@@ -578,44 +571,7 @@ class Relay_log_info : public Rpl_info {
 
      @return a status code describing the state of the data initialization.
    */
-  enum_require_row_status set_require_row_format(
-      bool require_row, LEX_MASTER_INFO const *lex_mi = nullptr);
-
-  /**
-    Checks if the new value for the flag that tells whether or not the slave is
-    running in row mode only is consistent with current state.
-
-    @param require_row the flag value.
-    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
-                  TO` statement, for cross-option validation, if needed.
-
-     @return a status code describing the state of the data initialization.
-   */
-  enum_require_row_status check_require_row_format(
-      bool require_row, LEX_MASTER_INFO const *lex_mi = nullptr);
-
-  /**
-    Outputs the error message associated with the `require_row_format` flag
-    status error `error_code`.
-
-    The output stream to which is outputted is decided based on `to_client`
-    which, if set to `true` will output the message to the client session and if
-    `false` will output to the server log.
-
-    @param level the message urgency level, e.g., `ERROR_LEVEL`,
-                 `WARNING_LEVEL`, etc.
-    @param status_code the status code to output the associated error message
-                       for.
-    @param to_client a flag indicating if the message should be sent to the
-                     client session or to the server log.
-    @param channel_name_arg name of the channel for which the error is being
-                            reported.
-    @param require_row the flag value for which the error is being reported.
-   */
-  void report_require_row_error(enum loglevel level,
-                                enum_require_row_status status_code,
-                                bool to_client, char const *channel_name_arg,
-                                int require_row) const;
+  void set_require_row_format(bool require_row);
 
   /*
     This will be used to verify transactions boundaries of events being applied

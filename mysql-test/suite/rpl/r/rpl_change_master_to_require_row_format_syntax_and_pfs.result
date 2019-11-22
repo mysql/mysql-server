@@ -1,11 +1,7 @@
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 2;
 ERROR HY000: The requested value 2 is invalid for REQUIRE_ROW_FORMAT, must be either 0 or 1.
-CREATE USER 'u1'@'localhost';
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
 CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
-ERROR HY000: REQUIRE_ROW_FORMAT for replication channel '' can't be set to 0 unless PRIVILEGE_CHECKS_USER is also set to NULL.
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, PRIVILEGE_CHECKS_USER = NULL;
-DROP USER 'u1'@'localhost';
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
 include/rpl_init.inc [topology=1->2, 1->3, 1->4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

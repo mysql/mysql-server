@@ -2716,12 +2716,11 @@ void Relay_log_info::set_privilege_checks_user_corrupted(bool is_corrupted) {
 Relay_log_info::enum_priv_checks_status
 Relay_log_info::set_privilege_checks_user(
     char const *param_privilege_checks_username,
-    char const *param_privilege_checks_hostname,
-    LEX_MASTER_INFO const *lex_mi) {
+    char const *param_privilege_checks_hostname) {
   DBUG_TRACE;
 
   enum_priv_checks_status error = this->check_privilege_checks_user(
-      param_privilege_checks_username, param_privilege_checks_hostname, lex_mi);
+      param_privilege_checks_username, param_privilege_checks_hostname);
   if (!!error) return error;
 
   if (param_privilege_checks_username == nullptr) {
@@ -2763,8 +2762,7 @@ Relay_log_info::check_privilege_checks_user() {
 Relay_log_info::enum_priv_checks_status
 Relay_log_info::check_privilege_checks_user(
     char const *param_privilege_checks_username,
-    char const *param_privilege_checks_hostname,
-    LEX_MASTER_INFO const *lex_mi) {
+    char const *param_privilege_checks_hostname) {
   DBUG_TRACE;
 
   if (param_privilege_checks_username == nullptr) {
@@ -2793,10 +2791,6 @@ Relay_log_info::check_privilege_checks_user(
   enum_priv_checks_status error = this->check_applier_acl_user(
       param_privilege_checks_username, param_privilege_checks_hostname);
   if (!!error) return error;
-
-  if (!this->m_require_row_format &&
-      (lex_mi == nullptr || lex_mi->require_row_format != 1))
-    return enum_priv_checks_status::REQUIRE_ROW_FORMAT_NOT_SET;
 
   return enum_priv_checks_status::SUCCESS;
 }
@@ -2964,19 +2958,6 @@ void Relay_log_info::report_privilege_check_error(
       }
       break;
     }
-    case enum_priv_checks_status::REQUIRE_ROW_FORMAT_NOT_SET: {
-      if (to_client)
-        my_error(ER_CLIENT_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET, MYF(0),
-                 channel_name, user_name, host_name, 1);
-      else {
-        THD_instance_guard thd{current_thd != nullptr ? current_thd
-                                                      : this->info_thd};
-        this->report(level, ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET,
-                     ER_THD(thd, ER_LOG_PRIV_CHECKS_REQUIRE_ROW_FORMAT_NOT_SET),
-                     channel_name, user_name, host_name, 1);
-      }
-      break;
-    }
   }
 }
 
@@ -3026,52 +3007,9 @@ bool Relay_log_info::is_row_format_required() const {
   return this->m_require_row_format;
 }
 
-Relay_log_info::enum_require_row_status Relay_log_info::set_require_row_format(
-    bool require_row, LEX_MASTER_INFO const *lex_mi) {
+void Relay_log_info::set_require_row_format(bool require_row) {
   DBUG_TRACE;
-
-  Relay_log_info::enum_require_row_status status{
-      this->check_require_row_format(require_row, lex_mi)};
-
-  if (!status) this->m_require_row_format = require_row;
-
-  return status;
-}
-
-Relay_log_info::enum_require_row_status
-Relay_log_info::check_require_row_format(bool require_row,
-                                         LEX_MASTER_INFO const *lex_mi) {
-  DBUG_TRACE;
-
-  if (!require_row && !this->is_privilege_checks_user_null() &&
-      (lex_mi == nullptr || !lex_mi->privilege_checks_none))
-    return enum_require_row_status::PRIV_CHECKS_USER_NOT_NULL;
-
-  return enum_require_row_status::SUCCESS;
-}
-
-void Relay_log_info::report_require_row_error(
-    enum loglevel, enum_require_row_status status_code, bool to_client,
-    char const *channel_name_arg, int require_row) const {
-  DBUG_TRACE;
-
-  char const *channel_name{channel_name_arg != nullptr ? channel_name_arg
-                                                       : get_channel()};
-
-  switch (status_code) {
-    /* purecov: begin inspected */
-    case enum_require_row_status::SUCCESS: {
-      DBUG_ASSERT(false);
-      break;
-    }
-    /* purecov: end */
-    case enum_require_row_status::PRIV_CHECKS_USER_NOT_NULL: {
-      if (to_client)
-        my_error(ER_CLIENT_REQ_ROW_PRIV_CHECKS_USER_NOT_NULL, MYF(0),
-                 channel_name, require_row, "NULL");
-      break;
-    }
-  }
+  this->m_require_row_format = require_row;
 }
 
 MDL_lock_guard::MDL_lock_guard(THD *target) : m_target{target} { DBUG_TRACE; }

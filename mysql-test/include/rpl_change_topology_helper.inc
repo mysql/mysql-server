@@ -171,21 +171,14 @@ if (!$_rpl_change_topology_helper_skip)
   # Get REQUIRE_ROW_FORMAT for current `$rpl_slave`
   --let $_rpl_change_topology_helper_require_row_index= `SELECT LOCATE('$rpl_slave:', "$rpl_require_row_format")`
   --let $_rpl_change_topology_helper_require_row = 0
-  if ($_rpl_change_topology_helper_privilege_checks != NULL)
+  if ($_rpl_change_topology_helper_require_row_index)
   {
-    --let $_rpl_change_topology_helper_require_row = 1
+    --let $_rpl_change_topology_helper_require_row= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_row_format", $_rpl_change_topology_helper_require_row_index), ',', 1), ':', -1)`
   }
-  if ($_rpl_change_topology_helper_privilege_checks == NULL)
+  # Get REQUIRE_ROW_FORMAT for all slaves
+  if (`SELECT $_rpl_change_topology_helper_require_row_index = 0 AND "$_rpl_change_topology_require_row_all" != ""`)
   {
-    if ($_rpl_change_topology_helper_require_row_index)
-    {
-      --let $_rpl_change_topology_helper_require_row= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_row_format", $_rpl_change_topology_helper_require_row_index), ',', 1), ':', -1)`
-    }
-    # Get PRIVILEGE_CHECKS_USER for all slaves
-    if (`SELECT $_rpl_change_topology_helper_require_row_index = 0 AND "$_rpl_change_topology_require_row_all" != ""`)
-    {
-      --let $_rpl_change_topology_helper_require_row= $_rpl_change_topology_require_row_all
-    }
+    --let $_rpl_change_topology_helper_require_row= $_rpl_change_topology_require_row_all
   }
   --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position REQUIRE_ROW_FORMAT = $_rpl_change_topology_helper_require_row,
 

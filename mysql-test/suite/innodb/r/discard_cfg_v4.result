@@ -412,7 +412,7 @@ ALTER TABLE t1 IMPORT TABLESPACE;
 ERROR HY000: Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (4)
 SHOW WARNINGS;
 Level	Code	Message
-Error	3951	Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (4)
+Error	3949	Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (4)
 Warning	1816	InnoDB: ALTER TABLE `test`.`t1` IMPORT TABLESPACE failed with error 48 : 'Unsupported'
 Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
 # Cleanup
