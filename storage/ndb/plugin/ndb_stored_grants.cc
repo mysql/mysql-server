@@ -334,12 +334,16 @@ int ThreadContext::get_grants_for_user(std::string user) {
   return n;
 }
 
-bool log_message_on_error(const NdbError &ndb_err) {
+bool log_message_on_error(bool retry_result, const NdbError &ndb_err) {
   if (ndb_err.code) {
-    ndb_log_error("%s %d", ndb_err.message, ndb_err.code);
-    return false;
+    if (retry_result)
+      ndb_log_info("Error %d, %s [Transaction succeeded on retry]",
+                   ndb_err.code, ndb_err.message);
+    else
+      ndb_log_error("Error %d, %s [Transaction failed]", ndb_err.code,
+                    ndb_err.message);
   }
-  return true;
+  return retry_result;
 }
 
 /*
@@ -351,9 +355,11 @@ const NdbError *scan_snapshot(NdbTransaction *tx, ThreadContext *context) {
 
 bool ThreadContext::read_snapshot() {
   NdbError ndb_err;
-  ndb_trans_retry(m_thd_ndb->ndb, m_thd, ndb_err,
-                  std::function<decltype(scan_snapshot)>(scan_snapshot), this);
-  return log_message_on_error(ndb_err);
+  bool r;
+  r = ndb_trans_retry(m_thd_ndb->ndb, m_thd, ndb_err,
+                      std::function<decltype(scan_snapshot)>(scan_snapshot),
+                      this);
+  return log_message_on_error(r, ndb_err);
 }
 
 /* read_snapshot()
@@ -501,27 +507,40 @@ const NdbError *store_snapshot(NdbTransaction *tx, ThreadContext *ctx) {
 */
 const NdbError *ThreadContext::write_snapshot(NdbTransaction *tx) {
   Mem_root_array<char *> read_results(&mem_root);
+  Mem_root_array<const NdbOperation *> read_ops(&mem_root);
 
   /* When updating users, it may be necessary to delete some extra grants */
   if (m_read_keys.size()) {
     for (char *row : m_read_keys) {
       char *result = getBuffer(metadata_table.getNoteSize());
       read_results.push_back(result);
-      Buffer::readTupleExclusive(row, result, tx);
+      const NdbOperation *op = Buffer::readTupleExclusive(row, result, tx);
+      read_ops.push_back(op);
     }
 
     if (tx->execute(NoCommit)) return &tx->getNdbError();
 
     DBUG_ASSERT(m_read_keys.size() == m_grant_count.size());
     for (size_t i = 0; i < m_read_keys.size(); i++) {
-      unsigned int note;
-      if (metadata_table.getNote(read_results[i], &note)) {
-        for (int n = note - 1; n >= m_grant_count[i]; n--) {
-          char *key = Key(m_read_keys[i]);          // Make a copy of the key,
-          metadata_table.setType(key, TYPE_GRANT);  // ... modify it,
-          metadata_table.setSeq(key, n);
-          Buffer::deleteTuple(key, tx);  // ... and use it to delete the GRANT.
-        }
+      unsigned int n_stored_grants;
+      const NdbError &op_error = read_ops[i]->getNdbError();
+      if (op_error.code != 0) {
+        ndb_log_error("Error %d, %s [reading user record]", op_error.code,
+                      op_error.message);
+        continue;
+      }
+      if (!metadata_table.getNote(read_results[i], &n_stored_grants)) {
+        ndb_log_error("Unexpected NULL in ndb_sql_metadata table");
+        continue;
+      }
+
+      ndb_log_verbose(9, "Deleting extra grants -- old %d, new %d",
+                      n_stored_grants, m_grant_count[i]);
+      for (int n = n_stored_grants - 1; n >= m_grant_count[i]; n--) {
+        char *key = Key(m_read_keys[i]);          // Make a copy of the key,
+        metadata_table.setType(key, TYPE_GRANT);  // ... modify it,
+        metadata_table.setSeq(key, n);
+        Buffer::deleteTuple(key, tx);  // ... and use it to delete the GRANT.
       }
     }
   }
@@ -548,10 +567,11 @@ const NdbError *ThreadContext::write_snapshot(NdbTransaction *tx) {
 
 bool ThreadContext::write_snapshot() {
   NdbError ndb_err;
-  ndb_trans_retry(m_thd_ndb->ndb, m_thd, ndb_err,
-                  std::function<decltype(store_snapshot)>(store_snapshot),
-                  this);
-  return log_message_on_error(ndb_err);
+  bool r;
+  r = ndb_trans_retry(m_thd_ndb->ndb, m_thd, ndb_err,
+                      std::function<decltype(store_snapshot)>(store_snapshot),
+                      this);
+  return log_message_on_error(r, ndb_err);
 }
 
 void ThreadContext::update_user(std::string user) {
