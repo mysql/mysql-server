@@ -99,7 +99,8 @@ void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,
     const std::vector<std::pair<std::string, unsigned>> &gr_members_ports,
-    const mysqlrouter::MetadataSchemaVersion &metadata_version) {
+    const mysqlrouter::MetadataSchemaVersion &metadata_version,
+    const std::string &cluster_specific_id) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
   json_doc.AddMember(
@@ -124,6 +125,11 @@ void set_mock_bootstrap_data(
   md_version.PushBack(static_cast<int>(metadata_version.minor), allocator);
   md_version.PushBack(static_cast<int>(metadata_version.patch), allocator);
   json_doc.AddMember("metadata_version", md_version, allocator);
+
+  json_doc.AddMember("cluster_specific_id",
+                     JsonValue(cluster_specific_id.c_str(),
+                               cluster_specific_id.length(), allocator),
+                     allocator);
 
   const auto json_str = json_to_string(json_doc);
 

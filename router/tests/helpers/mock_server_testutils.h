@@ -89,7 +89,8 @@ void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,
     const std::vector<std::pair<std::string, unsigned>> &gr_members_ports,
-    const mysqlrouter::MetadataSchemaVersion &metadata_version);
+    const mysqlrouter::MetadataSchemaVersion &metadata_version,
+    const std::string &cluster_specific_id);
 
 /**
  * Converts JSON object to string representation.

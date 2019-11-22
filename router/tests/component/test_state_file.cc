@@ -1187,7 +1187,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   // what the bootstrap server has reported
   const std::string state_file = temp_test_dir.name() + "/data/state.json";
   EXPECT_TRUE(
-      check_state_file(state_file, "replication-1",
+      check_state_file(state_file, "cluster-specific-id",
                        {"mysql://localhost:5500", "mysql://localhost:5510",
                         "mysql://localhost:5520"}))
       << get_file_output(state_file);
@@ -1255,7 +1255,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   const std::string state_file =
       RouterSystemLayout::tmp_dir_ + "/stage/var/lib/mysqlrouter/state.json";
   EXPECT_TRUE(
-      check_state_file(state_file, "replication-1",
+      check_state_file(state_file, "cluster-specific-id",
                        {"mysql://localhost:5500", "mysql://localhost:5510",
                         "mysql://localhost:5520"}))
       << get_file_output(state_file);

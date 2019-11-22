@@ -132,6 +132,11 @@ class ClusterMetadata {
   virtual std::vector<std::string> get_grant_statements(
       const std::string &new_accounts) const = 0;
 
+  virtual std::vector<std::tuple<std::string, unsigned long>>
+  fetch_cluster_hosts() = 0;
+
+  MySQLSession &get_session() { return *mysql_; }
+
  protected:
   // throws MySQLSession::Error, std::out_of_range, std::logic_error
   virtual bool check_metadata_is_supported() = 0;
@@ -155,6 +160,9 @@ class ClusterMetadataGR : public ClusterMetadata {
   std::string get_cluster_type_specific_id() override;
 
   void require_cluster_is_ok() override;
+
+  std::vector<std::tuple<std::string, unsigned long>> fetch_cluster_hosts()
+      override;
 };
 
 class ClusterMetadataGRV1 : public ClusterMetadataGR {
@@ -281,6 +289,9 @@ class ClusterMetadataAR : public ClusterMetadata {
 
   std::vector<std::string> get_grant_statements(
       const std::string &new_accounts) const override;
+
+  std::vector<std::tuple<std::string, unsigned long>> fetch_cluster_hosts()
+      override;
 
  protected:
   bool check_metadata_is_supported() override;

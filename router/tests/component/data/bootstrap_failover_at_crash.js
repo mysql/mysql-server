@@ -13,6 +13,8 @@ var options = {
 
 var common_responses = common_stmts.prepare_statement_responses([
   "router_start_transaction",
+  "router_select_replication_group_name",
+  "router_select_cluster_id_v2_ar",
 ], options);
 
 var common_responses_regex = common_stmts.prepare_statement_responses_regex([

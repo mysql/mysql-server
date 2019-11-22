@@ -516,6 +516,35 @@ void ClusterMetadataGR::require_cluster_is_ok() {
   }
 }
 
+std::vector<std::tuple<std::string, unsigned long>>
+ClusterMetadataGR::fetch_cluster_hosts() {
+  // Query the name of the replicaset, the servers in the replicaset and the
+  // router credentials using the URL of a server in the replicaset.
+  //
+  // order by member_role (in 8.0 and later) to sort PRIMARY over SECONDARY
+  const std::string query =
+      "SELECT member_host, member_port "
+      "  FROM performance_schema.replication_group_members "
+      " /*!80002 ORDER BY member_role */";
+
+  try {
+    std::vector<std::tuple<std::string, unsigned long>> gr_servers;
+
+    mysql_->query(
+        query, [&gr_servers](const std::vector<const char *> &row) -> bool {
+          gr_servers.push_back(
+              std::make_tuple(std::string(row[0]), std::stoul(row[1])));
+          return true;  // don't stop
+        });
+
+    return gr_servers;
+  } catch (const MySQLSession::Error &e) {
+    // log_error("MySQL error: %s (%u)", e.what(), e.code());
+    // log_error("    Failed query: %s", query.str().c_str());
+    throw std::runtime_error("Error querying metadata: "s + e.what());
+  }
+}
+
 std::string ClusterMetadataGR::get_cluster_type_specific_id() {
   std::string q = "select @@group_replication_group_name";
 
@@ -751,6 +780,31 @@ std::vector<std::string> ClusterMetadataAR::get_routing_mode_queries(
           "mysql_innodb_cluster_metadata.v2_gr_clusters C on I.cluster_id = "
           "C.cluster_id where C.cluster_name = " +
           mysql_->quote(cluster_name) + ";"};
+}
+
+std::vector<std::tuple<std::string, unsigned long>>
+ClusterMetadataAR::fetch_cluster_hosts() {
+  // Query the name of the cluster, and the instance addresses
+  const std::string query =
+      "select i.address from "
+      "mysql_innodb_cluster_metadata.v2_instances i join "
+      "mysql_innodb_cluster_metadata.v2_clusters c on c.cluster_id = "
+      "i.cluster_id";
+
+  try {
+    std::vector<std::tuple<std::string, unsigned long>> ar_servers;
+
+    mysql_->query(query,
+                  [&ar_servers](const std::vector<const char *> &row) -> bool {
+                    mysqlrouter::URI u("mysql://"s + row[0]);
+                    ar_servers.push_back(std::make_tuple(u.host, u.port));
+                    return true;  // don't stop
+                  });
+
+    return ar_servers;
+  } catch (const MySQLSession::Error &e) {
+    throw std::runtime_error("Error querying metadata: "s + e.what());
+  }
 }
 
 static ClusterType get_cluster_type(MySQLSession *mysql) {
