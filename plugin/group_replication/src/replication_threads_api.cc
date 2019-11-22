@@ -354,3 +354,8 @@ int Replication_thread_api::rpl_channel_stop_all(int threads_to_stop,
   }
   return error;
 }
+
+int Replication_thread_api::rpl_binlog_dump_thread_kill() {
+  DBUG_TRACE;
+  return binlog_dump_thread_kill();
+}

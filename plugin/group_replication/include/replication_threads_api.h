@@ -320,6 +320,16 @@ class Replication_thread_api {
   static int rpl_channel_stop_all(int threads_to_stop, long timeout);
 
   /**
+    Interface to kill binlog dump thread.
+    Kills binlog dump thread thus killing all slave connections.
+    @note binlog dump GTID thread is not killed as of now.
+
+    @return the operation status
+      @retval 0      OK
+  */
+  static int rpl_binlog_dump_thread_kill();
+
+  /**
     Method to get the credentials configured for a channel
 
     @param[out] username      The user to extract

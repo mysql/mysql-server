@@ -191,6 +191,14 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
 int channel_stop(const char *channel, int threads_to_stop, long timeout);
 
 /**
+  Kills the Binlog Dump threads.
+
+  @return the operation status
+    @retval 0      OK
+*/
+int binlog_dump_thread_kill();
+
+/**
   Stops all the running channel threads according to the given options.
 
   @param threads_to_stop      The types of threads to be stopped

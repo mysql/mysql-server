@@ -671,6 +671,7 @@ err:
 
     auto modules_to_terminate = gr_modules::all_modules;
     modules_to_terminate.reset(gr_modules::ASYNC_REPL_CHANNELS);
+    modules_to_terminate.reset(gr_modules::BINLOG_DUMP_THREAD_KILL);
     leave_group_and_terminate_plugin_modules(modules_to_terminate, nullptr);
 
     if (!lv.server_shutdown_status && server_engine_initialized() &&
@@ -1351,6 +1352,8 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
       if (!error) error = GROUP_REPLICATION_COMMAND_FAILURE;
     }
   }
+  if (modules_to_terminate[gr_modules::BINLOG_DUMP_THREAD_KILL])
+    Replication_thread_api::rpl_binlog_dump_thread_kill();
 
   /*
     Group Partition Handler module.
@@ -1430,6 +1433,7 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
+  modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
   /*
     The first step is to issue a GCS leave() operation. This is done because
     the join() operation will assume that the GCS layer is not initiated and

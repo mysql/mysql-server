@@ -105,6 +105,7 @@ void leave_group_on_failure::leave(
   Replication_thread_api::rpl_channel_stop_all(
       CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD,
       get_components_stop_timeout_var());
+  Replication_thread_api::rpl_binlog_dump_thread_kill();
 
   if (!actions[leave_group_on_failure::ALREADY_LEFT_GROUP]) {
     longlong errcode = 0;

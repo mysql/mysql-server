@@ -30,6 +30,7 @@
 #include <sstream>
 #include <utility>
 
+#include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -583,6 +584,29 @@ int channel_stop_all(int threads_to_stop, long timeout,
 
   channel_map.unlock();
   return error;
+}
+
+class Kill_binlog_dump : public Do_THD_Impl {
+ public:
+  Kill_binlog_dump() {}
+
+  virtual void operator()(THD *thd_to_kill) {
+    if (thd_to_kill->get_command() == COM_BINLOG_DUMP ||
+        thd_to_kill->get_command() == COM_BINLOG_DUMP_GTID) {
+      DBUG_ASSERT(thd_to_kill != current_thd);
+      MUTEX_LOCK(thd_data_lock, &thd_to_kill->LOCK_thd_data);
+      thd_to_kill->duplicate_slave_id = true;
+      thd_to_kill->awake(THD::KILL_CONNECTION);
+    }
+  }
+};
+
+int binlog_dump_thread_kill() {
+  DBUG_TRACE;
+  Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
+  Kill_binlog_dump kill_binlog_dump;
+  thd_manager->do_for_all_thd(&kill_binlog_dump);
+  return 0;
 }
 
 int channel_purge_queue(const char *channel, bool reset_all) {
