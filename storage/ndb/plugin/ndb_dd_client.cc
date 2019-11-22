@@ -37,7 +37,8 @@
 #include "sql/dd/types/table.h"
 #include "sql/query_options.h"  // OPTION_AUTOCOMMIT
 #include "sql/sql_class.h"      // THD
-#include "sql/sql_trigger.h"    // remove_all_triggers_from_perfschema
+#include "sql/sql_table.h"
+#include "sql/sql_trigger.h"  // remove_all_triggers_from_perfschema
 #include "sql/system_variables.h"
 #include "sql/transaction.h"            // trans_*
 #include "storage/ndb/plugin/ndb_dd.h"  // ndb_dd_fs_name_case
@@ -448,6 +449,17 @@ bool Ndb_dd_client::rename_table(
     return false;
   }
 
+  // Collect and lock all the tables referencing this table,
+  // referenced by this table and the foreign key names.
+  // Note : This re-attempts to lock the referenced tables that were already
+  //        locked by fetch_referenced_tables_to_invalidate(). This will be
+  //        fixed when Bug#30500825 gets fixed.
+  if (collect_and_lock_fk_tables_for_rename_table(
+          m_thd, old_schema_name, old_table_name, to_table_def, new_schema_name,
+          new_table_name, ndbcluster_hton, nullptr)) {
+    return false;
+  }
+
   // Set schema id and table name
   to_table_def->set_schema_id(new_schema->id());
   to_table_def->set_name(new_table_name);
@@ -463,10 +475,29 @@ bool Ndb_dd_client::rename_table(
     return false;
   }
 
+  // Adjust parent table for self-referencing foreign keys.
+  dd::Table::Foreign_key_collection *foreign_keys =
+      to_table_def->foreign_keys();
+  for (dd::Foreign_key *fk : *foreign_keys) {
+    if (strcmp(fk->referenced_table_schema_name().c_str(), old_schema_name) ==
+            0 &&
+        strcmp(fk->referenced_table_name().c_str(), old_table_name) == 0) {
+      fk->set_referenced_table_schema_name(new_schema_name);
+      fk->set_referenced_table_name(new_table_name);
+    }
+  }
+
   // Save table in DD
   if (m_client->update(to_table_def)) {
     // Failed to save, unexpected
     DBUG_ASSERT(false);
+    return false;
+  }
+
+  // Update the foreign key information of tables referencing this table in DD
+  if (adjust_fks_for_rename_table(m_thd, old_schema_name, old_table_name,
+                                  new_schema_name, new_table_name,
+                                  ndbcluster_hton)) {
     return false;
   }
 

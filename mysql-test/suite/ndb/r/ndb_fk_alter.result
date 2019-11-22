@@ -289,3 +289,56 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 DROP TABLE t2, t1;
+#
+# Bug#30233405 SELF REFERENTIAL FKS ARE LOST WHEN THE TABLE IS ALTERED USING COPY ALGORITHM
+#
+# Setup
+CREATE TABLE self_ref (
+pk INT PRIMARY KEY,
+parent_col INT UNIQUE,
+child_col INT,
+FOREIGN KEY fk1(child_col) REFERENCES self_ref(parent_col)
+) ENGINE NDB;
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `pk` int NOT NULL,
+  `parent_col` int DEFAULT NULL,
+  `child_col` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `parent_col` (`parent_col`),
+  KEY `fk1` (`child_col`),
+  CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+INSERT INTO self_ref VALUES(1, 1, NULL);
+INSERT INTO self_ref VALUES(2, 2, 1);
+INSERT INTO self_ref VALUES(3, 3, 6);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+DELETE FROM self_ref WHERE parent_col = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# Perform a COPY ALTER
+SET foreign_key_checks= 0;
+ALTER TABLE self_ref
+ADD COLUMN dummy INT,
+ALGORITHM=COPY;
+SET foreign_key_checks= 1;
+# Verify the foreign keys
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `pk` int NOT NULL,
+  `parent_col` int DEFAULT NULL,
+  `child_col` int DEFAULT NULL,
+  `dummy` int DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `parent_col` (`parent_col`),
+  KEY `fk1` (`child_col`),
+  CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+INSERT INTO self_ref VALUES(3, 3, 1, 0);
+INSERT INTO self_ref VALUES(4, 4, 8, 0);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+DELETE FROM self_ref WHERE parent_col = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `self_ref_fk_1` FOREIGN KEY (`child_col`) REFERENCES `self_ref` (`parent_col`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+# Cleanup
+DROP TABLE self_ref;

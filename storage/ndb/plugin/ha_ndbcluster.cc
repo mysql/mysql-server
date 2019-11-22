@@ -73,6 +73,7 @@
 #include "storage/ndb/plugin/ndb_ddl_transaction_ctx.h"
 #include "storage/ndb/plugin/ndb_dist_priv_util.h"
 #include "storage/ndb/plugin/ndb_event_data.h"
+#include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
@@ -9230,10 +9231,10 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     }
 
     /* save the foreign key information in fk_list */
-    int err;
-    if ((err = get_fk_data_for_truncate(dict, ndbtab_g.get_table(),
-                                        fk_list_for_truncate)))
-      return err;
+    if (!retrieve_foreign_key_list_from_ndb(dict, ndbtab_g.get_table(),
+                                            &fk_list_for_truncate)) {
+      ERR_RETURN(dict->getNdbError());
+    }
 
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
     const int drop_result = drop_table_impl(
@@ -9820,10 +9821,10 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     }
   }
 
-  if (!fk_list_for_truncate.is_empty()) {
+  if (!fk_list_for_truncate.empty()) {
     // create foreign keys from the list extracted from old table
     const int recreate_fk_result =
-        recreate_fk_for_truncate(thd, ndb, m_tabname, fk_list_for_truncate);
+        recreate_fk_for_truncate(thd, ndb, m_tabname, &fk_list_for_truncate);
     if (recreate_fk_result != 0) {
       return recreate_fk_result;
     }
@@ -10176,6 +10177,12 @@ extern void ndb_fk_util_resolve_mock_tables(THD *thd,
                                             const char *new_parent_db,
                                             const char *new_parent_name);
 
+extern int ndb_fk_util_rename_foreign_keys(
+    THD *thd, NdbDictionary::Dictionary *dict,
+    const NdbDictionary::Table *renamed_table,
+    const std::string &old_table_name, const std::string &new_db_name,
+    const std::string &new_table_name);
+
 int rename_table_impl(THD *thd, Ndb *ndb,
                       Ndb_schema_dist_client *schema_dist_client,
                       const NdbDictionary::Table *orig_tab,
@@ -10337,13 +10344,14 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   // Release the unused old_key
   NDB_SHARE::free_key(old_key);
 
+  // Load the altered table
+  Ndb_table_guard ndbtab_g(dict, new_tabname);
+  const NDBTAB *ndbtab = ndbtab_g.get_table();
+
   if (!rollback_in_progress) {
     // This is an actual rename and not a rollback of the rename
     // Fetch the new table version and write it to the table definition,
     // the caller will then save it into DD
-    Ndb_table_guard ndbtab_g(dict, new_tabname);
-    const NDBTAB *ndbtab = ndbtab_g.get_table();
-
     // The id should still be the same as before the rename
     DBUG_ASSERT(ndbtab->getObjectId() == ndb_table_id);
     // The version should have been changed by the rename
@@ -10409,6 +10417,18 @@ int rename_table_impl(THD *thd, Ndb *ndb,
 
   if (real_rename) {
     /*
+      This is a real rename - either the final phase of a copy alter involving
+      a table rename or a simple rename. In either case, the generated names
+      of foreign keys has to be renamed.
+     */
+    int error;
+    NdbDictionary::Dictionary *dict = ndb->getDictionary();
+    if ((error = ndb_fk_util_rename_foreign_keys(
+             thd, dict, ndbtab, real_rename_name, new_dbname, new_tabname))) {
+      return error;
+    }
+
+    /*
       Commit of "real" rename table on participant i.e make the participant
       extract the original table name which it got in prepare.
 
@@ -10438,6 +10458,16 @@ int rename_table_impl(THD *thd, Ndb *ndb,
       // other MySQL Servers, just log error and continue
       ndb_log_error("Failed to distribute rename for '%s'", real_rename_name);
     }
+
+    DBUG_EXECUTE_IF("ndb_simulate_failure_after_table_rename", {
+      // Simulate failure after the table has been renamed.
+      // This can either be an ALTER RENAME (with COPY or INPLACE algorithm)
+      // or a simple RENAME.
+      my_error(ER_INTERNAL_ERROR, MYF(0),
+               "Simulated : Failed after renaming the table.");
+      DBUG_SET("-d,ndb_simulate_failure_after_table_rename");
+      return ER_INTERNAL_ERROR;
+    });
   }
 
   if (commit_alter) {

@@ -128,8 +128,7 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
   /* Various parameters to send to rename_table_impl.
      Deduct all these from the available information */
   bool real_rename = false;
-  const char *real_rename_db = nullptr;
-  const char *real_rename_table = nullptr;
+  std::string real_rename_db_buff, real_rename_table_buff;
   bool distribute_table_changes = false;
   bool new_table_name_is_temp = ndb_name_is_temp(new_table_name);
   bool old_table_name_is_temp = ndb_name_is_temp(old_table_name);
@@ -141,12 +140,16 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
   const bool drop_events = !new_table_name_is_temp;
   const bool create_events = !old_table_name_is_temp;
 
+  /* Deduce the real rename parameter values. They are set only when a real
+     rename, during the actual DDL transaction, got distributed to the
+     participants. When these are set during rollback, they distribute the
+     rollback of the table rename to the participants. */
   if (ddl_stmt.has_been_distributed() && !old_table_name_is_temp &&
       !new_table_name_is_temp) {
     /* This stmt was a simple RENAME and was distributed successfully. */
     real_rename = true;
-    real_rename_db = new_db_name;
-    real_rename_table = new_table_name;
+    real_rename_db_buff = new_db_name;
+    real_rename_table_buff = new_table_name;
     distribute_table_changes = true;
   } else if (!old_table_name_is_temp && new_table_name_is_temp) {
     /* This is the first rename of a COPY ALTER. It renamed the old table from
@@ -167,8 +170,8 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
           (final_table_name.compare(old_table_name) != 0)) {
         /* The actual ALTER renamed the table. */
         real_rename = true;
-        real_rename_db = final_db_name.c_str();
-        real_rename_table = final_table_name.c_str();
+        real_rename_db_buff = final_db_name;
+        real_rename_table_buff = final_table_name;
       }
     }
     /* Always distribute this phase of ALTER during rollback - this is to
@@ -176,6 +179,11 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
        version after rollback. */
     distribute_table_changes = true;
   }
+
+  const char *real_rename_db =
+      real_rename_db_buff.empty() ? nullptr : real_rename_db_buff.c_str();
+  const char *real_rename_table =
+      real_rename_table_buff.empty() ? nullptr : real_rename_table_buff.c_str();
 
   /* Prepare the schema client if required */
   bool schema_dist_prepared = false;

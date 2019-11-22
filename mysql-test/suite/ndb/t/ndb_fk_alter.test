@@ -214,3 +214,42 @@ SHOW CREATE TABLE t2;
 
 DROP TABLE t2, t1;
 
+--echo #
+--echo # Bug#30233405 SELF REFERENTIAL FKS ARE LOST WHEN THE TABLE IS ALTERED USING COPY ALGORITHM
+--echo #
+
+--echo # Setup
+CREATE TABLE self_ref (
+  pk INT PRIMARY KEY,
+  parent_col INT UNIQUE,
+  child_col INT,
+  FOREIGN KEY fk1(child_col) REFERENCES self_ref(parent_col)
+) ENGINE NDB;
+
+SHOW CREATE TABLE self_ref;
+INSERT INTO self_ref VALUES(1, 1, NULL);
+INSERT INTO self_ref VALUES(2, 2, 1);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO self_ref VALUES(3, 3, 6);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM self_ref WHERE parent_col = 1;
+
+--echo # Perform a COPY ALTER
+# Turn off foreign key checks during ALTER as the rows might not be
+# copied in order and hence might not be FK consistent.
+SET foreign_key_checks= 0;
+ALTER TABLE self_ref
+  ADD COLUMN dummy INT,
+  ALGORITHM=COPY;
+SET foreign_key_checks= 1;
+
+--echo # Verify the foreign keys
+SHOW CREATE TABLE self_ref;
+INSERT INTO self_ref VALUES(3, 3, 1, 0);
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO self_ref VALUES(4, 4, 8, 0);
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM self_ref WHERE parent_col = 1;
+
+--echo # Cleanup
+DROP TABLE self_ref;
