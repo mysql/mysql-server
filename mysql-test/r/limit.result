@@ -656,3 +656,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `f1` from `test`.`t1` where (((`test`.`t1`.`col_int_key` not between 10 and 15) or (`test`.`t1`.`col_varchar_key` < '2')) and (`test`.`t1`.`col_int_key` is null)) group by `f1` limit 100
 DROP TABLE t1;
+#
+# Bug#30521803: LIMIT CLAUSE OUTSIDE PARENTHESES CAN SUPPRESS ORDERING
+#               CLAUSES INSIDE
+#
+CREATE TEMPORARY TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+# All 3 queries below should return the same result:
+SELECT * FROM (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) AS alias LIMIT 2;
+i
+5
+4
+(SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+i
+5
+4
+WITH cte AS (SELECT 1) (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+i
+5
+4
+DROP TABLE t1;

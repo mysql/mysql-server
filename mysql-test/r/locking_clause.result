@@ -328,3 +328,23 @@ COMMIT;
 DROP TABLE t1;
 DROP USER test@localhost;
 DROP USER test2@localhost;
+#
+# Bug#30521098: LIMIT CLAUSE CAN SUPPRESS LOCKING CLAUSES
+#
+CREATE USER user_1@localhost;
+GRANT CREATE, SELECT, UPDATE on *.* to user_1@localhost;
+CREATE USER user_2@localhost;
+GRANT CREATE, SELECT, UPDATE on *.* to user_2@localhost;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+BEGIN;
+(SELECT * FROM t1 FOR UPDATE) LIMIT 1;
+a
+1
+BEGIN;
+SELECT * FROM t1 FOR UPDATE NOWAIT;
+ERROR HY000: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+COMMIT;
+DROP TABLE t1;
+DROP USER user_1@localhost;
+DROP USER user_2@localhost;

@@ -332,3 +332,21 @@ SELECT col_varchar_key AS f1
   GROUP BY f1 LIMIT 100;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30521803: LIMIT CLAUSE OUTSIDE PARENTHESES CAN SUPPRESS ORDERING
+--echo #               CLAUSES INSIDE
+--echo #
+
+CREATE TEMPORARY TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+
+--echo # All 3 queries below should return the same result:
+
+SELECT * FROM (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) AS alias LIMIT 2;
+
+(SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+
+WITH cte AS (SELECT 1) (SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 2;
+
+DROP TABLE t1;

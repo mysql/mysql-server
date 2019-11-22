@@ -9119,26 +9119,20 @@ query_expression:
           limit_clause
           opt_locking_clause_list
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_query_expression($1->body(), NULL, $2, $3);
+            $$ = NEW_PTN PT_query_expression($1, nullptr, $2, $3);
           }
         | with_clause
           query_expression_parens
           limit_clause
           opt_locking_clause_list
           {
-            if ($2 == NULL)
-              MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_query_expression($1, $2->body(), NULL, $3, $4);
+            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, $3, $4);
           }
         | with_clause
           query_expression_parens
           opt_locking_clause_list
           {
-            if ($2 == NULL)
-              MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_query_expression($1, $2->body(), NULL, NULL, $3);
+            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, nullptr, $3);
           }
         ;
 
